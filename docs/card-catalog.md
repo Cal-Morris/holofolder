@@ -44,3 +44,11 @@ CATALOG_TEST_DATABASE_URL=postgresql://localhost/disposable_catalog bun test tes
 ```
 
 The integration test refuses non-local hosts and rolls back its fixtures.
+
+## Global application identity (#509)
+
+`tcg_cards.id`, `tcg_sets.id` and `tcg_series.id` are globally unique opaque application IDs, not provider-local keys that another game can reuse. Canonical IDs and reviewed aliases share this global application namespace. All existing real IDs and rows remain unchanged. Catalog REST/MCP card/set/series projections declare `game:"pokemon"`; nested card set summaries do too. Only Pokémon is implemented and no game selector is offered.
+
+External evidence is scoped by `(game, source, provider-local ID)`. Equal local values from TCGplayer and Cardmarket do not identify the same printing; neither is an application alias. Future ingestion must allocate collision-free application IDs for every card/set/series, namespace provider-local evidence by game/source, and reject collisions or ambiguous/cross-identity aliases before writing the existing global primary keys. Adding game to every inventory/slot identity would not solve PK collisions. There is no new storage model or speculative provider framework here.
+
+Matching accepts only the catalog's explicit ID/canonical/alias evidence, never name, species number or provider-local product ID as a printing ID. The inventory adapter rejects a resolver returning an unrelated printing. A Pokémon species target still requires actual dex membership; generic card/free targets accept Trainers/Energy without dex links. Public import resolution remains a legacy Pokémon-row import helper, not generic physical-copy ingestion.

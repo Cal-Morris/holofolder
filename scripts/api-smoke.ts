@@ -1,4 +1,5 @@
 // Real HTTP checks against disposable, explicitly labelled accounts. Never uses a personal collection.
+import { withAuditActor, withLegacyQueueAudit } from '../lib/server/audit-context'
 import {writeFile} from 'node:fs/promises'
 import assert from 'node:assert/strict'
 import {AwsClient} from 'aws4fetch'
@@ -98,7 +99,7 @@ async function main() {
   await db.query("INSERT INTO public.pokemon_collection(user_id,binder_id,pokemon_id,pokemon_name,status) SELECT $1,$2,n,'Synthetic performance slot '||n,'considering' FROM generate_series(1,1010) n",[owner.id,defaultBinder])
   await read('list_languages');await read('list_cards');await read('get_card',{id:'base1-1'})
   await read('list_sets');await read('get_set',{id:'base1'});await read('list_series');await read('get_series',{id:'base'})
-  await read('list_pokemon');await read('get_pokemon',{id:'1'});await read('list_illustrators');await read('get_set_slots',{id:'base1'})
+  await read('list_pokemon');await read('get_pokemon',{id:'1'});await read('list_illustrators');await read('get_pokemon_set_slots',{id:'base1'})
   const listed=await read('list_binders')
   assert.equal(record((listed.binders as unknown[])[0]).slotCount,1010,'Grouped counts must include the entire collection')
   const created=await call('create_binder',{name:'Synthetic performance binder',idempotencyKey:runId})
@@ -106,19 +107,21 @@ async function main() {
   await call('update_binder',{id:binderId,name:'Synthetic renamed performance binder'})
   const binderRows=[...((listed.binders??[]) as Array<{id:string}>).map(b=>b.id),binderId]
   await call('reorder_binders',{order:binderRows.reverse()})
-  const collection=await read('list_collection',{binderId:defaultBinder,limit:100})
-  const slot=record((collection.data as unknown[])[0])
-  const secondPage=await call('list_collection',{binderId:defaultBinder,limit:100,cursor:collection.nextCursor},owner,0,'pagination')
-  assert.equal(record((secondPage.data as unknown[])[0]).pokemon_id,101,'Pagination must advance without duplicates')
-  const saveInput={binderId:defaultBinder,pokemonId:1,pokemonName:'Bulbasaur',status:'collected',cardId:'base1-44',cardName:'Bulbasaur',cardLanguage:'en',cardFinish:'normal',wantedCards:[],baseFingerprint:slot.fingerprint}
-  await call('save_collection_item',saveInput)
-  await call('save_collection_item',saveInput,owner,0,'stale-fingerprint',409)
-  await call('list_collection',{binderId:defaultBinder},partner,0,'cross-owner-denial',404)
-  const saved=await call('list_collection',{binderId:defaultBinder})
-  await call('delete_collection_item',{binderId:defaultBinder,pokemonId:1,baseFingerprint:record((saved.data as unknown[])[0]).fingerprint})
+  const settings=await read('get_settings',{binderId:defaultBinder})
+  const settingsInput={...record(settings.settings),binderId:defaultBinder,baseFingerprint:settings.fingerprint}
+  const settingsSchema=DEVELOPER_OPERATIONS.find(op=>op.name==='update_settings')!.schema
+  assert.ok('shape' in settingsSchema)
+  await call('update_settings',Object.fromEntries(Object.keys(settingsSchema.shape).map(key=>[key,record(settingsInput)[key]])))
+  // Seed a legacy recovery event through the retained internal CAS RPC. This is
+  // disposable fixture setup, not restored public species-row dispatch.
+  const previous = await admin.from('pokemon_collection').select('*').eq('user_id',owner.id).eq('binder_id',defaultBinder).eq('pokemon_id',1).single()
+  assert.equal(previous.error,null);assert.ok(previous.data)
+  const deletion = await withAuditActor(owner.id, () => withLegacyQueueAudit(async () => await admin.rpc('developer_delete_collection',
+   {actor:owner.id,owner_id:owner.id,binder:defaultBinder,pokemon:1,expected:previous.data})))
+  assert.equal(deletion.error,null);assert.equal(deletion.data?.deleted,true)
   const removed=await call('list_collection_audit',{collectionId:defaultBinder,pokemonId:1,limit:1})
   const removedEvent=record((removed.data as unknown[])[0])
-  assert.equal(removedEvent.action,'collection_item','Recovery must target the fixture card deletion')
+  assert.equal(removedEvent.action,'collection_item','Recovery must target the fixture deletion')
   const preview=await call('preview_collection_recovery',{eventId:removedEvent.id,restoreUnassignedItemIds:[]})
   assert.equal(preview.supported,true);assert.deepEqual(preview.conflicts,[]);assert.equal(preview.rootRevisionsAdvance,false)
   assert.equal(typeof preview.planToken,'string','Fixture recovery must produce a usable reviewed plan')
@@ -129,11 +132,6 @@ async function main() {
   assert.equal(record((linked.data as unknown[])[0]).id,undo.eventId,'Undo must be linked from the original event')
   const restored=await call('get_collection_audit',{id:undo.eventId})
   assert.equal(restored.recovery_of_event_id,removedEvent.id)
-  const settings=await read('get_settings',{binderId:defaultBinder})
-  const settingsInput={...record(settings.settings),binderId:defaultBinder,baseFingerprint:settings.fingerprint}
-  const settingsSchema=DEVELOPER_OPERATIONS.find(op=>op.name==='update_settings')!.schema
-  assert.ok('shape' in settingsSchema)
-  await call('update_settings',Object.fromEntries(Object.keys(settingsSchema.shape).map(key=>[key,record(settingsInput)[key]])))
   await read('get_identity');await call('update_identity',{username:label,displayName:'Synthetic performance fixture'})
   await read('get_binder_identity',{binderId})
   await call('update_binder_identity',{binderId,slug:label})
@@ -145,7 +143,7 @@ async function main() {
   await read('get_prices',{cards});await read('get_price_history',{id:'base1-1'})
   const history=await read('list_collection_audit',{})
   if(Array.isArray(history.data)&&history.data.length)await read('get_collection_audit',{id:record(history.data[0]).id})
-  await read('get_collection_analytics',{cardId:'base1-1'})
+  await read('get_legacy_pokemon_analytics',{cardId:'base1-1'})
   await read('resolve_import',{lookups:[{cardId:'base1-1',language:'en',finish:'holo',list:'owned'}]})
   await read('check_deal',{cardId:'base1-1',language:'en',askingPrice:50,currency:'GBP'})
   await read('get_price_checks',{id:'base1-1',finish:'holo'})

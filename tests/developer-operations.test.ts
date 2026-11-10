@@ -13,7 +13,6 @@ test('operation inputs reject excess fields, oversized batches and missing write
  assert.equal(schema('list_cards').safeParse({limit:101}).success,false)
  assert.equal(schema('list_cards').safeParse({ownerId:'someone-else'}).success,false)
  assert.equal(schema('create_binder').safeParse({name:'Synthetic binder'}).success,false)
- assert.equal(schema('delete_collection_item').safeParse({binderId:crypto.randomUUID(),pokemonId:1}).success,false)
  assert.equal(schema('get_prices').safeParse({cards:Array.from({length:26},()=>({cardId:'base1-1'}))}).success,false)
 })
 

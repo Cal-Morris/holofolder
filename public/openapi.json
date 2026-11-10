@@ -16340,7 +16340,7 @@
       "get": {
         "operationId": "list_cards",
         "summary": "Search cards",
-        "description": "Browse and search the card catalog with pagination.\n\nRequired permissions: `catalog:read`. MCP tool: `list_cards`.",
+        "description": "Browse all card printings, including Trainers and Energy, with pagination. Records declare game:pokemon; IDs are globally unique opaque application IDs, not provider-local keys.\n\nRequired permissions: `catalog:read`. MCP tool: `list_cards`.",
         "tags": [
           "Catalog"
         ],
@@ -16438,37 +16438,605 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                          },
+                          "game": {
+                            "type": "string",
+                            "const": "pokemon"
+                          },
+                          "canonicalId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                          },
+                          "aliasIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                            }
+                          },
+                          "localId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "names": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "language": {
+                            "type": "string"
+                          },
+                          "set": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                              },
+                              "game": {
+                                "type": "string",
+                                "const": "pokemon"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "officialCardCount": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "releaseDate": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "game",
+                              "name",
+                              "officialCardCount",
+                              "releaseDate"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "seriesId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                          },
+                          "category": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "rarity": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "hp": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "illustrator": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "types": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "variants": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "type": "boolean"
+                            }
+                          },
+                          "externalIds": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "description": "Provider-local IDs keyed by source, scoped to this record game. Not application IDs or aliases."
+                          },
+                          "details": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "artworkRef": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "image": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "imageAvailability": {
+                            "type": "string",
+                            "enum": [
+                              "available",
+                              "missing",
+                              "unavailable"
+                            ]
+                          },
+                          "imageLanguage": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "attribution": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "game",
+                          "canonicalId",
+                          "aliasIds",
+                          "localId",
+                          "name",
+                          "names",
+                          "language",
+                          "set",
+                          "seriesId",
+                          "category",
+                          "rarity",
+                          "hp",
+                          "illustrator",
+                          "types",
+                          "variants",
+                          "externalIds",
+                          "details",
+                          "artworkRef",
+                          "image",
+                          "imageAvailability",
+                          "imageLanguage",
+                          "attribution"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
           },
           "400": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "402": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "403": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "404": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "409": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "413": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "422": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "429": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "503": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -16477,7 +17045,7 @@
       "get": {
         "operationId": "get_card",
         "summary": "Get card",
-        "description": "Look up a card by its exact identifier.\n\nRequired permissions: `catalog:read`. MCP tool: `get_card`.",
+        "description": "Look up a printing by its exact global application ID. game:pokemon is the only implemented catalog. externalIds are provider-local evidence scoped by game and source, never aliases.\n\nRequired permissions: `catalog:read`. MCP tool: `get_card`.",
         "tags": [
           "Catalog"
         ],
@@ -16518,37 +17086,586 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                    },
+                    "game": {
+                      "type": "string",
+                      "const": "pokemon"
+                    },
+                    "canonicalId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                    },
+                    "aliasIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                      }
+                    },
+                    "localId": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "names": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "language": {
+                      "type": "string"
+                    },
+                    "set": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                        },
+                        "game": {
+                          "type": "string",
+                          "const": "pokemon"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "officialCardCount": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "releaseDate": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "game",
+                        "name",
+                        "officialCardCount",
+                        "releaseDate"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "seriesId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                    },
+                    "category": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "rarity": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "hp": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "illustrator": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "types": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "variants": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "boolean"
+                      }
+                    },
+                    "externalIds": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "description": "Provider-local IDs keyed by source, scoped to this record game. Not application IDs or aliases."
+                    },
+                    "details": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "artworkRef": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "image": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "imageAvailability": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "missing",
+                        "unavailable"
+                      ]
+                    },
+                    "imageLanguage": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "attribution": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "game",
+                    "canonicalId",
+                    "aliasIds",
+                    "localId",
+                    "name",
+                    "names",
+                    "language",
+                    "set",
+                    "seriesId",
+                    "category",
+                    "rarity",
+                    "hp",
+                    "illustrator",
+                    "types",
+                    "variants",
+                    "externalIds",
+                    "details",
+                    "artworkRef",
+                    "image",
+                    "imageAvailability",
+                    "imageLanguage",
+                    "attribution"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "400": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "402": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "403": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "404": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "409": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "413": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "422": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "429": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "503": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -16557,7 +17674,7 @@
       "get": {
         "operationId": "list_sets",
         "summary": "List sets",
-        "description": "List card sets.\n\nRequired permissions: `catalog:read`. MCP tool: `list_sets`.",
+        "description": "List card sets with game:pokemon and global application IDs.\n\nRequired permissions: `catalog:read`. MCP tool: `list_sets`.",
         "tags": [
           "Catalog"
         ],
@@ -16617,37 +17734,433 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                          },
+                          "game": {
+                            "type": "string",
+                            "const": "pokemon"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "names": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "game",
+                          "name",
+                          "names"
+                        ],
+                        "additionalProperties": {}
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
           },
           "400": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "402": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "403": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "404": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "409": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "413": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "422": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "429": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "503": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -16656,7 +18169,7 @@
       "get": {
         "operationId": "get_set",
         "summary": "Get set",
-        "description": "Look up a card set.\n\nRequired permissions: `catalog:read`. MCP tool: `get_set`.",
+        "description": "Look up a card set by global application ID, with game:pokemon.\n\nRequired permissions: `catalog:read`. MCP tool: `get_set`.",
         "tags": [
           "Catalog"
         ],
@@ -16697,37 +18210,410 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                    },
+                    "game": {
+                      "type": "string",
+                      "const": "pokemon"
+                    },
+                    "name_json": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "game",
+                    "name_json"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
           },
           "400": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "402": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "403": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "404": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "409": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "413": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "422": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "429": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "503": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -16736,7 +18622,7 @@
       "get": {
         "operationId": "list_series",
         "summary": "List series",
-        "description": "List card series.\n\nRequired permissions: `catalog:read`. MCP tool: `list_series`.",
+        "description": "List card series with game:pokemon and global application IDs.\n\nRequired permissions: `catalog:read`. MCP tool: `list_series`.",
         "tags": [
           "Catalog"
         ],
@@ -16786,37 +18672,433 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                          },
+                          "game": {
+                            "type": "string",
+                            "const": "pokemon"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "names": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "game",
+                          "name",
+                          "names"
+                        ],
+                        "additionalProperties": {}
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
           },
           "400": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "402": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "403": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "404": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "409": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "413": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "422": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "429": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "503": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -16825,7 +19107,7 @@
       "get": {
         "operationId": "get_series",
         "summary": "Get series",
-        "description": "Look up a card series.\n\nRequired permissions: `catalog:read`. MCP tool: `get_series`.",
+        "description": "Look up a card series by global application ID, with game:pokemon.\n\nRequired permissions: `catalog:read`. MCP tool: `get_series`.",
         "tags": [
           "Catalog"
         ],
@@ -16866,37 +19148,410 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                    },
+                    "game": {
+                      "type": "string",
+                      "const": "pokemon"
+                    },
+                    "name_json": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "game",
+                    "name_json"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
           },
           "400": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "402": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "403": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "404": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "409": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "413": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "422": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "429": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "503": {
-            "description": "See the API conventions page."
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -17503,501 +20158,6 @@
                 },
                 "required": [
                   "order"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "See the API conventions page."
-          },
-          "401": {
-            "description": "See the API conventions page."
-          },
-          "402": {
-            "description": "See the API conventions page."
-          },
-          "403": {
-            "description": "See the API conventions page."
-          },
-          "404": {
-            "description": "See the API conventions page."
-          },
-          "409": {
-            "description": "See the API conventions page."
-          },
-          "413": {
-            "description": "See the API conventions page."
-          },
-          "422": {
-            "description": "See the API conventions page."
-          },
-          "429": {
-            "description": "See the API conventions page."
-          },
-          "503": {
-            "description": "See the API conventions page."
-          }
-        }
-      }
-    },
-    "/collection": {
-      "get": {
-        "operationId": "list_collection",
-        "summary": "List collection",
-        "description": "Read a binder collection and wanted printings with update fingerprints.\n\nRequired permissions: `collection:read`. MCP tool: `list_collection`.",
-        "tags": [
-          "Collection"
-        ],
-        "security": [
-          {
-            "apiKey": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "maxLength": 1024
-            }
-          },
-          {
-            "name": "binderId",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "collected",
-                "finalized",
-                "considering",
-                "wishlisted"
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "See the API conventions page."
-          },
-          "401": {
-            "description": "See the API conventions page."
-          },
-          "402": {
-            "description": "See the API conventions page."
-          },
-          "403": {
-            "description": "See the API conventions page."
-          },
-          "404": {
-            "description": "See the API conventions page."
-          },
-          "409": {
-            "description": "See the API conventions page."
-          },
-          "413": {
-            "description": "See the API conventions page."
-          },
-          "422": {
-            "description": "See the API conventions page."
-          },
-          "429": {
-            "description": "See the API conventions page."
-          },
-          "503": {
-            "description": "See the API conventions page."
-          }
-        }
-      },
-      "post": {
-        "operationId": "save_collection_item",
-        "summary": "Save collection item",
-        "description": "Save an owned slot and wanted printings using its previous fingerprint.\n\nRequired permissions: `collection:write`. MCP tool: `save_collection_item`.",
-        "tags": [
-          "Collection"
-        ],
-        "security": [
-          {
-            "apiKey": []
-          }
-        ],
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "type": "object",
-                "properties": {
-                  "binderId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "pokemonId": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "maximum": 9007199254740991
-                  },
-                  "pokemonName": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 200
-                  },
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "collected",
-                      "finalized",
-                      "considering",
-                      "wishlisted"
-                    ]
-                  },
-                  "cardId": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 200
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "cardName": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "maxLength": 200
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "cardImage": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "maxLength": 2048
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "cardSet": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "maxLength": 200
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "cardLanguage": {
-                    "type": "string",
-                    "enum": [
-                      "en",
-                      "fr",
-                      "de",
-                      "es",
-                      "it",
-                      "pt-br",
-                      "ja",
-                      "ko"
-                    ]
-                  },
-                  "cardFinish": {
-                    "type": "string",
-                    "enum": [
-                      "normal",
-                      "holo",
-                      "reverse_holo",
-                      "double_rare",
-                      "ultra_rare",
-                      "illustration_rare",
-                      "special_illustration_rare",
-                      "secret_rare",
-                      "hyper_rare",
-                      "radiant_rare",
-                      "ace_spec",
-                      "amazing_rare",
-                      "shiny_rare",
-                      "jumbo"
-                    ]
-                  },
-                  "wantedCards": {
-                    "maxItems": 100,
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "card_id": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 200
-                        },
-                        "card_name": {
-                          "type": "string",
-                          "maxLength": 200
-                        },
-                        "card_image": {
-                          "type": "string",
-                          "maxLength": 2048
-                        },
-                        "card_set": {
-                          "type": "string",
-                          "maxLength": 200
-                        },
-                        "card_language": {
-                          "type": "string",
-                          "enum": [
-                            "en",
-                            "fr",
-                            "de",
-                            "es",
-                            "it",
-                            "pt-br",
-                            "ja",
-                            "ko"
-                          ]
-                        },
-                        "card_finish": {
-                          "type": "string",
-                          "enum": [
-                            "normal",
-                            "holo",
-                            "reverse_holo",
-                            "double_rare",
-                            "ultra_rare",
-                            "illustration_rare",
-                            "special_illustration_rare",
-                            "secret_rare",
-                            "hyper_rare",
-                            "radiant_rare",
-                            "ace_spec",
-                            "amazing_rare",
-                            "shiny_rare",
-                            "jumbo"
-                          ]
-                        },
-                        "rarity": {
-                          "type": "string",
-                          "maxLength": 200
-                        },
-                        "local_id": {
-                          "type": "string",
-                          "maxLength": 50
-                        },
-                        "set_total": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 99999
-                        },
-                        "illustrator": {
-                          "type": "string",
-                          "maxLength": 200
-                        },
-                        "added_at": {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        "wanted_by": {
-                          "maxItems": 2,
-                          "type": "array",
-                          "items": {
-                            "type": "string",
-                            "format": "uuid",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                          }
-                        }
-                      },
-                      "required": [
-                        "card_id",
-                        "card_name",
-                        "added_at"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "baseFingerprint": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 30000
-                  },
-                  "acquisition": {
-                    "type": "object",
-                    "properties": {
-                      "operationId": {
-                        "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                      },
-                      "actorId": {
-                        "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                      },
-                      "partnershipId": {
-                        "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                      },
-                      "recipientId": {
-                        "type": "string",
-                        "format": "uuid",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                      },
-                      "printingKey": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 512
-                      }
-                    },
-                    "required": [
-                      "operationId",
-                      "actorId",
-                      "partnershipId",
-                      "recipientId",
-                      "printingKey"
-                    ],
-                    "additionalProperties": false
-                  }
-                },
-                "required": [
-                  "binderId",
-                  "pokemonId",
-                  "pokemonName",
-                  "status",
-                  "wantedCards",
-                  "baseFingerprint"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "See the API conventions page."
-          },
-          "401": {
-            "description": "See the API conventions page."
-          },
-          "402": {
-            "description": "See the API conventions page."
-          },
-          "403": {
-            "description": "See the API conventions page."
-          },
-          "404": {
-            "description": "See the API conventions page."
-          },
-          "409": {
-            "description": "See the API conventions page."
-          },
-          "413": {
-            "description": "See the API conventions page."
-          },
-          "422": {
-            "description": "See the API conventions page."
-          },
-          "429": {
-            "description": "See the API conventions page."
-          },
-          "503": {
-            "description": "See the API conventions page."
-          }
-        }
-      }
-    },
-    "/collection/{pokemonId}": {
-      "delete": {
-        "operationId": "delete_collection_item",
-        "summary": "Delete collection item",
-        "description": "Remove a binder slot only if its fingerprint still matches.\n\nRequired permissions: `collection:write`. MCP tool: `delete_collection_item`.",
-        "tags": [
-          "Collection"
-        ],
-        "security": [
-          {
-            "apiKey": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "pokemonId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "exclusiveMinimum": 0,
-              "maximum": 9007199254740991
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "type": "object",
-                "properties": {
-                  "binderId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "baseFingerprint": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 30000
-                  }
-                },
-                "required": [
-                  "binderId",
-                  "baseFingerprint"
                 ],
                 "additionalProperties": false
               }
@@ -19160,7 +21320,7 @@
             }
           },
           {
-            "name": "itemId",
+            "name": "inventoryItemId",
             "in": "query",
             "required": false,
             "schema": {
@@ -19534,11 +21694,11 @@
         }
       }
     },
-    "/analytics": {
+    "/legacy/pokemon/analytics": {
       "get": {
-        "operationId": "get_collection_analytics",
-        "summary": "Get collection analytics",
-        "description": "Read legacy collection activity and available card price history. A retained native owner root, converted or mixed storage returns 503 native_analytics_staged; native analytics admission remains closed.\n\nRequired permissions: `collection:read`, `prices:read`. MCP tool: `get_collection_analytics`.",
+        "operationId": "get_legacy_pokemon_analytics",
+        "summary": "Get legacy pokemon analytics",
+        "description": "Read legacy Pokémon species-row activity and available card price history. A retained native owner root, converted or mixed storage returns 503 native_analytics_staged; native analytics admission remains closed.\n\nRequired permissions: `collection:read`, `prices:read`. MCP tool: `get_legacy_pokemon_analytics`.",
         "tags": [
           "Prices and insights"
         ],
@@ -19627,7 +21787,7 @@
       "post": {
         "operationId": "resolve_import",
         "summary": "Resolve import",
-        "description": "Resolve import identities against actual catalog records without changing the collection.\n\nRequired permissions: `catalog:read`. MCP tool: `resolve_import`.",
+        "description": "Resolve legacy Pokémon species-row import identities against actual catalog records without changing the collection. Requires one unambiguous species; not a physical-copy import API.\n\nRequired permissions: `catalog:read`. MCP tool: `resolve_import`.",
         "tags": [
           "Collection"
         ],
@@ -19848,11 +22008,11 @@
         }
       }
     },
-    "/sets/{id}/slots": {
+    "/pokemon/sets/{id}/slots": {
       "get": {
-        "operationId": "get_set_slots",
-        "summary": "Get set slots",
-        "description": "Read paginated Pokédex slots for a set. Use the card list for full printing details.\n\nRequired permissions: `catalog:read`. MCP tool: `get_set_slots`.",
+        "operationId": "get_pokemon_set_slots",
+        "summary": "Get pokemon set slots",
+        "description": "Read Pokémon species grouped by National Dex number within a set. These are not stable storage slots. Use list_cards for all printings, including Trainers and Energy.\n\nRequired permissions: `catalog:read`. MCP tool: `get_pokemon_set_slots`.",
         "tags": [
           "Catalog"
         ],

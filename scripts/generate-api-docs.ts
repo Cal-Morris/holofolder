@@ -13,7 +13,7 @@ async function main() {
   if(op.method==='GET')for(const [name,property]of Object.entries(properties))parameters.push({name,in:'query',required:required.includes(name),schema:property})
   if(schema.properties?.idempotencyKey)parameters.push({name:'Idempotency-Key',in:'header',required:true,schema:{type:'string',minLength:8,maxLength:100}})
   const description=`${op.description}\n\nRequired permissions: ${op.permissions.map(p => '`' + p + '`').join(', ')}. MCP tool: \`${op.name}\`.`
-  const group = /^\/(cards|sets|series|languages|pokemon|illustrators)(\/|$)/.test(op.path) ? 'Catalog' : /^\/(prices|price-checks|comparison-jobs|deals|listings|analytics)(\/|$)/.test(op.path) ? 'Prices and insights' : /^\/(settings|identity|partners)(\/|$)/.test(op.path) ? 'Account' : 'Collection'
+  const group = /^\/(cards|sets|series|languages|pokemon|illustrators)(\/|$)/.test(op.path) ? 'Catalog' : /^\/(prices|price-checks|comparison-jobs|deals|listings|analytics|legacy\/pokemon\/analytics)(\/|$)/.test(op.path) ? 'Prices and insights' : /^\/(settings|identity|partners)(\/|$)/.test(op.path) ? 'Account' : 'Collection'
   const label = op.name.replaceAll('_', ' ')
   const summary = op.name === 'list_cards' ? 'Search cards' : label.charAt(0).toUpperCase() + label.slice(1)
   paths[op.path]??={};paths[op.path][op.method.toLowerCase()]={operationId:op.name,summary,description,tags:[group],security:[{apiKey:[]}],parameters,

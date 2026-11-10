@@ -10,7 +10,7 @@ import type { Binder } from "@/lib/binders/model"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 
 const ActivitySheet = dynamic(()=>import("@/components/collection-activity-sheet"), {ssr:false})
-export type ActivityInitialFilter = { pokemonId?: number; itemId?: string; operationId?: string }
+export type ActivityInitialFilter = { pokemonId?: number; inventoryItemId?: string; operationId?: string }
 const ActivityContext = createContext<((filter:ActivityInitialFilter)=>void) | null>(null)
 
 export function ActivityButton({ pokemonId, onOpen, filter, label = "Activity" }: {pokemonId?:number; onOpen?:()=>void; filter?:ActivityInitialFilter; label?:string}) {

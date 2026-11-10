@@ -35,8 +35,12 @@ async function main() {
  const {handleMcpRequest}=await import('../../lib/server/mcp/http')
  const request=(method:string,params:unknown={},token='synthetic-oauth-token')=>handleMcpRequest(new Request('https://synthetic.test/app/mcp',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',Accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})}))
  let response=await request('tools/list');assert.equal(response.status,200)
- const listing=await response.json(),tools=listing.result.tools as {name:string;annotations:Record<string,unknown>}[]
+ const listing=await response.json(),tools=listing.result.tools as {name:string;annotations:Record<string,unknown>;inputSchema:{properties:Record<string,unknown>}}[]
  for(const name of ['list_collection_audit','get_collection_audit','preview_collection_recovery','apply_collection_recovery'])assert.ok(tools.some(tool=>tool.name===name),name)
+ for(const name of ['list_collection','save_collection_item','delete_collection_item','get_set_slots','get_collection_analytics'])assert.ok(!tools.some(tool=>tool.name===name),name)
+ for(const name of ['get_pokemon_set_slots','get_legacy_pokemon_analytics'])assert.ok(tools.some(tool=>tool.name===name),name)
+ const auditProperties=tools.find(t=>t.name==='list_collection_audit')!.inputSchema.properties
+ assert.ok('inventoryItemId' in auditProperties);assert.ok(!('itemId' in auditProperties))
  assert.equal(tools.find(t=>t.name==='preview_collection_recovery')?.annotations.readOnlyHint,true)
  assert.equal(tools.find(t=>t.name==='apply_collection_recovery')?.annotations.destructiveHint,true)
  assert.equal(tools.find(t=>t.name==='apply_collection_recovery')?.annotations.idempotentHint,true)
@@ -44,6 +48,9 @@ async function main() {
  const history=(await response.json()).result.structuredContent
  assert.equal(historyReads,2)
  assert.equal(history.data[0].operation_id,'synthetic-original-op')
+ response=await request('tools/call',{name:'list_collection_audit',arguments:{itemId:'synthetic-copy'}})
+ assert.equal((await response.json()).result.isError,true)
+ assert.equal(historyReads,2,'old ambiguous filter is rejected before database access')
  response=await request('tools/call',{name:'list_collection_audit',arguments:{operationId:'',ownerId:'unauthorized'}})
  assert.equal((await response.json()).result.isError,true)
  assert.equal(historyReads,2)
