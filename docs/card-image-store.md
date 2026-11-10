@@ -41,8 +41,8 @@ Uploads never overwrite (`If-None-Match: *` on R2, `allowOverwrite: false` on Bl
 
 1. Cloudflare dashboard → R2 → **Create bucket**. Name it e.g. `binderdex-card-images`, keep the Standard storage class (the free tier doesn't cover Infrequent Access), and leave the location on Automatic.
 2. Give the bucket a public URL by choosing one of these:
-   - **Custom domain** (recommended for production; cached by Cloudflare's CDN): bucket → Settings → Custom Domains → Add → `img.cal.gg`. The `cal.gg` zone must be on Cloudflare in the same account.
-   - **r2.dev**: bucket → Settings → Public Development URL → Enable. Cloudflare rate-limits this URL and says it is for development only.
+   - **Custom domain** (recommended for production; cached by Cloudflare's CDN): bucket → Settings → Custom Domains → Add → `assets.holofolder.com`. The `holofolder.com` zone must be on Cloudflare in the same account. Production also has **Always Use HTTPS** on for the zone, and a cache rule (`assets.holofolder.com`, path starts with `/cards/`) that caches eligible responses, respects the object's `cache-control` and caches 404s at the edge for 60 s only, so a newly mirrored image isn't hidden behind Cloudflare's default 4-hour 404 cache.
+   - **r2.dev**: bucket → Settings → Public Development URL → Enable. Cloudflare rate-limits this URL and says it is for development only. It is disabled on the production bucket; keep it off so all reads go through the cached custom domain.
 3. R2 → **Manage R2 API tokens** → Create API token. Set the permission to **Object Read & Write**, limit it to **the specific bucket** only, and leave the TTL as you prefer. Copy the Access Key ID and Secret Access Key, which are shown once. The Account ID appears on the R2 overview page.
 4. Vercel → the existing project (`binderdex` until renamed) → Settings → Environment Variables. Add these for Production (and Preview, if wanted):
    - `CARD_IMAGE_STORE=r2`
