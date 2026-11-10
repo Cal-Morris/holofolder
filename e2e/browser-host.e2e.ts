@@ -145,7 +145,8 @@ test("auth lifecycle closes private detail and rejects an old in-flight location
   await expect(page.getByRole("dialog")).not.toBeVisible()
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).not.toBeVisible()
   release()
-  await expect(page.getByRole("status").filter({ hasText: "Checking your account and collection access" })).toBeVisible()
+  // The private view closes to the loading skeleton, or the paused notice once the check fails.
+  await expect(page.getByTestId("binder-skeleton").or(page.getByRole("status").filter({ hasText: "Saved storage is paused" }))).toBeVisible()
   await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
 })
 
@@ -190,7 +191,8 @@ test("another account cannot restore the previous account's private view", async
   // Old cookie claims cannot admit a new actor, regardless of the saved navigation bytes.
   await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).not.toBeVisible()
-  await expect(page.getByRole("status").filter({ hasText: "Checking your account and collection access" })).toBeVisible()
+  // The private view closes to the loading skeleton, or the paused notice once the check fails.
+  await expect(page.getByTestId("binder-skeleton").or(page.getByRole("status").filter({ hasText: "Saved storage is paused" }))).toBeVisible()
 })
 
 test("existing Wanted and Browse use the labelled National Dex context and survive return", async ({ page }) => {

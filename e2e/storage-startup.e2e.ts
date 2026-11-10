@@ -51,10 +51,11 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   await context.route("**/app/e2e-harness/storage/inventory?*", route => inventory(route))
 })
 
+// The saved copy paints (with Storage) before the checked read; New storage enables only after a complete read.
 async function ready(page: Page, timeout = 15_000) {
-  await expect(page.getByRole("button", { name: "Storage", exact: true })).toBeVisible({ timeout })
-  await expect(await storageAction(page, "New storage")).toBeEnabled()
-  await closeStorage(page)
+  await expect(async () => {
+    try { await expect(await storageAction(page, "New storage")).toBeEnabled({ timeout: 1_000 }) } finally { await closeStorage(page).catch(() => {}) }
+  }).toPass({ timeout })
 }
 
 test("fresh storage opens representative owner through actual worker and saves all copies and slots", async ({ page, insets }) => {

@@ -36,7 +36,9 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
       const kept = keep ? lifetime.current() : null
       if (!kept) {
         setError(null)
-        if (!initial) setCachedFallbackAllowed(false)
+        // A benign recheck (focus, token refresh) of the same account before the first check finishes
+        // restarts that check; it is not an account change, so the startup view stays as it is.
+        if (!initial && !keep) setCachedFallbackAllowed(false)
       }
       const request = kept ? lifetime.recheck() : invalidate()
       if (membershipChangePending()) { if (kept) invalidate(); setCachedFallbackAllowed(false); return }

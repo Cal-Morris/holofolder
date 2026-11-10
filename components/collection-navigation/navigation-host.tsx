@@ -53,18 +53,48 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     return container?.querySelector<HTMLElement>('[data-testid="view-scroller"], [data-testid="wanted-list"]') ?? container
   }, [scrollContainerId])
   const scrollTop = useCallback(() => scrollElement()?.scrollTop ?? window.scrollY, [scrollElement])
-  const [state, setState] = useState<CollectionNavigationState | null>(null)
+  const key = navigationStorageKey(scope)
+  // Client-only host, remounted per scope: resolve the first view on the first render so a new host
+  // (saved copy → checked session on startup) never paints an empty frame.
+  const [initial] = useState(() => {
+    let saved: unknown
+    try { saved = JSON.parse(localStorage.getItem(key) ?? "null") } catch { saved = null }
+    const remembered = normalizeNavigationState(saved)
+    if (!saved && fallbackCollectionId) { remembered.main = "collection"; remembered.collectionId = fallbackCollectionId }
+    const params = new URLSearchParams(location.search)
+    const resolved = resolveNavigation(remembered, scope, read, params, stagedSlabs)
+    // Slot and item links resolve only against a complete read. A saved copy paints first, then they resolve once.
+    const deferred = read.evidence.kind !== "complete" && (params.has("slot") || params.has("item"))
+    return { ...resolved, notice: deferred ? "" : resolved.notice, deferred: deferred ? { remembered, params } : null }
+  })
+  const [state, setState] = useState<CollectionNavigationState | null>(initial.state)
   const [pendingNavigation, setPendingNavigation] = useState<{ state: CollectionNavigationState; highlight: CollectionNavigationFocus | null; read: CollectionNavigationRead; sequence: number } | null>(null)
   const entryId = useRef("")
   const [visit, setVisit] = useState(0)
-  const [notice, setNotice] = useState("")
-  const [highlight, setHighlight] = useState<CollectionNavigationFocus | null>(null)
+  const [notice, setNotice] = useState(initial.notice)
+  const [highlight, setHighlight] = useState<CollectionNavigationFocus | null>(initial.highlight)
   const [fresh, setFresh] = useState<{ base: CollectionNavigationRead; value: CollectionNavigationRead } | null>(null)
   const currentRead = fresh?.base === read ? fresh.value : read
   const index = navigationIndex(scope, currentRead)
   const alive = useRef(true), request = useRef(0), stateRef = useRef(state)
   useEffect(() => { stateRef.current = state }, [state])
-  const key = navigationStorageKey(scope)
+  const deferredLink = useRef(initial.deferred), navigated = useRef(false)
+  useEffect(() => {
+    const link = deferredLink.current
+    if (!link || read.evidence.kind !== "complete") return
+    deferredLink.current = null
+    // A navigation since the first paint (any request, or a view change) wins over the original link.
+    const moved = () => navigated.current || request.current !== 0
+    if (moved()) return
+    const result = resolveNavigation(link.remembered, scope, read, link.params, stagedSlabs)
+    queueMicrotask(() => {
+      if (!alive.current || moved()) return
+      const changed = JSON.stringify(result.state) !== JSON.stringify(stateRef.current)
+      stateRef.current = result.state; setState(result.state); setNotice(result.notice); setHighlight(result.highlight)
+      if (changed) setVisit(v => v + 1)
+      history.replaceState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: result.state } }, "")
+    })
+  }, [read, initial, scope, stagedSlabs, key])
   const persist = useCallback((next: CollectionNavigationState) => {
     try { localStorage.setItem(key, JSON.stringify(next)) } catch { /* Storage can be disabled. Browsing still works. */ }
   }, [key])
@@ -72,12 +102,6 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     alive.current = true
     const previousRestoration = history.scrollRestoration
     history.scrollRestoration = "manual"
-    let saved: unknown
-    try { saved = JSON.parse(localStorage.getItem(key) ?? "null") } catch { saved = null }
-    const remembered = normalizeNavigationState(saved)
-    if (!saved && fallbackCollectionId) { remembered.main = "collection"; remembered.collectionId = fallbackCollectionId }
-    const initial = resolveNavigation(remembered, scope, read, new URLSearchParams(location.search), stagedSlabs)
-    queueMicrotask(() => { if (alive.current) { stateRef.current = initial.state; setState(initial.state); setNotice(initial.notice); setHighlight(initial.highlight) } })
     entryId.current = crypto.randomUUID()
     history.replaceState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: initial.state } }, "")
     return () => { alive.current = false; history.scrollRestoration = previousRestoration }
@@ -139,6 +163,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   const update = useCallback((mutate: (s: CollectionNavigationState) => CollectionNavigationState) => {
     setState(old => {
       if (!old) return old
+      navigated.current = true
       const next = mutate(captureNavigationScroll(old, scrollTop()))
       stateRef.current = next
       persist(next)
