@@ -89,3 +89,16 @@ export function mirrorPendingOperations(operations: unknown[], store = getOfflin
   pendingOperations = operations
   schedule(store)
 }
+
+/** Staged snapshot writer preserves old queue fields verbatim; they are evidence, never a projection. */
+export async function mirrorDurableCollectionSnapshot(snapshot: { collection: CollectedPokemon[]; ownerUserId: string | null; savedAt: string; binderId?: string | null }, isDefault: boolean, store = getOfflineStore()) {
+  if (!store) throw new Error("queue_storage_unavailable")
+  await store.update(collectionRecordKey(snapshot.binderId ?? null, isDefault), existing => {
+    if (existing !== undefined && (!existing || typeof existing !== "object" || Object.getPrototypeOf(existing) !== Object.prototype)) return existing
+    if (existing !== undefined) {
+      const record = existing as Record<string, unknown>
+      if (!Array.isArray(record.collection) || (Object.hasOwn(record, "pendingOperations") && !Array.isArray(record.pendingOperations))) return existing
+    }
+    return { ...existing as Record<string, unknown>, ...snapshot }
+  })
+}

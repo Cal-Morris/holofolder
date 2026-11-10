@@ -7,7 +7,7 @@ import { mergeQueuedAcquisition, type AcquisitionIntent } from "@/lib/partner-pu
 import { writeLocalCollectedIds } from "@/lib/local-collection"
 import { isSlotStatus, type CollectedPokemon } from "@/lib/domain/cards"
 import { normalizeCollectionItems } from "@/lib/collection/normalize"
-import { mirrorCollectionSnapshot, mirrorPendingOperations } from "@/lib/offline-store/collection-mirror"
+import { mirrorCollectionSnapshot, mirrorPendingOperations, mirrorDurableCollectionSnapshot } from "@/lib/offline-store/collection-mirror"
 import { capBinderSnapshots, setItemMakingRoom } from "@/lib/storage/make-room"
 import { collectionSnapshotKey, hasOwnOfflineKeys, LEGACY_COLLECTION_SNAPSHOT_KEY, markBinderSavedOnDevice } from "@/lib/binders/offline"
 
@@ -126,12 +126,13 @@ export function readLocalCollectionSnapshot(binderId: string | null = null, isDe
   }
 }
 
-export function writeLocalCollectionSnapshot(snapshot: LocalCollectionSnapshot, isDefault = true) {
+export function writeLocalCollectionSnapshot(snapshot: LocalCollectionSnapshot, isDefault = true, durable = false) {
   if (typeof window === "undefined") return
   const binderId = snapshot.binderId ?? null
 
   // Durable copy in IndexedDB, written even if localStorage is full.
-  mirrorCollectionSnapshot(snapshot.collection, snapshot.ownerUserId, snapshot.savedAt, undefined, binderId, isDefault)
+  if (durable) void mirrorDurableCollectionSnapshot(snapshot, isDefault).catch(error => console.error("[holofolder] Snapshot mirror failed:", error))
+  else mirrorCollectionSnapshot(snapshot.collection, snapshot.ownerUserId, snapshot.savedAt, undefined, binderId, isDefault)
 
   const key = collectionSnapshotKey(binderId, isDefault)
   // Bounded: only the few most recently saved other binders keep a localStorage copy (the rest are in IndexedDB).
@@ -333,13 +334,13 @@ export function removePendingCollectionOperation(operationId: string) {
   )
 }
 
-export function persistLocalCollectionState(collection: CollectedPokemon[], ownerUserId: string | null, binderId: string | null = null, isDefault = true) {
+export function persistLocalCollectionState(collection: CollectedPokemon[], ownerUserId: string | null, binderId: string | null = null, isDefault = true, durable = false) {
   writeLocalCollectionSnapshot({
     ownerUserId,
     ...(binderId ? { binderId } : {}),
     savedAt: new Date().toISOString(),
     collection,
-  }, isDefault)
+  }, isDefault, durable)
   // The signed-out "collected ids" list predates binders and stays the default binder's.
   if (!isDefault) return
   writeLocalCollectedIds(

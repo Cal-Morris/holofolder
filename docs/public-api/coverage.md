@@ -296,3 +296,19 @@ bootstrap and conversion remain staged at 503. No SQL is included.
 ## Internal legacy write prerequisite (096)
 
 Migration 096 installs an inactive shared database fence for legacy collection DML. It adds no public operation, permission, response schema or native admission. Existing independently authorized REST/MCP writers retain their current grants, membership, billing and CAS boundaries. Queue protocol/purpose is first-party server context, never an alternate developer API credential. See the [internal context and operator contract](../legacy-write-fence.md); activation, runtime error mapping and deployment remain separately gated. No public capability or marketing update applies to this prerequisite.
+
+
+### Legacy transactional device queue, synthetic only (#363/#379)
+
+[Coordinated hook/review integration](../legacy-queue-staged-runtime.md) exercises
+the PR500 transactional envelope only under the existing non-hosted loopback E2E
+harness. Production remains on the prior queue, with no new admission, protocol
+rejection, trusted audit context, registry operation, permission or public schema.
+Synthetic claims freeze the agreed private generation2 header; the agreed
+retention-safe upgrade response pauses them without replay. The parent-owned
+server adapter and 096 activation remain separate.
+Guest workspace identity, source retention, explicit review, claims and local
+settlements are device-only operations; REST/MCP clients retain their own requests.
+Generated OpenAPI and live device-change help remain unchanged. Parent-owned
+commit-time old-ingress/in-flight containment and the trusted server guard adapter
+block production admission; no durability or exactly-once capability is announced.

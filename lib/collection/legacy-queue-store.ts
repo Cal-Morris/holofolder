@@ -53,6 +53,9 @@ function reviewSource(source: RetainedLegacySource): LegacyQueueSource | null {
 function sourceVisible(source: RetainedLegacySource, scope: CollectionOrigin | null) {
   let raw = source.raw
   if (source.kind === "collection-mirror") {
+    const mirror = source.retainedValue
+    if (mirror && typeof mirror === "object" && "ownerUserId" in mirror && typeof mirror.ownerUserId === "string"
+      && (scope?.kind !== "account" || mirror.ownerUserId !== scope.ownerUserId)) return false
     // Non-JSON structured evidence remains retained but cannot bypass account export privacy.
     const seen = new Set<object>()
     const jsonShape = (value: unknown): boolean => {
@@ -68,7 +71,7 @@ function sourceVisible(source: RetainedLegacySource, scope: CollectionOrigin | n
   return typeof raw === "string" && mayDownloadLegacyOriginal(raw, scope?.kind === "account" ? scope.actorUserId : null)
 }
 
-/** INACTIVE: no production initializer/caller until every legacy writer and sender migrates together. */
+/** Production admission remains disabled; the staged runtime uses the loopback synthetic harness only. */
 export function createLegacyQueue(store: AtomicOfflineStore, active: () => { session: string; origin: CollectionOrigin } | null) {
   const capture = () => structuredClone(active())
   const current = (context: ReturnType<typeof capture>) => {
@@ -105,6 +108,27 @@ export function createLegacyQueue(store: AtomicOfflineStore, active: () => { ses
         return { writes: changed || existing === undefined ? [[LEGACY_QUEUE_KEY, envelope]] : [], result: undefined }
       })
     },
+    async guestOrigin(binderId: string | null, hint: string | null) {
+      const allocated = hint || crypto.randomUUID()
+      return await mutate(envelope => {
+        const changed = !envelope.guestWorkspaceId
+        envelope.guestWorkspaceId ??= allocated
+        return { result: { kind: "guest" as const, workspaceId: envelope.guestWorkspaceId, localBinderId: binderId ?? "guest-default" }, changed }
+      })
+    },
+    async retainGuestReview() {
+      const context = capture(), sourceId = crypto.randomUUID()
+      await mutate(envelope => {
+        if (context ? !current(context) : active() !== null) failLegacy("queue_session_changed")
+        const drafts = envelope.entries.filter(entry => entry.state === "ready" && !entry.request && !entry.source && entry.operation.origin?.kind === "guest")
+        if (!drafts.length) return { result: undefined, changed: false }
+        appendSource(envelope, { kind: "local-storage", raw: JSON.stringify(drafts.map(entry => entry.operation)) }, sourceId)
+        for (const entry of drafts) {
+          entry.state = "paused"; entry.reason = "source_review_required"; entry.revision = envelope.revision + 1
+        }
+        return { result: undefined, changed: true }
+      })
+    },
     async read(scope: CollectionOrigin | null) {
       scope = structuredClone(scope)
       const context = capture()
@@ -119,6 +143,17 @@ export function createLegacyQueue(store: AtomicOfflineStore, active: () => { ses
         try { return mayDownloadLegacyOriginal(JSON.stringify(entry), scope?.kind === "account" ? scope.actorUserId : null) }
         catch { return false }
       }), sources: envelope.sources.filter(source => sourceVisible(source, scope)) }
+    },
+    async deliveryScopes(scope: CollectionOrigin) {
+      scope = structuredClone(scope)
+      const context = capture()
+      requireActive(context, scope)
+      const envelope = parseLegacyEnvelope(await store.get(LEGACY_QUEUE_KEY))
+      requireActive(context, scope)
+      if (scope.kind !== "account") return []
+      return envelope.entries.flatMap(entry => entry.state !== "completed" && entry.operation.origin?.kind === "account"
+        && entry.operation.origin.actorUserId === scope.actorUserId && entry.operation.origin.ownerUserId === scope.ownerUserId
+        ? [entry.operation.origin] : []).filter((origin, index, all) => all.findIndex(other => sameCollectionOrigin(origin, other)) === index)
     },
     async enqueue(input: PendingCollectionOperationInput, expected: { epoch: string; entryRevision: number | null }) {
       input = structuredClone(input); expected = structuredClone(expected)
@@ -222,9 +257,11 @@ export function createLegacyQueue(store: AtomicOfflineStore, active: () => { ses
         if (envelope.entries.some(entry => entry.state !== "completed" && compatibilityBarrier(entry) && entry.operation.binderId === scope.binderId
           && (!entry.operation.origin || (entry.operation.origin.kind === "account" && entry.operation.origin.ownerUserId === scope.ownerUserId)))) return { result: null, changed }
         const entry = envelope.entries.find((entry, index) => entry.state === "ready" && sameCollectionOrigin(entry.operation.origin, scope)
-          && !envelope.entries.slice(0, index).some(previous => previous.state !== "completed" && sameLegacySlot(previous.operation, entry.operation)))
+          && !envelope.entries.slice(0, index).some(previous => previous.state !== "completed" && sameLegacySlot(previous.operation, entry.operation))
+          && !(entry.operation.recoverySource?.reviewEpoch && envelope.entries.some(previous => previous.state === "sending"
+            && sameCollectionOrigin(previous.operation.origin, scope) && previous.operation.recoverySource?.reviewEpoch === entry.operation.recoverySource?.reviewEpoch)))
         if (!entry) return { result: null, changed }
-        entry.request = freezeLegacyRequest(entry.operation); entry.state = "sending"; entry.revision = envelope.revision + 1
+        entry.request = freezeLegacyRequest(entry.operation, 2); entry.state = "sending"; entry.revision = envelope.revision + 1
         entry.lease = { token, holder, until: now + LEGACY_LEASE_MS, session }
         return { result: { epoch: envelope.epoch, entryId: entry.entryId, entryRevision: entry.revision, token, session, request: entry.request }, changed: true }
       })

@@ -49,7 +49,7 @@ const entrySchema = z.strictObject({
   outcome: z.enum(["acknowledged", "rejected", "superseded"]).nullable(),
 })
 export type DurableLegacyEntry = Omit<z.infer<typeof entrySchema>, "operation"> & { operation: PendingCollectionOperation }
-const envelopeSchema = z.strictObject({ version: z.literal(2), epoch: text, revision, nextSequence: revision, migrated: z.literal(true), sources: z.array(sourceSchema), entries: z.array(entrySchema) })
+const envelopeSchema = z.strictObject({ version: z.literal(2), epoch: text, revision, nextSequence: revision, migrated: z.literal(true), guestWorkspaceId: text.optional(), sources: z.array(sourceSchema), entries: z.array(entrySchema) })
 export type LegacyQueueEnvelope = Omit<z.infer<typeof envelopeSchema>, "entries"> & { entries: DurableLegacyEntry[] }
 export type ReviewToken = { epoch: string; revision: number }
 export type Claim = { epoch: string; entryId: string; entryRevision: number; token: string; session: string; request: FrozenLegacyRequest }
@@ -95,7 +95,8 @@ export function parseLegacyEnvelope(value: unknown): LegacyQueueEnvelope {
       || (entry.outcome === "acknowledged" && entry.settlement?.kind !== "acknowledged")) failLegacy("unsupported_legacy_queue")
     ids.add(entry.entryId); sequences.add(entry.sequence)
     if (entry.state === "ready") validateNewOperation(entry.operation)
-    if (entry.request && !sameLegacyValue(entry.request, freezeLegacyRequest(entry.operation))) failLegacy("unsupported_legacy_queue")
+    if (entry.request && !sameLegacyValue(entry.request, freezeLegacyRequest(entry.operation))
+      && !sameLegacyValue(entry.request, freezeLegacyRequest(entry.operation, 2))) failLegacy("unsupported_legacy_queue")
   }
   return structuredClone(envelope)
 }
@@ -124,16 +125,17 @@ export function makeLegacyOperation(input: PendingCollectionOperationInput, id: 
   return next
 }
 /** Pure request serialization; this module never fetches or adds the future cutover header. */
-export function freezeLegacyRequest(operation: PendingCollectionOperation): FrozenLegacyRequest {
+export function freezeLegacyRequest(operation: PendingCollectionOperation, generation?: 2): FrozenLegacyRequest {
+  const headers: Record<string, string> = generation === 2 ? { "X-Holo-Legacy-Queue": "2" } : {}
   const origin = operation.origin
   if (origin?.kind !== "account" || operation.binderId !== origin.binderId) failLegacy("account_origin_required")
   const base: Record<string, string> = Object.hasOwn(operation, "base") ? { baseFingerprint: collectionFingerprint(operation.base) } : {}
   if (operation.type === "delete") {
     const params = new URLSearchParams({ pokemonId: String(operation.pokemonId), fingerprintVersion: String(COLLECTION_FINGERPRINT_VERSION), actorUserId: origin.actorUserId, ownerUserId: origin.ownerUserId, binderId: origin.binderId, operationId: operation.id, ...base })
-    return { method: "DELETE", url: `/app/api/collection?${params}`, body: null, headers: {} }
+    return { method: "DELETE", url: `/app/api/collection?${params}`, body: null, headers }
   }
   const item = operation.item
-  return { method: "POST", url: "/app/api/collection", headers: { "content-type": "application/json" }, body: JSON.stringify({
+  return { method: "POST", url: "/app/api/collection", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({
     binderId: origin.binderId, pokemonId: operation.pokemonId, pokemonName: item.pokemon_name,
     cardId: item.card_id, cardName: item.card_name, cardImage: item.card_image, cardSet: item.card_set,
     cardLanguage: item.card_language ?? "en", cardFinish: item.card_finish ?? "normal", wantedCards: item.wanted_cards, status: item.status,

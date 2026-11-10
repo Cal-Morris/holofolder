@@ -1,20 +1,21 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { legacyReviewProjections, type DurableReview, type LegacyQueueRuntime } from "@/lib/collection/legacy-queue-runtime"
+import type { LegacyQueueSource } from "@/lib/collection/legacy-source"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { acceptLegacyQueueReview, LOCAL_COLLECTION_PENDING_OPS_KEY, prepareLegacyQueueReview, readLegacyQueueSources, readPendingCollectionOperationRaw, readPendingCollectionOperations, writePendingCollectionOperations, type PendingCollectionOperationInput, type PendingCollectionOperation } from "@/lib/collection/offline-queue"
-import { mayDownloadLegacyOriginal, sourceDigest } from "@/lib/collection/legacy-source"
+import { decodeQueueArray, mayDownloadLegacyOriginal, sourceDigest } from "@/lib/collection/legacy-source"
 import { legacyReviewEntries, type LegacyReviewEntry } from "@/lib/collection/legacy-review"
 import { collectionFingerprint } from "@/lib/collection/sync"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { sameCollectionOrigin, type CollectionOrigin } from "@/lib/collection/recipient"
 
 type Destination = { recipient: Extract<CollectionOrigin, { kind: "account" }>; memberIds: string[]; binders: { id: string; name: string }[]; collection?: CollectedPokemon[] }
-const key = (entry: LegacyReviewEntry) => JSON.stringify([entry.source.legacyQueueSource.raw, entry.ordinal])
-const reviewEntries = (sources: Parameters<typeof legacyReviewEntries>[0], actorId?: string | null) => legacyReviewEntries(sources, readPendingCollectionOperations().filter(op => op.compatibilityPause).map(op => op.binderId ?? null), actorId)
+const key = (entry: LegacyReviewEntry) => JSON.stringify(["sourceId" in entry.source ? entry.source.sourceId : entry.source.legacyQueueSource.raw, entry.ordinal])
 const button = "min-h-9 rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50"
 
-export function LegacyDeviceReview({ actorId, ownerId, binderId }: { actorId: string | null; ownerId: string | null; binderId: string | null }) {
+export function LegacyDeviceReview({ actorId, ownerId, binderId, durableQueue, durableEnabled = false }: { actorId: string | null; ownerId: string | null; binderId: string | null; durableQueue?: LegacyQueueRuntime | null; durableEnabled?: boolean }) {
   const [open, setOpen] = useState(false)
   const [count, setCount] = useState(0)
   const [hasOriginalData, setHasOriginalData] = useState(false)
@@ -25,36 +26,54 @@ export function LegacyDeviceReview({ actorId, ownerId, binderId }: { actorId: st
   const [selectedBinder, setSelectedBinder] = useState("")
   const [choices, setChoices] = useState<Record<string, boolean>>({})
   const [busy, setBusy] = useState(false)
+  const [accepting, setAccepting] = useState(false)
+  const acceptanceLock = useRef<symbol | null>(null)
   const [error, setError] = useState<string | null>(null)
   const panel = useRef<HTMLDivElement>(null)
   const epoch = useRef(0)
   const acceptedEpoch = useRef<string | null>(null)
   const identity = JSON.stringify([actorId, ownerId, binderId])
   const currentIdentity = useRef(identity)
-  useLayoutEffect(() => { currentIdentity.current = identity; return () => { currentIdentity.current = "" } }, [identity])
+  useLayoutEffect(() => { epoch.current++; currentIdentity.current = identity; return () => { currentIdentity.current = "" } }, [identity])
   const [queueAtReview, setQueueAtReview] = useState<string | null>(null)
-  const sourcesAtReview = useRef<ReturnType<typeof prepareLegacyQueueReview>>([])
+  const sourcesAtReview = useRef<LegacyQueueSource[]>([])
+  const durableReview = useRef<DurableReview | null>(null)
+  const acceptedReview = useRef<DurableReview | null>(null)
+  const durableSources = useCallback(() => legacyReviewProjections(durableQueue?.view()?.sources ?? []), [durableQueue])
+  const pendingOperations = useCallback(() => durableEnabled ? durableQueue?.view()?.entries.filter(entry => entry.state !== "completed").map(entry => ({ ...entry.operation,
+    ...(entry.state === "unknown" ? { recipientPause: "delivery_unknown" } : entry.state === "paused" ? { recipientPause: entry.reason ?? "paused" } : {}),
+    ...(entry.settlement?.kind === "known-rejection" && entry.settlement.category === "compatibility" ? { compatibilityPause: { code: "binder_converted_requires_slot_commands" as const, rawRecord: JSON.stringify(entry) } } : {}),
+  })) ?? [] : readPendingCollectionOperations(), [durableEnabled, durableQueue])
+  const reviewEntries = useCallback((sources: LegacyQueueSource[], actor?: string | null, targetBinder?: string) => {
+    const entries = sources.flatMap(source => "mirrorEvidence" in source && source.mirrorEvidence
+      ? [{ source, ordinal: -1, label: "Structured mirror evidence", unresolved: "Delivery is unverified. This retained mirror cannot authorize an upload." }]
+      : legacyReviewEntries([source], pendingOperations().filter(op => op.compatibilityPause).map(op => op.binderId ?? null), actor))
+    const targetPaused = durableEnabled && targetBinder && durableReview.current?.entries.some(entry => entry.operation.compatibilityPause || entry.settlement?.kind === "known-rejection" && entry.settlement.category === "compatibility")
+    return targetPaused ? entries.map(entry => ({ ...entry, unresolved: "Converted binder pause. This review cannot clear it." })) : entries
+  }, [pendingOperations, durableEnabled])
+
   const close = () => { epoch.current++; setOpen(false); setBusy(false) }
   useOverlay(open, close, { containerRef: panel })
   const swipe = useSwipeToDismiss(panel, close, open)
   useEffect(() => {
     const refresh = () => {
-      const sources = readLegacyQueueSources()
+      const sources = durableEnabled ? durableSources() : readLegacyQueueSources()
       const historical = reviewEntries(sources, actorId).length
-      setHasOriginalData(sources.some(source => reviewEntries([{ legacyQueueSource: { ...source.legacyQueueSource, accepted: [] } }], actorId).length > 0))
-      const pending = readPendingCollectionOperations()
+      setHasOriginalData(sources.some(source => durableEnabled ? (decodeQueueArray(source.legacyQueueSource.raw)?.length ?? 1) > 0 : reviewEntries([{ legacyQueueSource: { ...source.legacyQueueSource, accepted: [] } }], actorId).length > 0))
+      const pending = pendingOperations()
       setBlocked(pending.filter(op => (!op.origin && !!op.compatibilityPause) || (op.origin?.kind === "account" && op.origin.actorUserId === actorId && !!(op.recipientPause || op.compatibilityPause))))
       setCount(historical + pending.filter(op => op.origin?.kind === "guest" || ((!op.origin && !!op.compatibilityPause) || (op.origin?.kind === "account" && op.origin.actorUserId === actorId && (op.recipientPause || op.compatibilityPause)))).length)
     }
     queueMicrotask(refresh)
     const defer = () => queueMicrotask(refresh)
+    window.addEventListener("holofolder-legacy-view-changed", defer)
     window.addEventListener("storage", defer)
     window.addEventListener("holofolder-legacy-queue-changed", defer)
-    return () => { window.removeEventListener("storage", defer); window.removeEventListener("holofolder-legacy-queue-changed", defer) }
-  }, [actorId])
+    return () => { window.removeEventListener("holofolder-legacy-view-changed", defer); window.removeEventListener("storage", defer); window.removeEventListener("holofolder-legacy-queue-changed", defer) }
+  }, [actorId, durableEnabled, durableQueue, durableSources, pendingOperations, reviewEntries])
   useEffect(() => { epoch.current++; queueMicrotask(() => { setOpen(false); setBusy(false); setDestination(null); setChoices({}) }) }, [identity])
   useEffect(() => {
-    const invalidate = () => { epoch.current++; setOpen(false); setBusy(false); setChoices({}); setQueueAtReview(null) }
+    const invalidate = () => { epoch.current++; setBlocked([]); setEntries([]); setCount(0); setHasOriginalData(false); setOpen(false); setBusy(false); setChoices({}); setQueueAtReview(null) }
     window.addEventListener("holofolder-legacy-scope-changed", invalidate)
     return () => window.removeEventListener("holofolder-legacy-scope-changed", invalidate)
   }, [])
@@ -69,27 +88,43 @@ export function LegacyDeviceReview({ actorId, ownerId, binderId }: { actorId: st
       if (!response.ok) throw new Error(value.error ?? "Destination unavailable")
       if (value.recipient?.actorUserId !== actorId || value.recipient?.ownerUserId !== ownerId) throw new Error("Your account or sharing changed. Reload the app before reviewing.")
       setDestination(value)
-      sourcesAtReview.current = readLegacyQueueSources()
-      setEntries(reviewEntries(sourcesAtReview.current, actorId))
-      setQueueAtReview(localStorage.getItem(LOCAL_COLLECTION_PENDING_OPS_KEY))
+      if (durableEnabled) {
+        if (!durableQueue) throw new Error("Device storage is still loading.")
+        durableReview.current = binder ? await durableQueue.prepareReview(value.recipient) : null
+        if (ticket !== epoch.current || currentIdentity.current !== startedIdentity) return
+        sourcesAtReview.current = durableReview.current?.projections ?? durableSources()
+        setQueueAtReview(durableReview.current ? "durable" : null)
+      } else {
+        sourcesAtReview.current = readLegacyQueueSources()
+        setQueueAtReview(localStorage.getItem(LOCAL_COLLECTION_PENDING_OPS_KEY))
+      }
+      setEntries(reviewEntries(sourcesAtReview.current, actorId, binder))
     } catch (e) { if (ticket === epoch.current) setError(e instanceof Error ? e.message : "Could not load destination") }
     finally { if (ticket === epoch.current) setBusy(false) }
   }
-  function begin() {
+  async function begin() {
+    const startedIdentity = currentIdentity.current, ticket = ++epoch.current
     try {
-      const sources = prepareLegacyQueueReview()
+      if (durableEnabled) {
+        if (!durableQueue) throw new Error("Device storage is still loading.")
+        await durableQueue.queue.retainGuestReview()
+        await durableQueue.refresh()
+      }
+      if (startedIdentity !== currentIdentity.current || ticket !== epoch.current) return
+      const sources = durableEnabled ? durableSources() : prepareLegacyQueueReview()
       sourcesAtReview.current = sources
       setEntries(reviewEntries(sources, actorId)); setSelectedBinder(""); setChoices({}); setDestination(null); setError(null); setOpen(true)
       if (actorId) void load()
-    } catch { setError("Could not retain the original data. Free some device storage before reviewing."); setOpen(true) }
+    } catch { if (ticket === epoch.current && startedIdentity === currentIdentity.current) { setError("Could not retain the original data. Free some device storage before reviewing."); setOpen(true) } }
   }
   function download() {
-    const originals = [...readLegacyQueueSources().map(source => source.legacyQueueSource.raw),
-      ...blocked.flatMap(operation => { const raw = readPendingCollectionOperationRaw(operation.id); return raw ? [raw] : [] })]
+    const originals = durableEnabled
+      ? [...(durableQueue?.view()?.sources.flatMap(source => source.raw !== null ? [source.raw] : source.kind === "collection-mirror" ? [JSON.stringify(source.retainedValue)] : []) ?? []), ...(durableQueue?.view()?.entries.filter(entry => entry.state !== "completed").map(entry => JSON.stringify(entry)) ?? [])]
+      : [...readLegacyQueueSources().map(source => source.legacyQueueSource.raw), ...blocked.flatMap(operation => { const raw = readPendingCollectionOperationRaw(operation.id); return raw ? [raw] : [] })]
     const sources = [...new Set(originals)].filter(raw => mayDownloadLegacyOriginal(raw, actorId))
     if (originals.some(raw => !mayDownloadLegacyOriginal(raw, actorId)))
       setError("Some original data could not be verified for this account and cannot be downloaded here. It remains on this device.")
-    // Individual files contain the exact original string, including whitespace and invalid JSON.
+    // LS exports retain exact strings; mirror and request exports contain structured evidence.
     for (const [index, raw] of sources.entries()) {
       const url = URL.createObjectURL(new Blob([raw], { type: "application/json" }))
       const anchor = document.createElement("a"); anchor.href = url; anchor.download = `holo-folder-original-${index + 1}-${sourceDigest(raw).replace(":", "-")}.json`; anchor.click(); URL.revokeObjectURL(url)
@@ -97,8 +132,9 @@ export function LegacyDeviceReview({ actorId, ownerId, binderId }: { actorId: st
   }
   const selected = entries.filter(entry => entry.operation && choices[key(entry)])
   async function accept() {
-    if (!destination?.collection || !selectedBinder || !queueAtReview || !selected.length) return
+    if (acceptanceLock.current || !destination?.collection || !selectedBinder || !queueAtReview || !selected.length) return
     const ticket = ++epoch.current, startedIdentity = currentIdentity.current
+    const acceptanceToken = Symbol()
     const reviewEpoch = crypto.randomUUID()
     setBusy(true); setError(null)
     try {
@@ -112,22 +148,44 @@ export function LegacyDeviceReview({ actorId, ownerId, binderId }: { actorId: st
       const operations: PendingCollectionOperationInput[] = selected.map(entry => {
         const op = entry.operation!
         const base = destination.collection!.find(row => row.pokemon_id === op.pokemonId) ?? null
-        return { ...op, base, origin: destination.recipient, binderId: selectedBinder, importOnly: true, recoverySource: { digest: entry.source.legacyQueueSource.digest, ordinal: entry.ordinal, reviewEpoch } }
+        return { ...op, base, origin: destination.recipient, binderId: selectedBinder, ...(op.type === "upsert" ? { importOnly: true as const } : {}), recoverySource: { digest: entry.source.legacyQueueSource.digest, ordinal: entry.ordinal, reviewEpoch } }
       })
-      const sources = sourcesAtReview.current.map(source => ({ legacyQueueSource: { ...source.legacyQueueSource,
+      const sources = sourcesAtReview.current.map(source => ({ ...source, legacyQueueSource: { ...source.legacyQueueSource,
         accepted: [...(source.legacyQueueSource.accepted ?? []), ...selected.filter(entry => entry.source === source).map(entry => entry.ordinal)] } }))
-      acceptLegacyQueueReview(queueAtReview, sources, operations)
+      if (durableEnabled) {
+        const review = durableReview.current
+        if (!durableQueue || !review) throw new Error("Reload destination and review again.")
+        acceptanceLock.current = acceptanceToken; setAccepting(true)
+        await durableQueue.acceptReview(review, selected.map((entry, index) => {
+          const projection = review.projections.find(source => source.legacyQueueSource.raw === entry.source.legacyQueueSource.raw)
+          if (!projection) throw new Error("Original source changed.")
+          const { recoverySource: _source, ...input } = operations[index]
+          return { sourceId: projection.sourceId, ordinal: entry.ordinal, input }
+        }))
+        if (currentIdentity.current === startedIdentity) acceptedReview.current = review
+        if (ticket !== epoch.current || currentIdentity.current !== startedIdentity) return
+        window.dispatchEvent(new Event("holofolder-legacy-reviewed"))
+      } else acceptLegacyQueueReview(queueAtReview, sources, operations)
       acceptedEpoch.current = reviewEpoch
       setError("Reviewed changes queued for this binder. Original data is retained. Cancelling cannot undo a request already sent.")
       setChoices({}); setEntries(reviewEntries(sources, actorId)); setQueueAtReview(null)
-    } catch (e) { setChoices({}); setQueueAtReview(null); setError(e instanceof Error ? e.message : "Upload could not start. Original data is retained.") }
-    finally { if (ticket === epoch.current) setBusy(false) }
+    } catch (e) { if (ticket === epoch.current && startedIdentity === currentIdentity.current) { setChoices({}); setQueueAtReview(null); setError(e instanceof Error ? e.message : "Upload could not start. Original data is retained.") } }
+    finally {
+      if (acceptanceLock.current === acceptanceToken) { acceptanceLock.current = null; setAccepting(false) }
+      if (ticket === epoch.current) setBusy(false)
+    }
   }
-  function cancelUpload() {
+  async function cancelUpload() {
+    if (acceptanceLock.current) return
     epoch.current++; setBusy(false)
+    if (durableEnabled) {
+      try { if (acceptedReview.current && durableQueue) await durableQueue.cancelReview(acceptedReview.current) }
+      catch { setError("Could not save cancellation. Original requests remain retained; check the destination."); return }
+    } else {
     const operations = readPendingCollectionOperations()
     writePendingCollectionOperations(operations.map(op => op.recoverySource && op.recoverySource.reviewEpoch === acceptedEpoch.current && sameCollectionOrigin(op.origin, destination?.recipient)
       ? { ...op, recipientPause: op.deliveryUnknown ? "delivery_unknown" : "cancelled_review_upload" } : op))
+    }
     setChoices({}); setQueueAtReview(null)
     setError("Upload stopped for remaining changes. A request already sent may still complete. Check the destination before making another change.")
   }
@@ -175,7 +233,8 @@ export function LegacyDeviceReview({ actorId, ownerId, binderId }: { actorId: st
           })}</ul>
           {error && <p role="status" className="mt-3">{error}</p>}
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2 border-t border-border pt-3"><button className={`${button} bg-primary text-primary-foreground`} disabled={busy || !selected.length || !destination?.collection || !queueAtReview} onClick={() => void accept()}>Add {selected.length} reviewed changes to {destination?.binders.find(b => b.id === selectedBinder)?.name ?? "binder"}</button><button className={button} onClick={cancelUpload}>Cancel upload</button><button className={button} onClick={close}>Keep on this device</button></div>
+        {accepting && <p role="status">Saving reviewed changes on this device. Cancellation becomes available when saving finishes.</p>}
+        <div className="flex shrink-0 flex-wrap gap-2 border-t border-border pt-3"><button className={`${button} bg-primary text-primary-foreground`} disabled={busy || accepting || !selected.length || !destination?.collection || !queueAtReview} onClick={() => void accept()}>Add {selected.length} reviewed changes to {destination?.binders.find(b => b.id === selectedBinder)?.name ?? "binder"}</button><button className={button} disabled={accepting} onClick={cancelUpload}>Cancel upload</button><button className={button} onClick={close}>Keep on this device</button></div>
       </div>
     </div>}
   </>

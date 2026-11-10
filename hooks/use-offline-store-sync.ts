@@ -15,7 +15,7 @@ const PRICE_MIRROR_INTERVAL_MS = 2 * 60 * 1000
  * Keeps the IndexedDB offline store filled: migrates the localStorage collection once, copies last-known
  * prices every couple of minutes, and flushes pending writes when the page is hidden.
  */
-export function useOfflineStoreSync(enabled = true) {
+export function useOfflineStoreSync(enabled = true, durableQueue = false) {
   useEffect(() => {
     if (!enabled) return
     const store = getOfflineStore()
@@ -23,7 +23,7 @@ export function useOfflineStoreSync(enabled = true) {
 
     holdCollectionMirrorUntil(migrateLocalStorageToOfflineStore(window.localStorage, store, {
       snapshot: LOCAL_COLLECTION_SNAPSHOT_KEY,
-      pendingOperations: LOCAL_COLLECTION_PENDING_OPS_KEY,
+      pendingOperations: durableQueue ? undefined : LOCAL_COLLECTION_PENDING_OPS_KEY,
     }).catch((error) => console.error("[holofolder] IndexedDB migration failed:", error)))
 
     const mirrorPrices = () => {
@@ -58,5 +58,5 @@ export function useOfflineStoreSync(enabled = true) {
       document.removeEventListener("visibilitychange", handleHidden)
       window.removeEventListener("pagehide", handlePageHide)
     }
-  }, [enabled])
+  }, [enabled, durableQueue])
 }
