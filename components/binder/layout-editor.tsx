@@ -7,6 +7,8 @@ import { prepareLayoutIntent, type LayoutAction, type StagedSlotCommandIntent, t
 import { captureBulkSelection, bulkSelectionState, prepareBulkLayoutIntent, savedPageSlotIds, type BulkSelection, type BulkLayoutAction } from "@/lib/binder-bulk-editing"
 import { SLOT_LIMITS } from "@/lib/domain/slot-commands"
 
+import BulkFillReview from "@/components/binder/bulk-fill-review"
+
 import { useSlotDraftAcceptance } from "@/hooks/use-slot-draft-acceptance"
 
 export interface LayoutBoundary {
@@ -15,6 +17,7 @@ export interface LayoutBoundary {
   catalog: InventoryCatalogResolver
   onCommandIntent: SlotCommandSink
   localDurable?: boolean
+  bulkFill?: { available: boolean; receive: SlotCommandSink }
 }
 const button = "min-h-10 rounded-xl border border-border px-3 py-2 text-sm disabled:opacity-50 hover:bg-muted"
 
@@ -94,15 +97,22 @@ export function LayoutActions({ boundary, onCancel, appendOnly = false }: { boun
   </section>
 }
 
-export interface BulkLayoutHost { pageIndex: number; rows: number; cols: number; sessionKey: string }
+export interface BulkLayoutHost { pageIndex: number; rows: number; cols: number; sessionKey: string; collapsible?: boolean; onPageChange?: (pageIndex: number) => void }
 
 export function LayoutToolbar({ editing, onToggle, boundary, bulk }: { editing: boolean; onToggle: () => void; boundary: LayoutBoundary; bulk?: BulkLayoutHost }) {
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const showBulk = Boolean(bulk && (!bulk.collapsible || bulkOpen))
   return <section aria-label="Layout editing" className="shrink-0 rounded-xl border border-border bg-card px-3 py-2 text-foreground">
     <div className="flex items-center justify-between gap-2">
       <p role="status" className="text-sm">{editing ? "Editing layout" : "Browse layout"}</p>
       <LayoutButton aria-pressed={editing} onClick={onToggle}>{editing ? "Done" : "Edit layout"}</LayoutButton>
     </div>
-    {editing && bulk ? <BulkLayoutEditor key={`${boundary.scope.ownerUserId}:${boundary.scope.collectionId}:${bulk.sessionKey}:${bulk.rows}:${bulk.cols}`} boundary={boundary} host={bulk} /> : editing && <><p className="mb-2 text-xs text-muted-foreground">Select a slot to insert or move. {boundary.localDurable ? "Save on this device." : "Internal draft only."}</p><LayoutActions boundary={boundary} appendOnly /></>}
+    {editing && bulk?.collapsible && <div className="mt-2"><LayoutButton aria-expanded={bulkOpen} onClick={() => setBulkOpen(open => !open)}>{bulkOpen ? "Back to single slot" : "Select several pockets"}</LayoutButton></div>}
+    {editing && showBulk && bulk?.onPageChange && <nav aria-label="Selection pages" className="mt-2 flex flex-wrap items-center gap-2">
+      <LayoutButton disabled={bulk.pageIndex <= 0} onClick={() => bulk.onPageChange?.(bulk.pageIndex - 1)}>Previous selection page</LayoutButton>
+      <LayoutButton disabled={(bulk.pageIndex + 1) * bulk.rows * bulk.cols >= (boundary.snapshot.binders.find(b => b.collectionId === boundary.scope.collectionId)?.slots.length ?? 0)} onClick={() => bulk.onPageChange?.(bulk.pageIndex + 1)}>Next selection page</LayoutButton>
+    </nav>}
+    {editing && showBulk && bulk ? <BulkLayoutEditor key={`${boundary.scope.ownerUserId}:${boundary.scope.collectionId}:${bulk.sessionKey}:${bulk.rows}:${bulk.cols}`} boundary={boundary} host={bulk} /> : editing && <><p className="mb-2 text-xs text-muted-foreground">Select a slot to insert or move. {boundary.localDurable ? "Save on this device." : "Internal draft only."}</p><LayoutActions boundary={boundary} appendOnly /></>}
   </section>
 }
 
@@ -122,6 +132,7 @@ function BulkLayoutControls({ boundary, host, selection, onSelection, onDiscard 
   const ids = selection.slots.map(s => s.slot.id)
   const state = bulkSelectionState(snapshot, scope, selection)
   const pageIds = savedPageSlotIds(snapshot, scope, host.pageIndex, host.rows, host.cols)
+  const [fillOpen, setFillOpen] = useState(false)
   const [anchor, setAnchor] = useState("")
   const [count, setCount] = useState("1")
   const [error, setError] = useState<string | null>(null)
@@ -171,6 +182,8 @@ function BulkLayoutControls({ boundary, host, selection, onSelection, onDiscard 
         </LayoutButton>
       })}
     </div>
+    {boundary.bulkFill?.available && <LayoutButton disabled={unavailable || !ids.length} onClick={() => setFillOpen(true)}>Fill selected pockets</LayoutButton>}
+    {fillOpen && <BulkFillReview boundary={boundary} selection={selection} onClose={() => setFillOpen(false)} />}
     {state === "selection-changed" && <p role="alert" className="text-sm">Selected slots or copies changed. The entire group is blocked. Clear selection and choose again after reviewing the latest contents.</p>}
     {state === "layout-changed" && <>
       <p role="alert" className="text-sm">Layout evidence changed. Your selected copies are unchanged. Review the current order before continuing.</p>
@@ -207,6 +220,6 @@ function BulkLayoutControls({ boundary, host, selection, onSelection, onDiscard 
       <LayoutButton disabled={busy} onClick={() => handoff(pending)}>Retry same group</LayoutButton>
       <LayoutButton disabled={busy} onClick={onDiscard}>Discard unaccepted draft</LayoutButton>
     </div>}
-    <p className="text-xs text-muted-foreground">{boundary.localDurable ? "Accepted edits stay on this device, pending sync." : "Internal draft only, no durable saving."} Fill, clear/remove with Undo and cross-storage moves are not available here.</p>
+    <p className="text-xs text-muted-foreground">{boundary.localDurable ? "Accepted edits stay on this device, pending sync." : "Internal draft only, no durable saving."} Clear/remove with Undo and cross-storage moves are not available here.</p>
   </section>
 }

@@ -13,7 +13,7 @@ Insert a number of free slots or a whole current-grid page at an exact saved anc
 
 The private durable session says **Saved on device · Pending sync** only after a local storage transaction accepts the complete group. That does not mean a server has saved it. A changed layout needs review. Changed selected copies block the whole group until you clear selection and choose again. Failed local saves retain the original group for retry. **Done** exits editing without discarding accepted device edits.
 
-Ordered card fill, bulk clear/remove with safe Undo, cross-storage moves, public sync and rollout remain unavailable in this slice.
+Creating new copies from ordered catalog selections, bulk clear/remove with safe Undo, cross-storage moves, public sync and rollout remain unavailable in this slice.
 
 The local-only test host now exercises server command delivery as well as device saving. **Retry pending sync** preserves the original operation ID and request after a lost connection. A server receipt alone does not clear Pending sync: the session must read the complete current inventory after that reply. Billing and access failures pause the edit; conflicts retain it for review. An unknown outcome cannot be discarded or replaced to force a save.
 
@@ -28,3 +28,24 @@ edit. **Rebase saved edit** supports only nonoverlapping content or metadata cha
 Structural, overlapping and dependent edits stay retained for separate review.
 A timeout, lost reply or unclassified conflict preserves the original command for an
 exact retry, including after reload. No new command ID is chosen automatically.
+
+### Recorded-copy bulk fill, private preview
+
+In the local browser-host flow, choose **Edit layout**, then **Select several pockets**. Select saved pockets, then
+**Fill selected pockets**. Review the actual copy ID and ordered destination ID
+for every assignment. Choose a recorded Unassigned copy for each pocket, or
+explicitly **Skip** it. Occupied pockets are preserved. Mismatched targets,
+already-assigned copies, duplicate copy choices and unknown matching evidence
+cannot be confirmed. Copied preset spacers and page padding cannot be filled.
+
+**Preview automatic matches** proposes already recorded compatible Unassigned
+copies for empty targets. It creates no cards or grades. Free pockets still need
+an explicit choice or Skip. Review every proposal before **Confirm bulk fill**.
+A single confirmation is one bounded atomic request, never several partial saves.
+Choose a smaller selection if the request exceeds the existing limits.
+
+Cancel saves nothing. If device saving fails, **Retry same fill** keeps the same
+confirmed IDs and versions. Once accepted on device, closing the review does not
+cancel pending sync. A server reply must be followed by a fresh complete read
+before the saved request is acknowledged. There is no bulk Undo promise here.
+This is still private preparation, not an enabled production or public API feature.

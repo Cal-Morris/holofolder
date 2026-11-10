@@ -1106,9 +1106,10 @@ export default function BinderApp(props: BinderAppProps) {
     catalog: stagedSlotCatalog,
     onCommandIntent: onStagedSlotCommandIntent,
     localDurable: stagedSlotLocalDurable,
+    bulkFill: browserSurface?.bulkFill,
   } : undefined
   const layoutToolbar = layoutBoundary ? <LayoutToolbar key={`${layoutScopeKey}:${layoutSession?.id ?? "browse"}`} editing={editingLayout}
-    boundary={layoutBoundary} onToggle={() => { closeSlotDetail(); setLayoutSession(editingLayout ? null : { scope: layoutScopeKey, id: crypto.randomUUID() }) }} /> : undefined
+    boundary={layoutBoundary} bulk={browserSurface ? { collapsible: true, pageIndex: currentBinderPage - 1, rows: settings.binderRows, cols: settings.binderCols, sessionKey: layoutSession?.id ?? "browse", onPageChange: pageIndex => setCurrentBinderPage(pageIndex + 1) } : undefined} onToggle={() => { closeSlotDetail(); setLayoutSession(editingLayout ? null : { scope: layoutScopeKey, id: crypto.randomUUID() }) }} /> : undefined
   const getDisplayPageSlots = orderedDisplayPages ? (page: number) => orderedDisplayPages[page - 1] ?? Array.from({ length: slotsPerPage }, () => null) : undefined
 
   useEffect(() => {

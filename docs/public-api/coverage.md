@@ -183,3 +183,17 @@ fenced complete-read host, not a new admitted API. `get_collection_analytics` re
 legacy history: owner-wide native roots (including retained Unassigned copies), converted/mixed storage return 503 `native_analytics_staged`
 before legacy activity is queried; unknown authority fails closed. Saved prices still
 use `get_prices`. See [native analytics boundary](../native-analytics-dashboard.md).
+
+## Recorded-copy bulk fill (#370/#369), private browser composition
+
+[Bulk fill](../bulk-slot-fill.md) binds the existing real browser host, layout
+selection, inventory `assign` batch, durable IDB acceptance, HTTP sender, terminal
+rejection review and fresh complete-read ACK. Manual copy/destination review and
+opt-in compatible Unassigned proposals use the existing domain match contract.
+No new data operation, permission/schema/error, generated OpenAPI change or public
+admission is introduced. This UI cannot create inventory, overwrite/move assigned
+copies or invent a hosted inverse. REST/MCP continue to describe the underlying
+staged batch; production and cached-native startup remain denied/read-only.
+Synthetic local authority/ledger tests are not hosted SQL or production proof.
+See the [private help](../../content/docs/bulk-layout.mdx) and unpublished release
+draft. Parent retains #370/#369 final acceptance and rollout ownership.
