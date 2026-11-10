@@ -85,7 +85,7 @@ async function seedResetSentinels(page: Page) {
 }
 async function expectReset(page: Page) {
   expect(await page.evaluate(async () => ({
-    guard: sessionStorage.getItem("holofolder-startup-reset-v1"), auth: localStorage.getItem("sb-synthetic-auth-token"),
+    guard: sessionStorage.getItem("holofolder-startup-reset-v2"), auth: localStorage.getItem("sb-synthetic-auth-token"),
     snapshot: localStorage.getItem("pokemon_collection_snapshot_v1"),
     executable: !!await caches.match("/app/synthetic-reset-sentinel"), unrelated: !!await caches.match("/unrelated-sentinel"),
   }))).toEqual({ guard: "1", auth: "synthetic credentials", snapshot: null, executable: false, unrelated: true })
@@ -95,6 +95,7 @@ async function expectReset(page: Page) {
 test("online startup failure resets only offline data, reloads once, then shows the actual error and manual retry", async ({ page, context, insets }) => {
   await page.goto(entry); await ready(page)
   await seedResetSentinels(page)
+  await page.evaluate(() => sessionStorage.setItem("holofolder-startup-reset-v1", "1"))
   await page.evaluate(async url => {
     await navigator.serviceWorker.register(url, { scope: "/app" })
     await navigator.serviceWorker.ready
@@ -123,7 +124,7 @@ for (const stage of ["queue", "metadata", "save"] as const) test(`online stalled
   await page.goto(entry); await ready(page)
   await seedResetSentinels(page)
   await page.addInitScript(stage => {
-    if (sessionStorage.getItem("holofolder-startup-reset-v1")) return
+    if (sessionStorage.getItem("holofolder-startup-reset-v2")) return
     const original = IDBObjectStore.prototype.get
     IDBObjectStore.prototype.get = function(key) {
       const request = original.call(this, key)
@@ -157,7 +158,7 @@ test("valid complete read taking more than ten seconds opens without clearing sa
   await page.reload(); await ready(page)
   expect(navigations).toBe(1)
   expect(await page.evaluate(async () => ({
-    guard: sessionStorage.getItem("holofolder-startup-reset-v1"),
+    guard: sessionStorage.getItem("holofolder-startup-reset-v2"),
     cached: !!await caches.match("/app/synthetic-reset-sentinel"),
   }))).toEqual({ guard: null, cached: true })
   expect(await records(page)).toContain("synthetic offline data")
@@ -169,7 +170,7 @@ test("online complete-read timeout resets once, then stops with an error instead
   await page.goto(entry)
   await expect(page.getByRole("alert").filter({ hasText: "Could not open storage:" })).toContainText("inventory_read_unavailable", { timeout: CHECKED_STARTUP_TIMEOUT_MS * 2 + 10_000 })
   await expect(page.getByRole("button", { name: "Retry opening storage", exact: true })).toBeVisible()
-  expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v1"))).toBe("1")
+  expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v2"))).toBe("1")
 })
 
 test("known-offline opening retains the representative cached view without an automatic reset", async ({ page, context }) => {
@@ -185,7 +186,7 @@ test("known-offline opening retains the representative cached view without an au
   await page.reload()
   await expect(page.getByRole("status").filter({ hasText: "Cached only. Showing saved copies" }).first()).toBeVisible({ timeout: 15_000 })
   expect(await records(page)).toEqual(before)
-  expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v1"))).toBeNull()
+  expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v2"))).toBeNull()
 })
 
 
@@ -197,5 +198,5 @@ test("cached view cannot hide a stalled checked account handoff indefinitely", a
   await expect(page.getByText(/Saved on this device · Cached only/).first()).toBeVisible()
   await expect(page.getByRole("alert").filter({ hasText: "Could not open storage:" })).toContainText(CHECKED_STARTUP_TIMEOUT_ERROR, { timeout: CHECKED_STARTUP_TIMEOUT_MS * 2 + 10_000 })
   await expect(page.getByRole("button", { name: "Retry opening storage", exact: true })).toBeVisible()
-  expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v1"))).toBe("1")
+  expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v2"))).toBe("1")
 })

@@ -5,7 +5,7 @@ import { deleteBrowserOfflineDatabase } from "@/lib/offline-store/kv"
 export const CHECKED_STARTUP_TIMEOUT_MS = 45_000
 export const CHECKED_STARTUP_TIMEOUT_ERROR = `Account and storage startup timed out after ${CHECKED_STARTUP_TIMEOUT_MS / 1000} seconds`
 
-export const STARTUP_RESET_KEY = "holofolder-startup-reset-v1"
+export const STARTUP_RESET_KEY = "holofolder-startup-reset-v2"
 
 export function isOfflineCacheKey(key: string) {
   return /^(?:pokemon_collection_(?:snapshot|pending_ops)_v1(?:[:]|$)|pokemon_collected$|pokemon_binder_settings(?:[:]|$)|holofolder_activity_(?:scope|cache)_v1$|binderdex_(?:start_v1|device_binders_v1|card_price_cache_v\d+)$|holofolder-navigation-v1:|holofolder_billing_v1$)/.test(key)
