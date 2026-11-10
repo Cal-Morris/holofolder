@@ -281,7 +281,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     if (refreshing.current || !completeReadAvailable.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
     const record = await latest.current.queue.queue?.read()
     if (!valid() || read.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
-    return latest.current.queue.enqueue(draft.intent, withSelectedPrintings(catalog, selected), undefined, valid)
+    return latest.current.queue.enqueue(draft.intent, withSelectedPrintings(catalog, read.catalog, selected), undefined, valid)
   }
 
   const receiveBulkFill: SlotCommandSink = async draft => {

@@ -6,10 +6,12 @@ const CHANGED = new Set(["picker-scope-changed", "inactive-queue-scope", "slot-c
 export function slotDraftFailureMessage(cause: unknown): string {
   const reason = cause instanceof Error ? cause.message : ""
   // IndexedDB failures arrive as DOMExceptions (QuotaExceededError and friends) or the store's own "IndexedDB …" errors.
-  if (cause instanceof DOMException || reason.startsWith("IndexedDB") || reason === "queue_storage_unavailable")
-    return "Could not save on this device. Free some storage, then try again. Nothing is saved yet."
-  if (BUSY.has(reason)) return "Your collection is still syncing. Try again in a moment. Nothing is saved yet."
-  if (CHANGED.has(reason)) return "This pocket changed. Close it and try again. Nothing is saved yet."
-  if (reason === "catalog-unavailable") return "This card could not be confirmed. Try again when online. Nothing is saved yet."
-  return "Could not save this card. Try again. Nothing is saved yet."
+  if (cause instanceof DOMException && cause.name === "QuotaExceededError")
+    return "Could not save on this device. Free some storage, then try again. Save not confirmed."
+  if (reason.startsWith("IndexedDB") || reason === "queue_storage_unavailable")
+    return "Could not save on this device. Try again. Save not confirmed."
+  if (BUSY.has(reason)) return "Your collection is still syncing. Try again in a moment. Save not confirmed."
+  if (CHANGED.has(reason)) return "This pocket changed. Close it and try again. Save not confirmed."
+  if (reason === "catalog-unavailable") return "This card could not be confirmed. Try again when online. Save not confirmed."
+  return "Could not save this card. Try again. Save not confirmed."
 }

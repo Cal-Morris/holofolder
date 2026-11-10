@@ -5,7 +5,7 @@ import { syntheticSlotPickerSnapshot } from "@/tests/fixtures/slot-picker"
 import { createSlotOfflineQueue } from "@/lib/collection/slot-offline-queue"
 import { createMemoryStore } from "@/lib/offline-store/kv"
 import { readCompleteInventorySnapshot } from "@/lib/collection/slot-snapshot"
-import { withSelectedPrintings } from "@/lib/collection/browser-host-catalog"
+import { browserHostCatalog, withSelectedPrintings } from "@/lib/collection/browser-host-catalog"
 import { slotDraftFailureMessage } from "@/lib/slot-draft-failure"
 import type { InventoryCatalogResolver, InventorySnapshot } from "@/lib/domain/inventory"
 
@@ -36,8 +36,8 @@ test("host catalog alone rejects the unowned pick: the production failure", asyn
 
 test("selected-printing evidence lets the same draft save once, and an exact retry is idempotent", async () => {
   const { queue, host, selected, intent } = await setup()
-  await queue.enqueue(intent, withSelectedPrintings(host, selected))
-  await queue.enqueue(intent, withSelectedPrintings(host, selected))
+  await queue.enqueue(intent, withSelectedPrintings(host, [], selected))
+  await queue.enqueue(intent, withSelectedPrintings(host, [], selected))
   const record = await queue.read()
   assert.equal(record.pending.length, 1)
   assert.equal(record.pending[0].intent.request.operationId, "synthetic-op")
@@ -49,11 +49,11 @@ test("the read catalog stays authoritative over picker evidence for printings it
   const forged = { kind: "card" as const, id: "known", canonicalId: "other", aliasIds: [], pokemonIds: [2] }
   const fresh = { kind: "card" as const, id: "fresh", canonicalId: "fresh", aliasIds: [], pokemonIds: [3] }
   const host: InventoryCatalogResolver = id => id === "known" ? known : undefined
-  const resolve = withSelectedPrintings(host, id => id === "known" ? forged : id === "fresh" ? fresh : undefined)
+  const resolve = withSelectedPrintings(host, [], id => id === "known" ? forged : id === "fresh" ? fresh : undefined)
   assert.equal(resolve("known"), known)
   assert.equal(resolve("fresh"), fresh)
   assert.equal(resolve("missing"), undefined)
-  assert.equal(withSelectedPrintings(host), host)
+  assert.equal(withSelectedPrintings(host, []), host)
 })
 
 test("failures name their actual cause, not storage", () => {
@@ -62,5 +62,28 @@ test("failures name their actual cause, not storage", () => {
   assert.doesNotMatch(slotDraftFailureMessage(new Error("fresh-scoped-read-required")), /storage/)
   assert.match(slotDraftFailureMessage(new Error("slot-conflict")), /changed/)
   for (const reason of ["catalog-unavailable", "slot-conflict", "fresh-scoped-read-required", "anything"])
-    assert.match(slotDraftFailureMessage(new Error(reason)), /Nothing is saved yet\.$/)
+    assert.match(slotDraftFailureMessage(new Error(reason)), /Save not confirmed\.$/)
+})
+
+
+test("selected evidence cannot override an ambiguous own or alias ID already present in the read", () => {
+  const card = { id: "known", localId: "1", name: "Known", set: { id: "set", name: "Set" }, aliasIds: ["shared-alias"] }
+  const evidence = [
+    { card: { ...card, canonicalId: "known" }, pokemonIds: [1], speciesNames: ["Synthetic one"] },
+    { card: { ...card, canonicalId: "other" }, pokemonIds: [2], speciesNames: ["Synthetic two"] },
+  ]
+  const host = browserHostCatalog(evidence)
+  const picked = { kind: "card" as const, id: "known", pokemonIds: [1] }
+  const resolve = withSelectedPrintings(host, evidence, () => picked)
+  assert.equal(host("known"), undefined)
+  assert.equal(host("shared-alias"), undefined)
+  assert.equal(resolve("known"), undefined)
+  assert.equal(resolve("shared-alias"), undefined)
+  assert.equal(resolve("fresh"), picked)
+})
+
+test("aborted or unknown saves never invent a quota failure or assert no commit", () => {
+  assert.doesNotMatch(slotDraftFailureMessage(new DOMException("aborted", "AbortError")), /storage|Free|Nothing is saved/)
+  assert.doesNotMatch(slotDraftFailureMessage(new Error("IndexedDB transaction aborted")), /Free|Nothing is saved/)
+  assert.doesNotMatch(slotDraftFailureMessage(new Error("unknown outcome")), /Nothing is saved/)
 })

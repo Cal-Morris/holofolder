@@ -39,8 +39,11 @@ export function browserHostCatalog(evidence: readonly InventoryCatalogEvidence[]
 
 /** The read catalog stays authoritative for every printing it knows; a picker's selected-card evidence only fills
  * printings it does not hold yet (an unowned card picked from the mirror). The server re-resolves on commit. */
-export function withSelectedPrintings(host: InventoryCatalogResolver, selected?: InventoryCatalogResolver): InventoryCatalogResolver {
-  return selected ? id => host(id) ?? selected(id) : host
+export function withSelectedPrintings(host: InventoryCatalogResolver, evidence: readonly InventoryCatalogEvidence[], selected?: InventoryCatalogResolver): InventoryCatalogResolver {
+  if (!selected) return host
+  // An unresolved known ID may be ambiguous, so absence of a resolver result is not evidence of a new printing.
+  const knownIds = new Set(evidence.flatMap(({ card }) => [card.id, card.canonicalId, ...(card.aliasIds ?? [])].filter((id): id is string => typeof id === "string")))
+  return id => host(id) ?? (knownIds.has(id) ? undefined : selected(id))
 }
 
 /** Display lookup shares the recorded printing identity, never object insertion order. */
