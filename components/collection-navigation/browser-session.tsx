@@ -1,5 +1,8 @@
 "use client"
 
+import { prepareBinderCreation, type BinderCreationDraft } from "@/lib/binder-creation-draft"
+import type { NativeBinderCreationBinding } from "@/components/native-binder-creation"
+
 import { recoveryUnresolved } from "@/lib/collection/recovery-rejection"
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
@@ -25,6 +28,7 @@ import type { ScanDestinationAdmission } from "@/lib/scan-destinations"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 
+const NativeBinderCreation = dynamic(() => import("@/components/native-binder-creation"), { ssr: false })
 const GradingEditor = dynamic(() => import("@/components/grading/grading-editor"), { ssr: false })
 
 export interface BrowserSurfaceBinding {
@@ -34,6 +38,7 @@ export interface BrowserSurfaceBinding {
   catalog: InventoryCatalogResolver
   receive: SlotCommandSink
   pending: number
+  editingAvailable: boolean
 
   bulkFill?: { available: boolean; receive: SlotCommandSink }
 
@@ -76,6 +81,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const latest = useRef({ currentScope, queue, catalog: browserHostCatalog([]) })
   const [read, setRead] = useState<CollectionNavigationRead>({ scope: navigationScope, evidence: { kind: "unavailable" }, catalog: [], layouts: [] })
   const [grading, setGrading] = useState<{ snapshot: InventorySnapshot; itemId: string; intent: SlotOfflineIntent | null } | null>(null)
+  const [creating, setCreating] = useState<{ binding: NativeBinderCreationBinding } | null>(null)
+  const creation = useRef<{ intent: Extract<SlotOfflineIntent, { kind: "creation" }>; opened: boolean; open: NavigationSurface["openCreated"] } | null>(null)
   const [notice, setNotice] = useState("")
   const [ready, setReady] = useState(false)
   const [online, setOnline] = useState(true)
@@ -176,15 +183,15 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     finally { refreshing.current-- }
   }
   const scanAllowed = useRef(false)
-  useLayoutEffect(() => { scanAllowed.current = online && read.evidence.kind === "complete" && !!queue.record && !queue.record.pending.length && !queue.record.recovery?.some(r => !r.synchronized) })
+  useLayoutEffect(() => { scanAllowed.current = online && read.evidence.kind === "complete" && !!queue.record && !queue.record.pending.length && !queue.record.recovery?.some(recoveryUnresolved) })
   const receiveScan: ScanDestinationAdmission["onCommandIntent"] = async (draft, scanCatalog) => {
     if (!valid() || refreshing.current || !scanAllowed.current || !navigator.onLine
       || draft.scope.ownerUserId !== scope.ownerUserId || draft.intent.kind !== "inventory"
       || read.evidence.kind !== "complete"
       || !read.evidence.snapshot.binders.some(b => b.collectionId === draft.scope.collectionId)) throw new Error("fresh-scoped-read-required")
     const record = await latest.current.queue.queue?.read()
-    if (!valid() || !scanAllowed.current || !navigator.onLine || !record || record.pending.length || record.recovery?.some(r => !r.synchronized)) throw new Error("fresh-scoped-read-required")
-    return latest.current.queue.enqueue(draft.intent, scanCatalog)
+    if (!valid() || !scanAllowed.current || !navigator.onLine || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
+    return latest.current.queue.enqueue(draft.intent, scanCatalog, undefined, valid)
   }
   const getOfflineCards = async () => {
     const { buildOfflineCardIndex } = await import("@/lib/offline-card-index")
@@ -195,7 +202,9 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   }
   const receive: SlotCommandSink = async draft => {
     if (refreshing.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
-    return latest.current.queue.enqueue(draft.intent, catalog)
+    const record = await latest.current.queue.queue?.read()
+    if (!valid() || read.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
+    return latest.current.queue.enqueue(draft.intent, catalog, undefined, valid)
   }
 
   const receiveBulkFill: SlotCommandSink = async draft => {
@@ -203,7 +212,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     // #469 adds recovery to this same record; unresolved recovery must fence new work.
     const record: { pending: unknown[]; recovery?: { synchronized: boolean; resolution?: "discarded" | null }[] } | undefined = await latest.current.queue.queue?.read()
     if (!valid() || !navigator.onLine || read.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
-    return latest.current.queue.enqueue(draft.intent, catalog)
+    return latest.current.queue.enqueue(draft.intent, catalog, undefined, valid)
   }
 
   const recoveryRead = useRef<CollectionNavigationRead | null>(null)
@@ -242,8 +251,31 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     }) } : !online && read.evidence.kind === "complete" ? { ...read, evidence: { kind: "cached", snapshot: read.evidence.snapshot } } : read
   const inventoryRecord: { pending: unknown[]; recovery?: { synchronized: boolean; resolution?: "discarded" | null }[] } | null = queue.record
   const bulkFillAvailable = Boolean(online && read.evidence.kind === "complete" && inventoryRecord && !inventoryRecord.pending.length && !inventoryRecord.recovery?.some(recoveryUnresolved))
-  if (!ready) return <p role="status">Opening saved storage…</p>
 
+  const creationAvailable = bulkFillAvailable && read.evidence.kind === "complete" && read.evidence.snapshot.collections.length > 0
+  const create = async (draft: BinderCreationDraft, open: NavigationSurface["openCreated"]) => {
+    if (!valid() || refreshing.current || sending.current || !navigator.onLine || read.evidence.kind !== "complete") throw new Error("fresh-scoped-read-required")
+    const record = await latest.current.queue.queue?.read()
+    if (!valid() || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("pending-reconciliation")
+    if (creation.current?.intent.request.operationId !== draft.operationId) {
+      creation.current = { intent: prepareBinderCreation(draft, read.evidence.snapshot, { source: "app", clientId: deviceId,
+        operationId: draft.operationId, batchId: null, clientOccurredAt: new Date().toISOString() }, crypto.randomUUID(), draft.manifest.entries.map(() => crypto.randomUUID())), open, opened: false }
+    }
+    return latest.current.queue.enqueue(creation.current.intent, latest.current.catalog, read.evidence.snapshot, valid)
+  }
+  useEffect(() => {
+    const retained = creation.current
+    if (!retained || retained.opened || !valid() || read.evidence.kind !== "complete"
+      || !queue.record?.receipts.some(r => r.operationId === retained.intent.request.operationId && r.outcome === "acknowledged")
+      || queue.record.pending.length || queue.record.recovery?.some(recoveryUnresolved)) return
+    retained.opened = true
+    setCreating(null)
+    // Historical receipts do not establish presence, and a later navigation owns the screen.
+    if (queue.record.snapshot?.collections.some(c => c.id === retained.intent.request.collectionId)) retained.open(retained.intent.request.collectionId, read)
+    // The exact creation is consumed at most once in this mounted session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queue.record, read])
+  if (!ready) return <p role="status">Opening saved storage…</p>
   const gradingItem = grading?.snapshot.items.find(i => i.id === grading.itemId)
   const canEditGrading = read.evidence.kind === "complete" && !queue.record?.pending.length && !queue.record?.recovery?.some(recoveryUnresolved)
   return <><CollectionNavigationHost onEditGrading={canEditGrading ? itemId => {
@@ -262,7 +294,10 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         const display = snapshot && binder && layout ? { inventory: snapshot, binder,
           catalog: {}, resolveCard: browserHostDisplayCatalog(visibleRead.catalog) } : undefined
         return renderSurface({ analytics: { scope: navigationScope, read: visibleRead }, surface: { ...surface, header: <>
-          <div className="px-4"><ActivityButton /></div>
+          <div className="flex items-center gap-2 px-4"><ActivityButton />
+            <button type="button" className="min-h-10 rounded-xl border border-border px-3 text-sm font-semibold" disabled={!creationAvailable}
+              onClick={() => setCreating({ binding: { actorUserId: scope.actorUserId, ownerUserId: scope.ownerUserId, count: snapshot?.collections.length ?? 0, available: creationAvailable,
+                create: draft => create(draft, surface.openCreated) } })}>New binder</button></div>
           {queue.record?.recovery?.some(recoveryUnresolved) && <p role="status" className="px-4 text-sm">Recovery saved on this device. Open Activity to retry the original request or verify current storage.</p>}
           {Boolean(queue.record?.pending.length) && <p role="status" className="px-4 text-sm">Saved on device · Pending sync.</p>}
           {queue.record?.pending[0] && ["conflict", "blocked", "billing"].includes(queue.record.pending[0].status) && <p role="status" className="px-4 text-sm">
@@ -285,22 +320,26 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           }}>Retry pending sync</button>}
           {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || queue.error}</p>}
 
-          {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}{surface.header}</> }, display, catalog, receive, recovery, bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: queue.record?.pending.length ?? 0,
+          {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}{surface.header}</> }, display, catalog, receive, recovery, editingAvailable: read.evidence.kind === "complete" && !queue.record?.recovery?.some(recoveryUnresolved) && !queue.record?.pending.some(p => p.intent.kind === "creation"), bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: queue.record?.pending.length ?? 0,
 
           scan: { detectPage: localHarness && new URLSearchParams(location.search).get("scanFixture") === "1"
             ? async (...args) => (await import("@/tests/fixtures/native-scanner-host")).syntheticPageDetection(...args) : undefined,
             available: bulkFillAvailable, online, rows: layout?.rows, cols: layout?.cols, sessionId: scope.sessionId, getOfflineCards, receive: receiveScan } })
 
       }} />
+    {creating && <NativeBinderCreation binding={{ ...creating.binding, available: creationAvailable,
+      count: read.evidence.kind === "unavailable" ? 0 : read.evidence.snapshot.collections.length }} onClose={() => setCreating(null)} />}
     {grading && gradingItem && read.evidence.kind === "complete" && read.evidence.snapshot.inventoryRevision === grading.snapshot.inventoryRevision && <GradingEditor
       key={`${scope.sessionId}:${grading.itemId}:${gradingItem.version}`} item={gradingItem}
       itemRef={inventoryGradingReference(grading.snapshot, grading.itemId)} ownerEvidence={grading.snapshot.items}
       onClose={() => setGrading(current => current === grading ? null : current)} onQueue={async command => {
         if (!valid() || refreshing.current) throw new Error("The authenticated storage session changed. Your accepted edits remain on this device.")
+        const record = await latest.current.queue.queue?.read()
+        if (!valid() || read.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
         // Allocate once before touching IDB. An aborted/lost local reply retries these exact bytes.
         grading.intent ??= prepareInventoryGradingIntent(grading.snapshot, command, { source: "app", clientId: deviceId,
           operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString() })
-        return latest.current.queue.enqueue(grading.intent, latest.current.catalog)
+        return latest.current.queue.enqueue(grading.intent, latest.current.catalog, undefined, valid)
       }} />}
   </>
 }

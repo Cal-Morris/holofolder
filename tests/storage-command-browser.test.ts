@@ -62,3 +62,29 @@ test("only private, matching terminal ledger envelopes authorize rejection recon
     assert.equal((await sendStorageCommand(intent, () => scope, new AbortController().signal)).rejection, undefined)
   } finally { globalThis.fetch = old }
 })
+test("creation sender binds exact collection/ordered slot receipt and uses native path only", async () => {
+  const old = globalThis.fetch
+  const { blankPreset } = await import("@/lib/binder-creation-draft")
+  const creation: SlotOfflineIntent = { kind: "creation", context: intent.context, request: { version: 1, operationId: intent.request.operationId,
+    inventoryRevision: 1, collectionId: "33333333-3333-4333-8333-333333333333", name: "Synthetic blank", kind: "binder", defaultPresentation: "binder", grid: null, location: null, manifest: blankPreset(), slotIds: [] } }
+  const accepted = { inventoryRevision: 2, collectionId: creation.request.collectionId, collectionVersion: 0, layoutRevision: 0, changed: true, slotIds: [], recoverySupported: false }
+  try {
+    for (const candidate of [accepted, { ...accepted, collectionId: "other-id" }, { ...accepted, slotIds: ["not-requested"] }, { ...accepted, extra: true }]) {
+      globalThis.fetch = async (url, init) => {
+        assert.equal(url, "/app/api/storage-collections")
+        assert.deepEqual(JSON.parse(String(init?.body)), creation.request)
+        return Response.json({ version: 1, operationId: creation.request.operationId, receipt: candidate }, { headers: { "cache-control": "private, no-store" } })
+      }
+      const result = await sendStorageCommand(creation, () => scope, new AbortController().signal)
+      assert.equal(result.status, candidate === accepted ? 200 : 0)
+      assert.equal("snapshot" in result, false)
+    }
+  } finally { globalThis.fetch = old }
+})
+test("new first-party creation path remains unconditionally staged", async () => {
+  const { POST } = await import("@/app/api/storage-collections/route")
+  const response = await POST()
+  assert.equal(response.status, 503)
+  assert.equal(response.headers.get("cache-control"), "private, no-store")
+  assert.deepEqual(await response.json(), { error: "storage_operations_staged" })
+})

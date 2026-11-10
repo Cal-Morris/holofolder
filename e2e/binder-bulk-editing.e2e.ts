@@ -60,7 +60,7 @@ test.describe("bulk layout private durable boundary", () => {
     await expect(bulk(page)).toContainText("Saved on device")
     const saved = (await record(page))!
     expect(saved.pending).toHaveLength(1)
-    expect(saved.pending[0].intent.request.commands).toHaveLength(1)
+    expect("commands" in saved.pending[0].intent.request ? saved.pending[0].intent.request.commands : undefined).toHaveLength(1)
     expect(saved.optimistic!.items).toEqual(before.items)
     expect(saved.optimistic!.placements).toEqual(before.placements)
     for (const slot of saved.optimistic!.binders[0].slots) expect(slot).toEqual(before.binders[0].slots.find(s => s.id === slot.id))
@@ -94,7 +94,7 @@ test.describe("bulk layout private durable boundary", () => {
     await button(page, "Insert page after").click()
     await expect.poll(async () => (await record(page)).pending.length).toBe(1)
     const saved = (await record(page)).pending[0].intent
-    expect(saved.request.commands[0]).toMatchObject({ kind: "create", beforeSlotId: "slot-e" })
+    expect("commands" in saved.request ? saved.request.commands[0] : undefined).toMatchObject({ kind: "create", beforeSlotId: "slot-e" })
     const slots = await order(page)
     expect(slots.slice(0, 4)).toEqual(["slot-a", "slot-b", "slot-c", "slot-d"])
     expect(slots.slice(8)).toEqual(["slot-e", "slot-f", "slot-g"])

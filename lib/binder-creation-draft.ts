@@ -1,3 +1,7 @@
+import { isCompleteInventorySnapshot } from "@/lib/collection/slot-snapshot"
+import type { InventorySnapshot } from "@/lib/domain/inventory"
+import type { OperationIntentContext } from "@/lib/domain/audit-context"
+import { parseSlotIntent } from "@/lib/collection/slot-optimistic"
 import { parseSetChecklist } from "@/lib/set-preset"
 import { normalizePresetManifest, type PresetDefinition, type SetChecklist } from "@/lib/domain/binder-presets"
 import { isContractRecord, isSlotContractId, type SlotTarget } from "@/lib/domain/binder-slots"
@@ -43,4 +47,18 @@ export function printingPreset(cards: readonly SearchCardResult[]): PresetDefini
   if (targets.some(t => !t)) throw new Error("A printing needs catalog, set and language evidence")
   return { source: { id: "selected-printings", version: "1" }, name: "Selected printings",
     entries: targets.map((target, index) => ({ id: `printing-${index + 1}`, target: target! })) }
+}
+
+/** Allocate IDs/time before calling this once, then retain these exact bytes through local aborts. */
+export function prepareBinderCreation(draft: BinderCreationDraft, base: InventorySnapshot, context: OperationIntentContext,
+  collectionId: string, slotIds: string[], grid: { rows: number; cols: number } | null = null) {
+  if (!isCompleteInventorySnapshot(base) || !base.collections.length || !base.binders.length
+    || base.ownerUserId !== draft.ownerUserId) throw new Error("verified-complete-native-base-required")
+  if (draft.setChecklist) throw new Error("set-checklist-persistence-unavailable")
+  if (context.operationId !== draft.operationId) throw new Error("operation-id-mismatch")
+  const intent = parseSlotIntent({ kind: "creation", context, request: { version: 1, operationId: draft.operationId,
+    inventoryRevision: base.inventoryRevision, collectionId, slotIds, name: draft.name,
+    kind: "binder", defaultPresentation: "binder", location: null, grid, manifest: draft.manifest } })
+  freeze(intent)
+  return intent
 }

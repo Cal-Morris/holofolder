@@ -17,6 +17,7 @@ export interface NavigationSurface {
   header: ReactNode
   state: CollectionNavigationState
   collection: Parameters<CollectionNavigationHostProps["renderCollection"]>[0] | null
+  openCreated: (collectionId: string, fresh: CollectionNavigationRead) => boolean
   onInventory: () => void
   onCollection: () => void
   onDex: () => void
@@ -226,7 +227,14 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
         onChange: patch => update(old => ({ ...old, collections: { ...old.collections, [collectionId]: { ...collectionState, ...patch } } })) })}</div>
       : <p role="status">Collection unavailable. Open Inventory or National Dex.</p>}
   </>
-  if (renderSurface) return renderSurface({ notice: notice || safe?.notice || "", visit, content, header, state: visible, collection,
+  const creationEntry = entryId.current, creationRequest = request.current
+  if (renderSurface) return renderSurface({ openCreated: (id, latest) => {
+    if (!alive.current || entryId.current !== creationEntry || request.current !== creationRequest
+      || latest.evidence.kind !== "complete" || !latest.evidence.snapshot.collections.some(c => c.id === id)) return false
+    setFresh({ base: read, value: latest })
+    navigate({ ...visible, main: "collection", collectionId: id, collections: { ...visible.collections, [id]: defaultCollectionView() } }, null, latest)
+    return true
+  }, notice: notice || safe?.notice || "", visit, content, header, state: visible, collection,
     onInventory: () => navigate({ ...visible, main: "inventory" }), onCollection: () => navigate({ ...visible, main: "collection" }), onDex: () => navigate({ ...visible, main: "dex", dexView: "list" }),
     onLegacyView: dexView => navigate({ ...visible, main: "dex", dexView }) })
   return <div className={styles.host}>{header}{content}

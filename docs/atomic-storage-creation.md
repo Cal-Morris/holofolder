@@ -77,9 +77,9 @@ With 083 alone, the unchanged 077–081 planner returns `supported: false` with 
 
 083 does not weaken that planner or add a recorder/reset/force bypass. The receipt deliberately says `recoverySupported: false`. Keep all creation app/REST/MCP exposure blocked until #396 proves an inverse over actual generated first/default and nondefault events, later-edit conflicts and maximum bounds. #379's existing unconditional first-party staging routes and fixed developer admission denial remain the hard runtime gates. No environment or request flag enables them. Parent's hosted migration review/application is distinct from enabling product writes.
 
-## Concrete draft, queue and API adapters still required
+## Draft, queue and API adapter integration
 
-The #422 `BinderCreationDraft` is immutable UI intent, **not** this command. Before #379, its owning adapter must:
+The #422 `BinderCreationDraft` is immutable UI intent, **not** this command. The [durable copied-preset consumer](durable-copied-preset-creation.md) now performs command adaptation, atomic device retention and post-reply fresh-read ACK in the admitted native host. It requires existing verified native authority and does not bootstrap first/native conversion. 093 terminal-proof/discard consumer integration and #379 admission remain gates. The original adapter requirements are:
 
 1. Authenticate and compare the draft's recipient with current membership as a mismatch check. Never forward `draft.ownerUserId` into the body or use it as authentication.
 2. Normalize the name, copy the existing detached manifest, choose storage kind/default and optional custom location/grid, and obtain a fresh complete owner revision. Do not run legacy `ensureDefaultBinder` as a creation prerequisite.

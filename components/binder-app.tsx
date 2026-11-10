@@ -1094,7 +1094,7 @@ export default function BinderApp(props: BinderAppProps) {
   }, [browserSurface, currentBinderPage])
   const layoutScopeKey = JSON.stringify([stagedSlotSessionId, user?.id, stagedSlotDisplay?.inventory.ownerUserId, stagedSlotDisplay?.binder.collectionId, initialBinderId, activeMainView, collectionViewFilter, selectedGen, binderDimension, isSpreadLayout, settings.binderRows, settings.binderCols])
   const [layoutSession, setLayoutSession] = useState<{ scope: string; id: string } | null>(null)
-  const canEditLayout = Boolean(!legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent
+  const canEditLayout = Boolean((!browserSurface || browserSurface.editingAvailable) && !legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent
     && activeMainView === "binder" && collectionViewFilter === "all" && selectedGen === 0)
   const editingLayout = canEditLayout && layoutSession?.scope === layoutScopeKey
   useEffect(() => {
