@@ -26,6 +26,7 @@ export type PendingCollectionOperation =
       importOnly?: true
       pokemonId: number
       item: CollectedPokemon
+      compatibilityPause?: { code: "binder_converted_requires_slot_commands"; rawRecord: string }
       billingPause?: string
       queuedAt: string
       base?: CollectedPokemon | null
@@ -35,6 +36,7 @@ export type PendingCollectionOperation =
       id: string
       type: "delete"
       pokemonId: number
+      compatibilityPause?: { code: "binder_converted_requires_slot_commands"; rawRecord: string }
       billingPause?: string
       queuedAt: string
       base?: CollectedPokemon | null
@@ -153,6 +155,12 @@ export function readPendingCollectionOperations(): PendingCollectionOperation[] 
       if (typeof item.id !== "string" || typeof item.type !== "string") return []
       if (typeof item.pokemonId !== "number" || !Number.isInteger(item.pokemonId) || item.pokemonId <= 0) return []
 
+      // Paused intent is evidence, never normalize or rebase it into a different command.
+      if (item.compatibilityPause?.code === "binder_converted_requires_slot_commands"
+        && (item.type === "delete" || (item.type === "upsert" && item.item))) {
+        return [operation as PendingCollectionOperation]
+      }
+
       if (item.type === "delete") {
         return [{
           id: item.id,
@@ -199,6 +207,46 @@ export function writePendingCollectionOperations(operations: PendingCollectionOp
   }
 }
 
+/** Read original record bytes before a send can race a newer local edit. */
+export function readPendingCollectionOperationRaw(operationId: string) {
+  if (typeof window === "undefined") return
+  const stored = window.localStorage.getItem(LOCAL_COLLECTION_PENDING_OPS_KEY)
+  if (!stored || !Array.isArray(JSON.parse(stored))) return
+  const arrayStart = stored.indexOf("[")
+  const records: string[] = []
+  let depth = 0, quoted = false, escaped = false, start = arrayStart + 1
+  for (let i = arrayStart + 1; i < stored.length; i++) {
+    const char = stored[i]
+    if (quoted) {
+      if (escaped) escaped = false
+      else if (char === "\\") escaped = true
+      else if (char === '"') quoted = false
+    } else if (char === '"') quoted = true
+    else if (char === "{" || char === "[") depth++
+    else if (depth === 0 && (char === "," || char === "]")) {
+      records.push(stored.slice(start, i))
+      start = i + 1
+    } else if (char === "}" || char === "]") depth--
+  }
+  return records.find(record => record.trim() && JSON.parse(record)?.id === operationId)
+}
+
+/** Pause in the existing queue, keeping the original intent even if a newer edit replaced it in flight. */
+export function pauseLegacyCollectionOperation(operationId: string, originalRaw = readPendingCollectionOperationRaw(operationId)) {
+  if (typeof window === "undefined" || !originalRaw) return
+  const original = JSON.parse(originalRaw)
+  if (original.compatibilityPause) return
+  const stored = window.localStorage.getItem(LOCAL_COLLECTION_PENDING_OPS_KEY)
+  const operations = stored ? JSON.parse(stored) : []
+  if (!Array.isArray(operations)) return
+  if (operations.some(operation => operation?.id === operationId && operation.compatibilityPause)) return
+  const paused = { ...original, compatibilityPause: { code: "binder_converted_requires_slot_commands", rawRecord: originalRaw } }
+  const exists = operations.some(operation => operation?.id === operationId)
+  writePendingCollectionOperations(exists
+    ? operations.map(operation => operation?.id === operationId ? paused : operation)
+    : [paused, ...operations])
+}
+
 export function createPendingOperationId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID()
@@ -210,7 +258,7 @@ export function createPendingOperationId() {
 export function queuePendingCollectionOperation(operation: PendingCollectionOperationInput) {
   const existing = readPendingCollectionOperations()
   const binderId = pendingOperationBinderId(operation)
-  const replaced = existing.find((queuedOperation) => sameSlot(queuedOperation, operation.pokemonId, binderId))
+  const replaced = existing.find((queuedOperation) => !queuedOperation.compatibilityPause && sameSlot(queuedOperation, operation.pokemonId, binderId))
   // One edit per Pokémon: the newest wins, but it keeps the base of the first unsynced edit, because that
   // is the server state all of them were made against.
   const base = replaced ? replaced.base : operation.base
@@ -223,7 +271,7 @@ export function queuePendingCollectionOperation(operation: PendingCollectionOper
   } as PendingCollectionOperation
   if (base === undefined) delete nextOperation.base
   if (!binderId) delete nextOperation.binderId
-  const operations = existing.filter((queuedOperation) => !sameSlot(queuedOperation, operation.pokemonId, binderId))
+  const operations = existing.filter((queuedOperation) => Boolean(queuedOperation.compatibilityPause) || !sameSlot(queuedOperation, operation.pokemonId, binderId))
 
   writePendingCollectionOperations([...operations, nextOperation])
   return nextOperation
@@ -236,7 +284,7 @@ export function hasPendingCollectionOperation(pokemonId: number, binderId: strin
 /** Replace a queued edit in place (after a conflict merge), keeping its position. */
 export function replacePendingCollectionOperation(operationId: string, next: PendingCollectionOperation) {
   writePendingCollectionOperations(
-    readPendingCollectionOperations().map((operation) => (operation.id === operationId ? next : operation)),
+    readPendingCollectionOperations().map((operation) => (operation.id === operationId && !operation.compatibilityPause ? next : operation)),
   )
 }
 
@@ -245,13 +293,13 @@ export function rebasePendingCollectionOperation(pokemonId: number, base: Collec
   const operations = readPendingCollectionOperations()
   if (!operations.some((operation) => sameSlot(operation, pokemonId, binderId))) return
   writePendingCollectionOperations(
-    operations.map((operation) => (sameSlot(operation, pokemonId, binderId) ? { ...operation, base } : operation)),
+    operations.map((operation) => (sameSlot(operation, pokemonId, binderId) && !operation.compatibilityPause ? { ...operation, base } : operation)),
   )
 }
 
 export function removePendingCollectionOperation(operationId: string) {
   writePendingCollectionOperations(
-    readPendingCollectionOperations().filter((operation) => operation.id !== operationId),
+    readPendingCollectionOperations().filter((operation) => operation.id !== operationId || operation.compatibilityPause),
   )
 }
 

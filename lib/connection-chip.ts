@@ -2,7 +2,7 @@
  * Copy for the one compact connection chip at the top of the screen (main app and Show mode
  * share the wording): offline with/without queued edits, and queued edits syncing online.
  */
-export type ConnectionSyncStatus = "idle" | "syncing" | "waiting"
+export type ConnectionSyncStatus = "idle" | "syncing" | "waiting" | "compatibility"
 
 const changes = (count: number) => `${count} change${count === 1 ? "" : "s"}`
 
@@ -13,5 +13,6 @@ export function offlineChipLabel(pendingCount: number): string {
 
 /** Online label while queued edits are being sent; `waiting` means a send failed and is retrying. */
 export function syncingChipLabel(pendingCount: number, status: ConnectionSyncStatus = "syncing"): string {
+  if (status === "compatibility") return "Saved on this device. Sync needs a compatible client."
   return `${changes(pendingCount)} syncing${status === "waiting" ? " · retrying" : ""}`
 }

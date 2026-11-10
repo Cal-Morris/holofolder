@@ -47,6 +47,8 @@ import {
 } from "@/lib/collection/normalize"
 import {
   LOCAL_COLLECTION_PENDING_OPS_KEY,
+  pauseLegacyCollectionOperation,
+  readPendingCollectionOperationRaw,
   hasPendingCollectionOperation,
   readLocalCollectionSnapshot,
   restorePendingCollectionOperations,
@@ -89,7 +91,7 @@ import { loadCollectionRows, scopeCollectionQuery, syncCollectionRows } from "@/
 import { collectionBaselineRows, createCollectionBaseline, type CollectionSyncBaseline } from "@/lib/collection/delta-sync"
 
 /** idle: nothing to send · syncing: sending queued edits · waiting: a send failed, retrying with backoff */
-export type CollectionSyncStatus = "idle" | "syncing" | "waiting"
+export type CollectionSyncStatus = "idle" | "syncing" | "waiting" | "compatibility"
 
 function describeEdit(operation: Pick<PendingCollectionOperation, "pokemonId"> & { item?: CollectedPokemon; base?: CollectedPokemon | null }) {
   const name = operation.item?.pokemon_name ?? operation.base?.pokemon_name ?? `#${operation.pokemonId}`
@@ -147,7 +149,10 @@ export function useCollection(options: UseCollectionOptions = {}) {
     return operationBinderId === binderId || (operationBinderId === null && isDefaultBinder)
   }, [binderId, isDefaultBinder])
   const readBinderPendingOperations = useCallback(
-    () => readPendingCollectionOperations().filter(isEditForThisBinder),
+    () => readPendingCollectionOperations().filter(isEditForThisBinder).map(operation =>
+      operation.compatibilityPause && operation.type === "upsert"
+        ? { ...operation, item: normalizeCollectionItem(operation.item) }
+        : operation),
     [isEditForThisBinder],
   )
   const [user, setUser] = useState<User | null>(initialUser)
@@ -264,8 +269,14 @@ export function useCollection(options: UseCollectionOptions = {}) {
     }, delay)
   }, [])
 
-  const queueLocalCollectionOperation = useCallback((operation: PendingCollectionOperationInput, options: { afterFailure?: boolean } = {}) => {
-    queuePendingCollectionOperation(operation)
+  const queueLocalCollectionOperation = useCallback((operation: PendingCollectionOperationInput, options: { afterFailure?: boolean; compatibilityPause?: boolean } = {}) => {
+    const queued = queuePendingCollectionOperation(operation)
+    if (options.compatibilityPause) {
+      pauseLegacyCollectionOperation(queued.id)
+      setSyncStatus("compatibility")
+      refreshLocalPendingSyncCount()
+      return
+    }
     if (options.afterFailure) {
       // The server or network just failed this edit: back off before trying again.
       scheduleSyncRetry()
@@ -564,19 +575,33 @@ export function useCollection(options: UseCollectionOptions = {}) {
       return
     }
 
+    const flushIdentity = recoveryIdentityRef.current
+    const isCurrentFlush = () => flushIdentity !== null && recoveryIdentityRef.current === flushIdentity
     isFlushingPendingOperationsRef.current = true
     setSyncStatus("syncing")
     let didWriteRemoteCollection = false
     let shouldRetry = false
     let didPause = false
+    let didPauseCompatibility = false
 
     try {
       for (const queuedOperation of operations) {
+        if (!isCurrentFlush()) return
+        if (queuedOperation.compatibilityPause) { didPauseCompatibility = true; continue }
+        // A later edit must not bypass retained incompatible intent for the same binder.
+        if (readPendingCollectionOperations().some(edit => edit.compatibilityPause
+          && pendingOperationBinderId(edit) === pendingOperationBinderId(queuedOperation))) {
+          pauseLegacyCollectionOperation(queuedOperation.id)
+          didPauseCompatibility = true
+          continue
+        }
         const access = readBillingCache(localStorage, user.id, collectionOwnerUserId)
         const accessKey = JSON.stringify(access)
         if (queuedOperation.billingPause === accessKey) { didPause = true; continue }
         let operation = queuedOperation
         let conflictRounds = 0
+        const originalRaw = readPendingCollectionOperationRaw(operation.id)
+        if (!originalRaw) continue
 
         // Each edit: write it; on 409 merge with the server row and try again (bounded); on a hard
         // failure roll it back; on a network/server failure stop and retry the whole queue later.
@@ -587,18 +612,26 @@ export function useCollection(options: UseCollectionOptions = {}) {
           try {
             if (edit.type === "upsert") {
               const savedItem = await writeRemoteCollection(() => saveRemoteCollectionItem(edit.item, { baseFingerprint, binderId: editBinderId, acquisition: edit.acquisition, importOnly: edit.importOnly }))
+              if (!isCurrentFlush()) return
               removePendingCollectionOperation(edit.id)
               settleLocalItem(edit.pokemonId, savedItem, editBinderId)
             } else {
               await writeRemoteCollection(() => deleteRemoteCollectionItem(edit.pokemonId, { baseFingerprint, binderId: editBinderId }))
+              if (!isCurrentFlush()) return
               removePendingCollectionOperation(edit.id)
               settleLocalItem(edit.pokemonId, null, editBinderId)
             }
             didWriteRemoteCollection = true
             break
           } catch (error) {
+            if (!isCurrentFlush()) return
             const kind = classifyWriteFailure(error)
 
+            if (kind === "compatibility") {
+              pauseLegacyCollectionOperation(operation.id, originalRaw)
+              didPauseCompatibility = true
+              break
+            }
             if (kind === "paused") {
               replacePendingCollectionOperation(operation.id, { ...operation, billingPause: accessKey })
               setSyncNotice("Your changes are saved on this device. Upgrade or remove cards to sync them.")
@@ -652,12 +685,15 @@ export function useCollection(options: UseCollectionOptions = {}) {
       refreshLocalPendingSyncCount()
     }
 
+    if (!isCurrentFlush()) return
     if (shouldRetry) {
       scheduleSyncRetry()
+      if (didPauseCompatibility) setSyncStatus("compatibility")
       return
     }
 
     syncRetryAttemptRef.current = 0
+    if (didPauseCompatibility) { setSyncStatus("compatibility"); return }
     if (didPause) { setSyncStatus("waiting"); return }
     if (readPendingCollectionOperations().length > 0) {
       // Edits made while we were sending: go again.
@@ -812,7 +848,8 @@ export function useCollection(options: UseCollectionOptions = {}) {
       ? { type: "upsert", pokemonId, item: nextItem, base: existingItem, acquisition, ...(importOnly ? { importOnly: true as const } : {}), ...binderField }
       : { type: "delete", pokemonId, base: existingItem, ...binderField }
 
-    if (!user || !collectionOwnerUserId || isOffline() || hasPendingCollectionOperation(pokemonId, binderId)) {
+    if (!user || !collectionOwnerUserId || isOffline() || hasPendingCollectionOperation(pokemonId, binderId)
+      || readPendingCollectionOperations().some(edit => edit.compatibilityPause && isEditForThisBinder(edit))) {
       queueLocalCollectionOperation(edit)
       return { item: nextItem, queued: true as const }
     }
@@ -838,10 +875,10 @@ export function useCollection(options: UseCollectionOptions = {}) {
         return { item: existingItem, queued: false as const, error, rolledBack: true as const }
       }
       // Conflicts are resolved by the queue right away; network/server failures wait for the backoff.
-      queueLocalCollectionOperation(edit, { afterFailure: classifyWriteFailure(error) === "retry" })
+      queueLocalCollectionOperation(edit, { afterFailure: classifyWriteFailure(error) === "retry", compatibilityPause: classifyWriteFailure(error) === "compatibility" })
       return { item: nextItem, queued: true as const, error }
     }
-  }, [applyLocalCollection, binderId, broadcastCollectionChanged, collectionOwnerUserId, queueLocalCollectionOperation, rollBackEdit, settleLocalItem, user, writeRemoteCollection])
+  }, [applyLocalCollection, binderId, broadcastCollectionChanged, collectionOwnerUserId, isEditForThisBinder, queueLocalCollectionOperation, rollBackEdit, settleLocalItem, user, writeRemoteCollection])
 
   const addToCollection = useCallback(async (
     pokemonId: number,

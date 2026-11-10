@@ -41,6 +41,14 @@ Private uploaded binder artwork lives in a separate private R2 bucket. Upload pr
 
 Collection updates must protect against overwriting a newer edit. Duplicate retries of creation, purchase and job operations must not create duplicate effects. See the API reference for each request schema. Binder creation and comparison jobs require an `Idempotency-Key`; collection edits require a `baseFingerprint` from the previous read. Retry keys are retained for 24 hours. Cursors do not freeze the dataset while other clients make changes.
 
+## Converted binders and saved legacy edits
+
+A legacy collection write to a converted binder returns `409` with code `binder_converted_requires_slot_commands`. This compatibility rejection does not include a current legacy `item`. Do not interpret it as an absent row, a successful delete, or a row conflict to merge. Keep the original queued intent and pause replay until a compatible client can handle it.
+
+The app shows “Saved on this device. Sync needs a compatible client.” These changes have not synced. Keep this device's app data; clearing it can remove saved edits. Reloading this client does not translate the saved edits or enable native writes. Ordinary row-conflict `409` responses still follow their existing merge policy; temporary `503` and network failures still retry.
+
+This protection does not recover missing historical recipient bindings or provide guest-import acceptance or multi-tab durability. Native routes remain staged behind `503`; #363 and #379 are still open gates.
+
 ## Staged native storage
 
 [Native storage contracts](/docs/native-storage) declare their fixed 503 admission, exact revision/operation-ID semantics and supported backend bounds. They do not inherit the legacy 24-hour retry policy or expose developer inventory reads. Existing collection and Activity Undo operations remain available under their current contract.
