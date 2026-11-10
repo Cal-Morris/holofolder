@@ -11,6 +11,8 @@ import { useTCGdex, type TCGCard, type CardFilters, type CardLanguage } from "@/
 import type { CardFinish } from "@/hooks/use-collection"
 import { Button } from "@/components/ui/button"
 import { useOverlay } from "@/hooks/use-overlay"
+import { useCardSearch } from "@/hooks/use-card-search"
+import { buildOfflineCardIndex } from "@/lib/offline-card-index"
 import CardPickerFiltersSheet from "@/components/card-picker-filters-sheet"
 import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
@@ -45,8 +47,14 @@ import { X, Search, Check, Loader2, Camera, Heart, MoreHorizontal, SlidersHorizo
 export type CardSelectorMode = "collect" | "wishlist"
 
 interface CardSelectorProps {
+  /** The species whose printings are listed. Ignored when `anyCard` is set. */
   pokemonId: number
   pokemonName: string
+  /**
+   * Any-card picking for pockets that are not tied to one Pokémon: the same selector, searching every supported
+   * card (Trainers and Energy included). `cardId` narrows it to the one printing a pocket is reserved for.
+   */
+  anyCard?: { title: string; cardId?: string }
   onSelect: (card: TCGCard | null, mode: CardSelectorMode, finish?: CardFinish) => void
   onClose: () => void
   selectedCardId?: string
@@ -67,8 +75,10 @@ interface CardSelectorProps {
    * sheet or a variant filter), never inferred. Wanted mode and "mark owned without card" are legacy
    * collection writes, so they are hidden along with the More menu; slot structure belongs to layout editing.
    */
-  native?: { onPick: (card: TCGCard, finish: CardFinish | undefined) => void }
+  native?: { onPick: (card: TCGCard & { dexIds?: number[] }, finish: CardFinish | undefined) => void }
 }
+
+const noOfflineCards = () => buildOfflineCardIndex([])
 
 type CardSelectorAmountFormatter = (gbpAmount: number | null | undefined, price?: CardPriceSnapshot) => string | null
 
@@ -188,12 +198,22 @@ export default function CardSelector({
   pricingRegion = DEFAULT_PRICING_REGION,
   formatAmount = formatGbpAmount,
   native,
+  anyCard,
 }: CardSelectorProps) {
-  const { fetchCardsForPokemon, filterCards, isLoading, error } = useTCGdex()
-  const [cards, setCards] = useState<TCGCard[]>([])
+  const { fetchCardsForPokemon, filterCards, isLoading: isLoadingSpecies, error: speciesError } = useTCGdex()
+  const [speciesCards, setCards] = useState<TCGCard[]>([])
   const [filters, setFilters] = useState<CardFilters>({})
   const [sort, setSort] = useState<CardPickerSort>(readCardPickerSort)
   const [selectedCardLanguage, setSelectedCardLanguage] = useState<CardLanguage>(defaultCardLanguage ?? "en")
+  // Any-card mode searches the whole catalog as you type; a reserved printing is looked up by its own ID.
+  const isAnyCard = Boolean(anyCard), reservedCardId = anyCard?.cardId
+  const anyCardQuery = isAnyCard ? reservedCardId ?? filters.searchQuery ?? "" : ""
+  const catalogSearch = useCardSearch(anyCardQuery, isAnyCard, noOfflineCards, { language: selectedCardLanguage, includeNonPokemon: true })
+  const cards = useMemo<TCGCard[]>(() => !isAnyCard ? speciesCards
+    : catalogSearch.cards.filter((card) => !reservedCardId || matchesCatalogCardId(card, reservedCardId)).map((card) => ({ ...card, language: selectedCardLanguage })),
+  [isAnyCard, reservedCardId, catalogSearch.cards, selectedCardLanguage, speciesCards])
+  const isLoading = anyCard ? catalogSearch.loading : isLoadingSpecies
+  const error = anyCard ? null : speciesError
   const [selectionMode, setSelectionMode] = useState<CardSelectorMode>(mode)
   const [variantChoice, setVariantChoice] = useState<CardPickerVariantChoice>("any")
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
@@ -240,14 +260,14 @@ export default function CardSelector({
         accentClass: "border-amber-400/40 bg-amber-400/12 text-amber-700 dark:text-amber-300",
       }
     : {
-        title: `${selectedCollectedCardId ? "Change owned" : "Add"} card for ${pokemonName}`,
+        title: anyCard?.title ?? `${selectedCollectedCardId ? "Change owned" : "Add"} card for ${pokemonName}`,
         label: "Add card",
         shortLabel: "Add",
         actionLabel: selectedCollectedCardId ? "Change owned card" : "Add owned card",
         scanLabel: "Scan card",
         emptyActionLabel: "Mark owned without card",
         helper: "Saves this printing as the card you own in this slot.",
-        searchPlaceholder: "Search name or number",
+        searchPlaceholder: anyCard ? "Search name, set or number" : "Search name or number",
         currentLabel: "Current card",
         activeClass: "border-emerald-400/55 bg-emerald-400/14 text-emerald-700 shadow-[0_10px_24px_-18px_rgba(52,211,153,0.85)] dark:text-emerald-300",
         accentClass: "border-emerald-400/40 bg-emerald-400/12 text-emerald-700 dark:text-emerald-300",
@@ -307,12 +327,13 @@ export default function CardSelector({
   }, [mode])
 
   useEffect(() => {
+    if (isAnyCard) return
     const load = async () => {
       const cardsData = await fetchCardsForPokemon(pokemonId, "en")
       setCards(cardsData)
     }
     load()
-  }, [pokemonId, fetchCardsForPokemon])
+  }, [pokemonId, fetchCardsForPokemon, isAnyCard])
 
   useEffect(() => {
     descriptorCacheRef.current.clear()
@@ -342,8 +363,9 @@ export default function CardSelector({
 
   const variantFilter = getVariantFilter(variantChoice)
   const filteredCards = useMemo(
-    () => filterCards(cards, { ...filters, variant: variantFilter }),
-    [cards, filters, filterCards, variantFilter],
+    // Any-card results are already the search's matches (name, set, number or artist), so they are not re-filtered by text.
+    () => filterCards(cards, { ...filters, ...(isAnyCard ? { searchQuery: undefined } : {}), variant: variantFilter }),
+    [isAnyCard, cards, filters, filterCards, variantFilter],
   )
   const scanRankById = useMemo(() => {
     return new Map(scanMatches.map((match, index) => [match.card.id, index + 1]))
@@ -826,8 +848,8 @@ export default function CardSelector({
                 </button>
               </div>}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold capitalize leading-tight">{pokemonName}</p>
-                <p className="truncate text-[11px] text-muted-foreground">{filteredCards.length} of {cards.length} cards</p>
+                <p className={`truncate text-sm font-semibold leading-tight ${anyCard ? "" : "capitalize"}`}>{anyCard?.title ?? pokemonName}</p>
+                <p className="truncate text-[11px] text-muted-foreground">{anyCard && !anyCardQuery.trim() ? "Any card, Trainer or Energy" : `${filteredCards.length} of ${cards.length} cards`}</p>
               </div>
               {!native && <div className="relative shrink-0">
                 <Button
@@ -869,7 +891,7 @@ export default function CardSelector({
               </Button>
             </div>
 
-            <div className="mt-2 flex items-center gap-2">
+            <div className={`mt-2 items-center gap-2 ${anyCard?.cardId ? "hidden" : "flex"}`}>
               <div className="relative min-w-0 flex-1">
                 <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
@@ -878,9 +900,10 @@ export default function CardSelector({
                   placeholder={intentCopy.searchPlaceholder}
                   value={filters.searchQuery || ""}
                   onChange={(e) => setFilters((f) => ({ ...f, searchQuery: e.target.value }))}
+                  autoFocus={Boolean(anyCard)}
                   className="h-11 w-full rounded-2xl border border-border/60 bg-background/85 pl-9 pr-11 text-base md:text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/50 [&::-webkit-search-cancel-button]:hidden"
                 />
-                <button
+                {!anyCard && <button
                   type="button"
                   onClick={openCardScanner}
                   disabled={isLoading || cards.length === 0 || isScanningCard}
@@ -888,7 +911,7 @@ export default function CardSelector({
                   className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted/70 hover:text-foreground disabled:opacity-40"
                 >
                   {isScanningCard ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                </button>
+                </button>}
               </div>
               <button
                 type="button"
@@ -1083,6 +1106,15 @@ export default function CardSelector({
                 ))}
                 <span className="sr-only">Loading cards…</span>
               </div>
+            ) : anyCard && cards.length === 0 ? (
+              <div className="mx-auto flex max-w-xs flex-col items-center gap-2 py-10 text-center">
+                {!isOnline ? <WifiOff className="h-6 w-6 text-muted-foreground" /> : <Search className="h-6 w-6 text-muted-foreground" />}
+                <p className="text-sm font-semibold">{anyCardQuery.trim().length < 2 ? "Search for a card" : !isOnline ? "You're offline" : "No cards found"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {anyCardQuery.trim().length < 2 ? "Type a name, a set or a card number. Trainers and Energy work too."
+                    : !isOnline ? "Only cards already saved on this device can be found offline." : anyCard.cardId ? "This card isn't available to add right now." : "Try a different name, set or number."}
+                </p>
+              </div>
             ) : (error || cards.length === 0) ? (
               <div className="mx-auto flex max-w-xs flex-col items-center gap-3 py-10 text-center">
                 {!isOnline && <WifiOff className="h-6 w-6 text-muted-foreground" />}
@@ -1161,8 +1193,9 @@ export default function CardSelector({
                         )}
                       </div>
                       <div className="p-1.5 sm:p-2">
-                        <p className="truncate text-[10px] font-semibold text-foreground sm:text-xs">{card.set.name}</p>
-                        {card.name.includes("(") && <p className="mt-0.5 text-[10px] text-foreground">{card.name}</p>}
+                        {anyCard && <p className="truncate text-[11px] font-semibold text-foreground sm:text-xs">{card.name}</p>}
+                        <p className={`truncate text-[10px] sm:text-xs ${anyCard ? "text-muted-foreground" : "font-semibold text-foreground"}`}>{card.set.name}</p>
+                        {!anyCard && card.name.includes("(") && <p className="mt-0.5 text-[10px] text-foreground">{card.name}</p>}
                         <div className="mt-1 grid grid-cols-2 gap-1 text-[9px] font-semibold tabular-nums sm:text-[10px]">
                           <span className="rounded-md bg-muted px-1 py-0.5 text-emerald-600 dark:text-emerald-300">L {priceLabels.good ?? (isLoadingPrices ? "..." : "-")}</span>
                           <span className="rounded-md bg-muted px-1 py-0.5 text-foreground">M {priceLabels.market ?? (isLoadingPrices ? "..." : "-")}</span>

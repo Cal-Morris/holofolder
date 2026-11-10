@@ -111,6 +111,8 @@ import { renderBottomNavView } from "@/components/binder/bottom-nav"
 
 import type { SlotCommandSink } from "@/lib/binder-slot-editing"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
+import type { LayoutSessionStart, LayoutTap } from "@/components/binder/layout-editor"
+import { pocketPlace } from "@/lib/pocket-labels"
 import { buildSlotDisplay, displaySlotImageUrl, nativeBinderCoverStats, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
 
 import { useBrowserCollectionScope } from "@/hooks/use-browser-collection-scope"
@@ -131,6 +133,7 @@ const CollectionSlotList = dynamic(() => import("@/components/collection-navigat
 
 const LayoutToolbar = dynamic(() => import("@/components/binder/layout-editor").then(module => module.LayoutToolbar), { ssr: false })
 const NativeSlotFlow = dynamic(() => import("@/components/binder/native-slot-flow"), { ssr: false })
+const PocketMenu = dynamic(() => import("@/components/binder/pocket-menu"), { ssr: false })
 
 interface BinderAppProps {
   /** Minted only by the server-gated loopback harness. Production bootstrap never supplies this. */
@@ -1208,12 +1211,18 @@ function BinderAppSurface(props: BinderAppProps) {
       browserSurface.surface.collection?.onChange({ page: currentBinderPage })
   }, [browserSurface, currentBinderPage])
   const layoutScopeKey = JSON.stringify([stagedSlotSessionId, user?.id, stagedSlotDisplay?.inventory.ownerUserId, stagedSlotDisplay?.binder.collectionId, initialBinderId, activeMainView, collectionViewFilter, selectedGen, binderDimension, isSpreadLayout, settings.binderRows, settings.binderCols])
-  const [layoutSession, setLayoutSession] = useState<{ scope: string; id: string } | null>(null)
+  const [layoutSession, setLayoutSession] = useState<{ scope: string; id: string; start?: LayoutSessionStart } | null>(null)
+  // Drawn on the pockets themselves; the bar owns the selection and reports it here.
+  const [layoutMarks, setLayoutMarks] = useState<{ ids: ReadonlySet<string>; moving: boolean }>({ ids: new Set(), moving: false })
+  const layoutTap = useRef<LayoutTap | null>(null)
+  const registerLayoutTap = useCallback((tap: LayoutTap | null) => { layoutTap.current = tap }, [])
+  const [pocketMenu, setPocketMenu] = useState<{ slotId: string; point: { x: number; y: number } } | null>(null)
+  const reportLayoutSelection = useCallback((ids: readonly string[], moving: boolean) => setLayoutMarks({ ids: new Set(ids), moving }), [])
   const canEditLayout = Boolean((!browserSurface || browserSurface.editingAvailable) && !legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent
     && activeMainView === "binder" && collectionViewFilter === "all" && selectedGen === 0)
   const editingLayout = canEditLayout && layoutSession?.scope === layoutScopeKey
   useEffect(() => {
-    queueMicrotask(() => { setLayoutSession(null); closeSlotDetail() })
+    queueMicrotask(() => { setLayoutSession(null); setPocketMenu(null); closeSlotDetail() })
   }, [layoutScopeKey, canEditLayout, closeSlotDetail])
   const layoutBoundary = canEditLayout && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent ? {
     snapshot: stagedSlotDisplay.inventory,
@@ -1223,9 +1232,19 @@ function BinderAppSurface(props: BinderAppProps) {
     localDurable: stagedSlotLocalDurable,
     bulkFill: browserSurface?.bulkFill,
     removal: browserSurface?.bulkFill,
+    resolveCard: stagedSlotDisplay.resolveCard ?? ((id: string) => stagedSlotDisplay.catalog[id]),
   } : undefined
-  const layoutToolbar = layoutBoundary ? <LayoutToolbar key={`${layoutScopeKey}:${layoutSession?.id ?? "browse"}`} editing={editingLayout}
-    boundary={layoutBoundary} bulk={browserSurface ? { collapsible: true, pageIndex: currentBinderPage - 1, rows: settings.binderRows, cols: settings.binderCols, sessionKey: layoutSession?.id ?? "browse", onPageChange: pageIndex => setCurrentBinderPage(pageIndex + 1) } : undefined} onToggle={() => { closeSlotDetail(); setLayoutSession(editingLayout ? null : { scope: layoutScopeKey, id: crypto.randomUUID() }) }} /> : undefined
+  const startLayoutEditing = (start?: LayoutSessionStart) => { closeSlotDetail(); setPocketMenu(null); setLayoutMarks({ ids: new Set(start?.ids), moving: Boolean(start?.moving) }); setLayoutSession({ scope: layoutScopeKey, id: crypto.randomUUID(), start }) }
+  const layoutToolbar = layoutBoundary ? <LayoutToolbar key={`${layoutScopeKey}:${layoutSession?.id ?? "browse"}`} editing={editingLayout} boundary={layoutBoundary}
+    host={{ rows: settings.binderRows, cols: settings.binderCols }} start={layoutSession?.start} onTap={registerLayoutTap} onSelection={reportLayoutSelection}
+    onToggle={() => { if (editingLayout) { closeSlotDetail(); setLayoutSession(null) } else startLayoutEditing() }} /> : undefined
+  const slotPickerBoundary = (slotId: string) => !legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent
+    ? { snapshot: stagedSlotDisplay.inventory, scope: { ownerUserId: stagedSlotDisplay.inventory.ownerUserId, collectionId: stagedSlotDisplay.binder.collectionId, slotId }, catalog: stagedSlotCatalog, onCommandIntent: onStagedSlotCommandIntent, localDurable: stagedSlotLocalDurable } : undefined
+  const slotPlace = (slotId: string) => {
+    const index = orderedDisplaySlots?.findIndex(slot => slot.id === slotId) ?? -1
+    return index < 0 ? undefined : pocketPlace(index, settings.binderRows, settings.binderCols)
+  }
+  const pocketMenuSlot = pocketMenu && orderedDisplaySlots ? resolveDisplaySelection(orderedDisplaySlots, pocketMenu.slotId) : null
   const getDisplayPageSlots = orderedDisplayPages ? (page: number) => orderedDisplayPages[page - 1] ?? Array.from({ length: slotsPerPage }, () => null) : undefined
 
   // A share's search/jump destination opens after the page or view change that would otherwise close it.
@@ -3690,7 +3709,9 @@ function BinderAppSurface(props: BinderAppProps) {
   const renderSpreadBlankPage = (side: "left" | "right") => renderSpreadBlankPageView({ getBinderThemeForPage }, side)
 
   const slotActions = useBinderSlotActions({ currentBinderPage, handleLongPress, handleQuickCollect, handleSlotClick, handleToggleFavorite, openCardSelectorForPokemon, registerSlotButtonRef, setCurrentBinderPage, setLongPressedPokemon })
-  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => orderedDisplaySlots?.length === 0 ? <div role="status" className="flex h-full items-center justify-center rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">No slots in this binder</div> : renderBinderGridPageView({ displaySlots: getDisplayPageSlots, slotInteractionKey: `${layoutScopeKey}:${layoutSession?.id ?? "browse"}`, selectedSlotId: selectedSlotId ?? browserSurface?.surface.collection?.highlight?.slotId, onSelectSlot: setSelectedSlotId, binderSlotImageSizes, binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings: binderEffectSettings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
+  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => orderedDisplaySlots?.length === 0 ? <div role="status" className="flex h-full items-center justify-center rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">No slots in this binder</div> : renderBinderGridPageView({ displaySlots: getDisplayPageSlots, slotInteractionKey: `${layoutScopeKey}:${layoutSession?.id ?? "browse"}`, selectedSlotId: selectedSlotId ?? browserSurface?.surface.collection?.highlight?.slotId,
+    onSelectSlot: editingLayout ? (id: string) => layoutTap.current?.(id) : setSelectedSlotId, layoutMarks: editingLayout ? layoutMarks : undefined,
+    onSlotMenu: layoutBoundary ? (slotId: string, point: { x: number; y: number }) => setPocketMenu({ slotId, point }) : undefined, binderSlotImageSizes, binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings: binderEffectSettings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
 
   const handleShareWantedList = async (scope: "binder" | "all" = "binder") => {
     if (!billing.premium) { requestUpgrade(); return }
@@ -4063,10 +4084,20 @@ function BinderAppSurface(props: BinderAppProps) {
         />
       ) : null}
 
-      {selectedDisplaySlot && <NativeSlotFlow pricing={{ defaultCardLanguage: pricingPreferences.cardLanguage, pricingRegion: pricingPreferences.region, formatAmount: priceFormat.amount }} key={`${stagedSlotSessionId}:${user?.id}:${stagedSlotDisplay?.inventory.ownerUserId}:${stagedSlotDisplay?.binder.collectionId}:${selectedDisplaySlot.id}`} slot={selectedDisplaySlot} onClose={closeSlotDetail}
-        onDoneLayout={() => { closeSlotDetail(); setLayoutSession(null) }}
-        layout={editingLayout && layoutBoundary ? { ...layoutBoundary, scope: { ...layoutBoundary.scope, slotId: selectedDisplaySlot.id } } : undefined}
-        picker={!editingLayout && !legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent ? { snapshot: stagedSlotDisplay.inventory, scope: { ownerUserId: stagedSlotDisplay.inventory.ownerUserId, collectionId: stagedSlotDisplay.binder.collectionId, slotId: selectedDisplaySlot.id }, catalog: stagedSlotCatalog, onCommandIntent: onStagedSlotCommandIntent, localDurable: stagedSlotLocalDurable } : undefined} />}
+      {selectedDisplaySlot && !editingLayout && <NativeSlotFlow pricing={{ defaultCardLanguage: pricingPreferences.cardLanguage, pricingRegion: pricingPreferences.region, formatAmount: priceFormat.amount }} key={`${stagedSlotSessionId}:${user?.id}:${stagedSlotDisplay?.inventory.ownerUserId}:${stagedSlotDisplay?.binder.collectionId}:${selectedDisplaySlot.id}`} slot={selectedDisplaySlot} onClose={closeSlotDetail}
+        picker={slotPickerBoundary(selectedDisplaySlot.id)}
+        host={{ place: slotPlace(selectedDisplaySlot.id),
+          // Saved prices for the owner's own cards; a share shows only the figure its owner opted in to.
+          pricing: !shareViewToken && !publicIndex && pricingEnabled ? { region: pricingPreferences.region, formatAmount: priceFormat.amount, formatRange: priceFormat.range } : undefined,
+          onAllCards: (pokemon, cardId) => openCardBrowser(pokemon, { highlightCardId: cardId, fromDetail: true }),
+          onIllustrator: name => openIllustratorBrowser(name, { fromDetail: true }),
+          onArrange: layoutBoundary ? () => startLayoutEditing({ ids: [selectedDisplaySlot.id], moving: false }) : undefined }} />}
+      {pocketMenuSlot && pocketMenu && <PocketMenu key={pocketMenu.slotId} slot={pocketMenuSlot} place={slotPlace(pocketMenuSlot.id) ?? ""} point={pocketMenu.point}
+        picker={editingLayout ? undefined : slotPickerBoundary(pocketMenuSlot.id)} layout={layoutBoundary} selected={editingLayout && layoutMarks.ids.has(pocketMenuSlot.id)}
+        onClose={() => setPocketMenu(null)}
+        onOpen={() => { const id = pocketMenuSlot.id; setPocketMenu(null); if (editingLayout) setLayoutSession(null); setSelectedSlotId(id) }}
+        onSelect={() => { const id = pocketMenuSlot.id; setPocketMenu(null); if (editingLayout) layoutTap.current?.(id); else startLayoutEditing({ ids: [id], moving: false }) }}
+        onMove={() => startLayoutEditing({ ids: [pocketMenuSlot.id], moving: true })} />}
       {isCardSelectorOpen && selectedPokemon && (
         <CardSelector
           pokemonId={selectedPokemon.id}

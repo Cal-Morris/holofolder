@@ -1,4 +1,4 @@
-import type { StagedSlotCommandIntent } from "@/lib/binder-slot-editing"
+import type { SlotCommandSink, StagedSlotCommandIntent } from "@/lib/binder-slot-editing"
 import type { OperationIntentContext } from "@/lib/domain/audit-context"
 import { isCardLanguage, type CardFinish, type TCGCard, type WantedCard } from "@/lib/domain/cards"
 import type { SlotTarget } from "@/lib/domain/binder-slots"
@@ -11,9 +11,18 @@ import { getCardPickerFinishChoices } from "@/lib/card-picker-filters"
 import { inferCardFinish } from "@/lib/pokemon-card-browse"
 import { isStandardFinishVariantKey, type CardFinishPrice } from "@/lib/card-pricing"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
+import type { InventoryCatalogEvidence } from "@/lib/domain/inventory-browse"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 
 export interface SlotPickerScope { ownerUserId: string; collectionId: string; slotId: string }
+/** What a pocket needs to save a card: the current read, its exact scope and the native durable sink. */
+export interface SlotPickerBoundary {
+  snapshot: InventorySnapshot
+  scope: SlotPickerScope
+  catalog: InventoryCatalogResolver
+  onCommandIntent: SlotCommandSink
+  localDurable?: boolean
+}
 export interface SlotPickerIntent extends StagedSlotCommandIntent { scope: SlotPickerScope }
 export type SlotPickerAction = { kind: "assign"; selection: InventorySelection; fulfillWant: SelectedWant }
   | { kind: "target"; target: SlotTarget | null } | { kind: "clear" }
@@ -113,7 +122,9 @@ export function planNativePick(snapshot: InventorySnapshot, scope: SlotPickerSco
   const graded = copies.some(c => c.label !== "Raw")
   // A graded choice always offers a new copy when no unplaced raw copy exists, so a graded copy is never forced.
   const choices = graded ? raw ? copies : [{ label: "New copy", selection: fresh }, ...copies] : []
-  return { resolver, identity, base, choices, immediate: wants.length || graded ? null : base,
+  // The card exactly as the picker showed it, so the pocket keeps its name and artwork until a read includes it.
+  const picked: InventoryCatalogEvidence = { card: { ...card, language: isCardLanguage(card.language) ? card.language : undefined }, speciesNames: [], pokemonIds: candidate.pokemonIds }
+  return { resolver, identity, base, choices, picked, immediate: wants.length || graded ? null : base,
     wants: wants.map(index => ({ index, name: slot.wantedCards[index].card_name })),
     wanted: (index: number): SelectedWant => ({ index, expected: slot.wantedCards[index] }) }
 }

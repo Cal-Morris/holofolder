@@ -1,23 +1,43 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { X } from "lucide-react"
+import CardImage from "@/components/card-image"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useSlotDraftAcceptance } from "@/hooks/use-slot-draft-acceptance"
 import type { LayoutBoundary } from "@/components/binder/layout-editor"
 import type { BulkSelection } from "@/lib/binder-bulk-editing"
-import { automaticBulkFillChoices, previewBulkFill, prepareBulkFillIntent, type BulkFillChoices } from "@/lib/binder-bulk-fill"
+import { automaticBulkFillChoices, isFillSpacer, previewBulkFill, prepareBulkFillIntent, type BulkFillChoices } from "@/lib/binder-bulk-fill"
 import { sameValue } from "@/lib/collection/slot-optimistic"
+import { describeIdentity, formatGradeLabel, pocketPlace } from "@/lib/pocket-labels"
+import { slotDraftFailureMessage } from "@/lib/slot-draft-failure"
 
-const button = "min-h-10 rounded-xl border border-border px-3 py-2 text-sm disabled:opacity-50"
-export default function BulkFillReview({ boundary, selection, onClose }: { boundary: LayoutBoundary; selection: BulkSelection; onClose: () => void }) {
+/** Why a chosen spare card can't go in a pocket, in the person's terms. */
+function fillProblem(reason: string | null) {
+  if (!reason) return null
+  if (reason.startsWith("Copy selected more than once")) return "This card is already chosen for another pocket."
+  if (reason.startsWith("Target mismatch")) return "This card doesn't match what the pocket is for."
+  if (reason.startsWith("Unresolved catalog identity")) return "This card can't be checked against the pocket right now."
+  if (reason.startsWith("Copy already assigned") || reason.startsWith("Copy unavailable")) return "This card is no longer spare."
+  return null
+}
+
+/**
+ * Fill selected empty pockets from spare cards (owned, not in any pocket). Nothing new is added to the collection
+ * and pockets that already hold a card are left alone. Each pocket is filled only with the card chosen for it.
+ */
+export default function BulkFillReview({ boundary, selection, grid, onClose }: { boundary: LayoutBoundary; selection: BulkSelection; grid?: { rows: number; cols: number }; onClose: () => void }) {
   const [original] = useState(() => structuredClone(boundary.snapshot))
+  const binder = original.binders.find(b => b.collectionId === boundary.scope.collectionId)!
   const [choices, setChoices] = useState<BulkFillChoices>({})
   const [error, setError] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   useOverlay(true, onClose, { containerRef: ref })
   const swipe = useSwipeToDismiss(ref, onClose)
   const stale = !sameValue(original, boundary.snapshot)
-  const preview = previewBulkFill(original, boundary.scope, selection, choices, boundary.catalog)
+  // A pocket with no card chosen is simply left as it is.
+  const settled: BulkFillChoices = Object.fromEntries(selection.slots.map(({ slot }) => [slot.id, choices[slot.id] ?? null]))
+  const preview = previewBulkFill(original, boundary.scope, selection, settled, boundary.catalog)
   const { pending, busy, message, handoff } = useSlotDraftAcceptance(async draft => {
     const receipt = await boundary.bulkFill?.receive(draft)
     if (!receipt) throw new Error("durable-acceptance-required")
@@ -28,55 +48,68 @@ export default function BulkFillReview({ boundary, selection, onClose }: { bound
     window.addEventListener("offline", onClose)
     return () => window.removeEventListener("offline", onClose)
   }, [boundary.bulkFill?.available, onClose])
+  const spare = original.items.filter(item => !original.placements.some(p => p.inventoryItemId === item.id))
+  const label = (itemId: string) => {
+    const item = original.items.find(i => i.id === itemId)
+    if (!item) return null
+    const card = describeIdentity(item.identity, boundary.resolveCard)
+    return { ...card, detail: [card.detail, item.grading ? formatGradeLabel(item.grading) : null].filter(Boolean).join(" · ") }
+  }
+  const fillable = selection.slots.filter(({ slot }) => !slot.inventoryItemId && !isFillSpacer(binder, slot))
+  const untouched = selection.slots.length - fillable.length
+  const adding = preview.rows.filter(row => !row.skipped && !row.reason).length
+  const locked = busy || Boolean(pending) || stale
   const confirm = () => {
-    if (busy || pending || stale || !preview.ready || !boundary.bulkFill?.available) return
+    if (locked || !preview.ready || !boundary.bulkFill?.available) return
     try {
-      const draft = prepareBulkFillIntent(original, boundary.scope, selection, choices, {
+      handoff(prepareBulkFillIntent(original, boundary.scope, selection, settled, {
         source: "app", clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString(),
-      }, boundary.catalog)
-      handoff(draft)
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not prepare this fill. Nothing saved.") }
+      }, boundary.catalog))
+    } catch (cause) { setError(slotDraftFailureMessage(cause)) }
   }
   return <div className="fixed inset-0 z-40">
     <div data-overlay-backdrop className="absolute inset-0 bg-black/60" onClick={onClose} />
-    <div ref={ref} role="dialog" aria-modal="true" aria-label="Review bulk fill"
+    <div ref={ref} role="dialog" aria-modal="true" aria-label="Fill pockets"
       className="absolute inset-x-3 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-xl">
       <header data-sheet-grabber {...swipe} className="flex shrink-0 items-center justify-between gap-2 border-b border-border p-3">
-        <h2 className="text-sm font-semibold">Review bulk fill</h2>
-        <button type="button" aria-label="Close bulk fill" className="h-10 w-10 shrink-0" onClick={onClose}>✕</button>
+        <div className="min-w-0"><h2 className="text-sm font-semibold">Fill pockets from spare cards</h2><p className="text-xs text-muted-foreground">Spare cards are ones you own that aren&apos;t in a pocket yet.</p></div>
+        <button type="button" aria-label="Close" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-muted" onClick={onClose}><X className="h-4 w-4" /></button>
       </header>
-      <div className="shrink-0 space-y-2 border-b border-border p-3">
-        <p className="text-sm">Assign recorded Unassigned copies. Occupied pockets stay put. No new copies are created.</p>
-        <div className="flex flex-wrap gap-2">
-          {pending ? <button type="button" className={button} disabled={busy} onClick={() => handoff(pending)}>Retry same fill</button>
-            : <button type="button" className={button} disabled={busy || stale || !preview.ready} onClick={confirm}>Confirm bulk fill</button>}
-          <button type="button" className={button} onClick={onClose}>Cancel</button>
-        </div>
-        {message && <p role="alert" className="text-sm">{message}</p>}
-        {busy && <p role="status" className="text-sm">Saving on device…</p>}
-        {(stale || preview.error || error) && <p role="alert" className="text-sm">{stale ? "Storage changed. Close and review a fresh selection. Nothing new was saved." : preview.error ?? error}</p>}
+      <div className="min-h-0 space-y-2 overflow-y-auto overscroll-contain p-3 text-sm [overflow-wrap:anywhere]">
+        {!spare.length ? <p className="py-4 text-center text-muted-foreground">You have no spare cards. Every card you own is already in a pocket.</p> : <>
+          <button type="button" className="min-h-10 w-full rounded-xl border border-border px-3 text-sm font-medium disabled:opacity-50" disabled={locked}
+            onClick={() => { setChoices(automaticBulkFillChoices(original, boundary.scope, selection, boundary.catalog)); setError(null) }}>Match my spare cards</button>
+          {fillable.map(({ slot }) => {
+            const row = preview.rows.find(r => r.slotId === slot.id)!
+            const chosen = choices[slot.id] ? label(choices[slot.id]!) : null
+            const wants = slot.target ? describeIdentity(slot.target, boundary.resolveCard) : null
+            const problem = choices[slot.id] ? fillProblem(row.reason) : null
+            const place = grid ? pocketPlace(row.position - 1, grid.rows, grid.cols) : `Pocket ${row.position}`
+            return <section key={slot.id} aria-label={place} className="flex items-center gap-3 rounded-xl border border-border/60 p-2">
+              <span className="trading-card relative w-10 shrink-0 overflow-hidden rounded bg-muted">{chosen?.image && <CardImage src={chosen.image} alt="" fill sizes="40px" className="object-cover" />}</span>
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="truncate text-xs text-muted-foreground">{place}{wants ? ` · for ${wants.name}` : " · any card"}</p>
+                <select aria-label={`Card for ${place}`} className="min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-base md:text-sm" disabled={locked}
+                  value={choices[slot.id] ?? ""} onChange={event => setChoices(current => ({ ...current, [slot.id]: event.target.value || null }))}>
+                  <option value="">Leave empty</option>
+                  {spare.map(item => { const card = label(item.id)!; return <option key={item.id} value={item.id}>{card.name} · {card.detail}</option> })}
+                </select>
+                {problem && <p role="status" className="text-xs text-amber-700 dark:text-amber-300">{problem}</p>}
+              </div>
+            </section>
+          })}
+          {!fillable.length && <p className="py-2 text-center text-muted-foreground">Every selected pocket already has a card.</p>}
+          {untouched > 0 && fillable.length > 0 && <p className="text-xs text-muted-foreground">{untouched} selected pocket{untouched === 1 ? "" : "s"} already {untouched === 1 ? "has a card and stays" : "have cards and stay"} as {untouched === 1 ? "it is" : "they are"}.</p>}
+        </>}
+        {message && <p role="alert">{message}</p>}
+        {(stale || error) && <p role="alert">{stale ? "Your binder changed while this was open. Close this and select the pockets again." : error}</p>}
       </div>
-      <div className="space-y-3 overflow-y-auto overscroll-contain p-3 text-sm [overflow-wrap:anywhere]">
-        <button type="button" className={button} disabled={busy || !!pending || stale} onClick={() => { setChoices(automaticBulkFillChoices(original, boundary.scope, selection, boundary.catalog)); setError(null) }}>Preview automatic matches</button>
-        <p>Automatic proposals use compatible empty targets only. Review every copy and destination. Free pockets need an explicit choice or Skip.</p>
-        {preview.rows.map(row => {
-          const slot = selection.slots.find(s => s.slot.id === row.slotId)!.slot
-          return <section key={row.slotId} aria-label={`Fill destination ${row.position}`} className="space-y-2 rounded-xl border border-border p-3">
-            <p>Slot {row.position} · {row.slotId}</p>
-            <p>{slot.inventoryItemId ? `Occupied by ${slot.inventoryItemId}` : slot.target ? `Target: ${slot.target.kind === "pokemon" ? `Pokémon #${slot.target.pokemonId}` : `${slot.target.cardId} · ${slot.target.language ?? "Any language"} · ${slot.target.finish ?? "Any finish"}`}` : "Free pocket, no catalog target"}</p>
-            <label className="block">Actual copy for slot {row.position}
-              <select aria-label={`Copy for slot ${row.position}`} className="mt-1 min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-base"
-                value={choices[row.slotId] === null ? "skip" : choices[row.slotId] ?? ""} disabled={busy || !!pending || stale}
-                onChange={e => setChoices(c => ({ ...c, [row.slotId]: e.target.value === "skip" ? null : e.target.value }))}>
-                <option value="">Choose actual copy</option><option value="skip">Skip, preserve this pocket</option>
-                {original.items.map(item => <option key={item.id} value={item.id}>{item.id} · {item.identity.kind === "card" ? `${item.identity.cardId} · ${item.identity.language ?? "Unknown language"} · ${item.identity.finish ?? "Unknown finish"}` : `Pokémon ${item.identity.pokemonId}, unknown printing`} · {item.grading ? "Recorded graded copy" : "No recorded grade"} · {original.placements.some(p => p.inventoryItemId === item.id) ? "Assigned, unavailable" : "Unassigned"}</option>)}
-              </select>
-            </label>
-            <p role={row.reason && !row.skipped ? "status" : undefined}>{row.skipped ? `Skipped, no assignment.${row.reason ? ` ${row.reason}` : ""}` : row.reason ?? `Proposed copy: ${row.itemId}`}</p>
-          </section>
-        })}
-        <p>Confirmation saves one atomic request on this device, pending server sync and a fresh complete read. Closing this review cannot cancel accepted work. Recovery uses Activity when supported, no inverse is promised here.</p>
-      </div>
+      <footer className="flex shrink-0 gap-2 border-t border-border p-3">
+        <button type="button" className="min-h-11 flex-1 rounded-xl border border-border px-3 text-sm font-medium" onClick={onClose}>Cancel</button>
+        {pending ? <button type="button" className="min-h-11 flex-1 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50" disabled={busy} onClick={() => handoff(pending)}>Try again</button>
+          : <button type="button" className="min-h-11 flex-1 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50" disabled={locked || !preview.ready} onClick={confirm}>
+            {busy ? "Adding…" : adding ? `Add ${adding} card${adding === 1 ? "" : "s"}` : "Choose a card"}</button>}
+      </footer>
     </div>
   </div>
 }

@@ -17,3 +17,13 @@ export function slotDraftFailureMessage(cause: unknown): string {
   if (reason === "catalog-unavailable") return "This card could not be confirmed. Try again when online. Save not confirmed."
   return "Could not save this card. Try again. Save not confirmed."
 }
+
+/** Why a layout change could not be prepared, in the person's terms. Nothing was saved in any of these cases. */
+export function layoutFailureMessage(cause: unknown): string {
+  const reason = cause instanceof Error ? cause.message : ""
+  if (reason === "layout-capacity") return "This binder is at its 4,096-pocket limit, so nothing was added."
+  if (reason === "selected-anchor") return "Tap a pocket that isn't selected."
+  if (reason === "selection-limit") return "You can change up to 256 pockets at once. Select fewer and try again."
+  if (reason === "selection-required") return "Select at least one pocket first."
+  return "These pockets changed. Update the selection and try again."
+}

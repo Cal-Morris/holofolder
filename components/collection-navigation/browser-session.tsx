@@ -33,6 +33,7 @@ import type { NativePageScanAdmission } from "@/components/native-page-scanner"
 import type { ScanDestinationAdmission } from "@/lib/scan-destinations"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
+import type { InventoryCatalogEvidence } from "@/lib/domain/inventory-browse"
 
 const NativeCollectionDeletion = dynamic(() => import("@/components/native-collection-deletion"), { ssr: false })
 const NativeBackup = dynamic(() => import("@/components/native-backup"), { ssr: false })
@@ -114,6 +115,9 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const creation = useRef<{ intent: Extract<SlotOfflineIntent, { kind: "creation" }>; opened: boolean; open: NavigationSurface["openCreated"] } | null>(null)
 
   const [notice, setNotice] = useState("")
+  // Cards picked in this session that the last read does not know yet: display only, until a read includes them.
+  const [picked, setPicked] = useState<readonly InventoryCatalogEvidence[]>([])
+  const kickSender = useRef<() => void>(() => {})
   const completeReadAvailable = useRef(false)
   const [ready, setReady] = useState(false)
   const [online, setOnline] = useState(true)
@@ -125,7 +129,11 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const valid = () => alive.current && sameInventoryReadScope(latest.current.currentScope(), scope)
   const catalog = useMemo(() => browserHostCatalog(read.catalog), [read.catalog])
   // visibleRead always shares read.catalog, so the binder surface keeps its slot display until the catalog or snapshot changes.
-  const slotDisplay = useMemo(() => browserHostSlotDisplay(read.catalog), [read.catalog])
+  const displayCatalog = useMemo(() => {
+    const fresh = picked.filter(p => !read.catalog.some(known => known.card.id === p.card.id && known.card.language === p.card.language))
+    return fresh.length ? [...read.catalog, ...fresh] : read.catalog
+  }, [read.catalog, picked])
+  const slotDisplay = useMemo(() => browserHostSlotDisplay(displayCatalog), [displayCatalog])
   useLayoutEffect(() => { latest.current = { currentScope, queue, catalog } })
   // The latest routine read, so an edit made while it is in flight waits for it instead of failing.
   const inFlightRead = useRef<Promise<CollectionNavigationRead> | null>(null)
@@ -201,9 +209,12 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     if (!ready) return
     const controller = new AbortController()
     transport.current = controller
-    let timer: ReturnType<typeof setTimeout> | undefined
+    let timer: ReturnType<typeof setTimeout> | undefined, running = false
     const active = () => !controller.signal.aborted && valid()
     const tick = async () => {
+      if (running) return
+      running = true
+      clearTimeout(timer)
       try {
         if (!active() || !completeReadAvailable.current || sending.current || refreshing.current || (await latest.current.queue.queue?.read())?.recovery?.some(recoveryUnresolved) || !navigator.onLine || document.visibilityState === "hidden") return
         const head = (await latest.current.queue.queue?.read())?.pending[0]
@@ -220,10 +231,12 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           return fresh.evidence.snapshot
         }, active)
       } catch { if (active()) setNotice("Sync unavailable. Pending edits are retained.") }
-      finally { sending.current = false; if (active()) timer = setTimeout(() => { void tick() }, 1000) }
+      finally { sending.current = false; running = false; if (active()) timer = setTimeout(() => { void tick() }, 1000) }
     }
+    // A new edit is sent straight away when online; the timer only retries and catches up after a wait.
+    kickSender.current = () => { void tick() }
     void tick()
-    return () => { controller.abort(); clearTimeout(timer) }
+    return () => { kickSender.current = () => {}; controller.abort(); clearTimeout(timer) }
     // One sender belongs to this session, independent of view/record refreshes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready])
@@ -284,13 +297,16 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     const cards = read.catalog.map(c => ({ ...c.card, dexIds: [...(c.pokemonIds ?? [])] }))
     return [...cards, ...cached.filter(c => !cards.some(known => known.id === c.id && known.language === c.language))]
   }
-  const receive: SlotCommandSink = async (draft, selected) => {
+  const pendingCount = queue.record?.pending.length ?? 0
+  useEffect(() => { if (pendingCount) kickSender.current() }, [pendingCount])
+  const receive: SlotCommandSink = async (draft, selected, pickedCard) => {
     // A focus or visibility refresh is routine; every fence below still applies to the read it settles on.
     const current = refreshing.current && inFlightRead.current ? await inFlightRead.current.catch(() => null) : read
     if (!current || refreshing.current || !completeReadAvailable.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
     const record = await latest.current.queue.queue?.read()
     if (!valid() || current.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
     const host = current === read ? catalog : browserHostCatalog(current.catalog)
+    if (pickedCard) setPicked(previous => [...previous.filter(p => p.card.id !== pickedCard.card.id || p.card.language !== pickedCard.card.language), pickedCard])
     return latest.current.queue.enqueue(draft.intent, withSelectedPrintings(host, current.catalog, selected), undefined, valid)
   }
 
@@ -380,12 +396,14 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     },
   }
   // An optimistic projection is cached evidence, never a complete remote read or ACK.
+  // Display only: a just-picked card keeps its name and artwork here; identity checks still use the read's own catalog.
+  const shownRead = useMemo(() => displayCatalog === read.catalog ? read : { ...read, catalog: displayCatalog }, [read, displayCatalog])
   const visibleRead: CollectionNavigationRead = queue.record?.optimistic && queue.record.pending.length
-    ? { ...read, evidence: { kind: "cached", snapshot: queue.record.optimistic }, layouts: read.layouts.map(layout => {
+    ? { ...shownRead, evidence: { kind: "cached", snapshot: queue.record.optimistic }, layouts: read.layouts.map(layout => {
       const base = queue.record?.snapshot?.binders.find(b => b.collectionId === layout.collectionId)
       const projected = queue.record?.optimistic?.binders.find(b => b.collectionId === layout.collectionId)
       return base?.layoutRevision === layout.layoutRevision && projected ? { ...layout, layoutRevision: projected.layoutRevision } : layout
-    }) } : !online && read.evidence.kind === "complete" ? { ...read, evidence: { kind: "cached", snapshot: read.evidence.snapshot } } : read
+    }) } : !online && read.evidence.kind === "complete" ? { ...shownRead, evidence: { kind: "cached", snapshot: read.evidence.snapshot } } : shownRead
   const inventoryRecord: { pending: unknown[]; recovery?: { synchronized: boolean; resolution?: "discarded" | null }[] } | null = queue.record
   const bulkFillAvailable = Boolean(online && read.evidence.kind === "complete" && inventoryRecord && !inventoryRecord.pending.length && !inventoryRecord.recovery?.some(recoveryUnresolved))
 

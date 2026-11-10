@@ -1,5 +1,6 @@
 import type { OperationIntentContext } from "@/lib/domain/audit-context"
 import type { InventoryCatalogResolver, InventorySnapshot } from "@/lib/domain/inventory"
+import type { InventoryCatalogEvidence } from "@/lib/domain/inventory-browse"
 import { SLOT_LIMITS, type SlotCommand } from "@/lib/domain/slot-commands"
 import { parseSlotIntent, projectSlotIntent, type SlotOfflineIntent } from "@/lib/collection/slot-optimistic"
 
@@ -11,7 +12,8 @@ export interface StagedSlotCommandIntent {
 /** Resolves at local transaction commit, never at remote execution or audit success. */
 export interface SlotLocalAcceptance { status: "saved-on-device"; operationId: string; refreshError: string | null }
 /** `selected` is the picker's evidence for a printing it just chose, which the host read catalog may not hold yet. */
-export type SlotCommandSink = (draft: StagedSlotCommandIntent, selected?: InventoryCatalogResolver) => void | Promise<SlotLocalAcceptance>
+/** `picked` is the chosen card as the picker showed it, so the pocket keeps its name and artwork until the next read has it. */
+export type SlotCommandSink = (draft: StagedSlotCommandIntent, selected?: InventoryCatalogResolver, picked?: InventoryCatalogEvidence) => void | Promise<SlotLocalAcceptance>
 
 export type LayoutDestination = { kind: "position"; position: number } | { kind: "before" | "after"; slotId: string }
 export type LayoutAction = { kind: "append"; newSlotId: string }

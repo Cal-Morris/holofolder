@@ -2,7 +2,7 @@ import { normalizeBinderSnapshot, type BinderSnapshot, type SlotTarget } from "@
 import { normalizeInventorySnapshot, type InventoryItem, type InventorySnapshot } from "@/lib/domain/inventory"
 import type { CardLanguage, CollectedPokemon, WantedCard } from "@/lib/domain/cards"
 import { isBinderGridSize } from "@/lib/binder-layout"
-import { getOfficialArtworkUrl, getPokemonSummary } from "@/lib/pokemon-catalog"
+import { formatPokemonDisplayName, getOfficialArtworkUrl, getPokemonSummary } from "@/lib/pokemon-catalog"
 import type { BinderCardDisplay } from "@/lib/selected-slot-card-display"
 import { toCardImageSrc } from "@/lib/card-image-url"
 
@@ -96,7 +96,7 @@ export function displaySlotImageUrl(slot: ReadOnlyDisplaySlot, display?: BinderC
 }
 
 export function displaySlotLabel(slot: Pick<ReadOnlyDisplaySlot, "card" | "pokemon" | "target" | "item">) {
-  const name = slot.card?.name ?? (slot.pokemon ? slot.pokemon.name : slot.target?.kind === "pokemon" ? `Pokémon ${slot.target.pokemonId}` : "Free slot")
+  const name = slot.card?.name ?? (slot.pokemon ? formatPokemonDisplayName(slot.pokemon.name) : slot.target?.kind === "pokemon" ? `Pokémon ${slot.target.pokemonId}` : "Free slot")
   return `${name}, ${slot.item ? "Owned" : slot.target ? "Unfilled target" : "Empty spacer"}`
 }
 

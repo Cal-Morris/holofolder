@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import type { SlotPickerBoundary } from "@/components/binder/slot-picker"
 import { useSlotDraftAcceptance } from "@/hooks/use-slot-draft-acceptance"
-import { planNativePick, prepareSlotPickerIntent, type NativePickPlan, type SlotPickerIntent } from "@/lib/slot-picker"
+import { planNativePick, prepareSlotPickerIntent, type NativePickPlan, type SlotPickerAction, type SlotPickerBoundary, type SlotPickerIntent } from "@/lib/slot-picker"
+import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 import { slotDraftFailureMessage } from "@/lib/slot-draft-failure"
 import type { CardFinish } from "@/lib/domain/cards"
 import type { InventorySelection } from "@/lib/inventory-plans"
@@ -25,7 +25,7 @@ export function useNativeSlotPick(boundary: SlotPickerBoundary, onSaved: () => v
     try {
       const prepared = prepareSlotPickerIntent(snapshot, scope, { kind: "assign", selection, fulfillWant },
         { source: "app", clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString() }, plan.resolver)
-      acceptance.handoff({ scope: prepared.scope, intent: prepared.intent }, plan.resolver)
+      acceptance.handoff({ scope: prepared.scope, intent: prepared.intent }, plan.resolver, plan.picked)
     } catch (cause) { setFailure(slotDraftFailureMessage(cause)) }
   }
   const pick = (card: SearchCardResult, finish: CardFinish | undefined) => {
@@ -45,4 +45,25 @@ export function useNativeSlotPick(boundary: SlotPickerBoundary, onSaved: () => v
     question: picked && (choosing || failed) ? { card: picked.card, plan: picked.plan, failed, retry: acceptance.pending ? acceptance.retry : null,
       choose: (selection: InventorySelection, want: number | null) => save(picked.plan, selection, want === null ? null : picked.plan.wanted(want)) } : null,
   }
+}
+
+/**
+ * Headless save for a pocket action that is not a card pick: taking the card out, or changing what the pocket is
+ * reserved for. Same durable sink and exact-draft retry as a pick; the host shows `failed` only on a real failure.
+ */
+export function useNativeSlotAction(boundary: SlotPickerBoundary | undefined, onSaved: () => void) {
+  const acceptance = useSlotDraftAcceptance<SlotPickerIntent>(boundary?.onCommandIntent ?? (() => { throw new Error("inactive-or-unavailable-session") }), onSaved)
+  const [failure, setFailure] = useState<string | null>(null)
+  const run = (action: Exclude<SlotPickerAction, { kind: "assign" }>, selected?: InventoryCatalogResolver) => {
+    if (!boundary || acceptance.pending || acceptance.busy) return
+    setFailure(null)
+    try {
+      const resolver = selected ?? boundary.catalog
+      const prepared = prepareSlotPickerIntent(boundary.snapshot, boundary.scope, action,
+        { source: "app", clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString() }, resolver)
+      acceptance.handoff({ scope: prepared.scope, intent: prepared.intent }, selected)
+    } catch (cause) { setFailure(slotDraftFailureMessage(cause)) }
+  }
+  return { run, busy: acceptance.busy, failed: acceptance.pending ? acceptance.message : failure, retry: acceptance.pending ? acceptance.retry : null,
+    dismiss: () => { if (acceptance.busy) return; acceptance.discard(); setFailure(null) } }
 }
