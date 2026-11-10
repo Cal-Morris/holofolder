@@ -130,6 +130,10 @@ test("own-when-denied membership opens only the actor's collection on a definite
   assert.equal((await resolveCollectionMembership(client, "partner", options)).ownerUserId, "shared-owner")
   Object.assign(client, { rpc: async () => ({ data: null, error: { code: "PGRST202", message: "missing" } }) })
   await assert.rejects(() => resolveCollectionMembership(client, "partner", options), "an unavailable billing check never selects own storage")
+  for (const data of [null, undefined, 0, "false", {}, []]) {
+    Object.assign(client, { rpc: async () => ({ data, error: null }) })
+    await assert.rejects(() => resolveCollectionMembership(client, "partner", options), /billing_access_check_unavailable/)
+  }
   const failing = fakeClient({ partnerships: { data: null, error: new Error("transient") } })
   await assert.rejects(() => resolveCollectionMembership(failing.client, "partner", options), /transient/)
 })
