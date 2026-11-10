@@ -95,6 +95,10 @@ const SEARCH_FILTERS: Array<{
   { id: "perfect", label: "Perfect" },
 ]
 
+/** Rows mounted at first and per step (fewer while typing, so card hits stay close): every match stays reachable without mounting the whole dex. */
+const RESULT_STEP = 60
+const QUERY_RESULT_STEP = 40
+
 export default function PokemonSearch({
   nativeConsumer,
   history,
@@ -171,13 +175,19 @@ export default function PokemonSearch({
 
   const visibleResults = useMemo(() => {
     const byFilter = pokemonList.filter((pokemon) => matchesFilter(activeFilter, pokemon))
-
-    if (!query.trim()) {
-      return byFilter.slice(0, 60)
-    }
-
-    return searchPokemonItems(query, byFilter, 40)
+    return query.trim() ? searchPokemonItems(query, byFilter, Infinity) : byFilter
   }, [activeFilter, matchesFilter, pokemonList, query])
+  // Mounted rows grow as the list is scrolled (or "Show more" / arrowed past the end); a new query or filter starts over.
+  const resultsKey = `${activeFilter}\u0000${query}`
+  const resultStep = query.trim() ? QUERY_RESULT_STEP : RESULT_STEP
+  const [shownResults, setShownResults] = useState({ key: resultsKey, count: RESULT_STEP })
+  const shownCount = shownResults.key === resultsKey ? shownResults.count : resultStep
+  const renderedResults = visibleResults.slice(0, shownCount)
+  const showMoreResults = useCallback((atLeast = 0) => {
+    setShownResults({ key: resultsKey, count: Math.max(shownCount + resultStep, atLeast) })
+  }, [resultsKey, resultStep, shownCount])
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const moreResultsRef = useRef<HTMLButtonElement | null>(null)
 
   const cardSearch = useCardSearch(query, Boolean(onBrowseCards || nativeConsumer), getOfflineCards, { includeNonPokemon: Boolean(nativeConsumer) })
   const cardResultCount = nativeConsumer ? cardSearch.cards.length : cardSearch.groups.length
@@ -191,6 +201,25 @@ export default function PokemonSearch({
   const setResults = useSetSearch(query, Boolean(onBrowseSet))
 
   const showRecentCards = Boolean(onBrowseCards) && !query.trim() && recentCards.length > 0
+  const hasTrailingResults = setResults.length > 0 || illustratorResults.length > 0 || cardResultCount > 0 || cardSearch.loading
+  const hasMoreResults = visibleResults.length > renderedResults.length
+
+  // Scrolling to the end of the Pokémon list mounts the next rows. With set, artist or card hits below, it waits for
+  // "Show more" instead, so those sections stay a short scroll away.
+  useEffect(() => {
+    const sentinel = moreResultsRef.current
+    if (!sentinel || hasTrailingResults || typeof IntersectionObserver === "undefined") return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) showMoreResults()
+    }, { root: listRef.current, rootMargin: "0px 0px 600px 0px" })
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMoreResults, hasTrailingResults, showMoreResults])
+
+  useEffect(() => {
+    if (selectedIndex < 0) return
+    listRef.current?.querySelector(`[data-result-index="${selectedIndex}"]`)?.scrollIntoView({ block: "nearest" })
+  }, [selectedIndex])
 
   const pageJump = useMemo(() => {
     if (!onJumpToPage || totalPages < 1) return null
@@ -238,7 +267,11 @@ export default function PokemonSearch({
         case "ArrowDown":
           if (visibleResults.length === 0) return
           e.preventDefault()
-          setSelectedIndex((prev) => (prev < visibleResults.length - 1 ? prev + 1 : prev))
+          {
+            const next = Math.min(selectedIndex + 1, visibleResults.length - 1)
+            if (next >= shownCount) showMoreResults(next + 1)
+            setSelectedIndex(next)
+          }
           break
         case "ArrowUp":
           if (visibleResults.length === 0) return
@@ -263,7 +296,7 @@ export default function PokemonSearch({
           break
       }
     },
-    [handleJumpToPage, handleSelectPokemon, pageJump, selectedIndex, visibleResults, rememberSearch, query],
+    [handleJumpToPage, handleSelectPokemon, pageJump, selectedIndex, visibleResults, rememberSearch, query, shownCount, showMoreResults],
   )
 
   return (
@@ -332,7 +365,7 @@ export default function PokemonSearch({
 
       <div className="mt-3 min-h-0 flex-1 overflow-hidden border-t border-border/50">
         {showRecentCards || (!query.trim() && (history.searches.length > 0 || Boolean(history.status))) || visibleResults.length > 0 || setResults.length > 0 || illustratorResults.length > 0 || cardResultCount > 0 || cardSearch.loading ? (
-          <div className="h-full overflow-y-auto">
+          <div ref={listRef} className="h-full overflow-y-auto">
             {!query.trim() && <>
               {history.status && <p role="status" className="py-1 text-xs text-muted-foreground">{history.status}</p>}
               <RecentSearches history={history} onSearch={setQuery} />
@@ -384,7 +417,7 @@ export default function PokemonSearch({
             {visibleResults.length > 0 && (showRecentCards || setResults.length > 0 || illustratorResults.length > 0 || cardResultCount > 0 || cardSearch.loading) ? (
               <p className="px-4 pb-1 pt-3 text-[11px] font-semibold text-muted-foreground">Pokémon</p>
             ) : null}
-            {visibleResults.map((pokemon, index) => {
+            {renderedResults.map((pokemon, index) => {
               const meta = getResultMeta?.(pokemon)
               const isActive = index === selectedIndex
               const displayName = formatPokemonDisplayName(pokemon.name)
@@ -392,6 +425,7 @@ export default function PokemonSearch({
               return (
                 <div
                   key={pokemon.id}
+                  data-result-index={index}
                   className={`flex w-full items-stretch border-b border-border/50 transition-colors last:border-b-0 ${
                     isActive
                       ? "bg-primary/20 text-primary"
@@ -492,6 +526,16 @@ export default function PokemonSearch({
                 </div>
               )
             })}
+            {hasMoreResults ? (
+              <button
+                ref={moreResultsRef}
+                type="button"
+                onClick={() => showMoreResults()}
+                className="min-h-11 w-full border-t border-border/50 px-4 py-2 text-left text-xs font-semibold text-primary hover:bg-primary/10"
+              >
+                Show more Pokémon ({visibleResults.length - renderedResults.length} more)
+              </button>
+            ) : null}
             {setResults.length > 0 ? (
               <section aria-label="Set results" className="border-t border-border/50 px-3 pb-2">
                 <p className="px-1 pb-1 pt-3 text-[11px] font-semibold text-muted-foreground">Sets</p>
