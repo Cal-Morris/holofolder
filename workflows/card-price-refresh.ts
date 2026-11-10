@@ -1,18 +1,11 @@
 import { sleep } from "workflow"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
-  normalizeCardLanguage,
   refreshCardPriceLookups,
   type CardPriceLookup,
 } from "@/lib/card-pricing"
 import { DEFAULT_REFRESH_INTERVAL, normalizeRefreshInterval, type RefreshInterval } from "@/lib/price-refresh-interval"
-import { fetchAllRows } from "@/lib/supabase/fetch-all-rows"
-
-interface CollectionPriceRow {
-  card_id: string | null
-  card_language?: string | null
-  wanted_cards?: unknown
-}
+import { selectTrackedPriceLookups } from "@/lib/server/tracked-price-selection"
 
 interface CardPriceWorkflowResult {
   totalCards: number
@@ -126,48 +119,7 @@ async function loadTrackedCardPriceLookups(ownerUserId: string | null): Promise<
 
   console.log(`[holofolder] Loading tracked cards${ownerUserId ? ` for owner ${ownerUserId}` : ""}`)
   const admin = createAdminClient()
-  // Pages past PostgREST's 1000-row cap; the all-users refresh reads every collection row.
-  const { data, error } = await fetchAllRows<CollectionPriceRow>((from, to) => {
-    let query = admin
-      .from("pokemon_collection")
-      .select("card_id, card_language, wanted_cards")
-
-    if (ownerUserId) {
-      query = query.eq("user_id", ownerUserId)
-    }
-
-    return query.order("id", { ascending: true }).range(from, to)
-  })
-
-  if (error) {
-    throw error
-  }
-
-  const byKey = new Map<string, CardPriceLookup>()
-  for (const row of data) {
-    if (row.card_id) {
-      const language = normalizeCardLanguage(row.card_language)
-      byKey.set(`${row.card_id}::${language}`, {
-        cardId: row.card_id,
-        language,
-      })
-    }
-
-    if (Array.isArray(row.wanted_cards)) {
-      for (const wantedCard of row.wanted_cards) {
-        if (!wantedCard || typeof wantedCard !== "object") continue
-        const candidate = wantedCard as { card_id?: unknown; card_language?: unknown }
-        if (typeof candidate.card_id !== "string") continue
-        const wantedLanguage = normalizeCardLanguage(candidate.card_language)
-        byKey.set(`${candidate.card_id}::${wantedLanguage}`, {
-          cardId: candidate.card_id,
-          language: wantedLanguage,
-        })
-      }
-    }
-  }
-
-  return [...byKey.values()]
+  return selectTrackedPriceLookups(admin, ownerUserId)
 }
 
 async function refreshCardPriceBatch(lookups: CardPriceLookup[]): Promise<CardPriceBatchCounts> {
