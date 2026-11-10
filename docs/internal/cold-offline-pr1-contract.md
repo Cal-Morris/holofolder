@@ -21,8 +21,11 @@ Only single basic app commands are admitted: one layout append/insert, one slot 
 Replace the browser host's separate baseline save and metadata `store.set` with:
 
 ```ts
-await queue.saveSnapshotWithNavigation(fresh.evidence.snapshot,
-  { catalog: fresh.catalog, layouts: fresh.layouts }, isCurrent)
+await queue.saveSnapshotWithNavigation(
+  fresh.evidence.snapshot,
+  { catalog: fresh.catalog, layouts: fresh.layouts },
+  isCurrent,
+);
 ```
 
 Hook method signature: `(snapshot: unknown, navigation: unknown, isCurrent?: () => boolean) => Promise<boolean>`. Queue-level variant takes an active-scope getter. A branded fresh remote snapshot is mandatory. While any intent/recovery is unresolved, it returns `false` and preserves both retained baseline and metadata. Never independently overwrite navigation metadata in that branch. Cached/developer DTOs cannot seed this path. Legacy `saveSnapshot` stays compatible; it refuses changing the baseline under new local intents.
@@ -30,8 +33,7 @@ Hook method signature: `(snapshot: unknown, navigation: unknown, isCurrent?: () 
 Use the existing hook `replay(send, catalog, readCurrent, isCurrent)` only from the checked live host. For PR2, its separately started fresh read callback must return this internal pair:
 
 ```ts
-return { snapshot: fresh.evidence.snapshot,
-  navigation: { catalog: fresh.catalog, layouts: fresh.layouts } }
+return { snapshot: fresh.evidence.snapshot, navigation: { catalog: fresh.catalog, layouts: fresh.layouts } };
 ```
 
 Do not write metadata inside that callback. The queue validates freshness, scope, revision, operation ID, lease and original auth session before committing ACK and matching metadata in one `updateMany` transaction. Missing/mismatched metadata cannot ACK a new local intent; the operation remains durable, including its lease if the transaction aborts. Normal lease expiry/exact retry resolves it. New local intents retain `originAuthSessionId`; the checked live hook must supply that exact stable Supabase session ID. New page epochs in the same auth session work. Another account/owner uses another key; another auth session cannot lease/send/ACK these intents. No historical recipient is inferred. Old online intents keep existing behavior and acquire no guessed session retroactively.
@@ -49,3 +51,9 @@ This isolated synthetic storage probe is not UI, service-worker, hosted, install
 Basic edits will be saved on this device while offline once the cold editing UI is integrated. Saved on device does not mean synced. Reopening offline and a successful reconnect preserve queued edits; syncing requires the same checked account, owner and sign-in session. Missing saved layout/card evidence may prevent an edit. Remote changes may require conflict review.
 
 An online startup failure currently resets this app's entire IndexedDB cache, including pending edits, and reloads once (#517). Retention through that destructive reset is **not** promised. Known-offline startup keeps its existing behavior. This PR preserves the reset policy and does not change its deadline or worker unregistration. Do not publish this draft as a shipped capability before PR2 and parent verification.
+
+## Parent integration correction
+
+Paired replay reads also unwrap correctly for raw restore and creation/command rejection follow-ups. A successful restore ACK commits its matching metadata in the same transaction. Rejection reads retain current conflict evidence without replacing the saved baseline. After explicit keep-remote/discard reconciliation, the checked host must save a fresh snapshot/navigation pair before offering local planning again; replacement commands remain gated until paired ACK.
+
+The lease claim continues through the existing atomic single-record update, preserving existing transaction-abort proof coverage.

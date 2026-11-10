@@ -67,61 +67,117 @@ test('relinked auth session, expired JWT and old/malformed bootstrap are unavail
     f.data.set(BINDER_START_MARKER_KEY, JSON.stringify({ userId: 'owner', ownerUserId: 'owner', native }));
     assert.equal(cachedNativeIdentity(f.storage, f.session, now), null);
   }
-})
-test("partner display retains exact legacy scoped billing-cache policy", () => {
-  const f = fixture("partner")
-  assert.equal(cachedNativeIdentity(f.storage, f.session, now), null)
-  const access = { ownerUserId: "partner", enforced: false, source: "free", savedCardCount: 0 }
-  f.data.set("holofolder_billing_v1", JSON.stringify({ accountId: "owner", access }))
-  assert.ok(cachedNativeIdentity(f.storage, f.session, now))
-  f.data.set("holofolder_billing_v1", JSON.stringify({ accountId: "other", access }))
-  assert.equal(cachedNativeIdentity(f.storage, f.session, now), null)
-  f.data.set("holofolder_billing_v1", JSON.stringify({ accountId: "owner", access: { ...access, enforced: true } }))
-  assert.equal(cachedNativeIdentity(f.storage, f.session, now), null)
-})
-test("server legacy marker keeps only same account/owner native pointer", () => {
-  const f = fixture()
-  writeBinderStartMarker(f.storage, { userId: "owner", ownerUserId: "owner", binderId: "alpha", binders: [] })
-  assert.ok(readBinderStartMarker(f.storage)?.native)
-  writeBinderStartMarker(f.storage, { userId: "owner", ownerUserId: "other", binderId: null, binders: [] })
-  assert.equal(readBinderStartMarker(f.storage)?.native, undefined)
-})
-test("canonical baseline plus pending layout reopens as cached only with unchanged queue/receipts", async () => {
-  const f = fixture(), identity = cachedNativeIdentity(f.storage, f.session, now)!, store = createMemoryStore()
-  const snapshot = inventoryBrowseFixture(); snapshot.ownerUserId = "owner"
-  snapshot.items.forEach(i => { i.ownerUserId = "owner" }); snapshot.collections.forEach(c => { c.ownerUserId = "owner" })
-  snapshot.binders.forEach(b => { b.ownerUserId = "owner"; b.slots.forEach(s => { s.ownerUserId = "owner" }) })
-  const alpha = "22222222-2222-4222-8222-222222222222"
-  snapshot.collections[0].id = alpha; snapshot.binders[0].collectionId = alpha
-  snapshot.binders[0].slots.forEach(slot => { slot.collectionId = alpha }); snapshot.placements[0].collectionId = alpha
-  const layouts = inventoryBrowseLayouts.map(l => l.collectionId === "alpha" ? { ...l, collectionId: alpha } : l)
-  const queue = createSlotOfflineQueue(store, identity.scope)
-  await queue.saveSnapshot(await readSyntheticComplete(snapshot))
-  const metadataKey = `slot-navigation-v1:${JSON.stringify(["device", "owner", "owner"])}`
-  await store.set(metadataKey, { catalog: inventoryBrowseCatalog, layouts })
-  await queue.enqueue({ kind: "slots", request: { collectionId: alpha, operationId: "insert-operation", inventoryRevision: snapshot.inventoryRevision, collectionVersion: 1, layoutRevision: 1,
-    commands: [{ kind: "create", ids: ["new-slot"], beforeSlotId: null }] }, context: { source: "app", clientId: "device", operationId: "insert-operation", batchId: null, clientOccurredAt: "2026-01-01T00:00:00Z" } }, () => undefined)
-  const before = await store.get(offlineScopeKey(identity.scope))
-  const boot = await readCachedNativeStartup(store, identity, "new-local-epoch")
-  assert.deepEqual(boot.planning.scope, identity.scope)
-  assert.equal(boot.planning.authSessionId, "auth-session")
-  assert.equal(isCompleteInventorySnapshot(boot.planning.snapshot), false)
-  assert.equal(boot.pending, 1); assert.equal(boot.read.evidence.kind, "cached")
-  assert.equal(isCompleteInventorySnapshot(boot.read.evidence.snapshot), false)
-  assert.equal(boot.read.layouts[0].layoutRevision, 2)
-  assert.equal(boot.read.evidence.snapshot.binders[0].slots.length, 13)
-  assert.deepEqual(await store.get(offlineScopeKey(identity.scope)), before)
-  for (const metadata of [undefined, {}, { catalog: inventoryBrowseCatalog, layouts: [] }, { catalog: inventoryBrowseCatalog, layouts: [{ ...inventoryBrowseLayouts[0], layoutRevision: 99 }] }]) {
-    await store.set(metadataKey, metadata)
-    await assert.rejects(readCachedNativeStartup(store, identity, "epoch"), /metadata-unavailable/)
-    assert.deepEqual(await store.get(offlineScopeKey(identity.scope)), before)
+});
+test('partner display retains exact legacy scoped billing-cache policy', () => {
+  const f = fixture('partner');
+  assert.equal(cachedNativeIdentity(f.storage, f.session, now), null);
+  const access = { ownerUserId: 'partner', enforced: false, source: 'free', savedCardCount: 0 };
+  f.data.set('holofolder_billing_v1', JSON.stringify({ accountId: 'owner', access }));
+  assert.ok(cachedNativeIdentity(f.storage, f.session, now));
+  f.data.set('holofolder_billing_v1', JSON.stringify({ accountId: 'other', access }));
+  assert.equal(cachedNativeIdentity(f.storage, f.session, now), null);
+  f.data.set('holofolder_billing_v1', JSON.stringify({ accountId: 'owner', access: { ...access, enforced: true } }));
+  assert.equal(cachedNativeIdentity(f.storage, f.session, now), null);
+});
+test('server legacy marker keeps only same account/owner native pointer', () => {
+  const f = fixture();
+  writeBinderStartMarker(f.storage, { userId: 'owner', ownerUserId: 'owner', binderId: 'alpha', binders: [] });
+  assert.ok(readBinderStartMarker(f.storage)?.native);
+  writeBinderStartMarker(f.storage, { userId: 'owner', ownerUserId: 'other', binderId: null, binders: [] });
+  assert.equal(readBinderStartMarker(f.storage)?.native, undefined);
+});
+test('canonical baseline plus pending layout reopens as cached only with unchanged queue/receipts', async () => {
+  const f = fixture(),
+    identity = cachedNativeIdentity(f.storage, f.session, now)!,
+    store = createMemoryStore();
+  const snapshot = inventoryBrowseFixture();
+  snapshot.ownerUserId = 'owner';
+  snapshot.items.forEach((i) => {
+    i.ownerUserId = 'owner';
+  });
+  snapshot.collections.forEach((c) => {
+    c.ownerUserId = 'owner';
+  });
+  snapshot.binders.forEach((b) => {
+    b.ownerUserId = 'owner';
+    b.slots.forEach((s) => {
+      s.ownerUserId = 'owner';
+    });
+  });
+  const alpha = '22222222-2222-4222-8222-222222222222';
+  snapshot.collections[0].id = alpha;
+  snapshot.binders[0].collectionId = alpha;
+  snapshot.binders[0].slots.forEach((slot) => {
+    slot.collectionId = alpha;
+  });
+  snapshot.placements[0].collectionId = alpha;
+  const layouts = inventoryBrowseLayouts.map((l) => (l.collectionId === 'alpha' ? { ...l, collectionId: alpha } : l));
+  const queue = createSlotOfflineQueue(store, identity.scope);
+  await queue.saveSnapshot(await readSyntheticComplete(snapshot));
+  const metadataKey = `slot-navigation-v1:${JSON.stringify(['device', 'owner', 'owner'])}`;
+  await store.set(metadataKey, { catalog: inventoryBrowseCatalog, layouts });
+  await queue.enqueue(
+    {
+      kind: 'slots',
+      request: {
+        collectionId: alpha,
+        operationId: 'insert-operation',
+        inventoryRevision: snapshot.inventoryRevision,
+        collectionVersion: 1,
+        layoutRevision: 1,
+        commands: [{ kind: 'create', ids: ['new-slot'], beforeSlotId: null }],
+      },
+      context: {
+        source: 'app',
+        clientId: 'device',
+        operationId: 'insert-operation',
+        batchId: null,
+        clientOccurredAt: '2026-01-01T00:00:00Z',
+      },
+    },
+    () => undefined,
+  );
+  const before = await store.get(offlineScopeKey(identity.scope));
+  const boot = await readCachedNativeStartup(store, identity, 'new-local-epoch');
+  assert.deepEqual(boot.planning.scope, identity.scope);
+  assert.equal(boot.planning.authSessionId, 'auth-session');
+  assert.equal(isCompleteInventorySnapshot(boot.planning.snapshot), false);
+  assert.equal(boot.pending, 1);
+  assert.equal(boot.read.evidence.kind, 'cached');
+  assert.equal(isCompleteInventorySnapshot(boot.read.evidence.snapshot), false);
+  assert.equal(boot.read.layouts[0].layoutRevision, 2);
+  assert.equal(boot.read.evidence.snapshot.binders[0].slots.length, 13);
+  assert.deepEqual(await store.get(offlineScopeKey(identity.scope)), before);
+  for (const metadata of [
+    undefined,
+    {},
+    { catalog: inventoryBrowseCatalog, layouts: [] },
+    { catalog: inventoryBrowseCatalog, layouts: [{ ...inventoryBrowseLayouts[0], layoutRevision: 99 }] },
+  ]) {
+    await store.set(metadataKey, metadata);
+    await assert.rejects(readCachedNativeStartup(store, identity, 'epoch'), /metadata-unavailable/);
+    assert.deepEqual(await store.get(offlineScopeKey(identity.scope)), before);
   }
-})
-test("cold uncached and unavailable storage never fabricate an empty complete inventory", async () => {
-  const f = fixture(), identity = cachedNativeIdentity(f.storage, f.session, now)!, store = createMemoryStore()
-  await assert.rejects(readCachedNativeStartup(store, identity, "epoch"), /not-saved/)
-  await assert.rejects(readCachedNativeStartup({ ...store, updateMany: async () => { throw new Error("storage-failure") } }, identity, "epoch"), /storage-failure/)
-})
+});
+test('cold uncached and unavailable storage never fabricate an empty complete inventory', async () => {
+  const f = fixture(),
+    identity = cachedNativeIdentity(f.storage, f.session, now)!,
+    store = createMemoryStore();
+  await assert.rejects(readCachedNativeStartup(store, identity, 'epoch'), /not-saved/);
+  await assert.rejects(
+    readCachedNativeStartup(
+      {
+        ...store,
+        updateMany: async () => {
+          throw new Error('storage-failure');
+        },
+      },
+      identity,
+      'epoch',
+    ),
+    /storage-failure/,
+  );
+});
 
 test('dead refresh cannot hold startup forever or establish cached identity', async () => {
   const { readDeviceStartupSession } = await import('@/lib/collection/native-startup');

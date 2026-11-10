@@ -130,6 +130,31 @@ async function main() {
     await q.saveSnapshot(p.base);
     return { ...p, store, q, intent: rawRestoreIntent(p.command, queueScope.deviceId) };
   };
+  // The shared host may pair fresh complete reads with matching navigation for atomic ACK.
+  const paired = await setup();
+  await paired.q.enqueue(
+    paired.intent,
+    () => undefined,
+    paired.base,
+    () => queueScope,
+    scope.authSessionId,
+  );
+  await paired.q.replay(
+    send,
+    () => queueScope,
+    Date.now(),
+    () => undefined,
+    async () => {
+      const r = await readCurrent();
+      if (r.evidence.kind !== 'complete') throw new Error('incomplete');
+      return { snapshot: r.evidence.snapshot, navigation: { catalog: r.catalog, layouts: r.layouts } };
+    },
+    scope.authSessionId,
+  );
+  assert.equal((await paired.q.read()).pending.length, 0);
+  assert.equal((await paired.q.read()).receipts[0].outcome, 'acknowledged');
+  const savedPair = await paired.q.readLocalPlanning(scope.authSessionId);
+  assert.equal(savedPair.layouts[0].layoutRevision, savedPair.snapshot.binders[0].layoutRevision);
   fixture = nextFixture();
   // Future command versions fail closed in both reads and atomic updates, without resetting bytes.
   const unknown = await setup();

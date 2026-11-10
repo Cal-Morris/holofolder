@@ -1,11 +1,11 @@
-import { readBinderStartMarker, writeBinderStartMarker } from "@/lib/binder-start"
-import { readBillingCache } from "@/lib/billing-cache"
-import { isSlotContractId } from "@/lib/domain/binder-slots"
-import { createSlotOfflineQueue } from "@/lib/collection/slot-offline-queue"
-import type { InventoryReadScope } from "@/lib/collection/inventory-read-transport"
-import type { CollectionNavigationRead } from "@/lib/collection-navigation"
-import type { AtomicOfflineStore } from "@/lib/offline-store/kv"
-import type { Session } from "@supabase/supabase-js"
+import { readBinderStartMarker, writeBinderStartMarker } from '@/lib/binder-start';
+import { readBillingCache } from '@/lib/billing-cache';
+import { isSlotContractId } from '@/lib/domain/binder-slots';
+import { createSlotOfflineQueue } from '@/lib/collection/slot-offline-queue';
+import type { InventoryReadScope } from '@/lib/collection/inventory-read-transport';
+import type { CollectionNavigationRead } from '@/lib/collection-navigation';
+import type { AtomicOfflineStore } from '@/lib/offline-store/kv';
+import type { Session } from '@supabase/supabase-js';
 
 /** Only the already checked live host calls this. No credentials/session store is created. */
 export function rememberNativeStartup(storage: Pick<Storage, 'getItem' | 'setItem'>, scope: InventoryReadScope) {
@@ -74,16 +74,28 @@ export function cachedNativeIdentity(storage: Pick<Storage, 'getItem'>, session:
 
 /** Cached navigation and local planning from one canonical queue/metadata transaction.
  * This never establishes remote membership, completeness, sending or ACK authority. */
-export async function readCachedNativeStartup(store: AtomicOfflineStore, identity: NonNullable<ReturnType<typeof cachedNativeIdentity>>, epoch: string): Promise<{
-  read: CollectionNavigationRead; pending: number;
-  planning: Awaited<ReturnType<ReturnType<typeof createSlotOfflineQueue>["readLocalPlanning"]>>;
+export async function readCachedNativeStartup(
+  store: AtomicOfflineStore,
+  identity: NonNullable<ReturnType<typeof cachedNativeIdentity>>,
+  epoch: string,
+): Promise<{
+  read: CollectionNavigationRead;
+  pending: number;
+  planning: Awaited<ReturnType<ReturnType<typeof createSlotOfflineQueue>['readLocalPlanning']>>;
 }> {
-  const { scope } = identity
-  const queue = createSlotOfflineQueue(store, scope)
-  const planning = await queue.readLocalPlanning(identity.marker.native!.authSessionId)
-  return { read: { scope: { accountUserId: scope.accountId!, ownerUserId: scope.ownerUserId!, sessionId: epoch },
-    evidence: { kind: "cached", snapshot: planning.snapshot }, catalog: planning.catalog, layouts: planning.layouts },
-    pending: planning.pending, planning }
+  const { scope } = identity;
+  const queue = createSlotOfflineQueue(store, scope);
+  const planning = await queue.readLocalPlanning(identity.marker.native!.authSessionId);
+  return {
+    read: {
+      scope: { accountUserId: scope.accountId!, ownerUserId: scope.ownerUserId!, sessionId: epoch },
+      evidence: { kind: 'cached', snapshot: planning.snapshot },
+      catalog: planning.catalog,
+      layouts: planning.layouts,
+    },
+    pending: planning.pending,
+    planning,
+  };
 }
 
 /** getSession may try to refresh an expired token on dead Wi-Fi. Bound startup only;

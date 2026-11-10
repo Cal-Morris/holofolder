@@ -389,7 +389,10 @@ test('creation terminal proof survives reload separately from acceptance; explic
     () => scope,
     1000,
     () => undefined,
-    () => complete({ ...base, inventoryRevision: 4 }),
+    async () => ({
+      snapshot: await complete({ ...base, inventoryRevision: 4 }),
+      navigation: { catalog: [], layouts: [] },
+    }),
   );
   const reopened = createSlotOfflineQueue(store, scope);
   assert.deepEqual((await reopened.read()).pending[0].conflict?.creationProof, proof);

@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useLayoutEffect, useState } from "react"
-import { getOfflineStore } from "@/lib/offline-store/kv"
-import { createSlotOfflineQueue, type SlotOfflineScope, type SlotOfflineRecord, type SlotReplayResult } from "@/lib/collection/slot-offline-queue"
-import type { SlotOfflineIntent } from "@/lib/collection/slot-optimistic"
-import type { StagedSlotCommandIntent, SlotLocalAcceptance } from "@/lib/binder-slot-editing"
-import type { InventoryCatalogResolver, InventorySnapshot } from "@/lib/domain/inventory"
+import { useEffect, useMemo, useLayoutEffect, useState } from 'react';
+import { getOfflineStore } from '@/lib/offline-store/kv';
+import {
+  createSlotOfflineQueue,
+  type SlotOfflineScope,
+  type SlotOfflineRecord,
+  type SlotReplayResult,
+} from '@/lib/collection/slot-offline-queue';
+import type { SlotOfflineIntent } from '@/lib/collection/slot-optimistic';
+import type { StagedSlotCommandIntent, SlotLocalAcceptance } from '@/lib/binder-slot-editing';
+import type { InventoryCatalogResolver, InventorySnapshot } from '@/lib/domain/inventory';
 
 function sessionLifetime() {
   let active = false,
@@ -29,13 +34,25 @@ function sessionLifetime() {
 export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, authSessionId?: string) {
   const { deviceId, workspaceId, accountId, ownerUserId } = scope;
   const session = useMemo(() => {
-    const store = getOfflineStore()
-    return { queue: store ? createSlotOfflineQueue(store, { deviceId, workspaceId, accountId, ownerUserId }) : null,
-      ...sessionLifetime(), scope: { deviceId, workspaceId, accountId, ownerUserId }, sessionId, authSessionId }
-  }, [deviceId, workspaceId, accountId, ownerUserId, sessionId, authSessionId])
-  useLayoutEffect(() => { session.activate(); return () => session.close() }, [session])
-  const active = (token = session.token()) => session.isActive(token)
-  const [loaded, setLoaded] = useState<{ session: typeof session; record: SlotOfflineRecord | null; error: string | null } | null>(null)
+    const store = getOfflineStore();
+    return {
+      queue: store ? createSlotOfflineQueue(store, { deviceId, workspaceId, accountId, ownerUserId }) : null,
+      ...sessionLifetime(),
+      scope: { deviceId, workspaceId, accountId, ownerUserId },
+      sessionId,
+      authSessionId,
+    };
+  }, [deviceId, workspaceId, accountId, ownerUserId, sessionId, authSessionId]);
+  useLayoutEffect(() => {
+    session.activate();
+    return () => session.close();
+  }, [session]);
+  const active = (token = session.token()) => session.isActive(token);
+  const [loaded, setLoaded] = useState<{
+    session: typeof session;
+    record: SlotOfflineRecord | null;
+    error: string | null;
+  } | null>(null);
   useEffect(() => {
     const token = session.token();
     const refresh = async () => {
@@ -65,52 +82,79 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, 
     };
   }, [session]);
   const refresh = async () => {
-    if (!active() || !session.queue) throw new Error("inactive-or-unavailable-session")
-    const record = await session.queue.read()
-    if (active()) setLoaded({ session, record, error: null })
-    const channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel("binderdex-slot-intent-v1")
-    try { channel?.postMessage("changed") } finally { channel?.close() } // No private state in cross-tab messages.
-  }
+    if (!active() || !session.queue) throw new Error('inactive-or-unavailable-session');
+    const record = await session.queue.read();
+    if (active()) setLoaded({ session, record, error: null });
+    const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('binderdex-slot-intent-v1');
+    try {
+      channel?.postMessage('changed');
+    } finally {
+      channel?.close();
+    } // No private state in cross-tab messages.
+  };
   const accepted = async (operationId: string, token: number): Promise<SlotLocalAcceptance> => {
     // Commit is irreversible acceptance even when a later read/notification fails.
-    let refreshError: string | null = null
+    let refreshError: string | null = null;
     if (active(token)) {
-      try { await refresh() } catch {
-        refreshError = "Saved on device. Could not refresh the view. Reopen or retry refresh."
-        if (active(token)) setLoaded(previous => ({ session, record: previous?.session === session ? previous.record : null, error: refreshError }))
+      try {
+        await refresh();
+      } catch {
+        refreshError = 'Saved on device. Could not refresh the view. Reopen or retry refresh.';
+        if (active(token))
+          setLoaded((previous) => ({
+            session,
+            record: previous?.session === session ? previous.record : null,
+            error: refreshError,
+          }));
       }
     }
-    return { status: "saved-on-device", operationId, refreshError } satisfies SlotLocalAcceptance
-  }
+    return { status: 'saved-on-device', operationId, refreshError } satisfies SlotLocalAcceptance;
+  };
   return {
     record: loaded?.session === session ? loaded.record : null,
     error: loaded?.session === session ? loaded.error : null,
     queue: session.queue,
     invalidate: () => session.close(),
     async readLocalPlanning() {
-      if (!active() || !session.queue || !session.authSessionId) throw new Error("inactive-or-unavailable-session")
-      const token = session.token(), planning = await session.queue.readLocalPlanning(session.authSessionId)
-      if (!active(token)) throw new Error("inactive-or-unavailable-session")
-      return planning
+      if (!active() || !session.queue || !session.authSessionId) throw new Error('inactive-or-unavailable-session');
+      const token = session.token(),
+        planning = await session.queue.readLocalPlanning(session.authSessionId);
+      if (!active(token)) throw new Error('inactive-or-unavailable-session');
+      return planning;
     },
     async enqueueLocal(draft: StagedSlotCommandIntent, isCurrent: () => boolean = () => true) {
-      if (!active() || !session.queue || !session.authSessionId) throw new Error("inactive-or-unavailable-session")
-      const token = session.token()
-      await session.queue.enqueueLocal(draft, session.authSessionId, () => active(token) && isCurrent() ? session.scope : null)
-      return accepted(draft.intent.request.operationId, token)
+      if (!active() || !session.queue || !session.authSessionId) throw new Error('inactive-or-unavailable-session');
+      const token = session.token();
+      await session.queue.enqueueLocal(draft, session.authSessionId, () =>
+        active(token) && isCurrent() ? session.scope : null,
+      );
+      return accepted(draft.intent.request.operationId, token);
     },
     async saveSnapshotWithNavigation(snapshot: unknown, navigation: unknown, isCurrent: () => boolean = () => true) {
-      if (!active() || !session.queue) throw new Error("inactive-or-unavailable-session")
-      const token = session.token()
-      const saved = await session.queue.saveSnapshotWithNavigation(snapshot, navigation, () => active(token) && isCurrent() ? session.scope : null)
-      if (active(token)) await refresh()
-      return saved
+      if (!active() || !session.queue) throw new Error('inactive-or-unavailable-session');
+      const token = session.token();
+      const saved = await session.queue.saveSnapshotWithNavigation(snapshot, navigation, () =>
+        active(token) && isCurrent() ? session.scope : null,
+      );
+      if (active(token)) await refresh();
+      return saved;
     },
-    async enqueue(intent: SlotOfflineIntent, catalog: InventoryCatalogResolver, planningBase?: InventorySnapshot, isCurrent: () => boolean = () => true) {
-      if (!active() || !session.queue) throw new Error("inactive-or-unavailable-session")
-      const token = session.token()
-      await session.queue.enqueue(intent, catalog, planningBase, () => active(token) && isCurrent() ? session.scope : null, session.authSessionId)
-      return accepted(intent.request.operationId, token)
+    async enqueue(
+      intent: SlotOfflineIntent,
+      catalog: InventoryCatalogResolver,
+      planningBase?: InventorySnapshot,
+      isCurrent: () => boolean = () => true,
+    ) {
+      if (!active() || !session.queue) throw new Error('inactive-or-unavailable-session');
+      const token = session.token();
+      await session.queue.enqueue(
+        intent,
+        catalog,
+        planningBase,
+        () => (active(token) && isCurrent() ? session.scope : null),
+        session.authSessionId,
+      );
+      return accepted(intent.request.operationId, token);
     },
     async replay(
       send: (intent: SlotOfflineIntent) => Promise<SlotReplayResult>,
@@ -121,9 +165,19 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, 
       if (!active() || !session.queue) return;
       const token = session.token();
       // The queue persists each outcome before it reads, so publish it first: an acknowledged edit shows as saved while the read runs.
-      const publishThenRead = async () => { if (session.isActive(token)) await refresh().catch(() => {}); return readCurrent() }
-      await session.queue.replay(send, () => session.isActive(token) && isCurrent() ? session.scope : null, Date.now(), catalog, publishThenRead, session.authSessionId)
-      if (session.isActive(token)) await refresh()
+      const publishThenRead = async () => {
+        if (session.isActive(token)) await refresh().catch(() => {});
+        return readCurrent();
+      };
+      await session.queue.replay(
+        send,
+        () => (session.isActive(token) && isCurrent() ? session.scope : null),
+        Date.now(),
+        catalog,
+        publishThenRead,
+        session.authSessionId,
+      );
+      if (session.isActive(token)) await refresh();
     },
     async saveSnapshot(snapshot: unknown, catalog: InventoryCatalogResolver) {
       if (!active() || !session.queue) throw new Error('inactive-or-unavailable-session');
