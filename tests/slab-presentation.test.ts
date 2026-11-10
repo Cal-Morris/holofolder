@@ -26,16 +26,17 @@ describe("recorded slab presentation", () => {
     assert.equal(selectSlabStyle({ ...cgc, holder: "cgc-2025" }), "neutral")
     assert.equal(cgc.grade, "9.5")
   })
-  test("safe DTO preserves entered metadata, missing values, raw copies, identity and catalog fallback", async () => {
+  test("safe DTO preserves entered metadata, missing values, identity and catalog fallback, and leaves ungraded cards out", async () => {
     const r = await read(), copies = slabCollectionCopies(scope, r, "alpha")
-    assert.equal(copies.length, 15)
+    // 15 placed copies in the synthetic fixture, one of them ungraded: a card without a grade is not a slab.
+    assert.equal(copies.length, 14)
+    assert.ok(copies.every(c => c.slab.style !== "raw"))
     assert.equal(copies[4].slab.grade, "9.5")
-    assert.equal(copies[9].slab.style, "raw"); assert.equal(copies[9].slab.grade, null)
-    assert.equal(copies[10].slab.style, "neutral"); assert.equal(copies[10].slab.grade, "10")
-    assert.equal(copies[13].slab.grade, null); assert.deepEqual(copies[13].slab.subgrades, [])
-    assert.equal(copies[14].slab.image, null)
+    assert.equal(copies[9].slab.style, "neutral"); assert.equal(copies[9].slab.grade, "10")
+    assert.equal(copies[12].slab.grade, null); assert.deepEqual(copies[12].slab.subgrades, [])
+    assert.equal(copies[13].slab.image, null)
     assert.ok(copies[0].slab.image)
-    assert.match(copies[12].slab.note!, /artwork unavailable/)
+    assert.match(copies[11].slab.note!, /artwork unavailable/)
     assert.doesNotMatch(JSON.stringify(copies), /SYNTHETIC-PRIVATE|certificate|assetIds|ownerUserId|legacySource/)
     assert.equal(new Set(copies.map(c => c.itemId)).size, copies.length)
     const row = navigationIndex(scope, r).rows[0], record = slabFixture().items[0].grading!
@@ -59,9 +60,9 @@ describe("recorded slab presentation", () => {
     assert.deepEqual(slabCollectionCopies(scope, r, "unknown"), [])
     assert.deepEqual(slabCollectionCopies(scope, JSON.parse(JSON.stringify(r)), "alpha"), [])
     r.scope = { ...scope, accountUserId: "partner" }
-    assert.equal(slabCollectionCopies(r.scope, r, "alpha").length, 15)
+    assert.equal(slabCollectionCopies(r.scope, r, "alpha").length, 14)
     r.evidence = { kind: "cached", snapshot: slabFixture() }
-    assert.equal(slabCollectionCopies(r.scope, r, "alpha").length, 15)
+    assert.equal(slabCollectionCopies(r.scope, r, "alpha").length, 14)
   })
   test("staged view restores locally; deep targets win; default and hosted admission remain denied", async () => {
     const r = await read(), saved = normalizeNavigationState({ main: "collection", collectionId: "alpha", collections: { alpha: { view: "slabs", search: "charizard", scroll: 400 } } })

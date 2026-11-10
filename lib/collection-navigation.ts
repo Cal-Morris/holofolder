@@ -81,9 +81,13 @@ export function resolveNavigation(state: CollectionNavigationState, scope: Colle
   let notice = ""
   let highlight: CollectionNavigationFocus | null = null
   if (params && ["binder", "view", "page", "slot", "item"].some(k => params.has(k))) {
-    next.main = params.get("view") === "inventory" ? "inventory" : params.get("view") === "dex" ? "dex" : "collection"
+    // Older links and home-screen shortcuts name the view directly (?view=wanted and friends); they still open it.
+    const linked = params.get("view")
+    const browse = linked === "wanted" || linked === "sets" || linked === "pokemon" || linked === "analytics" ? linked : null
+    next.main = linked === "inventory" ? "inventory" : linked === "dex" || browse ? "dex" : "collection"
+    if (browse) next.dexView = browse
     next.collectionId = params.get("binder") ?? next.collectionId
-    if (next.collectionId) {
+    if (next.collectionId && next.main === "collection") {
       const current = next.collections[next.collectionId] ?? defaultCollectionView()
       const targeted = params.has("page") || params.has("slot") || params.has("item")
       const view = !targeted && params.get("view") === "slabs" && stagedSlabs ? "slabs" : params.get("view") === "list" && !targeted ? "list" : !targeted && !params.has("view") ? current.view : "binder"

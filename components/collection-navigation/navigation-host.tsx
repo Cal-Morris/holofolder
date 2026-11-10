@@ -234,10 +234,15 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
   }
   if (!visible) return <p role="status">Opening…</p>
   const collectionId = visible.collectionId
-  const collectionState = visible.collections[collectionId ?? ""] ?? defaultCollectionView()
+  const savedCollectionState = visible.collections[collectionId ?? ""] ?? defaultCollectionView()
+  const slabCopies = stagedSlabs && collectionId ? slabCollectionCopies(scope, currentRead, collectionId) : []
+  // Slabs is a view of graded cards. A collection with none (and that isn't a slab collection) doesn't offer it,
+  // and a saved or linked Slabs choice for it falls back to the binder without changing anything saved.
+  const slabsOffered = stagedSlabs && (slabCopies.length > 0 || currentRead.evidence.kind !== "unavailable" && currentRead.evidence.snapshot.collections.find(c => c.id === collectionId)?.kind === "slab")
+  const collectionState = savedCollectionState.view === "slabs" && !slabsOffered ? { ...savedCollectionState, view: "binder" as const } : savedCollectionState
   // Compact: enclosed selectors, so the active collection name reads as a control. National Dex and Inventory live in the dock.
   const viewLabels: Record<CollectionViewState["view"], string> = { binder: "Binder", list: "List", slabs: "Slabs" }
-  const views: CollectionViewState["view"][] = stagedSlabs ? ["binder", "list", "slabs"] : ["binder", "list"]
+  const views: CollectionViewState["view"][] = slabsOffered ? ["binder", "list", "slabs"] : ["binder", "list"]
   const viewOptions = views.map(value => ({ value, label: viewLabels[value] }))
   const creationEntry = entryId.current, creationRequest = request.current
   const openCreated: NavigationSurface["openCreated"] = (id, latest) => {
@@ -258,7 +263,6 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     </div>
   const collection = collectionId && index.kind !== "unavailable" ? { read: currentRead, collectionId, state: collectionState, highlight,
     onChange: (patch: Partial<CollectionViewState>) => update(old => ({ ...old, collections: { ...old.collections, [collectionId]: { ...collectionState, ...patch } } })) } : null
-  const slabCopies = collectionState.view === "slabs" && stagedSlabs && collectionId ? slabCollectionCopies(scope, currentRead, collectionId) : []
   const content = <>
     {(notice || safe?.notice) && <p role="status" className={styles.notice}>{notice || safe?.notice}</p>}
     {visible.main === "inventory" ? <InventoryView key={visit} scope={scope} evidence={index.kind === "unavailable" ? { kind: "unavailable" } : currentRead.evidence}
