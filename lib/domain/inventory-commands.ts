@@ -33,7 +33,7 @@ export type InventoryCommand =
   | { kind: "assign"; selection: InventorySelection; destination: InventorySlotRef; occupied: "cancel" | "unassign"; fulfillWant: SelectedWant }
   | { kind: "move"; item: InventoryItemRef; destination: InventorySlotRef; occupied: "cancel" | "unassign" | "swap"; fulfillWant: SelectedWant }
   | { kind: "removeSlots"; slots: InventorySlotRef[] }
-  | { kind: "deleteCollection"; collectionId: string; slots: SlotPrecondition[]; replacementDefaultCollectionId: string | null }
+  | { kind: "deleteCollection"; collectionId: string; slots: SlotPrecondition[]; replacementDefaultCollectionId: string | null; removeOwned?: true }
 export interface InventoryCommandRequest {
   operationId: string
   inventoryRevision: number
@@ -58,7 +58,7 @@ function invalid(): never { throw new Error("Invalid or oversized inventory comm
 export function parseInventoryCommand(value: unknown): InventoryCommandRequest {
   const wholeCollection = isContractRecord(value, ["operationId", "inventoryRevision", "collections", "commands"])
     && Array.isArray(value.commands) && value.commands.length === 1
-    && isContractRecord(value.commands[0], ["kind", "collectionId", "slots", "replacementDefaultCollectionId"])
+    && isContractRecord(value.commands[0], ["kind", "collectionId", "slots", "replacementDefaultCollectionId", "removeOwned"])
     && value.commands[0].kind === "deleteCollection"
   const limits = wholeCollection ? INVENTORY_COLLECTION_DELETE_LIMITS : INVENTORY_LIMITS
   if (new TextEncoder().encode(JSON.stringify(value) ?? "").length > limits.bytes
@@ -76,7 +76,7 @@ export function parseInventoryCommand(value: unknown): InventoryCommandRequest {
   const checkSlot = (s: unknown) => slot(s) && collections.has(s.collectionId)
   const checkItem = (i: unknown) => item(i) && (i.placement === null || checkSlot(i.placement))
   for (const c of value.commands) {
-    if (!isContractRecord(c, ["kind", "itemId", "identity", "grading", "acquiredAt", "item", "selection", "destination", "occupied", "fulfillWant", "slots", "collectionId", "replacementDefaultCollectionId", "patch", "slotId", "before", "target"])) return invalid()
+    if (!isContractRecord(c, ["kind", "itemId", "identity", "grading", "acquiredAt", "item", "selection", "destination", "occupied", "fulfillWant", "slots", "collectionId", "replacementDefaultCollectionId", "removeOwned", "patch", "slotId", "before", "target"])) return invalid()
     if (c.kind === "insertAssign") {
       affected += 2
       if (!exact(c, ["kind", "collectionId", "slotId", "before", "target", "selection"]) || !uuid(c.collectionId) || !collections.has(c.collectionId)
@@ -128,7 +128,7 @@ export function parseInventoryCommand(value: unknown): InventoryCommandRequest {
       if (!exact(c, ["kind", "slots"]) || !Array.isArray(c.slots) || !c.slots.length || !c.slots.every(checkSlot)) return invalid()
       affected += c.slots.length + c.slots.filter((s: InventorySlotRef) => s.slot.inventoryItemId !== null).length
     } else if (c.kind === "deleteCollection") {
-      if (!exact(c, ["kind", "collectionId", "slots", "replacementDefaultCollectionId"]) || !uuid(c.collectionId) || !collections.has(c.collectionId) || !Array.isArray(c.slots) || c.slots.length > INVENTORY_COLLECTION_DELETE_LIMITS.slots || !c.slots.every(ref) || !(c.replacementDefaultCollectionId === null || (uuid(c.replacementDefaultCollectionId) && collections.has(c.replacementDefaultCollectionId) && c.replacementDefaultCollectionId !== c.collectionId))) return invalid()
+      if (!(exact(c, ["kind", "collectionId", "slots", "replacementDefaultCollectionId"]) || (exact(c, ["kind", "collectionId", "slots", "replacementDefaultCollectionId", "removeOwned"]) && c.removeOwned === true)) || !uuid(c.collectionId) || !collections.has(c.collectionId) || !Array.isArray(c.slots) || c.slots.length > INVENTORY_COLLECTION_DELETE_LIMITS.slots || !c.slots.every(ref) || !(c.replacementDefaultCollectionId === null || (uuid(c.replacementDefaultCollectionId) && collections.has(c.replacementDefaultCollectionId) && c.replacementDefaultCollectionId !== c.collectionId))) return invalid()
       affected += Math.max(1, c.slots.length) + c.slots.filter((s: SlotPrecondition) => s.inventoryItemId !== null).length
     } else return invalid()
   }
