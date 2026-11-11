@@ -62,8 +62,8 @@ export function Credits() {
           </li>
           <li>
             Which source we use for each card follows the{' '}
-            <External href="https://nstrelow.github.io/ptcg-image-atlas/">PTCG Image Atlas</External> by Luna, a map of
-            where Pokémon TCG card images come from (
+            <External href="https://nstrelow.github.io/ptcg-image-atlas/">PTCG Image Atlas</External>, a map of where
+            Pokémon TCG card images come from (
             <External href="https://github.com/nstrelow/ptcg-image-atlas">source on GitHub</External>).
           </li>
         </ul>
