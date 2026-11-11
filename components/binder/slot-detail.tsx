@@ -122,7 +122,7 @@ export default function SlotDetail({
         aria-modal="true"
         aria-label={`${name} details`}
         data-slot-id={slot.id}
-        className="holo-panel border-border/70 bg-card/96 text-foreground absolute inset-x-2 bottom-[calc(var(--dock-clearance)+0.375rem)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-md flex-col overflow-hidden rounded-[1.35rem] border p-3 shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl outline-none sm:bottom-4 sm:rounded-[1.6rem] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]"
+        className="holo-panel border-border/70 bg-card/96 text-foreground absolute inset-x-2 bottom-[calc(var(--dock-clearance)+0.375rem)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-md flex-col overflow-hidden rounded-[1.35rem] border p-3 shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl outline-none sm:rounded-[1.6rem] md:bottom-4 dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]"
       >
         <div data-sheet-grabber {...swipe} className="shrink-0">
           <div

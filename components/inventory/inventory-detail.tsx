@@ -64,7 +64,7 @@ export default function InventoryDetail({
         aria-modal="true"
         aria-label={`${name} details`}
         tabIndex={-1}
-        className="holo-panel border-border/70 bg-card/96 text-foreground absolute inset-x-2 bottom-[calc(var(--dock-clearance)+0.375rem)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-md flex-col overflow-hidden rounded-[1.35rem] border p-3 shadow-xl backdrop-blur-xl outline-none sm:bottom-4 sm:rounded-[1.6rem]"
+        className="holo-panel border-border/70 bg-card/96 text-foreground absolute inset-x-2 bottom-[calc(var(--dock-clearance)+0.375rem)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-md flex-col overflow-hidden rounded-[1.35rem] border p-3 shadow-xl backdrop-blur-xl outline-none sm:rounded-[1.6rem] md:bottom-4"
       >
         <div data-sheet-grabber {...swipe} className="shrink-0">
           <div
