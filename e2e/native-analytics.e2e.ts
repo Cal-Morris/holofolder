@@ -177,3 +177,21 @@ test('weak saved prices leave the binder and page totals unknown, never £0', as
   await expect(value).toContainText('Binder Unknown');
   await expect(value.getByText(/£0\.00/)).toHaveCount(0);
 });
+test('the toolbar coin toggles the binder value, so a dismissed total can be brought back', async ({
+  page,
+  insets,
+}) => {
+  await page.goto(entry);
+  const value = page.getByRole('region', { name: 'Binder value', exact: true });
+  const toggle = page.getByRole('button', { name: 'Binder value', exact: true });
+  await expect(value).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await value.getByRole('button', { name: 'Hide binder value', exact: true }).click();
+  await expect(value).toBeHidden();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  const h = new Harness(page, insets, true);
+  await h.expectMinTapTarget(toggle, 36);
+  await toggle.click();
+  await expect(value).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+});
