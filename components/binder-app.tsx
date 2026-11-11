@@ -385,7 +385,10 @@ function BinderAppSurface(props: BinderAppProps) {
   const user = initialUser
   const collection = useMemo(() => normalizeCollectionItems(initialCollection), [initialCollection])
   const resolvedCollectionOwnerUserId = user ? initialCollectionOwnerUserId : null
-  const collectionCount = useMemo(() => collection.filter((item) => item.status !== "wishlisted").length, [collection])
+  // Native owners: owned copies from the storage read (the legacy collection prop is empty there).
+  const nativeEvidence = browserSurface?.analytics.read.evidence
+  const collectionCount = useMemo(() => nativeEvidence && nativeEvidence.kind !== "unavailable" ? nativeEvidence.snapshot.items.length
+    : collection.filter((item) => item.status !== "wishlisted").length, [nativeEvidence, collection])
   const getCollectionItem = useCallback((pokemonId: number) => collection.find((item) => item.pokemon_id === pokemonId), [collection])
   const isCollected = useCallback((pokemonId: number) => collection.some((item) => item.pokemon_id === pokemonId && item.status !== "wishlisted"), [collection])
   const isWishlisted = useCallback((pokemonId: number) => collection.some((item) => item.pokemon_id === pokemonId && (item.status === "wishlisted" || item.wanted_cards.length > 0)), [collection])
