@@ -11,7 +11,7 @@ export type HeaderMoreItem = {
   icon: ReactNode
 } & ({ href: string; onSelect?: never; disabled?: never; keepOpen?: never } | { href?: never; onSelect: () => void; disabled?: boolean; keepOpen?: boolean })
 
-export function HeaderMoreMenu({ items, message }: { items: HeaderMoreItem[]; message?: string | null }) {
+export function HeaderMoreMenu({ items, message, compact = false }: { items: HeaderMoreItem[]; message?: string | null; /** 36px wide on phones, where the header is short of room. */ compact?: boolean }) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -20,7 +20,7 @@ export function HeaderMoreMenu({ items, message }: { items: HeaderMoreItem[]; me
 
   return (
     <div className="relative shrink-0">
-      <button ref={buttonRef} type="button" aria-label="More" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(current => !current)} className="flex h-11 w-11 items-center justify-center rounded-xl text-foreground hover:bg-muted/70">
+      <button ref={buttonRef} type="button" aria-label="More" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(current => !current)} className={`flex h-11 items-center justify-center rounded-xl text-foreground hover:bg-muted/70 ${compact ? "w-9 md:w-11" : "w-11"}`}>
         <MoreHorizontal className="h-5 w-5" aria-hidden />
       </button>
       {open && <>
