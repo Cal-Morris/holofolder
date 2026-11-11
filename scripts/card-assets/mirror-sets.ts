@@ -24,7 +24,7 @@ const names: Record<string, string> = {
 export function parseSetSymbols(html: string) {
   const symbols = new Map<string, string>();
   for (const match of html.matchAll(/<img alt="([^"]+)"[^>]+src="(\/images\/tcg\/sets\/symbols\/[a-z0-9-]+\.png)"/g)) {
-    const name = match[1].replace(/&amp;/g, '&').replace(/&#x27;|&#39;/g, "'");
+    const name = match[1].replace(/&(?:amp|#x27|#39);/g, (entity) => entity === '&amp;' ? '&' : "'");
     symbols.set(normalize(name), `https://pokesymbols.com${match[2]}`);
   }
   return symbols;

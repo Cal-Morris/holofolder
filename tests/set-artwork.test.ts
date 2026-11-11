@@ -38,3 +38,11 @@ test('published set artwork contains only CDN URLs and retains source attributio
     assert.equal('source' in getSetArtwork(id), false);
   }
 });
+
+test('symbol names decode HTML entities once without decoding newly produced entities', () => {
+  const symbols = parseSetSymbols(
+    '<img alt="Fixture &amp;#39; Collection" src="/images/tcg/sets/symbols/fixture.png"/>',
+  );
+  assert.equal(symbols.has('fixture39collection'), true);
+  assert.equal(symbols.has('fixturecollection'), false);
+});
