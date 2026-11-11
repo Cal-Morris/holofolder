@@ -1,4 +1,5 @@
 import { readCatalogMetadata } from "./card-catalog"
+import { CARD_IMAGE_BLOB_PREFIX } from "./tcgdex-card-image"
 import { pickTcgdexImageFromExternalIds } from "./tcgdex-shared"
 
 /**
@@ -8,7 +9,7 @@ import { pickTcgdexImageFromExternalIds } from "./tcgdex-shared"
  * from there by `/app/api/card-image-proxy`; the origin is only contacted when the copy is missing. Copies are stored as
  * WebP (see `lib/card-image-transform.ts`), so each source image costs one small object.
  */
-export const CARD_IMAGE_SOURCE_PREFIX = "cards/src"
+export const CARD_IMAGE_SOURCE_PREFIX = `${CARD_IMAGE_BLOB_PREFIX}/src`
 
 export type CardImageSource = "tcgplayer" | "pokemontcg" | "scrydex" | "limitless" | "playshop" | "pokemoncom"
 
@@ -36,7 +37,7 @@ export interface SourceCardImageRef {
   source: CardImageSource
   /** Canonical origin URL (what the catalog stores and the client requests through the proxy). */
   url: string
-  /** Store key: `cards/src/<source>/<…>.webp`. */
+  /** Store key: `pokemon/tcg/cards/src/<source>/<…>.webp`. */
   pathname: string
 }
 

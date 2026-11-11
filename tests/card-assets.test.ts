@@ -101,3 +101,31 @@ describe("card-assets atlas cross-check", () => {
     assert.deepEqual(crossCheckAtlas(sources, atlas).errors, [])
   })
 })
+
+describe("card-assets bucket migration", () => {
+  test("parses listed objects with size and ETag, keeping keys URL-safe", async () => {
+    const { parseListedObjects } = await import("../lib/card-assets/bucket-migration")
+    const xml = `<ListBucketResult><IsTruncated>true</IsTruncated><NextContinuationToken>t&amp;1</NextContinuationToken>
+      <Contents><Key>cards/en/a&amp;b/1/high.webp</Key><Size>12</Size><ETag>&quot;abc&quot;</ETag></Contents></ListBucketResult>`
+    assert.deepEqual(parseListedObjects(xml), { objects: [{ key: "cards/en/a%26b/1/high.webp", size: 12, etag: "abc" }], nextContinuationToken: "t&1" })
+  })
+
+  test("copies only missing objects to the pokemon/tcg prefix and reports mismatches", async () => {
+    const { planBucketCopy } = await import("../lib/card-assets/bucket-migration")
+    const source = [
+      { key: "cards/en/sv01/001/high.webp", size: 10, etag: "a" },
+      { key: "cards/src/tcgplayer/1.webp", size: 20, etag: "b" },
+      { key: "cards/en/sv01/002/high.webp", size: 30, etag: "c" },
+      { key: "other/file.txt", size: 1, etag: "z" },
+    ]
+    const destination = [
+      { key: "pokemon/tcg/cards/en/sv01/001/high.webp", size: 10, etag: "a" },
+      { key: "pokemon/tcg/cards/en/sv01/002/high.webp", size: 31, etag: "c2" },
+    ]
+    assert.deepEqual(planBucketCopy(source, destination), {
+      copy: [{ from: "cards/src/tcgplayer/1.webp", to: "pokemon/tcg/cards/src/tcgplayer/1.webp", size: 20 }],
+      mismatched: [{ from: "cards/en/sv01/002/high.webp", to: "pokemon/tcg/cards/en/sv01/002/high.webp" }],
+      matching: 1,
+    })
+  })
+})

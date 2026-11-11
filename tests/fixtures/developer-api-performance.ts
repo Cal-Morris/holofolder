@@ -29,7 +29,7 @@ globalThis.fetch=async(input,init)=>{
   if(rpcError)return Response.json(rpcError,{status:500})
   return Response.json(errorCode?{error:errorCode,retry_after:30}:{actor_id:actor,credential_id:key.id,permissions:['catalog:read'],owner_user_id:actor,member_ids:[actor],billing_access:{perpetual},budget:perpetual?{allowed,retry_after:20}:null})
  }
- if(url.pathname.endsWith('/card_image_inventory'))return Response.json([{object_key:'cards/en/base1/1/high.webp'}])
+ if(url.pathname.endsWith('/card_image_inventory'))return Response.json([{object_key:'pokemon/tcg/cards/en/base1/1/high.webp'}])
  throw new Error('Unexpected request')
 }
 const request=new Request('https://synthetic.test/app/api/v1/languages',{headers:{authorization:`Bearer ${key.key}`,'x-vercel-forwarded-for':'192.0.2.1'}})
@@ -46,7 +46,7 @@ const before=calls
 const resolve=await createDeveloperImageResolver(rows)
 const output=await sanitizeDeveloperImages(rows,resolve) as Array<{image:string}>
 assert.equal(calls-before,1,'one inventory read for 100 cards and their nested image fields')
-assert.equal(output.length,100);assert.equal(output[0].image,'https://assets.synthetic.test/cards/en/base1/1/high.webp')
+assert.equal(output.length,100);assert.equal(output[0].image,'https://assets.synthetic.test/pokemon/tcg/cards/en/base1/1/high.webp')
 assert.equal(requests.at(-1)?.searchParams.get('bucket'),'eq.synthetic-cards')
 console.log('passed')
 

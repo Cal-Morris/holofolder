@@ -45,7 +45,7 @@ describe("recorded slab presentation", () => {
     assert.deepEqual(record, original)
   })
   test("image input cannot become a private photo, certificate URL, data URL or query channel", () => {
-    for (const url of ["https://www.psacard.com/cert/12345678/psa", "https://private.example/photo.jpg", "data:image/png;base64,abc", "https://assets.tcgdex.net/en/base/base1/4/high.webp?cert=private", "https://assets.holofolder.com/cards/a.webp#private"])
+    for (const url of ["https://www.psacard.com/cert/12345678/psa", "https://private.example/photo.jpg", "data:image/png;base64,abc", "https://assets.tcgdex.net/en/base/base1/4/high.webp?cert=private", "https://assets.holofolder.com/pokemon/tcg/cards/a.webp#private"])
       assert.equal(slabCatalogImage(url), null)
   })
   test("custom color selection is bounded and never restyles an unsupported known holder", async () => {

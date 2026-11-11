@@ -1,4 +1,4 @@
-import {parseTcgdexCardImageUrl,getCardImageBlobPathname} from '@/lib/tcgdex-card-image'
+import {parseTcgdexCardImageUrl,getCardImageBlobPathname,currentCardImageKey} from '@/lib/tcgdex-card-image'
 import {parseSourceCardImageUrl} from '@/lib/card-image-sources'
 
 export function developerImageSource(value:string) {
@@ -22,7 +22,8 @@ export function developerImageKey(value:unknown,r2Bases:readonly string[]=[]):st
    const prefix=new URL(base)
    if(url.origin!==prefix.origin||!url.pathname.startsWith(prefix.pathname))continue
    const key=url.pathname.slice(prefix.pathname.length)
-   if(/^cards\/(?:[A-Za-z0-9_%!+.-]+\/)+[A-Za-z0-9_%!+.-]+\.(?:webp|png|jpg)$/.test(key)&&!key.includes('..')&&!/%(?:2f|5c|00)/i.test(key))return key
+   // Old-bucket keys (cards/...) are answered with the current key (pokemon/tcg/cards/...).
+   if(/^(?:pokemon\/tcg\/)?cards\/(?:[A-Za-z0-9_%!+.-]+\/)+[A-Za-z0-9_%!+.-]+\.(?:webp|png|jpg)$/.test(key)&&!key.includes('..')&&!/%(?:2f|5c|00)/i.test(key))return currentCardImageKey(key)
   }
  }catch{}
  return null

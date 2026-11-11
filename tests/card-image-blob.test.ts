@@ -66,9 +66,9 @@ const ref = parseTcgdexCardImageUrl("https://assets.tcgdex.net/en/me/me05/001/hi
 describe("parseTcgdexCardImageUrl", () => {
   test("parses TCGdex card image URLs into a deterministic Blob path", () => {
     assert.deepEqual(ref, { language: "en", seriesId: "me", setId: "me05", localId: "001", quality: "high", extension: "webp" })
-    assert.equal(getCardImageBlobPathname(ref), "cards/en/me05/001/high.webp")
+    assert.equal(getCardImageBlobPathname(ref), "pokemon/tcg/cards/en/me05/001/high.webp")
     const special = parseTcgdexCardImageUrl("https://assets.tcgdex.net/en/me/me02.5/TG01/low.png")!
-    assert.equal(getCardImageBlobPathname(special), "cards/en/me02.5/TG01/low.png")
+    assert.equal(getCardImageBlobPathname(special), "pokemon/tcg/cards/en/me02.5/TG01/low.png")
   })
 
   test("only accepts TCGdex card images", () => {
@@ -98,7 +98,7 @@ describe("parseTcgdexCardImageUrl", () => {
 
 describe("card image mirror", () => {
   test("serves an existing copy from Blob without touching TCGdex", async () => {
-    const { deps, calls } = fakeDeps({ existing: ["cards/en/me05/001/high.webp"] })
+    const { deps, calls } = fakeDeps({ existing: ["pokemon/tcg/cards/en/me05/001/high.webp"] })
     const mirror = createCardImageMirror(deps)
     const image = await mirror.loadImage(ref)
     assert.equal(image.source, "blob")
@@ -116,7 +116,7 @@ describe("card image mirror", () => {
     assert.equal(image.source, "tcgdex")
     assert.ok(image.pendingUpload)
     await image.pendingUpload!()
-    assert.ok(store.has("cards/en/me05/001/high.webp"))
+    assert.ok(store.has("pokemon/tcg/cards/en/me05/001/high.webp"))
     const again = await mirror.loadImage(ref)
     assert.equal(again.source, "blob")
     assert.equal(calls.tcgdex, 1)
@@ -136,9 +136,9 @@ describe("card image mirror", () => {
   test("reuses a blob uploaded by another instance when put reports it already exists", async () => {
     const { deps, store, calls } = fakeDeps()
     const mirror = createCardImageMirror(deps)
-    store.set("cards/en/me05/001/high.webp", new Uint8Array([7]).buffer)
+    store.set("pokemon/tcg/cards/en/me05/001/high.webp", new Uint8Array([7]).buffer)
     const result = await mirror.ensureMirrored(ref, { assumeMissing: true })
-    assert.equal(result.url, `${BLOB_BASE}cards/en/me05/001/high.webp`)
+    assert.equal(result.url, `${BLOB_BASE}pokemon/tcg/cards/en/me05/001/high.webp`)
     assert.equal(calls.put, 1)
   })
 
@@ -167,15 +167,15 @@ describe("set image backfill", () => {
   test("plans only images TCGdex has, using the card image URL when the manifest lacks the set", () => {
     const refs = planCardImageRefs(cards, { languages: ["en"], qualities: ["high", "low"] })
     assert.deepEqual(refs.map(getCardImageBlobPathname), [
-      "cards/en/30th/001/high.webp",
-      "cards/en/30th/001/low.webp",
-      "cards/en/30th/002/high.webp",
-      "cards/en/30th/002/low.webp",
+      "pokemon/tcg/cards/en/30th/001/high.webp",
+      "pokemon/tcg/cards/en/30th/001/low.webp",
+      "pokemon/tcg/cards/en/30th/002/high.webp",
+      "pokemon/tcg/cards/en/30th/002/low.webp",
     ])
   })
 
   test("copies only missing images and is idempotent", async () => {
-    const { deps, calls } = fakeDeps({ existing: ["cards/en/30th/001/high.webp"] })
+    const { deps, calls } = fakeDeps({ existing: ["pokemon/tcg/cards/en/30th/001/high.webp"] })
     const mirror = createCardImageMirror(deps)
     const first = await mirrorSetImages(mirror, "30th", cards, { languages: ["en"], qualities: ["high", "low"] })
     assert.deepEqual({ ...first }, { setId: "30th", planned: 4, alreadyMirrored: 1, uploaded: 3, failed: 0, complete: true })
@@ -227,7 +227,7 @@ test("fallback image mirror refuses redirects to an untrusted destination", asyn
   await assert.rejects(mirror.loadSourceImage({
     source: "tcgplayer",
     url: "https://product-images.tcgplayer.com/12345.jpg",
-    pathname: "cards/src/tcgplayer/12345.webp",
+    pathname: "pokemon/tcg/cards/src/tcgplayer/12345.webp",
   }), /unexpected redirect/)
   assert.equal(calls, 1)
 })

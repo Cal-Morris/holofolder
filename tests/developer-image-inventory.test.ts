@@ -4,7 +4,7 @@ import {collectDeveloperImageKeys,resolveRecordedDeveloperImage} from '@/lib/ser
 
 const base='https://assets.synthetic.test/'
 const source='https://assets.tcgdex.net/en/base/base1/1/high.webp'
-const key='cards/en/base1/1/high.webp'
+const key='pokemon/tcg/cards/en/base1/1/high.webp'
 
 test('inventory lookup deduplicates nested images and excludes arbitrary URLs and private artwork',()=>{
  assert.deepEqual(collectDeveloperImageKeys([source,{image:source,images:{large:`${base}${key}?signature=synthetic`}},'https://evil.test/card.png',`${base}private/owner/artwork`],[base]),[key])
@@ -20,10 +20,10 @@ test('R2 writes and listings record confirmed objects for subsequent API reads',
  const {createR2Deps}=await import('../lib/card-image-r2')
  const seen:string[][]=[]
  const deps=createR2Deps({accountId:'a'.repeat(32),bucket:'synthetic-cards',accessKeyId:'synthetic-key',secretAccessKey:'synthetic-secret',publicBaseUrl:base},{
-  fetch:async (_input,init)=>init?.method==='PUT'?new Response(null,{status:200}):new Response('<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>cards/en/base1/1/high.webp</Key></Contents></ListBucketResult>'),
+  fetch:async (_input,init)=>init?.method==='PUT'?new Response(null,{status:200}):new Response('<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>pokemon/tcg/cards/en/base1/1/high.webp</Key></Contents></ListBucketResult>'),
   onObjects:async keys=>{seen.push(keys)},
  })
  await deps.put(key,new ArrayBuffer(1),'image/webp')
- assert.deepEqual(await deps.list('cards/'),[key])
+ assert.deepEqual(await deps.list('pokemon/tcg/cards/'),[key])
  assert.deepEqual(seen,[[key],[key]])
 })

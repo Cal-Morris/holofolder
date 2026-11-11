@@ -13,7 +13,7 @@ test("card images render responsive asset variants and an inline loading placeho
   const html = renderToStaticMarkup(createElement(CardImage, { src, alt: "Synthetic card", sizes: "80px" }))
   assert.equal(html.match(/srcSet="([^"]+)"/)?.[1].replace(/&amp;/g, "&"), getCardImageAttributes(toCardImageSrc(src)!, "80px").srcSet)
   assert.match(html, /sizes="80px"/)
-  assert.equal(html.match(/<img[^>]+ src="([^"]+)"/)?.[1], "https://assets.holofolder.com/cards/en/base1/44/high.webp")
+  assert.equal(html.match(/<img[^>]+ src="([^"]+)"/)?.[1], "https://assets.holofolder.com/pokemon/tcg/cards/en/base1/44/high.webp")
   assert.doesNotMatch(html, /\/_next\/image/)
   assert.match(html, /background-image:url/)
   assert.match(html, /data:image\/svg\+xml/)

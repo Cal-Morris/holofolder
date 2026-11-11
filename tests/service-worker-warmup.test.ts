@@ -73,9 +73,12 @@ test('public asset requests reuse existing proxy/show caches when offline',async
   fetch:async()=>{throw new Error('synthetic offline')},
  })
  runInContext(readFileSync(new URL('../public/sw.js',import.meta.url),'utf8'),context)
- context.request=new Request('https://assets.holofolder.com/cards/en/base1/1/low.webp')
+ context.request=new Request('https://assets.holofolder.com/pokemon/tcg/cards/en/base1/1/low.webp')
  const response=await runInContext('cacheFirst(request, IMAGE_CACHE)',context) as Response
  assert.equal(await response.text(),'synthetic legacy cached card')
+ // An old-layout asset URL finds the same cached image.
+ context.request=new Request('https://assets.holofolder.com/cards/en/base1/1/low.webp')
+ assert.equal(await (await runInContext('cacheFirst(request, IMAGE_CACHE)',context) as Response).text(),'synthetic legacy cached card')
  context.request=new Request('https://private.synthetic.test/cards/en/base1/1/low.webp')
  await assert.rejects(()=>runInContext('cacheFirst(request, IMAGE_CACHE)',context),/synthetic offline/)
 })

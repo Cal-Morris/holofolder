@@ -23,7 +23,7 @@ test('card images use the asset domain and remain cached offline',async({harness
  await harness.expectNoHorizontalOverflow()
  await page.evaluate(()=>navigator.serviceWorker.ready.then(()=>undefined))
  await expect.poll(()=>page.evaluate(()=>Boolean(navigator.serviceWorker.controller))).toBe(true)
- const url='https://assets.holofolder.com/cards/en/base1/44/high.webp'
+ const url='https://assets.holofolder.com/pokemon/tcg/cards/en/base1/44/high.webp'
  // Synthetic image responses are supplied by the context mock, including worker fetches.
  await page.evaluate(async url=>{await (await fetch(url)).arrayBuffer()},url)
  await expect.poll(()=>page.evaluate(async url=>Boolean(await caches.match(url)),url)).toBe(true)
@@ -42,8 +42,8 @@ test('asset requests can reuse a pre-upgrade proxy image while offline',async({h
   const proxy='/app/api/card-image-proxy?url='+encodeURIComponent('https://assets.tcgdex.net/en/base/base1/999/high.webp')+'&w=160'
   await cache.put(proxy,new Response('synthetic pre-upgrade image',{headers:{'Content-Type':'image/webp'}}))
  })
- await page.context().route('https://assets.holofolder.com/cards/en/base1/999/low.webp',route=>route.abort('internetdisconnected'))
+ await page.context().route('https://assets.holofolder.com/pokemon/tcg/cards/en/base1/999/low.webp',route=>route.abort('internetdisconnected'))
  await page.context().setOffline(true)
- const text=await page.evaluate(async()=>await (await fetch('https://assets.holofolder.com/cards/en/base1/999/low.webp')).text())
+ const text=await page.evaluate(async()=>await (await fetch('https://assets.holofolder.com/pokemon/tcg/cards/en/base1/999/low.webp')).text())
  expect(text).toBe('synthetic pre-upgrade image')
 })

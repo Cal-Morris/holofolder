@@ -72,7 +72,7 @@ See [docs/architecture.md](docs/architecture.md) for ownership, startup, synchro
    - The client caches prices in localStorage (`hooks/use-card-prices.ts`).
    - Rising and Breakout signals are computed client-side from trend points, behind confidence gates.
 4. **Images.**
-   - Public card images load directly from `https://assets.holofolder.com/cards/...`, with stored low/high variants. `/api/card-image-proxy` remains the miss and compatibility fallback; Pokémon artwork still uses its resizing path.
+   - Public card images load directly from `https://assets.holofolder.com/pokemon/tcg/cards/...`, with stored low/high variants. `/api/card-image-proxy` remains the miss and compatibility fallback; Pokémon artwork still uses its resizing path.
    - TCGdex card images, and fallback-source images (pokemon.com, Limitless, Scrydex, pokemontcg.io, TCGplayer, PlayShop, in `CARD_IMAGE_SOURCE_PRIORITY` order from `lib/card-image-sources.ts`) for cards TCGdex has no image for, are mirrored into R2 (or Blob) under deterministic keys (see `docs/card-image-store.md`). On a miss the proxy serves the origin and uploads afterwards. Blocked or throttled stores are skipped for a cooldown.
    - Pokémon artwork from PokeAPI is resized by the proxy (`&w=` in 96/160/240/320/480).
    - The response header `x-card-image-source` is `r2`, `blob`, `tcgdex` or `upstream`.

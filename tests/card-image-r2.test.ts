@@ -112,7 +112,7 @@ describe("R2 backend", () => {
     const first = await mirror.loadImage(ref)
     assert.equal(first.source, "tcgdex")
     await first.pendingUpload?.()
-    const stored = r2.objects.get("cards/en/me05/001/high.webp")
+    const stored = r2.objects.get("pokemon/tcg/cards/en/me05/001/high.webp")
     assert.ok(stored)
     assert.equal(stored.headers.get("cache-control"), "public, max-age=31536000, immutable")
     assert.equal(stored.headers.get("content-type"), "image/webp")
@@ -124,7 +124,7 @@ describe("R2 backend", () => {
     const second = await mirror.loadImage(ref)
     assert.equal(second.source, "blob")
     const reads = r2.requests.slice(before)
-    assert.deepEqual(reads.map((r) => `${r.method} ${r.url}`), [`GET ${PUBLIC}cards/en/me05/001/high.webp`])
+    assert.deepEqual(reads.map((r) => `${r.method} ${r.url}`), [`GET ${PUBLIC}pokemon/tcg/cards/en/me05/001/high.webp`])
     assert.equal(reads[0].headers.get("authorization"), null, "public reads are unsigned")
   })
 
@@ -134,34 +134,34 @@ describe("R2 backend", () => {
     await (await mirror.loadImage(ref)).pendingUpload?.()
     const image = await mirror.loadImage(ref)
     assert.equal(image.source, "blob")
-    assert.equal(r2.requests.at(-1)?.url, `${ENDPOINT}cards/en/me05/001/high.webp`)
+    assert.equal(r2.requests.at(-1)?.url, `${ENDPOINT}pokemon/tcg/cards/en/me05/001/high.webp`)
   })
 
   test("a deliberate overwrite replaces the object and HEAD returns its origin tags", async () => {
     const r2 = fakeR2()
     const deps = createR2Deps(config(), { fetch: r2.fetchImpl })
     const metadata = { source: "pokemoncom", "source-url": "https://example.test/a.png", "source-sha256": "ab", "source-etag": "v1" }
-    await deps.put("cards/src/pokemoncom/A/A_EN_1.webp", new Uint8Array([1]).buffer, "image/webp", { metadata })
-    await assert.rejects(deps.put("cards/src/pokemoncom/A/A_EN_1.webp", new Uint8Array([2]).buffer, "image/webp", { metadata }))
-    await deps.put("cards/src/pokemoncom/A/A_EN_1.webp", new Uint8Array([2]).buffer, "image/webp", { metadata: { ...metadata, "source-etag": "v2" }, overwrite: true })
-    assert.equal((await deps.head("cards/src/pokemoncom/A/A_EN_1.webp"))?.metadata?.["source-etag"], "v2")
+    await deps.put("pokemon/tcg/cards/src/pokemoncom/A/A_EN_1.webp", new Uint8Array([1]).buffer, "image/webp", { metadata })
+    await assert.rejects(deps.put("pokemon/tcg/cards/src/pokemoncom/A/A_EN_1.webp", new Uint8Array([2]).buffer, "image/webp", { metadata }))
+    await deps.put("pokemon/tcg/cards/src/pokemoncom/A/A_EN_1.webp", new Uint8Array([2]).buffer, "image/webp", { metadata: { ...metadata, "source-etag": "v2" }, overwrite: true })
+    assert.equal((await deps.head("pokemon/tcg/cards/src/pokemoncom/A/A_EN_1.webp"))?.metadata?.["source-etag"], "v2")
   })
 
   test("concurrent writers never overwrite: a 412 reuses the existing object", async () => {
     const r2 = fakeR2()
     const deps = createR2Deps(config(), { fetch: r2.fetchImpl })
-    await deps.put("cards/en/me05/001/high.webp", new Uint8Array([1]).buffer, "image/webp")
+    await deps.put("pokemon/tcg/cards/en/me05/001/high.webp", new Uint8Array([1]).buffer, "image/webp")
     const mirror = createCardImageMirror(deps)
     const result = await mirror.ensureMirrored(ref, { assumeMissing: true })
-    assert.equal(result.url, `${PUBLIC}cards/en/me05/001/high.webp`)
-    assert.deepEqual([...new Uint8Array(r2.objects.get("cards/en/me05/001/high.webp")!.body)], [1])
+    assert.equal(result.url, `${PUBLIC}pokemon/tcg/cards/en/me05/001/high.webp`)
+    assert.deepEqual([...new Uint8Array(r2.objects.get("pokemon/tcg/cards/en/me05/001/high.webp")!.body)], [1])
   })
 
   test("backfill lists with pagination and only uploads what is missing (resumable)", async () => {
     const r2 = fakeR2()
     const deps = createR2Deps(config(), { fetch: r2.fetchImpl })
     for (const id of ["001", "002", "003"]) {
-      await deps.put(`cards/en/me05/${id}/high.webp`, new Uint8Array([1]).buffer, "image/webp")
+      await deps.put(`pokemon/tcg/cards/en/me05/${id}/high.webp`, new Uint8Array([1]).buffer, "image/webp")
     }
     const cards = ["001", "002", "003", "004", "005"].map((localId) => ({ seriesId: "me", setId: "me05", localId, imageLanguages: ["en"] }))
     const result = await mirrorSetImages(createCardImageMirror(deps), "me05", cards, { languages: ["en"], qualities: ["high"] })
@@ -223,9 +223,9 @@ describe("R2 backend", () => {
       }) as typeof fetch,
     })
     const body = new Uint8Array([1, 2, 3]).buffer
-    await deps.put("cards/en/me05/001/high.webp", body, "image/webp")
+    await deps.put("pokemon/tcg/cards/en/me05/001/high.webp", body, "image/webp")
     assert.equal(typeof seen[0].input, "string")
-    assert.equal(seen[0].input, `${ENDPOINT}cards/en/me05/001/high.webp`)
+    assert.equal(seen[0].input, `${ENDPOINT}pokemon/tcg/cards/en/me05/001/high.webp`)
     assert.equal(seen[0].body, body)
     assert.match(seen[0].auth ?? "", /^AWS4-HMAC-SHA256 /)
   })

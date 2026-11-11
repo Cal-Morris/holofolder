@@ -39,7 +39,7 @@ test("prefetch attributes use the same Next Image loader, sizes and safe proxy w
 })
 
 test('asset images use stored low/high variants and no Vercel image optimizer',()=>{
- const high='https://assets.holofolder.com/cards/en/base1/1/high.webp'
+ const high='https://assets.holofolder.com/pokemon/tcg/cards/en/base1/1/high.webp'
  assert.equal(cardImageLoader({src:high,width:600}),high)
  const attrs=getCardImageAttributes(high,'80px')
  assert.ok(attrs.srcSet?.includes('/low.webp'))

@@ -4,7 +4,7 @@ import { BLOB_RATE_LIMIT_COOLDOWN_MS, BlobStoreUnavailableError, CARD_IMAGE_CACH
 /**
  * Cloudflare R2 backend for the card image mirror, via R2's S3-compatible API (signed with aws4fetch).
  *
- * Objects use the same deterministic keys as the Blob backend (`cards/<lang>/<setId>/<localId>/<quality>.<ext>`).
+ * Objects use the same deterministic keys as the Blob backend (`pokemon/tcg/cards/<lang>/<setId>/<localId>/<quality>.<ext>`).
  * Reads go through R2_PUBLIC_BASE_URL (r2.dev or a custom domain) when set, so they are plain cacheable GETs;
  * without it, reads are signed GetObject calls against the S3 endpoint.
  */

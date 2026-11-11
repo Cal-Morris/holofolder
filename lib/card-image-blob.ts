@@ -401,7 +401,7 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
     return loadStoredOrOrigin(ref.pathname, () => fetchFromSource(ref), "upstream")
   }
 
-  /** Existing blob pathnames under `cards/<lang>/<setId>/` (one list call per set). */
+  /** Existing blob pathnames under `pokemon/tcg/cards/<lang>/<setId>/` (one list call per set). */
   async function listSetPathnames(language: string, setId: string) {
     assertBlobAvailable()
     return new Set(await deps.list(getCardImageBlobSetPrefix(language, setId)).catch(noteBlobError))
