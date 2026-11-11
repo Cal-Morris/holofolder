@@ -3417,16 +3417,16 @@ function BinderAppSurface(props: BinderAppProps) {
 
   /** Open the read-only all-cards view. From the card detail it stacks one level; otherwise it replaces any overlay. */
   // Offline card search: own cards plus card data the service worker has cached (read lazily, per search session).
+  const offlineSearchCatalog = browserSurface?.nativeConsumer?.read.catalog;
   const getOfflineSearchCards = useCallback(async () => {
     const { buildOfflineCardIndex } = await import('@/lib/offline-card-index');
     const cached = await buildOfflineCardIndex(collection);
-    const current =
-      browserSurface?.nativeConsumer?.read.catalog.map((c) => ({ ...c.card, dexIds: [...(c.pokemonIds ?? [])] })) ?? [];
+    const current = offlineSearchCatalog?.map((c) => ({ ...c.card, dexIds: [...(c.pokemonIds ?? [])] })) ?? [];
     return [
       ...current,
       ...cached.filter((c) => !current.some((card) => card.id === c.id && card.language === c.language)),
     ];
-  }, [collection, browserSurface?.nativeConsumer?.read.catalog]);
+  }, [collection, offlineSearchCatalog]);
 
   const openCardBrowser = useCallback(
     (
