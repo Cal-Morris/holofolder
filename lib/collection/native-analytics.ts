@@ -35,3 +35,10 @@ export function buildNativeAnalytics(scope: CollectionNavigationScope, read: Col
     pricedCopies: priced.length, unpricedRawCopies: copies.filter(c => c.basis === "raw" && c.amountGbp === null).length,
     gradedUnknownCopies: value.gradedUnknownCopies, oldestQuoteAt: dates[0] ?? null }
 }
+
+/** Total of the copies in `itemIds` (e.g. the pockets on the open page), from the same gated amounts. Unpriced stays unpriced. */
+export function sumCopyValues(copies: readonly { itemId: string; amountGbp: number | null }[], itemIds: ReadonlySet<string>) {
+  const onPage = copies.filter(c => itemIds.has(c.itemId))
+  const priced = onPage.filter(c => c.amountGbp !== null)
+  return { valueGbp: priced.length ? Math.round(priced.reduce((n, c) => n + c.amountGbp!, 0) * 100) / 100 : null, priced: priced.length, total: onPage.length }
+}
