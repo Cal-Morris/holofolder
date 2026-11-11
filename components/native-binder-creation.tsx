@@ -166,7 +166,6 @@ export default function NativeBinderCreation({ binding, onClose }: { binding: Na
         <div aria-hidden="true" className="mx-auto mb-1 h-1.5 w-10 rounded-full bg-muted-foreground/30 sm:hidden" />
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            {!saved && <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step {index + 1} of {steps.length}</p>}
             <h2 className="truncate text-base font-semibold">{title}</h2>
           </div>
           <button type="button" aria-label="Close new binder" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-muted"><X className="h-4 w-4" /></button>
