@@ -88,18 +88,26 @@ test("a stale complete read cannot settle or roll back an acknowledged save; a l
   expect(commands).toBe(1)
 })
 for (const change of ["signout", "account", "owner"] as const) test(`${change} teardown during in-flight command retains lease and rejects late response`, async ({ page }) => {
-  let release!: () => void, started!: () => void
-  const barrier = new Promise<void>(yes => { release = yes }), sending = new Promise<void>(yes => { started = yes })
-  await page.route("**/app/e2e-harness/storage/slots", async route => { const response = await route.fetch(); started(); await barrier; await route.fulfill({ response }).catch(() => {}) })
+  // The new synthetic owner has no harness storage, so its startup fails; keep the one-time cache reset from deleting the record under test.
+  if (change === "owner") await page.addInitScript(() => sessionStorage.setItem("holofolder-startup-reset-v2", "1"))
+  let release!: () => void, started!: () => void, delivered!: () => void
+  const barrier = new Promise<void>(yes => { release = yes }), sending = new Promise<void>(yes => { started = yes }), replied = new Promise<void>(yes => { delivered = yes })
+  await page.route("**/app/e2e-harness/storage/slots", async route => { const response = await route.fetch(); started(); await barrier; await route.fulfill({ response }).catch(() => {}); delivered() })
   await page.goto(entry); await edit(page); await sending
   if (change === "owner") await page.route("**/rest/v1/partnerships*", route => route.fulfill({ json: [{ id: "synthetic-membership", owner_user_id: "33333333-3333-4333-8333-333333333333", user1_id: E2E_USER.id, user2_id: "33333333-3333-4333-8333-333333333333" }] }))
   await page.evaluate(({ change, user }) => { const channel = new BroadcastChannel("sb-127-auth-token")
     channel.postMessage(change === "signout" ? { event: "SIGNED_OUT", session: null } : { event: change === "account" ? "SIGNED_IN" : "TOKEN_REFRESHED", session: { user: change === "account" ? { ...user, id: "55555555-5555-4555-8555-555555555555" } : user } }); channel.close()
   }, { change, user: E2E_USER })
   await expect(page.getByRole("button", { name: "Edit layout", exact: true })).not.toBeVisible()
-  release()
-  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("sending")
-  expect((await record(page))?.receipts).toHaveLength(0)
+  // The same account's token refresh is a benign recheck: the open scope stays current until the check proves
+  // the owner changed, and a reply inside that window is accepted. Release only once the new owner is established.
+  if (change === "owner") await expect(page.getByRole("alert").filter({ hasText: "Could not open storage" })).toBeVisible()
+  release(); await replied
+  for (let check = 0; check < 5; check++) {
+    await page.waitForTimeout(100)
+    const state = await record(page)
+    expect(state?.pending[0]?.status).toBe("sending"); expect(state?.receipts).toHaveLength(0)
+  }
 })
 test("unclassified 409 retains command for exact retry without cancellation or replacement", async ({ page }) => {
   let sends = 0

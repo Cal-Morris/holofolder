@@ -77,6 +77,23 @@ describe("saves confirmed from the command result", () => {
       assert.equal(head.status, "unavailable"); assert.equal(head.intent.request.operationId, "operation-one")
     }
   })
+  test("a receipt that lands after scope teardown is not acknowledged; the lease and exact request are kept", async () => {
+    const { store, queue } = await queued()
+    let active = true
+    await queue.replay(async () => { active = false; return accepted() }, () => active ? scope : null, 0, catalog, async () => assert.fail("no read after teardown"))
+    const head = (await createSlotOfflineQueue(store, scope).read()).pending[0]
+    assert.equal(head.status, "sending"); assert.ok(head.lease); assert.equal(head.acknowledgedRevision, undefined)
+    assert.deepEqual(head.intent, intent())
+  })
+  test("an acknowledged but unsettled edit stays in its own owner's record and never reaches another owner's queue", async () => {
+    const { store, queue } = await queued()
+    await queue.replay(accepted, () => scope, 0, catalog)
+    const other = createSlotOfflineQueue(store, { ...scope, ownerUserId: "owner-b" })
+    assert.deepEqual((await other.read()).pending, [])
+    await other.replay(async () => assert.fail("another owner's queue never sends this edit"), () => ({ ...scope, ownerUserId: "owner-b" }), 0, catalog)
+    const own = await queue.read()
+    assert.equal(own.pending[0].status, "acknowledged"); assert.equal(own.pending[0].intent.request.operationId, "operation-one")
+  })
   test("an acknowledged record without its revision fails closed", async () => {
     const { store, queue } = await queued()
     await queue.replay(accepted, () => scope, 0, catalog)
