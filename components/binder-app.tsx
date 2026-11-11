@@ -2934,7 +2934,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const renderMobileNavMenu = () => renderMobileNavMenuView({ pricingEnabled, activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionStats, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isSearchOpen, readOnlyMode, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen, switchMainView })
 
 
-  const renderBottomNav = () => renderBottomNavView({ inventoryNavigation, activeJumpLabel, activeJumpPokemonList, activeMainView, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, isMobileNavExpanded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, setIsMobileNavExpanded, setSelectedPokemon, switchMainView })
+  const renderBottomNav = () => renderBottomNavView({ inventoryNavigation, activeMainView, closeControlsSheet, isMobileNavExpanded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, setIsMobileNavExpanded, setSelectedPokemon, switchMainView })
 
   // eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props
   const legacyMainContent = renderMainContent()

@@ -1,21 +1,16 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { Grid3X3, Heart, Layers3, ListChecks, Search as SearchIcon, Sparkles } from "lucide-react"
+import { Grid3X3, Heart, Layers3, ListChecks, Search as SearchIcon } from "lucide-react"
 import type { Dispatch, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, RefObject, SetStateAction } from "react"
-import type { PokemonEntry, PokemonSummary } from "@/lib/pokemon-catalog"
-import type { ActiveMainView, CollectionViewFilter } from "@/components/binder/binder-app-model"
+import type { PokemonSummary } from "@/lib/pokemon-catalog"
+import type { ActiveMainView } from "@/components/binder/binder-app-model"
 import { preloadTabView } from "@/components/binder/lazy-views"
 
 export interface BottomNavContext {
   /** Native storage: Inventory replaces List, and Binder stands for the collection in any presentation (binder pages or List). */
   inventoryNavigation?: { active: boolean; open: () => void; collectionActive: boolean; /** The binder's own pages are on screen, so its page controls apply. */ binderOpen: boolean }
-  activeJumpLabel: "Perfect" | "Upgrade" | "Wanted" | "Needed"
-  activeJumpPokemonList: PokemonEntry[]
   activeMainView: ActiveMainView
   closeControlsSheet: () => void
-  collectionViewFilter: CollectionViewFilter
-  handleJumpToNextNeeded: () => void
   isMobileNavExpanded: boolean
   isQuickModeOpen: boolean
   isSearchOpen: boolean
@@ -32,13 +27,13 @@ export interface BottomNavContext {
 }
 
 export function renderBottomNavView(ctx: BottomNavContext) {
-  const { activeJumpLabel, activeJumpPokemonList, activeMainView, handleJumpToNextNeeded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, switchMainView } = ctx
+  const { activeMainView, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, switchMainView } = ctx
   // Native Inventory also renders under the "binder" main view; only one dock tab is ever pressed.
   const binderActive = !isSearchOpen && !isQuickModeOpen && (ctx.inventoryNavigation ? ctx.inventoryNavigation.collectionActive : activeMainView === "binder")
   return (
     <nav aria-label="Main navigation" data-dock className="fixed inset-x-0 bottom-0 z-[45] max-w-[100vw] overflow-hidden border-t border-border/40 bg-background pl-[var(--left-inset)] pr-[var(--right-inset)] pb-[var(--dock-inset)] md:hidden">
-      <div data-scroll-blur="card" className="mx-auto grid h-[calc(var(--dock-bar)-1px)] w-full min-w-0 max-w-xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
-        <div className="grid min-w-0 grid-cols-5 items-center">
+      <div data-scroll-blur="card" className="mx-auto h-[calc(var(--dock-bar)-1px)] w-full min-w-0 max-w-xl">
+        <div className="grid h-full min-w-0 grid-cols-5 items-center">
           <button
             onClick={() => {
               if (quickPressFiredRef.current) {
@@ -124,20 +119,6 @@ export function renderBottomNavView(ctx: BottomNavContext) {
           </button>
         </div>
 
-          {!isSearchOpen && activeMainView === "binder" && (
-            <div className="flex shrink-0 items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11 shrink-0 rounded-lg px-0"
-              onClick={handleJumpToNextNeeded}
-              disabled={activeJumpPokemonList.length === 0}
-              aria-label={`Next ${activeJumpLabel.toLowerCase()}`}
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        )}
       </div>
     </nav>
 )

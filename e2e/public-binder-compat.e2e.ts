@@ -159,7 +159,8 @@ for (const path of paths('priced')) {
     await expect(page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' })).toBeVisible()
     await page.keyboard.press('Escape')
     // Next needed goes pocket by pocket and opens the exact unfilled target on its page.
-    await page.getByRole('button', { name: 'Next needed' }).click()
+    await page.getByRole('button', { name: 'More', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Next needed' }).click()
     await expect(current).toHaveAttribute('data-binder-page', '3')
     await expect(page.getByRole('dialog', { name: 'snorlax, Unfilled target details' })).toBeVisible()
     await page.keyboard.press('Escape')
