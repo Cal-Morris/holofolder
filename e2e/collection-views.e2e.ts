@@ -4,7 +4,8 @@ import { test, expect, emulateStandalone, mockBackends, Harness, collectionPicke
 test.beforeEach(async ({ page, standalone, insets, baseURL }) => {
   if (standalone) await emulateStandalone(page, insets)
   await mockBackends(page, page.context(), { signedIn: false, baseURL })
-  await page.goto("/app/e2e-harness/inventory?navigation=1")
+  // The app opens on the binder; these start from Inventory, so the link names it.
+  await page.goto("/app/e2e-harness/inventory?navigation=1&view=inventory")
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
 })
 const dock = (page: import("@playwright/test").Page) => page.getByRole("navigation", { name: "Collection navigation", exact: true })

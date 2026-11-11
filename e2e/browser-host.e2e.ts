@@ -36,6 +36,8 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   await page.route("**/app/e2e-harness/storage/inventory?*", route => fulfillInventory(route))
 })
 const entry = "/app/e2e-harness?signedIn=1&browserHost=1"
+// The app opens on the binder; tests that start from Inventory name it in the link.
+const inventoryEntry = `${entry}&view=inventory`
 const nav = (page: import("@playwright/test").Page) => page.getByRole("navigation", { name: "Main navigation", exact: true })
 
 for (const source of ["Search", "Quick mode"]) test(`actual host ${source} opens the exact set from Binder and restores it with history`, async ({ page, insets }) => {
@@ -77,7 +79,7 @@ for (const source of ["Search", "Quick mode"]) test(`actual host ${source} opens
 })
 
 test("actual BinderApp dock, fresh stable location, back and deep links", async ({ page, insets }) => {
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
   await page.locator('[data-item-id="copy-00001"]').click()
@@ -111,7 +113,7 @@ test("actual BinderApp dock, fresh stable location, back and deep links", async 
 })
 
 test("online startup 503 resets once and reports the second failure", async ({ page }) => {
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await page.route("**/app/e2e-harness/storage/inventory?*", route => route.fulfill({ status: 503, json: { error: "inventory_operations_staged" } }))
   await page.reload()
@@ -166,7 +168,7 @@ test("in-process offline view changes retain saved copies, List search and layou
 })
 
 test("auth lifecycle closes private detail and rejects an old in-flight location response", async ({ page }) => {
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await page.locator('[data-item-id="copy-00001"]').click()
   let release!: () => void
   const barrier = new Promise<void>(yes => { release = yes })
@@ -194,7 +196,7 @@ test("a same-owner response bound to another session never supplies private rows
       requestId: new URL(route.request().url()).searchParams.get("requestId"), scope: { actorUserId: E2E_USER.id,
         ownerUserId: E2E_USER.id, authSessionId: "obsolete-auth-session", sessionId: "obsolete-device-lifecycle" }, snapshot: syntheticSnapshot() } })
   })
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await expect(page.getByText("Inventory unavailable", { exact: true })).toBeVisible()
   await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
   await page.getByRole("navigation", { name: "Binder navigation" }).getByRole("button", { name: "More", exact: true }).click()
@@ -203,7 +205,7 @@ test("a same-owner response bound to another session never supplies private rows
 })
 
 test("owner membership changes cannot reuse the prior owner's cached inventory", async ({ page }) => {
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("old owner search")
   await page.route("**/rest/v1/partnerships*", route => route.fulfill({ json: [{ id: "synthetic-new-membership", owner_user_id: trades,
@@ -219,7 +221,7 @@ test("owner membership changes cannot reuse the prior owner's cached inventory",
 })
 
 test("another account cannot restore the previous account's private view", async ({ page }) => {
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("private previous account")
   await page.evaluate(user => {
     const channel = new BroadcastChannel("sb-127-auth-token")
@@ -234,7 +236,7 @@ test("another account cannot restore the previous account's private view", async
 })
 
 test("existing Wanted and Browse use the labelled National Dex context and survive return", async ({ page }) => {
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await nav(page).getByRole("button", { name: "Wanted", exact: true }).click()
   await expect(nav(page).getByRole("button", { name: "Wanted", exact: true })).toHaveAttribute("aria-pressed", "true")
@@ -251,7 +253,7 @@ test("existing Wanted and Browse use the labelled National Dex context and survi
 
 test("malformed device preferences cannot break admission, read-only routes stay legacy", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("holofolder-slot-device-v1", "x".repeat(1000)))
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   expect(await page.evaluate(() => localStorage.getItem("holofolder-slot-device-v1"))).toMatch(/^[a-f0-9-]{36}$/)
   await page.goto(`${entry}&readOnly=1`)
@@ -289,7 +291,7 @@ test("membership signal closes actual private overlays and same-owner recheck us
     epochs.push(new URL(route.request().url()).searchParams.get("sessionId")!)
     await fulfillInventory(route)
   })
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   const oldEpoch = epochs.at(-1)
   await page.locator('[data-item-id="copy-00001"]').click()
