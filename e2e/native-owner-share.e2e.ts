@@ -219,7 +219,8 @@ async function ownerShareFlow(page: Page, insets: { top: number; bottom: number;
   await expect(settings.getByText('holofolder.com/@synthetic-owner/synthetic-alpha').first()).toBeVisible();
   const prices = settings.getByRole('switch', { name: 'Show prices on shared binder' });
   await expect(prices).not.toBeChecked();
-  await h.expectMinTapTarget(prices);
+  // The whole label row toggles the switch, so it is the tap target.
+  await h.expectMinTapTarget(prices.locator('..'));
   await prices.click();
   await expect(prices).toBeChecked();
   expect(server.requests.filter((r) => r.method === 'POST').at(-1)).toEqual({

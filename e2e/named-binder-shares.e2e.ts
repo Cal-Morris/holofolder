@@ -103,7 +103,8 @@ test('share pricing defaults off and owner can enable and disable it', async ({ 
   await openSettingsPage(dialog, 'Sharing');
   const toggle = dialog.getByRole('switch', { name: 'Show prices on shared binder' });
   await expect(toggle).not.toBeChecked();
-  await harness.expectMinTapTarget(toggle, 36);
+  // The whole label row toggles the switch, so it is the tap target.
+  await harness.expectMinTapTarget(toggle.locator('..'), 36);
   await toggle.click();
   await expect(toggle).toBeChecked();
   expect(showPrices).toBe(true);
