@@ -102,6 +102,6 @@ for (const desktop of [false, true])
     await expect(cover.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
     await expect(cover.getByRole('progressbar')).toHaveAttribute('aria-valuetext', '1 of 2 slots collected');
     await expect(cover).toContainText('12 slots');
-    await expect(cover.locator('dl')).toHaveText(/Collected1 \/ 2Needed1Perfect1/);
+    await expect(cover.locator('dl')).toHaveText(/^Collected1 \/ 2Needed1/);
     await h.expectNoHorizontalOverflow();
   });

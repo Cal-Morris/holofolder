@@ -203,20 +203,15 @@ export function displaySlotLabel(slot: Pick<ReadOnlyDisplaySlot, 'card' | 'pokem
 /** Saved occupied pockets count once; spacers are outside completion goals. */
 export function nativeBinderCoverStats(binder: BinderSnapshot) {
   let collected = 0,
-    total = 0,
-    perfect = 0;
+    total = 0;
   for (const slot of binder.slots) {
     if (slot.target || slot.inventoryItemId) total++;
-    if (slot.inventoryItemId) {
-      collected++;
-      if (slot.status === 'finalized') perfect++;
-    }
+    if (slot.inventoryItemId) collected++;
   }
   return {
     collected,
     total,
     percentage: total ? Math.round((collected / total) * 100) : 0,
     needed: total - collected,
-    perfect,
   };
 }
