@@ -2,14 +2,12 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { BinderShareRecord } from '@/lib/binder-share'
 import type { PublicBinder, PublicDisplaySlot, PublicShareIdentity } from '@/lib/public-binder'
 import { normalizeUsername, normalizeBinderSlug, isMissingIdentitySchema } from '@/lib/public-binder-identity'
-import { readStorageAuthority } from '@/lib/legacy-binder-transition'
-import { getBinderCompletion, isSlotRevision, normalizeSlotTarget, type BinderSnapshot, type SlotTargetCandidate } from '@/lib/domain/binder-slots'
-import { normalizeInventoryIdentity, inventoryItemCandidate, type InventoryItem } from '@/lib/domain/inventory'
+import { isSlotRevision, normalizeSlotTarget } from '@/lib/domain/binder-slots'
+import { normalizeInventoryIdentity, type InventoryIdentity } from '@/lib/domain/inventory'
 import { BINDER_COLOR_PRESETS, DEFAULT_BINDER_COLOR_ID, type BinderColorId } from '@/lib/binder-colors'
 import { isBinderGridSize } from '@/lib/binder-layout'
 import { normalizeBinderName } from '@/lib/binders/model'
-import { POKEMON_CATALOG, getPokemonSummary } from '@/lib/pokemon-catalog'
-import { readCatalogMetadata } from '@/lib/card-catalog'
+import { getPokemonSummary } from '@/lib/pokemon-catalog'
 import { mapWithConcurrency } from '@/lib/card-db-sync-concurrency'
 import { buildTcgdexAssetImageUrl } from '@/lib/tcgdex-shared'
 import { isCardImageSourceUrl } from '@/lib/card-image-sources'
@@ -22,7 +20,6 @@ const BINDER = 'id,owner_user_id,name,binder_rows,binder_cols,updated_at'
 const ITEM = 'id,owner_user_id,identity,public_grade:grading->grade,public_provider:grading->provider,private_certificate:grading->certificate,version'
 const STATE = 'collection_id,owner_user_id,authority,conversion_version,version,layout_revision'
 const SLOTS = 'id,owner_user_id,collection_id,position,target,status,wanted_cards,version'
-const LEGACY = 'pokemon_id,status,card_id,card_language,wanted_cards'
 type PublicWant = NonNullable<PublicDisplaySlot['wantedCards']>[number]
 const label = (v: unknown) => typeof v === 'string' && v.trim() && v.length <= 200 && !/https?:|www\.|[<>]/i.test(v) ? v.trim() : undefined
 /** A recorded image survives only when it is an https card-image source the app already proxies. */
@@ -88,25 +85,20 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
     const initialBinder = await binder(), collection = id(initialBinder.id)
     const scoped = (table: string, projection: string) => db.from(table).select(projection).eq('owner_user_id', owner).eq('collection_id', collection).abortSignal(controller.signal)
     async function state() {
-      const result = await execute(scoped('storage_collection_state', STATE).maybeSingle())
-      // Only an absent pre-rollout schema may use legacy compatibility.
-      const authority = readStorageAuthority(result.data, result.error)
-      if (result.error) return { authority, row: null }
-      if (result.data && (object(result.data).owner_user_id !== owner || object(result.data).collection_id !== collection)) return fail()
-      return { authority, row: result.data as Row | null }
+      // Every binder is native slot storage; anything else fails closed.
+      const row = object((await run(scoped('storage_collection_state', STATE).maybeSingle())).data)
+      if (row.owner_user_id !== owner || row.collection_id !== collection || row.authority !== 'slots' || !isSlotRevision(row.version) || !isSlotRevision(row.layout_revision)) return fail()
+      return row
     }
     async function revision() {
       const result = await run(db.from('inventory_owner_state').select('inventory_revision').eq('owner_user_id', owner).abortSignal(controller.signal).maybeSingle())
       if (!isSlotRevision(result.data?.inventory_revision)) return fail()
       return result.data.inventory_revision as number
     }
-    async function paged(table: string, projection: string, key: string, legacy = false) {
+    async function paged(table: string, projection: string, key: string) {
       const result: Row[] = []
       for (let offset = 0; ; offset += PAGE) {
-        const query = legacy
-          ? db.from(table).select(projection).eq('user_id', owner).eq('binder_id', collection).abortSignal(controller.signal)
-          : scoped(table, projection)
-        const page = rows((await run(query.order(key, { ascending: true }).range(offset, offset + PAGE - 1))).data)
+        const page = rows((await run(scoped(table, projection).order(key, { ascending: true }).range(offset, offset + PAGE - 1))).data)
         if (page.length > PAGE) return fail()
         result.push(...page)
         if (page.length < PAGE) return result
@@ -118,16 +110,14 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       return normalizeUsername(result.data?.username)
     }
     // Independent first reads; the final fence re-reads every one of them.
-    const [initialState, settings, publicUsername] = await Promise.all([state(), run(db.from('user_settings').select('binder_rows,binder_cols,binder_color_id,binder_page_colors,binder_slot_glare_enabled,dark_mode').eq('user_id', owner).abortSignal(controller.signal).maybeSingle()), username()])
-    const native = initialState.authority === 'slots'
-    const rev = native ? await revision() : null
+    const [initialState, settings, publicUsername, rev] = await Promise.all([state(), run(db.from('user_settings').select('binder_rows,binder_cols,binder_color_id,binder_page_colors,binder_slot_glare_enabled,dark_mode').eq('user_id', owner).abortSignal(controller.signal).maybeSingle()), username(), revision()])
     const appearanceRow: Row = settings.data ? object(settings.data) : {}
     const pageColors: Record<string, BinderColorId> = {}
     if (appearanceRow.binder_page_colors && typeof appearanceRow.binder_page_colors === 'object') {
       for (const [page, value] of Object.entries(appearanceRow.binder_page_colors)) if (/^[1-9]\d{0,6}$/.test(page)) pageColors[page] = color(value)
     }
-    // NULL binder geometry inherits the owner's settings (039). Native never invents a default beyond that.
-    const grid = (value: unknown, fallback: unknown) => isBinderGridSize(value) ? value : isBinderGridSize(fallback) ? fallback : native ? fail() : 4
+    // NULL binder geometry inherits the owner's settings (039), never an invented default.
+    const grid = (value: unknown, fallback: unknown) => isBinderGridSize(value) ? value : isBinderGridSize(fallback) ? fallback : fail()
     const base = { ...(publicUsername ? { username: publicUsername } : {}), name: normalizeBinderName(initialBinder.name) ?? 'Pokémon binder',
       rows: grid(initialBinder.binder_rows, appearanceRow.binder_rows), cols: grid(initialBinder.binder_cols, appearanceRow.binder_cols),
       appearance: { dark: appearanceRow.dark_mode !== false, color: color(appearanceRow.binder_color_id), pageColors, glare: appearanceRow.binder_slot_glare_enabled !== false } }
@@ -135,8 +125,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
     const providers = new Map<string, string>()
     const catalogRows = new Map<string, Row>()
     const catalogLinks = new Map<string, number[]>()
-    const priceLookups = new Map<number, { cardId: string; language: string }>()
-    const catalog = new Map<string, { name: string; image?: string; ref: { id: string; language?: CardLanguage; pokemonIds?: number[] }; candidate: Extract<SlotTargetCandidate, { kind: 'card' }> }>()
+    const catalog = new Map<string, { name: string; image?: string; ref: { id: string; language?: CardLanguage; pokemonIds?: number[] } }>()
     async function preloadCatalog(ids: string[]) {
       const unique = [...new Set(ids)]
       const projection = 'id,name_en,series_id,set_id,local_id,image_languages_json,external_ids_json'
@@ -175,7 +164,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       if (catalog.has(cacheKey)) return catalog.get(cacheKey)!
       const row = catalogRows.get(cardId)
       if (!row) return undefined
-      const canonical = id(row.id), metadata = readCatalogMetadata(row.external_ids_json)
+      const canonical = id(row.id)
       const pokemonIds = catalogLinks.get(canonical) ?? []
       const languages = Array.isArray(row.image_languages_json) ? row.image_languages_json : []
       const lang = /^[a-z]{2}(?:-[a-z]{2})?$/.test(language) && languages.includes(language) ? language : undefined
@@ -184,8 +173,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
         ? buildTcgdexAssetImageUrl(String(lang), row.series_id, row.set_id, row.local_id, 'high', 'webp') : undefined
       const value = { name: typeof row.name_en === 'string' && row.name_en.trim() ? row.name_en : 'Unknown card', ...(image ? { image } : {}),
         // Public catalog reference: the canonical printing and the requested language, never the stored alias.
-        ref: { id: canonical, ...(isCardLanguage(language) ? { language } : {}), ...(pokemonIds.length ? { pokemonIds: [...pokemonIds] } : {}) },
-        candidate: { kind: 'card' as const, id: canonical, ...(metadata.canonicalId ? { canonicalId: metadata.canonicalId } : {}), ...(metadata.aliasIds ? { aliasIds: metadata.aliasIds } : {}), pokemonIds } }
+        ref: { id: canonical, ...(isCardLanguage(language) ? { language } : {}), ...(pokemonIds.length ? { pokemonIds: [...pokemonIds] } : {}) } }
       catalog.set(cacheKey, value)
       return value
     }
@@ -205,112 +193,65 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       })
     }
     const withWants = (list: PublicWant[]) => list.length ? { wantedCards: list } : {}
-    let slots: PublicDisplaySlot[], completion: PublicBinder['completion']
-    if (native) {
-      if (!isSlotRevision(initialState.row?.version) || !isSlotRevision(initialState.row?.layout_revision)) return fail()
-      const stored = await paged('binder_slots', SLOTS, 'position')
-      const placements = await paged('inventory_placements', 'inventory_item_id,owner_user_id,collection_id,slot_id,version', 'slot_id')
-      if (new Set(stored.map(s => s.id)).size !== stored.length || new Set(placements.map(p => p.slot_id)).size !== placements.length
-        || new Set(placements.map(p => p.inventory_item_id)).size !== placements.length) return fail()
-      if (stored.some((s, i) => s.owner_user_id !== owner || s.collection_id !== collection || !isSlotRevision(s.position) || !isSlotRevision(s.version) || i > 0 && Number(s.position) <= Number(stored[i - 1].position))) return fail()
-      if (placements.some(p => p.owner_user_id !== owner || p.collection_id !== collection || !isSlotRevision(p.version) || !stored.some(s => s.id === p.slot_id))) return fail()
-      const items = new Map<string, InventoryItem>()
-      const itemPages: Row[][] = []
-      await mapWithConcurrency(chunks(placements.map(p => id(p.inventory_item_id)), 100), 4, async ids => {
-        const result = rows((await run(db.from('inventory_items').select(ITEM).eq('owner_user_id', owner).in('id', ids).abortSignal(controller.signal))).data)
-        itemPages.push(result)
-        if (result.length !== ids.length) return fail()
-        for (const row of result) {
-          const identity = normalizeInventoryIdentity(row.identity)
-          if (!identity || row.owner_user_id !== owner || !ids.includes(id(row.id)) || items.has(String(row.id)) || !isSlotRevision(row.version)) return fail()
-          // Internal matching needs only identity, never legacy/source JSON or acquisition fields.
-          items.set(String(row.id), { id: String(row.id), ownerUserId: owner, identity, version: Number(row.version), grading: null, acquiredAt: null })
-        }
-        // Grade projection never retains certificates, label/slab images, links or asset IDs.
-        for (const row of result) {
-          const grade = row.public_grade
-          const certificate = typeof row.private_certificate === 'string' ? row.private_certificate : null
-          const provider = row.public_provider && typeof row.public_provider === 'object' ? row.public_provider as Row : null
-          const providerName = provider?.kind === 'known' && ['psa', 'ace', 'cgc', 'beckett'].includes(String(provider.id)) ? String(provider.id).toUpperCase() : provider?.kind === 'custom' ? provider.name : null
-          if (typeof providerName === 'string' && providerName.length <= 500 && !/https?:|www\.|[<>]/i.test(providerName) && (!certificate || !providerName.includes(certificate))) providers.set(String(row.id), providerName)
-          if (typeof grade === 'string' && grade.length <= 500 && !/https?:|www\.|[<>]/i.test(grade) && (!certificate || !grade.includes(certificate))) grades.set(String(row.id), grade)
-        }
-      })
-      await preloadCatalog([...items.values()].flatMap(item => item.identity.kind === 'card' ? [item.identity.cardId] : []).concat(stored.flatMap(s => {
-        const target = normalizeSlotTarget(s.target)
-        return [...(target?.kind === 'card' ? [target.cardId] : []), ...wantIds(s.wanted_cards)]
-      })))
-      const snapshot: BinderSnapshot = { ownerUserId: owner, collectionId: collection, layoutRevision: Number(initialState.row!.layout_revision), presetManifest: null, slots: [] }
-      slots = []
-      for (const [index, row] of stored.entries()) {
-        const target = normalizeSlotTarget(row.target)
-        if (target === undefined) return fail()
-        const placement = placements.find(p => p.slot_id === row.id)
-        if (!!placement !== (row.status === 'collected' || row.status === 'finalized')) return fail()
-        const item = placement ? items.get(String(placement.inventory_item_id))! : null
-        const identity = item?.identity ?? target
-        const found = identity?.kind === 'card' ? card(identity.cardId, identity.language ?? 'en') : null
-        const pokemon = identity?.kind === 'pokemon' ? getPokemonSummary(identity.pokemonId) : null
-        snapshot.slots.push({ id: id(row.id), ownerUserId: owner, collectionId: collection, target, inventoryItemId: item?.id ?? null, wantedCards: [], status: placement ? 'collected' : null, version: Number(row.version), presetOrigin: null })
-        const targetCard = target?.kind === 'card' ? card(target.cardId, target.language ?? 'en') : undefined
-        slots.push({ id: `public-${index}`, target: target?.kind === 'card' ? { kind: 'card', ...(targetCard ? { cardId: targetCard.ref.id } : {}), ...(target.language ? { language: target.language } : {}), ...(target.finish ? { finish: target.finish } : {}) } : target, item: item ? { grading: grades.has(item.id) ? { grade: grades.get(item.id)! } : null } : null,
-          card: identity?.kind === 'card' ? { name: found?.name ?? 'Unknown card', ...(found?.image ? { image: found.image } : {}), ...(found ? found.ref : {}) } : null,
-          pokemon: pokemon ? { id: pokemon.id, name: pokemon.name } : null, ...(item && providers.has(item.id) ? { recordedProvider: providers.get(item.id)! } : {}), ...withWants(wants(row.wanted_cards)) })
-        if (item?.identity.kind === 'card') priceLookups.set(index, { cardId: item.identity.cardId, language: item.identity.language ?? 'en' })
+    const slots: PublicDisplaySlot[] = []
+    const stored = await paged('binder_slots', SLOTS, 'position')
+    const placements = await paged('inventory_placements', 'inventory_item_id,owner_user_id,collection_id,slot_id,version', 'slot_id')
+    if (new Set(stored.map(s => s.id)).size !== stored.length || new Set(placements.map(p => p.slot_id)).size !== placements.length
+      || new Set(placements.map(p => p.inventory_item_id)).size !== placements.length) return fail()
+    if (stored.some((s, i) => s.owner_user_id !== owner || s.collection_id !== collection || !isSlotRevision(s.position) || !isSlotRevision(s.version) || i > 0 && Number(s.position) <= Number(stored[i - 1].position))) return fail()
+    if (placements.some(p => p.owner_user_id !== owner || p.collection_id !== collection || !isSlotRevision(p.version) || !stored.some(s => s.id === p.slot_id))) return fail()
+    const items = new Map<string, InventoryIdentity>()
+    const itemPages: Row[][] = []
+    await mapWithConcurrency(chunks(placements.map(p => id(p.inventory_item_id)), 100), 4, async ids => {
+      const result = rows((await run(db.from('inventory_items').select(ITEM).eq('owner_user_id', owner).in('id', ids).abortSignal(controller.signal))).data)
+      itemPages.push(result)
+      if (result.length !== ids.length) return fail()
+      for (const row of result) {
+        const identity = normalizeInventoryIdentity(row.identity)
+        if (!identity || row.owner_user_id !== owner || !ids.includes(id(row.id)) || items.has(String(row.id)) || !isSlotRevision(row.version)) return fail()
+        // Internal matching needs only identity, never legacy/source JSON or acquisition fields.
+        items.set(String(row.id), identity)
       }
-      const goal = getBinderCompletion(snapshot, key => { const item = items.get(key); return item ? inventoryItemCandidate(item, key => card(key)?.candidate) : undefined })
-      completion = { targetCount: goal.targetCount, completedTargetCount: goal.completedTargetCount }
-      const sorted = (values: Row[]) => values.toSorted((a, b) => String(a.id).localeCompare(String(b.id)))
-      await Promise.all([
-        paged('binder_slots', SLOTS, 'position').then(final => same(stored, final)),
-        paged('inventory_placements', 'inventory_item_id,owner_user_id,collection_id,slot_id,version', 'slot_id').then(final => same(placements, final)),
-        ...itemPages.map(async page => same(sorted(page), sorted(rows((await run(db.from('inventory_items').select(ITEM).eq('owner_user_id', owner).in('id', page.map(r => String(r.id))).abortSignal(controller.signal))).data)))),
-        revision().then(final => same(rev, final)),
-      ])
-    } else {
-      // Legacy National Dex is its actual layout contract, never a native default or conversion.
-      const stored = await paged('pokemon_collection', LEGACY, 'pokemon_id', true)
-      await preloadCatalog(stored.flatMap(row => [...(typeof row.card_id === 'string' ? [row.card_id] : []), ...wantIds(row.wanted_cards)]))
-      slots = []
-      for (const [index, pokemon] of POKEMON_CATALOG.entries()) {
-        const item = stored.find(r => r.pokemon_id === pokemon.id)
-        const owned = item?.status === 'collected' || item?.status === 'finalized'
-        const found = owned && typeof item?.card_id === 'string' ? card(item.card_id, typeof item.card_language === 'string' ? item.card_language : 'en') : null
-        if (owned && typeof item?.card_id === 'string') priceLookups.set(index, { cardId: item.card_id, language: typeof item.card_language === 'string' ? item.card_language : 'en' })
-        // Pre-016 rows kept a single want as a wishlisted printing; it is still the stored want.
-        const legacyWants = wants(item?.status === 'wishlisted' && typeof item.card_id === 'string' && !(Array.isArray(item.wanted_cards) && item.wanted_cards.length)
-          ? [{ card_id: item.card_id, card_language: item.card_language }] : item?.wanted_cards)
-        slots.push({ id: `public-${index}`, target: { kind: 'pokemon', pokemonId: pokemon.id }, item: owned ? { grading: null } : null,
-          card: found ? { name: found.name, ...(found.image ? { image: found.image } : {}), ...found.ref } : null, pokemon: { id: pokemon.id, name: pokemon.name }, ...withWants(legacyWants) })
+      // Grade projection never retains certificates, label/slab images, links or asset IDs.
+      for (const row of result) {
+        const grade = row.public_grade
+        const certificate = typeof row.private_certificate === 'string' ? row.private_certificate : null
+        const provider = row.public_provider && typeof row.public_provider === 'object' ? row.public_provider as Row : null
+        const providerName = provider?.kind === 'known' && ['psa', 'ace', 'cgc', 'beckett'].includes(String(provider.id)) ? String(provider.id).toUpperCase() : provider?.kind === 'custom' ? provider.name : null
+        if (typeof providerName === 'string' && providerName.length <= 500 && !/https?:|www\.|[<>]/i.test(providerName) && (!certificate || !providerName.includes(certificate))) providers.set(String(row.id), providerName)
+        if (typeof grade === 'string' && grade.length <= 500 && !/https?:|www\.|[<>]/i.test(grade) && (!certificate || !grade.includes(certificate))) grades.set(String(row.id), grade)
       }
-      completion = { targetCount: slots.length, completedTargetCount: slots.filter(s => s.item).length }
-      same(stored, await paged('pokemon_collection', LEGACY, 'pokemon_id', true))
+    })
+    await preloadCatalog([...items.values()].flatMap(identity => identity.kind === 'card' ? [identity.cardId] : []).concat(stored.flatMap(s => {
+      const target = normalizeSlotTarget(s.target)
+      return [...(target?.kind === 'card' ? [target.cardId] : []), ...wantIds(s.wanted_cards)]
+    })))
+    for (const [index, row] of stored.entries()) {
+      const target = normalizeSlotTarget(row.target)
+      if (target === undefined) return fail()
+      const placement = placements.find(p => p.slot_id === row.id)
+      if (!!placement !== (row.status === 'collected' || row.status === 'finalized')) return fail()
+      const itemId = placement ? String(placement.inventory_item_id) : null
+      const identity = itemId ? items.get(itemId)! : target
+      const found = identity?.kind === 'card' ? card(identity.cardId, identity.language ?? 'en') : null
+      const pokemon = identity?.kind === 'pokemon' ? getPokemonSummary(identity.pokemonId) : null
+      const targetCard = target?.kind === 'card' ? card(target.cardId, target.language ?? 'en') : undefined
+      slots.push({ id: `public-${index}`, target: target?.kind === 'card' ? { kind: 'card', ...(targetCard ? { cardId: targetCard.ref.id } : {}), ...(target.language ? { language: target.language } : {}), ...(target.finish ? { finish: target.finish } : {}) } : target, item: itemId ? { grading: grades.has(itemId) ? { grade: grades.get(itemId)! } : null } : null,
+        card: identity?.kind === 'card' ? { name: found?.name ?? 'Unknown card', ...(found?.image ? { image: found.image } : {}), ...(found ? found.ref : {}) } : null,
+        pokemon: pokemon ? { id: pokemon.id, name: pokemon.name } : null, ...(itemId && providers.has(itemId) ? { recordedProvider: providers.get(itemId)! } : {}), ...withWants(wants(row.wanted_cards)) })
     }
-    async function prices() {
-      // One query per language and 100 card IDs (PK is card_id, language), so rows stay far below PostgREST's cap.
-      const byLanguage = new Map<string, Set<string>>()
-      for (const { cardId, language } of priceLookups.values()) byLanguage.set(language, (byLanguage.get(language) ?? new Set()).add(cardId))
-      const savedPrices = new Map<string, number>()
-      await mapWithConcurrency([...byLanguage].flatMap(([language, ids]) => chunks([...ids], 100).map(batch => ({ language, batch }))), 4, async ({ language, batch }) => {
-        for (const row of rows((await run(db.from('card_prices').select('card_id,language,gbp_amount').eq('language', language).in('card_id', batch).abortSignal(controller.signal))).data)) {
-          const amount = Number(row.gbp_amount)
-          if (row.language === language && batch.includes(String(row.card_id)) && Number.isFinite(amount) && amount > 0) savedPrices.set(JSON.stringify([row.card_id, language]), amount)
-        }
-      })
-      for (const [index, lookup] of priceLookups) {
-        const amount = savedPrices.get(JSON.stringify([lookup.cardId, lookup.language]))
-        if (amount != null) slots[index].marketGBP = amount
-      }
-    }
+    const sorted = (values: Row[]) => values.toSorted((a, b) => String(a.id).localeCompare(String(b.id)))
     await Promise.all([
-      share.show_prices === true ? prices() : null,
+      paged('binder_slots', SLOTS, 'position').then(final => same(stored, final)),
+      paged('inventory_placements', 'inventory_item_id,owner_user_id,collection_id,slot_id,version', 'slot_id').then(final => same(placements, final)),
+      ...itemPages.map(async page => same(sorted(page), sorted(rows((await run(db.from('inventory_items').select(ITEM).eq('owner_user_id', owner).in('id', page.map(r => String(r.id))).abortSignal(controller.signal))).data)))),
       binder().then(final => same(initialBinder, final)),
       state().then(final => same(initialState, final)),
       run(db.from('user_settings').select('binder_rows,binder_cols,binder_color_id,binder_page_colors,binder_slot_glare_enabled,dark_mode').eq('user_id', owner).abortSignal(controller.signal).maybeSingle()).then(final => same(appearanceRow, final.data ?? {})),
       username().then(final => same(publicUsername, final)),
-      native ? revision().then(final => same(rev, final)) : null,
+      revision().then(final => same(rev, final)),
       permission().then(final => same(share, final)),
     ])
-    return { kind: native ? 'native' : 'legacy', ...base, completion, prices: share.show_prices === true, slots }
+    return { ...base, prices: share.show_prices === true, slots }
   } catch { return fail() } finally { clearTimeout(timer); controller.abort() }
 }

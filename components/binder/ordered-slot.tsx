@@ -7,7 +7,7 @@ import type { BinderCardDisplay } from "@/lib/selected-slot-card-display"
 import { useId, useRef, type CSSProperties } from "react"
 
 /** Browse-only slot. No drag, long-press, placement or ownership callbacks. */
-export function OrderedSlot({ slot, slotLabel, selected, onSelect, imageSizes, glareStyle, glare, interactionKey, cardDisplay }: { cardDisplay?: BinderCardDisplay; interactionKey?: string; slot: ReadOnlyDisplaySlot; slotLabel?: string; selected: boolean; onSelect: (id: string) => void; imageSizes: string; glareStyle: CSSProperties; glare: boolean }) {
+export function OrderedSlot({ slot, slotLabel, selected, onSelect, imageSizes, glareStyle, glare, interactionKey, cardDisplay, priceLabel }: { priceLabel?: string | null; cardDisplay?: BinderCardDisplay; interactionKey?: string; slot: ReadOnlyDisplaySlot; slotLabel?: string; selected: boolean; onSelect: (id: string) => void; imageSizes: string; glareStyle: CSSProperties; glare: boolean }) {
   const coordinateId = useId()
   const press = useRef<{ key: string | undefined; x: number; y: number } | null>(null)
   const { image, isCard: hasCardImage, tone } = displaySlotPreview(slot, cardDisplay)
@@ -30,6 +30,8 @@ export function OrderedSlot({ slot, slotLabel, selected, onSelect, imageSizes, g
       <span className="block truncate">{slot.item ? "Owned" : slot.target ? "Unfilled target" : "Empty spacer"}</span>
       {slot.item?.grading && <span className="block truncate">Recorded grade: {slot.item.grading.grade ?? "Unknown"}</span>}
     </span>
+    {/* Prices view: the owned copy's market price, over the card's foot like the legacy pocket subtitle. */}
+    {priceLabel && <span className="absolute inset-x-0.5 bottom-0.5 z-10 truncate rounded bg-black/72 px-1 py-0.5 text-center text-[9px] font-semibold tabular-nums text-white sm:text-[10px]">{priceLabel}</span>}
     {glare && <BinderSlotGlare glareStyle={glareStyle} innerRadius={TRADING_CARD_CORNER_RADIUS} />}
   </button>
 }

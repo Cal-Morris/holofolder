@@ -12,19 +12,16 @@ export interface PublicDisplaySlot {
   card: (DisplayCatalogCard & { id?: string; language?: CardLanguage; pokemonIds?: number[] }) | null
   pokemon: { id: number; name: string } | null
   recordedProvider?: string
-  marketGBP?: number
   /** Stored wants in order, display name and artwork only. Omitted when the slot has none. */
   wantedCards?: { card_name: string; card_image?: string; card_id?: string; card_language?: CardLanguage; pokemonIds?: number[] }[]
 }
 export interface PublicBinder {
-  kind: 'native' | 'legacy'
   name: string
   username?: string
   rows: number
   cols: number
   appearance: { dark: boolean; color: BinderColorId; pageColors: Record<string, BinderColorId>; glare: boolean }
-  completion: { targetCount: number; completedTargetCount: number }
-  /** The share's own "show prices" switch. Prices are only read and serialized when true. */
+  /** The share's own "show prices" switch: the viewer's app may look up public card prices only when true. */
   prices: boolean
   slots: PublicDisplaySlot[]
 }
