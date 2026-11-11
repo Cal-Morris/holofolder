@@ -131,10 +131,10 @@ export default function PokemonCardsBrowser({
   const counts = useMemo(() => ({
     all: allEntries.length,
     owned: nativeModel ? nativeModel.copies.filter(copy => copy.card && allEntries.some(e => matchesCatalogCardId(e.card, copy.card!.canonicalId ?? copy.card!.id) && e.card.language === copy.card!.language)).length : allEntries.filter((entry) => entry.owned).length,
-    wanted: nativeModel ? nativeModel.wants.filter(w => w.card && allEntries.some(e => matchesCatalogCardId(e.card, w.card!.canonicalId ?? w.card!.id) && e.card.language === w.card!.language)).length : allEntries.filter((entry) => entry.wanted).length,
+    wanted: allEntries.filter((entry) => entry.wanted && !entry.owned).length,
   }), [allEntries, nativeModel])
   const visibleEntries = useMemo(() => {
-    const byState = allEntries.filter((entry) => filter === "all" || (filter === "owned" ? entry.owned : entry.wanted))
+    const byState = allEntries.filter((entry) => filter === "all" || (filter === "owned" ? entry.owned : entry.wanted && !entry.owned))
     const needle = textFilter.trim().toLowerCase()
     if (!needle) return byState
     return byState.filter((entry) =>
@@ -214,7 +214,7 @@ export default function PokemonCardsBrowser({
               {pokemon && <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{formatDexNumber(pokemon.id)}</p>}
               <h2 className="truncate text-lg font-bold leading-tight">{displayName}{pokemon ? " cards" : ""}</h2>
               <p className="text-xs text-muted-foreground">
-                {nativeConsumer && !nativeModel ? "Storage evidence unavailable" : cards === null ? "Loading cards…" : fetchError ? "Card catalogue unavailable" : `${counts.all} card${counts.all === 1 ? "" : "s"} · ${counts.owned} owned${nativeConsumer ? " copies" : ""} · ${counts.wanted} wanted${nativeConsumer ? " entries" : ""}`}
+                {nativeConsumer && !nativeModel ? "Storage evidence unavailable" : cards === null ? "Loading cards…" : fetchError ? "Card catalogue unavailable" : `${counts.all} card${counts.all === 1 ? "" : "s"} · ${counts.owned} owned${nativeConsumer ? " copies" : ""} · ${counts.wanted} wanted`}
               </p>
             </div>
             <button

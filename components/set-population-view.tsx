@@ -329,10 +329,10 @@ export default function SetPopulationView({
 
   const matchingCards = useMemo(() => matchedPokemonIds.length ? setCards.filter(card => slots.some(slot => matchedPokemonIds.includes(slot.dexId) && slot.cards.some(candidate => candidate.id === card.id))) : setCards, [matchedPokemonIds, setCards, slots])
   const cardEntries = useMemo(() => matchingCards.map(card => ({ card, ...getSetCardState(card, collectionRows ?? collectionByPokemonId.values()) })), [matchingCards, collectionByPokemonId, collectionRows])
-  const cardCounts = { all: cardEntries.length, open: cardEntries.filter(entry => !entry.owned).length, owned: cardEntries.filter(entry => entry.owned).length, wanted: cardEntries.filter(entry => entry.wanted).length, multiple: 0 }
+  const cardCounts = { all: cardEntries.length, open: cardEntries.filter(entry => !entry.owned).length, owned: cardEntries.filter(entry => entry.owned).length, wanted: cardEntries.filter(entry => entry.wanted && !entry.owned).length, multiple: 0 }
   const cardSummary = { total: cardCounts.all, owned: cardCounts.owned, missing: cardCounts.open, wanted: cardCounts.wanted }
   const visibleCards = cardEntries.filter(entry => {
-    if (slotFilter === "open" && entry.owned || slotFilter === "owned" && !entry.owned || slotFilter === "wanted" && !entry.wanted) return false
+    if (slotFilter === "open" && entry.owned || slotFilter === "owned" && !entry.owned || slotFilter === "wanted" && (!entry.wanted || entry.owned)) return false
     const needle = slotSearch.trim().toLowerCase()
     return !needle || [entry.card.name, entry.card.localId, entry.card.rarity ?? ""].some(value => value.toLowerCase().includes(needle))
   })

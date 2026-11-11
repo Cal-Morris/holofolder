@@ -23,9 +23,9 @@ export default function PokemonBrowseView({ collectionByPokemonId, ownedElsewher
     const item = collectionByPokemonId.get(pokemon.id)
     return { pokemon, owned: Boolean(item && item.status !== "wishlisted"), wanted: Boolean(item?.status === "wishlisted" || item?.wanted_cards.length) }
   }), [collectionByPokemonId])
-  const counts = { all: entries.length, owned: entries.filter(entry => entry.owned).length, missing: entries.filter(entry => !entry.owned).length, wanted: entries.filter(entry => entry.wanted).length }
+  const counts = { all: entries.length, owned: entries.filter(entry => entry.owned).length, missing: entries.filter(entry => !entry.owned).length, wanted: entries.filter(entry => entry.wanted && !entry.owned).length }
   const visible = useMemo(() => entries.filter(entry => {
-    if (filter === "owned" && !entry.owned || filter === "missing" && entry.owned || filter === "wanted" && !entry.wanted) return false
+    if (filter === "owned" && !entry.owned || filter === "missing" && entry.owned || filter === "wanted" && (!entry.wanted || entry.owned)) return false
     const needle = query.trim().toLowerCase()
     return !needle || entry.pokemon.name.includes(needle) || formatPokemonDisplayName(entry.pokemon.name).toLowerCase().includes(needle) || String(entry.pokemon.id) === needle.replace(/^#?0*/, "")
   }), [entries, filter, query])

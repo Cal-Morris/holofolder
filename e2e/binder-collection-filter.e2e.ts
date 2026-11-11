@@ -18,9 +18,11 @@ test("binder filter bar shows owned, wanted and missing pockets and resets per b
     { ...snapshot.collections[1], ownerUserId: E2E_USER.id, id: beta, name: "Trades" }]
   snapshot.binders.forEach((b, n) => { b.collectionId = n ? beta : alpha; b.ownerUserId = E2E_USER.id; b.slots.forEach((s, i) => { s.ownerUserId = E2E_USER.id; s.collectionId = b.collectionId; s.id = `${b.collectionId}-${i}`; s.inventoryItemId = null; s.status = null }) })
   const binder = snapshot.binders[0]
-  // 0: owned. 1: owned and perfect. 2: missing with a want. 4: missing target. The rest are spacers.
+  // 0: owned, with a wanted upgrade. 1: owned and perfect. 2: missing with a want. 4: missing target. The rest are spacers.
   binder.slots[0].target = { kind: "pokemon", pokemonId: 6 }
   binder.slots[0].inventoryItemId = snapshot.items[0].id; binder.slots[0].status = "collected"
+  // An owned pocket with a wanted upgrade is not Wanted: Wanted means not owned yet (#657).
+  binder.slots[0].wantedCards = [want("base1-4", "Charizard")]
   snapshot.items[1].identity = { kind: "pokemon", pokemonId: 9 }
   binder.slots[1].target = { kind: "pokemon", pokemonId: 9 }
   binder.slots[1].inventoryItemId = snapshot.items[1].id; binder.slots[1].status = "finalized"

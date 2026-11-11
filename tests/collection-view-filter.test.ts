@@ -17,7 +17,7 @@ const shown = (filter: CollectionViewFilter) => Object.entries(pockets).filter((
 describe("native pocket filters", () => {
   test("All shows every pocket", () => assert.deepEqual(shown("all"), Object.keys(pockets)))
   test("Owned shows every pocket holding a copy, whatever its status", () => assert.deepEqual(shown("owned"), ["owned", "ownedUpgrade", "perfect"]))
-  test("Wanted shows pockets with a want, owned or not", () => assert.deepEqual(shown("wanted"), ["ownedUpgrade", "wanted"]))
+  test("Wanted shows only pockets with a want and nothing owned", () => assert.deepEqual(shown("wanted"), ["wanted"]))
   test("Missing shows targets with nothing owned, never spacers", () => assert.deepEqual(shown("needed"), ["wanted", "missing"]))
   test("Upgrades and Perfect split owned pockets", () => {
     assert.deepEqual(shown("upgradeable"), ["owned", "ownedUpgrade"])

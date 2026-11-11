@@ -1827,14 +1827,14 @@ function BinderAppSurface(props: BinderAppProps) {
       const owned = pocket?.item?.identity.kind === "card" ? nativeDisplay?.resolveCard?.(pocket.item.identity.cardId, pocket.item.identity.language) : undefined
       return {
         ...buildPokemonSearchPreview({ pokemonArtwork: summary ? getPokemonArtwork(summary) : getPokemonOfficialArtworkUrl(pokemon.id), cardImage: pocket?.want?.card_image ?? owned?.image, status: pocket?.want ? "wishlisted" : undefined }),
-        stateLabel: pocket?.want ? "Wanted" : pocket?.item ? "Owned" : null,
-        stateToneClass: pocket?.want ? "bg-amber-500/15 text-amber-500" : "bg-emerald-500/15 text-emerald-400",
+        stateLabel: pocket?.item ? "Owned" : pocket?.want ? "Wanted" : null,
+        stateToneClass: pocket?.item ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-500",
         cardLabel: pocket?.want ? `Wanted: ${pocket.want.card_name}` : owned?.name ?? null,
         locationLabel: pocket?.place ?? null,
         // The page shortcut only means something while the binder itself is on screen.
         pageNumber: nativeBinderOpen ? pocket?.page ?? null : null,
         isSelected: Boolean(pocket && pocket.slotId === selectedSlotId),
-        slotState: pocket?.want ? "wanted" : pocket?.item ? "owned" : "open",
+        slotState: pocket?.item ? "owned" : pocket?.want ? "wanted" : "open",
       }
     }
     const item = getCollectionItem(pokemon.id)
