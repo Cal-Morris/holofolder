@@ -112,6 +112,36 @@ test("actual BinderApp dock, fresh stable location, back and deep links", async 
   await expect(nav(page).getByRole("button", { name: "Inventory", exact: true })).toBeVisible()
 })
 
+test("an owner with cards in the binder has Show in the header on every view; an empty one keeps it in More", async ({ page, insets }) => {
+  await page.goto(`${entry}&binder=${alpha}`)
+  await expect(collectionPicker(page)).toBeVisible()
+  const header = page.getByTestId("app-header"), show = header.getByRole("button", { name: "Show mode", exact: true })
+  const h = new Harness(page, insets, true)
+  for (const view of ["Binder", "Inventory", "Wanted", "Browse"]) {
+    await nav(page).getByRole("button", { name: view, exact: true }).click()
+    await expect(show).toBeVisible()
+    await h.expectMinTapTarget(show); await h.expectHittable(show); await h.expectNoHorizontalOverflow()
+    const title = header.getByText("Holo Folder", { exact: true })
+    expect(await title.evaluate(el => el.scrollWidth <= el.clientWidth), `title fits beside Show on ${view}`).toBe(true)
+  }
+  // With Show in the header, More does not repeat it. A signed-in owner is never asked to join.
+  await header.getByRole("button", { name: "More", exact: true }).click()
+  await expect(page.getByRole("menuitem", { name: "Show mode", exact: true })).toHaveCount(0)
+  await expect(header.getByRole("button", { name: "Join now", exact: true })).toHaveCount(0)
+  await page.keyboard.press("Escape")
+  // The same binders with nothing owned: no header pill, and Show mode stays reachable from More.
+  const empty = syntheticSnapshot()
+  empty.items = []; empty.placements = []
+  empty.binders.forEach(binder => binder.slots.forEach(slot => { slot.inventoryItemId = null; slot.status = null }))
+  await page.route("**/app/e2e-harness/storage/inventory?*", route => fulfillInventory(route, inventoryBrowseCatalog, empty))
+  await page.reload()
+  await expect(collectionPicker(page)).toBeVisible()
+  await expect(page.locator("button[data-slot-id]").first()).toBeVisible()
+  await expect(show).toHaveCount(0)
+  await header.getByRole("button", { name: "More", exact: true }).click()
+  await expect(page.getByRole("menuitem", { name: "Show mode", exact: true })).toBeVisible()
+})
+
 test("online startup 503 resets once and reports the second failure", async ({ page }) => {
   await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()

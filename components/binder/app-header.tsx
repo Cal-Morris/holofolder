@@ -116,7 +116,8 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             // Brand is home: back to this scope's binder (a share stays in its own read-only binder).
             <div className="flex min-w-0 flex-1 xl:flex-none">
               <button type="button" data-testid="header-brand-home" onClick={() => void switchMainView("binder")} aria-label={`${readOnlyMode ? "Shared binder" : "Holo Folder"}: back to binder`} className={`flex min-h-11 min-w-0 items-center gap-1.5 rounded-xl text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${ctx.user ? "px-1.5" : "md:px-1.5"}`}>
-                <Image src="/app/holofolder-mark.png" alt="" width={20} height={20} unoptimized className="h-5 w-5 shrink-0" />
+                {/* A signed-out visitor's header also carries Join now. Under 390px the shared title only fits without the mark. */}
+                <Image src="/app/holofolder-mark.png" alt="" width={20} height={20} unoptimized className={`h-5 w-5 shrink-0 ${readOnlyMode && !ctx.user ? "max-[389px]:hidden" : ""}`} />
                 <span className="truncate text-sm font-semibold">{readOnlyMode ? "Shared binder" : "Holo Folder"}</span>
               </button>
             </div>
@@ -147,12 +148,12 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             </div>
           )}
           {!ctx.nativeStorage && activeMainView !== "pokemon" && activeMainView !== "analytics" && (
-            <Button variant="ghost" aria-label="View" className="h-11 min-w-9 gap-1.5 rounded-xl px-2 text-xs" onClick={() => openExclusively(() => { setSelectedPokemon(null); setIsMobileNavExpanded(true) })} aria-haspopup="dialog" aria-expanded={isMobileNavExpanded}>
+            <Button variant="ghost" aria-label="View" className={`h-11 min-w-9 gap-1.5 rounded-xl text-xs ${ctx.user ? "px-2" : "w-9 px-0 md:w-auto md:px-2"}`} onClick={() => openExclusively(() => { setSelectedPokemon(null); setIsMobileNavExpanded(true) })} aria-haspopup="dialog" aria-expanded={isMobileNavExpanded}>
               <SlidersHorizontal className="h-4 w-4" aria-hidden /><span className={ctx.user ? undefined : "hidden md:inline"}>View</span>
             </Button>
           )}
-          {!ctx.user ? <Button type="button" className="h-11 rounded-xl px-2 text-xs" onClick={onJoin}>Join now</Button> : isShowModeOn ? <button type="button" onClick={() => setShowMode(false)} aria-label="Exit show mode" className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-amber-900 hover:bg-amber-200/60 dark:text-amber-100 dark:hover:bg-amber-800/60 md:px-2"><Ticket className="hidden h-4 w-4 md:block" aria-hidden /><span className="hidden md:inline">Show ·</span>Exit</button> : ctx.collectionCount > 0 ? <button type="button" onClick={() => setShowMode(true)} aria-label="Show mode" data-testid="header-show-mode" className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-primary hover:bg-primary/10 md:px-2" aria-pressed={false}><Ticket className="hidden h-4 w-4 md:block" aria-hidden />Show</button> : null}
-          <HeaderMoreMenu message={shareCopyMessage || shareMessage} items={[
+          {!ctx.user ? <Button type="button" className="h-11 shrink-0 rounded-xl px-1.5 text-xs md:px-2" onClick={onJoin}>Join now</Button> : isShowModeOn ? <button type="button" onClick={() => setShowMode(false)} aria-label="Exit show mode" className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-amber-900 hover:bg-amber-200/60 dark:text-amber-100 dark:hover:bg-amber-800/60 md:px-2"><Ticket className="hidden h-4 w-4 md:block" aria-hidden /><span className="hidden md:inline">Show ·</span>Exit</button> : ctx.collectionCount > 0 ? <button type="button" onClick={() => setShowMode(true)} aria-label="Show mode" data-testid="header-show-mode" className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-primary hover:bg-primary/10 md:px-2" aria-pressed={false}><Ticket className="hidden h-4 w-4 md:block" aria-hidden />Show</button> : null}
+          <HeaderMoreMenu compact={!ctx.user} message={shareCopyMessage || shareMessage} items={[
             ...(!ctx.user || ctx.collectionCount === 0 ? [{ id: "show-mode", label: isShowModeOn ? "Exit show mode" : "Show mode", icon: <Ticket />, onSelect: () => setShowMode(!isShowModeOn) }] : []),
             ...(!readOnlyMode ? [{ id: "studio", label: "Binder Studio", icon: <Paintbrush />, href: "/studio" }] : []),
             ...(activeMainView === "binder" && binderDimension === "2d" ? [

@@ -385,7 +385,14 @@ function BinderAppSurface(props: BinderAppProps) {
   const user = initialUser
   const collection = useMemo(() => normalizeCollectionItems(initialCollection), [initialCollection])
   const resolvedCollectionOwnerUserId = user ? initialCollectionOwnerUserId : null
-  const collectionCount = useMemo(() => collection.filter((item) => item.status !== "wishlisted").length, [collection])
+  // Owned cards in the collection on screen, which decides whether Show sits in the header or in More.
+  // A signed-in binder is native and its legacy rows are always empty, so it counts the occupied pockets
+  // of the binder in view, or every owned card when there is no binder to look at.
+  const nativeBinderInView = browserSurface?.display?.binder, nativeEvidence = browserSurface?.nativeConsumer?.read.evidence
+  const collectionCount = useMemo(() => !browserSurface ? collection.filter((item) => item.status !== "wishlisted").length
+    : nativeBinderInView ? nativeBinderCoverStats(nativeBinderInView).collected
+    : nativeEvidence && nativeEvidence.kind !== "unavailable" ? nativeEvidence.snapshot.items.length : 0,
+  [browserSurface, collection, nativeBinderInView, nativeEvidence])
   const getCollectionItem = useCallback((pokemonId: number) => collection.find((item) => item.pokemon_id === pokemonId), [collection])
   const isCollected = useCallback((pokemonId: number) => collection.some((item) => item.pokemon_id === pokemonId && item.status !== "wishlisted"), [collection])
   const isWishlisted = useCallback((pokemonId: number) => collection.some((item) => item.pokemon_id === pokemonId && (item.status === "wishlisted" || item.wanted_cards.length > 0)), [collection])
