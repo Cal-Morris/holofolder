@@ -110,7 +110,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
 }) {
   const navigationScope = useMemo(() => ({ accountUserId: scope.actorUserId, ownerUserId: scope.ownerUserId, sessionId: scope.sessionId }), [scope])
   const queue = useSlotOfflineQueue({ deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }, scope.sessionId, scope.authSessionId)
-  const latest = useRef({ currentScope, queue, catalog: browserHostCatalog([]) })
+  const latest = useRef({ currentScope, queue, catalog: browserHostCatalog([]), read: null as CollectionNavigationRead | null })
   const consumerAdmission = useRef<import("@/lib/collection/native-card-consumers").NativeConsumerBinding["admit"]>(() => null)
   const [read, setRead] = useState<CollectionNavigationRead>({ scope: navigationScope, evidence: { kind: "unavailable" }, catalog: [], layouts: [] })
   const [grading, setGrading] = useState<{ snapshot: InventorySnapshot; itemId: string; intent: SlotOfflineIntent | null } | null>(null)
@@ -143,7 +143,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     return fresh.length ? [...read.catalog, ...fresh] : read.catalog
   }, [read.catalog, picked])
   const slotDisplay = useMemo(() => browserHostSlotDisplay(displayCatalog), [displayCatalog])
-  useLayoutEffect(() => { latest.current = { currentScope, queue, catalog } })
+  useLayoutEffect(() => { latest.current = { currentScope, queue, catalog, read } })
   // The latest routine read, so an edit made while it is in flight waits for it instead of failing.
   const inFlightRead = useRef<Promise<CollectionNavigationRead> | null>(null)
   const refresh = () => {
@@ -165,11 +165,16 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       const resolver = browserHostCatalog(fresh.catalog)
       const record = await latest.current.queue.queue?.read()
       if (!valid() || request !== sequence.current) throw new Error("inventory_read_scope_changed")
-      const pending = record?.pending.length || record?.recovery?.some(recoveryUnresolved)
+      // A read older than this device's saved or acknowledged state would roll a saved edit back on screen.
+      const floor = Math.max(record?.snapshot?.inventoryRevision ?? 0, ...record?.pending.map(p => p.acknowledgedRevision ?? 0) ?? [])
+      if (fresh.evidence.snapshot.inventoryRevision < floor) return fresh
+      const pending = record?.pending.some(p => p.status !== "acknowledged") || record?.recovery?.some(recoveryUnresolved)
+      completeReadAvailable.current = true
+      // Show the read before the queue settles acknowledged edits, so the view never drops back to the old read.
+      setRead(fresh); setNotice("")
       if (!pending) await latest.current.queue.saveSnapshot(fresh.evidence.snapshot, resolver)
       if (!valid() || request !== sequence.current) throw new Error("inventory_read_scope_changed")
-      completeReadAvailable.current = true
-      setRead(fresh); setNotice(""); setUpdateFailed(false)
+      setUpdateFailed(false)
       await getOfflineStore()?.set(metadataKey, { catalog: fresh.catalog, layouts: fresh.layouts })
       if (valid() && request === sequence.current) onReady()
       return fresh
@@ -238,6 +243,13 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           head = (await latest.current.queue.queue?.read())?.pending[0]
         }
         resumeNow.current = false
+        if (active() && head?.status === "acknowledged") {
+          // Already saved. Settle it from a read that covers its revision, refetching only when needed.
+          const current = latest.current.read
+          if (current?.evidence.kind === "complete" && current.evidence.snapshot.inventoryRevision >= head.acknowledgedRevision!) await latest.current.queue.saveSnapshot(current.evidence.snapshot, latest.current.catalog)
+          else await refresh() // Retries each tick while reads lag the ack; a failed read pauses this until reconnect or focus.
+          return
+        }
         if (!active() || !head || ["blocked", "billing", "conflict"].includes(head.status)
           || head.attempts >= 5 || head.nextAttemptAt > Date.now() || head.lease && head.lease.until > Date.now()) return
         sending.current = true
@@ -424,6 +436,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       const projected = queue.record?.optimistic?.binders.find(b => b.collectionId === layout.collectionId)
       return base?.layoutRevision === layout.layoutRevision && projected ? { ...layout, layoutRevision: projected.layoutRevision } : layout
     }) } : !online && read.evidence.kind === "complete" ? { ...shownRead, evidence: { kind: "cached", snapshot: read.evidence.snapshot } } : shownRead
+  // Acknowledged edits are saved; they stay queued only until a read covers them.
+  const unsaved = queue.record?.pending.filter(p => p.status !== "acknowledged").length ?? 0
   const inventoryRecord: { pending: unknown[]; recovery?: { synchronized: boolean; resolution?: "discarded" | null }[] } | null = queue.record
   const bulkFillAvailable = Boolean(online && read.evidence.kind === "complete" && inventoryRecord && !inventoryRecord.pending.length && !inventoryRecord.recovery?.some(recoveryUnresolved))
 
@@ -510,6 +524,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         const layout = binder && visibleRead.layouts.find(l => l.collectionId === binder.collectionId && l.layoutRevision === binder.layoutRevision)
         const display = snapshot && binder && layout ? slotDisplay(snapshot, binder) : undefined
         const head = queue.record?.pending[0]
+        // The first change that has not been accepted yet. Accepted ones ahead of it are already saved.
+        const waiting = queue.record?.pending.find(p => p.status !== "acknowledged")
         return <>{deleting && <NativeCollectionDeletion key={`${scope.sessionId}:${deleting}`} collectionId={deleting} binding={{ read, available: deletionAvailable, receive: receiveDeletion }} onClose={() => setDeleting(null)} />}{backupOpen && <NativeBackup key={`${scope.sessionId}:${surface.state.collectionId}:${surface.state.main}`} binding={backupBinding} restore={restoreBinding} collectionId={surface.state.collectionId} onClose={() => setBackupOpen(false)} />}{renderSurface({ nativeConsumer: { scope: navigationScope, read: visibleRead,
           collectionId: surface.state.main === "inventory" ? surface.state.inventory.query.collectionId || undefined : surface.state.collectionId ?? undefined,
           editingAvailable: bulkFillAvailable && !queue.record?.legacy.length, admit: () => consumerAdmission.current() }, analytics: { scope: navigationScope, read: visibleRead }, toolbar: surface.header,
@@ -528,11 +544,12 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           surface: { ...surface, header: <>
           {queue.record?.recovery?.some(recoveryUnresolved) && <p role="status" className="px-4 text-sm">An undo didn&apos;t finish. Open Activity from the manage menu to check it.</p>}
           {/* A change that is on its way needs no line. Only say something when it is waiting on something. */}
-          {head && !head.conflict?.rejected && !["conflict", "blocked", "billing"].includes(head.status) && (!online
+          {/* An accepted change is saved: it stays queued only until a read covers it, and needs no line either. */}
+          {waiting && !waiting.conflict?.rejected && !["conflict", "blocked", "billing"].includes(waiting.status) && (!online
             ? <p role="status" data-sync-state="offline" className="px-4 text-sm text-muted-foreground">Saved on this device. It&apos;ll sync when you&apos;re back online.</p>
-            : head.status === "unavailable" && <p role="status" data-sync-state="retrying" className="px-4 text-sm text-muted-foreground">Couldn&apos;t save your latest change yet. Trying again…
+            : waiting.status === "unavailable" && <p role="status" data-sync-state="retrying" className="px-4 text-sm text-muted-foreground">Couldn&apos;t save your latest change yet. Trying again…
               <button type="button" className="ml-2 min-h-9 underline" onClick={() => {
-                const current = latest.current.queue.record?.pending[0]
+                const current = latest.current.queue.record?.pending.find(p => p.status !== "acknowledged")
                 if (!current || !valid()) return
                 void latest.current.queue.queue?.resume(current.intent.request.operationId).then(() => latest.current.queue.refresh()).then(() => kickSender.current()).catch(() => { if (valid()) setNotice("Still working on it. Your change is saved on this device.") })
               }}>Try now</button></p>)}
@@ -564,7 +581,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           </div>}
           {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || (queue.error?.startsWith("Saved on device") ? "Saved. The view will catch up in a moment." : "This device can't save changes right now. Check its storage, then reload.")}</p>}
 
-          {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}</> }, display, catalog, receive, recovery, editingAvailable: read.evidence.kind === "complete" && !queue.record?.recovery?.some(recoveryUnresolved) && !queue.record?.pending.some(p => p.intent.kind === "creation" || p.intent.kind === "raw-restore"), bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: queue.record?.pending.length ?? 0,
+          {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}</> }, display, catalog, receive, recovery, editingAvailable: read.evidence.kind === "complete" && !queue.record?.recovery?.some(recoveryUnresolved) && !queue.record?.pending.some(p => p.intent.kind === "creation" || p.intent.kind === "raw-restore"), bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: unsaved,
 
           scan: { detectPage: localHarness && new URLSearchParams(location.search).get("scanFixture") === "1"
             ? async (...args) => (await import("@/tests/fixtures/native-scanner-host")).syntheticPageDetection(...args) : undefined,
