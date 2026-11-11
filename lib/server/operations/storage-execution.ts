@@ -4,16 +4,13 @@ import { isCreationRejection, isImportRejection } from '@/lib/collection/creatio
 import "server-only"
 import { isRecoveryRejection } from "@/lib/collection/recovery-rejection"
 import { isStorageCommandRejection } from "@/lib/collection/storage-command-rejection"
-import { requireExpectedAppearanceOwner } from "@/lib/server/binder-appearance"
+import { requireAppearanceOrigin, requireExpectedAppearanceOwner } from "@/lib/server/binder-appearance"
 import { COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
 import { randomUUID } from "node:crypto"
 import { DeveloperAccessError, requirePermissions } from "@/lib/developer-api/permissions"
 import type { OperationContext } from "@/lib/developer-api/types"
 import { withAuditActor, withAuditOperation } from "@/lib/server/audit-context"
-import { resolveCollectionMembership } from "@/lib/server/collection-owner"
 import { BillingAccessError } from "@/lib/billing"
-import { requireDeveloperSettingsUser } from "@/lib/server/developer-access/first-party"
-import { requireRestContext, requireMcpContext } from "@/lib/server/developer-access/principal"
 import { readDeveloperJson } from "@/lib/server/developer-access/request"
 import { parseStorageRequest, normalizeStorageResult, storageExecutionError, type StorageOperation } from "./storage-contract"
 
@@ -22,44 +19,47 @@ export async function executeAppStorageRequest(request: Request, operation: Stor
   session: import("@supabase/supabase-js").SupabaseClient
   admin: import("@supabase/supabase-js").SupabaseClient
 }) {
+  requireAppearanceOrigin(request)
   // Trusted server injection only, used by the loopback-gated synthetic HTTP harness.
   // No request data can select these clients. Production uses the existing cookie/auth path.
-  const { user, client: session } = localClients
-    ? await checkedLocalStorageUser(request, localClients.session)
-    : await requireDeveloperSettingsUser(request, true)
+  const session = localClients?.session ?? await (await import("@/lib/supabase/server")).createClient()
+  // ES256 access token verified locally against the cached JWKS; the live-session check is the scope RPC below.
+  const { data: verified, error: claimsError } = await session.auth.getClaims()
+  const claims = verified?.claims
+  if (claimsError || !claims?.sub || claims.client_id) throw new DeveloperAccessError("sign_in_required", "Sign in before retrying.", 401)
+  const actorId = claims.sub
   const expectedActor = request.headers.get("X-Binder-Actor")
-  if (expectedActor !== null && expectedActor !== user.id) throw new DeveloperAccessError("storage_session_changed", "The signed-in account changed.", 403)
+  if (expectedActor !== null && expectedActor !== actorId) throw new DeveloperAccessError("storage_session_changed", "The signed-in account changed.", 403)
   const expectedSession = request.headers.get("X-Binder-Auth-Session")
   if (!expectedSession) throw new DeveloperAccessError("storage_session_changed", "Use the current signed-in app session.", 403)
-  const claims = await session.auth.getClaims()
-  if (claims.error || claims.data?.claims.role !== "authenticated" || claims.data.claims.sub !== user.id || claims.data.claims.client_id
-    || claims.data.claims.session_id !== expectedSession) throw new DeveloperAccessError("storage_session_changed", "Sign in again before retrying this operation.", 403)
-  const { createAdminClient } = await import("@/lib/supabase/admin")
-  const client = localClients?.admin ?? createAdminClient()
-  const membership = await resolveCollectionMembership(client, user.id, { strictBilling: true, ownWhenDenied: true })
+  if (claims.role !== "authenticated" || claims.session_id !== expectedSession) throw new DeveloperAccessError("storage_session_changed", "Sign in again before retrying this operation.", 403)
+  const scope = await storageCallerScope(session, actorId, expectedSession)
   // A paused partner's command bound to the shared owner keeps its billing pause; it is never retargeted.
-  if (membership.partnerAccessDenied && request.headers.get("X-Binder-Owner") !== membership.ownerUserId) throw new BillingAccessError()
-  requireExpectedAppearanceOwner(request, membership.ownerUserId)
+  if (scope.partnerPaused && request.headers.get("X-Binder-Owner") !== scope.owner) throw new BillingAccessError()
+  requireExpectedAppearanceOwner(request, scope.owner)
   const input = parseStorageRequest(operation, await readDeveloperJson(request, storageRequestBytes(operation)))
   if (operation === 'backup.restore.raw') {
     const planning = (input as RawRestoreCommand).planning
-    if (!expectedSession || planning.authSessionId !== expectedSession || planning.actorUserId !== user.id
-      || planning.ownerUserId !== membership.ownerUserId || planning.source !== 'app' || planning.credentialId !== null) {
+    if (planning.authSessionId !== expectedSession || planning.actorUserId !== actorId
+      || planning.ownerUserId !== scope.owner || planning.source !== 'app' || planning.credentialId !== null) {
       throw new DeveloperAccessError('storage_session_changed', 'Review restore in the original authenticated session.', 403)
     }
   }
-  return withAuditActor(user.id, () => executeStorageRpc(operation, membership.ownerUserId, input, client))
+  const { createAdminClient } = await import("@/lib/supabase/admin")
+  return withAuditActor(actorId, () => executeStorageRpc(operation, scope.owner, input, localClients?.admin ?? createAdminClient()))
 }
 
-/** Authentication is shared with existing REST/MCP operations, including revocation, budgets and paid access. */
-export async function executeRestStorageRequest(request: Request, operation: StorageOperation) {
-  const context = await requireRestContext(request, STORAGE_PERMISSIONS, "write")
-  return executeDeveloperStorageOperation(context, operation, await readDeveloperJson(request, storageRequestBytes(operation)))
+/** One round trip as the signed-in user: inventory_read_scope_v2 (SECURITY DEFINER) requires a live, non-OAuth auth.sessions row
+ * for this token's session and a user that is neither deleted nor banned, the checks Auth getUser made over HTTP, then resolves
+ * the partnership owner with billing_partner_allowed (a paused partner gets their own collection, as storage_execute_v1 does). */
+async function storageCallerScope(session: import("@supabase/supabase-js").SupabaseClient, actorId: string, sessionId: string) {
+  const { data, error } = await session.rpc("inventory_read_scope_v2").abortSignal(AbortSignal.timeout(10000))
+  if (error?.code === "42501" && error.message === "inventory_sign_in_required") throw new DeveloperAccessError("sign_in_required", "Sign in before retrying.", 401)
+  if (error) throw storageExecutionError(error)
+  if (data?.actor !== actorId || data.session_id !== sessionId || typeof data.owner !== "string" || typeof data.partner_paused !== "boolean") throw storageExecutionError(null)
+  return { owner: data.owner as string, partnerPaused: data.partner_paused as boolean }
 }
-export async function executeMcpStorageRequest(request: Request, operation: StorageOperation, input: unknown) {
-  const context = await requireMcpContext(request, STORAGE_PERMISSIONS, "write")
-  return executeDeveloperStorageOperation(context, operation, input)
-}
+
 const storageRequestBytes = (operation: StorageOperation) => operation === "backup.restore.raw" ? RAW_RESTORE_V2_LIMITS.bytes : ["inventory", "backup.arrangement"].includes(operation) ? 8388608 : operation === "collection.create" ? COLLECTION_CREATION_LIMITS.bytes : 1048576
 // Slots can change wanted cards and release placements; every operation needs both write scopes.
 const STORAGE_PERMISSIONS = ["collection:write", "binders:write"] as const

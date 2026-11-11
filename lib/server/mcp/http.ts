@@ -1,8 +1,7 @@
 import {WebStandardStreamableHTTPServerTransport} from '@modelcontextprotocol/server'
 import {DeveloperAccessError} from '@/lib/developer-api/permissions'
-import {authenticateMcpToken} from '@/lib/server/developer-access/grants'
-import {requireDeveloperEntitlement} from '@/lib/server/developer-access/entitlement'
-import {consumeDeveloperLimit,consumeDeveloperPreauth} from '@/lib/server/developer-access/limits'
+import {verifyMcpToken} from '@/lib/server/developer-access/grants'
+import {requireMcpContext} from '@/lib/server/developer-access/principal'
 import {bearerCredential,DEVELOPER_HEADERS,developerErrorResponse,readDeveloperJson} from '@/lib/server/developer-access/request'
 import {createHoloMcpServer} from '@/lib/server/mcp/server'
 import {MCP_METADATA_URL} from '@/lib/server/mcp/metadata'
@@ -12,17 +11,17 @@ export async function handleMcpRequest(request:Request) {
  try {
   const token=bearerCredential(request)
   if(!token||token.startsWith('hf_')) throw new DeveloperAccessError('oauth_required','Connect through OAuth. API keys are only for REST.',401)
-  await consumeDeveloperPreauth(request)
-  const principal=await authenticateMcpToken(token,request.headers.get('origin'))
-  await requireDeveloperEntitlement(principal.actorId)
+  // Signature, issuer, audience and expiry are checked locally before the body is read; everything else is one RPC below.
+  const identity=await verifyMcpToken(token)
   // The largest native intent is bounded at 8 MiB; reserve 64 KiB for JSON-RPC framing.
   let bodyBytes=0
   const body=request.method==='POST'?await readDeveloperJson(request,8388608+65536,size=>{bodyBytes=size}):undefined
   const toolParams=body?.params as {name?:unknown}|undefined
   const operation=body?.method==='tools/call'?DEVELOPER_OPERATIONS.find(op=>op.name===toolParams?.name):undefined
   if(body && bodyBytes>(operation?.maxBytes ? operation.maxBytes+65536 : 131072))throw new DeveloperAccessError('body_too_large','The MCP request exceeds this operation’s body limit.',413)
-  if(body?.method!=='tools/call') await consumeDeveloperLimit(principal.actorId,'read')
-  const server=createHoloMcpServer(request,requestId,principal)
+  // One authentication per HTTP request; a body is one JSON-RPC message, so at most one tool call shares it.
+  const context=await requireMcpContext(identity,request,operation?.write?'write':'read',requestId)
+  const server=createHoloMcpServer(context)
   const transport=new WebStandardStreamableHTTPServerTransport({sessionIdGenerator:undefined,enableJsonResponse:true})
   try {
    await server.connect(transport)

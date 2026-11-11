@@ -1,13 +1,13 @@
 import {z} from 'zod'
 import {knownDeveloperError,developerErrorPayload} from '@/lib/server/developer-access/request'
-import type {DeveloperPrincipal} from '@/lib/developer-api/types'
+import type {OperationContext} from '@/lib/developer-api/types'
 import {auditDeveloperOperation} from '@/lib/server/developer-access/audit'
 import {McpServer} from '@modelcontextprotocol/server'
 import {DEVELOPER_OPERATIONS} from '@/lib/developer-api/operations'
-import {DeveloperAccessError} from '@/lib/developer-api/permissions'
-import {requireMcpContext} from '@/lib/server/developer-access/principal'
+import {DeveloperAccessError,requirePermissions} from '@/lib/developer-api/permissions'
 import {executeDeveloperOperation} from '@/lib/server/operations/developer-dispatch'
-export function createHoloMcpServer(request:Request,requestId:string,principal:DeveloperPrincipal) {
+/** context is this HTTP request's authenticated context; each tool still checks its own permissions. */
+export function createHoloMcpServer(context:OperationContext) {
  const server=new McpServer({name:'Holo Folder',version:'1.0.0'})
  for(const operation of DEVELOPER_OPERATIONS) {
   server.registerTool(operation.name,{description:operation.description,inputSchema:operation.schema,
@@ -17,7 +17,7 @@ export function createHoloMcpServer(request:Request,requestId:string,principal:D
    try {
     const maxBytes=operation.maxBytes??(operation.name==='update_appearance'?131072:65536)
     if(Buffer.byteLength(JSON.stringify(input))>maxBytes)throw new DeveloperAccessError('body_too_large',`Tool arguments must be at most ${maxBytes/1024} KiB.`,413)
-    const context=await requireMcpContext(request,operation.permissions,operation.write?'write':'read',requestId)
+    requirePermissions(context.principal.permissions,operation.permissions)
     const result=await executeDeveloperOperation(context,operation.name,input)
     auditDeveloperOperation(context,operation.name,'success')
     const output=result && typeof result==='object'&&!Array.isArray(result)?result as Record<string,unknown>:{data:result}
@@ -25,8 +25,8 @@ export function createHoloMcpServer(request:Request,requestId:string,principal:D
    }catch(error) {
     const safe=knownDeveloperError(error)
     const known=safe!==null
-    auditDeveloperOperation({principal,requestId},operation.name,'failure',known?safe.code:'temporarily_unavailable')
-    const output=developerErrorPayload(error,requestId)
+    auditDeveloperOperation(context,operation.name,'failure',known?safe.code:'temporarily_unavailable')
+    const output=developerErrorPayload(error,context.requestId)
     return {isError:true,content:[{type:'text' as const,text:JSON.stringify(output)}],structuredContent:output}
    }
   })

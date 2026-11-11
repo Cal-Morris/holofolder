@@ -8,9 +8,10 @@ async function main() {
   let partnership: Record<string, string> | null = null, partnershipError: Error | null = null
   let allowed: boolean | null = true, billingError: { code: string; message: string } | null = null
   const owners: string[] = []
+  let billingCalls = 0
   const client = {
     from: () => ({ select: () => ({ or: () => ({ limit: () => ({ maybeSingle: async () => ({ data: partnershipError ? null : partnership, error: partnershipError }) }) }) }) }),
-    rpc: async () => ({ data: billingError ? null : allowed, error: billingError }),
+    rpc: async () => { billingCalls++; return { data: billingError ? null : allowed, error: billingError } },
   }
   mock.module("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) }))
   mock.module("../../lib/supabase/server", () => ({ createClient: async () => client }))
@@ -44,5 +45,11 @@ async function main() {
   assert.equal(owners.length, 0)
   partnershipError = null
   assert.equal((await boot()).initialCollectionOwnerUserId, owner, "the next check recovers")
+  // The partnership owner is always billing-allowed for their own collection: no billing round trip.
+  partnership = { id: "synthetic-partnership", owner_user_id: actor, user1_id: actor, user2_id: owner }
+  billingCalls = 0
+  assert.equal((await boot()).initialCollectionOwnerUserId, actor)
+  assert.equal(billingCalls, 0)
+  assert.deepEqual(owners, [actor, actor], "binders and settings start together for the resolved owner")
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

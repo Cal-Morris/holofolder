@@ -16,7 +16,3 @@ export function developerPreauthBucket(request:Request):string|null {
  const digest=createHmac('sha256',process.env.SUPABASE_SERVICE_ROLE_KEY!).update(ip.slice(0,200)).digest('hex')
  return `preauth:${digest}`
 }
-export async function consumeDeveloperPreauth(request:Request) {
- const bucket=developerPreauthBucket(request)
- if(bucket)await consumeBudget(bucket,1000)
-}

@@ -30,10 +30,12 @@ async function main() {
   }
   reset()
   let race: ((table: string, url: URL) => Response | void) | undefined
+  const roundTrips: string[] = []
   globalThis.fetch = async (input, init) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input : input.url)
     assert.equal(url.hostname, "synthetic.supabase.test", "no hosted access")
     const table = url.pathname.split("/").at(-1)!
+    roundTrips.push(table)
     const override = race?.(table, url)
     if (override) return override
     if (url.pathname.includes("/auth/v1/admin/users/")) return Response.json({ id: actor, aud: "authenticated" })
@@ -43,6 +45,12 @@ async function main() {
       const args = JSON.parse(String(init?.body))
       assert.deepEqual(args, { session: oauth.sessionId, actor, client: oauth.clientId, grant_version: grantId })
       return Response.json(grant ? { id: grantId, permissions: grantPermissions } : null)
+    }
+    if (table === "authenticate_developer_oauth_request") {
+      const args = JSON.parse(String(init?.body))
+      assert.deepEqual([args.session, args.actor, args.client, args.grant_version], [oauth.sessionId, actor, oauth.clientId, grantId])
+      return Response.json(grant ? { credential_id: grantId, permissions: grantPermissions, redirect_origin: "https://holofolder.com", owner_user_id: owner,
+        member_ids: context("mcp").memberIds, billing_access: { perpetual: paid }, budget: { allowed: budget } } : { error: "oauth_revoked" })
     }
     if (table === "get_billing_access") return Response.json({ perpetual: paid })
     if (table === "resolve_developer_access") return Response.json({ owner_user_id: owner, member_ids: context("mcp").memberIds,
@@ -58,7 +66,7 @@ async function main() {
     return f.transport(input, init)
   }
   // Only issuer verification is synthetic, current OAuth session/grant is rechecked by the real read adapter.
-  mock.module("../../lib/server/developer-access/grants", () => ({ authenticateMcpToken: async () => context("mcp").principal }))
+  mock.module("../../lib/server/developer-access/grants", () => ({ verifyMcpToken: async () => ({ actorId: actor, clientId: oauth.clientId, sessionId: oauth.sessionId, grantId, expiresAt: oauth.expiresAt }) }))
   const { executeDeveloperOperation } = await import("../../lib/server/operations/developer-dispatch")
   const { handleRestRequest } = await import("../../lib/server/developer-access/http")
   const { handleMcpRequest } = await import("../../lib/server/mcp/http")
@@ -72,11 +80,15 @@ async function main() {
       else query.set(k, String(v))
     }
     const headers = { authorization: "Bearer " + (transport === "rest" ? key.key : "synthetic-oauth"), "Content-Type": "application/json", Accept: "application/json, text/event-stream" }
+    const start = roundTrips.length
     const response = transport === "rest"
       ? await handleRestRequest(new Request(`https://synthetic.test/app/api/v1${path}?${query}`, { headers }), { params: Promise.resolve({ path: path.slice(1).split("/") }) })
       : await handleMcpRequest(new Request("https://synthetic.test/app/mcp", { method: "POST", headers, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: input } }) }))
     assert.equal(response.headers.get("cache-control"), "private, no-store")
     const body = await response.json()
+    // One authentication round trip per HTTP request (REST key or MCP OAuth), then one snapshot read.
+    if (response.ok && !body.result?.isError) assert.deepEqual(roundTrips.slice(start),
+      [transport === "rest" ? "authenticate_developer_request" : "authenticate_developer_oauth_request", "developer_inventory_read_v1"])
     return { status: response.status, result: transport === "mcp" && body.result ? body.result.structuredContent : body, raw: body }
   }
   const inputs: Record<string, Record<string, unknown>> = { list_inventory_items: { limit: 100 }, get_inventory_item: { id: "synthetic-00001" },

@@ -25,9 +25,9 @@ async function main() {
   let credentialId = createHash('sha256').update('synthetic-native').digest('hex')
   const key = createDeveloperKey()
   const permissions = (): DeveloperPermission[] => (readonly ? ['collection:read', 'binders:read'] : ['collection:read', 'collection:write', 'binders:read', 'binders:write']).filter(p => p !== missingScope) as DeveloperPermission[]
-  mock.module('../../lib/server/developer-access/grants', () => ({ authenticateMcpToken: async (token: string) => {
-    if (revoked || token !== 'synthetic-oauth') throw new DeveloperAccessError('oauth_revoked', 'Synthetic denied credential.', 401)
-    return { actorId: currentActor, credentialId, transport: 'mcp', permissions: permissions() }
+  mock.module('../../lib/server/developer-access/grants', () => ({ verifyMcpToken: async (token: string) => {
+    if (token !== 'synthetic-oauth') throw new DeveloperAccessError('invalid_oauth_token', 'Synthetic denied credential.', 401)
+    return { actorId: currentActor, clientId: '00820000-0000-4000-8000-000000000003', sessionId: '00820000-0000-4000-8000-000000000004', grantId: '00820000-0000-4000-8000-000000000005', expiresAt: 2000000000 }
   } }))
   const calls: { operation: string; request: Record<string, unknown>; header: Record<string, unknown> }[] = []
   const ledger = new Map<string, { body: string; result: unknown }>()
@@ -44,6 +44,9 @@ async function main() {
         permissions: permissions(), billing_access: { perpetual: paid }, budget: { allowed: budget },
       })
     }
+    if (url.pathname.endsWith('/authenticate_developer_oauth_request')) return Response.json(revoked ? { error: 'oauth_revoked' } : {
+      credential_id: credentialId, permissions: permissions(), redirect_origin: 'https://holofolder.com', owner_user_id: currentOwner,
+      member_ids: [currentOwner, currentActor], billing_access: { perpetual: paid }, budget: { allowed: budget } })
     if (url.pathname.endsWith('/resolve_developer_access')) return Response.json({ owner_user_id: currentOwner,
       member_ids: [currentOwner, currentActor], billing_access: { perpetual: paid }, budget: { allowed: budget } })
     if (url.pathname.endsWith('/storage_execute_v1')) {

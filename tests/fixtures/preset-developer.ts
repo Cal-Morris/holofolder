@@ -42,6 +42,8 @@ async function main() {
     if (table === "authenticate_developer_request") return Response.json({ actor_id: actor, credential_id: key.id,
       owner_user_id: resolvedOwner, member_ids: members, permissions, billing_access: { perpetual: paid }, budget: { allowed: budget } })
     if (table === "verify_developer_oauth_session") return Response.json(grant ? { id: grantId, permissions } : null)
+    if (table === "authenticate_developer_oauth_request") return Response.json(grant ? { credential_id: grantId, permissions, redirect_origin: "https://holofolder.com",
+      owner_user_id: resolvedOwner, member_ids: members, billing_access: { perpetual: paid }, budget: { allowed: budget } } : { error: "oauth_revoked" })
     if (table === "get_billing_access") return Response.json({ perpetual: paid })
     if (table === "resolve_developer_access") return Response.json({ owner_user_id: resolvedOwner, member_ids: members, billing_access: { perpetual: paid }, budget: { allowed: budget } })
     if (table === "consume_developer_preauth" || table === "consume_developer_request") return Response.json({ allowed: budget })
@@ -51,7 +53,7 @@ async function main() {
     operationQueries++
     return f.transport(input, init)
   }
-  mock.module("../../lib/server/developer-access/grants", () => ({ authenticateMcpToken: async () => context("mcp").principal }))
+  mock.module("../../lib/server/developer-access/grants", () => ({ verifyMcpToken: async () => ({ actorId: actor, clientId: oauth.clientId, sessionId: oauth.sessionId, grantId, expiresAt: oauth.expiresAt }) }))
   const { executeDeveloperOperation } = await import("../../lib/server/operations/developer-dispatch")
   const { handleRestRequest } = await import("../../lib/server/developer-access/http")
   const { handleMcpRequest } = await import("../../lib/server/mcp/http")

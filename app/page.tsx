@@ -7,6 +7,7 @@ import { getSessionUser } from "@/lib/supabase/session-user"
 import { resolveActiveBinder } from "@/lib/server/binders"
 import { ACTIVE_BINDER_COOKIE } from "@/lib/binders/model"
 import { getDefaultBinderSettings } from "@/lib/settings"
+import { withBinderLayout } from "@/lib/binder-layout"
 
 const THEME_COOKIE = "binderdex_theme"
 
@@ -45,13 +46,13 @@ async function loadServerBoot(searchParams: PageProps["searchParams"]): Promise<
   }
   const { binder: requestedId, binderSlug } = await searchParams
   const requested = typeof requestedId === "string" ? requestedId : typeof binderSlug === "string" ? binderSlug : null
-  const { binders, activeBinder } = await resolveActiveBinder(
-    supabase,
-    collectionOwnerUserId,
-    requested,
-    cookieStore.get(ACTIVE_BINDER_COOKIE)?.value ?? null,
-  )
-  const { settingsRow, settings, hasStoredSettings } = await loadBinderBootstrap(supabase, collectionOwnerUserId, activeBinder?.id ?? null)
+  // Settings don't depend on which binder opens; the binder list already carries each grid.
+  const [{ binders, activeBinder }, bootstrap] = await Promise.all([
+    resolveActiveBinder(supabase, collectionOwnerUserId, requested, cookieStore.get(ACTIVE_BINDER_COOKIE)?.value ?? null),
+    loadBinderBootstrap(supabase, collectionOwnerUserId),
+  ])
+  const { settingsRow, hasStoredSettings } = bootstrap
+  const settings = withBinderLayout(bootstrap.settings, activeBinder)
   const themeCookie = cookieStore.get(THEME_COOKIE)?.value
 
   return {
