@@ -1,2 +1,2 @@
 scope,lang,prefer,reason,decided
-*,en,reviewed>pokemoncom>tcgdex>pokemontcg>scrydex>tcgplayer,"Today's order in pickCardImageUrl (lib/card-image-sources.ts): a reviewed catalog image, then the official pokemon.com image, then TCGdex, then pokemontcg.io or Scrydex, then the TCGplayer product photo.",2026-11-11
+*,en,reviewed>tcgdex:en>pokemoncom>tcgdex>pokemontcg>scrydex>tcgplayer,"The app's default order (pickCardImageUrl in lib/card-image-sources.ts): a reviewed catalog image, then TCGdex's English print (600 × 825), then the official pokemon.com image (only 245 × 342, but English), then a TCGdex print in another language, then pokemontcg.io or Scrydex, then the TCGplayer product photo.",2026-11-11

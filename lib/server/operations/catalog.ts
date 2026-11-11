@@ -7,7 +7,7 @@ import { DeveloperAccessError } from '@/lib/developer-api/permissions'
 import { decodePage, encodeCursor } from '@/lib/developer-api/pagination'
 import { pickLocalizedText, buildTcgdexAssetImageUrl } from '@/lib/tcgdex-shared'
 import { readCatalogMetadata } from '@/lib/card-catalog'
-import { pickExternalCardImageUrl } from '@/lib/card-image-sources'
+import { pickCardImageUrl } from '@/lib/card-image-sources'
 import { parseCardSearchQuery } from '@/lib/pokemon-card-browse'
 import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query'
 import { createDeveloperImageResolver, type DeveloperImageResolver } from '@/lib/server/developer-images'
@@ -24,9 +24,10 @@ function record(value:unknown):Record<string,unknown> {return value && typeof va
 function text(value:unknown):string|null {return typeof value==='string'?value:null}
 function strings(value:unknown):string[] {return Array.isArray(value)?value.filter((x):x is string=>typeof x==='string'):[]}
 function cardSource(value:unknown,lang:CardLanguage) {
- const row=record(value),metadata=readCatalogMetadata(row.external_ids_json),available=strings(row.image_languages_json)
+ const row=record(value),available=strings(row.image_languages_json)
  const imageLanguage=available.includes(lang)?lang:available.find(l=>CARD_LANGUAGES.includes(l as CardLanguage))
- return metadata.image??(imageLanguage?buildTcgdexAssetImageUrl(imageLanguage,String(row.series_id),String(row.set_id),String(row.local_id)):pickExternalCardImageUrl(row.external_ids_json)??null)
+ const tcgdexImage=imageLanguage?buildTcgdexAssetImageUrl(imageLanguage,String(row.series_id),String(row.set_id),String(row.local_id)):null
+ return pickCardImageUrl(row.external_ids_json,imageLanguage??null,tcgdexImage,lang)??null
 }
 async function serializeCard(value:unknown,lang:CardLanguage,resolve:DeveloperImageResolver) {
  const row=record(value), set=record(row.tcg_sets),metadata=readCatalogMetadata(row.external_ids_json)

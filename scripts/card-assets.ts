@@ -19,7 +19,7 @@ import { AwsClient } from "aws4fetch"
 import { Client } from "pg"
 import { parseListedObjects, planBucketCopy, type ListedObject } from "../lib/card-assets/bucket-migration"
 import { pickCardImageUrl } from "../lib/card-image-sources"
-import { crossCheckAtlas, LEDGER_COLUMNS, ledgerRow, parseRules, parseSources, toCsv, imageCandidates, type AtlasData, type LedgerRow, type MirrorCardRow } from "../lib/card-assets/ledger"
+import { crossCheckAtlas, LEDGER_COLUMNS, ledgerRow, parseRules, parseSources, toCsv, type AtlasData, type LedgerRow, type MirrorCardRow } from "../lib/card-assets/ledger"
 import { getMirrorDatabaseUrl } from "../lib/card-db-sync"
 import { developerImageKey } from "../lib/developer-api/image-identity"
 import { loadProjectEnvFiles } from "../lib/load-project-env"
@@ -86,20 +86,16 @@ function ledgerFile(setId: string) {
 /** What the app serves today for this card (lib/tcg-mirror.ts calls pickCardImageUrl the same way). */
 function appImage(card: MirrorCardRow) {
   const imageLanguage = pickImageLanguage(card.image_languages_json, LANG)
-  return pickCardImageUrl(card.external_ids_json, imageLanguage, imageLanguage && buildTcgdexAssetImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id)) ?? ""
+  return pickCardImageUrl(card.external_ids_json, imageLanguage, imageLanguage && buildTcgdexAssetImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id), LANG) ?? ""
 }
 
-function summarize(cards: readonly MirrorCardRow[], ledgers: Map<string, LedgerRow[]>) {
+function summarize(ledgers: Map<string, LedgerRow[]>) {
   const rows = [...ledgers.values()].flat()
   const count = (pick: (row: LedgerRow) => string) => {
     const counts = new Map<string, number>()
     for (const row of rows) counts.set(pick(row), (counts.get(pick(row)) ?? 0) + 1)
     return Object.fromEntries([...counts].sort((a, b) => b[1] - a[1]))
   }
-  const englishHidden = cards.filter(card => {
-    const imageLanguage = pickImageLanguage(card.image_languages_json, LANG)
-    return imageLanguage !== null && imageLanguage !== "en" && imageCandidates(card, LANG).some(candidate => candidate.source === "pokemoncom")
-  }).length
   return {
     cards: rows.length,
     sets: ledgers.size,
@@ -110,7 +106,6 @@ function summarize(cards: readonly MirrorCardRow[], ledgers: Map<string, LedgerR
       foreignPrint: rows.filter(row => row.image_language && row.image_language !== LANG).length,
       retailPhoto: rows.filter(row => row.kind === "retail-photo").length,
     },
-    foreignPrintWithStoredEnglishOfficial: englishHidden,
   }
 }
 
@@ -126,7 +121,7 @@ async function plan() {
     for (const file of await readdir(ledgerDir)) if (file.endsWith(".csv") && !ledgers.has(file.slice(0, -4))) await rm(path.join(ledgerDir, file))
   }
   for (const [setId, rows] of ledgers) await writeFile(ledgerFile(setId), toCsv(LEDGER_COLUMNS, rows))
-  console.log(JSON.stringify(summarize(cards, ledgers), null, 2))
+  console.log(JSON.stringify(summarize(ledgers), null, 2))
 }
 
 async function verify() {

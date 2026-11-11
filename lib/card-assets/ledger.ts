@@ -52,8 +52,6 @@ export interface ImageCandidate {
   /** TCGdex image language; null for every other source. */
   language: string | null
   reviewed: boolean
-  /** False when the app would never show it (pokemon.com is skipped while TCGdex only has a foreign print). */
-  eligible: boolean
 }
 
 export const LEDGER_COLUMNS = ["card_id", "local_id", "name", "rule", "source", "kind", "image_language", "url", "alternatives"] as const
@@ -128,8 +126,10 @@ export function parseRules(text: string, sources: readonly AssetSource[]): Asset
     seen.add(`${scope} ${lang}`)
     const prefer = (row.prefer ?? "").split(">").map(id => id.trim()).filter(Boolean)
     if (!prefer.length) throw new Error(`${where}: prefer is empty`)
-    for (const id of prefer) {
-      if (id === REVIEWED) continue
+    for (const token of prefer) {
+      if (token === REVIEWED) continue
+      const [id, language] = token.split(":")
+      if (language !== undefined && !/^[a-z]{2}(-[a-z]{2,3})?$/.test(language)) throw new Error(`${where}: "${token}" must be <source> or <source>:<language>`)
       const source = byId.get(id)
       if (!source) throw new Error(`${where}: unknown source "${id}" (add it to sources.csv first)`)
       if (source.permission !== "none" && source.permission !== "granted") throw new Error(`${where}: source "${id}" has permission "${source.permission}" and can't be preferred`)
@@ -193,12 +193,11 @@ export function imageCandidates(card: MirrorCardRow, lang = "en"): ImageCandidat
   const add = (url: string | null | undefined, extra: Partial<ImageCandidate> = {}) => {
     if (!url) return
     const source = sourceIdForUrl(url)
-    if (source && !candidates.some(candidate => candidate.url === url)) candidates.push({ source, url, language: null, reviewed: false, eligible: true, ...extra })
+    if (source && !candidates.some(candidate => candidate.url === url)) candidates.push({ source, url, language: null, reviewed: false, ...extra })
   }
   add(readCatalogMetadata(externalIds).image, { reviewed: true })
   const imageLanguage = pickImageLanguage(card.image_languages_json, lang)
-  // pokemon.com is English only; the app shows it only when TCGdex has no image or an English one.
-  add(pickPokemonComImageUrl(externalIds), { eligible: imageLanguage === null || imageLanguage === "en" })
+  add(pickPokemonComImageUrl(externalIds))
   if (imageLanguage) add(buildTcgdexAssetImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id), { language: imageLanguage })
   add(pickTcgdexImageFromExternalIds(externalIds), { language: null })
   const pokemonTcg = asRecord(asRecord(externalIds)?.pokemon_tcg)
@@ -207,10 +206,14 @@ export function imageCandidates(card: MirrorCardRow, lang = "en"): ImageCandidat
   return candidates
 }
 
-/** The candidate a rule picks: the first preferred source that has an eligible image. */
+/**
+ * The candidate a rule picks: the first preferred token that matches. `tcgdex:en` matches only a TCGdex print in
+ * that language; a plain source id matches any of its images.
+ */
 export function chooseImage(candidates: readonly ImageCandidate[], prefer: readonly string[]) {
-  for (const id of prefer) {
-    const match = candidates.find(candidate => candidate.eligible && (id === REVIEWED ? candidate.reviewed : !candidate.reviewed && candidate.source === id))
+  for (const token of prefer) {
+    const [id, language] = token.split(":")
+    const match = candidates.find(candidate => id === REVIEWED ? candidate.reviewed : !candidate.reviewed && candidate.source === id && (language === undefined || candidate.language === language))
     if (match) return match
   }
   return null

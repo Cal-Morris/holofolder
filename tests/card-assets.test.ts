@@ -17,7 +17,7 @@ const POKEMONCOM = "https://assets.pokemon.com/static-assets/content-assets/cms2
 
 function appImage(row: MirrorCardRow) {
   const language = pickImageLanguage(row.image_languages_json, "en")
-  return pickCardImageUrl(row.external_ids_json, language, language && buildTcgdexAssetImageUrl(language, row.series_id, row.set_id, row.local_id)) ?? ""
+  return pickCardImageUrl(row.external_ids_json, language, language && buildTcgdexAssetImageUrl(language, row.series_id, row.set_id, row.local_id), "en") ?? ""
 }
 
 describe("card-assets csv", () => {
@@ -33,6 +33,7 @@ describe("card-assets rules", () => {
     assert.throws(() => parseRules("scope,lang,prefer\n*,en,tcgcollector\n", sources), /forbidden/)
     assert.throws(() => parseRules("scope,lang,prefer\n*,en,paradijs\n", sources), /needed/)
     assert.throws(() => parseRules("scope,lang,prefer\nsets:x,en,tcgdex\n", sources), /scope/)
+    assert.throws(() => parseRules("scope,lang,prefer\n*,en,tcgdex:English\n", sources), /<source>:<language>/)
     assert.throws(() => parseRules("scope,lang,prefer\n*,en,tcgdex\n*,en,malie\n", sources), /duplicate/)
   })
 
@@ -60,8 +61,9 @@ describe("card-assets rules", () => {
 describe("card-assets default rule matches what the app serves", () => {
   const cases: Array<[string, MirrorCardRow, string]> = [
     ["reviewed catalog image wins", card({ image_languages_json: ["en"], external_ids_json: { catalog: { image: "https://product-images.tcgplayer.com/123456.jpg" }, pokemoncom: { image: POKEMONCOM } } }), "tcgplayer"],
-    ["official pokemon.com beats an English TCGdex image", card({ image_languages_json: ["en"], external_ids_json: { pokemoncom: { image: POKEMONCOM } } }), "pokemoncom"],
-    ["a foreign-only TCGdex print hides pokemon.com", card({ image_languages_json: ["it", "de"], external_ids_json: { pokemoncom: { image: POKEMONCOM } } }), "tcgdex"],
+    ["TCGdex's English print beats the smaller pokemon.com image", card({ image_languages_json: ["en"], external_ids_json: { pokemoncom: { image: POKEMONCOM } } }), "tcgdex"],
+    ["the English pokemon.com image beats a foreign TCGdex print", card({ image_languages_json: ["it", "de"], external_ids_json: { pokemoncom: { image: POKEMONCOM } } }), "pokemoncom"],
+    ["a foreign TCGdex print beats the remaining fallbacks", card({ image_languages_json: ["de"], external_ids_json: { tcgdex: { thirdParty: { tcgplayer: "111" } } } }), "tcgdex"],
     ["no TCGdex image: pokemon.com before the recorded TCGdex image", card({ external_ids_json: { pokemoncom: { image: POKEMONCOM }, tcgdex: { image: "https://assets.tcgdex.net/en/test/test1/001" } } }), "pokemoncom"],
     ["pokemon_tcg fields can point at Scrydex", card({ external_ids_json: { pokemon_tcg: { imageLarge: "https://images.scrydex.com/pokemon/test1-1/large" } } }), "scrydex"],
     ["TCGplayer id from a variant", card({ external_ids_json: { tcgdex: { variantThirdParty: [{ tcgplayer: 654321 }] } } }), "tcgplayer"],
@@ -77,8 +79,23 @@ describe("card-assets default rule matches what the app serves", () => {
 
   test("alternatives list every other known image", () => {
     const row = card({ image_languages_json: ["it"], external_ids_json: { pokemoncom: { image: POKEMONCOM }, tcgdex: { thirdParty: { tcgplayer: "111" } } } })
-    assert.equal(ledgerRow(row, rules, sources).alternatives, "pokemoncom tcgplayer")
-    assert.equal(chooseImage(imageCandidates(row), ["pokemoncom"]), null, "an ineligible candidate is never chosen")
+    assert.equal(ledgerRow(row, rules, sources).alternatives, "tcgdex:it tcgplayer")
+  })
+
+  test("a language-qualified token only matches that TCGdex print", () => {
+    const row = card({ image_languages_json: ["it"] })
+    assert.equal(chooseImage(imageCandidates(row), ["tcgdex:en"]), null)
+    assert.equal(chooseImage(imageCandidates(row), ["tcgdex:it"])?.language, "it")
+    assert.equal(chooseImage(imageCandidates(row), ["tcgdex"])?.language, "it")
+  })
+
+  test("a published image overrides the default order in the app, and only for its language", () => {
+    const published = "https://assets.tcgdex.net/en/test/test1/001/high.webp"
+    const row = card({ image_languages_json: ["en"], external_ids_json: { assets: { en: { image: "https://product-images.tcgplayer.com/222.jpg", source: "tcgplayer" } }, pokemoncom: { image: POKEMONCOM } } })
+    assert.equal(appImage(row), "https://product-images.tcgplayer.com/222.jpg")
+    assert.equal(pickCardImageUrl(row.external_ids_json, "en", published, "fr"), published)
+    const unsafe = card({ image_languages_json: ["en"], external_ids_json: { assets: { en: { image: "https://evil.example/x.png" } } } })
+    assert.equal(appImage(unsafe), buildTcgdexAssetImageUrl("en", "test", "test1", "001"))
   })
 })
 
