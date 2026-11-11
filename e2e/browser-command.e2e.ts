@@ -213,12 +213,14 @@ test("terminal rejection persists through reload and refresh failure, then expli
   await page.goto(entry); await edit(page)
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("conflict")
   await page.reload()
-  await expect(page.getByRole("button", { name: "Refresh current storage" })).toBeVisible()
+  // A change the server turned down asks what to do. Until the collection has been read again, the only
+  // choice is to check it; keeping the collection as it is comes after that read.
+  await expect(page.getByRole("button", { name: "Check my collection" })).toBeVisible()
   expect((await record(page))?.receipts).toHaveLength(0)
-  await expect(page.getByRole("button", { name: "Use current storage" })).not.toBeVisible()
+  await expect(page.getByRole("button", { name: "Keep my collection as it is" })).not.toBeVisible()
   rejectRead = false
-  await page.getByRole("button", { name: "Refresh current storage" }).click()
-  const useCurrent = page.getByRole("button", { name: "Use current storage" })
+  await page.getByRole("button", { name: "Check my collection" }).click()
+  const useCurrent = page.getByRole("button", { name: "Keep my collection as it is" })
   await expect(useCurrent).toBeVisible()
   const h = new Harness(page, insets, true)
   await h.expectMinTapTarget(useCurrent); await h.expectHittable(useCurrent); await h.expectNoHorizontalOverflow()
