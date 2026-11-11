@@ -26,7 +26,7 @@ import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useRouter } from "next/navigation"
 import { WifiOff } from "lucide-react"
 import { type PokemonSearchResultMeta } from "@/components/pokemon-search"
-import { closeAllOverlays, runAfterOverlayHistory, useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
+import { closeAllOverlays, runAfterOverlayHistory, useOpenOverlayCount, useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { inferCardFinish } from "@/lib/pokemon-card-browse"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
 import { PartnerPushPrompt } from "@/components/partner-push-prompt"
@@ -162,6 +162,11 @@ export default function BinderApp(props: BinderAppProps) {
   const scope = browserScope.scope
   const [completedSession, setCompletedSession] = useState<string | null>(null)
   const [displayedSession, setDisplayedSession] = useState<string | null>(null)
+  // The saved copy is a separate tree from the live session, so swapping it out unmounts whatever is
+  // open on it (Settings opened during a reload's account check closed itself). Wait until nothing is open.
+  const [paintableSession, setPaintableSession] = useState<string | null>(null)
+  const openOverlays = useOpenOverlayCount()
+  if (paintableSession && openOverlays === 0 && displayedSession !== paintableSession) setDisplayedSession(paintableSession)
   const [startupError, setStartupError] = useState("")
   const [resetting, setResetting] = useState(false)
   const [startupOnline, setStartupOnline] = useState(true)
@@ -220,7 +225,7 @@ export default function BinderApp(props: BinderAppProps) {
   // so a reload goes skeleton or saved copy → binder once, never saved copy → skeleton → binder.
   const sessionDisplayed = Boolean(session && displayedSession === session.sessionId)
   return <>{!sessionDisplayed && placeholder}{session && <BrowserCollectionSession displayed={sessionDisplayed}
-    onReady={() => setCompletedSession(session.sessionId)} onDisplay={setDisplayedSession} onStartupFailure={failStartup} scope={session} currentScope={browserScope.currentScope} initialBinderId={props.initialBinderId ?? null} binders={props.initialBinders}
+    onReady={() => setCompletedSession(session.sessionId)} onDisplay={setPaintableSession} onStartupFailure={failStartup} scope={session} currentScope={browserScope.currentScope} initialBinderId={props.initialBinderId ?? null} binders={props.initialBinders}
     localHarness={admission.evidence === "synthetic-local-only"} renderFallback={() => <p role="status">Device storage is unavailable. Enable storage and reopen the app. Pending edits have not been removed.</p>}
     renderSurface={binding => {
       const context = binding.surface.state.main === "collection" ? binding.surface.collection : null
