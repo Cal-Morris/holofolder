@@ -38,7 +38,8 @@ import {
 } from 'react';
 import dashboardStyles from '@/components/dashboard-binder-preview.module.css';
 import { BillingContext, useBilling } from '@/hooks/use-billing';
-import { CardDataAttribution } from '@/components/card-data-attribution';
+import { CreditsNotice } from '@/components/credits';
+import type { SettingsPageId } from '@/components/settings-modal';
 import { useRouter } from 'next/navigation';
 import { WifiOff } from 'lucide-react';
 import { type PokemonSearchResultMeta } from '@/components/pokemon-search';
@@ -883,14 +884,14 @@ function BinderAppSurface(props: BinderAppProps) {
 
     return buildBinderShareUrl(window.location.origin, sharePath);
   }, [sharePath]);
-  const [pushSettingsRequested, setPushSettingsRequested] = useState(false);
+  const [requestedSettingsPage, setRequestedSettingsPage] = useState<SettingsPageId | null>(null);
   useCollectorAppOpen(user?.id ?? null, !readOnlyMode);
   const requestUpgrade = useCallback(() => {
     closeAllOverlays();
     setSelectedPokemon(null);
-    setPushSettingsRequested(true);
+    setRequestedSettingsPage('notifications');
     runAfterOverlayHistory(() => setIsSettingsOpen(true));
-  }, [setIsSettingsOpen, setPushSettingsRequested, setSelectedPokemon]);
+  }, [setIsSettingsOpen, setRequestedSettingsPage, setSelectedPokemon]);
   const billing = useBilling(
     accountSettingsReadOnly ? null : (user?.id ?? null),
     resolvedCollectionOwnerUserId,
@@ -4501,7 +4502,7 @@ function BinderAppSurface(props: BinderAppProps) {
               userId={user.id}
               onOpen={() =>
                 openExclusively(() => {
-                  setPushSettingsRequested(true);
+                  setRequestedSettingsPage('notifications');
                   setIsSettingsOpen(true);
                 })
               }
@@ -4583,7 +4584,7 @@ function BinderAppSurface(props: BinderAppProps) {
             binderId={shareBinderId}
             binderName={browserSurface ? shareTarget?.name : activeBinder?.name}
             onPublicIdentityChange={handlePublicIdentityChange}
-            initialPage={pushSettingsRequested ? 'notifications' : undefined}
+            initialPage={requestedSettingsPage ?? undefined}
             backupReady={!readOnlyMode && !binderAppearance.loading}
             onDownloadBackup={async () => {
               if (readOnlyMode) throw new Error('Backups are only available in your own binder.');
@@ -4604,7 +4605,7 @@ function BinderAppSurface(props: BinderAppProps) {
             isOpen={isSettingsOpen}
             onClose={() => {
               setIsSettingsOpen(false);
-              setPushSettingsRequested(false);
+              setRequestedSettingsPage(null);
             }}
             user={user}
             settings={settings}
@@ -4825,7 +4826,14 @@ function BinderAppSurface(props: BinderAppProps) {
           )}
 
           <footer className="border-border/20 bg-background/80 text-muted-foreground/60 safe-area-bottom hidden shrink-0 border-t px-4 py-1 text-center text-[9px] leading-snug md:block">
-            <CardDataAttribution compact />
+            <CreditsNotice
+              onOpenCredits={() =>
+                openExclusively(() => {
+                  setRequestedSettingsPage('credits');
+                  setIsSettingsOpen(true);
+                })
+              }
+            />
           </footer>
         </main>
       </CollectionActivityProvider>

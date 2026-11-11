@@ -10,7 +10,7 @@ The UI craft skills listed in [`.agents/skills/EMIL-SOURCE.md`](.agents/skills/E
 
 Card data is retrieved from [TCGdex](https://github.com/tcgdex/cards-database), [Pokémon TCG data](https://github.com/PokemonTCG/pokemon-tcg-data), [TCGCSV](https://tcgcsv.com) and other configured providers. TCGdex publishes its database under the [MIT license](https://github.com/tcgdex/cards-database/blob/master/LICENSE). The complete [TCGdex MIT notice](LICENSES/TCGdex-MIT.txt) is retained here. Preserve the applicable upstream notices when redistributing data; do not assume every provider has the same terms.
 
-Pokémon, card names, card text and card artwork belong to their respective rights holders, including The Pokémon Company, Nintendo, Creatures and GAME FREAK. Data or software licenses do not grant a license to card artwork. Holo Folder is unaffiliated with those companies. The app's [card attribution](components/card-data-attribution.tsx) must remain visible.
+Pokémon, card names, card text and card artwork belong to their respective rights holders, including The Pokémon Company, Nintendo, Creatures and GAME FREAK. Data or software licenses do not grant a license to card artwork. Holo Folder is unaffiliated with those companies. The app's [credits](components/credits.tsx) must stay reachable (Settings → Credits & attributions, and `/app/credits`), and its one-line affiliation notice must stay visible where card images are shown.
 
 The tracked `public/binder-presets/magikarp.png` and `public/binder-presets/mew.png` are previews using these printings:
 
@@ -54,7 +54,7 @@ Provider access and hosted infrastructure are not included with the source. Self
 | Official game renders    | [malie.io](https://malie.io/static/), which publishes the card images from the Pokémon TCG Live and Pokémon TCG Online clients. Thank you to malie for keeping them online.                  | Per-card matches in `card-assets/pokemon/tcg/discovered/malie.csv`, set mapping in `card-assets/pokemon/tcg/malie-sets.csv` |
 | Supplemental card scans  | [TCGplayer](https://www.tcgplayer.com), [Pokémon TCG API](https://pokemontcg.io), [Scrydex](https://scrydex.com), [Limitless TCG](https://limitlesstcg.com), [Playshop](https://playshop.fr) | Host allowlist and deterministic source mapping in `lib/card-image-sources.ts`                                              |
 
-Which source each card's image comes from is recorded in [`card-assets/`](card-assets/AGENTS.md). Its source classification (kind of image, size, permission) follows the [PTCG Image Atlas](https://github.com/nstrelow/ptcg-image-atlas) by Luna, whose `data.json` is copied in `card-assets/pokemon/tcg/atlas/` under the MIT licence (`card-assets/pokemon/tcg/atlas/LICENSE`).
+Which source each card's image comes from is recorded in [`card-assets/`](card-assets/AGENTS.md). Its source classification (kind of image, size, permission) follows the [PTCG Image Atlas](https://nstrelow.github.io/ptcg-image-atlas/) by Luna ([source on GitHub](https://github.com/nstrelow/ptcg-image-atlas)), whose `data.json` is copied in `card-assets/pokemon/tcg/atlas/` under the MIT licence (`card-assets/pokemon/tcg/atlas/LICENSE`).
 
 These images are not covered by AGPL, the TCGdex database MIT license or the PokeAPI software license. Credit to a hosting provider does not transfer the underlying Pokémon artwork rights. Review provider terms before enabling mirroring or distributing image bundles.
 

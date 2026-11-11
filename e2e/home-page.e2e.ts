@@ -15,7 +15,9 @@ test('homepage keeps real cards, app entry and studio navigation', async ({ page
   const fan = page.getByRole('region', { name: 'Featured Pokémon cards' });
   await expect(fan.getByRole('img', { name: 'Bulbasaur, 151, 166 / 165' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Try the binder studio' })).toHaveAttribute('href', '/app/studio');
-  await expect(page.getByTestId('card-data-attribution')).toBeVisible();
+  const notice = page.getByTestId('credits-notice');
+  await expect(notice).toContainText('Not affiliated with Nintendo or The Pokémon Company');
+  await expect(notice.getByRole('link', { name: 'Credits & attributions' })).toHaveAttribute('href', '/app/credits');
   await expect(page.getByRole('heading', { name: /What’s that.*card worth/ })).toBeVisible();
   for (const name of ['Check the sources.', 'See how prices move.', 'Keep an eye on wanted cards.']) {
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();

@@ -10,7 +10,7 @@ import { AccountPasskeys } from '@/components/account-passkeys';
 import { AccountIdentitySettings } from '@/components/account-identity-settings';
 import { PartnerPushSettings } from '@/components/partner-push-settings';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { CardDataAttribution } from '@/components/card-data-attribution';
+import { Credits } from '@/components/credits';
 import { PublicNameSettings } from '@/components/public-name-settings';
 import { PricingPreferencesSettings } from '@/components/pricing-preferences-settings';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
@@ -40,6 +40,7 @@ import {
   ChevronRight,
   ChevronLeft,
   LogIn,
+  Info,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -69,7 +70,8 @@ export type SettingsPageId =
   | 'notifications'
   | 'offline'
   | 'backup'
-  | 'developer';
+  | 'developer'
+  | 'credits';
 
 interface SettingsRow {
   id: SettingsPageId;
@@ -309,6 +311,11 @@ export default function SettingsModal({
       label: 'Advanced',
       quiet: true,
       rows: [{ id: 'developer', title: 'Developer', icon: Code2, visible: signedInAccount }],
+    },
+    {
+      label: 'About',
+      quiet: true,
+      rows: [{ id: 'credits', title: 'Credits & attributions', icon: Info, visible: true }],
     },
   ];
   const rows = groups.flatMap((group) => group.rows);
@@ -863,6 +870,8 @@ export default function SettingsModal({
         );
       case 'developer':
         return user && <DeveloperSettings key={`developer-${user.id}`} isOnline={isOnline} />;
+      case 'credits':
+        return <Credits />;
     }
   };
 
@@ -971,7 +980,6 @@ export default function SettingsModal({
               <p className="text-muted-foreground text-center text-xs">
                 Holo Folder helps you organize your Pokemon card collection by National Dex number.
               </p>
-              <CardDataAttribution className="border-border/60 text-muted-foreground/80 border-t pt-3 text-center text-[11px] leading-snug" />
             </div>
           </div>
 

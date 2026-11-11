@@ -174,7 +174,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
   - Price signals (Rising, Breakout, buy signals) are **confidence-gated**: high or medium only, never on low or unknown confidence.
   - Test fixtures must be clearly labelled as synthetic.
 - **Images:**
-  - Respect the licensing notes. TCGdex's MIT licence covers data, not card images (© The Pokémon Company, Nintendo, Creatures, GAME FREAK), so keep the attribution in `components/card-data-attribution.tsx`.
+  - Respect the licensing notes. TCGdex's MIT licence covers data, not card images (© The Pokémon Company, Nintendo, Creatures, GAME FREAK), so keep the credits in `components/credits.tsx` (Settings → Credits & attributions and `/credits`) and the one-line notice wherever it is shown.
   - Only mirror `assets.tcgdex.net` card images.
   - Stay within the **R2 free tier** (10 GB-month storage, 1M Class A and 10M Class B operations per month) and keep the backfill budgets.
 - **Shared domain types live in `lib/domain/`**, and pricing types in `lib/card-pricing.ts`. Don't redeclare them in hooks or components.

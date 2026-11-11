@@ -80,7 +80,15 @@ test('signed-out visitors to the binder are sent to sign-in', () => {
 
 test('signed-in visitors and other paths are not redirected', () => {
   assert.equal(getSignedOutRedirectPath('/', true), null);
-  for (const pathname of ['/home', '/auth/login', '/app-shell', '/share/abc', '/e2e-harness', '/api/card-prices']) {
+  for (const pathname of [
+    '/home',
+    '/credits',
+    '/auth/login',
+    '/app-shell',
+    '/share/abc',
+    '/e2e-harness',
+    '/api/card-prices',
+  ]) {
     assert.equal(getSignedOutRedirectPath(pathname, false), null, pathname);
   }
 });
