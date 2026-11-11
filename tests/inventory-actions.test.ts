@@ -97,7 +97,6 @@ test("occupied assignment requires a deliberate decision and retains both exact 
 test("swap with recorded graded destination preserves private metadata, wants and targets", () => {
   const { inventory, resolve } = setup()
   inventory.items[1].grading!.certificate = "PRIVATE-CERT"
-  inventory.items[1].legacySource = { synthetic: ["original", null] }
   inventory.items[1].acquiredAt = "2026-01-02T00:00:00Z"
   inventory.binders[0].slots[1].wantedCards = [{ card_id: "synthetic-snorlax-b", card_name: "Synthetic Snorlax", added_at: "2026-01-01T00:00:00Z", wanted_by: ["00000000-0000-4000-8000-000000000001"] }]
   const before = structuredClone(inventory)
@@ -144,7 +143,6 @@ for (const provider of [{ kind: "known", id: "psa" }, { kind: "custom", name: "S
   const item = inventory.items.find(i => i.id === "unassigned-grade")!
   item.grading = { provider, grade: "09.5", scale: "Synthetic scale", designation: "Synthetic qualifier", subgrades: [{ name: "Centering", grade: "09" }], certificate: "PRIVATE-CERT", holder: "Synthetic holder", label: { variant: "PRIVATE-LABEL", assetIds: ["PRIVATE-ASSET"] } }
   item.acquiredAt = "2026-01-02T00:00:00Z"
-  item.legacySource = { original: ["00007", null] }
   const before = structuredClone(inventory)
   const assign = prepareInventoryAction(inventory, { kind: "place", itemId: item.id, collectionId: inventory.collections[0].id, slotId: "slot-e" }, context, resolve)
   assert.deepEqual(assign.preview.items, before.items)

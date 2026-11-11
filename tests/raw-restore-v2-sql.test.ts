@@ -297,7 +297,7 @@ async function complete(db: Client) {
     }
   }
   const items = (await all('inventory_items', 'id')).map(r => ({ id: r.id, ownerUserId: owner, identity: r.identity, grading: r.grading,
-    acquiredAt: r.acquired_at?.toISOString() ?? null, legacySource: r.legacy_source, version: Number(r.version) }))
+    acquiredAt: r.acquired_at?.toISOString() ?? null, version: Number(r.version) }))
   const placements = (await all('inventory_placements', 'inventory_item_id')).map(r => ({ inventoryItemId: r.inventory_item_id, collectionId: r.collection_id, slotId: r.slot_id, version: Number(r.version) }))
   const roots = await all('storage_collection_state', 'collection_id'), bs = await all('binders', 'id'), slots = await all('binder_slots', 'collection_id,position')
   const collections = roots.map(r => ({ id: r.collection_id, ownerUserId: owner, name: bs.find(b => b.id === r.collection_id)!.name, kind: r.kind,

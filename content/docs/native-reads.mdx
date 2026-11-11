@@ -25,7 +25,7 @@ Use `limit` from 1 to 100. Keep filters, limit and credential unchanged when fol
 
 Every result declares `projection:"developer-native-v1"`, `completeSnapshot:false`, `inventoryRevision` and `readRevision`. Pages are not complete owner snapshots or fresh-read browser queue acknowledgements. Private complete browser reads use cookie/RLS authority through their separate first-party transport, never a service-role snapshot sent to the browser.
 
-Current credential revocation, owner/membership change and entitlement loss fail closed. Mixed legacy/native owners, uninitialized inventories, incomplete reads and unavailable schema return honest errors. Missing records return `404`; there is no fallback to frozen legacy data.
+Current credential revocation, owner/membership change and entitlement loss fail closed. Uninitialized inventories, malformed rows and unavailable schema return honest errors. Missing records return `404`.
 
 ## Other supported and unsupported scopes
 

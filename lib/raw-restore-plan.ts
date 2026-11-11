@@ -38,7 +38,7 @@ export function planRawContentRestore(input: {
     || !backup.layouts || backupContentKey(backup.layouts.map(({ layoutRevision: _revision, ...l }) => l)) !== backupContentKey(input.layouts.filter(l => l.collectionId === collectionId).map(({ layoutRevision: _revision, ...l }) => l))
     || backupContentKey(input.choices.slotIds) !== backupContentKey(binder.slots.map(s => s.id))
     || backupContentKey(sourceBinder.slots.map(s => s.id).sort()) !== backupContentKey([...input.choices.slotIds].sort())
-    || sourceBinder.slots.some(s => backupContentKey(s.legacySource ?? null) !== backupContentKey(binder.slots.find(b => b.id === s.id)?.legacySource ?? null) || backupContentKey(s.presetOrigin) !== backupContentKey(binder.slots.find(b => b.id === s.id)?.presetOrigin))) return fail()
+    || sourceBinder.slots.some(s => backupContentKey(s.presetOrigin) !== backupContentKey(binder.slots.find(b => b.id === s.id)?.presetOrigin))) return fail()
   const desired = hydrateBackupSnapshot(backup, current.ownerUserId, input.evidence.partnerUserId ?? undefined)
   const desiredIds = new Set(desired.placements.map(p => p.inventoryItemId))
   const touched = new Set([...desiredIds, ...current.placements.filter(p => p.collectionId === collectionId).map(p => p.inventoryItemId)])
@@ -46,9 +46,8 @@ export function planRawContentRestore(input: {
   for (const id of [...touched].sort()) {
     const item = current.items.find(i => i.id === id), original = desired.items.find(i => i.id === id)
     const placement = current.placements.find(p => p.inventoryItemId === id)
-    if (!item || item.grading !== null || item.legacySource != null && !binder.slots.some(s => s.legacySource?.legacyRowId === id
-      && backupContentKey(s.legacySource.sourceRow) === backupContentKey(item.legacySource)) || placement && placement.collectionId !== collectionId) return fail()
-    if (original && (original.grading !== null || backupContentKey(original.legacySource ?? null) !== backupContentKey(item.legacySource ?? null) || backupContentKey(original.identity) !== backupContentKey(item.identity)
+    if (!item || item.grading !== null || placement && placement.collectionId !== collectionId) return fail()
+    if (original && (original.grading !== null || backupContentKey(original.identity) !== backupContentKey(item.identity)
       || original.acquiredAt !== item.acquiredAt)) return fail()
     const slot = placement ? binder.slots.find(s => s.id === placement.slotId)! : null
     items.push({ itemId: id, itemVersion: item.version, placement: placement && slot ? { collectionId, slot: {
@@ -59,7 +58,7 @@ export function planRawContentRestore(input: {
   if (backupContentKey([...input.choices.releaseItemIds].sort()) !== backupContentKey(releases)) return fail()
   if (rawRestoreSavedEntries(desired.binders[0].slots) - rawRestoreSavedEntries(binder.slots) > input.savedEntryRemaining) return fail()
   const slotOrder = { before: binder.slots.map(s => s.id), after: sourceBinder.slots.map(s => s.id) }
-  const converted = binder.presetManifest?.source.version === 'legacy-v1' || binder.slots.some(s => s.legacySource != null) || items.some(r => current.items.find(i => i.id === r.itemId)?.legacySource != null)
+  const converted = binder.presetManifest?.source.version === 'legacy-v1'
   const reordered = backupContentKey(slotOrder.before) !== backupContentKey(slotOrder.after)
   const request = parseRawRestoreCommand({ version: converted ? 4 : reordered ? 3 : 2, ...((converted || reordered) ? { slotOrder } : {}), manifest: binder.presetManifest, operationId: input.operationId, inventoryRevision: current.inventoryRevision,
     configuration: { name: collection.name, kind: collection.kind, defaultPresentation: collection.defaultPresentation, location: collection.location ?? null,
@@ -67,7 +66,7 @@ export function planRawContentRestore(input: {
     planning: input.evidence, collection: { collectionId, version: collection.version, layoutRevision: binder.layoutRevision },
     slots: binder.slots.map(s => {
       const ref = items.find(i => i.itemId === s.inventoryItemId)
-      const { ownerUserId: _owner, collectionId: _collection, version: _version, legacySource: _legacy, ...after } = desired.binders[0].slots.find(d => d.id === s.id)!
+      const { ownerUserId: _owner, collectionId: _collection, version: _version, ...after } = desired.binders[0].slots.find(d => d.id === s.id)!
       return { before: { id: s.id, version: s.version, inventoryItemId: s.inventoryItemId, itemVersion: ref?.itemVersion ?? null,
         placementVersion: ref?.placement?.slot.placementVersion ?? null }, after }
     }), items, releaseItemIds: releases })

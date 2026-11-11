@@ -1,54 +1,26 @@
 # Internal authenticated complete inventory reads
 
-`lib/server/inventory-read.ts` adds `readOwnerInventorySnapshot(client?, options?)` for the #376 read prerequisite of #363 and later #361/#365/#379 bootstrap. It returns the existing branded `CompleteInventorySnapshot`, never a page advertised as a complete owner view. No route, REST/MCP operation, OpenAPI schema, public-share capability, conversion or mutation is added. The narrow authenticated grid-read RPC/grant in 086 is documented below. All staged routes remain unconditional private/no-store 503, and the fourteen 074/075 SQL prototypes remain runtime-denied. Legacy collection APIs and startup remain authoritative.
+`lib/server/inventory-read.ts` exposes `readOwnerInventoryState(client?)` and `readOwnerInventorySnapshot(client?)`. They return the branded `CompleteInventorySnapshot`, the navigation evidence (catalog and grids) and the read scope. `GET /api/inventory` (`lib/server/inventory-read-http.ts`) serves the same result as the private v2 envelope.
 
-## Authentication and private boundary
+## One call, one snapshot (migration 107)
 
-With no client argument, the helper creates the standard request cookie/RLS Supabase server client. Trusted server code can supply that same request-scoped client. Never pass an admin client, a browser-provided client, or HTTP input as options. There are no owner/actor arguments: verified first-party claims plus `auth.getUser()` bind the actor, the current partnership binds the owner, and `billing_partner_allowed(owner_id, actor_id)` must explicitly succeed before storage reads. Missing permission/billing schema fails closed. Multiple or malformed memberships fail closed. Actor, owner, partnership and billing are checked again before publication; an unlink, owner switch or permission loss cannot return the earlier shared snapshot.
+The read is a single PostgREST call to `inventory_read_v2()`. It is `STABLE`, so every query inside it sees the same MVCC snapshot: counts, revisions and rows can't tear, and there are no fences, retries or request budgets in the app.
 
-This is standard app owner/partner access under 073 authenticated SELECT/RLS. It does **not** impose the paid developer entitlement on the app, accept an API key, authorize an MCP OAuth client, or reuse a shape-valid `OperationContext` as proof of authentication. OAuth `client_id` sessions are rejected. Future REST/MCP reads still require the existing current grant/permission, developer entitlement, scope binding and safe projection boundary. Do not call this private reader from the developer dispatcher as a substitute for those checks.
+- `inventory_read_scope_v2()` (SECURITY DEFINER) checks the caller: the `authenticated` role, `sub` matching `auth.uid()`, no OAuth `client_id`, a live `auth.sessions` row for the JWT `session_id`, and a user that isn't deleted or banned. It then resolves the partnership (more than one is unavailable, a malformed one is forbidden), checks `billing_partner_allowed(owner, actor)` and picks the owner. A billing-paused partner reads their own collection; an owner is never paused into a fallback. It also returns the owner's grid settings, which a partner can't read under `user_settings` RLS.
+- `inventory_snapshot_v2(owner, 'all')` (SECURITY INVOKER, so RLS still decides what the caller sees) returns the owner revision, collections (binder and storage state joined, each with its ordered slots), items, placements, and the public mirror rows for every card id the snapshot names: exact `tcg_cards` ids first, then catalog canonical or alias ids (indexed in 103), plus their dex links and sets.
 
-The result contains owner-authorized recorded grading/certificate/holder metadata and opaque private label asset IDs, needed by internal plans. It is not a public/share/developer API response or a certificate-publication policy. No provider lookup/verification, grade conversion, catalog enrichment, signed artwork URL generation, recovery state, command evidence, conversion receipt, frozen legacy source or credential/token projection occurs. Selects enumerate actual required fields; no `select('*')` is used. Unknown printings, repeated Pokémon, Trainers/Energy identities, and recorded grades survive without guessed catalog facts or manufactured copies.
+The app still normalizes every row with the domain normalizers (`lib/server/inventory-read-core.ts`), builds the catalog evidence in `lib/server/inventory-read-catalog.ts`, and brands the result only after the shared owner-wide item/placement/slot bijection check in `readCompleteInventorySnapshot`. Legacy provenance (`binder_legacy_rows`, `inventory_items.legacy_source`) is never read or returned.
 
-## Actual table reads and mapping
+An absent owner state is a complete revision zero only when the same snapshot holds no collections, items or placements; otherwise it's `inventory_not_initialized`. A binder without its native storage row (or the reverse) is also `inventory_not_initialized`.
 
-All requests use the existing Supabase PostgREST client, never a handler PostgreSQL connection or denied `slot_page_v1` RPC.
-
-| Source | Projection and completeness | Internal domain mapping |
+| Code | Status | Meaning |
 | --- | --- | --- |
-| `inventory_owner_state` | authenticated owner, `owner_user_id,inventory_revision` | one safe-integer owner revision |
-| `partnerships` / `billing_partner_allowed` | actual current actor membership and allowed policy result | authenticated scope only, excluded from snapshot |
-| `binders` | owner-scoped exact count, unique `id` keyset, `id,owner_user_id,name` | saved collection name, cross-check every storage state |
-| `storage_collection_state` | owner-scoped exact count, unique `collection_id` keyset; kind, presentation, version, layout, preset, authority | `StorageCollection.version`, `BinderSnapshot.layoutRevision`, saved preset manifest |
-| `inventory_items` | exact count and unique `id` keyset; identity, grading, acquisition time, content version | existing `normalizeInventoryItem` |
-| `inventory_placements` | exact count and unique `inventory_item_id` keyset; collection, slot, placement version | existing `normalizePlacement`; no placement means Unassigned |
-| `binder_slots` | per-collection exact count, unique increasing `position` keyset, plus owner-wide count fence | existing `normalizeBinderSlot`; ordered slots with target/wants/status/content version and saved preset origin; occupancy comes only from the complete placement stream |
+| `inventory_sign_in_required` | 401 | no current first-party session (including anonymous callers, who aren't granted the function) |
+| `inventory_read_forbidden` | 403 | membership or billing access refused |
+| `inventory_not_initialized` | 503 | stored rows without a native owner root, or a half-initialized collection |
+| `inventory_read_unavailable` | 503 | anything else, including malformed rows; raw database messages never cross this boundary |
 
-Pages are limited to 500, below PostgREST's 1,000-row cap. Text keysets use PostgreSQL's ordering/collation. Positions use the schema's unique `(collection_id, position)` constraint. Counts come from separate `select(..., {count: 'exact', head: true})` requests; they are internal completeness assertions, **not additions to the 074 SQL or supported public REST/MCP contract**; the private transport below retains them as independent evidence. Independent item, placement, slot-content, collection and layout versions are retained; none is substituted for the owner revision.
-
-For each collection, the permitted table reader produces the actual 074 `SlotPage` continuation shape (`inventoryRevision`, `collectionVersion`, `layoutRevision`, `slots`, `nextPosition`). `readAllSlotPages` checks the tokens and all ordered pages before mapping. It does not invoke the denied function or claim its raw private SQL projection is public. An early empty page, changing count, repeated ID/cursor, nonincreasing position, capacity violation or invalid normalized record rejects the read.
-
-The complete placement stream is validated and retained inside the attempt to project occupied slots, then supplied to the shared four-stream validator alongside the actual paged item/collection/binder readers. `readCompleteInventorySnapshot` enforces the owner-scoped item/placement/slot bijection and collection coverage. Its optional internal `beforeBrand` fence runs after normalization and before branding. The server fence rechecks item/placement/slot counts, the complete binder/storage metadata, owner revision and authenticated scope. A partial or mixed-time value never escapes or becomes an acknowledged queue base.
-
-This consistency proof relies on all accepted inventory mutations atomically increasing the monotonic owner revision, and collection/layout/content versions according to 074/075. It is a read fence across separate PostgREST requests, not a long-running database snapshot transaction. Direct out-of-contract privileged writes that do not update these revisions are outside this guarantee. Snapshot freshness is at the successful final fence; later partner edits require the normal next reconciliation.
-
-## Honest states, retry and errors
-
-An absent owner state may return genuine complete revision zero only after exact owner-scoped counts prove no binders, legacy `pokemon_collection` rows, storage state, inventory items, slots, placements or source mappings. Root absence is fenced separately from revision zero through final publication; concurrent creation conflicts/retries. Claims, server session, membership, billing and freshness checks remain mandatory. Failed, denied, missing-table or missing-count queries cannot prove absence. Any existing residue returns `inventory_not_initialized`; GET never provisions or mutates rows. First creation requires parent-owned migration 098: 093 currently denies a missing root before 083's original insert can run. The trusted locked creation wrapper must establish the proven-empty root while preserving 093 terminal/replay rules. A complete empty read does not prove this backend prerequisite is available. An initialized owner with zero inventory or zero collections can return a complete empty state. Every actual binder must have slot-authoritative storage state; missing/legacy state, including mixed legacy/new owners, returns `legacy_inventory_incomplete`. No conversion or legacy-row fallback occurs. Existing legacy app flows remain responsible for those owners. Missing schema, denied table reads, malformed data, inconsistent references and missing count support fail closed.
-
-`InventoryReadError` exposes only a fixed code/status, never raw PostgREST messages or private values:
-
-| Code | Status | Caller action |
-| --- | --- | --- |
-| `inventory_sign_in_required` | 401 | establish a current first-party session |
-| `inventory_read_forbidden` | 403 | restore actual owner/partner policy access; do not retry as another owner |
-| `inventory_not_initialized` | 503 | absent root with existing residue; parent conversion required, retain pending intent |
-| `legacy_inventory_incomplete` | 503 | owner-wide bootstrap/conversion compatibility gate, retain pending intent |
-| `inventory_read_conflict` | 409 | entire snapshot changed; reread current owner state |
-| `inventory_read_deadline` | 503 | bounded deadline expired; retain intent and retry later |
-| `inventory_read_unavailable` | 503 | schema/permission/query/normalization/completeness/budget prerequisite; retain intent |
-
-Default limits: two whole-snapshot attempts, 15 seconds total, 512 request steps. Trusted options allow 1–3 attempts, up to 30 seconds and 4,096 request steps. Conflicts discard every stream and restart the whole attempt, never just one page. The shared deadline/budget includes retries and reauthentication; query requests receive an abort signal. A hanging authentication request also cannot delay the caller beyond the deadline. No lower-level error is forwarded or logged. Exhausted conflicts remain explicit 409; other unavailable/partial cases may return 503 immediately.
+Developer native reads (`lib/server/operations/native-developer-read.ts`) call `developer_inventory_read_v1(...)` instead: one service-role call that rechecks the API key (or the live OAuth session and grant), the user, partnership and billing, and reads only the part the operation needs (collections, one collection's slots, items, or one item) from the same function.
 
 ## Next integration and remaining gates
 

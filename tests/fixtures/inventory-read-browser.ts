@@ -25,8 +25,7 @@ const api = {
     const read = await readCurrentCollectionNavigation(() => live)
     const index = navigationIndex(read.scope, read)
     const location = navigationLocation(read.scope, read, { itemId: "synthetic-01030", collectionId: "obsolete", slotId: "obsolete" })
-    return { scope: read.scope, indexKind: index.kind, location, privateLocation: read.evidence.kind === "complete" ? read.evidence.snapshot.collections[0].location : undefined,
-      source: read.evidence.kind === "complete" ? read.evidence.snapshot.items[0].legacySource : undefined }
+    return { scope: read.scope, indexKind: index.kind, location, privateLocation: read.evidence.kind === "complete" ? read.evidence.snapshot.collections[0].location : undefined }
   },
   partner() { if (live) live = { ...live, actorUserId: "33333333-3333-4333-8333-333333333333" } },
   async enqueue() {

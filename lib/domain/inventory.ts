@@ -1,4 +1,3 @@
-import { normalizeInventorySource, type InventorySource } from "@/lib/domain/inventory-source"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 import {
   isContractRecord, isSlotContractId, isSlotRevision, normalizeBinderSnapshot, getBinderCompletion,
@@ -22,8 +21,6 @@ export interface GradingRecord {
 }
 
 export interface InventoryItem {
-  /** Omitted in pre-extension snapshots; null means the server read no source. Private. */
-  legacySource?: InventorySource
   id: string
   ownerUserId: string
   identity: InventoryIdentity
@@ -107,14 +104,12 @@ export function normalizeGradingRecord(value: unknown): GradingRecord | null | u
 }
 
 export function normalizeInventoryItem(value: unknown): InventoryItem | undefined {
-  if (!isContractRecord(value, ["id", "ownerUserId", "identity", "grading", "acquiredAt", "version", "legacySource"])
+  if (!isContractRecord(value, ["id", "ownerUserId", "identity", "grading", "acquiredAt", "version"])
     || !isSlotContractId(value.id) || !isSlotContractId(value.ownerUserId) || !isSlotRevision(value.version)
     || (value.acquiredAt !== null && (typeof value.acquiredAt !== "string" || !Number.isFinite(Date.parse(value.acquiredAt))))) return undefined
-  const legacySource = "legacySource" in value ? normalizeInventorySource(value.legacySource) : undefined
-  if ("legacySource" in value && legacySource === undefined) return undefined
   const identity = normalizeInventoryIdentity(value.identity), grading = normalizeGradingRecord(value.grading)
   if (!identity || grading === undefined || (identity.kind === "pokemon" && grading !== null)) return undefined
-  return { id: value.id, ownerUserId: value.ownerUserId, identity, grading, acquiredAt: value.acquiredAt, version: value.version, ...("legacySource" in value ? { legacySource } : {}) }
+  return { id: value.id, ownerUserId: value.ownerUserId, identity, grading, acquiredAt: value.acquiredAt, version: value.version }
 }
 
 export function normalizeStorageCollection(value: unknown): StorageCollection | undefined {

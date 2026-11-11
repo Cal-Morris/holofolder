@@ -151,11 +151,10 @@ export function previewBinderBackupImport(input: {
     if (destination.slots.some(s => s.inventoryItemId !== null || s.status !== null || s.wantedCards.length)) unresolved.push("Destination must contain only empty targets/spacers; recorded contents cannot be replaced")
     replacedEmptySlotIds.push(...destination.slots.map(s => s.id))
     if (backupContentKey(destination.presetManifest) !== backupContentKey(proposed.binders[0].presetManifest)) unresolved.push("Destination copied manifest must already match; config replacement is not supported")
-    if (proposed.items.some(i => i.legacySource != null)) unresolved.push("Frozen converted copy provenance is not portable import authority")
     if (unresolved.length) return finish({ kind: "blocked", reasons: [...unresolved] })
     const collectionIds = new Set([destination.collectionId])
     const copies = proposed.items.map(i => {
-      const { ownerUserId: _owner, legacySource: _legacy, ...item } = i
+      const { ownerUserId: _owner, ...item } = i
       if (!existing.has(i.id)) return { kind: "add" as const, item, ref: null }
       const placement = current.placements.find(p => p.inventoryItemId === i.id)
       const slot = placement ? current.binders.find(b => b.collectionId === placement.collectionId)!.slots.find(s => s.id === placement.slotId)! : null
