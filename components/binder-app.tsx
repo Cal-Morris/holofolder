@@ -3931,6 +3931,18 @@ function BinderAppSurface(props: BinderAppProps) {
     };
   }, [isDesktopActionsOpen]);
 
+  // Public shares have no analytics read: sum the pocket prices they already show. Graded copies stay unpriced.
+  const shareValueLabel = useMemo(() => {
+    const prices = (orderedDisplaySlots ?? []).flatMap((slot) => {
+      const lookup = slot.item?.grading ? null : displaySlotPriceLookup(slot);
+      return lookup ? [pricesByCardId[getCardPriceKey(lookup.cardId, lookup.language)]] : [];
+    });
+    const summary = sumPriceSnapshots(prices);
+    return summary.unpricedCount < prices.length
+      ? priceFormat.totals(summary.gbpTotal, summary.originalTotals)
+      : undefined;
+  }, [orderedDisplaySlots, priceFormat, pricesByCardId]);
+
   const renderSpreadInfoPage = (side: 'left' | 'right') =>
     renderSpreadInfoPageView(
       {
@@ -3946,7 +3958,7 @@ function BinderAppSurface(props: BinderAppProps) {
         activeCollectionFilterOption,
         collectionStats: nativeCoverStats ?? collectionStats,
         neededCount: nativeCoverStats?.needed ?? neededPokemonList.length,
-        perfectCount: nativeCoverStats?.perfect ?? favoritePokemonList.length,
+        shareValueLabel: publicIndex ? shareValueLabel : undefined,
         canEditBinder: browserSurface?.editingAvailable ?? canEditBinder,
         filteredPokemonList,
         filteredTotalLabel,

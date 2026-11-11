@@ -13,7 +13,8 @@ export interface SpreadInfoPageContext {
   activeCollectionFilterOption: { id: CollectionViewFilter; label: string; mobileLabel: string; description: string };
   collectionStats: { collected: number; total: number; percentage: number };
   neededCount: number;
-  perfectCount: number;
+  /** Public shares with prices on: the summed pocket prices (the native analytics value isn't mounted there). */
+  shareValueLabel?: string;
   canEditBinder: boolean;
   filteredPokemonList: PokemonEntry[];
   filteredTotalLabel: string;
@@ -29,7 +30,6 @@ export function renderSpreadInfoPageView(ctx: SpreadInfoPageContext, side: 'left
     activeCollectionFilterOption,
     collectionStats,
     neededCount,
-    perfectCount,
     canEditBinder,
     filteredPokemonList,
     filteredTotalLabel,
@@ -40,6 +40,11 @@ export function renderSpreadInfoPageView(ctx: SpreadInfoPageContext, side: 'left
     totalBinderPages,
   } = ctx;
   const pageTheme = getBinderThemeForPage(0);
+  const valueLabel = ctx.native
+    ? (ctx.native.valueLabel ?? ctx.shareValueLabel)
+    : hasTrackedCards
+      ? filteredTotalLabel
+      : undefined;
 
   return (
     <section
@@ -108,29 +113,13 @@ export function renderSpreadInfoPageView(ctx: SpreadInfoPageContext, side: 'left
               <dt>Needed</dt>
               <dd>{neededCount}</dd>
             </div>
-            <div>
-              <dt>Perfect</dt>
-              <dd>
-                {perfectCount}
-                <Sparkles aria-hidden="true" />
-              </dd>
-            </div>
+            {valueLabel && (
+              <div>
+                <dt>{ctx.native ? 'Value' : 'Tracked value'}</dt>
+                <dd className={styles.valueAmount}>{valueLabel}</dd>
+              </div>
+            )}
           </dl>
-
-          {ctx.native
-            ? ctx.native.valueLabel && (
-                <div className={styles.value}>
-                  <span>Binder value</span>
-                  <strong>{ctx.native.valueLabel}</strong>
-                </div>
-              )
-            : hasTrackedCards &&
-              filteredTotalLabel && (
-                <div className={styles.value}>
-                  <span>Tracked value</span>
-                  <strong>{filteredTotalLabel}</strong>
-                </div>
-              )}
 
           <footer className={styles.footer}>
             <p>
@@ -139,11 +128,7 @@ export function renderSpreadInfoPageView(ctx: SpreadInfoPageContext, side: 'left
               <span>{ctx.native ? `${ctx.native.slotCount} slots` : `${filteredPokemonList.length} Pokémon`}</span>
               {!canEditBinder && <span>Read-only</span>}
             </p>
-            {!canEditBinder && (
-              <p className={styles.hint}>
-                {ctx.native ? 'Your saved collection.' : 'A collection to explore. Shared read-only.'}
-              </p>
-            )}
+            {!canEditBinder && !ctx.native && <p className={styles.hint}>A collection to explore. Shared read-only.</p>}
           </footer>
         </div>
       </div>
