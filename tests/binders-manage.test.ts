@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import type { Binder } from "../lib/binders/model"
-import { canCreateBinder, moveBinder, nextBinderSortOrder, planBinderDelete, validateBinderOrder } from "../lib/binders/manage"
+import { canCreateBinder, moveBinder, planBinderDelete, validateBinderOrder } from "../lib/binders/manage"
 import { binderHref } from "../lib/binders/client"
 
 const binder = (id: string, sortOrder: number, isDefault = false): Binder => ({
@@ -29,8 +29,6 @@ test("order, limits and moves", () => {
   assert.equal(validateBinderOrder(binders, ["a", "a", "b"]), null)
   assert.equal(validateBinderOrder(binders, ["a", "b"]), null)
   assert.equal(validateBinderOrder(binders, "a,b,c"), null)
-  assert.equal(nextBinderSortOrder(binders), 6)
-  assert.equal(nextBinderSortOrder([]), 0)
   assert.ok(canCreateBinder(binders))
   assert.ok(!canCreateBinder(Array.from({ length: 20 }, (_, index) => binder(String(index), index))))
   assert.deepEqual(moveBinder(binders, "b", -1).map((item) => [item.id, item.sortOrder]), [["b", 0], ["a", 1], ["c", 2]])

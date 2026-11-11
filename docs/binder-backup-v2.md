@@ -38,7 +38,7 @@ CSV loses order, targets, spacers, placements, copied presets, appearance and gr
 
 ## API/help and release gates
 
-No supported REST/MCP operation or OpenAPI schema changed. `resolve_import` and legacy collection operations keep their current contracts. Internal pure modules cannot safely claim a public restore API while the atomic executor is missing. #376 owns reviewed API/registry/permission/schema/help integration together with the executor; #379 owns runtime enablement. Public help continues to describe the working v1/Dex feature, with an explicit v2 restriction.
+No supported REST/MCP operation or OpenAPI schema changed. Legacy collection operations, including `resolve_import`, have since been removed. Internal pure modules cannot safely claim a public restore API while the atomic executor is missing. #376 owns reviewed API/registry/permission/schema/help integration together with the executor; #379 owns runtime enablement. Public help continues to describe the working v1/Dex feature, with an explicit v2 restriction.
 
 Remaining delivery gates: whole-intent atomic restore/arrangement execution and safe same-owner inverse; trusted complete paginated snapshot/provenance adapter; canonical audit/recovery and partner-version conflict proof; #363 durable offline replay integration; #376 REST/MCP parity; #390 verified private artwork/label asset packaging; and #379 reviewed runtime/UI enablement. Before connecting v2 to UI, verify actual preview/download/reparse across all six phone profiles. This PR adds no UI and makes no mobile/download-browser or hosted import claim.
 

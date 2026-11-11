@@ -15,10 +15,8 @@ import {loadEbayListingIndicator} from '@/lib/server/ebay-listings'
 import {regionalizeCardPrice,getRegionalFinishPrices,getGbpPerUnit} from '@/lib/regional-price'
 import type {DisplayCurrency,PricingRegion} from '@/lib/pricing-region'
 import {readComparisonOperation,writeComparisonOperation} from './comparisons'
-import {readCollectionAnalytics,readDeveloperPriceHistory} from './analytics'
+import {readDeveloperPriceHistory} from './analytics'
 import {loadCardPriceChecks} from '@/lib/server/card-price-checks'
-import {readImportLookups,resolveImportLookup} from '@/lib/collection-import-resolve'
-import {findMirroredImportCandidates} from '@/lib/tcg-mirror'
 import {checkDeal,normalizeDealThresholds} from '@/lib/deal-check'
 import {getPriceDataAgeDays} from '@/lib/price-freshness'
 import {getRisingMomentum} from '@/lib/price-momentum'
@@ -117,14 +115,6 @@ async function dispatchDeveloperOperation(context:OperationContext,name:string,i
   case 'get_collection_audit':return sanitizeImages(await readCollectionAudit(context,input,true))
   case 'preview_collection_recovery':return developerActivityRecovery(context,'preview',input)
   case 'apply_collection_recovery':return developerActivityRecovery(context,'apply',input)
-  case 'get_legacy_pokemon_analytics':return sanitizeImages(await unwrap(await readCollectionAnalytics(operationRequest(input,'GET'),identity,context.ownerUserId)))
-  case 'resolve_import': {
-   let lookups
-   try{lookups=readImportLookups(input)}catch{throw new DeveloperAccessError('invalid_import','Use between 1 and 25 valid catalog identities.',400)}
-   const results=[]
-   for(let n=0;n<lookups.length;n+=3)results.push(...await Promise.all(lookups.slice(n,n+3).map(async lookup=>resolveImportLookup(lookup,await findMirroredImportCandidates(lookup)))))
-   return sanitizeImages({results})
-  }
   case 'check_deal': {
    const [[stored],fxRates]=await Promise.all([loadSavedCardPrices(normalizeCardPriceLookups([{cardId:input.cardId,language:input.language}])),loadDisplayFxRates()])
    const region=(input.region??'UK') as PricingRegion,currency=input.currency as DisplayCurrency

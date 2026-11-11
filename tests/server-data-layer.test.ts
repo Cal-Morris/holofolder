@@ -56,60 +56,26 @@ test("resolveCollectionOwnerUserId throws lookup errors unless asked to fall bac
   assert.equal(await resolveCollectionOwnerUserId(client, "u", { fallbackOnError: true }), "u")
 })
 
-test("loadBinderBootstrap loads the owner's collection and maps stored settings", async () => {
+test("loadBinderBootstrap maps stored settings and never reads legacy collection rows", async () => {
   const { client, calls } = fakeClient({
-    pokemon_collection: { data: [{ pokemon_id: 1 }], error: null },
     user_settings: { data: { binder_rows: 3, binder_cols: 0, dark_mode: false }, error: null },
   })
   const bootstrap = await loadBinderBootstrap(client, "owner")
 
-  assert.deepEqual(bootstrap.collection, [{ pokemon_id: 1 }])
-  assert.equal(bootstrap.collectionError, null)
   assert.equal(bootstrap.hasStoredSettings, true)
   assert.equal(bootstrap.settings.binderRows, 3)
   assert.equal(bootstrap.settings.binderCols, 4)
   assert.equal(bootstrap.settings.darkMode, false)
-  for (const call of calls) {
-    assert.deepEqual(call.ops.find(([method]) => method === "eq")?.[1], ["user_id", "owner"])
-  }  // Paged so owners with more than 1000 slots get every row.
-  const collectionCall = calls.find((call) => call.table === "pokemon_collection")
-  assert.deepEqual(collectionCall?.ops.find(([method]) => method === "range")?.[1], [0, 999])
+  assert.deepEqual(calls.map(c => c.table), ["user_settings"])
+  assert.deepEqual(calls[0].ops.find(([method]) => method === "eq")?.[1], ["user_id", "owner"])
 })
 
-test("loadBinderBootstrap defaults when nothing is stored and surfaces collection errors", async () => {
-  const failure = new Error("nope")
-  const { client } = fakeClient({
-    pokemon_collection: { data: null, error: failure },
-    user_settings: { data: null, error: null },
-  })
+test("loadBinderBootstrap defaults when nothing is stored", async () => {
+  const { client } = fakeClient({ user_settings: { data: null, error: null } })
   const bootstrap = await loadBinderBootstrap(client, "owner")
 
-  assert.deepEqual(bootstrap.collection, [])
-  assert.equal(bootstrap.collectionError, failure)
   assert.equal(bootstrap.hasStoredSettings, false)
   assert.deepEqual(bootstrap.settings, DEFAULT_BINDER_SETTINGS)
-})
-
-test('suspended shared-binder writes pause, while explicit own-binder writes remain allowed', async () => {
-  const { assertCollectionWriteAccess } = await import('../lib/server/collection-owner')
-  const { client } = fakeClient({
-    partnerships: { data: { owner_user_id: 'owner', user1_id: 'owner', user2_id: 'partner' }, error: null },
-    binders: { data: { owner_user_id: 'partner' }, error: null },
-  })
-  Object.assign(client, { rpc: async () => ({ data: false, error: null }) })
-  await assert.rejects(assertCollectionWriteAccess(client, 'partner', null), { status: 402 })
-  await assert.doesNotReject(assertCollectionWriteAccess(client, 'partner', 'own-binder'))
-  const other = fakeClient({ partnerships: { data: { owner_user_id: 'owner' }, error: null }, binders: { data: { owner_user_id: 'owner' }, error: null } }).client
-  Object.assign(other, { rpc: async () => ({ data: false, error: null }) })
-  await assert.rejects(assertCollectionWriteAccess(other, 'partner', 'shared-binder'), { status: 402 })
-})
-
-test("native bootstrap reads display settings without consulting legacy collection rows", async () => {
-  const { client, calls } = fakeClient({ user_settings: { data: { binder_rows: 3 }, error: null } })
-  const boot = await loadBinderBootstrap(client, "owner", null, "native")
-  assert.deepEqual(boot.collection, [])
-  assert.equal(boot.settings.binderRows, 3)
-  assert.equal(calls.some(c => c.table === "pokemon_collection"), false)
 })
 
 test("strict native membership rejects denied partner billing instead of falling back to own storage", async () => {

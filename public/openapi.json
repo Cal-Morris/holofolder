@@ -2404,6 +2404,157 @@
                                   ],
                                   "additionalProperties": false
                                 }
+                              },
+                              "setScope": {
+                                "type": "object",
+                                "properties": {
+                                  "setId": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "setName": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "language": {
+                                    "type": "string",
+                                    "enum": [
+                                      "en",
+                                      "fr",
+                                      "de",
+                                      "es",
+                                      "it",
+                                      "pt-br",
+                                      "ja",
+                                      "ko"
+                                    ]
+                                  },
+                                  "finishes": {
+                                    "maxItems": 4,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "enum": [
+                                        "normal",
+                                        "holo",
+                                        "reverse_holo",
+                                        "jumbo"
+                                      ]
+                                    }
+                                  },
+                                  "capturedAt": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "officialCardCount": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 9007199254740991
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "cards": {
+                                    "maxItems": 4096,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "cardId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "setId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "localId": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "languageConfirmed": {
+                                          "type": "boolean"
+                                        },
+                                        "verifiedFinishes": {
+                                          "maxItems": 4,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string",
+                                            "enum": [
+                                              "normal",
+                                              "holo",
+                                              "reverse_holo",
+                                              "jumbo"
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "cardId",
+                                        "setId",
+                                        "localId",
+                                        "name",
+                                        "languageConfirmed",
+                                        "verifiedFinishes"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "promoCardIds": {
+                                    "maxItems": 4096,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200
+                                    }
+                                  },
+                                  "excludedCardIds": {
+                                    "maxItems": 4096,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200
+                                    }
+                                  },
+                                  "warnings": {
+                                    "maxItems": 10,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "maxLength": 1000
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "setId",
+                                  "setName",
+                                  "language",
+                                  "finishes",
+                                  "capturedAt",
+                                  "officialCardCount",
+                                  "cards",
+                                  "promoCardIds",
+                                  "excludedCardIds",
+                                  "warnings"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -23036,175 +23187,6 @@
                   "planVersion",
                   "planToken",
                   "confirmed"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "See the API conventions page."
-          },
-          "401": {
-            "description": "See the API conventions page."
-          },
-          "402": {
-            "description": "See the API conventions page."
-          },
-          "403": {
-            "description": "See the API conventions page."
-          },
-          "404": {
-            "description": "See the API conventions page."
-          },
-          "409": {
-            "description": "See the API conventions page."
-          },
-          "413": {
-            "description": "See the API conventions page."
-          },
-          "422": {
-            "description": "See the API conventions page."
-          },
-          "429": {
-            "description": "See the API conventions page."
-          },
-          "503": {
-            "description": "See the API conventions page."
-          }
-        }
-      }
-    },
-    "/legacy/pokemon/analytics": {
-      "get": {
-        "operationId": "get_legacy_pokemon_analytics",
-        "summary": "Get legacy pokemon analytics",
-        "description": "Read legacy Pokémon species-row activity and available card price history. A retained native owner root, converted or mixed storage returns 503 native_analytics_staged; native analytics admission remains closed.\n\nRequired permissions: `collection:read`, `prices:read`. MCP tool: `get_legacy_pokemon_analytics`.",
-        "tags": [
-          "Prices and insights"
-        ],
-        "security": [
-          {
-            "apiKey": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "beforeId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "maxLength": 30
-            }
-          },
-          {
-            "name": "cardId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            }
-          },
-          {
-            "name": "language",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "en",
-                "fr",
-                "de",
-                "es",
-                "it",
-                "pt-br",
-                "ja",
-                "ko"
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "See the API conventions page."
-          },
-          "401": {
-            "description": "See the API conventions page."
-          },
-          "402": {
-            "description": "See the API conventions page."
-          },
-          "403": {
-            "description": "See the API conventions page."
-          },
-          "404": {
-            "description": "See the API conventions page."
-          },
-          "409": {
-            "description": "See the API conventions page."
-          },
-          "413": {
-            "description": "See the API conventions page."
-          },
-          "422": {
-            "description": "See the API conventions page."
-          },
-          "429": {
-            "description": "See the API conventions page."
-          },
-          "503": {
-            "description": "See the API conventions page."
-          }
-        }
-      }
-    },
-    "/imports/resolve": {
-      "post": {
-        "operationId": "resolve_import",
-        "summary": "Resolve import",
-        "description": "Resolve legacy Pokémon species-row import identities against actual catalog records without changing the collection. Requires one unambiguous species; not a physical-copy import API.\n\nRequired permissions: `catalog:read`. MCP tool: `resolve_import`.",
-        "tags": [
-          "Collection"
-        ],
-        "security": [
-          {
-            "apiKey": []
-          }
-        ],
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "type": "object",
-                "properties": {
-                  "lookups": {
-                    "minItems": 1,
-                    "maxItems": 25,
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "propertyNames": {
-                        "type": "string"
-                      },
-                      "additionalProperties": {}
-                    }
-                  }
-                },
-                "required": [
-                  "lookups"
                 ],
                 "additionalProperties": false
               }

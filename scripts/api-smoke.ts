@@ -143,8 +143,6 @@ async function main() {
   await read('get_prices',{cards});await read('get_price_history',{id:'base1-1'})
   const history=await read('list_collection_audit',{})
   if(Array.isArray(history.data)&&history.data.length)await read('get_collection_audit',{id:record(history.data[0]).id})
-  await read('get_legacy_pokemon_analytics',{cardId:'base1-1'})
-  await read('resolve_import',{lookups:[{cardId:'base1-1',language:'en',finish:'holo',list:'owned'}]})
   await read('check_deal',{cardId:'base1-1',language:'en',askingPrice:50,currency:'GBP'})
   await read('get_price_checks',{id:'base1-1',finish:'holo'})
   await read('inspect_comparison_job',{cards:comparisonCards})

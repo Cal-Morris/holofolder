@@ -16,7 +16,7 @@ Printing `cardId`, physical `inventoryItemId`, stable `slotId` and `collectionId
 
 `{kind:"pokemon",pokemonId}` is a species identity. Card targets and free slots accept Trainers and Energy without dex links. Catalog application IDs and reviewed aliases are globally unique, not reusable provider-local keys. See [catalog identity](card-catalog.md).
 
-Public species-row `list_collection`, `save_collection_item` and `delete_collection_item` have been removed from discovery and dispatch. There are no compatibility aliases or public legacy species-row CRUD routes. The first-party browser's legacy handlers and frozen rows remain until cutover. Legacy Activity Undo (`preview_collection_recovery` / `apply_collection_recovery`) remains separate from native recovery. Legacy Pokémon analytics is explicitly `get_legacy_pokemon_analytics` at `/legacy/pokemon/analytics`; native/mixed owners still return `503 native_analytics_staged` for that legacy operation.
+Public species-row `list_collection`, `save_collection_item` and `delete_collection_item` have been removed from discovery and dispatch. There are no compatibility aliases or public legacy species-row CRUD routes. The first-party legacy `/api/collection` handlers are deleted too; frozen rows remain until migration 107 drops them. Legacy Activity Undo (`preview_collection_recovery` / `apply_collection_recovery`) remains separate from native recovery. Every binder is native, so the legacy-only `get_legacy_pokemon_analytics` and `resolve_import` operations have been removed without aliases.
 
 ## Verification and remaining work
 

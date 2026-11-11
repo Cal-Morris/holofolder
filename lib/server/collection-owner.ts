@@ -59,21 +59,3 @@ export async function resolveCollectionMembership(client: AnySupabaseClient, use
 }
 
 /** Preserve edits for a suspended shared binder as billing pauses, rather than unrelated-binder 404s. */
-export async function assertCollectionWriteAccess(client: AnySupabaseClient, userId: string, requestedBinderId: unknown) {
-  const { data: membership, error } = await client.from("partnerships").select("owner_user_id").or(`user1_id.eq.${userId},user2_id.eq.${userId}`).limit(1).maybeSingle()
-  if (error) throw error
-  const owner = membership?.owner_user_id
-  if (!owner || owner === userId) return
-  const { data: allowed, error: accessError } = await client.rpc("billing_partner_allowed", { owner_id: owner, actor_id: userId })
-  if (accessError) {
-    if (["PGRST202", "42883"].includes(accessError.code)) return
-    throw accessError
-  }
-  if (allowed) return
-  if (typeof requestedBinderId === "string" && requestedBinderId) {
-    const { data: binder, error: binderError } = await client.from("binders").select("owner_user_id").eq("id", requestedBinderId).maybeSingle()
-    if (binderError) throw binderError
-    if (binder?.owner_user_id === userId) return
-  }
-  throw new BillingAccessError()
-}
