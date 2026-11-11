@@ -388,9 +388,9 @@ const HuntGroupSection = memo(function HuntGroupSection({
   return (
     <section
       aria-label={`Hunting ${name}`}
-      className="space-y-1.5"
-      // Keep offscreen groups out of layout/paint; remember their measured height once visited.
-      style={{ contentVisibility: "auto", containIntrinsicBlockSize: `auto ${3.5 + group.cards.length * 6.4}rem` }}
+      className="show-hunt-group space-y-1.5"
+      // Remember each group's measured height when the browser can safely skip its contents.
+      style={{ containIntrinsicBlockSize: `auto ${3.5 + group.cards.length * 6.4}rem` }}
     >
       <button type="button" onClick={() => onPickPokemon(pokemon)} aria-label={`${name}: all cards`} className="flex min-h-14 w-full items-center gap-3 rounded-2xl px-1 text-left active:bg-muted">
         <PokemonSprite id={group.pokemonId} />

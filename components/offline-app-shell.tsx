@@ -7,6 +7,7 @@ import BinderApp from "@/components/binder-app"
 import { BinderSkeleton } from "@/components/binder-skeleton"
 import { createClient } from "@/lib/supabase/client"
 import { readLastOpenedBinder } from "@/lib/binders/client"
+import { requestedBinderKey } from "@/lib/binders/url"
 import { readOfflineBinderBoot, type OfflineBinderBoot } from "@/lib/offline-shell"
 
 type ShellBoot = OfflineBinderBoot & { user: User | null }
@@ -33,7 +34,7 @@ export default function OfflineAppShell() {
         user = null
       }
       if (cancelled) return
-      const requestedBinderId = new URLSearchParams(window.location.search).get("binder")
+      const requestedBinderId = requestedBinderKey(window.location)
       setBoot({
         ...readOfflineBinderBoot(window.localStorage, document.cookie, user?.id ?? null, requestedBinderId, readLastOpenedBinder()),
         user,

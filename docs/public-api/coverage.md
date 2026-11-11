@@ -19,8 +19,7 @@ The operation registry in `lib/developer-api/operations.ts` defines the REST sch
 | Partners and invitations | list_partners, invite_partner, accept_partner_invite, reject_partner_invite, disconnect_partner | real recipient denial, retry, ownership and disconnect SQL proof; UI uses the same transactional actions |
 | Saved prices, refreshes and comparison evidence | get_prices, refresh_prices, get_price_checks, refresh_price_checks | existing provider confidence, currency, finish and cooldown suites |
 | Background comparison jobs | inspect_comparison_job, start_comparison_job, get_comparison_job, cancel_comparison_job | app-only start denial, seeded inert job read/cancel, existing UI job fixtures and hosted idempotency SQL proof |
-| Activity and historical price evidence | get_legacy_pokemon_analytics, get_price_history | existing analytics tests, 1001 synthetic history records paginated exactly once |
-| Import identity resolution | resolve_import | existing exact catalog identity resolution and bounded batch schemas |
+| Historical price evidence | get_price_history | existing analytics tests, 1001 synthetic history records paginated exactly once |
 | Listings and deal evaluation | get_listings, check_deal | existing listing/deal/FX/confidence suites; no invented prices |
 | Show purchases and undo | list_show_purchases, add_show_purchase, remove_show_purchase | shared row normalization, existing purchase sync tests, idempotent owner-scoped mutations |
 
@@ -77,7 +76,7 @@ The optional private creation adapter emits a parsed immutable draft only, with 
 ### Trusted storage bridge staging (082)
 
 [Internal authenticated command/recovery execution](../trusted-storage-execution.md) now binds the real service-only RPC, existing app/API-key/OAuth authentication, current membership/paid scopes, trusted attribution, bounded receipts and sanitized errors. This is server preparation only: both public POSTs remain hard 503, no registry/OpenAPI/MCP operation is added, and existing public behavior is preserved. Parent owns hosted grant review/application; #379 owns simultaneous exposure/docs/smoke and #363/#396 own durable readback and Activity/Undo integration. No conversion, provider spending or public recovery claim is enabled.
-Internal backup/import preparation (#365): [JSON v2 serialization and immutable preview](../binder-backup-v2.md) reuse #360/#382 models, preserve separate physical copies and keep private owner/auth/queue/share data out of portable files. No registry/dispatcher/OpenAPI operation is added. Only bounded explicit Unassigned-copy additions can produce one parsed canonical inventory request; nothing submits it. Whole restores and arrangement imports fail closed pending a complete atomic executor/inverse, #363 offline replay, #376 API integration, #390 verified asset packaging and #379 enablement. Legacy `resolve_import`, Dex CSV and v1 JSON contracts are unchanged. No public restore or customer announcement is claimed.
+Internal backup/import preparation (#365): [JSON v2 serialization and immutable preview](../binder-backup-v2.md) reuse #360/#382 models, preserve separate physical copies and keep private owner/auth/queue/share data out of portable files. No registry/dispatcher/OpenAPI operation is added. Only bounded explicit Unassigned-copy additions can produce one parsed canonical inventory request; nothing submits it. Whole restores and arrangement imports fail closed pending a complete atomic executor/inverse, #363 offline replay, #376 API integration, #390 verified asset packaging and #379 enablement. Dex CSV and v1 JSON contracts are unchanged. No public restore or customer announcement is claimed.
 
 
 ### Atomic named storage creation preparation (083)
@@ -182,9 +181,7 @@ Transactional extension (090): `execute_inventory_commands` now declares public 
 `execute_slot_commands` and `execute_inventory_commands` declare a strict terminal-ledger error contract: REST 409 / MCP `isError`, with `error.code=storage_command_rejected` and only `rejection.outcome`, original `operationId`, known rejection `code` and `inventoryRevision`. Ordinary conflict errors carry no terminal proof. Accepted receipt schemas remain success-only; MCP advertises them as `outputSchema` and error schemas under `_meta["holofolder.com/errorSchemas"]`. Generated OpenAPI and derived Markdown/LLM reference carry the same contract. See [reconciliation](../native-command-reconciliation.md). Public admission remains fixed 503; synthetic transport tests are not hosted acceptance or an enabled feature. No new UI/offline queue contract or SQL is introduced.
 
 Native analytics/dashboard totals are a staged internal presentation over the existing
-fenced complete-read host, not a new admitted API. `get_legacy_pokemon_analytics` remains
-legacy history: owner-wide native roots (including retained Unassigned copies), converted/mixed storage return 503 `native_analytics_staged`
-before legacy activity is queried; unknown authority fails closed. Saved prices still
+fenced complete-read host, not a new admitted API. Saved prices still
 use `get_prices`. See [native analytics boundary](../native-analytics-dashboard.md).
 
 
@@ -285,15 +282,7 @@ Slab exposure gates remain. See [the consumer boundary](../custom-storage-creati
 
 ## Legacy first-party device review
 
-`/app/api/collection` now requires immutable actor/owner/concrete-binder assertions
-for first-party POST/PATCH/DELETE. Missing older-client binding returns structured
-retention-safe 503, never a generic row conflict or permanent 4xx. Developer
-REST/MCP verified server context and atomic modes remain unchanged. The app-only
-`GET /app/api/collection/review-destination` reads a fresh explicit destination for
-device review; it does not accept or upload browser source data. Local acceptance
-uses the existing queue authority/uploader. See [recipient containment](../legacy-recipient-containment.md)
-and [device changes help](/app/docs/device-changes). Public native admission,
-bootstrap and conversion remain staged at 503. No SQL is included.
+Removed. Every binder is native, so `/app/api/collection` and `/app/api/collection/review-destination` are deleted (migration 105).
 
 ## Internal legacy write prerequisite (096)
 
@@ -334,7 +323,7 @@ remain parent-owned gates.
 
 ## Current public identity boundary (#509, after #507)
 
-The registry and dispatcher remove public legacy species-row CRUD without compatibility aliases. First-party legacy handlers and frozen data remain internal. `get_pokemon_set_slots` uses `/pokemon/sets/{id}/slots`, explicitly a dex grouping, not stable storage. Legacy species-row history is `get_legacy_pokemon_analytics` at `/legacy/pokemon/analytics`; its native/mixed-owner 503 remains intentional. Native reads/commands are admitted after #507, superseding earlier staged-admission notes above; app and hosted acceptance remain separate.
+The registry and dispatcher remove public legacy species-row CRUD without compatibility aliases. First-party legacy handlers and frozen data remain internal. `get_pokemon_set_slots` uses `/pokemon/sets/{id}/slots`, explicitly a dex grouping, not stable storage. Every binder is native, so the legacy-only `get_legacy_pokemon_analytics` and `resolve_import` operations have been removed without aliases. Native reads/commands are admitted after #507, superseding earlier staged-admission notes above; app and hosted acceptance remain separate.
 
 Catalog card/set/series projections declare `game:"pokemon"`, with global opaque application IDs and source-keyed provider evidence within that game. No other game/selector is implemented. Activity filters physical copies by `inventoryItemId`, not `itemId`. Durable command fields and applied SQL keep their exact existing meanings. See [catalog identity](../card-catalog.md) and [current API conventions](../../content/docs/contracts.mdx). No internal BrowserSession/startup/inventory-core, SQL/migration, hosted write or marketing change is part of this slice.
 

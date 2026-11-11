@@ -1,3 +1,5 @@
+import { isBinderSlug } from "@/lib/binders/url"
+
 // Multiple binders: shared types and row mapping (see docs/multiple-binders.md).
 // Every binder is a full National Dex binder; slots (pokemon_collection rows) belong to one binder.
 
@@ -5,6 +7,8 @@ export interface Binder {
   id: string
   ownerUserId: string
   name: string
+  /** URL and share-link slug (/app/<slug>/binder/<page>); null before migration 106 or on stale device copies. */
+  slug?: string | null
   color: string | null
   sortOrder: number
   isDefault: boolean
@@ -44,6 +48,7 @@ export function binderFromRow(row: Record<string, unknown>): Binder | null {
     id: row.id,
     ownerUserId: row.owner_user_id,
     name: typeof row.name === "string" && row.name.trim() ? row.name : DEFAULT_BINDER_NAME,
+    slug: isBinderSlug(row.slug) ? row.slug : null,
     color: stringOrNull(row.color),
     sortOrder: intOrNull(row.sort_order) ?? 0,
     isDefault: row.is_default === true,

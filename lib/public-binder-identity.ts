@@ -1,4 +1,5 @@
 import { normalizeUsername } from "@/lib/account-identity"
+import { isBinderSlug } from "@/lib/binders/url"
 
 function normalizeName(value: unknown, min: number, max: number): string | null {
   if (typeof value !== "string") return null
@@ -7,7 +8,11 @@ function normalizeName(value: unknown, min: number, max: number): string | null 
 }
 
 export { normalizeUsername }
-export const normalizeBinderSlug = (value: unknown) => normalizeName(value, 1, 60)
+/** Route words (/app/studio …) are rejected: a binder slug is also its app address. */
+export const normalizeBinderSlug = (value: unknown) => {
+  const slug = normalizeName(value, 1, 60)
+  return slug && isBinderSlug(slug) ? slug : null
+}
 
 export function suggestBinderSlug(name: string): string {
   return name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()

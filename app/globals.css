@@ -71,6 +71,17 @@
   }
 }
 
+/* Safari can leave revealed groups blank: https://bugs.webkit.org/show_bug.cgi?id=321501 */
+.show-hunt-group {
+  content-visibility: auto;
+}
+@supports (font: -apple-system-body) {
+  .show-hunt-group {
+    content-visibility: visible;
+    contain: layout paint;
+  }
+}
+
 /* Static highlights give the chrome depth without re-blurring a scrolling card list. */
 .holo-panel {
   background-color: var(--card);

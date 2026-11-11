@@ -1,6 +1,4 @@
-import { normalizeWantedCards } from "@/lib/collection/normalize"
 import type { WantedCard } from "@/lib/domain/cards"
-import { normalizeWantedPeople } from "@/lib/domain/cards"
 import type { WantedDashboardEntry } from "@/lib/wanted-dashboard"
 
 export const wantedPrintingKey = (card: WantedCard) => `${card.card_id}:${card.card_language ?? "en"}:${card.card_finish ?? "normal"}`
@@ -33,21 +31,4 @@ export function groupGlobalWanted(entries: readonly WantedDashboardEntry[]) {
     if (ids.length) previous.card.wanted_by = ids
   }
   return [...grouped.values()]
-}
-
-export function validateWantedPeople(value: unknown, previous: readonly WantedCard[], allowedIds: readonly string[]) {
-  const existing = new Map(previous.map(card => [wantedPrintingKey(card), card]))
-  if (Array.isArray(value)) for (const candidate of value) {
-    if (!candidate || typeof candidate !== "object" || !("wanted_by" in candidate) || candidate.wanted_by === undefined) continue
-    const ids: unknown = candidate.wanted_by
-    if (!Array.isArray(ids) || ids.length > 2 || ids.some(id => typeof id !== "string" || normalizeWantedPeople([id])?.length !== 1)) throw new Error("Invalid wanted assignment")
-    const card = normalizeWantedCards([candidate])[0]
-    if (!card) continue
-    const old = existing.get(wantedPrintingKey(card))?.wanted_by ?? []
-    if (card.wanted_by?.some(id => !allowedIds.includes(id) && !old.includes(id))) throw new Error("Invalid wanted assignment")
-  }
-  return normalizeWantedCards(value).map(card => {
-    const old = existing.get(wantedPrintingKey(card))
-    return card.wanted_by === undefined && old?.wanted_by !== undefined ? { ...card, wanted_by: [...old.wanted_by] } : card
-  })
 }

@@ -1,6 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { parseSlotCommand, readSlotPage, legacySlotCompatibilityResponse, legacySlotAuthorityResponse } from "../lib/server/operations/binder-slots"
+import { parseSlotCommand, readSlotPage } from "../lib/server/operations/binder-slots"
 
 const binder = "03620000-0000-4000-8000-000000000011"
 const command = () => ({ collectionId: binder, operationId: "synthetic-operation", inventoryRevision: 0, collectionVersion: 0, layoutRevision: 0,
@@ -24,23 +24,4 @@ describe("slot command contract", () => {
     await assert.rejects(readSlotPage(async () => page, { ownerUserId: "owner", actorId: "actor", collectionId: binder, limit: 501 }))
     await assert.rejects(readSlotPage(async () => page, { ownerUserId: "owner", actorId: "actor", collectionId: binder, limit: 1, afterPosition: 0 }))
   })
-})
-
-
-test("converted legacy writes get an explicit compatibility conflict, unrelated failures stay failures", async () => {
-  const response = legacySlotCompatibilityResponse({ code: "55000", message: "binder_converted_requires_slot_commands" })!
-  assert.equal(response.status, 409)
-  assert.equal((await response.json()).code, "binder_converted_requires_slot_commands")
-  assert.equal(legacySlotCompatibilityResponse({ code: "55000", message: "other error" }), null)
-})
-
-
-
-
-test("converted legacy no-row writes still conflict, missing schema alone permits legacy", async () => {
-  assert.equal(legacySlotAuthorityResponse({ authority: "slots", conversion_version: null }, null)?.status, 409)
-  assert.equal(legacySlotAuthorityResponse(null, { code: "42P01" }), null)
-  assert.equal(legacySlotAuthorityResponse(null, null), null)
-  assert.equal(legacySlotAuthorityResponse(null, { code: "42501" })?.status, 503)
-  assert.equal(legacySlotAuthorityResponse({ authority: "slots", conversion_version: 2 }, null)?.status, 503)
 })

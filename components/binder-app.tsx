@@ -216,7 +216,7 @@ export default function BinderApp(props: BinderAppProps) {
   // so a reload goes skeleton or saved copy → binder once, never saved copy → skeleton → binder.
   const sessionDisplayed = Boolean(session && displayedSession === session.sessionId)
   return <>{!sessionDisplayed && placeholder}{session && <BrowserCollectionSession displayed={sessionDisplayed}
-    onReady={() => setCompletedSession(session.sessionId)} onDisplay={setDisplayedSession} onStartupFailure={failStartup} scope={session} currentScope={browserScope.currentScope} initialBinderId={props.initialBinderId ?? null}
+    onReady={() => setCompletedSession(session.sessionId)} onDisplay={setDisplayedSession} onStartupFailure={failStartup} scope={session} currentScope={browserScope.currentScope} initialBinderId={props.initialBinderId ?? null} binders={props.initialBinders}
     localHarness={admission.evidence === "synthetic-local-only"} renderFallback={() => <p role="status">Device storage is unavailable. Enable storage and reopen the app. Pending edits have not been removed.</p>}
     renderSurface={binding => {
       const context = binding.surface.state.main === "collection" ? binding.surface.collection : null
@@ -430,12 +430,12 @@ function BinderAppSurface(props: BinderAppProps) {
   useEffect(() => {
     if (!pendingBinderSwitch || isBinderSwitcherOpen) return
     runAfterOverlayHistory(() => {
-      const href = binderHref(pendingBinderSwitch, window.location.href)
+      const href = binderHref(pendingBinderSwitch, window.location.href, binders.find(b => b.id === pendingBinderSwitch)?.slug)
       // Offline, a full load lets the service worker open that binder's saved copy from the app shell.
       if (typeof navigator !== "undefined" && navigator.onLine === false) window.location.assign(appPath(href))
       else router.push(href)
     })
-  }, [isBinderSwitcherOpen, pendingBinderSwitch, router])
+  }, [binders, isBinderSwitcherOpen, pendingBinderSwitch, router])
   const closeBinderSwitcher = useCallback(() => setIsBinderSwitcherOpen(false), [])
   const { settings, updateSettings: updateLegacySettings } = useSettings({
     binderId: initialBinderId,

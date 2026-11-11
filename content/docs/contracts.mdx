@@ -13,7 +13,7 @@ Catalog card, set and series responses declare `game: "pokemon"`. Only Pokémon 
 
 `{kind:"pokemon",pokemonId}` deliberately identifies a species. `list_pokemon` and `get_pokemon` remain dedicated species endpoints. `get_pokemon_set_slots` (`GET /pokemon/sets/{id}/slots`) returns dex-grouped Pokémon species, not stable storage slots. Use `list_cards` with a set filter for all set printings, and `list_storage_slots` for actual stable slots.
 
-The public `list_collection`, `save_collection_item` and `delete_collection_item` species-row operations have been removed without aliases. Use [native reads](/docs/native-reads) and [native commands](/docs/native-storage) for copies, slots and wants. Internal browser legacy handlers and frozen rows remain until cutover. `get_legacy_pokemon_analytics` (`GET /legacy/pokemon/analytics`) describes legacy species-row history; native/mixed owners return `503 native_analytics_staged`.
+The public `list_collection`, `save_collection_item` and `delete_collection_item` species-row operations have been removed without aliases. Use [native reads](/docs/native-reads) and [native commands](/docs/native-storage) for copies, slots and wants. Every binder is native, so `get_legacy_pokemon_analytics` and `resolve_import` have been removed too.
 
 ## Pagination
 
@@ -60,10 +60,6 @@ A legacy collection write to a converted binder returns `409` with code `binder_
 The app shows “Saved on this device. Sync needs a compatible client.” These changes have not synced. Keep this device's app data; clearing it can remove saved edits. Reloading this client does not translate the saved edits or enable native writes. Ordinary row-conflict `409` responses still follow their existing merge policy; temporary `503` and network failures still retry.
 
 This protection does not recover missing historical recipient bindings or provide guest-import acceptance or multi-tab durability. Native server routes now use the authenticated bridges; app integration and offline acceptance need separate proof.
-
-The first-party app's `/app/api/collection` adapter accepts `X-Holo-Legacy-Queue: 2` only after authentication and exact recipient checks. Explicit unsupported values return `503`, `collection_queue_upgrade_required`, and `retainOnDevice: true`. Missing headers stay compatible and untagged while the database legacy-write fence is inactive; after its separate operator activation, the database rejects those untagged writes. Recognized database pauses return the same retention-safe 503. Keep the original change on the device, without treating a pause as a successful upload or a row conflict to merge. Older deployments may report the database pause as a retryable 500.
-
-This app-only protocol identifies a supported server code path, not authentication, durable device storage or an idempotency receipt. It adds no REST/MCP header requirement or public operation. Existing authenticated developer principals keep their current source, credential, permission, recipient and conflict checks. Production queue delivery and fence activation require separate verification.
 
 ## Native storage
 

@@ -1,7 +1,6 @@
 import "server-only"
 import { after } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getBillingAccess } from "@/lib/server/billing"
 import { sanitizeAttribution, type FunnelAttribution, type FunnelEventName } from "@/lib/collector-funnel"
 
 export function collectorFunnelEnabled() { return process.env.VERCEL_ENV === "production" && process.env.HOLOFOLDER_FUNNEL_ENABLED === "true" }
@@ -27,15 +26,4 @@ export async function recordCollectorEvent(input: { actorId: string; ownerId: st
     const { error } = await createAdminClient().from("collector_events").upsert({ actor_id: input.actorId, owner_id: input.ownerId, name: input.name, event_key: input.key, occurred_at: input.at, origin: input.origin ?? null, subscription_id: input.subscriptionId ?? null, period_start: input.periodStart ?? null, period_end: input.periodEnd ?? null }, { onConflict: "owner_id,event_key", ignoreDuplicates: true }).abortSignal(AbortSignal.timeout(2000))
     return !error
   } catch { return false }
-}
-
-export async function recordCollectorSave(actorId: string, ownerId: string, origin: "manual" | "import", at: string) {
-  if (!collectorFunnelEnabled()) return
-  try {
-    const access = await getBillingAccess(ownerId)
-    if (access.savedCardCount < 1) return
-    await observeCollectorAccount(ownerId, true, at)
-    await recordCollectorEvent({ actorId, ownerId, origin, at, name: "first_save", key: "first_save" })
-    if (access.savedCardCount >= 10) await recordCollectorEvent({ actorId, ownerId, origin, at, name: "activated", key: "activated" })
-  } catch { /* A failed observation never changes collection persistence. */ }
 }

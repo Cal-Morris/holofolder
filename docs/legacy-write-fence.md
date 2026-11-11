@@ -26,17 +26,9 @@ The existing service-key audit header is the only server context seam. SQL first
 
 Unknown jobs, imports and generic app/service writes are deliberately rejected after activation. A future legitimate job needs separate narrow review. Queue generation is not authentication.
 
-### First-party server adapter compatibility
+### First-party server adapter
 
-`app/api/collection/route.ts` authenticates and validates the exact original recipient before inspecting `X-Holo-Legacy-Queue`. Missing recipient binding therefore keeps its existing retention response, even with an unsupported protocol. For POST/PATCH/DELETE:
-
-- Exact header value `2` selects the supported server code path. Only then does `withLegacyQueueAudit()` add numeric `legacyQueueGeneration:2` and `purpose:"legacy.queue"` inside the existing app actor/operation-capture scope. Browser actor/source/audit-context fields are never copied. Exact recipient, authority, reviewed PATCH base and atomic row CAS still apply.
-- An explicitly present unsupported value, including an empty value, returns HTTP 503, `code:"collection_queue_upgrade_required"`, `retainOnDevice:true`, before invoking the collection handler. The response is private and not cacheable.
-- An absent header remains **untagged and compatible while 096 is inactive**, preserving the deployed old sender's existing contract. No route activation switch or early missing-header fence is introduced. After parent activation, the database commit guard rejects these untagged writes.
-
-`lib/server/operations/collection.ts` recognizes the exact `PT503` / `legacy_collection_write_paused` pair on returned errors or nested causes before generic error handling, returning the same sanitized retention-safe 503 on save, PATCH and delete. SQL detail/hint and wrapper messages are not exposed. Ordinary row conflicts remain 409 with their current item; converted-binder compatibility remains its distinct 409. Older deployed handlers may still wrap a database pause as retryable 500 until this adapter is deployed.
-
-The header proves a supported code path only. It is not authentication, IndexedDB durability proof, an idempotency receipt, or evidence that an unknown request did not commit. Keep original intent on-device; do not ACK, drop, rebase or silently replay it on a pause. Existing trusted REST/MCP principals retain their source/client identity and checks, without inheriting queue purpose or needing this first-party header. No public operation, registry, OpenAPI schema or native admission changes.
+Deleted with `/app/api/collection` (migration 105 PR): every binder is native, so no app code writes legacy rows. The SQL fence and its tables stay until migration 107 drops them.
 
 Guard activation, the production coordinated sender, fallback-bypass verification, both stable origins/Framer forwarding and downgrade behavior remain separate parent-owned gates. This adapter adds no SQL, hosted writes, activation, runtime initializer, feature-flag framework or provider request. The parent reports 096 already hosted inactive, enforcement false, with the original 90 counts and 35 digests preserved; this server lane does not reverify hosted state.
 

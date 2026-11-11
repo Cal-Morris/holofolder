@@ -7,9 +7,9 @@ import { inventoryItemCandidate } from '@/lib/domain/inventory'
 import { matchesSlotTarget } from '@/lib/domain/binder-slots'
 
 test('public discovery retires species-row access and names Pokemon-only helpers explicitly',()=>{
- for(const name of ['list_collection','save_collection_item','delete_collection_item','get_set_slots','get_collection_analytics']) assert.ok(!DEVELOPER_OPERATIONS.some(op=>op.name===name))
- for(const [method,path] of [['GET','/collection'],['POST','/collection'],['DELETE','/collection/1'],['GET','/sets/base1/slots'],['GET','/analytics']]) assert.equal(matchRestOperation(method,path),null)
- for(const [path,name] of [['/pokemon/sets/base1/slots','get_pokemon_set_slots'],['/legacy/pokemon/analytics','get_legacy_pokemon_analytics']]) {
+ for(const name of ['list_collection','save_collection_item','delete_collection_item','get_set_slots','get_collection_analytics','get_legacy_pokemon_analytics','resolve_import']) assert.ok(!DEVELOPER_OPERATIONS.some(op=>op.name===name))
+ for(const [method,path] of [['GET','/collection'],['POST','/collection'],['DELETE','/collection/1'],['GET','/sets/base1/slots'],['GET','/analytics'],['GET','/legacy/pokemon/analytics'],['POST','/imports/resolve']]) assert.equal(matchRestOperation(method,path),null)
+ for(const [path,name] of [['/pokemon/sets/base1/slots','get_pokemon_set_slots']]) {
   const op=matchRestOperation('GET',path)!.operation
   assert.equal(op.name,name)
   assert.ok(op.permissions.includes('catalog:read')||op.permissions.includes('collection:read'))

@@ -7,27 +7,20 @@ async function run() {
   const rows: Binder[] = []
   const owner = '00000000-0000-4000-8000-000000000001'
   const admin = {
-    async rpc(name: string) {
+    async rpc(name: string, args: Record<string, unknown>) {
       if(name==='get_binder_slot_counts')return {data:rows.map(row=>({binder_id:row.id,slot_count:0})),error:null}
+      if (name === 'developer_create_binder') {
+        // The SQL function creates the binder and its native state; the billing trigger can still race it.
+        assert.equal(typeof args.retry_key, 'string')
+        if (racing) return { data: null, error: { code: 'P0001', message: 'binder_limit_reached' } }
+        const id = crypto.randomUUID()
+        rows.push({ id, ownerUserId: owner, name: String(args.binder_name), isDefault: rows.length === 0, sortOrder: rows.length, color: null, rows: null, cols: null, createdAt: null, updatedAt: null })
+        return { data: { id }, error: null }
+      }
       assert.equal(name, 'get_billing_access')
       return { data: { enforced: true, perpetual: paid, ...(!legacy ? { free_card_limit: 100, free_binder_limit: 1 } : {}) }, error: null }
     },
-    from(table: string) {
-      let inserted: Record<string, unknown> | undefined
-      const q = {
-        select() { return q }, eq() { return q },
-        insert(value: Record<string, unknown>) { inserted = value; return q },
-        async single() {
-          assert.equal(table, 'binders')
-          if (racing) return { data: null, error: { code: 'P0001', message: 'binder_limit_reached' } }
-          const id = crypto.randomUUID()
-          rows.push({ id, ownerUserId: owner, name: String(inserted?.name), isDefault: inserted?.is_default === true, sortOrder: Number(inserted?.sort_order), color: null, rows: null, cols: null, createdAt: null, updatedAt: null })
-          return { data: { id }, error: null }
-        },
-        then(resolve: (result: { count: number; error: null }) => unknown) { return Promise.resolve({ count: 0, error: null }).then(resolve) },
-      }
-      return q
-    },
+    from(table: string): never { throw new Error(`POST must not touch ${table} directly`) },
   }
   // @ts-expect-error Bun module mocks are confined to this subprocess.
   const { mock } = await import('bun:test')

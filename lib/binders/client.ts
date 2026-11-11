@@ -1,3 +1,4 @@
+import { binderPath, parseBinderPath } from "@/lib/binders/url"
 import { ACTIVE_BINDER_COOKIE, BINDER_GRID_COOKIE, isBinderId, parseBinderGrid, type Binder } from "@/lib/binders/model"
 
 export type BinderWithCount = Binder & { slotCount: number }
@@ -32,12 +33,19 @@ export function readLastOpenedBinder(): string | null {
   }
 }
 
-/** The URL that opens one binder: the current page with ?binder= set (the app lives at /). */
-export function binderHref(binderId: string, currentHref?: string) {
-  if (!currentHref) return `/?binder=${encodeURIComponent(binderId)}`
-  const url = new URL(currentHref)
-  url.searchParams.set("binder", binderId)
+/**
+ * The router destination that opens one binder: /<slug> when it has one, else the current page with ?binder= set.
+ * Other query parameters are kept.
+ */
+export function binderHref(binderId: string, currentHref?: string, slug?: string | null) {
+  const url = new URL(currentHref ?? "http://app.invalid/")
   const pathname = url.pathname.replace(/^\/app(?=\/|$)/, "") || "/"
+  if (slug && (pathname === "/" || parseBinderPath(pathname))) {
+    for (const param of ["binder", "view", "page"]) url.searchParams.delete(param)
+    return `${binderPath(slug)}${url.search}`
+  }
+  if (parseBinderPath(pathname)) return `/?binder=${encodeURIComponent(binderId)}`
+  url.searchParams.set("binder", binderId)
   return `${pathname}${url.search}`
 }
 

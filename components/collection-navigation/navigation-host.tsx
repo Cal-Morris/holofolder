@@ -11,6 +11,7 @@ import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 import { captureNavigationScroll, defaultCollectionView, navigationIndex, navigationLocation, navigationScroll, navigationStorageKey,
   normalizeNavigationState, resolveNavigation, type CollectionNavigationRead, type CollectionNavigationFocus, type CollectionNavigationScope, type CollectionNavigationState, type CollectionViewState, type InventoryViewState } from "@/lib/collection-navigation"
 import type { InventoryOwnershipBinding } from "@/lib/inventory-actions"
+import { navigationParams, writeNavigationUrl } from "@/lib/binders/url"
 import styles from "./navigation.module.css"
 
 export interface NavigationSurface {
@@ -41,6 +42,8 @@ export interface CollectionNavigationHostProps {
   /** Shown as "New binder" in the collection picker. Receives the opener for the collection once it exists. */
   newCollection?: { disabled?: boolean; hint?: string; onSelect: (openCreated: NavigationSurface["openCreated"]) => void }
   fallbackCollectionId?: string | null
+  /** Binder slugs for /<slug>/binder/<page> addresses. Binders missing here use ?binder=<id>. */
+  binders?: readonly { id: string; slug?: string | null }[]
   scrollContainerId?: string
   /** Current authenticated session scope, null while signed out/rechecking membership. */
   scope: CollectionNavigationScope | null
@@ -51,12 +54,13 @@ export interface CollectionNavigationHostProps {
     onChange: (patch: Partial<CollectionViewState>) => void }) => ReactNode
   renderNationalDex: () => ReactNode
 }
+const NO_BINDERS: readonly { id: string; slug?: string | null }[] = []
 /** Shared navigation for checked authenticated sessions and read-only cached display. */
 export default function CollectionNavigationHost(props: CollectionNavigationHostProps) {
   if (!props.scope) return <p role="status">Sign in to open your collections.</p>
   return <ScopedNavigation key={JSON.stringify([navigationStorageKey(props.scope), props.scope.sessionId])} {...props} scope={props.scope} />
 }
-function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNationalDex, renderSurface, scrollContainerId, fallbackCollectionId, stagedSlabs = false, onEditGrading, ownership, newCollection, savedState }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
+function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNationalDex, renderSurface, scrollContainerId, fallbackCollectionId, binders = NO_BINDERS, stagedSlabs = false, onEditGrading, ownership, newCollection, savedState }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
   const scrollElement = useCallback(() => {
     const container = scrollContainerId ? document.getElementById(scrollContainerId) : null
     return container?.querySelector<HTMLElement>('[data-testid="view-scroller"], [data-testid="wanted-list"]') ?? container
@@ -69,7 +73,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     let saved: unknown
     try { saved = JSON.parse(localStorage.getItem(key) ?? "null") } catch { saved = null }
     const remembered = normalizeNavigationState(saved)
-    const params = new URLSearchParams(location.search)
+    const params = navigationParams(location, binders)
     // Opening the app lands on the binder, not on Inventory because it was the last screen used.
     // A link that names a view (?view=inventory, also what a reload of that screen carries) still opens it.
     if (remembered.main === "inventory" && !params.has("view")) remembered.main = "collection"
@@ -129,7 +133,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       entryId.current = entry?.id ?? crypto.randomUUID()
       request.current++; closeAllOverlays(); setHighlight(null)
       const result = resolveNavigation(normalizeNavigationState(entry?.key === key ? entry.state : null), scope, currentRead,
-        entry?.key === key ? undefined : new URLSearchParams(location.search), stagedSlabs)
+        entry?.key === key ? undefined : navigationParams(location, binders), stagedSlabs)
       stateRef.current = result.state; setState(result.state); setNotice(result.notice); setVisit(v => v + 1); persist(result.state)
     }
     const onTraversal = (event: NavigationCurrentEntryChangeEvent) => {
@@ -140,7 +144,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     window.navigation?.addEventListener("currententrychange", onTraversal)
     window.addEventListener("popstate", onPop)
     return () => { window.navigation?.removeEventListener("currententrychange", onTraversal); window.removeEventListener("popstate", onPop) }
-  }, [key, scope, currentRead, persist, stagedSlabs])
+  }, [key, scope, currentRead, persist, stagedSlabs, binders])
   const safe = state ? resolveNavigation(state, scope, currentRead, undefined, stagedSlabs) : null
   const visible = safe?.state
   const destinationKey = visible ? JSON.stringify([visible.main, visible.collectionId, visible.collections[visible.collectionId ?? ""]?.view]) : "loading"
@@ -182,15 +186,12 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       const url = new URL(location.href)
       if (next.main === "collection" && next.collectionId) {
         const view = next.collections[next.collectionId] ?? defaultCollectionView()
-        url.searchParams.set("binder", next.collectionId); url.searchParams.set("view", view.view)
-        if (view.view === "binder") url.searchParams.set("page", String(view.page))
-        else url.searchParams.delete("page")
-        url.searchParams.delete("slot"); url.searchParams.delete("item")
+        writeNavigationUrl(url, binders, { main: "collection", binderId: next.collectionId, view: view.view, page: view.page })
       }
       history.replaceState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: next } }, "", url)
       return next
     })
-  }, [persist, key, scrollTop])
+  }, [persist, key, scrollTop, binders])
   const inventoryChange = useCallback((browse: InventoryViewState) => update(old => ({ ...old, inventory: { ...old.inventory, ...browse } })), [update])
   const navigate = (next: CollectionNavigationState, locationIntent: CollectionNavigationFocus | null = null, latest = currentRead) => {
     const sequence = ++request.current
@@ -208,16 +209,15 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
         history.replaceState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: outgoing } }, "")
       }
       const result = resolveNavigation(pendingNavigation.state, scope, pendingNavigation.read, undefined, stagedSlabs)
-      const url = new URL(location.href)
-      for (const param of ["binder", "view", "page", "slot", "item"]) url.searchParams.delete(param)
-      url.searchParams.set("view", result.state.main === "collection" ? result.state.collections[result.state.collectionId ?? ""]?.view ?? "binder" : result.state.main)
-      if (result.state.main === "collection" && result.state.collectionId) url.searchParams.set("binder", result.state.collectionId)
+      const { main, collectionId } = result.state, view = result.state.collections[collectionId ?? ""] ?? defaultCollectionView()
+      const url = writeNavigationUrl(new URL(location.href), binders, main === "collection" && collectionId
+        ? { main, binderId: collectionId, view: view.view, page: view.page } : { main: main === "collection" ? "inventory" : main })
       entryId.current = crypto.randomUUID()
       history.pushState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: result.state } }, "", url)
       stateRef.current = result.state; persist(result.state); setState(result.state); setHighlight(pendingNavigation.highlight); setNotice(result.notice); setVisit(v => v + 1)
       setPendingNavigation(null)
     })
-  }, [pendingNavigation, scope, key, persist, scrollTop, stagedSlabs])
+  }, [pendingNavigation, scope, key, persist, scrollTop, stagedSlabs, binders])
 
   const openLocation = async (intent: InventoryLocationIntent) => {
     const sequence = ++request.current

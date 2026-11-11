@@ -50,11 +50,7 @@ async function main() {
  assert.ok(settings.fingerprint)
  assert.equal(calls.length,2,'settings and the owner-scoped binder layout require two parallel reads')
  calls.length=0
- await executeDeveloperOperation(context,'get_legacy_pokemon_analytics',{cardId:'base1-1'})
- assert.equal(calls.length,6,'activity and history remain parallel, bracketed by owner-root and collection authority fences')
- assert.equal(calls.filter(path=>path.endsWith('/inventory_owner_state')).length,2)
- assert.equal(calls.filter(path=>path.endsWith('/storage_collection_state')).length,2)
- for(const name of ['list_collection','save_collection_item','delete_collection_item','get_set_slots','get_collection_analytics']) {
+ for(const name of ['list_collection','save_collection_item','delete_collection_item','get_set_slots','get_collection_analytics','get_legacy_pokemon_analytics','resolve_import']) {
   const before:number=calls.length
   await assert.rejects(executeDeveloperOperation(context,name,{}),{code:'not_found',status:404})
   assert.equal(calls.length,before,'retired operations cannot reach internal legacy handlers')

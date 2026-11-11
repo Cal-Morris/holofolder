@@ -21,10 +21,6 @@ export function canCreateBinder(binders: readonly Binder[]) {
   return binders.length < MAX_BINDERS_PER_OWNER
 }
 
-export function nextBinderSortOrder(binders: readonly Binder[]) {
-  return binders.reduce((max, binder) => Math.max(max, binder.sortOrder), -1) + 1
-}
-
 /** A new order must name every binder exactly once; returns the ids in order, or null. */
 export function validateBinderOrder(binders: readonly Binder[], order: unknown): string[] | null {
   if (!Array.isArray(order) || order.length !== binders.length) return null

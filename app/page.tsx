@@ -15,7 +15,8 @@ const THEME_COOKIE = "binderdex_theme"
 export const instant = false
 
 interface PageProps {
-  searchParams: Promise<{ binder?: string | string[] }>
+  // binderSlug/view/page come from the /<slug>/binder/<page> rewrite in next.config.mjs.
+  searchParams: Promise<{ binder?: string | string[]; binderSlug?: string | string[] }>
 }
 
 async function loadServerBoot(searchParams: PageProps["searchParams"]): Promise<ServerBinderBoot> {
@@ -44,21 +45,22 @@ async function loadServerBoot(searchParams: PageProps["searchParams"]): Promise<
     // No owner hint: the client's own fresh check opens the right scope, or offers a retry.
     return { ...empty, initialUser: user, initialDarkMode: cookieStore.get(THEME_COOKIE)?.value !== "light" }
   }
-  const requestedBinder = (await searchParams).binder
+  const { binder: requestedId, binderSlug } = await searchParams
+  const requested = typeof requestedId === "string" ? requestedId : typeof binderSlug === "string" ? binderSlug : null
   const { binders, activeBinder } = await resolveActiveBinder(
     supabase,
     collectionOwnerUserId,
-    typeof requestedBinder === "string" ? requestedBinder : null,
+    requested,
     cookieStore.get(ACTIVE_BINDER_COOKIE)?.value ?? null,
   )
-  const { collection, settingsRow, settings, hasStoredSettings } = await loadBinderBootstrap(supabase, collectionOwnerUserId, activeBinder?.id ?? null, "native")
+  const { settingsRow, settings, hasStoredSettings } = await loadBinderBootstrap(supabase, collectionOwnerUserId, activeBinder?.id ?? null)
   const themeCookie = cookieStore.get(THEME_COOKIE)?.value
 
   return {
     initialUser: user,
     initialBinders: binders,
     initialBinderId: activeBinder?.id ?? null,
-    initialCollection: collection,
+    initialCollection: [],
     initialCollectionOwnerUserId: collectionOwnerUserId,
     initialSettings: settings,
     initialHasStoredSettings: hasStoredSettings,

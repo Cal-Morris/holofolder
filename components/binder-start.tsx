@@ -6,6 +6,7 @@ import type { User } from "@supabase/supabase-js"
 import { readDeviceStartupSession } from "@/lib/collection/native-startup"
 import BinderApp from "@/components/binder-app"
 import { BinderSkeleton } from "@/components/binder-skeleton"
+import { requestedBinderKey } from "@/lib/binders/url"
 import { readLocalBinderStart, writeBinderStartMarker, type LocalBinderStart } from "@/lib/binder-start"
 import type { BinderGrid } from "@/lib/binders/model"
 
@@ -63,7 +64,7 @@ export function BinderStart({ serverBoot, startGrid }: { serverBoot: Promise<Ser
         const session = await readDeviceStartupSession(() => createClient().auth.getSession())
         const user = session?.user
         if (!active || !user) return
-        const requestedBinderId = new URLSearchParams(window.location.search).get("binder")
+        const requestedBinderId = requestedBinderKey(window.location)
         const local = readLocalBinderStart(window.localStorage, document.cookie, user.id, requestedBinderId)
         if (local) setStart((current) => current ?? { source: "local", boot: { ...local, user } })
       } catch {

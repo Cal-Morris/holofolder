@@ -24,7 +24,6 @@ describe("API session checks", () => {
   test("write handlers still verify the session with Supabase Auth", () => {
     assert.match(handler(read("app/api/settings/route.ts"), "PUT"), /getFirstPartyUser\(client\)/)
     for (const method of ["POST", "DELETE"]) assert.match(handler(read("app/api/binder-share/route.ts"), method), /requireUser\(\)/)
-    for (const method of ["POST", "PATCH", "DELETE"]) assert.match(handler(read("app/api/collection/route.ts"), method), /getFirstPartyUser\(client\)/)
     assert.doesNotMatch(handler(read("app/api/binder-appearance/route.ts"), "PUT"), /readOnly/)
     assert.doesNotMatch(read("app/api/binder-appearance/upload/route.ts"), /readOnly/)
     assert.match(read("lib/server/binder-appearance.ts"), /readOnly \? await getSessionUser\(client\) : \(await getFirstPartyUser\(client\)\)/)

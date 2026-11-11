@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { matchBinder } from "@/lib/binders/url"
 import { bindersFromRows, isBinderId, pickActiveBinder, type Binder } from "@/lib/binders/model"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,17 +16,16 @@ export function isMissingBindersError(error: { code?: string; message?: string }
 
 /** The owner's binders in switcher order; [] when the table isn't there yet. Pass the caller's client so RLS applies. */
 export async function listOwnerBinders(client: AnySupabaseClient, ownerUserId: string): Promise<Binder[]> {
-  const { data, error } = await client
-    .from("binders")
-    .select(BINDER_COLUMNS)
-    .eq("owner_user_id", ownerUserId)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true })
+  const read = (columns: string) => client.from("binders").select(columns).eq("owner_user_id", ownerUserId)
+    .order("sort_order", { ascending: true }).order("created_at", { ascending: true })
+  let { data, error } = await read(`${BINDER_COLUMNS}, slug:binder_slug`)
+  // Before migration 106 there is no binder_slug: binders open by ?binder=<id>.
+  if (error && /binder_slug/.test(error.message ?? "")) ({ data, error } = await read(BINDER_COLUMNS))
   if (error) {
     if (isMissingBindersError(error)) return []
     throw error
   }
-  return bindersFromRows(data as Record<string, unknown>[])
+  return bindersFromRows(data as unknown as Record<string, unknown>[])
 }
 
 /** Service role: the owner's default binder id, created if missing (migration 039's ensure_default_binder). */
@@ -83,5 +83,7 @@ export async function resolveActiveBinder(
     console.error("[holofolder] Failed to list binders:", error)
     return [] as Binder[]
   })
-  return { binders, activeBinder: pickActiveBinder(binders, requestedId, lastOpenedId) }
+  // A slug (from /<slug>/binder/<page>) names a binder as well as its id does.
+  const requested = requestedId ? matchBinder(binders, requestedId)?.id ?? requestedId : null
+  return { binders, activeBinder: pickActiveBinder(binders, requested, lastOpenedId) }
 }
