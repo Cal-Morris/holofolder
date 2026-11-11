@@ -74,5 +74,5 @@ async function loadServerBoot(searchParams: PageProps["searchParams"]): Promise<
 // BinderStart shows this device's saved binder, or the server's collection when that arrives.
 export default function Page({ searchParams }: PageProps) {
   const startGrid = cookies().then(store => parseBinderGrid(store.get(BINDER_GRID_COOKIE)?.value))
-  return <Suspense fallback={<BinderSkeleton />}><BinderStart serverBoot={loadServerBoot(searchParams)} startGrid={startGrid} /></Suspense>
+  return <Suspense fallback={<BinderSkeleton startGridFromCookie />}><BinderStart serverBoot={loadServerBoot(searchParams)} startGrid={startGrid} /></Suspense>
 }

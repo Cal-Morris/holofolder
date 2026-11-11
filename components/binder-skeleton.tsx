@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react"
+import { BINDER_GRID_COOKIE } from "@/lib/binders/model"
 
 // The binder while it starts: the app's real frame (header, binder toolbar row, dock) with the page of
 // pockets still empty, so opening fills the page in place and nothing moves. The frame's classes mirror
@@ -19,7 +20,12 @@ const wanted = <path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49
 const browse = <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83zM2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
 const destinations: [string, ReactNode][] = [["Binder", binder], ["Inventory", inventory], ["Wanted", wanted], ["Browse", browse]]
 
-export function BinderSkeleton({ rows = 3, cols = 3 }: { rows?: number; cols?: number }) {
+// The prerendered shell can't read cookies, so this resizes its pockets to the last binder's grid (the cookie
+// BinderApp writes) before the first paint. Only for the server-rendered fallback in app/page.tsx: React never
+// hydrates a pending boundary's fallback, and a script rendered on the client doesn't run.
+const START_GRID_SCRIPT = `(function(s){var m=/(?:^|; )${BINDER_GRID_COOKIE}=([1-8])x([1-8])(?:;|$)/.exec(document.cookie);if(!m)return;var r=+m[1],c=+m[2],n=r*c,sp=s.parentNode.querySelector("[data-skeleton=spread]");sp.style.setProperty("--r",r);sp.style.setProperty("--c",c);for(var i=0;i<sp.children.length;i++){var p=sp.children[i],t=p.firstElementChild;p.style.gridTemplateColumns="repeat("+c+",minmax(0,1fr))";p.style.gridTemplateRows="repeat("+r+",minmax(0,1fr))";while(p.children.length>n)p.lastElementChild.remove();while(p.children.length<n)p.appendChild(t.cloneNode())}})(document.currentScript)`
+
+export function BinderSkeleton({ rows = 3, cols = 3, startGridFromCookie = false }: { rows?: number; cols?: number; startGridFromCookie?: boolean }) {
   const page = (second: boolean) => (
     <div className={`${second ? "hidden xl:grid" : "grid"} h-full w-full gap-1.5 rounded-2xl border border-border/60 bg-card p-2 sm:p-4`}
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
@@ -72,6 +78,7 @@ export function BinderSkeleton({ rows = 3, cols = 3 }: { rows?: number; cols?: n
           ))}
         </div>
       </div>
+      {startGridFromCookie && <script dangerouslySetInnerHTML={{ __html: START_GRID_SCRIPT }} />}
     </main>
   )
 }
