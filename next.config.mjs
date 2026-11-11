@@ -38,8 +38,8 @@ const nextConfig = {
   ],
   cacheComponents: true,
   typescript: {
-    // Typecheck CI checks the full repo; keep local builds checked too.
-    ignoreBuildErrors: process.env.VERCEL === "1",
+    // Typecheck CI checks the full repo with tsrs before building; keep local builds checked too.
+    ignoreBuildErrors: process.env.VERCEL === "1" || Boolean(process.env.CI),
   },
   turbopack: {
     root: projectRoot,
