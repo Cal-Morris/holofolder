@@ -3,20 +3,18 @@ title: Saved collections offline
 description: What saved startup can show and when a connection is required.
 ---
 
-Visit the app online first so this device can save its app files and collection data. Saved native collections can then reopen in Binder, List, Slabs and Inventory, labelled **Cached only**. Pending changes stay on this device until synchronization succeeds.
+Visit the app online first so this device can save its app files and collection data. Saved collections can then reopen in Binder, List, Slabs and Inventory from this device, read-only, with the app showing what was last saved on this device. Pending changes stay on this device until syncing succeeds.
 
 ## Account and saved state
 
-Saved startup, including on dead Wi-Fi that still reports online, needs the same unexpired device account session and saved collection-owner scope. Shared cached collections also need the account/owner-matched saved partner access allowance. This is permission to display saved copies, not proof of current membership or confirmation that pending changes reached the server.
+Saved startup, including on dead Wi-Fi that still reports online, needs the same unexpired account session on this device and the saved collection-owner scope. Shared collections also need the saved partner access for that account and owner. This only allows the saved copy to be shown. It does not prove current membership or that pending changes reached the server.
 
-Layout editing, new storage and remote commands are unavailable in cached startup. While initial account and membership checks are waiting, the app can show the saved view read-only and keep those checks running. It switches automatically to checked current data when access resolves. On reconnect an already cached view closes before access is checked again. Partner/account changes close the previous private view and its dialogs. Pending edits stay in their original scoped device record.
+New binders, layout editing, grading and other edits are unavailable during saved startup. While the initial account and membership checks are waiting, the app can show the saved view read-only and keep those checks running, then switches to current data once access resolves. Changing account or partner closes the previous private view and its dialogs. Pending edits stay in their original device record.
 
-If a complete refresh fails, the app keeps saved copies and pending changes, shows why it cannot refresh and disables new edits. Open **Storage** (the box button beside the collection picker) and choose **Refresh storage** after reconnecting. Missing, corrupt or expired account evidence or saved metadata requires a connection; the app does not manufacture an empty collection or delete pending edits. A first-ever offline visit cannot open an app whose files were never cached.
+Once the app is running online, edits made after the connection drops are kept on this device and the app says they will sync when you are back online. If a refresh fails, the app keeps saved copies and pending changes and shows what was last saved. Open **Storage** (the box button beside the collection picker) and choose **Refresh** after reconnecting. Missing, corrupt or expired account or saved data requires a connection; the app never shows an empty collection in its place or deletes pending edits. A first-ever offline visit cannot open an app whose files were never cached.
 
 ## First collection
 
-On a genuinely new account with no existing collection data, the server first proves the account is empty without creating anything. First creation also requires the server’s first-storage update, migration 098, to be applied and verified. Once it is available, open **Storage** and choose **New storage**, preview the arrangement and confirm it. The first storage becomes your default after the server confirms the creation and the app reads current storage. A failed or unknown reply keeps the original creation pending; do not create a duplicate to replace it.
+New accounts get a default binder automatically. To add another, open **Storage** and choose **New binder**, which needs a connection and no unsynced changes.
 
-If the app says your native collection is not ready, existing or incomplete collection data still requires an administrator to finish conversion. A failed account or storage check cannot be treated as an empty account. The browser never converts existing legacy data automatically.
-
-These startup and presentation preferences live on this device and add no REST or MCP operation. Existing native API credentials and server admission are separate from browser account checks. Physical-device and production verification remain release requirements.
+Startup and presentation preferences live on this device and add no REST or MCP operation. API keys and MCP access are separate from browser account checks.

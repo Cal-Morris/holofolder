@@ -11,7 +11,7 @@ Run for every feature PR, before merge. API implementation and docs ship with th
 
 Read the exact feature diff, its shared server operation, callers and permission/entitlement checks. Build a short capability list covering reads, mutations, errors, conflict/version behavior, pagination, partner access, offline limits and any audit/recovery effects. Historical plans and issue checkboxes are intent, not evidence of deployed behavior.
 
-Current entry points, verified 2026-11-09; recheck before editing:
+Current entry points, verified 2026-11-11; recheck before editing:
 
 - `lib/developer-api/operations.ts`: operation names, methods, paths, strict input schemas, permissions and descriptions.
 - `lib/server/operations/` and `developer-dispatch.ts`: shared authoritative operations and dispatch; `app/api/v1/[...path]/route.ts` and `lib/server/mcp/`: REST/MCP adapters.

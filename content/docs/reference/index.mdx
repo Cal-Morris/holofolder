@@ -29,6 +29,6 @@ Create a personal key in **Settings → Account → Developer access**. In an en
 
 - **Real requests, real changes.** Write operations change your account. Start with a read-only key and a GET request.
 - **Permissions apply.** The explorer uses the same subscription, permissions and rate limits as your own integrations.
-- **Retry safely.** Operations that create binders or comparison jobs require an `Idempotency-Key`. Collection changes use the fingerprint from your last read.
+- **Retry safely.** Creating a binder requires an `Idempotency-Key`. Settings changes use the fingerprint from your last read, and collection storage commands use current revisions with a retry-stable `operationId`.
 
 See [API conventions](/docs/contracts) for pagination, errors and limits. Prefer an AI assistant? [Connect through MCP](/docs/mcp) instead.

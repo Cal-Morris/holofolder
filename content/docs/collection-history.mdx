@@ -1,31 +1,31 @@
 ---
 title: Collection history
-description: See what changed and safely undo card and want-list edits.
+description: See what changed in your collection and safely undo a change.
 ---
 
 ## Activity in the app
 
-Open the binder switcher and choose **Activity**, or open **Activity** from a card’s details to see just that Pokémon. Entries are grouped by day and say what happened, such as **Removed Bulbasaur from My binder**, with the printing, person and local time.
+Open **Activity** from the collection's manage menu. Entries are grouped by day and say what happened, with the card, person and local time.
 
-Simple additions and removals are compact receipts. Tap an available card title to open that card in the current binder. Choose **View changes** for meaningful before/after values such as a printing swap; bulk changes expand a few at a time. Ordinary receipts avoid raw event data. Exact-operation history navigation identifies the original operation and selected event explicitly. A previous member is labelled **Previous member**; an unattributed entry stays **Unknown**. These labels do not invent historical profile names.
+Simple additions and removals are compact receipts. Choose **View changes** for meaningful before/after values such as a printing swap; bulk changes expand a few at a time. A previous member is labelled **Previous member**; an unattributed entry stays **Unknown**. These labels do not invent historical profile names.
 
-**Filters** searches the complete recorded history, including deleted cards. Choose a collection, person, action or inclusive UTC date range. **Older page** and **Newer page** follow server cursors, including histories longer than 1,000 events. Displayed times use your device’s timezone.
+**Filters** searches the complete recorded history, including deleted cards. Choose a collection, person, action or inclusive UTC date range. **Older page** and **Newer page** follow server cursors, so long histories stay reachable. Displayed times use your device's timezone.
 
-## Undo a mistake
+## Undo a change
 
-Choose **Undo**, review what will be restored or removed, then choose **Undo this change**. Complete recorded card and want-list row edits are supported, including removing a card, changing its printing/status and editing wanted cards. A supported bulk event is undone together.
+Undo works for recorded copy, slot and collection changes, such as adding, moving, assigning, removing or regrading a copy, slot edits, bulk changes and creating a collection. Choose **See what undoing does** to get a preview from the server, then **Undo this change** to apply it. If the change can no longer be undone, the preview says so and offers nothing to apply.
 
-Undo restores the original row identity and recorded card details. It checks current access, collection format, current limits and later changes to the same Pokémon. It refuses a newer edit even if the visible card was subsequently changed back. Unrelated later changes survive. There is no force overwrite.
+When a change removed cards, tick the ones to bring back. They return to your collection as Unassigned copies, not to a pocket. Undoing the creation of your default binder asks which binder should open first instead.
 
-Undo adds a new history entry and keeps the original. The original receipt shows **Undone** after verification, and when its linked undo is present on the loaded history page. The short-lived Undo for an acknowledged card edit uses the same checked recovery command. Unsynced edits keep their existing device undo path.
+The server checks current access and later changes before applying. A newer edit to the same data is a conflict, and there is no force overwrite. Undo adds a new history entry linked to the original, and the original shows **Undone** once its linked undo is on the loaded page.
 
-Collection creation/deletion, settings, sharing, native inventory/slot operations, collection-format changes and older entries without complete evidence cannot be undone through this release. Undo is offered for recorded card and want-list edits; its preview explains conflicts with newer work. Internal native recovery preparation remains separately gated.
+Settings, sharing and appearance changes cannot be undone from Activity.
 
 ## Offline and connection failures
 
-Previously opened activity pages remain available on this device, with their last-update time. They are saved pages, not a complete offline history. Reconnect to load another page or undo a change. Pending local edits must sync before Activity Undo is available.
+Previously opened activity pages remain available on this device with their last-update time. They are saved pages, not a complete offline history. Reconnect to load another page or start an undo. Pending local edits must sync first.
 
-If a connection fails while Undo is being applied, choose **Retry Undo**. The app retains the exact request before sending it and checks the same operation again, including after closing Activity or reloading. A retry cannot apply it twice. It refreshes the collection before showing **Undone**. If the write succeeded but the refresh failed, it says the undo was saved and offers verification again.
+A confirmed undo is saved on the device before it is sent, so a lost connection or reload does not lose it. The app shows **Undo saved on this device** until the server confirms it, then checks your collection again before showing **Undone**. Use **Try again** or **Check my collection** to continue; a retry sends the same request and cannot apply it twice. If the server rejects the undo because your collection changed, nothing was applied. You can then **Discard this undo** and **Start a new undo** from a fresh preview.
 
 ## REST and MCP
 
@@ -39,19 +39,14 @@ Every write records one entry as part of the same transaction, so history and th
 
 ## Native storage recovery
 
-Native recovery uses the authenticated first-party route and registered REST/MCP operations.
+The app and the registered REST/MCP operations use the same recovery executor. A preview lists public-safe changes and explicit conflict reasons; applying it needs the exact reviewed plan, explicit confirmation and a retry-stable operation ID. There is no offline optimistic restoration and no automatic replacement request.
 
-The prepared native flow reviews safe changes and explicit conflict reasons online. It requires specific review for restoring a removed copy as Unassigned or nominating a replacement default collection. Private label artwork that cannot be verified remains unavailable. Confirmed native requests would be retained in the existing device queue, with exact retry after unknown results and a new complete current-state read before synchronization. There is no offline optimistic restoration, automatic new request, or inferred successful Undo. Backend/public transport and rollout acceptance remain tracked in #396/#379; this preparation is not a release announcement.
-
-
-### Prepared native recovery rejection
+### Recovery rejection
 
 The v1/v2 apply contract declares REST `409 storage_recovery_rejected`, or MCP `isError:true`, only for a committed strict `error.rejection` containing `outcome:"rejected"`, the original `operationId`, known `code` and `inventoryRevision`. Codes are `recovery_plan_conflict` and `recovery_dependency_conflict`. Arbitrary 409/SQL errors, missing receipts, cancellation and billing/access errors are not noncommit proof. Exact accepted/rejected replay requires current authority and precedes mutable plan reconstruction.
 
-In the staged app, durable proof permits a separately fresh complete current owner/session read and explicit **Discard noncommitted recovery**. Discard preserves original request/proof with a distinct discarded state, never accepted/synchronized. **Review new recovery** then needs a new preview and explicit confirmation with a new operation ID. Unknown and accepted requests never gain discard/rebase. No private inverse, evidence, certificates or assets are exposed. This preparation is not an enabled capability or release announcement.
+After a committed rejection, the app reads your current collection again before offering **Discard this undo**. A discarded undo is kept as discarded, never as applied. A new undo needs a new preview, explicit confirmation and a new operation ID. Unknown and accepted requests can only be retried or checked, never discarded. No private inverse, evidence, certificates or assets are exposed.
 
 ### Find an exact operation
 
 REST `GET /app/api/v1/collection/audit?operationId=synthetic-original-operation` and MCP `list_collection_audit` with `{"operationId":"synthetic-original-operation"}` find the exact original operation within your currently authorized history. The example ID is synthetic. Keep the same filters when following `nextCursor`, then use `get_collection_audit` with the selected event ID to inspect it. An empty result does not prove that a command failed. Multiple events require choosing an exact event; never use the newest event as a guessed inverse. Operation IDs are bounded opaque strings, up to 200 characters without surrounding whitespace or line breaks. Private recovery evidence remains server-only.
-
-The staged native browser prepares **Find acknowledged change** only after a saved command has passed its separate fresh complete sync verification. It then requires a new history lookup and an exact-entry read before any supported **Review recovery** preview. Cached/offline history cannot authorize this handoff. The server supports native slot/inventory/recovery execution; this prepared app handoff still needs separate hosted/device acceptance. Existing legacy card and want-list Undo above is unchanged.

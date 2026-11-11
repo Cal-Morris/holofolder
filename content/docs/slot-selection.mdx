@@ -1,21 +1,31 @@
 ---
-title: Slot selection preparation
-description: The staged explicit-slot picker and its current integration limits.
+title: Pockets and targets
+description: Choose what each pocket is for, place your cards and edit a binder's layout.
 ---
 
-The new stable-slot picker is internal preparation and is not enabled in the live app. Continue using the current binder's card selection. There is no supported slot-selection REST or MCP operation yet.
+Every binder is a list of stable pockets. A pocket can have a target (a Pokémon, any of its cards or one exact card), be a free pocket that takes any card, and hold one owned copy.
 
-In the staged flow, first select a destination slot. Choose a compatible catalog card, including Trainer, item and Energy cards without Pokémon links. Distinct owned copies remain separate. Eligible Unassigned copies can be reused; already-placed copies stay where they are. Recorded grading choices retain their copy identity and do not invent slab details.
+## Choose what goes in a pocket
 
-**Remove target** keeps the card and makes the slot free. **Clear contents** keeps its target and position and leaves the owned copy Unassigned. A mismatched target change can be cancelled without changing anything. A separate hidden **Edit layout** preparation adds deliberate insertion, append and whole-slot button/keyboard moves. It is not enabled for production binders.
+Open a pocket's details, or long-press or right-click it for its pocket menu, to **Add a card**, **View card**, **Take the card out**, **Remove from collection**, **Move this pocket** or **Add a pocket before** or **after**. From **Edit layout**, select a single empty pocket and open **More pocket options** to **Choose what goes here** (or **Change what goes here**). The **What goes in this pocket?** sheet offers **A Pokémon**, **Any of its cards**, **One exact card**, **Any card** or **A free pocket**. This only changes what the pocket is for. **Let any card go here** removes the target and keeps the pocket.
 
-Offline search can use cards already cached on the device. Missing catalog coverage is shown explicitly. This draft UI does not promise durable offline assignment, saved changes or partner sync. Creating a separate Raw copy while only graded matching Unassigned copies exist still requires command integration.
+Picking a card searches the catalog, including Trainers, items and Energy that have no Pokémon link. Distinct owned copies stay separate. Spare copies (owned but not in a pocket) can be reused, and copies already in another pocket stay where they are. Recorded grading stays with its copy and no slab details are invented.
 
-The staged layout editor starts in Browse. Choose **Edit layout**, select a slot, then insert a free slot before/after or move the whole slot to a saved position or before/after another slot. **Append free slot** also works with an empty binder. Following slots shift across pages. **Done** returns to Browse; **Cancel selection** clears an unfinished choice, without undoing a draft already handed off. Changing the collection or view exits editing. Presentation filters disable layout editing.
+**Take the card out** leaves the pocket and its target in place, and the card stays in your collection as a spare. **Remove from collection** deletes the owned copy itself and empties its pocket. It can't be undone with one tap.
 
-This is synthetic UI preparation only. Undo, slot deletion, confirmation, drag/bulk editing and durable offline layout changes remain unfinished. No saved-change, recovery or partner-sync guarantee is made.
+## Edit the layout
 
-Authenticated commands, durable queues, conflict recovery, public API parity and enabled production verification remain required before this feature is released. No-destination search-to-target-or-append is a separate part of the same unfinished feature.
+Choose **Edit layout** above the binder, then tap pockets to select them. The bar shows how many are selected, with **Move**, **Add**, **Fill**, **Remove** and **Done**.
 
+- **Move** asks you to tap where the selection goes, or use **To the start** or **To the end**. **Cancel** stops the move.
+- **Add** inserts an empty pocket **Before the selection**, **After the selection** or **At the end of the binder**, or a whole page before the selection or at the end.
 
-An isolated internal durable-session harness now joins picker/layout intents to the existing device queue. It reports **Saved on device / Pending sync** only after IndexedDB commit; failed saves retain the same draft for retry. A later refresh error does not turn committed work into an unsaved edit. Replay requires a matching operation and a new verified complete owner read before acknowledgement. These synthetic checks do not enable this flow in your live binder. Production conversion/bootstrap, authenticated commands/recovery, guest recipient acceptance and supported APIs remain release gates.
+Following pockets shift across pages. If the pockets change while selected, choose **Update selection** to carry on. Changing the binder or view ends editing, and presentation filters disable it. See [bulk layout](/docs/bulk-layout) for multi-pocket moves, fill and removal.
+
+## Saving and offline
+
+Edits save on the device first and sync when online. If saving on the device fails you'll see **Save not confirmed** with **Try again** or **Discard**. Offline search uses cards already cached on the device, and missing catalog coverage is shown explicitly. Cached startup is read-only.
+
+## API
+
+The same changes are available through `execute_slot_commands` (`POST /app/api/v1/storage/slots/commands`) for insert, update, clear, remove and reorder, and `execute_inventory_commands` for assigning copies. Reads use `list_storage_slots` and `get_storage_slot`. See [native storage](/docs/native-storage).

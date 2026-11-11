@@ -1,16 +1,20 @@
 ---
 title: Set checklists
-summary: Review a copied language and verified finish scope, save it, and keep editing your goals.
+summary: Make a binder from one set, choose versions and promos, and keep editing your goals.
 ---
 
-In **New storage**, choose **Set / variant checklist**, find the actual catalog set and select a language. Review the full mirrored card list, including Trainers, Energy, repeated Pokémon, secrets and subsets. Base checklist means any finish. Variant goals use only explicit verified Normal, Holo, Reverse holo or Jumbo flags. Missing/false/unknown flags remain unavailable. No checklist guarantees universal master-set completeness.
+Open the binder's **Storage** menu, choose **New binder**, then **A set**. Under **Which set?**, find the catalog set by name or code and pick a checklist language. Every card in the set gets a pocket, including Trainers, Energy, repeated Pokémon, secret rares and subsets.
 
-Select optional promos from an actual set and explicitly exclude any unwanted cards. Review the eligible targets and coverage warnings, then choose **Review storage** and **Confirm create storage**. This needs a current connected native collection read and migration 101. The device first retains the exact command; **Creation pending** is not a server save. Unknown outcomes retain the request for exact retry or reconciliation.
+The next step covers versions, promos and cards to leave out. **Which versions?** defaults to **One of each card**, where any version fills the pocket. Choosing a finish such as Reverse holo or Jumbo adds one pocket per card that the catalog explicitly marks with that finish. Missing, false or unknown finish flags are not offered. **Add promos** loads a promo set by code (for example `svp`) so you can tap cards to include, and **Leave cards out** excludes cards you don't want. No checklist claims universal master-set completeness.
 
-After confirmation by current storage, reopen the collection, open **Storage** and expand **Saved checklist scope**. It preserves the exact language, verified finish scope, promos, exclusions and capture evidence. Saved scope can be viewed from this device's cached read-only startup. Loading uncached sets and preparing creation require connection.
+Name the binder, choose its pages, check the **Preview**, then **Create binder**. Creating needs a connection with your latest changes saved; offline you can preview but not create. The binder opens as soon as it's saved to your account, and selecting targets never adds owned cards, wants or grades.
 
-Your checklist is an independent initial copy. Catalog updates never alter it. Add free slots for extras, edit or remove targets, or append new goals. Completion follows current targets, not a permanent original-set membership rule. Normal never satisfies Reverse holo; one owned copy cannot fill two slots. Selecting goals creates no ownership, wants or grades.
+## After creation
 
-For integrations, `create_storage_collection` / `POST /app/api/v1/storage/collections` accepts optional `manifest.setScope`; `list_storage_collections` / `GET` on that path returns `presetManifest`. Preserve the reviewed scope and exact operation/collection/slot IDs across retries. Current authenticated owner/partner, permissions and entitlements still apply. Server-side set/master-set generation through `preview_storage_preset` remains unsupported; the app's reviewed generator and existing catalog reads are the available preparation paths. Developer read pages are not browser save acknowledgements.
+On the binder's collection view, **What this set binder covers** shows the saved language, versions, promos and exclusions. It is also visible from cached read-only startup.
 
-Migration 101 must be applied before scoped creation. Existing bare manifests remain supported. This persistence slice does not add scoped raw restore or arrangement import support; those SQL allowlists remain separate. Backup export is not proof that a scoped restore can execute. Hosted integration and release verification remain parent-owned.
+Your checklist is an independent copy, so catalog updates never change it. Add free pockets for extras, change or remove targets, or append new goals. Completion follows the current targets rather than the original set list. Normal never satisfies Reverse holo, and one owned copy can't fill two pockets.
+
+## API
+
+`create_storage_collection` (`POST /app/api/v1/storage/collections`) accepts an optional `manifest.setScope`, and `list_storage_collections` returns it inside `presetManifest`. Keep the reviewed scope and the same operation, collection and pocket IDs across retries. Normal owner/partner access, permissions and plan limits apply. `preview_storage_preset` does not generate set or master-set checklists, so build the manifest from catalog reads as the app does. Collections without a set scope keep working unchanged.

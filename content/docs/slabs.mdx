@@ -1,16 +1,14 @@
 ---
-title: Slabs rendering (staged)
-description: Local provider-specific holder previews and the remaining graded-release boundaries.
+title: Slabs view
+description: Provider-specific holder previews for graded copies in a collection.
 ---
 
-Slabs presentation is staged and unavailable in the live app. It does not enable native storage, grading, uploads or public slab sharing.
+Open a collection and choose **Slabs** in the view picker (next to **Binder** and **List**). The Slabs view shows each copy in the collection that has saved grading, using its owned-copy record. PSA, supported current and historic CGC, and Beckett silver, gold and black each have their own holder and label layout. A grade of 10 alone never selects Black Label or Pristine. Raw copies stay raw. Unknown holder versions keep their entered metadata in a neutral holder.
 
-The local test flow opens **Collections → View → Slabs** using the existing owned-copy IDs and saved grading. PSA, explicitly supported current and historic CGC, and Beckett silver, gold and black each have a separate holder/label layout. A grade of 10 alone never selects Black Label or Pristine. Raw copies stay raw. Unknown versions keep their entered metadata in a neutral holder.
+No provider import or slab photo is needed: the preview uses the catalog card image plus the recorded provider and grade. Missing catalog images show a readable fallback. Exact ACE/custom artwork and unsupported historical labels are shown as unavailable. Custom labels use the recorded text with one of four neutral colors. No certificate, barcode, QR code, verification graphic, invented grade or estimated slab value is added.
 
-A provider import or slab photo is not needed: the preview uses the catalog card image plus known provider/grade. Missing catalog images show a readable fallback. Exact ACE/custom artwork and unsupported historical labels are identified as unavailable. Custom labels use recorded text with one of four bounded neutral colors. No certificate, barcode, QR code, verification graphic, invented grade or estimated slab value is added.
+The gallery and enlarged detail are read-only. View, search and scroll position are saved on this device for the signed-in account and collection owner. When the app has started from saved data offline, the gallery is read-only and may be incomplete until it refreshes. Switching views never moves or regrades a copy. To change grading, use [manual grading](/docs/manual-grading) in Inventory.
 
-The gallery and enlarged detail are read-only. View/search/scroll are saved on this device within the signed-in account and collection-owner scope. Saved offline copies are identified as possibly incomplete. They cannot authorize a fresh read or mutation. Switching views does not move or regrade any copy.
+Certificates, private record links and original label or slab assets are never passed to the renderer or shown on the page. There is no public slab sharing: public binder links show ordinary card artwork with recorded provider and grade text only.
 
-Certificates, private record links and original label/slab assets are omitted from renderer inputs and the displayed DOM. Certificate sharing remains off by default. This UI adds no public publishing path. Scoped publication, safe photo redaction, revocation, backup/API parity and rollout remain required in #390/#379; exact asset handling belongs to #389.
-
-This is a UI-only rendering and device-navigation boundary. REST/MCP operations and OpenAPI are unchanged; the native storage operations remain staged with their existing denial responses. No release has been announced for this hidden slice.
+The view adds no REST or MCP operation. Developers read grading through the [native reads](/docs/native-reads), which return the redacted public projection.

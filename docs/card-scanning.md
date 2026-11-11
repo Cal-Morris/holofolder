@@ -6,7 +6,7 @@ Holo Folder runs card recognition in the browser. Show mode reads the Pokémon n
 
 The shared OCR reader tries native `TextDetector`, then an English Tesseract.js worker. Camera images are processed on the device; online catalogue searches and reference-image downloads still use the network. Offline Show mode searches only cards saved on the device, and Tesseract needs its engine/data downloaded first.
 
-Exact-printing recognition is heuristic. Similarity, confidence, the gap to the next candidate and repeated observations control automatic acceptance. Detecting an occupied pocket is separate from identifying its printing: page scans can mark the expected Pokémon collected without assigning an exact card.
+Exact-printing recognition is heuristic. Similarity, confidence, the gap to the next candidate and repeated observations rank candidates, and the user picks the card. Detecting an occupied pocket is separate from identifying its printing: a binder-page scan finds filled pockets, then the user chooses each card and its destination before anything is saved.
 
 ## Entry points and pipelines
 
@@ -14,8 +14,7 @@ Exact-printing recognition is heuristic. Similarity, confidence, the gap to the 
 | --- | --- | --- |
 | Show mode / price lookup | Online catalogue search, or saved cards offline | OCR name and collector number; open one clear result in the deal checker, otherwise return to search |
 | Card selector | Cards already loaded for the selected Pokémon | Compare camera frames against reference images, aggregate results, rerank with OCR and show candidate cards for selection |
-| Slot sweep | English cards with images for the Pokémon expected in that pocket | Match several frames and assign the printing only when acceptance checks pass |
-| Whole-page sweep / uploaded page photo | Expected Pokémon at each occupied pocket | Detect the grid and occupancy, crop pockets, then run visual matching and OCR reranking |
+| Binder-page scan (camera photo or uploaded photo) | Cards the user picks per pocket in the review | Detect the grid and occupancy and crop each filled pocket; the user chooses each card, copy and destination in [scan destination review](scan-destinations.md) |
 
 UI orchestration lives in [quick-card-scanner](../components/quick-card-scanner.tsx), [card-selector](../components/card-selector.tsx), and [native-page-scanner](../components/native-page-scanner.tsx). Camera acquisition is shared through [use-camera-stream](../hooks/use-camera-stream.ts); guided captures use [camera-frame](../lib/camera-frame.ts).
 
@@ -74,51 +73,33 @@ The card selector samples eight frames with 450 ms gaps and requires at least th
 
 [card-scan-ranking](../lib/card-scan-ranking.ts) reranks aggregated visual matches using OCR evidence. Candidate text starts with catalogue metadata. A bounded subset of reference images is also OCR-read to provide text that metadata may omit; those results and image descriptors are cached in component memory. The card selector limits reference-image OCR to 18 candidates.
 
-Page matching selects distinct, higher-quality captured crops using [card-scan-evidence](../lib/card-scan-evidence.ts), reading more crops when the leading visual candidates are close. Text evidence can introduce candidates outside the initial visual shortlist.
+The card selector presents ranked candidates for the user to select. Confidence is a heuristic score, not a calibrated probability of correctness.
 
-### Automatic acceptance
+## Scan destination review
 
-[card-scan-acceptance](../lib/card-scan-acceptance.ts) applies the following defaults to page matches:
-
-| Check | Default |
-| --- | --- |
-| Minimum similarity | 0.58 |
-| Minimum confidence | 0.62 |
-| Clear margin over the next candidate | 0.045 |
-| Alternative for a close margin | Similarity ≥ 0.68, confidence ≥ 0.82 and appearance ratio ≥ 0.72 |
-
-Slot sweep overrides the minimum similarity to 0.56 and confidence to 0.58, retaining the other defaults. The card selector presents ranked candidates for the user to select rather than applying this page acceptance gate.
-
-Confidence is a heuristic score, not a calibrated probability of correctness.
-
-## Staged native destination review
-
-[Scanner destination acceptance](scan-destinations.md) documents the opt-in PageScanner camera/photo and QuickCardScanner acceptance paths, stable captured IDs, explicit cached identity/copy/destination review, durable batch callbacks and remaining atomic append/host/runtime gates. These paths are not enabled by this slice. The legacy behavior below remains unchanged without explicit native admission.
+[Scan destination review](scan-destinations.md) covers how page and card scans become saved changes: stable captured slot IDs, explicit card/copy/destination choices per cell, and one atomic inventory request on confirmation.
 
 ## Binder-page scanning
 
-[binder-page-scan](../lib/binder-page-scan.ts) processes an uploaded photo or guided camera frame:
+[native-page-scanner](../components/native-page-scanner.tsx) takes one camera photo or an uploaded photo of the current page. [binder-page-scan](../lib/binder-page-scan.ts) processes it:
 
 1. Scale the source to a maximum dimension of 1,200 px.
 2. For uploaded photos, try Scanic page rectification, a custom page/grid-based rectification and the original image. Guided captures use their guided grid path.
 3. Locate the configured rows and columns, then refine pocket boundaries.
 4. Classify occupancy using luminance and chroma variation, saturation, edge density, spatial activity and highlight/glare checks.
 5. Produce 240×336 crops for occupied pockets.
-6. Compare each crop against English printings with images for the Pokémon expected at that slot, then aggregate and OCR-rerank the matches.
 
-Slot sweep captures eight frames with 360 ms gaps. Whole-page sweep samples 16 frames with 800 ms gaps, requires at least two usable frames and uses occupancy votes across frames. Its required vote count is the greater of two or 45% of usable frames rounded up. These configured sampling gaps exclude processing time.
-
-[binder-page-scan-aggregate](../lib/binder-page-scan-aggregate.ts) stabilizes occupancy across frames. The page-photo and whole-page flows can collect a newly occupied expected Pokémon without a printing; exact card fields are attached only when a match passes the acceptance gate. Slot sweep rejects an uncertain printing and asks the user to retry or skip.
+The photo only says which pockets are filled. The review shows each crop next to its pocket and the user chooses the card, so nothing is collected automatically.
 
 ## Network, offline and recognition limits
 
 - OCR and visual comparison run on the device. Catalogue search, candidate data and reference images can still require network requests; camera frames are not sent to a cloud recognition API by these pipelines.
 - Tesseract's first use downloads its engine and English data. Offline readiness depends on the reader assets being available, and offline Show mode can only match saved catalogue entries.
-- Collection image matching also needs candidate data and reference images. Running recognition locally does not guarantee a cold offline scan can load those resources.
-- Tesseract is configured for English. Page matching explicitly requests English candidates, and Show mode identifies names through the application's Pokémon catalogue.
+- Card selector image matching also needs candidate data and reference images. Running recognition locally does not guarantee a cold offline scan can load those resources.
+- Tesseract is configured for English. Show mode identifies names through the application's Pokémon catalogue.
 - Glare, blur, tiny collector numbers and visually similar printings can leave a result ambiguous. Recognizing a printing does not independently establish its physical finish or condition.
 - The thresholds above describe implemented rules, not measured accuracy. Synthetic tests exercise recognition logic and UI paths; real camera accuracy and latency require device testing.
 
 ## Tests
 
-Unit coverage is in `tests/card-scan-*.test.ts`, `tests/card-image-match.test.ts` and `tests/binder-page-grid-geometry.test.ts`. Browser coverage includes [show-scan](../e2e/show-scan.e2e.ts) and [page-scanner](../e2e/page-scanner.e2e.ts). See [testing](testing.md) for focused execution and the six mobile browser/standalone projects.
+Unit coverage is in `tests/card-scan-*.test.ts`, `tests/card-image-match.test.ts` and `tests/binder-page-grid-geometry.test.ts`. Browser coverage includes [show-scan](../e2e/show-scan.e2e.ts), [scan-destinations](../e2e/scan-destinations.e2e.ts) and [native-scanner-host](../e2e/native-scanner-host.e2e.ts). See [testing](testing.md) for focused execution and the six mobile browser/standalone projects.

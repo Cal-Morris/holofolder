@@ -108,7 +108,7 @@ not a trusted generation attestation or durable server receipt.
 
 ## Verification boundaries
 
-Focused unit suites, `scripts/verify-legacy-queue-storage.mjs` and affected
+Focused unit suites and affected
 six-phone host/review tests exercise the real hook and real IDB, transaction
 abort/quota, competing connections, stale session/recipient callbacks, explicit
 guest/history review, privacy, compatibility, old sources, offline hydration,

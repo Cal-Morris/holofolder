@@ -1,14 +1,14 @@
 ---
 title: Public binder links
-description: Existing read-only links, prices and ordered-pocket compatibility.
+description: Read-only token and named binder links, with optional prices.
 ---
 
-Existing token links and saved named binder addresses remain read-only. The owner controls whether sharing is enabled and whether saved market estimates may appear. Turning sharing off prevents subsequent server reads. Public pages do not load your visitor account's collection or private offline binder.
+Token links and named addresses (for example `https://holofolder.com/@name/binder-slug`) open a read-only copy of one binder. Set up sharing in **Settings → Share**. The owner controls whether sharing is enabled and whether prices may appear. Turning sharing off stops later reads; a visitor who already has the page open keeps the cards already downloaded. Public pages never load the visitor's own collection or offline binder.
 
-Ordered-pocket compatibility is implemented behind the existing storage-authority boundary. It does not convert a binder or enable the inventory/slot write APIs. Native rollout acceptance is still pending under #371 and #379. Unconverted binders retain their legacy National Dex arrangement.
+Shared links open the same binder app in read-only mode. Visitors can page, swipe, search and open card details, but every edit is refused, and signed-out visitors are offered **Join now**. Public pages keep the owner's pocket order, including repeated cards, Trainers, Energy, target placeholders and free spaces. Large custom grids scroll within the page.
 
-For a slot-authoritative binder, public pages preserve the owner's current pocket sequence, including repeated cards, Trainers, Energy, target placeholders and free spaces. Completion uses current targets, so a removed preset target does not remain missing. Large custom grids scroll within the page.
+When the owner shares prices, the Prices view and card details show each printing's current price, looked up by public catalog printing through the normal price API. When prices are not shared they are absent from the page and its previews.
 
-Only public display fields appear. Account/member IDs, private notes, acquisition information, purchase costs, pending changes, other collections and Unassigned inventory are excluded. Hidden prices are absent from page data and previews. Certificates, provider verification links and slab/label photos are not shared; ordinary card artwork may appear alongside recorded provider/grade text. Provider-faithful slab rendering is separate work.
+Only public display fields appear. Account and member IDs, private notes, acquisition details, purchase costs, pending changes, other collections and Unassigned inventory are excluded. Certificates, provider verification links and slab or label photos are never shared; ordinary card artwork can appear alongside recorded provider and grade text.
 
-Public page reads use existing free share permission. They add no developer REST/MCP inventory endpoint or permission. Existing sharing management operations keep their current registry contracts. A public page is a scoped view of one binder, never a complete owner inventory export.
+Public pages use free sharing and add no developer REST or MCP inventory endpoint or permission. Sharing management operations keep their existing registry contracts. A public page is a view of one binder, never an export of the owner's whole inventory.

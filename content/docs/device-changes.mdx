@@ -1,37 +1,10 @@
 ---
 title: Changes saved on this device
-description: Review guest and older changes before choosing where to add them.
+description: How device-only changes work now that guests are read-only.
 ---
 
-Changes saved on this device haven't been added to your account. Signing in,
-reconnecting or closing the review does not authorize uploading them.
+Signed-out visitors browse read-only. Every collection edit opens the sign-up dialog, so guests no longer build up changes on the device that later need to be moved into an account.
 
-Choose **Review changes**, then choose an existing destination binder. The review
-shows your signed-in account, collection owner and sharing visibility. Older
-changes do not identify their original account. Guest changes identify their
-device workspace, not an account.
+Signed-in edits are queued on this device and sent to your account automatically. While they wait, the app says the change is saved on this device and will sync when you are back online. If the collection changed somewhere else, or syncing is paused for your account or plan, the app holds the change and tells you why instead of discarding it.
 
-Check each addition, replacement or removal you want. Replacements and removals
-need an explicit choice. **Reload destination** clears your choices so you can
-review against the latest saved rows. The final **Add N reviewed changes to
-[binder]** action creates new reviewed changes linked to the retained source.
-Everyone with access to a shared binder can see those changes.
-
-**Keep on this device** and closing the review preserve the original data.
-**Download original data** exports the exact source, including entries the app
-cannot interpret. Unknown fields, duplicate identities or wanted cards,
-acquisition details and missing original bases can remain unresolved. These
-entries are not silently removed or uploaded.
-
-**Cancel upload** stops remaining reviewed changes. It cannot undo a request
-already sent. If a reply is lost, the request stays on the device and is not
-replayed automatically. Check the destination binder and Activity before making
-another edit. Do not repeat an upload with an unknown outcome.
-
-A converted-binder compatibility pause needs a compatible client. Accepting other
-reviewed changes does not remove that pause or its original record.
-
-Keep a download before clearing browser data. The existing device store does not
-provide a cross-tab or crash-proof transactional outbox.
-
-Downloads retain exact original bytes. If an original also contains changes from another account, that complete file stays on this device and cannot be downloaded from the current account. It is never silently redacted and presented as an exact original.
+The older review for guest and pre-account changes (**Review changes**, **Keep on this device**, **Download original data**) has been removed along with the legacy collection model, and the app does not upload that older device data.
