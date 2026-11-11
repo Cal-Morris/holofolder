@@ -103,22 +103,21 @@ describe("device-local collection navigation", () => {
   })
 })
 
-test("restored Inventory windows rebuild keysets from current evidence and clamp after filtering/removal", async () => {
-  const { restoreInventoryWindow, queryInventory } = await import("../lib/inventory-query")
+test("restored Inventory windows show every row through the window and clamp after filtering/removal", async () => {
+  const { inventoryWindowRows } = await import("../lib/inventory-query")
   const snapshot = await completeInventoryBrowseFixture(inventoryBrowseFixture(1205))
   const r: CollectionNavigationRead = { scope, evidence: { kind: "complete", snapshot }, catalog: inventoryBrowseCatalog, layouts: inventoryBrowseLayouts }
   const index = navigationIndex(scope, r), query = { sort: "id" as const }
-  const restored = restoreInventoryWindow(index, query, 25)
-  assert.equal(restored.previous.length, 25)
-  assert.equal(queryInventory(index, query, restored.cursor).rows[0].itemId, "copy-01001")
-  const previous = queryInventory(index, query, restored.previous.at(-1))
-  assert.equal(previous.rows[0].itemId, "copy-00961")
-  const filtered = restoreInventoryWindow(index, { ...query, collectionId: "alpha" }, 25000)
-  assert.equal(filtered.cursor, null); assert.equal(filtered.previous.length, 0)
-  const missing = restoreInventoryWindow(index, { search: "no-such-printing" }, 25000)
-  assert.equal(queryInventory(index, { search: "no-such-printing" }, missing.cursor).rows.length, 0)
+  const restored = inventoryWindowRows(index, query, 25)
+  assert.equal(restored.window, 25); assert.equal(restored.rows.length, 1040); assert.equal(restored.total, 1205)
+  assert.equal(restored.rows[0].itemId, "copy-00001"); assert.equal(restored.rows[1000].itemId, "copy-01001")
+  assert.equal(inventoryWindowRows(index, query, 25000).rows.length, 1205)
+  const filtered = inventoryWindowRows(index, { ...query, collectionId: "alpha" }, 25000)
+  assert.equal(filtered.window, 0); assert.equal(filtered.rows.length, filtered.total)
+  const missing = inventoryWindowRows(index, { search: "no-such-printing" }, 25000)
+  assert.equal(missing.rows.length, 0); assert.equal(missing.window, 0)
   const changed = navigationIndex(scope, await read())
-  assert.equal(restoreInventoryWindow(changed, query, 25).cursor, null)
+  assert.equal(inventoryWindowRows(changed, query, 25).window, 0)
 })
 
 

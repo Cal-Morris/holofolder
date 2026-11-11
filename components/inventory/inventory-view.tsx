@@ -8,8 +8,8 @@ import CardImage from "@/components/card-image"
 import { ListClearButton, ListControls, ListFiltersButton, ListSearch, ListSelect } from "@/components/list-controls"
 import type { InventoryBrowseEvidence, InventoryBrowseQuery, InventoryBrowseScope, InventoryCatalogEvidence,
   InventoryLayoutEvidence, InventoryLocationIntent } from "@/lib/domain/inventory-browse"
-import { buildInventoryBrowseIndex, inventoryGradingLabel, inventorySelectLabels, inventoryWantSlotKey, queryInventory, restoreInventoryWindow,
-  type InventoryBrowseCursor, type InventoryBrowseIndex } from "@/lib/inventory-query"
+import { buildInventoryBrowseIndex, inventoryGradingLabel, inventorySelectLabels, inventoryWantSlotKey, inventoryWindowRows,
+  type InventoryBrowseIndex } from "@/lib/inventory-query"
 import { inventoryLocationLabel, slotLocationLabel } from "@/lib/inventory-location"
 import { browserHostDisplayCatalog } from "@/lib/collection/browser-host-catalog"
 import { describeIdentity } from "@/lib/pocket-labels"
@@ -62,12 +62,24 @@ function InventoryResults({ index, labels, savedState, pricingRegion = "UK", onO
   const [initial] = useState(() => {
     const state = normalizeInventoryViewState(initialBrowseState)
     if (state.query.assignment === "assigned") state.query.assignment = "all"
-    return { query: state.query, ...restoreInventoryWindow(index, state.query, state.window) }
+    return state
   })
   const [query, setQuery] = useState<InventoryBrowseQuery>(initial.query)
-  const [cursor, setCursor] = useState<InventoryBrowseCursor | null>(initial.cursor)
-  const [previous, setPrevious] = useState<(InventoryBrowseCursor | null)[]>(initial.previous)
-  useEffect(() => { onBrowseStateChange?.({ query, window: previous.length }) }, [query, previous.length, onBrowseStateChange])
+  const [requestedWindow, setWindow] = useState(initial.window)
+  const result = useMemo(() => inventoryWindowRows(index, query, requestedWindow), [index, query, requestedWindow])
+  useEffect(() => { onBrowseStateChange?.({ query, window: result.window }) }, [query, result.window, onBrowseStateChange])
+  const more = result.rows.length < result.total
+  const showMore = () => setWindow(result.window + 1)
+  // Load the next 40 before the end of the list scrolls into view. Re-observing after each load
+  // keeps going while the button stays visible (tall screens); the button itself still works without it.
+  const moreRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    const button = moreRef.current
+    if (!button || typeof IntersectionObserver === "undefined") return
+    const observer = new IntersectionObserver(entries => { if (entries.some(e => e.isIntersecting)) setWindow(result.window + 1) }, { rootMargin: "0px 0px 800px 0px" })
+    observer.observe(button)
+    return () => observer.disconnect()
+  }, [result.window, more])
   const [selected, setSelected] = useState<string | null>(null)
   const [bulkIds, setBulkIds] = useState<string[]>([])
   // Selecting is a deliberate mode: tiles then toggle instead of opening.
@@ -94,12 +106,11 @@ function InventoryResults({ index, labels, savedState, pricingRegion = "UK", onO
     pendingLocation.current = null
     runAfterOverlayHistory(() => onOpenLocation?.(intent))
   }, [selected, onOpenLocation])
-  const result = queryInventory(index, query, cursor)
   const selectLabels = inventorySelectLabels(result.rows)
   const row = index.rows.find(r => r.itemId === selected)
   const providers = [...new Set(index.rows.flatMap(r => r.provider ? [r.provider] : []))].sort()
   const grades = [...new Set(index.rows.filter(r => !query.provider || r.provider === query.provider).flatMap(r => r.grade ? [r.grade] : []))].sort()
-  const change = (patch: Partial<InventoryBrowseQuery>) => { setQuery(q => ({ ...q, ...patch })); setCursor(null); setPrevious([]); setSelected(null) }
+  const change = (patch: Partial<InventoryBrowseQuery>) => { setQuery(q => ({ ...q, ...patch })); setWindow(0); setSelected(null) }
   const count = index.rows.length
   const projection = useMemo(() => index.projection ? selectInventoryCollection(index.projection, query.collectionId) : null, [index, query.collectionId])
   const { prices, status: priceStatus } = useInventoryPriceState(index.projection?.priceRequests ?? [])
@@ -211,9 +222,8 @@ function InventoryResults({ index, labels, savedState, pricingRegion = "UK", onO
           </li> })}</ul>
         {ownership?.available && <p id="inventory-graded-bulk-note" className="sr-only">{gradedBulkNote}</p>}
         <nav aria-label="Inventory pages" className={styles.pagination}>
-          {previous.length > 0 && <button type="button" onClick={() => { setCursor(previous.at(-1) ?? null); setPrevious(p => p.slice(0, -1)) }}>Previous</button>}
-          <span>{previous.length * 40 + 1}–{previous.length * 40 + result.rows.length} of {result.total}</span>
-          {result.next && <button type="button" onClick={() => { setPrevious(p => [...p, cursor]); setCursor(result.next) }}>Next</button>}
+          <span>{result.rows.length} of {result.total}</span>
+          {more && <button ref={moreRef} type="button" onClick={showMore}>Show more</button>}
         </nav>
       </>}
     </>}

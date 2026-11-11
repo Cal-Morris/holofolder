@@ -137,36 +137,31 @@ test("cached offline, empty and unavailable distinctions, owner and linked partn
   await expect(page.getByRole("dialog")).not.toBeVisible()
 })
 
-test("window pagination beyond 1000, reset on query and new evidence", async ({ page }) => {
+test("list grows on scroll beyond 1000, reset on query and new evidence", async ({ page }) => {
   await page.getByLabel("Harness evidence").selectOption("large")
   await expect(count(page)).toHaveText("1205 cards")
   const list = page.getByRole("list", { name: "Owned copies" })
   const pages = page.getByRole("navigation", { name: "Inventory pages", exact: true })
-  const windowIds = () => list.getByRole("button").evaluateAll(elements => elements.map(e => e.getAttribute("data-item-id")!))
-  const ids = new Set<string>(), firstOf: string[] = []
-  for (let window = 0; window < 31; window++) {
-    await expect(list.getByRole("button")).toHaveCount(window === 30 ? 5 : 40)
-    await expect(pages).toContainText(`${window * 40 + 1}–${window === 30 ? 1205 : window * 40 + 40} of 1205`)
-    const shown = await windowIds()
-    firstOf.push(shown[0])
-    for (const id of shown) { expect(ids.has(id)).toBe(false); ids.add(id) }
-    if (window === 1) {
-      // A host refresh with the same evidence keeps the window that is open.
-      await page.getByRole("button", { name: "Refresh host", exact: true }).click()
-      await expect(list.locator(`[data-item-id="${shown[0]}"]`)).toBeVisible()
-      await expect(pages).toContainText("41–80 of 1205")
-    }
-    if (window < 30) await pages.getByRole("button", { name: "Next", exact: true }).click()
-  }
-  expect(ids.size).toBe(1205)
-  await expect(pages.getByRole("button", { name: "Next", exact: true })).not.toBeVisible()
-  await pages.getByRole("button", { name: "Previous", exact: true }).click()
-  await expect(list.locator(`[data-item-id="${firstOf[29]}"]`)).toBeVisible()
-  await expect(pages).toContainText("1161–1200 of 1205")
-  // A new search starts again from the first window.
+  const more = pages.getByRole("button", { name: "Show more", exact: true })
+  const tiles = list.getByRole("button")
+  await expect(tiles).toHaveCount(40)
+  await expect(pages).toContainText("40 of 1205")
+  await more.click()
+  await expect(tiles.nth(40)).toBeVisible()
+  // A host refresh with the same evidence keeps what is already loaded.
+  const loaded = await tiles.nth(40).getAttribute("data-item-id")
+  await page.getByRole("button", { name: "Refresh host", exact: true }).click()
+  await expect(list.locator(`[data-item-id="${loaded}"]`)).toBeVisible()
+  // Scrolling to the end keeps loading until every copy is there, each exactly once.
+  await expect.poll(async () => { await more.scrollIntoViewIfNeeded({ timeout: 1000 }).catch(() => {}); return tiles.count() }, { timeout: 30_000 }).toBe(1205)
+  const ids = await tiles.evaluateAll(elements => elements.map(e => e.getAttribute("data-item-id")!))
+  expect(new Set(ids).size).toBe(1205)
+  await expect(pages).toContainText("1205 of 1205")
+  await expect(more).not.toBeVisible()
+  // A new search drops the loaded rows and counts against its own matches.
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
-  await expect(pages).toContainText(/(^|[^0-9])1–/)
-  await expect(pages.getByRole("button", { name: "Previous", exact: true })).not.toBeVisible()
+  await expect(pages).not.toContainText("of 1205")
+  await expect.poll(() => tiles.count()).toBeLessThan(1205)
   await page.getByLabel("Harness evidence").selectOption("complete")
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toHaveValue("")
 })
