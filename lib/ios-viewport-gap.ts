@@ -10,56 +10,57 @@
 // equals the top inset), so browser tabs, Android, older iOS and a correctly sized view are untouched.
 
 export interface ViewportMetrics {
-  standalone: boolean
-  screenWidth: number
-  screenHeight: number
-  innerWidth: number
-  innerHeight: number
-  insetTop: number
+  standalone: boolean;
+  screenWidth: number;
+  screenHeight: number;
+  innerWidth: number;
+  innerHeight: number;
+  insetTop: number;
 }
 
 /** Height in CSS px of the dead band under the page, or 0 when the view fills the screen. */
 export function iosViewportGap(m: ViewportMetrics): number {
-  if (!m.standalone || m.insetTop < 20) return 0
-  const portrait = m.innerHeight >= m.innerWidth
-  const long = Math.max(m.screenWidth, m.screenHeight)
-  const short = Math.min(m.screenWidth, m.screenHeight)
-  const fullWidth = portrait ? short : long
-  const fullHeight = portrait ? long : short
-  if (Math.abs(fullWidth - m.innerWidth) > 2) return 0
-  const missing = Math.round(fullHeight - m.innerHeight)
-  return missing >= 20 && Math.abs(missing - m.insetTop) <= 4 ? missing : 0
+  if (!m.standalone || m.insetTop < 20) return 0;
+  const portrait = m.innerHeight >= m.innerWidth;
+  const long = Math.max(m.screenWidth, m.screenHeight);
+  const short = Math.min(m.screenWidth, m.screenHeight);
+  const fullWidth = portrait ? short : long;
+  const fullHeight = portrait ? long : short;
+  if (Math.abs(fullWidth - m.innerWidth) > 2) return 0;
+  const missing = Math.round(fullHeight - m.innerHeight);
+  return missing >= 20 && Math.abs(missing - m.insetTop) <= 4 ? missing : 0;
 }
 
 /** Runs in the page (inline, before first paint) with iosViewportGap passed in. */
 function install(gapFor: (m: ViewportMetrics) => number) {
   try {
-    const root = document.documentElement
+    const root = document.documentElement;
     const measure = () => {
-      const probe = document.createElement("div")
-      probe.style.cssText = "position:fixed;top:0;left:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top)"
-      root.appendChild(probe)
-      const insetTop = parseFloat(getComputedStyle(probe).paddingTop) || 0
-      probe.remove()
-      const nav = navigator as Navigator & { standalone?: boolean }
+      const probe = document.createElement('div');
+      probe.style.cssText =
+        'position:fixed;top:0;left:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top)';
+      root.appendChild(probe);
+      const insetTop = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+      probe.remove();
+      const nav = navigator as Navigator & { standalone?: boolean };
       const gap = gapFor({
-        standalone: window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true,
+        standalone: window.matchMedia('(display-mode: standalone)').matches || nav.standalone === true,
         screenWidth: screen.width,
         screenHeight: screen.height,
         innerWidth: window.innerWidth,
         innerHeight: window.innerHeight,
         insetTop,
-      })
-      if (gap > 0) root.style.setProperty("--ios-viewport-gap", `${gap}px`)
-      else root.style.removeProperty("--ios-viewport-gap")
-      root.dataset.iosViewportGap = String(gap)
-    }
-    measure()
-    for (const type of ["resize", "orientationchange", "pageshow"]) window.addEventListener(type, measure)
-    window.visualViewport?.addEventListener("resize", measure)
+      });
+      if (gap > 0) root.style.setProperty('--ios-viewport-gap', `${gap}px`);
+      else root.style.removeProperty('--ios-viewport-gap');
+      root.dataset.iosViewportGap = String(gap);
+    };
+    measure();
+    for (const type of ['resize', 'orientationchange', 'pageshow']) window.addEventListener(type, measure);
+    window.visualViewport?.addEventListener('resize', measure);
   } catch {
     // Never let layout tuning break the page.
   }
 }
 
-export const IOS_VIEWPORT_GAP_SCRIPT = `(${install.toString()})(${iosViewportGap.toString()})`
+export const IOS_VIEWPORT_GAP_SCRIPT = `(${install.toString()})(${iosViewportGap.toString()})`;

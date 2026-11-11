@@ -25,17 +25,17 @@ The initial budget is 60 reads and 20 writes per minute per account, shared acro
 
 ## Errors
 
-| Status | Meaning |
-| --- | --- |
-| 401 | Invalid, expired or revoked credential |
-| 402 | Premium or lifetime access required |
-| 403 | Required permission missing |
-| 404 | Record unavailable to this account |
-| 409 | Conflict or confirmation required |
-| 413 | Request body too large |
-| 422 | This operation is unsupported for the requested data |
-| 429 | Rate limit reached |
-| 503 | A required service is unavailable |
+| Status | Meaning                                              |
+| ------ | ---------------------------------------------------- |
+| 401    | Invalid, expired or revoked credential               |
+| 402    | Premium or lifetime access required                  |
+| 403    | Required permission missing                          |
+| 404    | Record unavailable to this account                   |
+| 409    | Conflict or confirmation required                    |
+| 413    | Request body too large                               |
+| 422    | This operation is unsupported for the requested data |
+| 429    | Rate limit reached                                   |
+| 503    | A required service is unavailable                    |
 
 Errors include a stable code, a message and a request ID. Private responses are not cacheable.
 

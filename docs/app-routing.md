@@ -71,11 +71,11 @@ The public address is `https://holofolder.com/@cal/national`. Sharing must be en
 
 After the app route is deployed, add this Framer Site Settings → Hosting → Multi Site rule:
 
-| Field | Value |
-| --- | --- |
-| Path | `/@*/*` |
-| Type | External |
-| URL | `https://app.holofolder.com/app/u/:1/:2` |
+| Field | Value                                    |
+| ----- | ---------------------------------------- |
+| Path  | `/@*/*`                                  |
+| Type  | External                                 |
+| URL   | `https://app.holofolder.com/app/u/:1/:2` |
 
 Keep the existing `/app` and `/app/*` rules. Framer rewrites the request while preserving the visible named URL. No DNS or Next basePath change is needed. The origin route `https://app.holofolder.com/app/u/cal/national` can be checked independently, but does not prove the Framer rewrite works. The exact literal-@ wildcard rule and hydration through it require a published-site check. Browser verification is currently paused at Cal's request, so this remains a rollout gate.
 

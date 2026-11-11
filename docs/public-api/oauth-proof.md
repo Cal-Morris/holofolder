@@ -27,5 +27,4 @@ The synthetic client/account were deleted and the original OAuth/hook configurat
 
 Operational finding: the installed Supabase SDK's admin OAuth client-list types do not match the hosted empty-list response. The proof checks the registered-client count through the hosted auth schema before creating fixtures, rather than assuming that response shape.
 
-
 Additional hosted verification: the actual MCP SDK2.4 Streamable HTTP client initialized against the common HTTP handler, listed tools, read languages, created a binder and replayed the same idempotency key without duplication, and denied an ungranted settings write. REST keys were rejected by MCP with an advertised protected-resource metadata URL, and OAuth tokens were rejected by REST. The same run proved signup trials denied, lifetime access allowed, expired/revoked keys denied, >1000 Pokédex pagination, direct private Storage denial, refresh and old-token denial after revoke/reapprove. Synthetic users/clients were removed and OAuth settings restored. Next.js deployed routing and production issuance remain separate release gates.

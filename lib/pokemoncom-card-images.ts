@@ -9,34 +9,34 @@
  * Numbers lose leading zeros (001 → 1); prefixed numbers are kept (TG01, SV001, SWSH001).
  * Sets the CDN doesn't have simply 404; the mirror script reports them.
  */
-export const POKEMONCOM_CARD_IMAGE_BASE = "https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web"
+export const POKEMONCOM_CARD_IMAGE_BASE = 'https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web';
 
 const SET_CODE_OVERRIDES: Readonly<Record<string, string>> = {
-  "swsh4.5sv": "SWSH45",
-  "swsh9tg": "SWSH9",
-  "swsh10tg": "SWSH10",
-  "swsh11tg": "SWSH11",
-  "swsh12tg": "SWSH12",
-  "swsh12.5gg": "SWSH12PT5GG",
-}
+  'swsh4.5sv': 'SWSH45',
+  swsh9tg: 'SWSH9',
+  swsh10tg: 'SWSH10',
+  swsh11tg: 'SWSH11',
+  swsh12tg: 'SWSH12',
+  'swsh12.5gg': 'SWSH12PT5GG',
+};
 
 export function pokemonComSetCode(setId: string) {
-  const override = SET_CODE_OVERRIDES[setId]
-  if (override) return override
-  const upper = setId.toUpperCase()
-  const halfSet = /^(SV\d+|SWSH12)\.5$/.exec(upper)
-  const code = halfSet ? `${halfSet[1].replace(/^SV0/, "SV")}PT5` : upper.replace(/\./g, "")
-  return /^[A-Z0-9]{1,16}$/.test(code) ? code : null
+  const override = SET_CODE_OVERRIDES[setId];
+  if (override) return override;
+  const upper = setId.toUpperCase();
+  const halfSet = /^(SV\d+|SWSH12)\.5$/.exec(upper);
+  const code = halfSet ? `${halfSet[1].replace(/^SV0/, 'SV')}PT5` : upper.replace(/\./g, '');
+  return /^[A-Z0-9]{1,16}$/.test(code) ? code : null;
 }
 
 export function pokemonComCardNumber(localId: string) {
-  if (/^\d{1,6}$/.test(localId)) return String(Number(localId))
-  return /^[A-Z]{1,6}\d{1,6}$/i.test(localId) ? localId.toUpperCase() : null
+  if (/^\d{1,6}$/.test(localId)) return String(Number(localId));
+  return /^[A-Z]{1,6}\d{1,6}$/i.test(localId) ? localId.toUpperCase() : null;
 }
 
 /** pokemon.com image URL for one of our cards, or null when the id can't be expressed on the CDN. */
 export function pokemonComCardImageUrl(setId: string, localId: string) {
-  const code = pokemonComSetCode(setId)
-  const number = pokemonComCardNumber(localId)
-  return code && number ? `${POKEMONCOM_CARD_IMAGE_BASE}/${code}/${code}_EN_${number}.png` : null
+  const code = pokemonComSetCode(setId);
+  const number = pokemonComCardNumber(localId);
+  return code && number ? `${POKEMONCOM_CARD_IMAGE_BASE}/${code}/${code}_EN_${number}.png` : null;
 }

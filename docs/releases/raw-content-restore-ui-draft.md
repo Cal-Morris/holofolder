@@ -8,5 +8,4 @@ Lost replies keep the original command and operation ID. Editing pauses until a 
 
 This does not restore graded or converted collections, other storage, slot creation/deletion, grid/configuration changes, changed copied manifests or origins, settings, assets or CSV. No ownership is acquired or deleted. Native production routes and REST/MCP stay fixed503. Synthetic browser evidence is not hosted or physical-device proof. Parent owns final review, integration, deployment, release publication and issue acceptance.
 
-
 Unpublished v3 extension: review and restore a changed order of the same stable slots. The review shows old and desired positions, keeping each slot’s own targets, wants, provenance and retained physical copies. V3 adds exact before/after order to the same durable intent/proof and advances layout versions. The existing byte/work/recovery bounds still apply, including the extra order bytes. Requires parent-reviewed097; remains staged503 and is not a full restore announcement.

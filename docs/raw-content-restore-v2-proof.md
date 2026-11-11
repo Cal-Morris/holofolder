@@ -25,11 +25,11 @@ The file contains duplicate synthetic Trainer and Energy printings as distinct r
 
 Latest genuine-fixture timings, with retained populated command history, in milliseconds:
 
-| Case | Apply including actual audit and inverse validation | Deferred checks | Real COMMIT | Native preview | Inverse including COMMIT |
-|---|---:|---:|---:|---:|---:|
-| 1,025 slots, 2,050 refs, 1,025 wants | 1614.38 | 40.45 | 0.52 | 675.06 | 2062.55 |
-| Work 8,192: 1,025 slots, 2,050 refs, 4,092 wants, 551 prior events | 1768.61 | 34.58 | 1.05 | 693.39 | 2140.42 |
-| Exact JSONB 4 MiB, 1,025 slots, 2,050 refs, 1,025 wants, 553 prior events | 7109.76 | 33.50 | 0.63 | 5602.61 | **57014 timeout** |
+| Case                                                                      | Apply including actual audit and inverse validation | Deferred checks | Real COMMIT | Native preview | Inverse including COMMIT |
+| ------------------------------------------------------------------------- | --------------------------------------------------: | --------------: | ----------: | -------------: | -----------------------: |
+| 1,025 slots, 2,050 refs, 1,025 wants                                      |                                             1614.38 |           40.45 |        0.52 |         675.06 |                  2062.55 |
+| Work 8,192: 1,025 slots, 2,050 refs, 4,092 wants, 551 prior events        |                                             1768.61 |           34.58 |        1.05 |         693.39 |                  2140.42 |
+| Exact JSONB 4 MiB, 1,025 slots, 2,050 refs, 1,025 wants, 553 prior events |                                             7109.76 |           33.50 |        0.63 |        5602.61 |        **57014 timeout** |
 
 The work-edge request is 1,518,071 compact wire bytes / 1,621,523 JSONB-text bytes; its private audit is 2,543,800 JSONB-text bytes. The byte-edge command is exactly 4,194,304 JSONB-text bytes with multibyte text and a 5,116,580-byte audit. Its forward restore commits and preview succeeds, but recovery apply times out after approximately 10,103 ms including subsequent rollback verification. The failed inverse creates zero events and leaves the committed forward placements intact. The opt-in combined-envelope test deliberately remains failing.
 
@@ -65,7 +65,6 @@ Final check counts and exact PR head are recorded in the PR description. No full
 
 Original PR497 local checks: **78 focused unit/transport tests pass**, with 8 opt-in original-094 SQL fixtures skipped on this socket; v1 SQL and persisted-command compatibility are exercised by the 095 fixtures instead. **42/42 raw-restore production-mode checks pass across all six phone profiles.** Backup (48 cases) and native-card consumers (24 cases) also passed in the broader affected matrix. That intermediate aggregate run was 113/114 before the reload fixture's in-flight-send race was isolated; the final raw-restore-only matrix is clean. Typecheck, lint (55 existing warnings), production build plus docs CSS verification, fresh numbered replay and `git diff --check` pass. No full e2e suite was run.
 
-
 ## Corrected recovery envelope followup
 
 Implementation base is exact PR497 head `dd6b5b2ba8d7d5d7e65057056350b822eaff0926`. This is the same draft PR and required unpublished base, not a new feature branch off main. Canonical dirty root and the separate legacy-recipient lane were not edited.
@@ -86,13 +85,13 @@ The measured narrower lane keeps S≤1,025, I≤2,050, 100 desired wants per slo
 
 All cases below use the genuine 083-created 1,025-slot collection with disjoint old/new physical copies, populated history, real forward apply, deferred flush and COMMIT, followed by native preview, apply, deferred flush and COMMIT. The prospective-byte test model uses actual private rows; its predicted JSONB bytes equal the real recorded audit. Every row has 3,077 audit entities. Times are milliseconds from the final full SQL run, not hosted latency.
 
-| Case | Prior events | Wants after | Command JSONB bytes | Actual audit bytes | Apply | Deferred | COMMIT | Preview | Inverse + COMMIT |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| work8192 | 552 | 4092 | 1621560 | 2543800 | 2238.12 | 41.14 | 0.53 | 796.10 | 2987.71 |
-| command1.75MiB-graph2.5MiB | 558 | 4092 | 1835008 | 2621440 | 2195.32 | 38.85 | 0.34 | 806.15 | 2870.03 |
-| before-wants2.5MiB | 562 | 4092 | 1623620 | 2621440 | 2311.33 | 38.88 | 1.07 | 828.49 | 2470.28 |
-| duplicated-manifest2.5MiB | 566 | 4092 | 1661422 | 2621440 | 1836.56 | 33.55 | 0.26 | 770.89 | 2297.43 |
-| sparse-before-wants2.5MiB | 570 | 0 | 825769 | 2621440 | 1514.17 | 34.20 | 0.51 | 678.10 | 2120.15 |
+| Case                       | Prior events | Wants after | Command JSONB bytes | Actual audit bytes |   Apply | Deferred | COMMIT | Preview | Inverse + COMMIT |
+| -------------------------- | -----------: | ----------: | ------------------: | -----------------: | ------: | -------: | -----: | ------: | ---------------: |
+| work8192                   |          552 |        4092 |             1621560 |            2543800 | 2238.12 |    41.14 |   0.53 |  796.10 |          2987.71 |
+| command1.75MiB-graph2.5MiB |          558 |        4092 |             1835008 |            2621440 | 2195.32 |    38.85 |   0.34 |  806.15 |          2870.03 |
+| before-wants2.5MiB         |          562 |        4092 |             1623620 |            2621440 | 2311.33 |    38.88 |   1.07 |  828.49 |          2470.28 |
+| duplicated-manifest2.5MiB  |          566 |        4092 |             1661422 |            2621440 | 1836.56 |    33.55 |   0.26 |  770.89 |          2297.43 |
+| sparse-before-wants2.5MiB  |          570 |           0 |              825769 |            2621440 | 1514.17 |    34.20 |   0.51 |  678.10 |          2120.15 |
 
 The maximum-combined case fills command and graph bytes together with all S/I/W/work limits. Other exact graph edges cover large existing wants, duplicated manifest roots and sparse desired wants with concentrated before text. UTF-8 multibyte command padding is checked against PostgreSQL JSONB text. The per-slot100 and work8192 controls remain. In the final genuine creation/export/restore fixture, forward was 2,274.06 ms plus 41.10 ms deferred and 0.35 ms COMMIT; committed inverse was 2,855.60 ms. The complete edge run also passed separately in `envelope-narrower-graphs-proof.log`. These measurements leave RPC deadline headroom; the lock wait budget is unchanged and existing concurrent-delivery/edit/unlink fixtures still pass. They are local synthetic measurements, not a guarantee under arbitrary hosted load.
 

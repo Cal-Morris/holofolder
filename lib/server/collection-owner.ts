@@ -1,17 +1,17 @@
-import { BillingAccessError } from "@/lib/billing"
-import type { SupabaseClient } from "@supabase/supabase-js"
+import { BillingAccessError } from '@/lib/billing';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabaseClient = SupabaseClient<any, any, any>
+type AnySupabaseClient = SupabaseClient<any, any, any>;
 
 interface ResolveCollectionOwnerOptions {
   /** When the partnership lookup fails, use the user's own id instead of throwing. */
-  fallbackOnError?: boolean
+  fallbackOnError?: boolean;
   /** First-party recipient checks require a working current entitlement authority. */
-  strictBilling?: boolean
+  strictBilling?: boolean;
   /** A definite partner billing denial opens the actor's own collection, as storage_execute_v1 does.
    * Read and RPC errors still throw: only a fresh answer can select the actor's own scope. */
-  ownWhenDenied?: boolean
+  ownWhenDenied?: boolean;
 }
 
 /**
@@ -24,39 +24,52 @@ export async function resolveCollectionOwnerUserId(
   userId: string,
   options: ResolveCollectionOwnerOptions = {},
 ): Promise<string> {
-  return (await resolveCollectionMembership(client, userId, options)).ownerUserId
+  return (await resolveCollectionMembership(client, userId, options)).ownerUserId;
 }
 
-export async function resolveCollectionMembership(client: AnySupabaseClient, userId: string, options: ResolveCollectionOwnerOptions = {}) {
+export async function resolveCollectionMembership(
+  client: AnySupabaseClient,
+  userId: string,
+  options: ResolveCollectionOwnerOptions = {},
+) {
   const { data: partnership, error } = await client
-    .from("partnerships")
-    .select("id,owner_user_id,user1_id,user2_id")
+    .from('partnerships')
+    .select('id,owner_user_id,user1_id,user2_id')
     .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
     .limit(1)
-    .maybeSingle()
+    .maybeSingle();
 
   if (error) {
-    if (options.fallbackOnError) return { ownerUserId: userId, memberIds: [userId], partnershipId: null, partnerAccessDenied: false }
-    throw error
+    if (options.fallbackOnError)
+      return { ownerUserId: userId, memberIds: [userId], partnershipId: null, partnerAccessDenied: false };
+    throw error;
   }
 
   // billing_partner_allowed starts with `actor_id = owner_id OR`: the owner is always allowed, so only a partner asks.
-  if (partnership?.owner_user_id && partnership.owner_user_id !== userId && typeof client.rpc === "function") {
-    const { data: allowed, error: accessError } = await client.rpc("billing_partner_allowed", { owner_id: partnership.owner_user_id, actor_id: userId })
-    if (accessError && (options.strictBilling || !["PGRST202", "42883"].includes(accessError.code))) throw accessError
-    if (!accessError && options.ownWhenDenied && typeof allowed !== "boolean") throw new Error("billing_access_check_unavailable")
+  if (partnership?.owner_user_id && partnership.owner_user_id !== userId && typeof client.rpc === 'function') {
+    const { data: allowed, error: accessError } = await client.rpc('billing_partner_allowed', {
+      owner_id: partnership.owner_user_id,
+      actor_id: userId,
+    });
+    if (accessError && (options.strictBilling || !['PGRST202', '42883'].includes(accessError.code))) throw accessError;
+    if (!accessError && options.ownWhenDenied && typeof allowed !== 'boolean')
+      throw new Error('billing_access_check_unavailable');
     if (!accessError && !allowed) {
-      if (options.strictBilling && !options.ownWhenDenied) throw new BillingAccessError()
-      return { ownerUserId: userId, memberIds: [userId], partnershipId: null, partnerAccessDenied: true }
+      if (options.strictBilling && !options.ownWhenDenied) throw new BillingAccessError();
+      return { ownerUserId: userId, memberIds: [userId], partnershipId: null, partnerAccessDenied: true };
     }
   }
 
   return {
-    ownerUserId: typeof partnership?.owner_user_id === "string" ? partnership.owner_user_id : userId,
-    memberIds: [...new Set([userId, partnership?.user1_id, partnership?.user2_id].filter((id): id is string => typeof id === "string"))],
-    partnershipId: typeof partnership?.id === "string" ? partnership.id : null,
+    ownerUserId: typeof partnership?.owner_user_id === 'string' ? partnership.owner_user_id : userId,
+    memberIds: [
+      ...new Set(
+        [userId, partnership?.user1_id, partnership?.user2_id].filter((id): id is string => typeof id === 'string'),
+      ),
+    ],
+    partnershipId: typeof partnership?.id === 'string' ? partnership.id : null,
     partnerAccessDenied: false,
-  }
+  };
 }
 
 /** Preserve edits for a suspended shared binder as billing pauses, rather than unrelated-binder 404s. */

@@ -1,1 +1,1 @@
-export { GET } from '@/app/docs/llms.txt/route'
+export { GET } from '@/app/docs/llms.txt/route';

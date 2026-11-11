@@ -1,160 +1,252 @@
-import { writeFile } from "node:fs/promises"
-import { test, expect, emulateStandalone, mockBackends, Harness, E2E_USER, viewPicker, chooseCollection, chooseView } from "./fixtures"
-import { slabFixture, slabCatalog } from "../tests/fixtures/slabs"
-import { inventoryBrowseLayouts } from "../tests/fixtures/inventory-browse"
+import { writeFile } from 'node:fs/promises';
+import {
+  test,
+  expect,
+  emulateStandalone,
+  mockBackends,
+  Harness,
+  E2E_USER,
+  viewPicker,
+  chooseCollection,
+  chooseView,
+} from './fixtures';
+import { slabFixture, slabCatalog } from '../tests/fixtures/slabs';
+import { inventoryBrowseLayouts } from '../tests/fixtures/inventory-browse';
 
 // Synthetic copies, grades and certificates. Catalog image responses are mocked.
-const entry = "/app/e2e-harness/inventory?navigation=1&slabs=1&binder=alpha&view=slabs"
-const copies = (page: import("@playwright/test").Page) => page.getByRole("list", { name: "Collection copies" })
-const copy = (page: import("@playwright/test").Page, n: number) => copies(page).locator(`[data-item-id="copy-${String(n).padStart(5, "0")}"]`)
-const dock = (page: import("@playwright/test").Page) => page.getByRole("navigation", { name: "Collection navigation", exact: true })
+const entry = '/app/e2e-harness/inventory?navigation=1&slabs=1&binder=alpha&view=slabs';
+const copies = (page: import('@playwright/test').Page) => page.getByRole('list', { name: 'Collection copies' });
+const copy = (page: import('@playwright/test').Page, n: number) =>
+  copies(page).locator(`[data-item-id="copy-${String(n).padStart(5, '0')}"]`);
+const dock = (page: import('@playwright/test').Page) =>
+  page.getByRole('navigation', { name: 'Collection navigation', exact: true });
 
 test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
-  if (standalone) await emulateStandalone(page, insets)
-  await mockBackends(context, context, { signedIn: true, baseURL })
-})
+  if (standalone) await emulateStandalone(page, insets);
+  await mockBackends(context, context, { signedIn: true, baseURL });
+});
 
-test("provider gallery uses explicit variants, raw fallback, readable detail and no private DOM", async ({ page, insets }, info) => {
-  await page.goto(entry)
-  await expect(copies(page).getByRole("button")).toHaveCount(15)
-  const styles = await copies(page).locator("[data-slab-style]").evaluateAll(elements => elements.map(e => e.getAttribute("data-slab-style")))
-  expect(styles.slice(0, 9)).toEqual(["psa-lighthouse", "cgc-current", "cgc-pristine", "cgc-current", "cgc-blue", "neutral", "beckett-silver", "beckett-gold", "beckett-black"])
-  expect(styles[9]).toBe("raw"); expect(styles[10]).toBe("neutral")
-  await expect(copy(page, 12).locator("[data-label-tint]")).toHaveAttribute("data-label-tint", "teal")
-  const h = new Harness(page, insets, true)
-  await h.expectNoHorizontalOverflow()
-  await page.getByRole("region", { name: "Slabs collection" }).screenshot({ path: info.outputPath("synthetic-gallery.png"), style: "nav { visibility: hidden !important; }" })
-  const geometry = { viewport: page.viewportSize(), insets, view: await viewPicker(page).boundingBox(),
-    firstCopy: await copy(page, 1).boundingBox(), holder: await copy(page, 1).locator('[data-holder="psa"]').boundingBox() }
-  await writeFile(info.outputPath("synthetic-geometry.json"), JSON.stringify(geometry, null, 2))
-  await copy(page, 8).click()
-  const detail = page.getByRole("dialog", { name: "Slab copy details" })
-  await expect(detail).toContainText("Beckett · 10")
-  await expect(detail).toContainText("SubgradesUnknown")
-  await h.expectWithinSafeViewport(detail)
-  await h.expectMinTapTarget(detail.getByRole("button", { name: "Close slab details" }))
-  await h.expectHittable(detail.getByRole("button", { name: "Close slab details" }))
-  expect(await detail.locator('[data-slab-style="beckett-gold"]').count()).toBe(1)
-  await detail.screenshot({ path: info.outputPath("synthetic-gold-detail.png") })
-  await detail.getByRole("button", { name: "Close slab details" }).click()
-  await copy(page, 9).click()
-  await expect(detail.locator('[data-slab-style="beckett-black"]')).toBeVisible()
-  await expect(detail).toContainText("Centering10")
-  await page.keyboard.press("Escape")
-  await copy(page, 12).click()
-  await expect(detail).toContainText("Synthetic qualifier with more text than a real label could reasonably fit")
-  await h.expectNoHorizontalOverflow()
-  await detail.screenshot({ path: info.outputPath("synthetic-long-detail.png") })
-  const html = await page.locator("body").innerHTML()
-  expect(html).not.toMatch(/SYNTHETIC-PRIVATE|psacard.com\/cert|assetIds/)
-  await page.keyboard.press("Escape")
-  await copy(page, 15).click()
-  await expect(detail).toContainText("Card image unavailable")
-  await h.expectNoHorizontalOverflow()
-  await page.keyboard.press("Escape")
-  await page.evaluate(() => document.documentElement.classList.add("dark"))
-  await h.expectNoHorizontalOverflow()
-})
+test('provider gallery uses explicit variants, raw fallback, readable detail and no private DOM', async ({
+  page,
+  insets,
+}, info) => {
+  await page.goto(entry);
+  await expect(copies(page).getByRole('button')).toHaveCount(15);
+  const styles = await copies(page)
+    .locator('[data-slab-style]')
+    .evaluateAll((elements) => elements.map((e) => e.getAttribute('data-slab-style')));
+  expect(styles.slice(0, 9)).toEqual([
+    'psa-lighthouse',
+    'cgc-current',
+    'cgc-pristine',
+    'cgc-current',
+    'cgc-blue',
+    'neutral',
+    'beckett-silver',
+    'beckett-gold',
+    'beckett-black',
+  ]);
+  expect(styles[9]).toBe('raw');
+  expect(styles[10]).toBe('neutral');
+  await expect(copy(page, 12).locator('[data-label-tint]')).toHaveAttribute('data-label-tint', 'teal');
+  const h = new Harness(page, insets, true);
+  await h.expectNoHorizontalOverflow();
+  await page
+    .getByRole('region', { name: 'Slabs collection' })
+    .screenshot({ path: info.outputPath('synthetic-gallery.png'), style: 'nav { visibility: hidden !important; }' });
+  const geometry = {
+    viewport: page.viewportSize(),
+    insets,
+    view: await viewPicker(page).boundingBox(),
+    firstCopy: await copy(page, 1).boundingBox(),
+    holder: await copy(page, 1).locator('[data-holder="psa"]').boundingBox(),
+  };
+  await writeFile(info.outputPath('synthetic-geometry.json'), JSON.stringify(geometry, null, 2));
+  await copy(page, 8).click();
+  const detail = page.getByRole('dialog', { name: 'Slab copy details' });
+  await expect(detail).toContainText('Beckett · 10');
+  await expect(detail).toContainText('SubgradesUnknown');
+  await h.expectWithinSafeViewport(detail);
+  await h.expectMinTapTarget(detail.getByRole('button', { name: 'Close slab details' }));
+  await h.expectHittable(detail.getByRole('button', { name: 'Close slab details' }));
+  expect(await detail.locator('[data-slab-style="beckett-gold"]').count()).toBe(1);
+  await detail.screenshot({ path: info.outputPath('synthetic-gold-detail.png') });
+  await detail.getByRole('button', { name: 'Close slab details' }).click();
+  await copy(page, 9).click();
+  await expect(detail.locator('[data-slab-style="beckett-black"]')).toBeVisible();
+  await expect(detail).toContainText('Centering10');
+  await page.keyboard.press('Escape');
+  await copy(page, 12).click();
+  await expect(detail).toContainText('Synthetic qualifier with more text than a real label could reasonably fit');
+  await h.expectNoHorizontalOverflow();
+  await detail.screenshot({ path: info.outputPath('synthetic-long-detail.png') });
+  const html = await page.locator('body').innerHTML();
+  expect(html).not.toMatch(/SYNTHETIC-PRIVATE|psacard.com\/cert|assetIds/);
+  await page.keyboard.press('Escape');
+  await copy(page, 15).click();
+  await expect(detail).toContainText('Card image unavailable');
+  await h.expectNoHorizontalOverflow();
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  await h.expectNoHorizontalOverflow();
+});
 
-test("detail dismisses with X, Escape, back, backdrop, swipe and navigation, restoring focus", async ({ page, insets }) => {
-  await page.goto(entry)
-  const h = new Harness(page, insets, true), opener = copy(page, 1), detail = page.getByRole("dialog", { name: "Slab copy details" })
-  for (const method of ["x", "escape", "back", "backdrop", "swipe", "dock"]) {
-    await opener.click()
-    await expect(detail).toBeVisible()
-    if (method === "x") await detail.getByRole("button", { name: "Close slab details" }).click()
-    else if (method === "escape") await page.keyboard.press("Escape")
-    else if (method === "back") await page.goBack()
-    else if (method === "backdrop") await h.tapBackdrop(detail)
-    else if (method === "swipe") await h.swipeDown(detail)
-    else await dock(page).getByRole("button", { name: "Inventory", exact: true }).click()
-    await expect(detail).not.toBeVisible()
-    await h.expectScrollUnlocked()
-    if (method !== "dock") await expect(opener).toBeFocused()
+test('detail dismisses with X, Escape, back, backdrop, swipe and navigation, restoring focus', async ({
+  page,
+  insets,
+}) => {
+  await page.goto(entry);
+  const h = new Harness(page, insets, true),
+    opener = copy(page, 1),
+    detail = page.getByRole('dialog', { name: 'Slab copy details' });
+  for (const method of ['x', 'escape', 'back', 'backdrop', 'swipe', 'dock']) {
+    await opener.click();
+    await expect(detail).toBeVisible();
+    if (method === 'x') await detail.getByRole('button', { name: 'Close slab details' }).click();
+    else if (method === 'escape') await page.keyboard.press('Escape');
+    else if (method === 'back') await page.goBack();
+    else if (method === 'backdrop') await h.tapBackdrop(detail);
+    else if (method === 'swipe') await h.swipeDown(detail);
+    else await dock(page).getByRole('button', { name: 'Inventory', exact: true }).click();
+    await expect(detail).not.toBeVisible();
+    await h.expectScrollUnlocked();
+    if (method !== 'dock') await expect(opener).toBeFocused();
   }
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
-})
+  await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toBeVisible();
+});
 
-test("view switches, back, reload and new page restore presentation without rewriting copies", async ({ page, context }) => {
-  await page.goto(entry)
-  await expect(copies(page).getByRole("button")).toHaveCount(15)
-  const ids = await copies(page).getByRole("button").evaluateAll(elements => elements.map(e => e.getAttribute("data-item-id")))
-  await chooseView(page, "list")
-  await expect(page.getByRole("button", { name: "Edit layout", exact: true })).toBeVisible()
-  await page.getByRole("button", { name: "Edit layout", exact: true }).click()
-  await chooseView(page, "slabs")
-  await expect(copies(page).getByRole("button")).toHaveCount(15)
-  expect(await copies(page).getByRole("button").evaluateAll(elements => elements.map(e => e.getAttribute("data-item-id")))).toEqual(ids)
-  await page.getByRole("searchbox", { name: "Search this collection" }).fill("beckett")
-  await expect(copies(page).getByRole("button")).toHaveCount(5)
-  await page.reload()
-  await expect(viewPicker(page)).toHaveAttribute("data-value", "slabs")
-  await expect(page.getByRole("searchbox", { name: "Search this collection" })).toHaveValue("beckett")
-  const next = await context.newPage()
-  await next.goto("/app/e2e-harness/inventory?navigation=1&slabs=1")
-  await expect(viewPicker(next)).toHaveAttribute("data-value", "slabs")
-  await next.close()
-  await chooseView(page, "binder")
-  await page.goBack()
-  await expect(viewPicker(page)).toHaveAttribute("data-value", "slabs")
-  await expect(page.getByRole("dialog")).not.toBeVisible()
-})
+test('view switches, back, reload and new page restore presentation without rewriting copies', async ({
+  page,
+  context,
+}) => {
+  await page.goto(entry);
+  await expect(copies(page).getByRole('button')).toHaveCount(15);
+  const ids = await copies(page)
+    .getByRole('button')
+    .evaluateAll((elements) => elements.map((e) => e.getAttribute('data-item-id')));
+  await chooseView(page, 'list');
+  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  await chooseView(page, 'slabs');
+  await expect(copies(page).getByRole('button')).toHaveCount(15);
+  expect(
+    await copies(page)
+      .getByRole('button')
+      .evaluateAll((elements) => elements.map((e) => e.getAttribute('data-item-id'))),
+  ).toEqual(ids);
+  await page.getByRole('searchbox', { name: 'Search this collection' }).fill('beckett');
+  await expect(copies(page).getByRole('button')).toHaveCount(5);
+  await page.reload();
+  await expect(viewPicker(page)).toHaveAttribute('data-value', 'slabs');
+  await expect(page.getByRole('searchbox', { name: 'Search this collection' })).toHaveValue('beckett');
+  const next = await context.newPage();
+  await next.goto('/app/e2e-harness/inventory?navigation=1&slabs=1');
+  await expect(viewPicker(next)).toHaveAttribute('data-value', 'slabs');
+  await next.close();
+  await chooseView(page, 'binder');
+  await page.goBack();
+  await expect(viewPicker(page)).toHaveAttribute('data-value', 'slabs');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+});
 
-test("cached offline display works with no photo/import and scope changes remove private detail", async ({ page, context, insets }) => {
-  await page.goto(entry)
-  await expect(copies(page)).toBeVisible()
-  await page.getByLabel("Navigation evidence").selectOption("cached")
-  await context.setOffline(true)
-  await expect(page.getByRole("status").filter({ hasText: "Saved on this device" })).toBeVisible()
-  await copy(page, 3).click()
-  await expect(page.getByRole("dialog")).toContainText("CGC · 10")
-  await page.keyboard.press("Escape")
-  await chooseView(page, "list")
-  await chooseView(page, "slabs")
-  await copy(page, 1).click()
-  await page.getByLabel("Navigation account").evaluate((select: HTMLSelectElement) => { select.value = "synthetic-other"; select.dispatchEvent(new Event("change", { bubbles: true })) })
-  await expect(page.getByRole("dialog")).not.toBeVisible()
-  await expect(copies(page)).not.toBeVisible()
-  await page.getByLabel("Navigation account").selectOption("synthetic-partner")
-  await chooseCollection(page, "alpha")
-  await chooseView(page, "slabs")
-  await expect(copies(page).getByRole("button")).toHaveCount(15)
-  await new Harness(page, insets, true).expectNoHorizontalOverflow()
-})
+test('cached offline display works with no photo/import and scope changes remove private detail', async ({
+  page,
+  context,
+  insets,
+}) => {
+  await page.goto(entry);
+  await expect(copies(page)).toBeVisible();
+  await page.getByLabel('Navigation evidence').selectOption('cached');
+  await context.setOffline(true);
+  await expect(page.getByRole('status').filter({ hasText: 'Saved on this device' })).toBeVisible();
+  await copy(page, 3).click();
+  await expect(page.getByRole('dialog')).toContainText('CGC · 10');
+  await page.keyboard.press('Escape');
+  await chooseView(page, 'list');
+  await chooseView(page, 'slabs');
+  await copy(page, 1).click();
+  await page.getByLabel('Navigation account').evaluate((select: HTMLSelectElement) => {
+    select.value = 'synthetic-other';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(copies(page)).not.toBeVisible();
+  await page.getByLabel('Navigation account').selectOption('synthetic-partner');
+  await chooseCollection(page, 'alpha');
+  await chooseView(page, 'slabs');
+  await expect(copies(page).getByRole('button')).toHaveCount(15);
+  await new Harness(page, insets, true).expectNoHorizontalOverflow();
+});
 
-test("actual BinderApp renders the staged gallery from its checked navigation host", async ({ page, insets }) => {
-  const snapshot = slabFixture()
-  snapshot.ownerUserId = E2E_USER.id
-  snapshot.items.forEach(i => { i.ownerUserId = E2E_USER.id })
-  snapshot.collections.forEach(c => { c.ownerUserId = E2E_USER.id })
-  snapshot.binders.forEach(b => { b.ownerUserId = E2E_USER.id; b.slots.forEach(s => { s.ownerUserId = E2E_USER.id }) })
-  await page.route("**/app/e2e-harness/storage/inventory?*", async route => {
-    const url = new URL(route.request().url())
-    await route.fulfill({ headers: { "Cache-Control": "private, no-store" }, json: { version: 2, requestId: url.searchParams.get("requestId"), scope: { actorUserId: E2E_USER.id, ownerUserId: E2E_USER.id,
-      authSessionId: "synthetic-e2e-auth-session", sessionId: url.searchParams.get("sessionId") }, snapshot,
-      navigation: { catalog: slabCatalog, layouts: inventoryBrowseLayouts }, evidence: { inventoryRevision: 1, items: snapshot.items.length, placements: snapshot.placements.length,
-        collections: snapshot.collections.length, binders: snapshot.binders.length, slots: snapshot.binders.reduce((n, b) => n + b.slots.length, 0),
-        storage: snapshot.binders.map(b => ({ collectionId: b.collectionId, collectionVersion: 1, layoutRevision: b.layoutRevision, slotCount: b.slots.length })) } } })
-  })
-  await page.goto("/app/e2e-harness?signedIn=1&browserHost=1&binder=alpha&view=slabs")
-  await expect(copies(page).getByRole("button")).toHaveCount(15)
-  await copy(page, 1).click()
-  const detail = page.getByRole("dialog", { name: "Slab copy details" })
-  await expect(detail).toBeVisible()
-  await new Harness(page, insets, true).expectWithinSafeViewport(detail)
-  await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Inventory", exact: true }).click()
-  await expect(detail).not.toBeVisible()
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
-})
+test('actual BinderApp renders the staged gallery from its checked navigation host', async ({ page, insets }) => {
+  const snapshot = slabFixture();
+  snapshot.ownerUserId = E2E_USER.id;
+  snapshot.items.forEach((i) => {
+    i.ownerUserId = E2E_USER.id;
+  });
+  snapshot.collections.forEach((c) => {
+    c.ownerUserId = E2E_USER.id;
+  });
+  snapshot.binders.forEach((b) => {
+    b.ownerUserId = E2E_USER.id;
+    b.slots.forEach((s) => {
+      s.ownerUserId = E2E_USER.id;
+    });
+  });
+  await page.route('**/app/e2e-harness/storage/inventory?*', async (route) => {
+    const url = new URL(route.request().url());
+    await route.fulfill({
+      headers: { 'Cache-Control': 'private, no-store' },
+      json: {
+        version: 2,
+        requestId: url.searchParams.get('requestId'),
+        scope: {
+          actorUserId: E2E_USER.id,
+          ownerUserId: E2E_USER.id,
+          authSessionId: 'synthetic-e2e-auth-session',
+          sessionId: url.searchParams.get('sessionId'),
+        },
+        snapshot,
+        navigation: { catalog: slabCatalog, layouts: inventoryBrowseLayouts },
+        evidence: {
+          inventoryRevision: 1,
+          items: snapshot.items.length,
+          placements: snapshot.placements.length,
+          collections: snapshot.collections.length,
+          binders: snapshot.binders.length,
+          slots: snapshot.binders.reduce((n, b) => n + b.slots.length, 0),
+          storage: snapshot.binders.map((b) => ({
+            collectionId: b.collectionId,
+            collectionVersion: 1,
+            layoutRevision: b.layoutRevision,
+            slotCount: b.slots.length,
+          })),
+        },
+      },
+    });
+  });
+  await page.goto('/app/e2e-harness?signedIn=1&browserHost=1&binder=alpha&view=slabs');
+  await expect(copies(page).getByRole('button')).toHaveCount(15);
+  await copy(page, 1).click();
+  const detail = page.getByRole('dialog', { name: 'Slab copy details' });
+  await expect(detail).toBeVisible();
+  await new Harness(page, insets, true).expectWithinSafeViewport(detail);
+  await page
+    .getByRole('navigation', { name: 'Main navigation', exact: true })
+    .getByRole('button', { name: 'Inventory', exact: true })
+    .click();
+  await expect(detail).not.toBeVisible();
+  await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toBeVisible();
+});
 
-test("failed catalog image keeps known holder and grade with a readable fallback", async ({ page }) => {
-  await page.route(/^https:\/\/assets\.holofolder\.com\//, route => route.abort())
-  await page.route("**/app/api/card-image-proxy**", route => route.abort())
-  await page.goto(entry)
-  await copy(page, 1).click()
-  const detail = page.getByRole("dialog", { name: "Slab copy details" })
-  await detail.locator("[data-slab-style]").scrollIntoViewIfNeeded()
-  await expect(detail).toContainText("Card image unavailable")
-  await expect(detail).toContainText("PSA · 10")
-  await expect(detail.locator('[data-slab-style="psa-lighthouse"]')).toBeVisible()
-})
+test('failed catalog image keeps known holder and grade with a readable fallback', async ({ page }) => {
+  await page.route(/^https:\/\/assets\.holofolder\.com\//, (route) => route.abort());
+  await page.route('**/app/api/card-image-proxy**', (route) => route.abort());
+  await page.goto(entry);
+  await copy(page, 1).click();
+  const detail = page.getByRole('dialog', { name: 'Slab copy details' });
+  await detail.locator('[data-slab-style]').scrollIntoViewIfNeeded();
+  await expect(detail).toContainText('Card image unavailable');
+  await expect(detail).toContainText('PSA · 10');
+  await expect(detail.locator('[data-slab-style="psa-lighthouse"]')).toBeVisible();
+});

@@ -2,14 +2,14 @@
 
 Public documentation is available without a login:
 
-| URL | Content |
-| --- | --- |
-| `/app/llms.txt` | Guide and endpoint index linking to Markdown pages |
-| `/app/llms-full.txt` | Every guide and endpoint contract in one text response |
-| `/app/docs/llms.txt`, `/app/docs/llms-full.txt` | Equivalent URLs within the docs section |
-| `/app/docs/markdown` | Overview as Markdown |
-| `/app/docs/markdown/<page>` | A guide or endpoint as Markdown, using the same slug as its HTML page |
-| `/app/openapi.json` | OpenAPI 3.1 REST contract |
+| URL                                             | Content                                                               |
+| ----------------------------------------------- | --------------------------------------------------------------------- |
+| `/app/llms.txt`                                 | Guide and endpoint index linking to Markdown pages                    |
+| `/app/llms-full.txt`                            | Every guide and endpoint contract in one text response                |
+| `/app/docs/llms.txt`, `/app/docs/llms-full.txt` | Equivalent URLs within the docs section                               |
+| `/app/docs/markdown`                            | Overview as Markdown                                                  |
+| `/app/docs/markdown/<page>`                     | A guide or endpoint as Markdown, using the same slug as its HTML page |
+| `/app/openapi.json`                             | OpenAPI 3.1 REST contract                                             |
 
 Each HTML page advertises its `text/markdown` alternate and shows “View as Markdown” and `llms.txt` links. These paths retain the `/app` prefix and work through the public host or directly on the Vercel origin.
 

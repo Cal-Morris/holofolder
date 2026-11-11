@@ -37,15 +37,15 @@ Focused tests cover the pure plans and actual BinderApp-hosted BrowserSession, I
 
 ## UI craft self-review
 
-| Before | After | Reason |
-| --- | --- | --- |
-| Detail exposed location/grading only | Raw actions stay with the selected physical copy; destructive confirmation names its ID and consequences | Keep ownership and storage intents distinct |
-| Expanded ACK controls crowded 375 px standalone copy rows | Existing exact-history controls behind a 44 px disclosure | Keep the Inventory usable after sync |
-| Copy scroll alignment could put its center at 579 px against the 579 px dock top in 375 px standalone | Dock-aware scroll margin puts the center at 503 px; collapsed history is 68 px tall | Keep copy actions hittable after ACK |
-| Long consequence reviews could scroll confirmation out of view | Existing confirmation controls stick inside the scrolling review | Keep review and cancel reachable without scrolling |
-| Occupied slots excluded | Explicit unassignment or compatible swap with both-copy and retained-goal review | Avoid silent displacement or duplicate ownership |
-| No direct Unassigned add | Catalog selection previews a separate Raw copy and offers inspection of existing copies | Avoid silently cloning or relabelling ownership |
-| No ownership sheet | Shared focus/history/backdrop/swipe primitive, 44 px controls, 16 px inputs, scrolling body and dock/safe-area clearance | Match current phone and standalone behavior |
+| Before                                                                                                | After                                                                                                                    | Reason                                             |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| Detail exposed location/grading only                                                                  | Raw actions stay with the selected physical copy; destructive confirmation names its ID and consequences                 | Keep ownership and storage intents distinct        |
+| Expanded ACK controls crowded 375 px standalone copy rows                                             | Existing exact-history controls behind a 44 px disclosure                                                                | Keep the Inventory usable after sync               |
+| Copy scroll alignment could put its center at 579 px against the 579 px dock top in 375 px standalone | Dock-aware scroll margin puts the center at 503 px; collapsed history is 68 px tall                                      | Keep copy actions hittable after ACK               |
+| Long consequence reviews could scroll confirmation out of view                                        | Existing confirmation controls stick inside the scrolling review                                                         | Keep review and cancel reachable without scrolling |
+| Occupied slots excluded                                                                               | Explicit unassignment or compatible swap with both-copy and retained-goal review                                         | Avoid silent displacement or duplicate ownership   |
+| No direct Unassigned add                                                                              | Catalog selection previews a separate Raw copy and offers inspection of existing copies                                  | Avoid silently cloning or relabelling ownership    |
+| No ownership sheet                                                                                    | Shared focus/history/backdrop/swipe primitive, 44 px controls, 16 px inputs, scrolling body and dock/safe-area clearance | Match current phone and standalone behavior        |
 
 No entrance/exit motion or new gesture implementation is added. Existing shared
 swipe dismissal remains authoritative. Phone emulation and layout attachments
@@ -62,14 +62,13 @@ One request must fit the existing 100 commands, 256 work units, 32 collections a
 
 All commands use the same operation and durable receipt. Unknown results retain original bytes and ID through reload and retry. The existing exact acknowledged Activity link and authoritative conditional recovery own subsequent history, with no local inverse. REST/MCP callers compose the existing commands as one request with `privateFields:"preserve"`, exact references, `occupied:"cancel"` and `fulfillWant:null`. Generated registry/OpenAPI remains unchanged. Help is in `content/docs/native-storage.mdx`; unpublished release copy is `docs/releases/raw-inventory-bulk-draft.md`.
 
-| Before | After | Why |
-| --- | --- | --- |
-| Only single-copy actions | Individual 44 px selection labels and explicit total/clear controls | Keep paginated/filter-hidden selection visible |
-| No bulk review | Shared dock-aware sheet with ordered exact IDs and locations, explicit empty-slot choices and sticky confirmation | Keep every mapping reviewable on small phones |
-| One action per copy | One bounded combined request, whole-selection rejection | Preserve atomic intent without protocol changes |
+| Before                   | After                                                                                                             | Why                                             |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Only single-copy actions | Individual 44 px selection labels and explicit total/clear controls                                               | Keep paginated/filter-hidden selection visible  |
+| No bulk review           | Shared dock-aware sheet with ordered exact IDs and locations, explicit empty-slot choices and sticky confirmation | Keep every mapping reviewable on small phones   |
+| One action per copy      | One bounded combined request, whole-selection rejection                                                           | Preserve atomic intent without protocol changes |
 
 No new motion is introduced. Shared swipe/history/focus/backdrop dismissal is reused. Synthetic six-phone loopback tests are browser/IDB/HTTP/fresh-read evidence, not hosted SQL, provider, physical-device or production-enable evidence. Parent owns release, issue/project state and whole acceptance; #383/#385/#379 remain open.
-
 
 ## Exact graded-copy placement, staged #383/#385
 
@@ -77,10 +76,10 @@ Existing `assign` with an exact Unassigned selection, `move` and `unassign` acce
 
 Focused synthetic preservation cases cover known and custom providers and all private fields, compatible graded-to-graded swaps/displacement, unknown identity, and blocked removal/bulk. Six-phone component/host cases cover graded review/cancel, assign/move/unassign, private-field retention, lost reply/cached reload/exact replay, separately fresh ACK and exact Activity event selection. SQL is inspected, not executed or changed by this slice. Full e2e, hosted SQL/audit, physical-device proof, independent review, enablement and release remain parent gates. No provider renderer or restore/recipient/legacy queue changes. Unpublished copy: `docs/releases/graded-inventory-placement-draft.md`.
 
-| Before | After | Why |
-| --- | --- | --- |
-| Graded detail hides all placement actions | Same exact-copy placement review as raw copies | Reuse supported contracts and retain private metadata |
-| Graded removal has no UI | Explicit unavailable explanation, no removal command | Existing inverse cannot verify private assets |
-| Bulk relies on the individual raw-only guard | Explicit raw-only bulk admission | Keep the selected-copy expansion bounded |
+| Before                                       | After                                                | Why                                                   |
+| -------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------- |
+| Graded detail hides all placement actions    | Same exact-copy placement review as raw copies       | Reuse supported contracts and retain private metadata |
+| Graded removal has no UI                     | Explicit unavailable explanation, no removal command | Existing inverse cannot verify private assets         |
+| Bulk relies on the individual raw-only guard | Explicit raw-only bulk admission                     | Keep the selected-copy expansion bounded              |
 
 No layout or motion primitives changed; shared dismissal, dock clearance and sticky confirmation remain. Missing grade/identity data and custom provider text are exercised without publishing private certificate or asset values in review.

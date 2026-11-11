@@ -7,54 +7,61 @@
  * every programmatic scroll, so it only shortens the wait instead of unfreezing on the spot, which
  * would flip the blur on and off every frame while code drives a scroller.
  */
-export const SCROLL_SETTLE_MS = 150
-export const SCROLL_END_SETTLE_MS = 50
-export const SCROLLING_ATTRIBUTE = "data-scrolling"
+export const SCROLL_SETTLE_MS = 150;
+export const SCROLL_END_SETTLE_MS = 50;
+export const SCROLLING_ATTRIBUTE = 'data-scrolling';
 
-type Timer = ReturnType<typeof setTimeout>
+type Timer = ReturnType<typeof setTimeout>;
 
 export type ScrollFreezeOptions = {
-  freeze: () => void
-  unfreeze: () => void
-  settleMs?: number
-  endSettleMs?: number
-  setTimer?: (callback: () => void, ms: number) => Timer
-  clearTimer?: (timer: Timer) => void
-}
+  freeze: () => void;
+  unfreeze: () => void;
+  settleMs?: number;
+  endSettleMs?: number;
+  setTimer?: (callback: () => void, ms: number) => Timer;
+  clearTimer?: (timer: Timer) => void;
+};
 
-export function createScrollFreeze({ freeze, unfreeze, settleMs = SCROLL_SETTLE_MS, endSettleMs = SCROLL_END_SETTLE_MS, setTimer = setTimeout, clearTimer = clearTimeout }: ScrollFreezeOptions) {
-  let frozen = false
-  let timer: Timer | null = null
+export function createScrollFreeze({
+  freeze,
+  unfreeze,
+  settleMs = SCROLL_SETTLE_MS,
+  endSettleMs = SCROLL_END_SETTLE_MS,
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
+}: ScrollFreezeOptions) {
+  let frozen = false;
+  let timer: Timer | null = null;
 
   const cancel = () => {
-    if (timer !== null) clearTimer(timer)
-    timer = null
-  }
+    if (timer !== null) clearTimer(timer);
+    timer = null;
+  };
   const settle = () => {
-    cancel()
-    if (!frozen) return
-    frozen = false
-    unfreeze()
-  }
+    cancel();
+    if (!frozen) return;
+    frozen = false;
+    unfreeze();
+  };
   const settleIn = (ms: number) => {
-    cancel()
-    timer = setTimer(settle, ms)
-  }
+    cancel();
+    timer = setTimer(settle, ms);
+  };
 
   return {
     /** Every scroll event: freeze once, then push the settle deadline back. */
     onScroll() {
       if (!frozen) {
-        frozen = true
-        freeze()
+        frozen = true;
+        freeze();
       }
-      settleIn(settleMs)
+      settleIn(settleMs);
     },
     /** `scrollend` (after momentum too) brings the blur back sooner, unless scrolling resumes. */
     onScrollEnd() {
-      if (frozen) settleIn(endSettleMs)
+      if (frozen) settleIn(endSettleMs);
     },
     isFrozen: () => frozen,
     dispose: settle,
-  }
+  };
 }

@@ -20,13 +20,13 @@ The final genuine run measured restore 1,685 ms, deferred 39 ms, COMMIT 1 ms, na
 
 All cases below use 1,025 slots, 2,050 refs, 3,077 audit entities and already committed populated history. Every forward restore and native inverse commits. SQL retains 10s statement and 3s lock budgets. JSONB byte estimates match the actual recorded graph. V3 order fields count toward command bytes.
 
-| Case | Prior events | Wants | Command JSONB bytes | Audit JSONB bytes | Restore ms | Preview ms | Inverse and COMMIT ms |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| work 8,192 | 553 | 4092 | 1664478 | 2543800 | 1972 | 792 | 2427 |
-| command1.75MiB-graph2.5MiB | 559 | 4092 | 1835008 | 2621440 | 1797 | 732 | 2191 |
-| before-wants2.5MiB | 563 | 4092 | 1666538 | 2621440 | 1813 | 764 | 2276 |
-| duplicated-manifest2.5MiB | 568 | 4092 | 1704339 | 2621440 | 1868 | 788 | 2360 |
-| sparse-before-wants2.5MiB | 572 | 0 | 868688 | 2621440 | 1514 | 677 | 2112 |
+| Case                       | Prior events | Wants | Command JSONB bytes | Audit JSONB bytes | Restore ms | Preview ms | Inverse and COMMIT ms |
+| -------------------------- | -----------: | ----: | ------------------: | ----------------: | ---------: | ---------: | --------------------: |
+| work 8,192                 |          553 |  4092 |             1664478 |           2543800 |       1972 |        792 |                  2427 |
+| command1.75MiB-graph2.5MiB |          559 |  4092 |             1835008 |           2621440 |       1797 |        732 |                  2191 |
+| before-wants2.5MiB         |          563 |  4092 |             1666538 |           2621440 |       1813 |        764 |                  2276 |
+| duplicated-manifest2.5MiB  |          568 |  4092 |             1704339 |           2621440 |       1868 |        788 |                  2360 |
+| sparse-before-wants2.5MiB  |          572 |     0 |              868688 |           2621440 |       1514 |        677 |                  2112 |
 
 The combined maximum saturates command 1,835,008 bytes, graph 2,621,440 bytes and work 8,192 together, including multibyte text. Command+1, graph+1, work+1 and the former 4 MiB envelope refuse with unchanged data/event/ledger digests. Other cases cover large before-wants, duplicated manifest roots and sparse desired wants. Real identical-delivery/edit/unlink races, failed actual accepted/rejected COMMIT, malformed/forged orders, layout overflow, origin drift, permanent cross-version accepted/rejected ledger collisions and current authorization before replay pass. Pre-097 rejects v3 without mutation or terminal proof. A bounded EXPLAIN ANALYZE uses the real bridge and rolls back. A complete fresh numbered-schema replay passes independently.
 

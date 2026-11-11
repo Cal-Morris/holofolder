@@ -17,15 +17,15 @@ Use available GitHub/project tools, or authenticated GitHub CLI if the connector
 
 Discover field and option IDs each time, never assume a new label exists. The project currently has Todo, Ready, In Progress, In Review, Blocked and Done.
 
-| Evidence | Project Status and issue action |
-| --- | --- |
-| Work planned, dependencies incomplete | Todo; leave issue open |
-| Direct blockers satisfied and scoped work can start | Ready; leave issue open |
-| Actual research/implementation started | In Progress; record scope and next concrete step |
-| Reviewable PR opened, checks/reviews outstanding | In Review; link PR and exact head/evidence |
-| Cannot progress because of a concrete external prerequisite | Blocked; record cause, affected scope and next action; retain completed work |
-| PR merged, deployment or required docs/marketing pending | In Progress with explicit **Merged, deployment pending** or **Publication pending** in the issue; never Done |
-| All acceptance criteria and delivery requirements verified | Done, close issue and update its parent's matching checklist |
+| Evidence                                                    | Project Status and issue action                                                                              |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Work planned, dependencies incomplete                       | Todo; leave issue open                                                                                       |
+| Direct blockers satisfied and scoped work can start         | Ready; leave issue open                                                                                      |
+| Actual research/implementation started                      | In Progress; record scope and next concrete step                                                             |
+| Reviewable PR opened, checks/reviews outstanding            | In Review; link PR and exact head/evidence                                                                   |
+| Cannot progress because of a concrete external prerequisite | Blocked; record cause, affected scope and next action; retain completed work                                 |
+| PR merged, deployment or required docs/marketing pending    | In Progress with explicit **Merged, deployment pending** or **Publication pending** in the issue; never Done |
+| All acceptance criteria and delivery requirements verified  | Done, close issue and update its parent's matching checklist                                                 |
 
 Do not mark every downstream issue Ready automatically. Re-read native blockers and any additional acceptance gate. Do not close an epic until all required children and release slices are complete. Multiple PRs for one issue remain linked; completing one slice does not complete the issue.
 

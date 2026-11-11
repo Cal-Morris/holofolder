@@ -1,13 +1,13 @@
-"use client"
+'use client';
 
-import { useEffect, useRef, useState, type CSSProperties } from "react"
-import type { CardFinish } from "@/lib/domain/cards"
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import type { CardFinish } from '@/lib/domain/cards';
 
-const TARGET_FRAME_MS = 1000 / 30
-const REDUCED_MOTION_FRAME_MS = 1000 / 12
-const MAX_SHADER_PIXEL_RATIO = 1.35
-const MAX_ACTIVE_WEBGL_SHADERS = 10
-let activeWebGlShaderCount = 0
+const TARGET_FRAME_MS = 1000 / 30;
+const REDUCED_MOTION_FRAME_MS = 1000 / 12;
+const MAX_SHADER_PIXEL_RATIO = 1.35;
+const MAX_ACTIVE_WEBGL_SHADERS = 10;
+let activeWebGlShaderCount = 0;
 
 const VERTEX_SHADER_SOURCE = `
 attribute vec2 a_position;
@@ -17,7 +17,7 @@ void main() {
   v_uv = a_position * 0.5 + 0.5;
   gl_Position = vec4(a_position, 0.0, 1.0);
 }
-`
+`;
 
 const FRAGMENT_SHADER_SOURCE = `
 precision mediump float;
@@ -203,111 +203,111 @@ void main() {
 
   gl_FragColor = vec4(color, alpha);
 }
-`
+`;
 
 function compileShader(gl: WebGLRenderingContext, type: number, source: string) {
-  const shader = gl.createShader(type)
-  if (!shader) return null
+  const shader = gl.createShader(type);
+  if (!shader) return null;
 
-  gl.shaderSource(shader, source)
-  gl.compileShader(shader)
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    gl.deleteShader(shader)
-    return null
+    gl.deleteShader(shader);
+    return null;
   }
 
-  return shader
+  return shader;
 }
 
 function createProgram(gl: WebGLRenderingContext) {
-  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER_SOURCE)
-  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE)
+  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER_SOURCE);
+  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER_SOURCE);
   if (!vertexShader || !fragmentShader) {
-    if (vertexShader) gl.deleteShader(vertexShader)
-    if (fragmentShader) gl.deleteShader(fragmentShader)
-    return null
+    if (vertexShader) gl.deleteShader(vertexShader);
+    if (fragmentShader) gl.deleteShader(fragmentShader);
+    return null;
   }
 
-  const program = gl.createProgram()
+  const program = gl.createProgram();
   if (!program) {
-    gl.deleteShader(vertexShader)
-    gl.deleteShader(fragmentShader)
-    return null
+    gl.deleteShader(vertexShader);
+    gl.deleteShader(fragmentShader);
+    return null;
   }
 
-  gl.attachShader(program, vertexShader)
-  gl.attachShader(program, fragmentShader)
-  gl.linkProgram(program)
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+  gl.linkProgram(program);
 
-  gl.deleteShader(vertexShader)
-  gl.deleteShader(fragmentShader)
+  gl.deleteShader(vertexShader);
+  gl.deleteShader(fragmentShader);
 
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    gl.deleteProgram(program)
-    return null
+    gl.deleteProgram(program);
+    return null;
   }
 
-  return program
+  return program;
 }
 
 function getFinishUniformValue(finish: CardFinish) {
-  if (finish === "normal") return 0
-  if (finish === "reverse_holo") return 2
-  if (finish === "double_rare") return 7
-  if (finish === "ultra_rare") return 8
-  if (finish === "illustration_rare") return 3
-  if (finish === "special_illustration_rare") return 4
-  if (finish === "secret_rare") return 5
-  if (finish === "hyper_rare") return 6
-  if (finish === "radiant_rare") return 9
-  if (finish === "ace_spec") return 10
-  if (finish === "amazing_rare") return 11
-  if (finish === "shiny_rare") return 12
-  return 1
+  if (finish === 'normal') return 0;
+  if (finish === 'reverse_holo') return 2;
+  if (finish === 'double_rare') return 7;
+  if (finish === 'ultra_rare') return 8;
+  if (finish === 'illustration_rare') return 3;
+  if (finish === 'special_illustration_rare') return 4;
+  if (finish === 'secret_rare') return 5;
+  if (finish === 'hyper_rare') return 6;
+  if (finish === 'radiant_rare') return 9;
+  if (finish === 'ace_spec') return 10;
+  if (finish === 'amazing_rare') return 11;
+  if (finish === 'shiny_rare') return 12;
+  return 1;
 }
 
 function shouldUseCssFinishFallback() {
-  if (typeof window === "undefined") return true
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true
+  if (typeof window === 'undefined') return true;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return true;
 
   const navigatorWithMemory = window.navigator as Navigator & {
-    deviceMemory?: number
-    connection?: { saveData?: boolean }
-  }
+    deviceMemory?: number;
+    connection?: { saveData?: boolean };
+  };
 
-  if (navigatorWithMemory.connection?.saveData) return true
-  if (typeof navigatorWithMemory.deviceMemory === "number" && navigatorWithMemory.deviceMemory <= 4) return true
-  if (window.navigator.hardwareConcurrency && window.navigator.hardwareConcurrency <= 4) return true
+  if (navigatorWithMemory.connection?.saveData) return true;
+  if (typeof navigatorWithMemory.deviceMemory === 'number' && navigatorWithMemory.deviceMemory <= 4) return true;
+  if (window.navigator.hardwareConcurrency && window.navigator.hardwareConcurrency <= 4) return true;
 
-  return false
+  return false;
 }
 
 function getMaxActiveWebGlShaders() {
-  if (typeof window === "undefined") return 0
+  if (typeof window === 'undefined') return 0;
 
-  const navigatorWithMemory = window.navigator as Navigator & { deviceMemory?: number }
-  const viewportIsCompact = window.matchMedia("(max-width: 767px)").matches
-  const deviceMemory = navigatorWithMemory.deviceMemory ?? 8
-  const hardwareConcurrency = window.navigator.hardwareConcurrency || 8
+  const navigatorWithMemory = window.navigator as Navigator & { deviceMemory?: number };
+  const viewportIsCompact = window.matchMedia('(max-width: 767px)').matches;
+  const deviceMemory = navigatorWithMemory.deviceMemory ?? 8;
+  const hardwareConcurrency = window.navigator.hardwareConcurrency || 8;
 
-  if (viewportIsCompact) return deviceMemory >= 8 && hardwareConcurrency >= 6 ? 6 : 4
-  if (deviceMemory >= 8 && hardwareConcurrency >= 8) return 12
-  return MAX_ACTIVE_WEBGL_SHADERS
+  if (viewportIsCompact) return deviceMemory >= 8 && hardwareConcurrency >= 6 ? 6 : 4;
+  if (deviceMemory >= 8 && hardwareConcurrency >= 8) return 12;
+  return MAX_ACTIVE_WEBGL_SHADERS;
 }
 
 interface CardFinishShaderProps {
-  finish: CardFinish
-  glintX: number
-  glintY: number
-  glintAngle: number
-  glintPhase: number
-  patternSeed: number
-  finishIntensity: number
-  hueOffset: number
-  patternScale: number
-  fallbackClassName: string
-  fallbackStyle: CSSProperties
+  finish: CardFinish;
+  glintX: number;
+  glintY: number;
+  glintAngle: number;
+  glintPhase: number;
+  patternSeed: number;
+  finishIntensity: number;
+  hueOffset: number;
+  patternScale: number;
+  fallbackClassName: string;
+  fallbackStyle: CSSProperties;
 }
 
 export default function CardFinishShader({
@@ -323,8 +323,8 @@ export default function CardFinishShader({
   fallbackClassName,
   fallbackStyle,
 }: CardFinishShaderProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const canvasSizeRef = useRef({ width: 1, height: 1 })
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasSizeRef = useRef({ width: 1, height: 1 });
   const uniformsRef = useRef({
     finish,
     glintAngle,
@@ -335,9 +335,9 @@ export default function CardFinishShader({
     hueOffset,
     patternScale,
     patternSeed,
-  })
-  const [isActive, setIsActive] = useState(false)
-  const [hasWebGl, setHasWebGl] = useState(true)
+  });
+  const [isActive, setIsActive] = useState(false);
+  const [hasWebGl, setHasWebGl] = useState(true);
 
   useEffect(() => {
     uniformsRef.current = {
@@ -350,184 +350,185 @@ export default function CardFinishShader({
       hueOffset,
       patternScale,
       patternSeed,
-    }
-  }, [finish, finishIntensity, glintAngle, glintPhase, glintX, glintY, hueOffset, patternScale, patternSeed])
+    };
+  }, [finish, finishIntensity, glintAngle, glintPhase, glintX, glintY, hueOffset, patternScale, patternSeed]);
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    if (typeof IntersectionObserver === "undefined") {
-      setIsActive(document.visibilityState !== "hidden")
-      const handleVisibilityChange = () => setIsActive(document.visibilityState !== "hidden")
-      document.addEventListener("visibilitychange", handleVisibilityChange)
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsActive(document.visibilityState !== 'hidden');
+      const handleVisibilityChange = () => setIsActive(document.visibilityState !== 'hidden');
+      document.addEventListener('visibilitychange', handleVisibilityChange);
 
-      return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
+      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }
 
-    let isVisible = false
-    let isDocumentVisible = document.visibilityState !== "hidden"
-    const updateActiveState = () => setIsActive(isVisible && isDocumentVisible)
+    let isVisible = false;
+    let isDocumentVisible = document.visibilityState !== 'hidden';
+    const updateActiveState = () => setIsActive(isVisible && isDocumentVisible);
     const observer = new IntersectionObserver(
       ([entry]) => {
-        isVisible = Boolean(entry?.isIntersecting)
-        updateActiveState()
+        isVisible = Boolean(entry?.isIntersecting);
+        updateActiveState();
       },
-      { rootMargin: "140px" },
-    )
+      { rootMargin: '140px' },
+    );
     const handleVisibilityChange = () => {
-      isDocumentVisible = document.visibilityState !== "hidden"
-      updateActiveState()
-    }
+      isDocumentVisible = document.visibilityState !== 'hidden';
+      updateActiveState();
+    };
 
-    observer.observe(canvas)
-    document.addEventListener("visibilitychange", handleVisibilityChange)
+    observer.observe(canvas);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      observer.disconnect()
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
-    }
-  }, [])
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
-    if (!isActive) return
+    if (!isActive) return;
     if (shouldUseCssFinishFallback() || activeWebGlShaderCount >= getMaxActiveWebGlShaders()) {
-      setHasWebGl(false)
-      return
+      setHasWebGl(false);
+      return;
     }
 
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    const gl = canvas.getContext("webgl", {
+    const gl = canvas.getContext('webgl', {
       alpha: true,
       antialias: false,
       depth: false,
       failIfMajorPerformanceCaveat: true,
-      powerPreference: "low-power",
+      powerPreference: 'low-power',
       stencil: false,
       premultipliedAlpha: true,
       preserveDrawingBuffer: false,
-    })
+    });
 
     if (!gl) {
-      setHasWebGl(false)
-      return
+      setHasWebGl(false);
+      return;
     }
 
-    const program = createProgram(gl)
+    const program = createProgram(gl);
     if (!program) {
-      setHasWebGl(false)
-      return
+      setHasWebGl(false);
+      return;
     }
 
-    const positionBuffer = gl.createBuffer()
+    const positionBuffer = gl.createBuffer();
     if (!positionBuffer) {
-      gl.deleteProgram(program)
-      setHasWebGl(false)
-      return
+      gl.deleteProgram(program);
+      setHasWebGl(false);
+      return;
     }
 
     const handleContextLost = (event: Event) => {
-      event.preventDefault()
-      setHasWebGl(false)
-    }
-    canvas.addEventListener("webglcontextlost", handleContextLost)
+      event.preventDefault();
+      setHasWebGl(false);
+    };
+    canvas.addEventListener('webglcontextlost', handleContextLost);
 
-    activeWebGlShaderCount += 1
+    activeWebGlShaderCount += 1;
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
-      gl.STATIC_DRAW,
-    )
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
 
-    const positionLocation = gl.getAttribLocation(program, "a_position")
-    const resolutionLocation = gl.getUniformLocation(program, "u_resolution")
-    const glintLocation = gl.getUniformLocation(program, "u_glint")
-    const angleLocation = gl.getUniformLocation(program, "u_angle")
-    const timeLocation = gl.getUniformLocation(program, "u_time")
-    const finishLocation = gl.getUniformLocation(program, "u_finish")
-    const seedLocation = gl.getUniformLocation(program, "u_seed")
-    const hueOffsetLocation = gl.getUniformLocation(program, "u_hue_offset")
-    const patternScaleLocation = gl.getUniformLocation(program, "u_pattern_scale")
-    const intensityLocation = gl.getUniformLocation(program, "u_intensity")
-    let frameId = 0
-    let lastFrameTime = -TARGET_FRAME_MS
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    const targetFrameMs = prefersReducedMotion ? REDUCED_MOTION_FRAME_MS : TARGET_FRAME_MS
+    const positionLocation = gl.getAttribLocation(program, 'a_position');
+    const resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
+    const glintLocation = gl.getUniformLocation(program, 'u_glint');
+    const angleLocation = gl.getUniformLocation(program, 'u_angle');
+    const timeLocation = gl.getUniformLocation(program, 'u_time');
+    const finishLocation = gl.getUniformLocation(program, 'u_finish');
+    const seedLocation = gl.getUniformLocation(program, 'u_seed');
+    const hueOffsetLocation = gl.getUniformLocation(program, 'u_hue_offset');
+    const patternScaleLocation = gl.getUniformLocation(program, 'u_pattern_scale');
+    const intensityLocation = gl.getUniformLocation(program, 'u_intensity');
+    let frameId = 0;
+    let lastFrameTime = -TARGET_FRAME_MS;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const targetFrameMs = prefersReducedMotion ? REDUCED_MOTION_FRAME_MS : TARGET_FRAME_MS;
     const syncCanvasSize = () => {
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, MAX_SHADER_PIXEL_RATIO)
-      const width = Math.max(1, Math.round(canvas.clientWidth * pixelRatio))
-      const height = Math.max(1, Math.round(canvas.clientHeight * pixelRatio))
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, MAX_SHADER_PIXEL_RATIO);
+      const width = Math.max(1, Math.round(canvas.clientWidth * pixelRatio));
+      const height = Math.max(1, Math.round(canvas.clientHeight * pixelRatio));
 
-      canvasSizeRef.current = { width, height }
+      canvasSizeRef.current = { width, height };
       if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width
-        canvas.height = height
+        canvas.width = width;
+        canvas.height = height;
       }
-    }
-    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(syncCanvasSize)
+    };
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(syncCanvasSize);
 
-    gl.disable(gl.DEPTH_TEST)
-    gl.disable(gl.STENCIL_TEST)
-    gl.disable(gl.CULL_FACE)
-    gl.enable(gl.BLEND)
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-    gl.useProgram(program)
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
-    gl.enableVertexAttribArray(positionLocation)
-    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0)
-    syncCanvasSize()
-    resizeObserver?.observe(canvas)
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.STENCIL_TEST);
+    gl.disable(gl.CULL_FACE);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+    syncCanvasSize();
+    resizeObserver?.observe(canvas);
 
     const render = (time: number) => {
       if (time - lastFrameTime < targetFrameMs) {
-        frameId = window.requestAnimationFrame(render)
-        return
+        frameId = window.requestAnimationFrame(render);
+        return;
       }
 
-      lastFrameTime = time
-      const { width, height } = canvasSizeRef.current
-      const uniforms = uniformsRef.current
+      lastFrameTime = time;
+      const { width, height } = canvasSizeRef.current;
+      const uniforms = uniformsRef.current;
 
       if (gl.isContextLost()) {
-        setHasWebGl(false)
-        return
+        setHasWebGl(false);
+        return;
       }
 
-      gl.viewport(0, 0, width, height)
-      gl.clearColor(0, 0, 0, 0)
-      gl.clear(gl.COLOR_BUFFER_BIT)
-      gl.uniform2f(resolutionLocation, width, height)
-      gl.uniform2f(glintLocation, uniforms.glintX, uniforms.glintY)
-      gl.uniform1f(angleLocation, uniforms.glintAngle * Math.PI / 180)
-      gl.uniform1f(timeLocation, time / 1000 + uniforms.glintPhase)
-      gl.uniform1f(finishLocation, getFinishUniformValue(uniforms.finish))
-      gl.uniform1f(seedLocation, uniforms.patternSeed)
-      gl.uniform1f(hueOffsetLocation, uniforms.hueOffset)
-      gl.uniform1f(patternScaleLocation, uniforms.patternScale)
-      gl.uniform1f(intensityLocation, uniforms.finishIntensity)
-      gl.drawArrays(gl.TRIANGLES, 0, 6)
+      gl.viewport(0, 0, width, height);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform2f(resolutionLocation, width, height);
+      gl.uniform2f(glintLocation, uniforms.glintX, uniforms.glintY);
+      gl.uniform1f(angleLocation, (uniforms.glintAngle * Math.PI) / 180);
+      gl.uniform1f(timeLocation, time / 1000 + uniforms.glintPhase);
+      gl.uniform1f(finishLocation, getFinishUniformValue(uniforms.finish));
+      gl.uniform1f(seedLocation, uniforms.patternSeed);
+      gl.uniform1f(hueOffsetLocation, uniforms.hueOffset);
+      gl.uniform1f(patternScaleLocation, uniforms.patternScale);
+      gl.uniform1f(intensityLocation, uniforms.finishIntensity);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-      frameId = window.requestAnimationFrame(render)
-    }
+      frameId = window.requestAnimationFrame(render);
+    };
 
-    frameId = window.requestAnimationFrame(render)
+    frameId = window.requestAnimationFrame(render);
 
     return () => {
-      window.cancelAnimationFrame(frameId)
-      resizeObserver?.disconnect()
-      canvas.removeEventListener("webglcontextlost", handleContextLost)
-      gl.deleteBuffer(positionBuffer)
-      gl.deleteProgram(program)
-      activeWebGlShaderCount = Math.max(0, activeWebGlShaderCount - 1)
-    }
-  }, [isActive])
+      window.cancelAnimationFrame(frameId);
+      resizeObserver?.disconnect();
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+      gl.deleteBuffer(positionBuffer);
+      gl.deleteProgram(program);
+      activeWebGlShaderCount = Math.max(0, activeWebGlShaderCount - 1);
+    };
+  }, [isActive]);
 
   if (!hasWebGl) {
-    return <div className={`card-finish-layer pointer-events-none absolute inset-0 z-[2] ${fallbackClassName}`} style={fallbackStyle} />
+    return (
+      <div
+        className={`card-finish-layer pointer-events-none absolute inset-0 z-[2] ${fallbackClassName}`}
+        style={fallbackStyle}
+      />
+    );
   }
 
   return (
@@ -540,5 +541,5 @@ export default function CardFinishShader({
       />
       <div className={`card-finish-mobile-sheen absolute inset-0 ${fallbackClassName}`} aria-hidden="true" />
     </div>
-  )
+  );
 }

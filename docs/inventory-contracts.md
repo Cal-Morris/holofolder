@@ -8,14 +8,14 @@ This is unused, pure contract code. There is no database migration, provider req
 
 `lib/domain/inventory.ts` defines these shapes:
 
-| Shape | Meaning |
-| --- | --- |
-| `InventoryItem` | `{ id, ownerUserId, identity, grading, acquiredAt, version }`, one physical copy with a stable opaque ID. Three copies of one printing are three items, even if their metadata is identical. |
-| `InventoryIdentity` | `{ kind: "card", cardId, language?, finish? }` or `{ kind: "pokemon", pokemonId }`. Card variants reuse `CardLanguage`/`CardFinish`. Omitted variants stay unknown, without English/normal defaults. |
-| `Placement` | `{ inventoryItemId, collectionId, slotId, version }`, exactly one primary storage location per assigned item. Absence means Unassigned. |
-| `StorageCollection` | `{ id, ownerUserId, name, kind, defaultPresentation, version }`. `id` maps to the existing binder ID, with no second collection identity. |
-| `InventoryDisplayReference` | `{ inventoryItemId }`, a non-owning pointer, with no primary placement, quantity or copied owned payload. |
-| `InventorySnapshot` | `{ ownerUserId, inventoryRevision, items, placements, collections, binders }`, a complete owner-scoped view for pure planning and invariant tests. `binders` are the existing `BinderSnapshot` shape, shared by every storage kind. |
+| Shape                       | Meaning                                                                                                                                                                                                                             |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `InventoryItem`             | `{ id, ownerUserId, identity, grading, acquiredAt, version }`, one physical copy with a stable opaque ID. Three copies of one printing are three items, even if their metadata is identical.                                        |
+| `InventoryIdentity`         | `{ kind: "card", cardId, language?, finish? }` or `{ kind: "pokemon", pokemonId }`. Card variants reuse `CardLanguage`/`CardFinish`. Omitted variants stay unknown, without English/normal defaults.                                |
+| `Placement`                 | `{ inventoryItemId, collectionId, slotId, version }`, exactly one primary storage location per assigned item. Absence means Unassigned.                                                                                             |
+| `StorageCollection`         | `{ id, ownerUserId, name, kind, defaultPresentation, version }`. `id` maps to the existing binder ID, with no second collection identity.                                                                                           |
+| `InventoryDisplayReference` | `{ inventoryItemId }`, a non-owning pointer, with no primary placement, quantity or copied owned payload.                                                                                                                           |
+| `InventorySnapshot`         | `{ ownerUserId, inventoryRevision, items, placements, collections, binders }`, a complete owner-scoped view for pure planning and invariant tests. `binders` are the existing `BinderSnapshot` shape, shared by every storage kind. |
 
 An item has zero or one placement; a slot references zero or one item. Slots retain their existing targets/order/wants/status/preset provenance and only `inventoryItemId` for ownership. They never embed printing, acquisition, grading or certificate data. Empty targets and explicit wants create no item. A raw copy has `grading: null`.
 
@@ -54,13 +54,13 @@ The resolver must be populated from the authoritative catalog at the server boun
 
 `InventorySlotRevision` is `{ collectionId, slotId, layoutRevision, slotVersion }`.
 
-| Planner | Additional input | Behavior |
-| --- | --- | --- |
-| `planAssignInventory(snapshot, input, resolveCatalog)` | `destination`, `selection` | Assign Unassigned existing copy, or automatically reuse/create through catalog choice. Replacement retains the displaced item as Unassigned. |
-| `planMoveInventory(snapshot, input, resolveCatalog)` | `inventoryItemId`, `itemVersion`, `placementVersion`, `source`, `destination` | Explicitly move a placed item across or within storage, emptying its former slot and unassigning displaced destination contents. |
-| `planUnassignInventory(snapshot, input)` | Same placed-item input and `source`, without destination | Remove primary placement and owned slot status, retaining the item and target/wants/provenance. |
-| `planReleaseInventorySlots(snapshot, input)` | `collectionId`, `layoutRevision`, `slotVersions: Record<slotId, version>` | Release selected contents for clear/remove/collection deletion, retaining every owned item. |
-| `planEditInventoryMetadata(snapshot, input)` | `inventoryItemId`, `itemVersion`, `grading` | Edit recorded per-copy grading only, preserving item ID, printing, acquisition timestamp and placement. Raw/graded transitions do not create another item. |
+| Planner                                                | Additional input                                                              | Behavior                                                                                                                                                   |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `planAssignInventory(snapshot, input, resolveCatalog)` | `destination`, `selection`                                                    | Assign Unassigned existing copy, or automatically reuse/create through catalog choice. Replacement retains the displaced item as Unassigned.               |
+| `planMoveInventory(snapshot, input, resolveCatalog)`   | `inventoryItemId`, `itemVersion`, `placementVersion`, `source`, `destination` | Explicitly move a placed item across or within storage, emptying its former slot and unassigning displaced destination contents.                           |
+| `planUnassignInventory(snapshot, input)`               | Same placed-item input and `source`, without destination                      | Remove primary placement and owned slot status, retaining the item and target/wants/provenance.                                                            |
+| `planReleaseInventorySlots(snapshot, input)`           | `collectionId`, `layoutRevision`, `slotVersions: Record<slotId, version>`     | Release selected contents for clear/remove/collection deletion, retaining every owned item.                                                                |
+| `planEditInventoryMetadata(snapshot, input)`           | `inventoryItemId`, `itemVersion`, `grading`                                   | Edit recorded per-copy grading only, preserving item ID, printing, acquisition timestamp and placement. Raw/graded transitions do not create another item. |
 
 `selection` has two explicit forms:
 

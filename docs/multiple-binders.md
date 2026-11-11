@@ -1,6 +1,7 @@
 # Multiple binders: design
 
 ## Model
+
 - `public.binders`: `id uuid pk`, `owner_user_id uuid → auth.users (cascade)`, `name text (1–40)`, `color text null`,
   `sort_order int`, `is_default bool`, `binder_rows/binder_cols int null` (NULL = inherit `user_settings`),
   `created_at`, `updated_at`. One default per owner (partial unique index). `UNIQUE (id, owner_user_id)` so
@@ -14,6 +15,7 @@
   check as `pokemon_collection`. Writes go through `/api/binders` (service role, after owner resolution); creation calls `developer_create_binder`, which also writes the native slots state (migration 105).
 
 ## Migration (zero data loss, live-safe)
+
 1. `039` (additive, old code keeps working): create `binders`; insert one "My binder" default per existing owner;
    add nullable `binder_id`; backfill every row into its owner's default; a `BEFORE INSERT` trigger fills a missing
    `binder_id` with the owner's default (creating it if needed), so old clients' inserts still land; FK; concurrent
@@ -22,9 +24,10 @@
 2. Code deploy: every read and write is scoped by `binder_id`, and upserts use `onConflict: binder_id,pokemon_id`.
 3. `040` (after step 2 is live): `binder_id SET NOT NULL`, drop `UNIQUE (user_id, pokemon_id)` and the owner-only share unique.
    Only after this can a second binder hold the same Pokémon, so the create-binder UI ships after it.
-Verification: row count, owned and wanted counts, and an md5 over (pokemon_id, card, status, wanted) match before and after.
+   Verification: row count, owned and wanted counts, and an md5 over (pokemon_id, card, status, wanted) match before and after.
 
 ## Owned and wanted across binders
+
 - Per binder: slots, status and wanted printings belong to a binder. Editing and the binder view always use the open
   binder; nothing about a binder's own status changes when other binders exist.
 - All-binders lookup: the legacy cross-binder read from `pokemon_collection` rows was
@@ -38,6 +41,7 @@ Verification: row count, owned and wanted counts, and an md5 over (pokemon_id, c
 - Price refresh tracks cards from every binder (it reads all collection rows already).
 
 ## Client and offline
+
 - The server bootstrap resolves the binder from `?binder=`, then the `binderdex_binder` cookie (last opened, per device),
   then the default. It passes `binderId` and the binder list to the client. Switching binders navigates and remounts the app (`key=binderId`).
 - Delta-sync baselines are keyed by owner + binder. Queued edits carry `binderId` and the API writes to that binder;
@@ -53,9 +57,11 @@ Verification: row count, owned and wanted counts, and an md5 over (pokemon_id, c
 - Realtime stays per owner, so any binder change triggers a (cheap) delta refresh.
 
 ## Share links
+
 `binder_shares.binder_id` (NULL = default). One link per binder; `/share/[token]` loads that binder's rows.
 
 ## UI
+
 Tap the binder name in the header to open a bottom sheet (shared overlay primitive) listing binders with slot counts. From there you can:
 open a binder, create one (name), rename it, move it up or down, and delete it. Deleting needs a confirm step; a non-empty binder needs the name typed or a
 second explicit confirm, and the last binder can never be deleted. Deleting the default binder promotes the next one.

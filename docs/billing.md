@@ -14,13 +14,13 @@ Apply `scripts/056_signup_premium_trial.sql` before deploying the updated app. B
 
 The live Stripe audit found no Holo Folder subscriptions or open Checkout sessions before preparing the increase. The existing account `acct_1AHHDjGnHtZtNtvx` and product `prod_VaRpQ69dXzmuF8` are reused. New immutable recurring GBP prices were created with distinct v2 lookup keys. Existing v1 prices, portal configuration `bpc_1UZGvdGnHtZtNtvxOpUSMTxK` and webhook `we_1UZGveGnHtZtNtvxZZuWLWk7` are retained. No charge, subscription migration or unrelated product change is part of the cutover.
 
-| Configuration | Monthly | Annual |
-| --- | --- | --- |
-| New-sale price ID | `price_1UZVG6GnHtZtNtvxLBCYu6FU` | `price_1UZVG6GnHtZtNtvxKtPxXAFj` |
-| New amount in pence | 399 | 3499 |
-| New lookup key | `holofolder_gbp_month_v2` | `holofolder_gbp_year_v2` |
-| Previous price ID | `price_1UZGvdGnHtZtNtvxWwoxG6ue` | `price_1UZGvdGnHtZtNtvxXO2YEEDd` |
-| Previous amount in pence | 299 | 2999 |
+| Configuration            | Monthly                          | Annual                           |
+| ------------------------ | -------------------------------- | -------------------------------- |
+| New-sale price ID        | `price_1UZVG6GnHtZtNtvxLBCYu6FU` | `price_1UZVG6GnHtZtNtvxKtPxXAFj` |
+| New amount in pence      | 399                              | 3499                             |
+| New lookup key           | `holofolder_gbp_month_v2`        | `holofolder_gbp_year_v2`         |
+| Previous price ID        | `price_1UZGvdGnHtZtNtvxWwoxG6ue` | `price_1UZGvdGnHtZtNtvxXO2YEEDd` |
+| Previous amount in pence | 299                              | 2999                             |
 
 `STRIPE_MONTHLY_PRICE_ID` and `STRIPE_YEARLY_PRICE_ID` select new sales. `STRIPE_LEGACY_PRICE_IDS` must contain `price_1UZGvdGnHtZtNtvxWwoxG6ue,price_1UZGvdGnHtZtNtvxXO2YEEDd` when switching to v2. Reconciliation, paid-time recognition and collector payment history recognize both sets; new Checkout only selects the configured current price. This does not add a general grandfathering product. Genuine already-paid old-price access remains recognized, and lifetime access still bypasses Checkout.
 

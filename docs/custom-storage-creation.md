@@ -35,10 +35,10 @@ Local production-mode six-phone cases use synthetic authentication/RPC and real 
 Before this change the native creation UI had no Custom choice or private location review. With the new maximum-length synthetic name (40 characters) and location (200), the confirmation is 486 px high at 375/390 widths and 466 px at 430. Its primary button is 44 px high and remains visible without scrolling the confirmation. Browser and standalone results:
 
 | Width | Sheet height | Browser sheet bottom / dock top | Standalone sheet bottom / dock top |
-| --- | --- | --- | --- |
-| 375 | 486 | 605 / 605 | 579 / 579 |
-| 390 | 486 | 782 / 782 | 756 / 756 |
-| 430 | 466 | 870 / 870 | 844 / 844 |
+| ----- | ------------ | ------------------------------- | ---------------------------------- |
+| 375   | 486          | 605 / 605                       | 579 / 579                          |
+| 390   | 486          | 782 / 782                       | 756 / 756                          |
+| 430   | 466          | 870 / 870                       | 844 / 844                          |
 
 Standalone uses the synthetic 59 px top and 34 px bottom insets. All six maximum-text cases pass tap-target, safe-viewport, hittability and horizontal-overflow checks. These are automated Chromium geometry measurements, not physical-device keyboard or installed-PWA evidence.
 

@@ -14,9 +14,11 @@ Every overlay must use `hooks/use-overlay.ts`. The stack bookkeeping and swipe m
    - a panel: `ref={dialogRef} role="dialog" aria-modal="true" aria-label="…"` (an accessible name is required)
    - a close button with `aria-label="Close …"` and at least 36×36 px (`h-9 w-9` or larger)
 2. **Wire the primitive:**
+
    ```tsx
-   useOverlay(isOpen, onClose, { containerRef: dialogRef })
+   useOverlay(isOpen, onClose, { containerRef: dialogRef });
    ```
+
    This gives you:
    - Escape closes the topmost overlay only
    - a history entry, so browser or Android back closes it instead of leaving the page
@@ -24,6 +26,7 @@ Every overlay must use `hooks/use-overlay.ts`. The stack bookkeeping and swipe m
    - a ref-counted body scroll lock
 
    Options: `autoFocus: false` (e.g. when a search input should focus itself), `history`, `trapFocus`, `lockScroll`.
+
 3. **Bottom sheets on phones:** `const swipe = useSwipeToDismiss(sheetRef, onClose, enabled)`. Spread the handlers on the grabber or header (mark it `data-sheet-grabber`) and show a grabber pill on phones. Buttons and inputs, and anything marked `data-no-swipe`, never start a swipe from the header. On touch screens the hook also drags the sheet when the body is pulled down while scrolled to the top; once the body is scrolled, it scrolls. A modal centred with a Tailwind translate on wider screens doesn't drag.
 4. **Layout:**
    - Respect the safe areas: `env(safe-area-inset-top)` and the dock variables `--dock-inset`, `--dock-bar` and `--dock-clearance` from `app/globals.css`.

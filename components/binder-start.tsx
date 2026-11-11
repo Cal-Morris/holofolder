@@ -1,23 +1,27 @@
-"use client"
+'use client';
 
-import { Suspense, use, useEffect, useState, type ComponentProps } from "react"
-import { useRouter } from "next/navigation"
-import type { User } from "@supabase/supabase-js"
-import { readDeviceStartupSession } from "@/lib/collection/native-startup"
-import BinderApp from "@/components/binder-app"
-import { BinderSkeleton } from "@/components/binder-skeleton"
-import { requestedBinderKey } from "@/lib/binders/url"
-import { readLocalBinderStart, writeBinderStartMarker, type LocalBinderStart } from "@/lib/binder-start"
-import type { BinderGrid } from "@/lib/binders/model"
+import { Suspense, use, useEffect, useState, type ComponentProps } from 'react';
+import { useRouter } from 'next/navigation';
+import type { User } from '@supabase/supabase-js';
+import { readDeviceStartupSession } from '@/lib/collection/native-startup';
+import BinderApp from '@/components/binder-app';
+import { BinderSkeleton } from '@/components/binder-skeleton';
+import { requestedBinderKey } from '@/lib/binders/url';
+import { readLocalBinderStart, writeBinderStartMarker, type LocalBinderStart } from '@/lib/binder-start';
+import type { BinderGrid } from '@/lib/binders/model';
 
-type BinderAppProps = ComponentProps<typeof BinderApp>
+type BinderAppProps = ComponentProps<typeof BinderApp>;
 export type ServerBinderBoot = Pick<
   BinderAppProps,
-  "initialCollection" | "initialCollectionOwnerUserId" | "initialSettings" | "initialHasStoredSettings" | "initialDarkMode"
+  | 'initialCollection'
+  | 'initialCollectionOwnerUserId'
+  | 'initialSettings'
+  | 'initialHasStoredSettings'
+  | 'initialDarkMode'
 > &
-  Required<Pick<BinderAppProps, "initialBinders" | "initialBinderId">> & { initialUser: User | null }
+  Required<Pick<BinderAppProps, 'initialBinders' | 'initialBinderId'>> & { initialUser: User | null };
 
-type LocalStart = LocalBinderStart & { user: User }
+type LocalStart = LocalBinderStart & { user: User };
 
 /**
  * Starts the binder from whichever arrives first: this device's saved binder (for the account and binder
@@ -25,15 +29,21 @@ type LocalStart = LocalBinderStart & { user: User }
  * remount; a local start then syncs with the server like /app-shell does. Until then, a skeleton.
  * Only the first render races: a later server boot (switching binder, a refresh) always comes from the server.
  */
-export function BinderStart({ serverBoot, startGrid }: { serverBoot: Promise<ServerBinderBoot>; startGrid?: Promise<BinderGrid | null> }) {
+export function BinderStart({
+  serverBoot,
+  startGrid,
+}: {
+  serverBoot: Promise<ServerBinderBoot>;
+  startGrid?: Promise<BinderGrid | null>;
+}) {
   // The last binder's pockets per page, so every skeleton on the way in has the grid the binder will have.
-  const grid = (startGrid ? use(startGrid) : null) ?? undefined
-  const [firstBoot] = useState(serverBoot)
-  const [start, setStart] = useState<{ source: "local"; boot: LocalStart } | { source: "server" } | null>(null)
+  const grid = (startGrid ? use(startGrid) : null) ?? undefined;
+  const [firstBoot] = useState(serverBoot);
+  const [start, setStart] = useState<{ source: 'local'; boot: LocalStart } | { source: 'server' } | null>(null);
 
   useEffect(() => {
     // Remember what the server opened, for the next start.
-    let active = true
+    let active = true;
     serverBoot.then(
       (boot) => {
         if (boot.initialUser && boot.initialCollectionOwnerUserId) {
@@ -42,47 +52,53 @@ export function BinderStart({ serverBoot, startGrid }: { serverBoot: Promise<Ser
             ownerUserId: boot.initialCollectionOwnerUserId,
             binderId: boot.initialBinderId,
             binders: boot.initialBinders,
-          })
+          });
         }
-        if (active) setStart((current) => current ?? { source: "server" })
+        if (active) setStart((current) => current ?? { source: 'server' });
       },
       () => {
-        if (active) setStart((current) => current ?? { source: "server" })
+        if (active) setStart((current) => current ?? { source: 'server' });
       },
-    )
+    );
     return () => {
-      active = false
-    }
-  }, [serverBoot])
+      active = false;
+    };
+  }, [serverBoot]);
 
   useEffect(() => {
-    let active = true
+    let active = true;
     void (async () => {
       try {
         // The session from the auth cookie: no network unless the token needs a refresh.
-        const { createClient } = await import("@/lib/supabase/client")
-        const session = await readDeviceStartupSession(() => createClient().auth.getSession())
-        const user = session?.user
-        if (!active || !user) return
-        const requestedBinderId = requestedBinderKey(window.location)
-        const local = readLocalBinderStart(window.localStorage, document.cookie, user.id, requestedBinderId)
-        if (local) setStart((current) => current ?? { source: "local", boot: { ...local, user } })
+        const { createClient } = await import('@/lib/supabase/client');
+        const session = await readDeviceStartupSession(() => createClient().auth.getSession());
+        const user = session?.user;
+        if (!active || !user) return;
+        const requestedBinderId = requestedBinderKey(window.location);
+        const local = readLocalBinderStart(window.localStorage, document.cookie, user.id, requestedBinderId);
+        if (local) setStart((current) => current ?? { source: 'local', boot: { ...local, user } });
       } catch {
         // Fall back to the server's collection.
       }
-    })()
+    })();
     return () => {
-      active = false
-    }
-  }, [])
+      active = false;
+    };
+  }, []);
 
-  if (start?.source === "local" && serverBoot === firstBoot) {
-    const { boot } = start
-    const legacyProps = { initialUser: boot.user, initialBinders: boot.binders, initialBinderId: boot.binderId, initialCollection: boot.collection,
-      initialCollectionOwnerUserId: boot.collectionOwnerUserId, initialSettings: boot.settings, initialHasStoredSettings: false, initialDarkMode: boot.darkMode }
-    return (
-      <BinderApp {...legacyProps} startGrid={grid} key={boot.binderId ?? "binder"} />
-    )
+  if (start?.source === 'local' && serverBoot === firstBoot) {
+    const { boot } = start;
+    const legacyProps = {
+      initialUser: boot.user,
+      initialBinders: boot.binders,
+      initialBinderId: boot.binderId,
+      initialCollection: boot.collection,
+      initialCollectionOwnerUserId: boot.collectionOwnerUserId,
+      initialSettings: boot.settings,
+      initialHasStoredSettings: false,
+      initialDarkMode: boot.darkMode,
+    };
+    return <BinderApp {...legacyProps} startGrid={grid} key={boot.binderId ?? 'binder'} />;
   }
 
   if (start || serverBoot !== firstBoot) {
@@ -90,22 +106,22 @@ export function BinderStart({ serverBoot, startGrid }: { serverBoot: Promise<Ser
       <Suspense fallback={<BinderSkeleton {...grid} />}>
         <ServerStartedBinder serverBoot={serverBoot} grid={grid} />
       </Suspense>
-    )
+    );
   }
 
-  return <BinderSkeleton {...grid} />
+  return <BinderSkeleton {...grid} />;
 }
 
 function ServerStartedBinder({ serverBoot, grid }: { serverBoot: Promise<ServerBinderBoot>; grid?: BinderGrid }) {
-  const boot = use(serverBoot)
-  const router = useRouter()
-  const signedOut = !boot.initialUser
+  const boot = use(serverBoot);
+  const router = useRouter();
+  const signedOut = !boot.initialUser;
 
   useEffect(() => {
     // The proxy redirects signed-out visitors before this page; this covers a session that ended in between.
-    if (signedOut) router.replace("/auth/login")
-  }, [router, signedOut])
+    if (signedOut) router.replace('/auth/login');
+  }, [router, signedOut]);
 
-  if (signedOut) return <BinderSkeleton {...grid} />
-  return <BinderApp key={boot.initialBinderId ?? "binder"} {...boot} startGrid={grid} />
+  if (signedOut) return <BinderSkeleton {...grid} />;
+  return <BinderApp key={boot.initialBinderId ?? 'binder'} {...boot} startGrid={grid} />;
 }

@@ -9,12 +9,12 @@ Which source each card's image comes from, and why, is recorded in [`card-assets
 
 The storage backend is chosen by `CARD_IMAGE_STORE` (see `lib/card-image-store.ts`):
 
-| `CARD_IMAGE_STORE` | Backend | Required env |
-| --- | --- | --- |
-| `r2` | Cloudflare R2 (S3 API, signed with aws4fetch) | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, and `R2_PUBLIC_BASE_URL` (recommended) |
-| `blob` | Vercel Blob | `BLOB_READ_WRITE_TOKEN`; `CARD_IMAGE_BLOB=0` still disables it |
-| `off` | none, TCGdex live | none |
-| unset or unknown | none, source images served live | none |
+| `CARD_IMAGE_STORE` | Backend                                       | Required env                                                                                                     |
+| ------------------ | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `r2`               | Cloudflare R2 (S3 API, signed with aws4fetch) | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, and `R2_PUBLIC_BASE_URL` (recommended) |
+| `blob`             | Vercel Blob                                   | `BLOB_READ_WRITE_TOKEN`; `CARD_IMAGE_BLOB=0` still disables it                                                   |
+| `off`              | none, TCGdex live                             | none                                                                                                             |
+| unset or unknown   | none, source images served live               | none                                                                                                             |
 
 If a backend is selected but its credentials are missing or invalid, the mirror is off and TCGdex is served live. It never falls through to the other backend. If the store refuses requests (401/403, a blocked store) or throttles them (429/503), the proxy skips it for a cooldown period and serves TCGdex directly.
 
@@ -27,13 +27,13 @@ Object keys are deterministic:
 - TCGdex: `pokemon/tcg/cards/<lang>/<setId>/<localId>/<high|low>.<webp|png|jpg>`, stored as fetched.
 - Fallback sources: `pokemon/tcg/cards/src/<source>/<key>.webp`, derived from the origin URL only (so the proxy needs no database lookup):
 
-  | Source | Origin URL | Key |
-  | --- | --- | --- |
-  | `tcgplayer` | `https://product-images.tcgplayer.com/<productId>.jpg` | `pokemon/tcg/cards/src/tcgplayer/<productId>.webp` |
-  | `pokemontcg` | `https://images.pokemontcg.io/<set>/<file>.png` | `pokemon/tcg/cards/src/pokemontcg/<set>/<file>.webp` |
-  | `scrydex` | `https://images.scrydex.com/pokemon/<cardId>/<large\|medium\|small>` | `pokemon/tcg/cards/src/scrydex/<cardId>/<size>.webp` |
-  | `limitless` | `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/<SET>/<file>.png` | `pokemon/tcg/cards/src/limitless/<SET>/<file>.webp` |
-  | `playshop` | `https://cdn.shopify.com/s/files/1/1015/7057/6719/files/<handle>.<png\|jpg>` | `pokemon/tcg/cards/src/playshop/<handle>.webp` |
+  | Source       | Origin URL                                                                                               | Key                                                             |
+  | ------------ | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+  | `tcgplayer`  | `https://product-images.tcgplayer.com/<productId>.jpg`                                                   | `pokemon/tcg/cards/src/tcgplayer/<productId>.webp`              |
+  | `pokemontcg` | `https://images.pokemontcg.io/<set>/<file>.png`                                                          | `pokemon/tcg/cards/src/pokemontcg/<set>/<file>.webp`            |
+  | `scrydex`    | `https://images.scrydex.com/pokemon/<cardId>/<large\|medium\|small>`                                     | `pokemon/tcg/cards/src/scrydex/<cardId>/<size>.webp`            |
+  | `limitless`  | `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/<SET>/<file>.png`                             | `pokemon/tcg/cards/src/limitless/<SET>/<file>.webp`             |
+  | `playshop`   | `https://cdn.shopify.com/s/files/1/1015/7057/6719/files/<handle>.<png\|jpg>`                             | `pokemon/tcg/cards/src/playshop/<handle>.webp`                  |
   | `pokemoncom` | `https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/<SET>/<SET>_EN_<number>.png` | `pokemon/tcg/cards/src/pokemoncom/<SET>/<SET>_EN_<number>.webp` |
 
   `cdn.shopify.com` serves every Shopify store, so only the playshop.fr store path counts as a card image (`isCardImageSourceUrl`); the proxy refuses any other path on that host. playshop.fr scans are used only for the French McDonald's collections (2013, 2018, 2019), which no card database has scans for; their stored copies are trimmed of any white margin around the card.
@@ -58,6 +58,7 @@ Uploads never overwrite (`If-None-Match: *` on R2, `allowOverwrite: false` on Bl
    - `R2_PUBLIC_BASE_URL=https://assets.holofolder.com` (the public card-image bucket custom domain)
 
    `CARD_IMAGE_BLOB=0` can stay; it only affects Blob. Redeploy production afterwards.
+
 5. Run the backfill (resumable), repeating with the returned cursor until `"done": true`:
 
    ```sh
@@ -66,6 +67,7 @@ Uploads never overwrite (`If-None-Match: *` on R2, `allowOverwrite: false` on Bl
    ```
 
    New sets are copied by `POST /api/admin/sync-card-db` (add `?images=0` to skip this).
+
 6. Verify: `curl -sI "https://holofolder.com/app/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fme%2Fme05%2F001%2Fhigh.webp"` should show `x-card-image-source: r2`. It shows `tcgdex` the first time an image is fetched and while the store is in its cooldown.
 
 R2 free tier (Standard storage, per month): 10 GB-month storage, 1M Class A ops (PutObject, ListObjects), 10M Class B ops (GetObject, HeadObject), no egress fees. The full mirror is about 40k objects and roughly 2 GB, so it fits comfortably. Usage beyond the free tier is billed, not blocked.

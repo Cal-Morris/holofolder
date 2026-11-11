@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -9,21 +9,42 @@
   overflow: hidden;
   isolation: isolate;
   border: 1px solid transparent;
-  background: linear-gradient(var(--muted), var(--muted)) padding-box,
+  background:
+    linear-gradient(var(--muted), var(--muted)) padding-box,
     linear-gradient(135deg, #ff9ad540, #b9a6ff60 35%, #7fe7ff40 65%, #b8ffcf40) border-box;
 }
 .holo-loading::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: -40% -140%;
   pointer-events: none;
-  background: linear-gradient(115deg, transparent 20%, #ff9ad508 30%, #ff9ad51c 40%, #b9a6ff30 48%, #7fe7ff30 56%, #b8ffcf1c 65%, #b8ffcf08 75%, transparent 85%);
+  background: linear-gradient(
+    115deg,
+    transparent 20%,
+    #ff9ad508 30%,
+    #ff9ad51c 40%,
+    #b9a6ff30 48%,
+    #7fe7ff30 56%,
+    #b8ffcf1c 65%,
+    #b8ffcf08 75%,
+    transparent 85%
+  );
   animation: holo-loading-sweep 5.5s ease-in-out infinite;
 }
 @keyframes holo-loading-sweep {
-  0%, 15% { transform: translateX(-22%); opacity: 0; }
-  35% { opacity: 1; }
-  70%, 100% { transform: translateX(22%); opacity: 0; }
+  0%,
+  15% {
+    transform: translateX(-22%);
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  70%,
+  100% {
+    transform: translateX(22%);
+    opacity: 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .holo-loading::after {
@@ -52,7 +73,10 @@
   --gutter: 0px;
   --chrome-x: calc(var(--pad) * 2 + 6px * (var(--c) - 1));
   --chrome-y: calc(var(--pad) * 2 + 6px * (var(--r) - 1));
-  --pocket: min((100cqh - 4px - var(--chrome-y)) / var(--r), ((100cqw - 4px - var(--gutter)) / var(--pages) - var(--chrome-x)) / var(--c) * 88 / 63);
+  --pocket: min(
+    (100cqh - 4px - var(--chrome-y)) / var(--r),
+    ((100cqw - 4px - var(--gutter)) / var(--pages) - var(--chrome-x)) / var(--c) * 88 / 63
+  );
   display: grid;
   grid-template-columns: repeat(var(--pages), minmax(0, 1fr));
   gap: var(--gutter);
@@ -85,9 +109,12 @@
 /* Static highlights give the chrome depth without re-blurring a scrolling card list. */
 .holo-panel {
   background-color: var(--card);
-  background-image: radial-gradient(ellipse at 0% 0%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 65%),
+  background-image:
+    radial-gradient(ellipse at 0% 0%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 65%),
     linear-gradient(135deg, transparent 65%, color-mix(in srgb, var(--highlight) 4%, transparent));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent), 0 12px 32px -28px #0008;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent),
+    0 12px 32px -28px #0008;
 }
 .holo-toolbar {
   background-color: var(--card);
@@ -106,7 +133,11 @@
   background-image: linear-gradient(110deg, #7039a6, #5b44b4 36%, #235c88 72%, #186550);
 }
 .holo-selected {
-  background-image: linear-gradient(120deg, color-mix(in srgb, var(--primary) 18%, transparent), color-mix(in srgb, var(--highlight) 7%, transparent));
+  background-image: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--primary) 18%, transparent),
+    color-mix(in srgb, var(--highlight) 7%, transparent)
+  );
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent);
 }
 
@@ -228,7 +259,7 @@
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
   }
-  :where(button, [role="button"], [role="option"], [role="menuitem"], summary, label[for]) {
+  :where(button, [role='button'], [role='option'], [role='menuitem'], summary, label[for]) {
     touch-action: manipulation;
     -webkit-user-select: none;
     user-select: none;
@@ -256,50 +287,72 @@
 @layer utilities {
   /* Premium animations */
   @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   @keyframes slide-up {
-    from { 
-      opacity: 0; 
-      transform: translateY(16px); 
+    from {
+      opacity: 0;
+      transform: translateY(16px);
     }
-    to { 
-      opacity: 1; 
-      transform: translateY(0); 
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 
   @keyframes scale-in {
-    from { 
-      opacity: 0; 
-      transform: scale(0.96); 
+    from {
+      opacity: 0;
+      transform: scale(0.96);
     }
-    to { 
-      opacity: 1; 
-      transform: scale(1); 
+    to {
+      opacity: 1;
+      transform: scale(1);
     }
   }
 
   @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
   }
 
   @keyframes bounce-in {
-    0% { transform: scale(0.9); opacity: 0; }
-    50% { transform: scale(1.02); }
-    100% { transform: scale(1); opacity: 1; }
+    0% {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.02);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
 
   @keyframes pulse-soft {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
   }
 
   @keyframes slot-glare-sweep {
-    0%, 100% {
+    0%,
+    100% {
       transform: var(--glare-transform) translateX(-2%);
       opacity: 0.22;
     }
@@ -315,15 +368,27 @@
 
   @keyframes holographic-foil {
     0% {
-      background-position: var(--glint-x, 44%) var(--glint-y, 38%), 0% 50%, 100% 0%, 0% 0%;
+      background-position:
+        var(--glint-x, 44%) var(--glint-y, 38%),
+        0% 50%,
+        100% 0%,
+        0% 0%;
       filter: hue-rotate(0deg) saturate(1.08);
     }
     45% {
-      background-position: var(--glint-x, 44%) var(--glint-y, 38%), 90% 50%, 0% 100%, 80% 0%;
+      background-position:
+        var(--glint-x, 44%) var(--glint-y, 38%),
+        90% 50%,
+        0% 100%,
+        80% 0%;
       filter: hue-rotate(14deg) saturate(1.25);
     }
     100% {
-      background-position: var(--glint-x, 44%) var(--glint-y, 38%), 0% 50%, 100% 0%, 0% 0%;
+      background-position:
+        var(--glint-x, 44%) var(--glint-y, 38%),
+        0% 50%,
+        100% 0%,
+        0% 0%;
       filter: hue-rotate(0deg) saturate(1.08);
     }
   }
@@ -341,7 +406,7 @@
   }
 
   .animate-shimmer {
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
   }
@@ -360,10 +425,20 @@
 
   .animate-holographic-foil {
     background:
-      linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.18) 19%, rgba(125,211,252,0.26) 28%, rgba(244,114,182,0.2) 39%, transparent 54%),
-      radial-gradient(circle at 20% 10%, rgba(255,255,255,0.28), transparent 34%),
-      repeating-linear-gradient(128deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 8px);
-    background-size: 220% 100%, 160% 160%, 100% 100%;
+      linear-gradient(
+        115deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.18) 19%,
+        rgba(125, 211, 252, 0.26) 28%,
+        rgba(244, 114, 182, 0.2) 39%,
+        transparent 54%
+      ),
+      radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.28), transparent 34%),
+      repeating-linear-gradient(128deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 8px);
+    background-size:
+      220% 100%,
+      160% 160%,
+      100% 100%;
     animation: holographic-foil 6.25s ease-in-out infinite;
   }
 
@@ -397,15 +472,18 @@
   @keyframes card-finish-sheen-sweep {
     0% {
       opacity: calc(var(--slot-mobile-sheen-opacity, 0.24) * 0.3);
-      transform: translate3d(calc(var(--glint-shift-x, 0%) - 22%), calc(var(--glint-shift-y, 0%) - 6%), 0) rotate(var(--glint-angle, -24deg)) scale(1.06);
+      transform: translate3d(calc(var(--glint-shift-x, 0%) - 22%), calc(var(--glint-shift-y, 0%) - 6%), 0)
+        rotate(var(--glint-angle, -24deg)) scale(1.06);
     }
     48% {
       opacity: var(--slot-mobile-sheen-opacity, 0.24);
-      transform: translate3d(var(--glint-shift-x, 0%), var(--glint-shift-y, 0%), 0) rotate(var(--glint-angle, -24deg)) scale(1.09);
+      transform: translate3d(var(--glint-shift-x, 0%), var(--glint-shift-y, 0%), 0) rotate(var(--glint-angle, -24deg))
+        scale(1.09);
     }
     100% {
       opacity: calc(var(--slot-mobile-sheen-opacity, 0.24) * 0.34);
-      transform: translate3d(calc(var(--glint-shift-x, 0%) + 24%), calc(var(--glint-shift-y, 0%) + 7%), 0) rotate(var(--glint-angle, -24deg)) scale(1.06);
+      transform: translate3d(calc(var(--glint-shift-x, 0%) + 24%), calc(var(--glint-shift-y, 0%) + 7%), 0)
+        rotate(var(--glint-angle, -24deg)) scale(1.06);
     }
   }
 
@@ -426,7 +504,10 @@
     mix-blend-mode: normal;
     opacity: var(--finish-opacity, 0.74);
     background-blend-mode: normal, screen, overlay, normal;
-    transition: transform 120ms ease-out, opacity 120ms ease-out, background-position 120ms ease-out;
+    transition:
+      transform 120ms ease-out,
+      opacity 120ms ease-out,
+      background-position 120ms ease-out;
     will-change: transform, opacity, background-position;
   }
 
@@ -442,11 +523,17 @@
   .card-finish-ace::after,
   .card-finish-amazing::after,
   .card-finish-shiny::after {
-    content: "";
+    content: '';
     position: absolute;
     inset: -35%;
     transform: rotate(var(--glint-angle, -24deg)) translateX(var(--glint-streak-x, 0%));
-    background: linear-gradient(105deg, transparent 31%, rgba(255,255,255,0.62) 43%, rgba(255,255,255,0.14) 51%, transparent 65%);
+    background: linear-gradient(
+      105deg,
+      transparent 31%,
+      rgba(255, 255, 255, 0.62) 43%,
+      rgba(255, 255, 255, 0.14) 51%,
+      transparent 65%
+    );
     opacity: 0.62;
     mix-blend-mode: screen;
     pointer-events: none;
@@ -455,21 +542,56 @@
   .card-finish-normal {
     --finish-opacity: 0.24;
     background:
-      radial-gradient(circle at var(--glint-x, 38%) var(--glint-y, 32%), rgba(255,255,255,0.28), rgba(125,211,252,0.12) 20%, transparent 46%),
-      linear-gradient(112deg, transparent 0%, rgba(255,255,255,0.14) 21%, rgba(56,189,248,0.12) 34%, transparent 58%),
-      linear-gradient(180deg, rgba(255,255,255,0.1), transparent 42%);
-    background-size: 130% 130%, 220% 100%, 100% 100%;
+      radial-gradient(
+        circle at var(--glint-x, 38%) var(--glint-y, 32%),
+        rgba(255, 255, 255, 0.28),
+        rgba(125, 211, 252, 0.12) 20%,
+        transparent 46%
+      ),
+      linear-gradient(
+        112deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.14) 21%,
+        rgba(56, 189, 248, 0.12) 34%,
+        transparent 58%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 42%);
+    background-size:
+      130% 130%,
+      220% 100%,
+      100% 100%;
     animation: holographic-foil 7s ease-in-out infinite;
   }
 
   .card-finish-holo {
     --finish-opacity: 0.4;
     background:
-      radial-gradient(circle at var(--glint-x, 36%) var(--glint-y, 32%), rgba(255,255,255,0.34) 0%, rgba(125,211,252,0.2) 18%, transparent 46%),
-      linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.12) 18%, rgba(56,189,248,0.2) 28%, rgba(244,114,182,0.16) 42%, transparent 60%),
-      repeating-linear-gradient(128deg, rgba(255,255,255,0.1) 0 1px, rgba(125,211,252,0.05) 1px 3px, transparent 3px 9px),
-      linear-gradient(180deg, rgba(255,255,255,0.07), transparent 38%);
-    background-size: 120% 120%, 220% 100%, 100% 100%, 100% 100%;
+      radial-gradient(
+        circle at var(--glint-x, 36%) var(--glint-y, 32%),
+        rgba(255, 255, 255, 0.34) 0%,
+        rgba(125, 211, 252, 0.2) 18%,
+        transparent 46%
+      ),
+      linear-gradient(
+        115deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.12) 18%,
+        rgba(56, 189, 248, 0.2) 28%,
+        rgba(244, 114, 182, 0.16) 42%,
+        transparent 60%
+      ),
+      repeating-linear-gradient(
+        128deg,
+        rgba(255, 255, 255, 0.1) 0 1px,
+        rgba(125, 211, 252, 0.05) 1px 3px,
+        transparent 3px 9px
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 38%);
+    background-size:
+      120% 120%,
+      220% 100%,
+      100% 100%,
+      100% 100%;
     animation: holographic-foil 6s ease-in-out infinite;
   }
 
@@ -477,93 +599,185 @@
     --finish-opacity: 0.36;
     inset: 8% 4% 4%;
     background:
-      radial-gradient(circle at var(--glint-x, 28%) var(--glint-y, 24%), rgba(255,255,255,0.3), transparent 30%),
-      repeating-linear-gradient(45deg, rgba(125,211,252,0.16) 0 2px, rgba(244,114,182,0.13) 2px 4px, transparent 4px 9px),
-      linear-gradient(135deg, rgba(255,255,255,0.14), transparent 38%);
+      radial-gradient(circle at var(--glint-x, 28%) var(--glint-y, 24%), rgba(255, 255, 255, 0.3), transparent 30%),
+      repeating-linear-gradient(
+        45deg,
+        rgba(125, 211, 252, 0.16) 0 2px,
+        rgba(244, 114, 182, 0.13) 2px 4px,
+        transparent 4px 9px
+      ),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.14), transparent 38%);
     animation: holographic-foil 7s ease-in-out infinite reverse;
   }
 
   .card-finish-double {
     --finish-opacity: 0.34;
     background:
-      radial-gradient(circle at var(--glint-x, 42%) var(--glint-y, 34%), rgba(255,255,255,0.34), rgba(125,211,252,0.16) 22%, transparent 48%),
-      repeating-linear-gradient(30deg, rgba(255,255,255,0.12) 0 1px, transparent 1px 12px),
-      linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.18) 22%, transparent 50%);
+      radial-gradient(
+        circle at var(--glint-x, 42%) var(--glint-y, 34%),
+        rgba(255, 255, 255, 0.34),
+        rgba(125, 211, 252, 0.16) 22%,
+        transparent 48%
+      ),
+      repeating-linear-gradient(30deg, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 12px),
+      linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.18) 22%, transparent 50%);
     animation: holographic-foil 5.8s ease-in-out infinite;
   }
 
   .card-finish-ultra {
     --finish-opacity: 0.42;
     background:
-      radial-gradient(circle at var(--glint-x, 52%) var(--glint-y, 30%), rgba(255,255,255,0.36), rgba(203,213,225,0.2) 20%, transparent 48%),
-      repeating-linear-gradient(118deg, rgba(255,255,255,0.13) 0 1px, rgba(125,211,252,0.08) 1px 3px, transparent 3px 8px),
-      linear-gradient(128deg, transparent 0%, rgba(255,255,255,0.16) 20%, transparent 58%);
+      radial-gradient(
+        circle at var(--glint-x, 52%) var(--glint-y, 30%),
+        rgba(255, 255, 255, 0.36),
+        rgba(203, 213, 225, 0.2) 20%,
+        transparent 48%
+      ),
+      repeating-linear-gradient(
+        118deg,
+        rgba(255, 255, 255, 0.13) 0 1px,
+        rgba(125, 211, 252, 0.08) 1px 3px,
+        transparent 3px 8px
+      ),
+      linear-gradient(128deg, transparent 0%, rgba(255, 255, 255, 0.16) 20%, transparent 58%);
     animation: holographic-foil 5.1s ease-in-out infinite;
   }
 
   .card-finish-ir {
     --finish-opacity: 0.4;
     background:
-      radial-gradient(circle at var(--glint-x, 60%) var(--glint-y, 30%), rgba(255,255,255,0.32), rgba(134,239,172,0.15) 22%, transparent 48%),
-      linear-gradient(118deg, transparent 0%, rgba(255,255,255,0.12) 18%, rgba(134,239,172,0.18) 30%, rgba(96,165,250,0.2) 45%, transparent 64%),
-      radial-gradient(circle at 72% 18%, rgba(255,255,255,0.22), transparent 24%),
-      repeating-linear-gradient(118deg, rgba(255,255,255,0.07) 0 1px, transparent 1px 10px);
+      radial-gradient(
+        circle at var(--glint-x, 60%) var(--glint-y, 30%),
+        rgba(255, 255, 255, 0.32),
+        rgba(134, 239, 172, 0.15) 22%,
+        transparent 48%
+      ),
+      linear-gradient(
+        118deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.12) 18%,
+        rgba(134, 239, 172, 0.18) 30%,
+        rgba(96, 165, 250, 0.2) 45%,
+        transparent 64%
+      ),
+      radial-gradient(circle at 72% 18%, rgba(255, 255, 255, 0.22), transparent 24%),
+      repeating-linear-gradient(118deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 10px);
     animation: holographic-foil 5.5s ease-in-out infinite;
   }
 
   .card-finish-sir {
     --finish-opacity: 0.46;
     background:
-      radial-gradient(circle at var(--glint-x, 48%) var(--glint-y, 34%), rgba(255,255,255,0.38), rgba(251,191,36,0.2) 17%, rgba(56,189,248,0.14) 31%, transparent 54%),
-      linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.15) 16%, rgba(251,191,36,0.2) 26%, rgba(56,189,248,0.24) 38%, rgba(244,114,182,0.21) 52%, transparent 70%),
-      repeating-linear-gradient(135deg, rgba(255,255,255,0.12) 0 1px, transparent 1px 6px),
-      radial-gradient(circle at 30% 18%, rgba(255,255,255,0.2), transparent 24%);
+      radial-gradient(
+        circle at var(--glint-x, 48%) var(--glint-y, 34%),
+        rgba(255, 255, 255, 0.38),
+        rgba(251, 191, 36, 0.2) 17%,
+        rgba(56, 189, 248, 0.14) 31%,
+        transparent 54%
+      ),
+      linear-gradient(
+        105deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.15) 16%,
+        rgba(251, 191, 36, 0.2) 26%,
+        rgba(56, 189, 248, 0.24) 38%,
+        rgba(244, 114, 182, 0.21) 52%,
+        transparent 70%
+      ),
+      repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 6px),
+      radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.2), transparent 24%);
     animation: holographic-foil 4.8s ease-in-out infinite;
   }
 
   .card-finish-secret {
     --finish-opacity: 0.48;
     background:
-      radial-gradient(circle at var(--glint-x, 50%) var(--glint-y, 38%), rgba(255,255,255,0.42), rgba(251,191,36,0.2) 18%, transparent 44%),
-      conic-gradient(from 160deg at 50% 50%, rgba(251,191,36,0.16), rgba(244,114,182,0.2), rgba(56,189,248,0.22), rgba(134,239,172,0.16), rgba(251,191,36,0.18)),
-      linear-gradient(118deg, transparent 0%, rgba(255,255,255,0.18) 20%, transparent 48%),
-      repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 7px);
+      radial-gradient(
+        circle at var(--glint-x, 50%) var(--glint-y, 38%),
+        rgba(255, 255, 255, 0.42),
+        rgba(251, 191, 36, 0.2) 18%,
+        transparent 44%
+      ),
+      conic-gradient(
+        from 160deg at 50% 50%,
+        rgba(251, 191, 36, 0.16),
+        rgba(244, 114, 182, 0.2),
+        rgba(56, 189, 248, 0.22),
+        rgba(134, 239, 172, 0.16),
+        rgba(251, 191, 36, 0.18)
+      ),
+      linear-gradient(118deg, transparent 0%, rgba(255, 255, 255, 0.18) 20%, transparent 48%),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 7px);
     animation: holographic-foil 4.25s ease-in-out infinite;
   }
 
   .card-finish-radiant {
     --finish-opacity: 0.44;
     background:
-      radial-gradient(circle at var(--glint-x, 44%) var(--glint-y, 32%), rgba(255,255,255,0.42), rgba(56,189,248,0.2) 18%, transparent 46%),
-      repeating-linear-gradient(45deg, rgba(255,255,255,0.16) 0 1px, transparent 1px 7px),
-      repeating-linear-gradient(135deg, rgba(244,114,182,0.12) 0 1px, transparent 1px 9px);
+      radial-gradient(
+        circle at var(--glint-x, 44%) var(--glint-y, 32%),
+        rgba(255, 255, 255, 0.42),
+        rgba(56, 189, 248, 0.2) 18%,
+        transparent 46%
+      ),
+      repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.16) 0 1px, transparent 1px 7px),
+      repeating-linear-gradient(135deg, rgba(244, 114, 182, 0.12) 0 1px, transparent 1px 9px);
     animation: holographic-foil 4.7s ease-in-out infinite;
   }
 
   .card-finish-ace {
     --finish-opacity: 0.42;
     background:
-      radial-gradient(circle at var(--glint-x, 50%) var(--glint-y, 32%), rgba(255,255,255,0.38), rgba(236,72,153,0.24) 20%, transparent 50%),
-      linear-gradient(112deg, transparent 0%, rgba(236,72,153,0.28) 24%, rgba(255,255,255,0.18) 36%, transparent 62%),
-      repeating-linear-gradient(90deg, rgba(255,255,255,0.12) 0 1px, transparent 1px 8px);
+      radial-gradient(
+        circle at var(--glint-x, 50%) var(--glint-y, 32%),
+        rgba(255, 255, 255, 0.38),
+        rgba(236, 72, 153, 0.24) 20%,
+        transparent 50%
+      ),
+      linear-gradient(
+        112deg,
+        transparent 0%,
+        rgba(236, 72, 153, 0.28) 24%,
+        rgba(255, 255, 255, 0.18) 36%,
+        transparent 62%
+      ),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 8px);
     animation: holographic-foil 4.6s ease-in-out infinite;
   }
 
   .card-finish-amazing {
     --finish-opacity: 0.46;
     background:
-      radial-gradient(circle at var(--glint-x, 50%) var(--glint-y, 42%), rgba(255,255,255,0.38), rgba(251,191,36,0.2) 18%, rgba(56,189,248,0.16) 34%, transparent 58%),
-      conic-gradient(from 90deg at 50% 50%, rgba(244,114,182,0.2), rgba(251,191,36,0.2), rgba(134,239,172,0.18), rgba(56,189,248,0.2), rgba(244,114,182,0.2)),
-      repeating-linear-gradient(128deg, rgba(255,255,255,0.1) 0 1px, transparent 1px 7px);
+      radial-gradient(
+        circle at var(--glint-x, 50%) var(--glint-y, 42%),
+        rgba(255, 255, 255, 0.38),
+        rgba(251, 191, 36, 0.2) 18%,
+        rgba(56, 189, 248, 0.16) 34%,
+        transparent 58%
+      ),
+      conic-gradient(
+        from 90deg at 50% 50%,
+        rgba(244, 114, 182, 0.2),
+        rgba(251, 191, 36, 0.2),
+        rgba(134, 239, 172, 0.18),
+        rgba(56, 189, 248, 0.2),
+        rgba(244, 114, 182, 0.2)
+      ),
+      repeating-linear-gradient(128deg, rgba(255, 255, 255, 0.1) 0 1px, transparent 1px 7px);
     animation: holographic-foil 4.4s ease-in-out infinite;
   }
 
   .card-finish-shiny {
     --finish-opacity: 0.42;
     background:
-      radial-gradient(circle at var(--glint-x, 46%) var(--glint-y, 34%), rgba(255,255,255,0.44), rgba(191,219,254,0.18) 20%, transparent 48%),
-      repeating-linear-gradient(35deg, rgba(255,255,255,0.14) 0 1px, transparent 1px 10px),
-      linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.18) 26%, transparent 54%);
+      radial-gradient(
+        circle at var(--glint-x, 46%) var(--glint-y, 34%),
+        rgba(255, 255, 255, 0.44),
+        rgba(191, 219, 254, 0.18) 20%,
+        transparent 48%
+      ),
+      repeating-linear-gradient(35deg, rgba(255, 255, 255, 0.14) 0 1px, transparent 1px 10px),
+      linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.18) 26%, transparent 54%);
     animation: holographic-foil 5.2s ease-in-out infinite;
   }
 
@@ -705,17 +919,27 @@ html[data-binder-motion]::view-transition-new(binder-content) {
 }
 /* Keep the shared frame aligned while the old and new page snapshots overlap. */
 @keyframes binder-content-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes binder-content-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   html[data-binder-motion]::view-transition-group(*),
   html[data-binder-motion]::view-transition-old(*),
-  html[data-binder-motion]::view-transition-new(*) { animation: none; }
+  html[data-binder-motion]::view-transition-new(*) {
+    animation: none;
+  }
 }
 
 /*
@@ -723,8 +947,9 @@ html[data-binder-motion]::view-transition-new(binder-content) {
  * Clipped cards (`overflow-hidden`) are also scroll containers: containing them traps wheel/touch
  * gestures over their artwork instead of letting those gestures reach the scrolling body.
  */
-[role="dialog"],
-[role="dialog"] :is(.overflow-auto, .overflow-y-auto, .overflow-x-auto, .overflow-scroll, .overflow-y-scroll, .overflow-x-scroll),
+[role='dialog'],
+[role='dialog']
+  :is(.overflow-auto, .overflow-y-auto, .overflow-x-auto, .overflow-scroll, .overflow-y-scroll, .overflow-x-scroll),
 [data-overlay-backdrop] {
   overscroll-behavior: none;
 }
@@ -744,13 +969,13 @@ html[data-scrolling] [data-scroll-blur] {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-html[data-scrolling] [data-scroll-blur="card"] {
+html[data-scrolling] [data-scroll-blur='card'] {
   background-color: var(--card);
 }
-html[data-scrolling].dark [data-scroll-blur="card"] {
+html[data-scrolling].dark [data-scroll-blur='card'] {
   background-color: var(--background);
 }
-html[data-scrolling] [data-scroll-blur="background"] {
+html[data-scrolling] [data-scroll-blur='background'] {
   background-color: var(--background);
 }
 
@@ -783,7 +1008,7 @@ html[data-keyboard-open] [data-keyboard-fit] {
 
 /* Edge swipe-back affordance: a chevron that follows the finger in from the left edge. */
 html[data-edge-back] body::after {
-  content: "‹";
+  content: '‹';
   position: fixed;
   left: 0;
   top: 50%;
@@ -811,18 +1036,28 @@ html[data-edge-back] body::after {
  * composited onto any existing filter (grayscale, drop shadows) instead of replacing it.
  */
 @keyframes press-scale {
-  to { scale: var(--press-scale, 0.96); }
+  to {
+    scale: var(--press-scale, 0.96);
+  }
 }
 @keyframes press-dim {
-  to { filter: brightness(var(--press-dim, 0.9)); }
+  to {
+    filter: brightness(var(--press-dim, 0.9));
+  }
 }
 @layer base {
-  :where(button, [role="button"], a[href], summary, label[for]):not(:disabled, [aria-disabled="true"], [data-no-press]):active {
-    animation: press-scale 70ms ease-out forwards, press-dim 70ms ease-out forwards;
+  :where(button, [role='button'], a[href], summary, label[for]):not(
+      :disabled,
+      [aria-disabled='true'],
+      [data-no-press]
+    ):active {
+    animation:
+      press-scale 70ms ease-out forwards,
+      press-dim 70ms ease-out forwards;
     animation-composition: replace, add;
   }
   /* Full-width rows and wide buttons barely shrink, so their edges do not visibly jump. */
-  :where(button.w-full, a.w-full, [role="button"].w-full, [role="option"], [role="menuitem"]) {
+  :where(button.w-full, a.w-full, [role='button'].w-full, [role='option'], [role='menuitem']) {
     --press-scale: 0.985;
     --press-dim: 0.94;
   }
@@ -830,8 +1065,10 @@ html[data-edge-back] body::after {
   :where(button[data-dex-id]) {
     --press-scale: 0.98;
   }
-  :where([role="option"], [role="menuitem"]):not([aria-disabled="true"]):active {
-    animation: press-scale 70ms ease-out forwards, press-dim 70ms ease-out forwards;
+  :where([role='option'], [role='menuitem']):not([aria-disabled='true']):active {
+    animation:
+      press-scale 70ms ease-out forwards,
+      press-dim 70ms ease-out forwards;
     animation-composition: replace, add;
   }
 }
@@ -840,13 +1077,15 @@ html[data-edge-back] body::after {
   :root {
     --press-scale: 1;
   }
-  :where(button.w-full, a.w-full, [role="button"].w-full, [role="option"], [role="menuitem"], button[data-dex-id]) {
+  :where(button.w-full, a.w-full, [role='button'].w-full, [role='option'], [role='menuitem'], button[data-dex-id]) {
     --press-scale: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
+  html {
+    scroll-behavior: auto;
+  }
   .animate-fade-in,
   .animate-slide-up,
   .animate-scale-in,

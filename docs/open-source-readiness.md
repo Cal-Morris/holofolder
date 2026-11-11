@@ -64,14 +64,14 @@ The code license does not publish production user data, credential files, provid
 
 ## Preparation changes
 
-| Change | Pull request |
-|---|---|
+| Change                                                                                               | Pull request                                             |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | AGPL, full third-party notices, source attribution, contributor/security docs and architecture guide | [#328](https://github.com/Cal-Morris/binderdex/pull/328) |
-| Signed-in and anonymous shared-viewer test coverage | [#330](https://github.com/Cal-Morris/binderdex/pull/330) |
-| Fresh database bootstrap/replay fixes and a local-only regression verifier | [#331](https://github.com/Cal-Morris/binderdex/pull/331) |
-| Patched Sharp native dependencies, with decoded-pixel icon verification | [#334](https://github.com/Cal-Morris/binderdex/pull/334) |
-| Unused Select primitive, direct dependency and lockfile cleanup | [#335](https://github.com/Cal-Morris/binderdex/pull/335) |
-| Explicit analytics/billing configuration and updated integration docs | [#336](https://github.com/Cal-Morris/binderdex/pull/336) |
+| Signed-in and anonymous shared-viewer test coverage                                                  | [#330](https://github.com/Cal-Morris/binderdex/pull/330) |
+| Fresh database bootstrap/replay fixes and a local-only regression verifier                           | [#331](https://github.com/Cal-Morris/binderdex/pull/331) |
+| Patched Sharp native dependencies, with decoded-pixel icon verification                              | [#334](https://github.com/Cal-Morris/binderdex/pull/334) |
+| Unused Select primitive, direct dependency and lockfile cleanup                                      | [#335](https://github.com/Cal-Morris/binderdex/pull/335) |
+| Explicit analytics/billing configuration and updated integration docs                                | [#336](https://github.com/Cal-Morris/binderdex/pull/336) |
 
 The architecture pass traced startup, ownership/authorization, collection conflict/retry paths, public catalog/images and billing configuration. It found setup failures, hosted-only assumptions and one unused module/dependency. It did not justify a broad rewrite of the large stateful components. The remaining 59 lint warnings are unchanged; this is not a claim of a line-by-line security audit of every module.
 

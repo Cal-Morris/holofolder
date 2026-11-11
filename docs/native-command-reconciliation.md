@@ -17,13 +17,34 @@ Whitelisted reasons: `slot_revision_conflict`, `inventory_revision_conflict`, `i
 The internal first-party HTTP adapter returns private/no-store JSON:
 
 ```json
-{"version":1,"operationId":"synthetic-command","rejection":{"outcome":"rejected","operationId":"synthetic-command","code":"slot_revision_conflict","inventoryRevision":12}}
+{
+  "version": 1,
+  "operationId": "synthetic-command",
+  "rejection": {
+    "outcome": "rejected",
+    "operationId": "synthetic-command",
+    "code": "slot_revision_conflict",
+    "inventoryRevision": 12
+  }
+}
 ```
 
 This envelope has status 409. The browser validates both IDs, bounded known code, revision, exact shape, content type, private/no-store headers and live authenticated session scope. Ordinary errors still use the existing error envelope; its code or status never creates proof. The trusted execution boundary preserves this validated result as data for the first-party envelope above. The shared developer dispatcher converts it to a typed `storage_command_rejected` error only for `execute_slot_commands` and `execute_inventory_commands`, after the existing original-intent parser, recipient fence and authenticated execution. REST returns 409; MCP returns `isError:true`, with identical structured fields and JSON text. Both use the shared developer error formatter:
 
 ```json
-{"error":{"code":"storage_command_rejected","message":"The original storage command was rejected. Refresh current storage before explicit reconciliation.","requestId":"synthetic-request","rejection":{"outcome":"rejected","operationId":"synthetic-command","code":"slot_revision_conflict","inventoryRevision":12}}}
+{
+  "error": {
+    "code": "storage_command_rejected",
+    "message": "The original storage command was rejected. Refresh current storage before explicit reconciliation.",
+    "requestId": "synthetic-request",
+    "rejection": {
+      "outcome": "rejected",
+      "operationId": "synthetic-command",
+      "code": "slot_revision_conflict",
+      "inventoryRevision": 12
+    }
+  }
+}
 ```
 
 Only the trusted gateway's exact four-field terminal row, bound to the original operation ID, can create this error. Malformed, extra-field, wrong-ID or unknown-code terminal rows fail closed as `storage_unavailable`; they cannot fall through into accepted receipt projection. Ordinary conflicts, stale preconditions without a ledger outcome, arbitrary 40001/23505, timeouts and absent ledger evidence never acquire a rejection. Unknown outcomes retain the same original request/ID, source, credential and recipient for explicit retry. A terminal revision describes the ledger outcome, not current storage; it is never a complete read or permission to cancel automatically.
@@ -34,25 +55,25 @@ The real REST handler and MCP HTTP SDK tests use synthetic current authority and
 
 ## Durable client states
 
-| State | Supported action |
-| --- | --- |
-| Matching accepted receipt | Start a separate private complete read after the reply; ACK only with current scope, retained lease and sufficient revision |
-| Terminal rejection, current read missing | Persist original command and terminal proof before reading; retry **Refresh current storage** after reload/reconnect |
-| Terminal rejection plus fresh complete current state | Explicitly **Use current storage** to cancel the saved edit, or **Rebase saved edit** for nonoverlapping content/metadata changes |
-| Structural, overlapping, copy-selection or move conflict | Original retained; queue API accepts a separately reviewed full replacement, browser does not invent one |
-| More than one dependent pending command | Retain all commands; single-command cancellation/rebase is refused |
-| Unclassified 409, SQL errors, timeout or lost reply | No cancellation or new ID; explicit retry sends the original immutable command |
-| Changed account, owner, JWT session or membership epoch | Ignore late work; retain the original account/owner/device queue for its own session |
+| State                                                    | Supported action                                                                                                                  |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Matching accepted receipt                                | Start a separate private complete read after the reply; ACK only with current scope, retained lease and sufficient revision       |
+| Terminal rejection, current read missing                 | Persist original command and terminal proof before reading; retry **Refresh current storage** after reload/reconnect              |
+| Terminal rejection plus fresh complete current state     | Explicitly **Use current storage** to cancel the saved edit, or **Rebase saved edit** for nonoverlapping content/metadata changes |
+| Structural, overlapping, copy-selection or move conflict | Original retained; queue API accepts a separately reviewed full replacement, browser does not invent one                          |
+| More than one dependent pending command                  | Retain all commands; single-command cancellation/rebase is refused                                                                |
+| Unclassified 409, SQL errors, timeout or lost reply      | No cancellation or new ID; explicit retry sends the original immutable command                                                    |
+| Changed account, owner, JWT session or membership epoch  | Ignore late work; retain the original account/owner/device queue for its own session                                              |
 
 The fresh-read callback starts after durable proof and collects every private inventory, placement, collection and binder-slot stream. Cached brands, reads already in flight, plain JSON, partial reads, older revisions and changed scopes cannot install a reconciliation base. Failed reads preserve proof for later use. Each browser review decision refreshes again before applying, and the atomic queue update checks the original proof/intent and rejects concurrent leases. Legacy persisted `rejected: true` flags without the new bound proof are downgraded to unknown. Original intent/provenance remains in the existing local queue record after explicit cancellation/supersession.
 
 ## UI review
 
-| Before | After | Why |
-| --- | --- | --- |
-| Every 409 paused with no safe way to load current state | Proven terminal rejection offers current-state refresh | Only a committed terminal outcome enables review |
-| Reconciliation required hand-built queue input | Explicit current-state cancellation and constrained rebase | No silently regenerated IDs or selected copies |
-| Unclassified conflict could not retry | Retry preserves the exact original command | Unknown outcomes remain resolvable without guessing noncommit |
+| Before                                                  | After                                                      | Why                                                           |
+| ------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
+| Every 409 paused with no safe way to load current state | Proven terminal rejection offers current-state refresh     | Only a committed terminal outcome enables review              |
+| Reconciliation required hand-built queue input          | Explicit current-state cancellation and constrained rebase | No silently regenerated IDs or selected copies                |
+| Unclassified conflict could not retry                   | Retry preserves the exact original command                 | Unknown outcomes remain resolvable without guessing noncommit |
 
 No new motion, overlay, gesture or storage store is added. Review controls have minimum 36px height and wrapping text; affected phone checks cover three widths and emulated standalone insets. These are Chromium fixture checks, not physical-phone or installed-PWA proof.
 
@@ -68,7 +89,7 @@ Local verification:
 - All 90 archived table counts and 35 original-column digests match after fixtures; archive hash is unchanged. Existing helper bodies, owners/ACLs and table ACL/RLS remain unchanged; the added helper stays denied to all runtime roles. The service gateway's deadline remains 10 seconds.
 - Final production build, full typecheck and full lint pass; lint retains the existing 55 warnings with no additions. The new review flow is rechecked on the final build across all six profiles.
 
- Parent review of this response slice, authenticated hosted transport/commit-cancellation races, native recovery/Undo, old clients/queues/service worker, representative conversion and all #379 rollout gates remain separate acceptance. Issues stay open. Release text is unpublished.
+Parent review of this response slice, authenticated hosted transport/commit-cancellation races, native recovery/Undo, old clients/queues/service worker, representative conversion and all #379 rollout gates remain separate acceptance. Issues stay open. Release text is unpublished.
 
 ## Parent application evidence
 

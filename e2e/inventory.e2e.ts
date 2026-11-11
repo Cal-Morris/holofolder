@@ -1,167 +1,194 @@
-import { test, expect, emulateStandalone, mockBackends, Harness, openInventoryFilters } from "./fixtures"
+import { test, expect, emulateStandalone, mockBackends, Harness, openInventoryFilters } from './fixtures';
 
 // Synthetic owned-copy evidence only. This route never binds an account or production API.
 test.beforeEach(async ({ page, standalone, insets, baseURL }) => {
-  if (standalone) await emulateStandalone(page, insets)
-  await mockBackends(page, page.context(), { signedIn: false, baseURL })
-  await page.goto("/app/e2e-harness/inventory")
-  await expect(count(page)).toHaveText("5 cards")
-})
+  if (standalone) await emulateStandalone(page, insets);
+  await mockBackends(page, page.context(), { signedIn: false, baseURL });
+  await page.goto('/app/e2e-harness/inventory');
+  await expect(count(page)).toHaveText('5 cards');
+});
 // The one line under the title: how many cards, or how many of them match.
-const count = (page: import("@playwright/test").Page) => page.getByRole("region", { name: "Inventory", exact: true }).locator("p[aria-live]")
+const count = (page: import('@playwright/test').Page) =>
+  page.getByRole('region', { name: 'Inventory', exact: true }).locator('p[aria-live]');
 // Where a card is (a binder, or not in one) is chosen from the chips above the search.
-const place = (page: import("@playwright/test").Page, name: string) => page.getByRole("group", { name: "Show cards from", exact: true }).getByRole("button", { name, exact: true })
+const place = (page: import('@playwright/test').Page, name: string) =>
+  page.getByRole('group', { name: 'Show cards from', exact: true }).getByRole('button', { name, exact: true });
 
-test("distinct copies, filters, known/unknown metadata, privacy and keyboard location", async ({ page, insets }) => {
-  const harness = new Harness(page, insets, false)
-  const rows = page.getByRole("list", { name: "Owned copies" }).getByRole("button")
-  await expect(rows).toHaveCount(5)
+test('distinct copies, filters, known/unknown metadata, privacy and keyboard location', async ({ page, insets }) => {
+  const harness = new Harness(page, insets, false);
+  const rows = page.getByRole('list', { name: 'Owned copies' }).getByRole('button');
+  await expect(rows).toHaveCount(5);
   // Each card says where it is: its binder and pocket, or that it is not in one.
-  await expect(rows.filter({ hasText: "Alpha" }).filter({ hasText: "Page 2 · Pocket 1" })).toHaveCount(1)
-  await expect(rows.filter({ hasText: "Trades" }).filter({ hasText: "Page 3 · Pocket 2" })).toHaveCount(1)
-  await expect(page.getByRole("list", { name: "Owned copies" }).getByText("Not in a binder", { exact: true })).toHaveCount(3)
-  await expect(page.getByRole("list", { name: "Owned copies" }).getByText("Set unknown", { exact: true })).toBeVisible()
-  await expect(page.locator("body")).not.toContainText("SYNTHETIC-PRIVATE")
-  await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
-  await expect(rows).toHaveCount(3)
-  await expect(count(page)).toHaveText("3 of 5 cards")
-  await place(page, "Alpha").click()
-  await expect(rows).toHaveCount(1)
-  await place(page, "All collections").click()
-  await openInventoryFilters(page)
-  await page.getByRole("combobox", { name: "Graded by", exact: true }).selectOption("PSA")
-  await page.getByRole("combobox", { name: "Grade", exact: true }).selectOption("10")
-  await expect(rows).toHaveCount(1)
-  await expect(rows.first()).toContainText("PSA · 10 · Scale 1–10")
-  await rows.first().focus(); await page.keyboard.press("Enter")
-  const dialog = page.getByRole("dialog", { name: / details$/ })
-  await expect(dialog).toBeVisible()
-  const open = dialog.getByRole("button", { name: "Go to pocket", exact: true })
-  await harness.expectMinTapTarget(open)
-  await harness.expectWithinSafeViewport(open)
-  await open.focus(); await page.keyboard.press("Enter")
-  await expect(dialog).not.toBeVisible()
-  await expect(page.getByLabel("Location result")).toHaveText("copy-00002: Trades · Page 3 · Pocket 2")
-  await expect(rows).toHaveCount(1)
-  await page.getByRole("searchbox", { name: "Search inventory" }).fill("SYNTHETIC-PRIVATE-CERT")
-  await expect(page.getByText("No cards match", { exact: true })).toBeVisible()
-})
+  await expect(rows.filter({ hasText: 'Alpha' }).filter({ hasText: 'Page 2 · Pocket 1' })).toHaveCount(1);
+  await expect(rows.filter({ hasText: 'Trades' }).filter({ hasText: 'Page 3 · Pocket 2' })).toHaveCount(1);
+  await expect(
+    page.getByRole('list', { name: 'Owned copies' }).getByText('Not in a binder', { exact: true }),
+  ).toHaveCount(3);
+  await expect(
+    page.getByRole('list', { name: 'Owned copies' }).getByText('Set unknown', { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('SYNTHETIC-PRIVATE');
+  await page.getByRole('searchbox', { name: 'Search inventory' }).fill('base set');
+  await expect(rows).toHaveCount(3);
+  await expect(count(page)).toHaveText('3 of 5 cards');
+  await place(page, 'Alpha').click();
+  await expect(rows).toHaveCount(1);
+  await place(page, 'All collections').click();
+  await openInventoryFilters(page);
+  await page.getByRole('combobox', { name: 'Graded by', exact: true }).selectOption('PSA');
+  await page.getByRole('combobox', { name: 'Grade', exact: true }).selectOption('10');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('PSA · 10 · Scale 1–10');
+  await rows.first().focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: / details$/ });
+  await expect(dialog).toBeVisible();
+  const open = dialog.getByRole('button', { name: 'Go to pocket', exact: true });
+  await harness.expectMinTapTarget(open);
+  await harness.expectWithinSafeViewport(open);
+  await open.focus();
+  await page.keyboard.press('Enter');
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByLabel('Location result')).toHaveText('copy-00002: Trades · Page 3 · Pocket 2');
+  await expect(rows).toHaveCount(1);
+  await page.getByRole('searchbox', { name: 'Search inventory' }).fill('SYNTHETIC-PRIVATE-CERT');
+  await expect(page.getByText('No cards match', { exact: true })).toBeVisible();
+});
 
-test("current grid/reorder updates locations and resets stale selection", async ({ page }) => {
-  const copy = page.locator('[data-item-id="copy-00001"]')
-  await copy.click()
-  await expect(page.getByRole("dialog")).toBeVisible()
+test('current grid/reorder updates locations and resets stale selection', async ({ page }) => {
+  const copy = page.locator('[data-item-id="copy-00001"]');
+  await copy.click();
+  await expect(page.getByRole('dialog')).toBeVisible();
   // A host snapshot replacement synchronously unmounts any stale detail.
-  await page.getByRole("button", { name: "Host tab switch" }).click()
-  await expect(page.getByRole("dialog")).not.toBeVisible()
-  await page.getByRole("button", { name: "Change grid", exact: true }).click()
-  await expect(copy).toHaveAccessibleName(/Alpha · Page 1 · Pocket 10$/)
-  await copy.click()
-  await page.getByRole("button", { name: "Reverse Alpha slots", exact: true }).evaluate((button: HTMLButtonElement) => button.click())
-  await expect(page.getByRole("dialog")).not.toBeVisible()
-  await expect(copy).toHaveAccessibleName(/Alpha · Page 1 · Pocket 3$/)
-  await copy.click()
-  await page.getByRole("button", { name: "Go to pocket", exact: true }).click()
-  await expect(page.getByLabel("Location result")).toHaveText("copy-00001: Alpha · Page 1 · Pocket 3")
-})
+  await page.getByRole('button', { name: 'Host tab switch' }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.getByRole('button', { name: 'Change grid', exact: true }).click();
+  await expect(copy).toHaveAccessibleName(/Alpha · Page 1 · Pocket 10$/);
+  await copy.click();
+  await page
+    .getByRole('button', { name: 'Reverse Alpha slots', exact: true })
+    .evaluate((button: HTMLButtonElement) => button.click());
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(copy).toHaveAccessibleName(/Alpha · Page 1 · Pocket 3$/);
+  await copy.click();
+  await page.getByRole('button', { name: 'Go to pocket', exact: true }).click();
+  await expect(page.getByLabel('Location result')).toHaveText('copy-00001: Alpha · Page 1 · Pocket 3');
+});
 
-test("all sheet dismissals, focus, dock/safe areas, targets and long metadata", async ({ page, insets }) => {
-  const harness = new Harness(page, insets, false)
-  await page.getByRole("searchbox", { name: "Search inventory" }).fill("synthetic-long")
-  const copy = page.getByRole("list", { name: "Owned copies" }).getByRole("button")
-  await expect(copy).toHaveCount(1)
-  await harness.expectNoHorizontalOverflow()
-  for (const control of await page.getByRole("region", { name: "Inventory", exact: true }).locator("input,select,button").all()) {
-    await harness.expectMinTapTarget(control)
+test('all sheet dismissals, focus, dock/safe areas, targets and long metadata', async ({ page, insets }) => {
+  const harness = new Harness(page, insets, false);
+  await page.getByRole('searchbox', { name: 'Search inventory' }).fill('synthetic-long');
+  const copy = page.getByRole('list', { name: 'Owned copies' }).getByRole('button');
+  await expect(copy).toHaveCount(1);
+  await harness.expectNoHorizontalOverflow();
+  for (const control of await page
+    .getByRole('region', { name: 'Inventory', exact: true })
+    .locator('input,select,button')
+    .all()) {
+    await harness.expectMinTapTarget(control);
   }
-  const dialog = page.getByRole("dialog", { name: / details$/ })
-  for (const method of ["close", "escape", "back", "backdrop", "swipe", "host"] as const) {
-    await copy.click(); await expect(dialog).toBeVisible()
-    const close = dialog.getByRole("button", { name: "Close card details" })
-    await harness.expectMinTapTarget(close)
-    await harness.expectWithinSafeViewport(dialog)
-    await harness.expectHittable(close)
-    await harness.expectNoHorizontalOverflow()
-    const panel = (await dialog.boundingBox())!, dock = (await page.getByRole("navigation", { name: "Harness dock" }).boundingBox())!
-    expect(panel.y + panel.height).toBeLessThanOrEqual(dock.y)
-    if (method === "close") await close.click()
-    if (method === "escape") await page.keyboard.press("Escape")
-    if (method === "back") await page.goBack()
-    if (method === "backdrop") await harness.tapBackdrop(dialog)
-    if (method === "swipe") await harness.swipeDown(dialog)
-    if (method === "host") await page.getByRole("button", { name: "Host tab switch" }).click()
-    await expect(dialog).not.toBeVisible()
-    await harness.expectScrollUnlocked()
-    await expect(copy).toBeFocused()
-    await expect(page).toHaveURL(/\/app\/e2e-harness\/inventory$/)
+  const dialog = page.getByRole('dialog', { name: / details$/ });
+  for (const method of ['close', 'escape', 'back', 'backdrop', 'swipe', 'host'] as const) {
+    await copy.click();
+    await expect(dialog).toBeVisible();
+    const close = dialog.getByRole('button', { name: 'Close card details' });
+    await harness.expectMinTapTarget(close);
+    await harness.expectWithinSafeViewport(dialog);
+    await harness.expectHittable(close);
+    await harness.expectNoHorizontalOverflow();
+    const panel = (await dialog.boundingBox())!,
+      dock = (await page.getByRole('navigation', { name: 'Harness dock' }).boundingBox())!;
+    expect(panel.y + panel.height).toBeLessThanOrEqual(dock.y);
+    if (method === 'close') await close.click();
+    if (method === 'escape') await page.keyboard.press('Escape');
+    if (method === 'back') await page.goBack();
+    if (method === 'backdrop') await harness.tapBackdrop(dialog);
+    if (method === 'swipe') await harness.swipeDown(dialog);
+    if (method === 'host') await page.getByRole('button', { name: 'Host tab switch' }).click();
+    await expect(dialog).not.toBeVisible();
+    await harness.expectScrollUnlocked();
+    await expect(copy).toBeFocused();
+    await expect(page).toHaveURL(/\/app\/e2e-harness\/inventory$/);
   }
-  await page.evaluate(() => document.documentElement.classList.toggle("dark"))
-  await harness.expectNoHorizontalOverflow()
-  await copy.click()
-  await harness.expectWithinSafeViewport(dialog)
-})
+  await page.evaluate(() => document.documentElement.classList.toggle('dark'));
+  await harness.expectNoHorizontalOverflow();
+  await copy.click();
+  await harness.expectWithinSafeViewport(dialog);
+});
 
-test("cached offline, empty and unavailable distinctions, owner and linked partner scopes", async ({ page, context }) => {
-  const evidence = page.getByLabel("Harness evidence")
-  await evidence.selectOption("cached")
+test('cached offline, empty and unavailable distinctions, owner and linked partner scopes', async ({
+  page,
+  context,
+}) => {
+  const evidence = page.getByLabel('Harness evidence');
+  await evidence.selectOption('cached');
   // A saved copy says so in the count line, quietly: it may not be the very latest.
-  await expect(count(page)).toHaveText("5 cards · Showing what was last saved on this device")
-  await context.setOffline(true)
-  await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
-  await expect(page.getByRole("list", { name: "Owned copies" }).getByRole("button")).toHaveCount(3)
+  await expect(count(page)).toHaveText('5 cards · Showing what was last saved on this device');
+  await context.setOffline(true);
+  await page.getByRole('searchbox', { name: 'Search inventory' }).fill('base set');
+  await expect(page.getByRole('list', { name: 'Owned copies' }).getByRole('button')).toHaveCount(3);
   // A saved copy does not know which cards are out of a binder, so it never claims any are.
-  await place(page, "Not in a binder").click()
-  await expect(page.getByText("No cards match", { exact: true })).toBeVisible()
-  await context.setOffline(false)
-  await evidence.selectOption("empty")
-  await expect(page.getByText("No cards yet", { exact: true })).toBeVisible()
-  await evidence.selectOption("cached")
-  await expect(page.getByText("Nothing saved on this device yet", { exact: true })).toBeVisible()
-  await evidence.selectOption("unavailable")
-  await expect(page.getByText("Your cards couldn't be loaded", { exact: true })).toBeVisible()
-  await expect(page.getByText("No cards yet", { exact: true })).not.toBeVisible()
-  await evidence.selectOption("complete")
-  await page.getByLabel("Harness account").selectOption("synthetic-partner")
-  await expect(count(page)).toHaveText("5 cards")
-  await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
-  await page.locator('[data-item-id="copy-00001"]').click()
+  await place(page, 'Not in a binder').click();
+  await expect(page.getByText('No cards match', { exact: true })).toBeVisible();
+  await context.setOffline(false);
+  await evidence.selectOption('empty');
+  await expect(page.getByText('No cards yet', { exact: true })).toBeVisible();
+  await evidence.selectOption('cached');
+  await expect(page.getByText('Nothing saved on this device yet', { exact: true })).toBeVisible();
+  await evidence.selectOption('unavailable');
+  await expect(page.getByText("Your cards couldn't be loaded", { exact: true })).toBeVisible();
+  await expect(page.getByText('No cards yet', { exact: true })).not.toBeVisible();
+  await evidence.selectOption('complete');
+  await page.getByLabel('Harness account').selectOption('synthetic-partner');
+  await expect(count(page)).toHaveText('5 cards');
+  await page.getByRole('searchbox', { name: 'Search inventory' }).fill('base set');
+  await page.locator('[data-item-id="copy-00001"]').click();
   // Scope changes are applied by the host, not through an overlay interaction.
-  await page.getByLabel("Harness account").evaluate((element: HTMLSelectElement) => {
-    element.value = "synthetic-other"; element.dispatchEvent(new Event("change", { bubbles: true }))
-  })
-  await expect(page.getByRole("dialog")).not.toBeVisible()
-  await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
-  await expect(page.getByText("Your cards couldn't be loaded", { exact: true })).toBeVisible()
-  await page.getByLabel("Harness account").selectOption("synthetic-owner")
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toHaveValue("")
-  await expect(page.getByRole("dialog")).not.toBeVisible()
-})
+  await page.getByLabel('Harness account').evaluate((element: HTMLSelectElement) => {
+    element.value = 'synthetic-other';
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.getByRole('list', { name: 'Owned copies' })).not.toBeVisible();
+  await expect(page.getByText("Your cards couldn't be loaded", { exact: true })).toBeVisible();
+  await page.getByLabel('Harness account').selectOption('synthetic-owner');
+  await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toHaveValue('');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+});
 
-test("list grows on scroll beyond 1000, reset on query and new evidence", async ({ page }) => {
-  await page.getByLabel("Harness evidence").selectOption("large")
-  await expect(count(page)).toHaveText("1205 cards")
-  const list = page.getByRole("list", { name: "Owned copies" })
-  const pages = page.getByRole("navigation", { name: "Inventory pages", exact: true })
-  const more = pages.getByRole("button", { name: "Show more", exact: true })
-  const tiles = list.getByRole("button")
-  await expect(tiles).toHaveCount(40)
-  await expect(pages).toContainText("40 of 1205")
-  await more.click()
-  await expect(tiles.nth(40)).toBeVisible()
+test('list grows on scroll beyond 1000, reset on query and new evidence', async ({ page }) => {
+  await page.getByLabel('Harness evidence').selectOption('large');
+  await expect(count(page)).toHaveText('1205 cards');
+  const list = page.getByRole('list', { name: 'Owned copies' });
+  const pages = page.getByRole('navigation', { name: 'Inventory pages', exact: true });
+  const more = pages.getByRole('button', { name: 'Show more', exact: true });
+  const tiles = list.getByRole('button');
+  await expect(tiles).toHaveCount(40);
+  await expect(pages).toContainText('40 of 1205');
+  await more.click();
+  await expect(tiles.nth(40)).toBeVisible();
   // A host refresh with the same evidence keeps what is already loaded.
-  const loaded = await tiles.nth(40).getAttribute("data-item-id")
-  await page.getByRole("button", { name: "Refresh host", exact: true }).click()
-  await expect(list.locator(`[data-item-id="${loaded}"]`)).toBeVisible()
+  const loaded = await tiles.nth(40).getAttribute('data-item-id');
+  await page.getByRole('button', { name: 'Refresh host', exact: true }).click();
+  await expect(list.locator(`[data-item-id="${loaded}"]`)).toBeVisible();
   // Scrolling to the end keeps loading until every copy is there, each exactly once.
-  await expect.poll(async () => { await more.scrollIntoViewIfNeeded({ timeout: 1000 }).catch(() => {}); return tiles.count() }, { timeout: 30_000 }).toBe(1205)
-  const ids = await tiles.evaluateAll(elements => elements.map(e => e.getAttribute("data-item-id")!))
-  expect(new Set(ids).size).toBe(1205)
-  await expect(pages).toContainText("1205 of 1205")
-  await expect(more).not.toBeVisible()
+  await expect
+    .poll(
+      async () => {
+        await more.scrollIntoViewIfNeeded({ timeout: 1000 }).catch(() => {});
+        return tiles.count();
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(1205);
+  const ids = await tiles.evaluateAll((elements) => elements.map((e) => e.getAttribute('data-item-id')!));
+  expect(new Set(ids).size).toBe(1205);
+  await expect(pages).toContainText('1205 of 1205');
+  await expect(more).not.toBeVisible();
   // A new search drops the loaded rows and counts against its own matches.
-  await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
-  await expect(pages).not.toContainText("of 1205")
-  await expect.poll(() => tiles.count()).toBeLessThan(1205)
-  await page.getByLabel("Harness evidence").selectOption("complete")
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toHaveValue("")
-})
+  await page.getByRole('searchbox', { name: 'Search inventory' }).fill('base set');
+  await expect(pages).not.toContainText('of 1205');
+  await expect.poll(() => tiles.count()).toBeLessThan(1205);
+  await page.getByLabel('Harness evidence').selectOption('complete');
+  await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toHaveValue('');
+});

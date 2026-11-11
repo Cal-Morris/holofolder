@@ -37,13 +37,13 @@ This hidden foundation has no customer/Framer announcement. Its eventual user-fa
 
 A slot precondition has exactly `id`, `version`, `inventoryItemId`, `itemVersion`, `placementVersion`. Empty slots require all three item fields to be null; occupied slots require the actual item ID and both current versions. All commands compare the owner's inventory revision and collection content/layout revisions. Single-touch batch semantics reject repeated slot IDs, including create-then-edit inside one batch; callers submit final intent or separate revisioned operations. Every selected slot must belong to the one named collection/owner.
 
-| Kind | Fields beyond `kind` | Semantics |
-| --- | --- | --- |
-| `create` | `ids: string[]`, `beforeSlotId: string or null` | Insert blank free pockets before a stable anchor, null appends. No implicit targets/items/wants, version 0. |
+| Kind     | Fields beyond `kind`                                            | Semantics                                                                                                                              |
+| -------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `create` | `ids: string[]`, `beforeSlotId: string or null`                 | Insert blank free pockets before a stable anchor, null appends. No implicit targets/items/wants, version 0.                            |
 | `update` | `slot: precondition`, optional `target`, optional `wantedCards` | Change constraint and/or explicit wants. At least one field required; omission preserves it. Does not change ownership/status/grading. |
-| `clear` | `slots: precondition[]` | Remove occupied placements, preserving slot ID, position, target, wants and inventory items as Unassigned. Already empty is a no-op. |
-| `remove` | `slots: precondition[]` | Remove only selected slots and their wants/goals. Placement cascade unassigns copies, never deletes items. |
-| `move` | `slots: precondition[]`, `beforeSlotId` | Move whole slots in their saved relative order. Anchor must be outside selection. No-op order keeps revisions. |
+| `clear`  | `slots: precondition[]`                                         | Remove occupied placements, preserving slot ID, position, target, wants and inventory items as Unassigned. Already empty is a no-op.   |
+| `remove` | `slots: precondition[]`                                         | Remove only selected slots and their wants/goals. Placement cascade unassigns copies, never deletes items.                             |
+| `move`   | `slots: precondition[]`, `beforeSlotId`                         | Move whole slots in their saved relative order. Anchor must be outside selection. No-op order keeps revisions.                         |
 
 A batch is one request/transaction and one operation ID. Structural work increments layout revision once. Any effective edit increments collection version and owner revision once. Changed targets/wants/cleared contents increment that slot's version; reordering does not pretend its contents changed. Safe-integer constraints reject overflow atomically. Newly created IDs cannot collide globally, including other owners' slots. Batch failure, stale preconditions, allowance failure, result overflow or constraint failure roll everything back, including the replay row. No acquisition/push/collector-save notification is invoked for these structural/target/want-only operations.
 
@@ -61,15 +61,15 @@ Limits: 100 commands, 256 total explicitly touched/inserted slots per request, 4
 
 `slot_page_v1(actor, owner, collection, page_size, after_position, expected_inventory, expected_collection, expected_layout)` returns a private keyset page ordered by unique `(position,id)`. Maximum 500 slots, fetches no other collection/owner. First page omits position/revisions; continuation requires **all three** returned revisions and last position. Each call uses one stable statement snapshot. An owner/collection/layout change between pages gives a revision conflict; discard every accumulated page and restart with bounded retries. No silent PostgREST 1,000-row truncation. `nextPosition` is null only at the end. The internal TypeScript adapter validates page bounds/continuation tokens; it is not exposed as an HTTP read.
 
-| SQL error/message | Intended supported adapter status |
-| --- | --- |
-| `42501`, `slot_access_denied` | 403/404 without unrelated-owner state |
-| `55000`, `slot_storage_unavailable` | 503, no legacy write fallback |
-| `40001`, revision/slot/item/placement conflict | 409 with relevant current state/revisions; reread before retry |
-| `40001`, `idempotency_conflict` | 409, use original intent or a new operation ID |
-| `22023`, invalid command/target/catalog/anchor/capacity/result | 400, reduce/correct the request |
-| `card_limit_reached` | existing 402 billing contract |
-| lock/deadline/serialization failure | bounded whole-operation retry with same operation ID; reread after unknown outcome |
+| SQL error/message                                              | Intended supported adapter status                                                  |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `42501`, `slot_access_denied`                                  | 403/404 without unrelated-owner state                                              |
+| `55000`, `slot_storage_unavailable`                            | 503, no legacy write fallback                                                      |
+| `40001`, revision/slot/item/placement conflict                 | 409 with relevant current state/revisions; reread before retry                     |
+| `40001`, `idempotency_conflict`                                | 409, use original intent or a new operation ID                                     |
+| `22023`, invalid command/target/catalog/anchor/capacity/result | 400, reduce/correct the request                                                    |
+| `card_limit_reached`                                           | existing 402 billing contract                                                      |
+| lock/deadline/serialization failure                            | bounded whole-operation retry with same operation ID; reread after unknown outcome |
 
 The actual public slot route currently returns only its unconditional 503; this table specifies the internal contract for #376's future adapter. Revision conflicts include current revisions; slot conflicts include the scoped row in SQL detail, while item/placement conflicts require a fresh owner-scoped page. The future adapter must sanitize SQL details, never forward raw DB errors or log private contents.
 
@@ -100,9 +100,7 @@ The opt-in SQL test refuses any other socket, user/port are fixed, and synthetic
 
 Prepared-head evidence: 1,213 unit-suite entries pass; nine focused cases pass including the two opt-in SQL cases. Full typecheck, production build and lint pass; lint retains 55 existing warnings and changed-file lint has zero. SQL proof includes direct RLS reads/write denial, free/subscription/trial/perpetual access, post-unlink replay denial and a real unlink lock race, canonical aliases, stale independent predicates, rollback/capacity bounds, 1,025-row keyset paging and two-session mixed-storage allowance races in both directions. The 500-row synthetic EXPLAIN ANALYZE ran inside the fixture transaction in 0.280 ms on this local restore, not production. After fixture cleanup all original 82 table counts and 29 core digests still match the fresh pre-073 archive. No full e2e, hosted apply or production/runtime proof is claimed.
 
-
 [080 ordinary converted-content recovery](converted-content-recovery.md) permits safe inverses of actual 074/075 commands only while conversion provenance and frozen source remain unchanged. It keeps 076 recording, source guards, current conflicts/permissions/allowances and denied runtime boundaries; converted deletion, mapped source cascades, conversion undo and auxiliary/private-asset recovery remain required separate gates.
-
 
 081 retains checked item ID/version evidence for 074 slot removal through the existing command-evidence channel. This enables [whole-event mapped-source recovery](converted-cascade-recovery.md) without deleting/reacquiring inventory or changing the forward command limits. Staged routes/executors remain denied.
 

@@ -9,7 +9,7 @@ How to build gestures that feel physical. A gesture is direct manipulation: whil
 
 ## First decision: build it, or use a solution that exists?
 
-Doing a drawer gesture *right* means momentum-based dragging, overlay opacity matched to drag progress, velocity-aware dismissal, focus trapping, and Escape-to-close. That is weeks of edge cases, not an afternoon. **For a bottom sheet / drawer, default to [Vaul](https://vaul.emilkowal.ski/)** — it exists precisely because this is hard to hand-roll. Build the gesture yourself only when no library covers the interaction (custom swipe cards, bespoke drag interactions). Use the `pick-ui-library` skill when unsure.
+Doing a drawer gesture _right_ means momentum-based dragging, overlay opacity matched to drag progress, velocity-aware dismissal, focus trapping, and Escape-to-close. That is weeks of edge cases, not an afternoon. **For a bottom sheet / drawer, default to [Vaul](https://vaul.emilkowal.ski/)** — it exists precisely because this is hard to hand-roll. Build the gesture yourself only when no library covers the interaction (custom swipe cards, bespoke drag interactions). Use the `pick-ui-library` skill when unsure.
 
 ## The two phases of every gesture
 
@@ -73,8 +73,12 @@ Vaul mimics the iOS sheet with pure CSS to stay small: `cubic-bezier(0.32, 0.72,
 
 - A **small floating drawer** (not touching the screen edge) should override to ~200ms — the 500ms iOS timing only reads right on a full-width edge-attached sheet:
   ```css
-  [vaul-drawer]  { transition: transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1); }
-  [vaul-overlay] { transition: opacity  0.2s cubic-bezier(0.165, 0.84, 0.44, 1); }
+  [vaul-drawer] {
+    transition: transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+  [vaul-overlay] {
+    transition: opacity 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
   ```
 - **The component must feel like a single entity.** If the drawer opens in 200ms, its height changes and content crossfades must live in the same timing family — one slow sub-animation makes the whole thing feel broken.
 
@@ -82,7 +86,7 @@ Mark interactive children with `data-vaul-no-drag` so pressing a button inside t
 
 ## Spatial consistency
 
-**An element dismisses in the direction it entered.** Sonner's toast slides up from the bottom, so swipe-down dismisses it — enter and exit share one axis, which is what makes the gesture feel discoverable and intuitive without instruction. A gesture that dismisses along an axis the element never moved on has to be learned; one that reverses the entrance is *felt*.
+**An element dismisses in the direction it entered.** Sonner's toast slides up from the bottom, so swipe-down dismisses it — enter and exit share one axis, which is what makes the gesture feel discoverable and intuitive without instruction. A gesture that dismisses along an axis the element never moved on has to be learned; one that reverses the entrance is _felt_.
 
 ## Hold gestures are asymmetric
 

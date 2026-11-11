@@ -46,12 +46,12 @@ Automated card data is explicitly synthetic. The PR records focused unit, isolat
 
 Craft review:
 
-| Before | After | Why |
-| --- | --- | --- |
-| Dex grouping loses repeated printings and non-Pokémon | Ordered full-card targets with individual language/finish labels | Preview the actual goal |
-| Rarity could suggest a finish | Explicit verified counts, disabled unsupported finishes | No invented availability |
-| Long set/card names | Wrapping labels, shrinking input rows and bounded exclusions list | Keep the 375 px layout usable |
-| Catalog scope could drift | Frozen envelope and separate current-target progress | Preserve user edits |
+| Before                                                | After                                                             | Why                           |
+| ----------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------- |
+| Dex grouping loses repeated printings and non-Pokémon | Ordered full-card targets with individual language/finish labels  | Preview the actual goal       |
+| Rarity could suggest a finish                         | Explicit verified counts, disabled unsupported finishes           | No invented availability      |
+| Long set/card names                                   | Wrapping labels, shrinking input rows and bounded exclusions list | Keep the 375 px layout usable |
+| Catalog scope could drift                             | Frozen envelope and separate current-target progress              | Preserve user edits           |
 
 No new animation or overlay primitive is introduced. Controls use immediate state feedback and the existing shared switcher. All UI evidence is emulated; physical-device keyboard and gesture behavior remains unproved.
 

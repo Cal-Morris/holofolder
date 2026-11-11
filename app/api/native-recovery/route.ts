@@ -1,5 +1,5 @@
-import { handleNativeRecovery } from "@/lib/server/native-recovery-http"
+import { handleNativeRecovery } from '@/lib/server/native-recovery-http';
 
 export async function POST(request: Request) {
-  return handleNativeRecovery(request)
+  return handleNativeRecovery(request);
 }

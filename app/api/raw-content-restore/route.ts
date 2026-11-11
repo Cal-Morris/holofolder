@@ -1,5 +1,5 @@
-import { handleRawRestore } from "@/lib/server/raw-restore-http"
+import { handleRawRestore } from '@/lib/server/raw-restore-http';
 
 export async function POST(request: Request) {
-  return handleRawRestore(request)
+  return handleRawRestore(request);
 }

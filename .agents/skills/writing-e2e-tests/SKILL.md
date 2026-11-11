@@ -20,11 +20,13 @@ The suite lives in `e2e/*.e2e.ts`. `playwright.config.ts` defines 6 projects: **
 
 1. Import from the fixtures, not from `@playwright/test`:
    ```ts
-   import { test, expect } from "./fixtures"
-   test.describe("thing", () => {
-     test.use({ signedIn: true })
-     test("does X", async ({ harness }) => { /* harness.page, harness.dock(), … */ })
-   })
+   import { test, expect } from './fixtures';
+   test.describe('thing', () => {
+     test.use({ signedIn: true });
+     test('does X', async ({ harness }) => {
+       /* harness.page, harness.dock(), … */
+     });
+   });
    ```
 2. Use the harness helpers:
    - `dock()`, `dialogs()`, `openCardDetail()`, `closeControl(dialog)`

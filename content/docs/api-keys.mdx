@@ -3,8 +3,8 @@ title: API keys
 description: Your first request, in a few minutes.
 ---
 
-import { DocsLink } from '@/components/docs/provider'
-import { DocsApiKeys } from '@/components/docs/api-keys'
+import { DocsLink } from '@/components/docs/provider';
+import { DocsApiKeys } from '@/components/docs/api-keys';
 
 Personal API keys connect your scripts and integrations to Holo Folder. Create a key, keep it on your server, and send it with each request.
 
@@ -14,7 +14,8 @@ Personal API keys connect your scripts and integrations to Holo Folder. Create a
 </div>
 
 <Callout title="Using Claude, ChatGPT, Cursor or Codex?">
-Use the [AI setup guides](/docs/mcp) to connect through MCP with your Holo Folder login. You won't need to create or paste an API key.
+  Use the [AI setup guides](/docs/mcp) to connect through MCP with your Holo Folder login. You won't need to create or
+  paste an API key.
 </Callout>
 
 ## Create a key
@@ -60,15 +61,15 @@ Prefer to try it in your browser? Open [Search cards](/docs/reference/catalog/li
 
 Read access is the default. Select writes explicitly only when your integration needs them. Each endpoint in the [API explorer](/docs/reference) lists the permissions it requires.
 
-| Permission | What it allows |
-| --- | --- |
-| `catalog:read` | Browse cards, sets and Pokémon |
-| `binders:read`, `collection:read` | Read your binders, collection and wanted cards |
-| `prices:read` | Read available price evidence |
-| `settings:read` | Read settings and account identity |
-| `binders:write`, `collection:write`, `settings:write` | Change the corresponding account data |
-| `prices:refresh` | Request provider refreshes within their limits |
-| `sharing:manage`, `partners:manage` | Manage sharing and partner access |
+| Permission                                            | What it allows                                 |
+| ----------------------------------------------------- | ---------------------------------------------- |
+| `catalog:read`                                        | Browse cards, sets and Pokémon                 |
+| `binders:read`, `collection:read`                     | Read your binders, collection and wanted cards |
+| `prices:read`                                         | Read available price evidence                  |
+| `settings:read`                                       | Read settings and account identity             |
+| `binders:write`, `collection:write`, `settings:write` | Change the corresponding account data          |
+| `prices:refresh`                                      | Request provider refreshes within their limits |
+| `sharing:manage`, `partners:manage`                   | Manage sharing and partner access              |
 
 A valid key still needs paid access and the right permissions. Partner access follows current membership. Revocation is checked on every request.
 

@@ -1,23 +1,24 @@
-"use client"
+'use client';
 
-import { useEffect, useState, type RefObject } from "react"
+import { useEffect, useState, type RefObject } from 'react';
 
 export interface CameraStreamState {
-  ready: boolean
-  error: string | null
+  ready: boolean;
+  error: string | null;
   /** The camera was refused or isn't there (as opposed to still starting). */
-  unavailable: boolean
+  unavailable: boolean;
 }
 
-const IDLE: CameraStreamState = { ready: false, error: null, unavailable: false }
+const IDLE: CameraStreamState = { ready: false, error: null, unavailable: false };
 
 /** A plain-language reason the camera didn't start (iOS reports NotAllowedError when access is off). */
 export function describeCameraError(error: unknown) {
-  const name = (error as { name?: string } | null)?.name
-  if (name === "NotAllowedError" || name === "SecurityError") return "Camera access is off. Allow it in Settings to scan."
-  if (name === "NotFoundError" || name === "OverconstrainedError") return "No camera found on this device."
-  if (name === "NotReadableError") return "The camera is in use by another app."
-  return error instanceof Error && error.message ? error.message : "Could not access the camera."
+  const name = (error as { name?: string } | null)?.name;
+  if (name === 'NotAllowedError' || name === 'SecurityError')
+    return 'Camera access is off. Allow it in Settings to scan.';
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'No camera found on this device.';
+  if (name === 'NotReadableError') return 'The camera is in use by another app.';
+  return error instanceof Error && error.message ? error.message : 'Could not access the camera.';
 }
 
 /**
@@ -26,55 +27,55 @@ export function describeCameraError(error: unknown) {
  * are what let iOS (including the installed app) play it without going full screen.
  */
 export function useCameraStream(active: boolean, videoRef: RefObject<HTMLVideoElement | null>): CameraStreamState {
-  const [state, setState] = useState<CameraStreamState>(IDLE)
+  const [state, setState] = useState<CameraStreamState>(IDLE);
 
   useEffect(() => {
-    if (!active) return
+    if (!active) return;
 
-    let cancelled = false
-    let stream: MediaStream | null = null
-    const videoElement = videoRef.current
+    let cancelled = false;
+    let stream: MediaStream | null = null;
+    const videoElement = videoRef.current;
 
     const start = async () => {
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
-          throw Object.assign(new Error("This browser can't open the camera."), { name: "NotFoundError" })
+          throw Object.assign(new Error("This browser can't open the camera."), { name: 'NotFoundError' });
         }
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: { ideal: "environment" },
+            facingMode: { ideal: 'environment' },
             width: { ideal: 1920 },
             height: { ideal: 1080 },
           },
           audio: false,
-        })
+        });
 
         if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop())
-          return
+          stream.getTracks().forEach((track) => track.stop());
+          return;
         }
 
         if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          await videoRef.current.play()
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
         }
-        if (!cancelled) setState({ ready: true, error: null, unavailable: false })
+        if (!cancelled) setState({ ready: true, error: null, unavailable: false });
       } catch (error) {
-        if (!cancelled) setState({ ready: false, error: describeCameraError(error), unavailable: true })
+        if (!cancelled) setState({ ready: false, error: describeCameraError(error), unavailable: true });
       }
-    }
+    };
 
-    void start()
+    void start();
 
     return () => {
-      cancelled = true
-      stream?.getTracks().forEach((track) => track.stop())
+      cancelled = true;
+      stream?.getTracks().forEach((track) => track.stop());
       if (videoElement) {
-        videoElement.srcObject = null
+        videoElement.srcObject = null;
       }
-      setState(IDLE)
-    }
-  }, [active, videoRef])
+      setState(IDLE);
+    };
+  }, [active, videoRef]);
 
-  return active ? state : IDLE
+  return active ? state : IDLE;
 }

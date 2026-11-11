@@ -1,9 +1,9 @@
-"use client"
+'use client';
 
-import { useLayoutEffect, useRef, type ReactNode } from "react"
-import { useOpenOverlayCount } from "@/hooks/use-overlay"
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useOpenOverlayCount } from '@/hooks/use-overlay';
 
-const BOTTOM_VAR = "--top-banner-bottom"
+const BOTTOM_VAR = '--top-banner-bottom';
 
 /**
  * The shared spot at the top of the screen for transient status pills (offline mode,
@@ -15,34 +15,40 @@ const BOTTOM_VAR = "--top-banner-bottom"
  *   `--top-banner-bottom`; so it never covers an overlay's own controls (e.g. close buttons).
  * Render at most one banner at a time in this slot.
  */
-export function TopBannerSlot({ children, topClassName = "top-[calc(var(--top-inset)+0.25rem)]" }: { children: ReactNode; topClassName?: string }) {
-  const ref = useRef<HTMLDivElement | null>(null)
-  const overlayOpen = useOpenOverlayCount() > 0
+export function TopBannerSlot({
+  children,
+  topClassName = 'top-[calc(var(--top-inset)+0.25rem)]',
+}: {
+  children: ReactNode;
+  topClassName?: string;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const overlayOpen = useOpenOverlayCount() > 0;
 
   useLayoutEffect(() => {
-    const element = ref.current
-    if (!element || typeof document === "undefined") return
-    const root = document.documentElement
+    const element = ref.current;
+    if (!element || typeof document === 'undefined') return;
+    const root = document.documentElement;
     const publish = () => {
-      root.style.setProperty(BOTTOM_VAR, `${Math.ceil(element.getBoundingClientRect().bottom + 6)}px`)
-    }
-    publish()
-    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(publish) : null
-    observer?.observe(element)
+      root.style.setProperty(BOTTOM_VAR, `${Math.ceil(element.getBoundingClientRect().bottom + 6)}px`);
+    };
+    publish();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(publish) : null;
+    observer?.observe(element);
     return () => {
-      observer?.disconnect()
-      root.style.removeProperty(BOTTOM_VAR)
-    }
-  }, [])
+      observer?.disconnect();
+      root.style.removeProperty(BOTTOM_VAR);
+    };
+  }, []);
 
   return (
     <div
       ref={ref}
       data-top-banner-slot
-      data-overlay-open={overlayOpen ? "" : undefined}
-      className={`pointer-events-none fixed inset-x-0 ${topClassName} flex justify-center px-3 ${overlayOpen ? "z-[41]" : "z-50"}`}
+      data-overlay-open={overlayOpen ? '' : undefined}
+      className={`pointer-events-none fixed inset-x-0 ${topClassName} flex justify-center px-3 ${overlayOpen ? 'z-[41]' : 'z-50'}`}
     >
       {children}
     </div>
-  )
+  );
 }

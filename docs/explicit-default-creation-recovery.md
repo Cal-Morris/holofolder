@@ -27,11 +27,13 @@ Synthetic preview input:
   "restoreUnassignedItemIds": [],
   "replacementDefaultCollectionId": "00850000-0000-4000-8000-000000000002",
   "inventoryRevision": 7,
-  "collections": [{
-    "collectionId": "00850000-0000-4000-8000-000000000002",
-    "version": 3,
-    "layoutRevision": 1
-  }]
+  "collections": [
+    {
+      "collectionId": "00850000-0000-4000-8000-000000000002",
+      "version": 3,
+      "layoutRevision": 1
+    }
+  ]
 }
 ```
 
@@ -41,12 +43,12 @@ The private token binds the exact nominated identity, declared preconditions, cu
 
 Additional reasons:
 
-| Reason | Meaning |
-| --- | --- |
+| Reason                                           | Meaning                                                              |
+| ------------------------------------------------ | -------------------------------------------------------------------- |
 | `explicit_replacement_requires_default_creation` | Unsupported event, including nondefault/ordinary events passed to v2 |
-| `creation_replacement_unavailable` | Missing/self/foreign/default/legacy-only replacement |
-| `creation_replacement_version_changed` | Declared replacement version/layout is stale |
-| `creation_replacement_revision_changed` | Declared owner inventory revision is stale |
+| `creation_replacement_unavailable`               | Missing/self/foreign/default/legacy-only replacement                 |
+| `creation_replacement_version_changed`           | Declared replacement version/layout is stale                         |
+| `creation_replacement_revision_changed`          | Declared owner inventory revision is stale                           |
 
 Every original 084 conflict remains except its explicit-replacement placeholder for the supported version-2 default case. Original later edits/ABA, incomplete evidence, missing slots, current/later dependents, changed authority and missing full history still refuse the whole event. Conflicted previews have no usable token. Apply reports the existing sanitized 409 conflict, not private dependency details.
 

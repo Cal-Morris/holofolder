@@ -2,7 +2,6 @@
 
 Holo Folder is a Next.js application with a browser-owned offline working copy and a Supabase-backed shared collection. It is deployed under `/app`; the separate Framer site forwards public app requests to the Vercel origin. See [app-routing.md](app-routing.md) before changing URLs.
 
-
 ## System overview
 
 The browser keeps its working copy on the device. Personal data and public catalog/price data have separate authorization and caching rules, even though they live in the same Supabase project.
@@ -41,11 +40,11 @@ Service-role/provider credentials stay on the server. On-device data is scoped t
 
 Three identifiers have different jobs:
 
-| Identifier | Meaning | Source of authority |
-|---|---|---|
-| Authenticated user | The person making the request | Supabase session/JWT; write routes validate the user |
-| Collection owner | The account whose binders/settings are shared | `lib/server/collection-owner.ts`, partnership membership and billing access |
-| Binder | One collection within an owner's account | `lib/server/binders.ts`, `lib/binders/` and owner-scoped queries |
+| Identifier         | Meaning                                       | Source of authority                                                         |
+| ------------------ | --------------------------------------------- | --------------------------------------------------------------------------- |
+| Authenticated user | The person making the request                 | Supabase session/JWT; write routes validate the user                        |
+| Collection owner   | The account whose binders/settings are shared | `lib/server/collection-owner.ts`, partnership membership and billing access |
+| Binder             | One collection within an owner's account      | `lib/server/binders.ts`, `lib/binders/` and owner-scoped queries            |
 
 An owner and an allowed partner share the owner's binders. Billing access is per owner. Public share links expose only an enabled read-only binder; they do not establish collection membership. Migration 053 makes read-only sharing free; partner access remains an entitlement decision. See [billing.md](billing.md) and [multiple-binders.md](multiple-binders.md).
 
@@ -58,7 +57,6 @@ User-scoped Supabase reads rely on row-level security. Routes that use the servi
 `components/binder-app.tsx` coordinates views, overlays, selection, binder navigation and device modes. Feature hooks own their synchronization lifecycles; pure transforms and validation belong in `lib/`. Switching binders remounts the app with the new scope. Settings belong to the collection owner; individual binders can override their grid/appearance.
 
 The static offline route (`app/app-shell/`, `components/offline-app-shell.tsx`) boots from on-device state. Cached user data must be checked against the selected account/owner/binder before display. User-specific HTML is never an offline cache entry. [Native cached startup preparation](native-cached-startup.md) adds a display-only consumer for the canonical native queue and grid metadata behind the existing denied-production/local-harness admission. It reuses the device session and scoped partner-cache policy; reconnect unmounts cached data before the unchanged checked live host can read or send. Old bootstrap markers and production startup remain legacy.
-
 
 The online path below assumes an authenticated visitor. Signed-out online requests go to sign-in.
 
@@ -97,7 +95,6 @@ This race applies to the first boot. A later server boot, such as changing binde
 The app runs one collection model, native slot storage. Signed-in clients read the inventory through `/api/inventory` (`lib/collection/inventory-read-browser.ts`) and send storage commands from `lib/collection/storage-command-browser.ts`; the device keeps them in the IndexedDB command queue (`lib/collection/slot-offline-queue.ts`) and replays them exactly when back online, then confirms them with a fresh read. Signed-out guests are read-only: every collection edit opens the sign-up dialog, and nothing is queued for them. The legacy `/api/collection` route and its server helpers are deleted, and every binder is created native (migration 105). The frozen `pokemon_collection` tables stay until migration 107.
 
 Do not replace this with a second optimistic store or an unscoped queue. Collection, show-purchase and binder-history queues have different server contracts; sharing their persistence code without preserving those contracts risks replaying or losing edits.
-
 
 ```mermaid
 flowchart TB
@@ -148,6 +145,5 @@ The largest orchestration file is `components/binder-app.tsx`. Their size makes 
 This pass is not a line-by-line security review of every module or production validation. Browser/PWA behaviour, provider terms, full Supabase integration and stochastic camera recognition require their own evidence.
 
 The local-only [Slabs presentation](slab-rendering.md) reuses the exact navigation session/owner fence and existing per-copy grading. `lib/slabs/` creates private-field-free renderer inputs; `components/slabs/` keeps provider-specific static holder/label structure separate from catalog artwork. Navigation and cached BinderApp can display it only under the existing local harness admission. No public share, asset, write, schema or production rollout capability is added.
-
 
 [Atomic insertion plus assignment](atomic-insert-assign.md) extends the existing inventory transaction and durable intent with one stable slot and explicit ownership choice; it uses the existing lifetime ledger, 089 locking/rejections, 090 private-preserving semantics and one deferred audit event. Scanner append and runtime admission remain gated.

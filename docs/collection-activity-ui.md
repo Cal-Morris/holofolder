@@ -2,7 +2,6 @@
 
 Current delivery: [Activity and card/want-list Undo](../content/docs/collection-history.mdx) replaces the original presentation below. Migration 087 enables checked legacy-row recovery through app, REST and MCP; native/structural recovery remains gated under #396/#379. The remaining notes record the initial read-only release and its evidence.
 
-
 Related: #395, foundation #394 / #407, recovery #396. This PR is read-only and UI-only apart from an internal session adapter and additive filters on the existing audit read operation. No schema changes, hosted writes, conversion, structural executor grants, recovery command or new export/registry/feed.
 
 ## Internal first-party adapter
@@ -49,22 +48,22 @@ The synthetic matrix covers 1,105 events paged through the end, 1,027 touched bu
 
 Measured sheet geometry in CSS px:
 
-| Project | Sheet top | Sheet bottom | Dock top | Close target |
-| --- | ---: | ---: | ---: | ---: |
-| browser 375×667 | 16 | 605 | 605 | 40×40 |
-| standalone 375×667 | 81 | 579 | 579 | 40×40 |
-| browser 390×844 | 16 | 782 | 782 | 40×40 |
-| standalone 390×844 | 81 | 756 | 756 | 40×40 |
-| browser 430×932 | 16 | 870 | 870 | 40×40 |
-| standalone 430×932 | 81 | 844 | 844 | 40×40 |
+| Project            | Sheet top | Sheet bottom | Dock top | Close target |
+| ------------------ | --------: | -----------: | -------: | -----------: |
+| browser 375×667    |        16 |          605 |      605 |        40×40 |
+| standalone 375×667 |        81 |          579 |      579 |        40×40 |
+| browser 390×844    |        16 |          782 |      782 |        40×40 |
+| standalone 390×844 |        81 |          756 |      756 |        40×40 |
+| browser 430×932    |        16 |          870 |      870 |        40×40 |
+| standalone 430×932 |        81 |          844 |      844 |        40×40 |
 
 UI craft review:
 
-| Before | After | Why |
-| --- | --- | --- |
-| No shared committed-history entry | Activity in binder management and card detail | Discoverable without another dock destination |
-| No history sheet geometry | Fixed header and scroll body end exactly at dock top in all six measured projects | Close remains visible above safe areas and dock |
-| Bulk details could render every touched row | Ten initial entities, 25 more per action | Keeps large changes inspectable without flooding the screen |
-| No separate committed-history offline state | Exact cached page, last sync and explicit uncached message | Avoids presenting one page as complete history |
+| Before                                      | After                                                                             | Why                                                         |
+| ------------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| No shared committed-history entry           | Activity in binder management and card detail                                     | Discoverable without another dock destination               |
+| No history sheet geometry                   | Fixed header and scroll body end exactly at dock top in all six measured projects | Close remains visible above safe areas and dock             |
+| Bulk details could render every touched row | Ten initial entities, 25 more per action                                          | Keeps large changes inspectable without flooding the screen |
+| No separate committed-history offline state | Exact cached page, last sync and explicit uncached message                        | Avoids presenting one page as complete history              |
 
 No decorative or keyboard-triggered animation was added. Swipe uses the existing shared drag primitive. Synthetic screenshots are `/tmp/holofolder395-activity-<project>.png`; no private production data was captured. Parent independent code review remains outstanding.

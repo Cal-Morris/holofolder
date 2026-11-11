@@ -6,3 +6,5 @@ card-assets/
 docs/evidence/
 # Historical plans, kept as written
 docs/superpowers/
+# Generated: rewritten by next typegen / next build
+next-env.d.ts

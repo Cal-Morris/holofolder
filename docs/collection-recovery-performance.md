@@ -26,20 +26,20 @@ All three apply plan reads remain. The locked fresh fingerprint, owner/partner m
 
 The initial baseline/two-change probe below isolates planner work before the third trigger change. EXPLAIN execution includes apply's constraints/flush; wall time includes its separate final flush too. Every top-level plan is a one-row Result wrapping the private function, with no parallelism. Nested trigger evidence above provides the indexed lookup attribution; top-level EXPLAIN does not expose all nested scan rows or count history entities.
 
-| Workload | Baseline preview wall ms | Two-change preview wall ms | Baseline apply/flush wall ms | Two-change apply/flush wall ms |
-| --- | ---: | ---: | ---: | ---: |
-| 1,025 mixed | 623.317 | 97.878 | 1,981.910 | 403.285 |
-| 4,096 owned | 48,473.972 | 1,076.566 | 156,457.817 | 7,332.706 |
+| Workload    | Baseline preview wall ms | Two-change preview wall ms | Baseline apply/flush wall ms | Two-change apply/flush wall ms |
+| ----------- | -----------------------: | -------------------------: | ---------------------------: | -----------------------------: |
+| 1,025 mixed |                  623.317 |                     97.878 |                    1,981.910 |                        403.285 |
+| 4,096 owned |               48,473.972 |                  1,076.566 |                  156,457.817 |                      7,332.706 |
 
 | 4,096 EXPLAIN metric | Baseline preview | Two-change preview | Baseline apply | Two-change apply |
-| --- | ---: | ---: | ---: | ---: |
-| Planning ms | 0.011 | 0.007 | 0.010 | 0.007 |
-| Execution ms | 47,803.144 | 724.031 | 156,457.138 | 7,332.358 |
-| Shared hits | 89,590 | 331,150 | 102,101,812 | 3,544,481 |
-| Shared reads | 0 | 0 | 0 | 0 |
-| Temp blocks read | 1,738,651 | 2,371 | 5,222,347 | 13,931 |
-| Temp blocks written | 1,738,824 | 2,544 | 5,222,885 | 14,469 |
-| Returned rows | 1 | 1 | 1 | 1 |
+| -------------------- | ---------------: | -----------------: | -------------: | ---------------: |
+| Planning ms          |            0.011 |              0.007 |          0.010 |            0.007 |
+| Execution ms         |       47,803.144 |            724.031 |    156,457.138 |        7,332.358 |
+| Shared hits          |           89,590 |            331,150 |    102,101,812 |        3,544,481 |
+| Shared reads         |                0 |                  0 |              0 |                0 |
+| Temp blocks read     |        1,738,651 |              2,371 |      5,222,347 |           13,931 |
+| Temp blocks written  |        1,738,824 |              2,544 |      5,222,885 |           14,469 |
+| Returned rows        |                1 |                  1 |              1 |                1 |
 
 These are aggregate nested-function buffers, not just the Result node's own cost. Shared hits can increase for a faster preview, so hit count alone is not the performance conclusion. The preview removes over 99.8% of temporary I/O. Baseline apply spent 50,525.945 / 46,370.634 / 47,530.512 ms in its three plan/review phases; the two-change candidate spent about 0.45 / 0.71 / 0.45 seconds. There is no need to weaken/reuse those reads.
 
@@ -48,34 +48,33 @@ Sampled backend process RSS peaks for the initial same-workload runs were **478,
 Final **079** regression on the same-state comparison fixture, with 512 later events:
 
 | Slots / owned copies | Original 077 raw-plan ms | 079 raw-plan ms | Exact private plan equal? | 079 preview ms | 079 apply + constraints + audit flush ms |
-| --- | ---: | ---: | --- | ---: | ---: |
-| 1,025 / 257 | 588.357 | 48.724 | yes | 92.550 | 385.189 |
-| 4,096 / 4,096 | 46,155.320 | 760.144 | yes | 777.059 | 5,807.826 |
+| -------------------- | -----------------------: | --------------: | ------------------------- | -------------: | ---------------------------------------: |
+| 1,025 / 257          |                  588.357 |          48.724 | yes                       |         92.550 |                                  385.189 |
+| 4,096 / 4,096        |               46,155.320 |         760.144 | yes                       |        777.059 |                                5,807.826 |
 
 Both invoked preview/apply statements passed the **10-second** external statement deadline. A 1 ms deadline failure left the same intent's state and ledger unapplied, then the same operation ID succeeded. This fixture includes rejected/stale commands and recorder-failure rollback before recovery, which exposed the cached hashed-placement plan and is stronger than a fresh-connection timing alone. The complete private plan equality includes inverse order, all conflicts/unsupported reasons, dependencies, root and collection IDs, hence identical fingerprint input. Later events are retained in full.
 
 Final 079, no later history, same synthetic workloads (single-run wall times):
 
-| Slots / phase | Published #414 ms | 079 ms | Delta ms | Change |
-| --- | ---: | ---: | ---: | ---: |
-| 1,025 preview | 623.317 | 94.203 | -529.114 | -84.89% |
-| 1,025 apply | 1,981.910 | 365.929 | -1,615.981 | -81.54% |
-| 4,096 preview | 48,473.972 | 931.779 | -47,542.193 | -98.08% |
-| 4,096 apply | 156,457.817 | 4,550.998 | -151,906.819 | -97.09% |
+| Slots / phase | Published #414 ms |    079 ms |     Delta ms |  Change |
+| ------------- | ----------------: | --------: | -----------: | ------: |
+| 1,025 preview |           623.317 |    94.203 |     -529.114 | -84.89% |
+| 1,025 apply   |         1,981.910 |   365.929 |   -1,615.981 | -81.54% |
+| 4,096 preview |        48,473.972 |   931.779 |  -47,542.193 | -98.08% |
+| 4,096 apply   |       156,457.817 | 4,550.998 | -151,906.819 | -97.09% |
 
 For 4,096 slots, final 079 EXPLAIN preview/apply execution was **495.621 / 4,550.642 ms**, planning **0.009 / 0.010 ms**, shared hits **60,536 / 20,064,444**, shared reads **0 / 0**, and temporary read/write blocks **2,371 / 2,544** and **13,931 / 14,469**. Each returned one row. Compared with baseline preview/apply, execution fell **98.96% / 97.09%**, shared hits changed **-32.43% / -80.35%**, and temporary reads fell **99.86% / 99.73%**. The top-level plan shape remains a one-row Result, with no parallelism or top-level sort. Nested function scans still spill bounded JSONB material; 079 removes repeated full-document work rather than promising zero temporary I/O.
 
 Final sampled backend peak RSS was **566,400 KiB**, versus the baseline **478,400 KiB**. Memory did not improve. Final apply phase timings were approximately **0.24 / 0.50 / 0.23 seconds** for initial plan, locked preview, locked plan, **1.47 seconds** for writes, **1.73 seconds** for catalog/target/allowance validation, and **0.39 seconds** for deferred constraints plus the original recorder. The unchanged validation phase varies with cached query plans; do not infer a universal production latency from this local sample.
 
-
 Final separately instrumented 512-later-event run (same bounded fixture):
 
-| Slots | Phase | Wall ms |
-| --- | --- | ---: |
-| 1,025 | preview | 94.603 |
-| 1,025 | apply | 416.027 |
-| 4,096 | preview | 956.666 |
-| 4,096 | apply | 5,950.084 |
+| Slots | Phase   |   Wall ms |
+| ----- | ------- | --------: |
+| 1,025 | preview |    94.603 |
+| 1,025 | apply   |   416.027 |
+| 4,096 | preview |   956.666 |
+| 4,096 | apply   | 5,950.084 |
 
 The maximum case's complete later-history phase took about **2 ms per plan**, with no sampling/truncation. Its EXPLAIN apply execution was **5,949.793 ms**, temp read/write blocks **13,931 / 14,469**, shared hits **21,734,644**, shared reads **0**, planning **0.008 ms**, one returned row. Sampled backend RSS peaked at **532,480 KiB**. This limited history size is not an account-lifetime tail-latency proof.
 

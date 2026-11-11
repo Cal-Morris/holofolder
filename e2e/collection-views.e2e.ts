@@ -1,172 +1,198 @@
-import { test, expect, emulateStandalone, mockBackends, Harness, collectionPicker, viewPicker, chooseCollection, chooseView } from "./fixtures"
+import {
+  test,
+  expect,
+  emulateStandalone,
+  mockBackends,
+  Harness,
+  collectionPicker,
+  viewPicker,
+  chooseCollection,
+  chooseView,
+} from './fixtures';
 
 // Synthetic, local-only host integration. No production API, conversion or saving.
 test.beforeEach(async ({ page, standalone, insets, baseURL }) => {
-  if (standalone) await emulateStandalone(page, insets)
-  await mockBackends(page, page.context(), { signedIn: false, baseURL })
+  if (standalone) await emulateStandalone(page, insets);
+  await mockBackends(page, page.context(), { signedIn: false, baseURL });
   // The app opens on the binder; these start from Inventory, so the link names it.
-  await page.goto("/app/e2e-harness/inventory?navigation=1&view=inventory")
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
-})
-const dock = (page: import("@playwright/test").Page) => page.getByRole("navigation", { name: "Collection navigation", exact: true })
+  await page.goto('/app/e2e-harness/inventory?navigation=1&view=inventory');
+  await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toBeVisible();
+});
+const dock = (page: import('@playwright/test').Page) =>
+  page.getByRole('navigation', { name: 'Collection navigation', exact: true });
 // Where a card is (a binder, or not in one) is chosen from the chips above Inventory's search.
-const place = (page: import("@playwright/test").Page, name: string) => page.getByRole("group", { name: "Show cards from", exact: true }).getByRole("button", { name, exact: true })
-const tiles = (page: import("@playwright/test").Page) => page.getByRole("list", { name: "Owned copies" }).getByRole("button")
-const pages = (page: import("@playwright/test").Page) => page.getByRole("navigation", { name: "Inventory pages", exact: true })
+const place = (page: import('@playwright/test').Page, name: string) =>
+  page.getByRole('group', { name: 'Show cards from', exact: true }).getByRole('button', { name, exact: true });
+const tiles = (page: import('@playwright/test').Page) =>
+  page.getByRole('list', { name: 'Owned copies' }).getByRole('button');
+const pages = (page: import('@playwright/test').Page) =>
+  page.getByRole('navigation', { name: 'Inventory pages', exact: true });
 
-test("Inventory location and browser back/forward restore search, scope, window and scroll", async ({ page, insets }) => {
-  const h = new Harness(page, insets, false)
-  await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
-  await place(page, "Alpha").click()
-  const copy = page.locator('[data-item-id="copy-00001"]')
-  await copy.evaluate(element => element.scrollIntoView({ block: "center", behavior: "instant" }))
-  await h.expectHittable(copy)
-  const scroll = await page.evaluate(() => window.scrollY)
-  await copy.click()
-  await page.getByRole("button", { name: "Go to pocket", exact: true }).click()
-  await expect(page.getByRole("region", { name: "Collection presentation" })).toBeVisible()
-  await expect(page.getByText("Page 2 of 2", { exact: true })).toBeVisible()
-  await expect(page.locator('[data-slot-id="slot-0"]')).toHaveAttribute("aria-pressed", "true")
-  await expect(page.getByRole("dialog")).not.toBeVisible()
-  await page.goBack()
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toHaveValue("base set")
-  await expect(place(page, "Alpha")).toHaveAttribute("aria-pressed", "true")
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(scroll, -1)
-  await page.goForward()
-  await expect(page.getByText("Page 2 of 2", { exact: true })).toBeVisible()
-  await expect(page.locator('[data-slot-id="slot-0"]')).toHaveAttribute("aria-pressed", "false")
-  await page.goBack()
-  await place(page, "All collections").click()
-  await pages(page).getByRole("button", { name: "Show more", exact: true }).click()
-  await expect(tiles(page).nth(40)).toBeVisible()
+test('Inventory location and browser back/forward restore search, scope, window and scroll', async ({
+  page,
+  insets,
+}) => {
+  const h = new Harness(page, insets, false);
+  await page.getByRole('searchbox', { name: 'Search inventory' }).fill('base set');
+  await place(page, 'Alpha').click();
+  const copy = page.locator('[data-item-id="copy-00001"]');
+  await copy.evaluate((element) => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await h.expectHittable(copy);
+  const scroll = await page.evaluate(() => window.scrollY);
+  await copy.click();
+  await page.getByRole('button', { name: 'Go to pocket', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Collection presentation' })).toBeVisible();
+  await expect(page.getByText('Page 2 of 2', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot-id="slot-0"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toHaveValue('base set');
+  await expect(place(page, 'Alpha')).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(scroll, -1);
+  await page.goForward();
+  await expect(page.getByText('Page 2 of 2', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot-id="slot-0"]')).toHaveAttribute('aria-pressed', 'false');
+  await page.goBack();
+  await place(page, 'All collections').click();
+  await pages(page).getByRole('button', { name: 'Show more', exact: true }).click();
+  await expect(tiles(page).nth(40)).toBeVisible();
   // A card from the second 40: the loaded rows, not just the search, come back with the history entry.
-  const second = page.locator(`[data-item-id="${await tiles(page).nth(40).getAttribute("data-item-id")}"]`)
-  await dock(page).getByRole("button", { name: "Collections", exact: true }).click()
-  await page.goBack()
-  await expect(second).toBeVisible()
-  await tiles(page).first().click()
-  await dock(page).getByRole("button", { name: "Collections", exact: true }).click()
-  await expect(page.getByRole("dialog")).not.toBeVisible()
-  await expect(page.getByRole("region", { name: "Collection presentation" })).toBeVisible()
-  await page.goBack()
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toHaveValue("base set")
-  await dock(page).getByRole("button", { name: "Inventory", exact: true }).click()
-  await page.getByRole("searchbox", { name: "Search inventory" }).fill("charizard")
-  await page.goBack()
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toHaveValue("base set")
-  await h.expectNoHorizontalOverflow()
-})
+  const second = page.locator(`[data-item-id="${await tiles(page).nth(40).getAttribute('data-item-id')}"]`);
+  await dock(page).getByRole('button', { name: 'Collections', exact: true }).click();
+  await page.goBack();
+  await expect(second).toBeVisible();
+  await tiles(page).first().click();
+  await dock(page).getByRole('button', { name: 'Collections', exact: true }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.getByRole('region', { name: 'Collection presentation' })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toHaveValue('base set');
+  await dock(page).getByRole('button', { name: 'Inventory', exact: true }).click();
+  await page.getByRole('searchbox', { name: 'Search inventory' }).fill('charizard');
+  await page.goBack();
+  await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toHaveValue('base set');
+  await h.expectNoHorizontalOverflow();
+});
 
-test("explicit links override saved view, reload and relaunch restore device-local presentation", async ({ page }) => {
-  await chooseCollection(page, "alpha")
-  await page.getByRole("button", { name: "Next page", exact: true }).click()
-  await chooseView(page, "list")
-  await page.getByRole("textbox", { name: "Filter collection" }).fill("charizard")
-  await page.reload()
-  await expect(viewPicker(page)).toHaveAttribute("data-value", "list")
-  await expect(page.getByRole("textbox", { name: "Filter collection" })).toHaveValue("charizard")
-  await page.goto("/app/e2e-harness/inventory?navigation=1")
-  await expect(viewPicker(page)).toHaveAttribute("data-value", "list")
-  await page.goto("/app/e2e-harness/inventory?navigation=1&binder=alpha&page=2&view=slabs")
-  await expect(viewPicker(page)).toHaveAttribute("data-value", "binder")
-  await expect(page.getByText("Page 2 of 2", { exact: true })).toBeVisible()
-  await expect(page.getByRole("status").filter({ hasText: "Slabs view is not available" })).toBeVisible()
-  await page.goto("/app/e2e-harness/inventory?navigation=1&binder=alpha&item=copy-00001&page=99")
-  await expect(page.getByText("Page 2 of 2", { exact: true })).toBeVisible()
-  await expect(page.locator('[data-slot-id="slot-0"]')).toHaveAttribute("aria-pressed", "true")
-  await page.goto("/app/e2e-harness/inventory?navigation=1&binder=alpha&slot=alpha-empty-11")
-  await expect(page.getByText("Page 2 of 2", { exact: true })).toBeVisible()
-  await expect(page.locator('[data-slot-id="alpha-empty-11"]')).toHaveAttribute("aria-pressed", "true")
-  await page.getByRole("button", { name: "Previous page", exact: true }).click()
-  await page.reload()
-  await expect(page.getByText("Page 1 of 2", { exact: true })).toBeVisible()
-})
+test('explicit links override saved view, reload and relaunch restore device-local presentation', async ({ page }) => {
+  await chooseCollection(page, 'alpha');
+  await page.getByRole('button', { name: 'Next page', exact: true }).click();
+  await chooseView(page, 'list');
+  await page.getByRole('textbox', { name: 'Filter collection' }).fill('charizard');
+  await page.reload();
+  await expect(viewPicker(page)).toHaveAttribute('data-value', 'list');
+  await expect(page.getByRole('textbox', { name: 'Filter collection' })).toHaveValue('charizard');
+  await page.goto('/app/e2e-harness/inventory?navigation=1');
+  await expect(viewPicker(page)).toHaveAttribute('data-value', 'list');
+  await page.goto('/app/e2e-harness/inventory?navigation=1&binder=alpha&page=2&view=slabs');
+  await expect(viewPicker(page)).toHaveAttribute('data-value', 'binder');
+  await expect(page.getByText('Page 2 of 2', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Slabs view is not available' })).toBeVisible();
+  await page.goto('/app/e2e-harness/inventory?navigation=1&binder=alpha&item=copy-00001&page=99');
+  await expect(page.getByText('Page 2 of 2', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot-id="slot-0"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.goto('/app/e2e-harness/inventory?navigation=1&binder=alpha&slot=alpha-empty-11');
+  await expect(page.getByText('Page 2 of 2', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot-id="alpha-empty-11"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Previous page', exact: true }).click();
+  await page.reload();
+  await expect(page.getByText('Page 1 of 2', { exact: true })).toBeVisible();
+});
 
-test("fresh current location wins after move and failed refresh leaves Inventory usable", async ({ page }) => {
-  await page.getByLabel("Navigation evidence").selectOption("moved")
-  await page.locator('[data-item-id="copy-00001"]').click()
-  await page.getByRole("button", { name: "Go to pocket", exact: true }).click()
-  await expect(collectionPicker(page)).toHaveAttribute("data-value", "trades")
-  await expect(page.getByText("Page 1 of 3", { exact: true })).toBeVisible()
-  await expect(page.locator('[data-slot-id="trades-empty-0"]')).toHaveAttribute("aria-pressed", "true")
-  await dock(page).getByRole("button", { name: "Inventory", exact: true }).click()
-  await page.getByLabel("Navigation evidence").selectOption("failed")
-  await page.locator('[data-item-id="copy-00001"]').click()
-  await page.getByRole("button", { name: "Go to pocket", exact: true }).click()
-  await expect(page.getByRole("status").filter({ hasText: "Couldn't open that pocket just now" })).toBeVisible()
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
-})
+test('fresh current location wins after move and failed refresh leaves Inventory usable', async ({ page }) => {
+  await page.getByLabel('Navigation evidence').selectOption('moved');
+  await page.locator('[data-item-id="copy-00001"]').click();
+  await page.getByRole('button', { name: 'Go to pocket', exact: true }).click();
+  await expect(collectionPicker(page)).toHaveAttribute('data-value', 'trades');
+  await expect(page.getByText('Page 1 of 3', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot-id="trades-empty-0"]')).toHaveAttribute('aria-pressed', 'true');
+  await dock(page).getByRole('button', { name: 'Inventory', exact: true }).click();
+  await page.getByLabel('Navigation evidence').selectOption('failed');
+  await page.locator('[data-item-id="copy-00001"]').click();
+  await page.getByRole('button', { name: 'Go to pocket', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: "Couldn't open that pocket just now" })).toBeVisible();
+  await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toBeVisible();
+});
 
-test("scope changes close private overlays, clear stale evidence and never restore transient edit/selection", async ({ page }) => {
-  await page.getByRole("searchbox", { name: "Search inventory" }).fill("base")
-  await page.locator('[data-item-id="copy-00001"]').click()
-  await page.getByLabel("Navigation account").evaluate((select: HTMLSelectElement) => {
-    select.value = "synthetic-other"; select.dispatchEvent(new Event("change", { bubbles: true }))
-  })
-  await expect(page.getByRole("dialog")).not.toBeVisible()
-  await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
-  await expect(page.getByText("Your cards couldn't be loaded", { exact: true })).toBeVisible()
-  await page.getByLabel("Navigation account").selectOption("synthetic-partner")
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toHaveValue("")
-  await chooseCollection(page, "alpha")
-  await page.getByRole("button", { name: "Edit layout", exact: true }).click()
-  await expect(page.getByRole("button", { name: "Done", exact: true })).toBeVisible()
-  await dock(page).getByRole("button", { name: "Inventory", exact: true }).click()
-  await page.goBack()
-  await expect(page.getByRole("button", { name: "Edit layout", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Done", exact: true })).not.toBeVisible()
-  await expect(page.locator('[data-slot-id][aria-pressed="true"]')).toHaveCount(0)
-  await page.getByLabel("Navigation account").selectOption("signed-out")
-  await expect(page.getByText("Sign in to open your collections.")).toBeVisible()
-  await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
-})
+test('scope changes close private overlays, clear stale evidence and never restore transient edit/selection', async ({
+  page,
+}) => {
+  await page.getByRole('searchbox', { name: 'Search inventory' }).fill('base');
+  await page.locator('[data-item-id="copy-00001"]').click();
+  await page.getByLabel('Navigation account').evaluate((select: HTMLSelectElement) => {
+    select.value = 'synthetic-other';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.getByRole('list', { name: 'Owned copies' })).not.toBeVisible();
+  await expect(page.getByText("Your cards couldn't be loaded", { exact: true })).toBeVisible();
+  await page.getByLabel('Navigation account').selectOption('synthetic-partner');
+  await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toHaveValue('');
+  await chooseCollection(page, 'alpha');
+  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Done', exact: true })).toBeVisible();
+  await dock(page).getByRole('button', { name: 'Inventory', exact: true }).click();
+  await page.goBack();
+  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Done', exact: true })).not.toBeVisible();
+  await expect(page.locator('[data-slot-id][aria-pressed="true"]')).toHaveCount(0);
+  await page.getByLabel('Navigation account').selectOption('signed-out');
+  await expect(page.getByText('Sign in to open your collections.')).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Owned copies' })).not.toBeVisible();
+});
 
-test("cached offline switching, unavailable fallback, missing Dex list and phone controls remain reachable", async ({ page, context, insets }) => {
-  const h = new Harness(page, insets, false)
-  const navigation = dock(page)
-  for (const name of ["Collections", "Inventory", "National Dex"]) {
-    const button = navigation.getByRole("button", { name, exact: true })
-    await h.expectMinTapTarget(button)
-    await h.expectWithinSafeViewport(button)
-    await h.expectHittable(button)
+test('cached offline switching, unavailable fallback, missing Dex list and phone controls remain reachable', async ({
+  page,
+  context,
+  insets,
+}) => {
+  const h = new Harness(page, insets, false);
+  const navigation = dock(page);
+  for (const name of ['Collections', 'Inventory', 'National Dex']) {
+    const button = navigation.getByRole('button', { name, exact: true });
+    await h.expectMinTapTarget(button);
+    await h.expectWithinSafeViewport(button);
+    await h.expectHittable(button);
   }
-  await page.getByLabel("Navigation evidence").selectOption("cached")
-  await context.setOffline(true)
-  await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
-  await navigation.getByRole("button", { name: "Collections", exact: true }).click()
-  await expect(page.getByText("Cached collection only. Connect to load its full ordered pages.")).toBeVisible()
-  await navigation.getByRole("button", { name: "Inventory", exact: true }).click()
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toHaveValue("base set")
+  await page.getByLabel('Navigation evidence').selectOption('cached');
+  await context.setOffline(true);
+  await page.getByRole('searchbox', { name: 'Search inventory' }).fill('base set');
+  await navigation.getByRole('button', { name: 'Collections', exact: true }).click();
+  await expect(page.getByText('Cached collection only. Connect to load its full ordered pages.')).toBeVisible();
+  await navigation.getByRole('button', { name: 'Inventory', exact: true }).click();
+  await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toHaveValue('base set');
   // A saved copy says so in the count line: it may not be the very latest.
-  await expect(page.getByRole("region", { name: "Inventory", exact: true }).locator("[data-saved-state]")).toContainText("last saved on this device")
-  await context.setOffline(false)
-  await navigation.getByRole("button", { name: "National Dex", exact: true }).click()
-  await expect(page.getByRole("button", { name: /Missing 4/ })).toBeVisible()
-  await h.expectNoHorizontalOverflow()
-  await page.getByLabel("Navigation evidence").selectOption("unavailable")
-  await navigation.getByRole("button", { name: "Inventory", exact: true }).click()
-  await expect(page.getByText("Your cards couldn't be loaded", { exact: true })).toBeVisible()
-  await page.goto("/app/e2e-harness/inventory?navigation=1&binder=deleted")
-  await expect(page.getByRole("status").filter({ hasText: "unavailable on this device" })).toBeVisible()
-  await expect(collectionPicker(page)).toHaveAttribute("data-value", "alpha")
-})
+  await expect(
+    page.getByRole('region', { name: 'Inventory', exact: true }).locator('[data-saved-state]'),
+  ).toContainText('last saved on this device');
+  await context.setOffline(false);
+  await navigation.getByRole('button', { name: 'National Dex', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Missing 4/ })).toBeVisible();
+  await h.expectNoHorizontalOverflow();
+  await page.getByLabel('Navigation evidence').selectOption('unavailable');
+  await navigation.getByRole('button', { name: 'Inventory', exact: true }).click();
+  await expect(page.getByText("Your cards couldn't be loaded", { exact: true })).toBeVisible();
+  await page.goto('/app/e2e-harness/inventory?navigation=1&binder=deleted');
+  await expect(page.getByRole('status').filter({ hasText: 'unavailable on this device' })).toBeVisible();
+  await expect(collectionPicker(page)).toHaveAttribute('data-value', 'alpha');
+});
 
-
-test("dock navigation survives overlay cleanup after private host remount", async ({ page }) => {
-  await page.locator('[data-item-id="copy-00001"]').click()
-  await expect(page.getByRole("dialog")).toBeVisible()
-  await page.getByRole("dialog").getByRole("button", { name: /Close/ }).click()
-  await expect(page.getByRole("dialog")).not.toBeVisible()
-  await page.getByLabel("Navigation account").selectOption("synthetic-partner")
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
-  for (const destination of ["Collections", "National Dex"]) {
-    await page.locator('[data-item-id="copy-00001"]').click()
-    await expect(page.getByRole("dialog")).toBeVisible()
-    await dock(page).getByRole("button", { name: destination, exact: true }).click()
-    await expect(page.getByRole("dialog")).not.toBeVisible()
-    if (destination === "Collections") await expect(page.getByRole("region", { name: "Collection presentation" })).toBeVisible()
-    else await expect(page.getByRole("region", { name: "National Dex", exact: true })).toBeVisible()
-    await page.goBack()
-    await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
+test('dock navigation survives overlay cleanup after private host remount', async ({ page }) => {
+  await page.locator('[data-item-id="copy-00001"]').click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: /Close/ }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.getByLabel('Navigation account').selectOption('synthetic-partner');
+  await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toBeVisible();
+  for (const destination of ['Collections', 'National Dex']) {
+    await page.locator('[data-item-id="copy-00001"]').click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await dock(page).getByRole('button', { name: destination, exact: true }).click();
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    if (destination === 'Collections')
+      await expect(page.getByRole('region', { name: 'Collection presentation' })).toBeVisible();
+    else await expect(page.getByRole('region', { name: 'National Dex', exact: true })).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toBeVisible();
   }
-})
+});

@@ -26,6 +26,7 @@ description: Change holofolder offline behaviour, including the service worker (
   - a one-time migration from localStorage
 
   Pending ops restore from IndexedDB only if the localStorage queue key is absent.
+
 - **`lib/offline-cache-warmup.ts`**: builds the warm-up URL list, with the visible page's rendered images first.
 
 ## Rules

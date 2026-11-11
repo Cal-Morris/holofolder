@@ -26,12 +26,23 @@ Native card capture now uses the same safe-area/dock-bounded sheet and shared ba
 Example of the private prop shape (synthetic placeholders, not a public API):
 
 ```tsx
-<PageScanner nativeAdmission={{ snapshot, view: {
-  ownerUserId, collectionId, sessionId, rows, cols,
-  pageSlotIds: actualPageSlots.map(slot => slot.id),
-}, catalog, getOfflineCards,
-  onCommandIntent: (draft, scanCatalog) => activeQueue.enqueue(draft.intent, scanCatalog),
-}} onClose={closeScanner} />
+<PageScanner
+  nativeAdmission={{
+    snapshot,
+    view: {
+      ownerUserId,
+      collectionId,
+      sessionId,
+      rows,
+      cols,
+      pageSlotIds: actualPageSlots.map((slot) => slot.id),
+    },
+    catalog,
+    getOfflineCards,
+    onCommandIntent: (draft, scanCatalog) => activeQueue.enqueue(draft.intent, scanCatalog),
+  }}
+  onClose={closeScanner}
+/>
 ```
 
 The second callback argument is the capture’s in-memory catalog resolver merged with the admitted host resolver. Pass it to the existing queue projector so a newly looked-up printing can satisfy a Pokémon target without another request. It is local preview evidence, never serialized command data or server authority. The host must retain the normal cached catalog/replay loading policy for later sessions; missing evidence stays pending rather than being guessed.
@@ -101,13 +112,13 @@ These drive the actual BinderApp and BrowserCollectionSession with real IDB and 
 
 Native capture previously reused a fullscreen camera dialog `(0,0,viewport width,viewport height)`. The new host's native card capture uses the safe sheet bounds below; legacy callers retain their fullscreen layout. Page capture/review retain the existing shared sheet styling. All six profiles pass safe viewport, no horizontal overflow, reachable 36px+ close/actions, X/Escape/Back/backdrop/swipe/dock dismissal and scroll-unlock checks. Bounds are `(x,y,width,height)` in px, measured before dismissal:
 
-| Profile | Page capture | Card capture | Review |
-|---|---|---|---|
-| browser-375x667 | (8,107,359,498) | (8,24,359,581) | (8,223,359,382) |
-| standalone-375x667 | (8,89,359,490) | (8,89,359,490) | (8,197,359,382) |
-| browser-390x844 | (8,284,374,498) | (8,24,374,758) | (8,400,374,382) |
+| Profile            | Page capture    | Card capture   | Review          |
+| ------------------ | --------------- | -------------- | --------------- |
+| browser-375x667    | (8,107,359,498) | (8,24,359,581) | (8,223,359,382) |
+| standalone-375x667 | (8,89,359,490)  | (8,89,359,490) | (8,197,359,382) |
+| browser-390x844    | (8,284,374,498) | (8,24,374,758) | (8,400,374,382) |
 | standalone-390x844 | (8,258,374,498) | (8,89,374,667) | (8,374,374,382) |
-| browser-430x932 | (8,372,414,498) | (8,24,414,846) | (8,508,414,362) |
+| browser-430x932    | (8,372,414,498) | (8,24,414,846) | (8,508,414,362) |
 | standalone-430x932 | (8,346,414,498) | (8,89,414,755) | (8,482,414,362) |
 
 No full e2e, camera hardware, real recognition/provider, cold service worker/PWA, authoritative SQL execution, hosted data, enabled production, independent review, merge/deployment or publication proof. #375 stays open; parent reviews and ships.
@@ -136,8 +147,8 @@ E2E_BASE_URL=http://localhost:3597 bun run test:e2e:matrix e2e/native-scanner-ho
 
 Compared with the prior #470 recorded review bounds above, explanatory append-order copy adds 40 px of height at each size; widths and bottom edges stay unchanged. Current review bounds `(x,y,width,height)`:
 
-| Profile | Browser | Standalone |
-|---|---|---|
+| Profile | Browser         | Standalone      |
+| ------- | --------------- | --------------- |
 | 375×667 | (8,183,359,422) | (8,157,359,422) |
 | 390×844 | (8,360,374,422) | (8,334,374,422) |
 | 430×932 | (8,468,414,402) | (8,442,414,402) |

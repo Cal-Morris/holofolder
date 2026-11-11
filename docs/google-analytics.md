@@ -10,11 +10,11 @@ GA4 handles initial page views and browser-history changes. In the web stream's 
 
 Binder tabs change local state rather than URL. They emit `screen_view` with `screen_name`: `binder`, `list`, `wanted`, `sets`, `pokemon`, or `analytics`. The event also includes boolean `show_mode` and `read_only`. It runs on the initial view, when the committed view changes, or when either mode changes. Returning to a tab records another view; this is not a unique-user count.
 
-| Event | Trigger | Parameters |
-| --- | --- | --- |
-| `screen_view` | Initial binder view, tab or mode change | `screen_name`, `show_mode`, `read_only` |
-| `search_opened` | Open Search, Quick mode or the wanted list's price lookup | `surface`: `search`, `quick_mode`, `price_lookup` |
-| `price_check_viewed` | Open a card in the deal checker, or change the card | None |
+| Event                | Trigger                                                   | Parameters                                        |
+| -------------------- | --------------------------------------------------------- | ------------------------------------------------- |
+| `screen_view`        | Initial binder view, tab or mode change                   | `screen_name`, `show_mode`, `read_only`           |
+| `search_opened`      | Open Search, Quick mode or the wanted list's price lookup | `surface`: `search`, `quick_mode`, `price_lookup` |
+| `price_check_viewed` | Open a card in the deal checker, or change the card       | None                                              |
 
 Custom payloads do not contain email, user IDs, binder IDs/names, raw queries, card data, purchase amounts or auth tokens. GA's normal page URL, referrer and automatic measurement are separate from these payloads. Analytics is best effort: blocked scripts and offline sessions can be missing. Events are not persisted or replayed alongside collection edits. Existing Vercel analytics and the first-party collector funnel remain separate.
 

@@ -5,13 +5,13 @@ description: Authenticated physical-copy, collection and stable-slot projections
 
 Native developer reads use the current authenticated key or OAuth boundary. Both require `collection:read`, `binders:read`, current owner or partner membership, and Premium or lifetime access. Read-only credentials can use them. They never impersonate a browser cookie session.
 
-| MCP tool | REST GET path relative to `/app/api/v1` |
-| --- | --- |
-| `list_inventory_items` | `/inventory/items` |
-| `get_inventory_item` | `/inventory/items/{id}` |
-| `list_storage_collections` | `/storage/collections` |
-| `list_storage_slots` | `/storage/collections/{collectionId}/slots` |
-| `get_storage_slot` | `/storage/collections/{collectionId}/slots/{id}` |
+| MCP tool                   | REST GET path relative to `/app/api/v1`          |
+| -------------------------- | ------------------------------------------------ |
+| `list_inventory_items`     | `/inventory/items`                               |
+| `get_inventory_item`       | `/inventory/items/{id}`                          |
+| `list_storage_collections` | `/storage/collections`                           |
+| `list_storage_slots`       | `/storage/collections/{collectionId}/slots`      |
+| `get_storage_slot`         | `/storage/collections/{collectionId}/slots/{id}` |
 
 Copies retain stable IDs, recorded card or Pokémon identity, public grading, acquisition time, item revision and current primary placement. Unassigned means no placement. Repeated cards are separate physical copies, including Trainers and Energy. Empty targets and wanted entries are goals, not ownership.
 

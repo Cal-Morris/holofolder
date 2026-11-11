@@ -13,12 +13,12 @@ The app still normalizes every row with the domain normalizers (`lib/server/inve
 
 An absent owner state is a complete revision zero only when the same snapshot holds no collections, items or placements; otherwise it's `inventory_not_initialized`. A binder without its native storage row (or the reverse) is also `inventory_not_initialized`.
 
-| Code | Status | Meaning |
-| --- | --- | --- |
-| `inventory_sign_in_required` | 401 | no current first-party session (including anonymous callers, who aren't granted the function) |
-| `inventory_read_forbidden` | 403 | membership or billing access refused |
-| `inventory_not_initialized` | 503 | stored rows without a native owner root, or a half-initialized collection |
-| `inventory_read_unavailable` | 503 | anything else, including malformed rows; raw database messages never cross this boundary |
+| Code                         | Status | Meaning                                                                                       |
+| ---------------------------- | ------ | --------------------------------------------------------------------------------------------- |
+| `inventory_sign_in_required` | 401    | no current first-party session (including anonymous callers, who aren't granted the function) |
+| `inventory_read_forbidden`   | 403    | membership or billing access refused                                                          |
+| `inventory_not_initialized`  | 503    | stored rows without a native owner root, or a half-initialized collection                     |
+| `inventory_read_unavailable` | 503    | anything else, including malformed rows; raw database messages never cross this boundary      |
 
 Developer native reads (`lib/server/operations/native-developer-read.ts`) call `developer_inventory_read_v1(...)` instead: one service-role call that rechecks the API key (or the live OAuth session and grant), the user, partnership and billing, and reads only the part the operation needs (collections, one collection's slots, items, or one item) from the same function.
 
@@ -254,7 +254,6 @@ stale cache, private warm-ups perform no fetch, and offline reads fail rather
 than returning that cached subset. This is controlled SW privacy proof, not
 installed-PWA navigation. No full e2e is run.
 
-
 Navigation-extension verification adds `tests/inventory-navigation-read.test.ts`:
 current partner scope with owner-only settings RLS emulation, per-dimension grids,
 settings changes during reads, unknown grids, source/location/preset JSON-v2
@@ -275,7 +274,6 @@ and the real service-worker privacy proof. This is local synthetic read evidence
 not hosted RLS/load or production enablement proof.
 
 Parent catalog regression: fallback alias/canonical probes page every matching row using stable ID keysets within the existing budget, before language-specific resolution. A later matching printing cannot be hidden by a two-row probe; missing/rejected later pages fail instead of publishing partial catalog evidence. Both 501-row alias/canonical regressions failed on the original source and pass after the fix. Parent verification:54 focused tests, actual Chromium/IDB/SW proof, typecheck, lint at55 existing warnings and production build. No hosted authentication or enabled runtime proof.
-
 
 Partner-grid 086 checks: 74 focused tests across eight files passed, including the
 opted-in private SQL proof with 82 prior numbered files replayed and 086 applied

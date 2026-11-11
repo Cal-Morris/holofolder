@@ -6,22 +6,22 @@ Related: #384, #365, #363, #376, #379. This backend slice does not complete thos
 
 `collection_audit_private.execute_creation_import_v1` wraps the existing 083 creation and 088 arrangement engines through `storage_execute_v1`. Current authenticated source, actor, membership and billing checks still precede replay. Membership is upgraded to SHARE and re-resolved before owner locks, including after waits. Recipient membership remains locked while importing partner-attributed wants. Outer management 6102 then root 4701 transaction locks survive the inner engine exception rollback.
 
-| Family | Original permanent ledger namespace | Digest, unchanged |
-| --- | --- | --- |
-| `collection.create` | `collection_create_v1`, actor + operation ID | SHA256 of PostgreSQL jsonb text `{owner,request,context:ctx}` in UTF8 |
-| `backup.arrangement` | `backup_arrangement_v1`, actor + operation ID | The same original owner/request/context construction |
+| Family               | Original permanent ledger namespace           | Digest, unchanged                                                     |
+| -------------------- | --------------------------------------------- | --------------------------------------------------------------------- |
+| `collection.create`  | `collection_create_v1`, actor + operation ID  | SHA256 of PostgreSQL jsonb text `{owner,request,context:ctx}` in UTF8 |
+| `backup.arrangement` | `backup_arrangement_v1`, actor + operation ID | The same original owner/request/context construction                  |
 
 The wrapper looks up the original accepted/rejected receipt before mutable state, catalog, copy, placement or private evidence reconstruction. Original engine accepted responses, context fields, source/credential/actor/owner binding and expiry `infinity` are unchanged. Engine-level lookup remains for compatibility with existing internal callers. Changed body/version/source/client/recipient cannot reuse a receipt; a different actor has a distinct ledger key and cannot borrow another actor's receipt. Cross-actor accepted operation identity still uses the original audit guard.
 
 Only these dedicated engine predicate states can become terminal rejection. Message text does not select the public reason:
 
-| SQLSTATE | Public reason | Family |
-| --- | --- | --- |
-| `HF931` | `inventory_revision_conflict` | Both |
-| `HF932` | `creation_identity_conflict` | Creation |
-| `HF933` | `inventory_collection_conflict` | Arrangement |
-| `HF934` | `arrangement_destination_conflict` | Arrangement |
-| `HF935` | `import_copy_conflict` | Arrangement |
+| SQLSTATE | Public reason                      | Family      |
+| -------- | ---------------------------------- | ----------- |
+| `HF931`  | `inventory_revision_conflict`      | Both        |
+| `HF932`  | `creation_identity_conflict`       | Creation    |
+| `HF933`  | `inventory_collection_conflict`    | Arrangement |
+| `HF934`  | `arrangement_destination_conflict` | Arrangement |
+| `HF935`  | `import_copy_conflict`             | Arrangement |
 
 After the complete inner engine subtransaction rolls back, the outer wrapper requires an actual native owner revision and writes a rejection to that same ledger. Missing native owner state cannot produce terminal proof. [098](empty-owner-first-creation.md) permits prospective revision 0 for first creation only after proving the owner empty under the existing locks; import keeps its original missing-state rejection. If the inner creation rejects before a root exists, the wrapper returns unavailable without a ledger entry. Existing-root terminal outcomes are unchanged. Exact replay returns the historical accepted/rejected result forever after later edits, deletion or recovery, without reacquiring copies or creating a collection again.
 
@@ -36,7 +36,19 @@ The authoritative shared bridge validates each family using `lib/collection/crea
 After future admission, the shared developer adapter creates typed `StorageCreationRejectedError` / `StorageImportRejectedError`. REST returns 409; MCP returns `isError:true`, matching text and structured JSON. Example synthetic error:
 
 ```json
-{"error":{"code":"storage_creation_rejected","message":"The original creation did not commit. Read current storage before explicit reconciliation.","requestId":"synthetic-request","rejection":{"outcome":"rejected","operationId":"synthetic-original-operation","code":"inventory_revision_conflict","inventoryRevision":7}}}
+{
+  "error": {
+    "code": "storage_creation_rejected",
+    "message": "The original creation did not commit. Read current storage before explicit reconciliation.",
+    "requestId": "synthetic-request",
+    "rejection": {
+      "outcome": "rejected",
+      "operationId": "synthetic-original-operation",
+      "code": "inventory_revision_conflict",
+      "inventoryRevision": 7
+    }
+  }
+}
 ```
 
 Import uses `storage_import_rejected` and its declared message. No private context, owner identity, certificate, label asset, frozen evidence or receipt-internal field is returned. Registry `errorSchemas`, generated OpenAPI/reference/Markdown/LLM exports and MCP status-keyed `holofolder.com/errorSchemas` describe these errors. Success `responseSchema` / MCP `outputSchema` describes accepted receipts only.

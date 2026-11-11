@@ -1,29 +1,175 @@
-.navigation { margin-left: auto; font-size: 14px; color: #252522; }
-.desktop { display: flex; align-items: center; gap: 26px; }
-.desktop a, .trigger { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
-.trigger, .mobileTrigger, .close { cursor: pointer; }
-.trigger:active, .mobileTrigger:active, .close:active { transform: scale(.97); }
-.mobileTrigger { display: none; width: 40px; height: 40px; align-items: center; justify-content: center; border: 1px solid #d6d6ce; border-radius: 6px; }
-.navigation :is(a, button):focus-visible { outline: 2px solid #252522; outline-offset: 4px; }
-.overlay { position: fixed; inset: 0; z-index: 70; }
-.backdrop { position: absolute; inset: 0; background: #15151335; }
-.panel { position: absolute; top: max(94px, calc(env(safe-area-inset-top) + 94px)); left: 50%; transform: translateX(-50%); width: min(720px, calc(100vw - 48px)); max-height: calc(100dvh - 118px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); display: flex; flex-direction: column; border: 1px solid #d6d6ce; border-radius: 10px; background: #f5f5ef; color: #252522; box-shadow: 0 22px 50px -20px #15151350; }
-.panelHeader { flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #d6d6ce; }
-.panelHeader h2 { font-family: monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 400; }
-.close { display: flex; align-items: center; justify-content: center; height: 36px; width: 36px; border-radius: 5px; }
-.grabber { display: none; }
-.links { overflow-y: auto; overscroll-behavior: contain; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; padding: 18px 24px 24px; }
-.links a { display: flex; flex-direction: column; justify-content: center; min-height: 55px; padding: 8px 0; border-bottom: 1px solid #d6d6ce; }
-.links span { font-size: 14px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; }
-.links small { margin-top: 5px; color: #64645e; font-size: 12px; line-height: 1.5; }
-.links .pricing { grid-column: 1 / -1; border-bottom: 0; min-height: 55px; }
-@media (hover: hover) and (pointer: fine) { .links a:hover span, .desktop a:hover { text-decoration: underline; text-underline-offset: 4px; } .close:hover { background: #e8e8e0; } }
+.navigation {
+  margin-left: auto;
+  font-size: 14px;
+  color: #252522;
+}
+.desktop {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+.desktop a,
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+}
+.trigger,
+.mobileTrigger,
+.close {
+  cursor: pointer;
+}
+.trigger:active,
+.mobileTrigger:active,
+.close:active {
+  transform: scale(0.97);
+}
+.mobileTrigger {
+  display: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d6d6ce;
+  border-radius: 6px;
+}
+.navigation :is(a, button):focus-visible {
+  outline: 2px solid #252522;
+  outline-offset: 4px;
+}
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+}
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: #15151335;
+}
+.panel {
+  position: absolute;
+  top: max(94px, calc(env(safe-area-inset-top) + 94px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, calc(100vw - 48px));
+  max-height: calc(100dvh - 118px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #d6d6ce;
+  border-radius: 10px;
+  background: #f5f5ef;
+  color: #252522;
+  box-shadow: 0 22px 50px -20px #15151350;
+}
+.panelHeader {
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid #d6d6ce;
+}
+.panelHeader h2 {
+  font-family: monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 400;
+}
+.close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  width: 36px;
+  border-radius: 5px;
+}
+.grabber {
+  display: none;
+}
+.links {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 24px;
+  padding: 18px 24px 24px;
+}
+.links a {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 55px;
+  padding: 8px 0;
+  border-bottom: 1px solid #d6d6ce;
+}
+.links span {
+  font-size: 14px;
+  font-weight: 550;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.links small {
+  margin-top: 5px;
+  color: #64645e;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.links .pricing {
+  grid-column: 1 / -1;
+  border-bottom: 0;
+  min-height: 55px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .links a:hover span,
+  .desktop a:hover {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  .close:hover {
+    background: #e8e8e0;
+  }
+}
 @media (max-width: 650px) {
-  .desktop { display: none; }
-  .mobileTrigger { display: flex; }
-  .panel { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); width: auto; transform: none; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 28px); border-radius: 14px; }
-  .panelHeader { padding: 22px 18px 10px; }
-  .grabber { display: block; position: absolute; top: 9px; left: calc(50% - 16px); width: 32px; height: 3px; background: #b4b4ac; border-radius: 2px; }
-  .links { grid-template-columns: 1fr; gap: 0; padding: 6px 18px 16px; }
-  .links a { min-height: 48px; }
+  .desktop {
+    display: none;
+  }
+  .mobileTrigger {
+    display: flex;
+  }
+  .panel {
+    top: auto;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    width: auto;
+    transform: none;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 28px);
+    border-radius: 14px;
+  }
+  .panelHeader {
+    padding: 22px 18px 10px;
+  }
+  .grabber {
+    display: block;
+    position: absolute;
+    top: 9px;
+    left: calc(50% - 16px);
+    width: 32px;
+    height: 3px;
+    background: #b4b4ac;
+    border-radius: 2px;
+  }
+  .links {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 6px 18px 16px;
+  }
+  .links a {
+    min-height: 48px;
+  }
 }
