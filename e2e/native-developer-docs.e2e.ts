@@ -9,7 +9,7 @@ test('native developer help and generated exports state the current execution an
   await expect(page.getByRole('heading', { name: 'Native storage contracts', exact: true })).toBeVisible()
   await expect(page.getByText('Supported native developer operations use the trusted storage executor.', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: /^Preserve private fields/ })).toBeAttached()
-  await expect(page.getByText('privateFields', { exact: true }).first()).toBeAttached()
+  await expect(page.locator('code', { hasText: 'privateFields' }).first()).toBeAttached()
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.evaluate(() => window.scrollTo(0, 500))
   const search = page.getByRole('button', { name: 'Open Search', exact: true })

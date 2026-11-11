@@ -18,7 +18,6 @@ async function expectUsableBrowser(harness: Harness, name: RegExp) {
 }
 
 test.describe("all cards for a Pokémon", () => {
-  test.use({ signedIn: true })
 
   test("opens read-only from the card detail, lists every printing newest first and returns to the detail", { tag: "@smoke" }, async ({ harness }) => {
     const detail = await harness.openCardDetail()
@@ -93,7 +92,6 @@ test.describe("all cards for a Pokémon", () => {
 })
 
 test.describe("global search", () => {
-  test.use({ signedIn: true })
 
   async function openSearch(harness: Harness) {
     await harness.dock().getByRole("button", { name: "Search", exact: true }).click()
@@ -143,7 +141,7 @@ test.describe("global search", () => {
 })
 
 test.describe("card hit prices in search (UK)", () => {
-  test.use({ signedIn: true, locale: "en-GB" })
+  test.use({ locale: "en-GB" })
 
   test("each card hit shows its price in the user's currency without overflowing", async ({ harness }) => {
     // Default harness fixture (TEST FIXTURE ONLY): the UK price is the Cardmarket quote, £0.05.

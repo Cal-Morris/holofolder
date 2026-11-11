@@ -12,7 +12,6 @@ const scrollTo = (harness: Harness, top: number) =>
   }, top)
 
 test.describe("view headings collapse on scroll", () => {
-  test.use({ signedIn: true })
 
   test("List view hides its heading while scrolled and keeps search + filters", async ({ harness }) => {
     await openTab(harness, "List")

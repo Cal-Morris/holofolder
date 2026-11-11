@@ -8,7 +8,7 @@ const button = (p: Page, name: string) => p.getByRole("button", { name, exact: t
 const dialog = (p: Page) => p.getByRole("dialog", { name: "Review slot removal", exact: true })
 async function record(page: Page): Promise<SlotOfflineRecord> {
   return page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     const rows = await new Promise<unknown[]>((yes, no) => { const r = db.transaction("records").objectStore("records").getAll(); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     db.close()
     return rows.find(r => !!r && typeof r === "object" && "pending" in r) as SlotOfflineRecord

@@ -8,7 +8,6 @@ async function openSearch(harness: Harness) {
 }
 
 test.describe("recently viewed cards", () => {
-  test.use({ signedIn: true })
 
   test("cards opened from search are listed on an empty search, reopen at the printing and can be cleared", async ({ harness }) => {
     const page = harness.page

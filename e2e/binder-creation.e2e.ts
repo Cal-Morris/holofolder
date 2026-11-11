@@ -6,7 +6,7 @@ const entry = "/app/e2e-harness?signedIn=1&browserHost=1&binder=22222222-2222-42
 type Intent = { kind: string; request: { operationId: string; collectionId: string; slotIds: string[]; manifest: { entries: { target: unknown }[] } }; context: unknown }
 async function record(page: Page) {
   return page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     const rows = await new Promise<unknown[]>((yes, no) => { const r = db.transaction("records").objectStore("records").getAll(); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     db.close()
     return rows.find(v => !!v && typeof v === "object" && "pending" in v) as { pending: { status: string; intent: Intent }[]; receipts: { operationId: string; intent: Intent }[]; snapshot: { collections: { id: string; name: string }[]; binders: { collectionId: string; slots: { target: unknown; inventoryItemId: string | null; wantedCards: unknown[] }[] }[]; items: unknown[] } } | undefined
@@ -216,7 +216,7 @@ for (const discarded of [false, true]) test(`native creation respects ${discarde
   await page.goto(entry)
   await expect(await storageAction(page, "New storage")).toBeEnabled(); await closeStorage(page)
   await page.evaluate(async discarded => {
-    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     await new Promise<void>((yes, no) => {
       const tx = db.transaction("records", "readwrite"), store = tx.objectStore("records"), all = store.openCursor()
       all.onsuccess = () => {
@@ -272,7 +272,7 @@ async function rejectionFixture(context: import("@playwright/test").BrowserConte
 }
 async function terminal(page: Page) {
   return page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     const rows = await new Promise<unknown[]>((yes, no) => { const r = db.transaction("records").objectStore("records").getAll(); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     db.close(); return rows.find(r => !!r && typeof r === "object" && "pending" in r && "scope" in r) as unknown as { pending: { intent: Intent; lease: unknown; conflict: { creationProof?: unknown; current?: unknown; rejected: boolean } }[]; creationDiscards?: { intent: Intent; proof: unknown; resolution: string }[]; receipts: unknown[]; snapshot: { inventoryRevision: number; collections: { name: string }[] } }
   })
@@ -378,7 +378,7 @@ for (const race of ["scope", "stale", "lease"] as const) test(`creation discard 
       if (race === "scope") body.scope.ownerUserId = "other-owner"
       if (race === "stale") Object.assign(body, { snapshot: original!.snapshot, evidence: original!.evidence, navigation: original!.navigation })
       if (race === "lease") await page.evaluate(async () => {
-        const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+        const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
         await new Promise<void>((yes, no) => {
           const tx = db.transaction("records", "readwrite"), cursor = tx.objectStore("records").openCursor()
           cursor.onsuccess = () => { const c = cursor.result; if (!c) return; const r = c.value; if (r?.pending?.[0]?.intent?.kind === "creation") { r.pending[0].lease = { id: "synthetic-racing-tab", until: 0 }; c.update(r) }; c.continue() }

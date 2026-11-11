@@ -91,7 +91,6 @@ for (const signedIn of [false, true]) {
 }
 
 test.describe("vertical space by the dock", () => {
-  test.use({ signedIn: true })
 
   test("main content ends just above the dock in every view, never under it", async ({ harness }) => {
     const dockBar = harness.dock().locator(":scope > div").first()
@@ -166,7 +165,6 @@ test("binder controls stay reachable and cards keep their full proportions", asy
 })
 
 test.describe("search sheet", () => {
-  test.use({ signedIn: true })
 
   test("filter chips are full-size tap targets and report which one is active", async ({ harness }) => {
     await harness.open()

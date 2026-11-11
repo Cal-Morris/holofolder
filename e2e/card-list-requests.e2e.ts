@@ -1,7 +1,6 @@
 import { test, expect } from "./fixtures"
 
 test.describe("card list requests", () => {
-  test.use({ signedIn: true })
 
   test("loading missing binder slots does not fetch arbitrary card lists", async ({ harness }) => {
     const { page } = harness

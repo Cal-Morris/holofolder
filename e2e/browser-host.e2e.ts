@@ -180,7 +180,7 @@ test("pending real IDB edits survive Edit layout teardown, view changes and fail
   // A refused read at startup stops at the storage error page. The edit made before it is still on the device.
   await expect(page.getByRole("alert").filter({ hasText: "Could not open storage:" })).toBeVisible({ timeout: 20_000 })
   const record = await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     return new Promise<unknown[]>((yes, no) => { const r = db.transaction("records").objectStore("records").getAll(); r.onsuccess = () => { db.close(); yes(r.result) }; r.onerror = () => no(r.error) })
   })
   const queued = record.filter((entry): entry is { pending: { status: string; intent: { request: { operationId: string } } }[]; optimistic: { binders: { collectionId: string; slots: unknown[] }[] } } =>

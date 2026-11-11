@@ -1,7 +1,5 @@
 import { test, expect } from "./fixtures"
 import { mockCardPrices } from "./price-fixtures"
-
-test.use({ signedIn: true })
 test("dated history stays native USD and remains distinct from current GBP quotes", async ({ harness }) => {
   await mockCardPrices(harness.page, {
     // Synthetic native USD history and a separate current GBP quote.

@@ -36,7 +36,6 @@ function expectPressed({ rest, pressed }: { rest: Pressed; pressed: Pressed }, m
 }
 
 test.describe("pressed state", () => {
-  test.use({ signedIn: true })
 
   test("dock buttons scale and dim while held", async ({ harness }) => {
     expectPressed(await press(harness, harness.dock().getByRole("button", { name: "List", exact: true })), 0.97)

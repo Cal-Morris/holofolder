@@ -56,6 +56,7 @@ export function storageCommandHarness(id: string) {
     state.tables.binder_slots[0].target = { kind: "pokemon", pokemonId: 1 }
     state.tables.binder_slots[0].status = "collected"
   }
+  if (id.startsWith("harness-")) seedHarnessBinder(state.tables, owner)
   if (id.startsWith("pick-")) {
     // Synthetic species pocket and an unowned mirror printing: absent from the read catalog until it is owned.
     state.tables.tcg_sets = [{ id: "synthetic-pick", name_en: "Synthetic pick set" }]
@@ -393,4 +394,38 @@ export function storageCommandHarness(id: string) {
   state.client.rpc = ((...args: Parameters<typeof originalRpc>) => args[0] === "storage_execute_v1" ? rpcClient.rpc(...args) : originalRpc(...args)) as typeof state.client.rpc
   fixtures.set(id, state)
   return state
+}
+
+/** A synthetic collection as the e2e suite describes it: one row per Pokémon, like the old dex binder. */
+export type HarnessSeedRow = { pokemon_id: number; card_id?: string | null; card_language?: string | null; card_finish?: string | null
+  status?: string | null; wanted_cards?: unknown[]; collected_at?: string | null }
+/** Mirror printings the seed may name; ids, names and sets come from the e2e mock catalog. */
+export type HarnessSeedCard = { id: string; localId: string; name: string; set: { id: string; name: string }; dexIds: number[] }
+
+/** The shared e2e `harness` binder (e2e/fixtures.ts): a synthetic 4×4 National Dex binder, one pocket per Pokémon,
+ * with each seeded owned printing as one raw copy in its pocket. Synthetic ownership only. */
+export function seedHarnessBinder(tables: ReturnType<typeof fixture>["tables"], owner: string, rows: HarnessSeedRow[] = [
+  { pokemon_id: 1, card_id: "base1-44", status: "collected" }, { pokemon_id: 4, card_id: "base1-46", status: "collected" },
+], cards: HarnessSeedCard[] = [
+  { id: "base1-44", localId: "44", name: "Bulbasaur", set: { id: "base1", name: "Base Set" }, dexIds: [1] },
+  { id: "base1-46", localId: "46", name: "Charmander", set: { id: "base1", name: "Base Set" }, dexIds: [4] },
+]) {
+  Object.assign(tables.binders[0], { name: "My binder", binder_rows: 4, binder_cols: 4, is_default: true })
+  const byDex = new Map(rows.map(row => [row.pokemon_id, row]))
+  const owned = rows.filter(row => row.status !== "wishlisted" && row.card_id)
+  tables.binder_slots = Array.from({ length: 1025 }, (_, n) => {
+    const row = byDex.get(n + 1)
+    return { id: `synthetic-dex-${n + 1}`, owner_user_id: owner, collection_id: collection, position: n, target: { kind: "pokemon", pokemonId: n + 1 },
+      status: row?.status === "wishlisted" ? "wishlisted" : row?.card_id && row.status !== "wishlisted" ? "collected" : null,
+      wanted_cards: row?.wanted_cards ?? [], preset_origin: null, version: 0 }
+  })
+  tables.inventory_items = owned.map(row => ({ id: `synthetic-copy-${row.pokemon_id}`, owner_user_id: owner,
+    identity: { kind: "card", cardId: row.card_id, language: row.card_language ?? "en", finish: row.card_finish ?? "normal" },
+    grading: null, acquired_at: row.collected_at ?? "2026-01-01T00:00:00.000Z", version: 0, legacy_source: null }))
+  tables.inventory_placements = owned.map(row => ({ inventory_item_id: `synthetic-copy-${row.pokemon_id}`, owner_user_id: owner,
+    collection_id: collection, slot_id: `synthetic-dex-${row.pokemon_id}`, version: 0 }))
+  tables.tcg_sets = [...new Map(cards.map(card => [card.set.id, { id: card.set.id, name_en: card.set.name }])).values()]
+  tables.tcg_cards = cards.map(card => ({ id: card.id, series_id: card.set.id, set_id: card.set.id, local_id: card.localId, name_en: card.name,
+    name_json: { en: card.name }, image_languages_json: ["en"], external_ids_json: {} }))
+  tables.tcg_card_dex_ids = cards.flatMap(card => card.dexIds.map(dex => ({ card_id: card.id, dex_id: dex })))
 }

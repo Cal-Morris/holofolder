@@ -16,10 +16,10 @@ test.describe("compact bottom dock", () => {
     await harness.expectWithinSafeViewport(bar(harness))
   })
 
-  for (const tab of ["Binder", "List"] as const) {
+  for (const tab of ["Binder", "Inventory"] as const) {
     test(`every dock control is a comfortable tap target (${tab})`, async ({ harness }) => {
       await harness.dock().getByRole("button", { name: tab, exact: true }).click()
-      if (tab === "List") await expect(harness.page.getByRole("heading", { name: "List", exact: true })).toBeVisible()
+      await expect(harness.dock().getByRole("button", { name: tab, exact: true })).toHaveAttribute("aria-pressed", "true")
       const buttons = await harness.dock().getByRole("button").all()
       expect(buttons.length).toBeGreaterThanOrEqual(5)
       for (const button of buttons) {
@@ -29,7 +29,10 @@ test.describe("compact bottom dock", () => {
       await harness.expectNoHorizontalOverflow()
     })
   }
+})
 
+// The National Dex List is the signed-out dock tab; signed-in owners get Inventory in its place.
+test.describe("guest dex list", () => {
   test("the last List row scrolls fully into view above the dock", async ({ harness }) => {
     await harness.dock().getByRole("button", { name: "List", exact: true }).click()
     const scroller = harness.page.getByTestId("view-scroller")

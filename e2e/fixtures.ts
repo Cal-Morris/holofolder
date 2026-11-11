@@ -256,6 +256,8 @@ export async function mockBackends(target: Page | BrowserContext, context: Brows
     if (url.pathname.startsWith("/auth/v1/user")) {
       return signedIn ? route.fulfill({ json: E2E_USER }) : route.fulfill({ status: 401, json: { message: "no session" } })
     }
+    // Supabase lists passkeys as an array; the synthetic account has none.
+    if (url.pathname === "/auth/v1/passkeys" && request.method() === "GET") return route.fulfill({ json: [] })
     if (url.pathname.startsWith("/auth/v1/")) {
       return route.fulfill({ json: {} })
     }
@@ -282,8 +284,31 @@ export async function mockBackends(target: Page | BrowserContext, context: Brows
   })
 }
 
+/** One row per Pokémon, as specs describe a synthetic collection (the old dex-binder shape). */
+export type SeedRow = { pokemon_id: number; card_id?: string | null; card_language?: string | null; card_finish?: string | null
+  status?: string | null; wanted_cards?: unknown[]; collected_at?: string | null }
+
+/**
+ * Signed-in harness storage: the real browser session, IDB queue and storage handlers over the synthetic
+ * in-process ledger in tests/fixtures/storage-command-harness.ts, seeded as a 4×4 National Dex binder with
+ * one pocket per Pokémon and `collection`'s owned printings as raw copies. One fresh ledger per call.
+ */
+export async function seedNativeStorage(context: BrowserContext, baseURL = "http://localhost:3210", collection: SeedRow[] = SEEDED_COLLECTION) {
+  await context.addCookies([{ name: "hf-storage-fixture", value: `harness-${crypto.randomUUID()}`, url: baseURL }])
+  const cards = MOCK_CARDS.map(({ id, localId, name, set, dexIds }) => ({ id, localId, name, set, dexIds }))
+  const seeded = await context.request.post(`${baseURL}/app/e2e-harness/storage/seed`, { data: { rows: collection, cards } })
+  expect(seeded.ok(), "synthetic native storage seed").toBe(true)
+}
+
+/** Replace the signed-in owner's synthetic collection; reload or reopen the binder afterwards. */
+export async function seedCollection(page: Page, collection: SeedRow[]) {
+  await seedNativeStorage(page.context(), new URL(page.url()).origin, collection)
+}
+
 type Fixtures = {
   signedIn: boolean
+  /** The signed-in owner's synthetic collection (default: Base Set Bulbasaur and Charmander owned). */
+  collection: SeedRow[]
   standalone: boolean
   insets: typeof SAFE_AREA
   harness: Harness
@@ -293,7 +318,7 @@ export class Harness {
   constructor(readonly page: Page, readonly insets: typeof SAFE_AREA, readonly signedIn = false) {}
 
   get path() {
-    return this.signedIn ? "/app/e2e-harness?signedIn=1" : "/app/e2e-harness"
+    return this.signedIn ? "/app/e2e-harness?signedIn=1&browserHost=1" : "/app/e2e-harness"
   }
 
   get viewport() {
@@ -309,10 +334,23 @@ export class Harness {
     return this.page.getByRole("navigation", { name: "Main navigation" })
   }
 
+  /** The binder pocket for a National Dex number: a native storage slot when signed in, the guest dex grid otherwise. */
+  slot(dex: number) {
+    return this.signedIn ? this.page.locator(`[data-slot-id="synthetic-dex-${dex}"]`) : this.page.locator(`button[data-dex-id="${dex}"]`).first()
+  }
+
   async open() {
     await this.page.goto(this.path)
     await expect(this.dock()).toBeVisible({ timeout: 30_000 })
-    await expect(this.page.locator("button[data-dex-id=\"1\"]").first()).toBeVisible()
+    await expect(this.slot(1)).toBeVisible()
+  }
+
+  /** Reload and wait for the checked session: a signed-in reload paints this device's saved copy first,
+   * then swaps in the live binder (which remounts any open overlay). */
+  async reload() {
+    await this.page.reload()
+    await expect(this.slot(1)).toBeVisible({ timeout: 30_000 })
+    if (this.signedIn) await expect(this.page.getByRole("button", { name: "Edit layout", exact: true })).toBeEnabled()
   }
 
   async openViewOptions() {
@@ -323,8 +361,8 @@ export class Harness {
   }
 
   async openCardDetail() {
-    await this.page.locator("button[data-dex-id=\"1\"]").first().click()
-    const dialog = this.page.getByRole("dialog", { name: /bulbasaur details/i })
+    await this.slot(1).click()
+    const dialog = this.page.getByRole("dialog", { name: /bulbasaur.* details/i })
     await expect(dialog).toBeVisible()
     return dialog
   }
@@ -422,18 +460,20 @@ export class Harness {
 
 export const test = base.extend<Fixtures>({
   signedIn: [false, { option: true }],
+  collection: [SEEDED_COLLECTION, { option: true }],
   standalone: [async ({}, use, testInfo) => {
     await use(Boolean(testInfo.project.metadata?.standalone))
   }, { option: true }],
   insets: async ({ standalone }, use) => {
     await use(standalone ? SAFE_AREA : { top: 0, bottom: 0, left: 0, right: 0 })
   },
-  harness: async ({ page, standalone, insets, signedIn, baseURL }, use) => {
+  harness: async ({ page, standalone, insets, signedIn, collection, baseURL }, use) => {
     if (standalone) {
       await emulateStandalone(page, insets)
     }
 
     await mockBackends(page, page.context(), { signedIn, baseURL })
+    if (signedIn) await seedNativeStorage(page.context(), baseURL, collection)
 
     const harness = new Harness(page, insets, signedIn)
     await harness.open()

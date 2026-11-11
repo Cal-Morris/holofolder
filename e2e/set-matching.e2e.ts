@@ -118,7 +118,7 @@ test.describe("multi-set matching", () => {
     const page = harness.page
     await expect.poll(() => page.evaluate(async () => {
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open("binderdex-offline")
+        const request = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1))
         request.onsuccess = () => resolve(request.result)
         request.onerror = () => reject(request.error)
       })

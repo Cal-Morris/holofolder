@@ -5,7 +5,7 @@ const collection = "22222222-2222-4222-8222-222222222222"
 const entry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${collection}`
 async function record(page: Page) {
   return page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     const rows = await new Promise<unknown[]>((yes, no) => { const r = db.transaction("records").objectStore("records").getAll(); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     db.close()
     return rows.find((v): v is { pending: { status: string; attempts: number; intent: { request: { operationId: string } } }[]; receipts: { operationId: string; outcome: string }[] } => !!v && typeof v === "object" && "pending" in v) ?? null
@@ -212,14 +212,26 @@ test("terminal rejection persists through reload and refresh failure, then expli
   })
   await page.goto(entry); await edit(page)
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("conflict")
-  await page.reload()
   // A change the server turned down asks what to do. Until the collection has been read again, the only
   // choice is to check it; keeping the collection as it is comes after that read.
-  await expect(page.getByRole("button", { name: "Check my collection" })).toBeVisible()
-  expect((await record(page))?.receipts).toHaveLength(0)
+  const check = page.getByRole("button", { name: "Check my collection" })
+  await expect(check).toBeVisible()
   await expect(page.getByRole("button", { name: "Keep my collection as it is" })).not.toBeVisible()
+  // A failed check keeps the rejected change and its choice.
+  await check.click()
+  await expect(check).toBeVisible()
+  expect((await record(page))?.receipts).toHaveLength(0)
+  // An online startup needs a fresh read (a failed one is its own error screen), so the reload reads.
   rejectRead = false
-  await page.getByRole("button", { name: "Check my collection" }).click()
+  await page.reload()
+  // The rejected change survived. Once the collection has been read (on startup, or by checking it from
+  // this device's saved copy) the choice comes back.
+  expect((await record(page))?.pending[0]?.status).toBe("conflict")
+  const applyAgain = page.getByRole("button", { name: "Apply my change again" })
+  await expect(async () => {
+    if (await check.isVisible()) await check.click()
+    await expect(applyAgain).toBeVisible({ timeout: 2_000 })
+  }).toPass({ timeout: 15_000 })
   const useCurrent = page.getByRole("button", { name: "Keep my collection as it is" })
   await expect(useCurrent).toBeVisible()
   const h = new Harness(page, insets, true)

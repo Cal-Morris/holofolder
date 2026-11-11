@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test"
-import { E2E_USER, SEEDED_COLLECTION } from "./fixtures"
+import { E2E_USER, SEEDED_COLLECTION, seedNativeStorage, type SeedRow } from "./fixtures"
 import { mockCardPrices, type FixturePrice } from "./price-fixtures"
 
 /**
@@ -32,8 +32,9 @@ export const WANTED_PRICES: Record<string, FixturePrice> = {
   "sv03.5-005": { confidence: "medium", market: 0.9 },
 }
 
-/** Serve the seeded want list and prices; call harness.open() afterwards so the binder loads them. */
-export async function seedWantList(page: Page, collection: unknown[] = WANTED_COLLECTION) {
+/** Seed the signed-in owner's native storage with the want list, and serve its prices; call harness.open()
+ * afterwards so the binder loads them. */
+export async function seedWantList(page: Page, collection: SeedRow[] = WANTED_COLLECTION) {
   await mockCardPrices(page, WANTED_PRICES)
-  await page.route(/\/rest\/v1\/pokemon_collection/, (route) => route.request().method() === "GET" ? route.fulfill({ json: collection }) : route.fallback())
+  await seedNativeStorage(page.context(), new URL(page.url()).origin, collection)
 }

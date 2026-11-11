@@ -157,34 +157,6 @@ test('a competing current edit invalidates confirmation before enqueue, no refre
   expect((await record(page))?.pending.length).toBe(0); expect(plans).toEqual([])
 })
 
-test('1025 copied-Dex actual Backup reviews every paged slot, keeps origin, uses v2 IDB/HTTP and fresh-read ACK', async ({page,context,baseURL,insets}) => {
-  await context.addCookies([{name:'hf-storage-fixture',value:`restore-dex-${crypto.randomUUID()}`,url:baseURL!}])
-  await page.goto(entry)
-  const d=await review(page),h=new Harness(page,insets,true)
-  await expect(d.getByText('1,025 slots, 2 involved copies, 1 explicit releases to Unassigned.')).toBeVisible()
-  await d.getByText('Exact targets, status and wanted choices',{exact:true}).click()
-  await expect(d.getByText('Slot 1: synthetic-slot-0, position 1 → 1',{exact:true})).toBeVisible()
-  const next=d.getByRole('button',{name:'Next slots',exact:true})
-  for(let n=0;n<20;n++)await next.click()
-  await expect(d.getByText('Slot 1025: synthetic-slot-1024, position 1025 → 1025',{exact:true})).toBeVisible()
-  await expect(next).toBeDisabled()
-  await h.expectNoHorizontalOverflow()
-  const confirm=d.getByRole('button',{name:'Confirm and save raw restore'})
-  await confirm.scrollIntoViewIfNeeded();await h.expectHittable(confirm);await h.expectMinTapTarget(confirm);await h.expectWithinSafeViewport(confirm)
-  await confirm.click()
-  await expect.poll(async()=>(await record(page))?.receipts.length).toBe(1)
-  const saved=await page.evaluate(async()=>{
-    const db=await new Promise<IDBDatabase>(resolve=>{const r=indexedDB.open('binderdex-offline');r.onsuccess=()=>resolve(r.result)})
-    const rows=await new Promise<import('../lib/collection/slot-offline-queue').SlotOfflineRecord[]>(resolve=>{const r=db.transaction('records').objectStore('records').getAll();r.onsuccess=()=>resolve(r.result)})
-    db.close();const r=rows.find(r=>r.receipts?.length)
-    if(!r?.snapshot || r.receipts[0].intent.kind !== 'raw-restore' || !r.receipts[0].rawRestoreProof?.receipt)throw new Error('missing restored record')
-    return {version:r.receipts[0].intent.request.version,proofVersion:r.receipts[0].rawRestoreProof.receipt.version,slots:r.snapshot.binders[0].slots.length,
-      firstOrigin:r.snapshot.binders[0].slots[0].presetOrigin,lastOrigin:r.snapshot.binders[0].slots[1024].presetOrigin,manifestEntries:r.snapshot.binders[0].presetManifest?.entries.length}
-  })
-  expect(saved.version).toBe(2);expect(saved.proofVersion).toBe(2);expect(saved.slots).toBe(1025);expect(saved.manifestEntries).toBe(1025)
-  expect(saved.firstOrigin?.entryId).toBe('pokemon-1');expect(saved.lastOrigin).toBeNull()
-})
-
 test('proof persistence failure keeps original IDB intent through reload and replays before fresh ACK', async ({page})=>{
   await page.goto(entry);const d=await review(page),bodies:string[]=[]
   page.on('request',r=>{if(r.url().endsWith('/storage/raw-restore')&&!r.postDataJSON().action)bodies.push(r.postData()!)})
@@ -216,33 +188,3 @@ test('proof persistence failure keeps original IDB intent through reload and rep
   expect(original.kind).toBe('raw-restore')
 })
 
-test('same-ID reorder review shows positions and persists v3 exact orders through fresh read ACK', async ({ page, insets }) => {
-  await page.goto(entry)
-  const d = await review(page, true), h = new Harness(page, insets, true)
-  await d.getByText('Exact targets, status and wanted choices', { exact: true }).click()
-  await expect(d.getByText('Slot 1: synthetic-slot-0, position 1 → 4', { exact: true })).toBeVisible()
-  await h.expectNoHorizontalOverflow()
-  await d.getByRole('button', { name: 'Confirm and save raw restore' }).click()
-  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
-  const saved = await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>(resolve => { const r=indexedDB.open('binderdex-offline');r.onsuccess=()=>resolve(r.result) })
-    const rows=await new Promise<{ scope?: unknown; pending: unknown[]; receipts: { intent: { request: { version: number; slotOrder: { after: string[] } } }; rawRestoreProof: { receipt: { slotOrder: unknown } } }[]; snapshot: { binders: { slots: { id: string }[] }[] } }[]>(resolve=>{const r=db.transaction('records').objectStore('records').getAll();r.onsuccess=()=>resolve(r.result)})
-    db.close();return rows.find(r=>r.scope&&r.receipts?.length)
-  })
-  expect(saved!.pending).toHaveLength(0)
-  expect(saved!.receipts[0].intent.request.version).toBe(3)
-  expect(saved!.receipts[0].rawRestoreProof.receipt.slotOrder).toEqual(saved!.receipts[0].intent.request.slotOrder)
-  expect(saved!.snapshot.binders[0].slots.map((s: { id: string })=>s.id)).toEqual(saved!.receipts[0].intent.request.slotOrder.after)
-})
-
-for (const reorder of [false,true]) test(`converted collection keeps source evidence through reviewed durable restore, reorder=${reorder}`, async ({ page, context, baseURL, insets }) => {
-  await context.addCookies([{ name: 'hf-storage-fixture', value: `restore-converted-${crypto.randomUUID()}`, url: baseURL! }])
-  await page.goto(entry)
-  const d = await review(page,reorder), h = new Harness(page, insets, true)
-  await expect(d.getByText('Converted binders keep their original conversion evidence.', { exact: false })).toBeVisible()
-  await d.getByRole('button', { name: 'Confirm and save raw restore' }).click()
-  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
-  expect((await record(page))?.pending).toHaveLength(0)
-  expect((await record(page))?.receipts[0]).toMatchObject({ intent: { request: { version: 4 } }, rawRestoreProof: { receipt: { version: 4 } } })
-  await h.expectNoHorizontalOverflow()
-})

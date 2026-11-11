@@ -129,7 +129,7 @@ test.describe("offline search and card show prep", () => {
     await prep.getByRole("button", { name: "Download for offline" }).click()
     await expect(prep.getByRole("status").filter({ hasText: "Download finished:" })).toHaveText("Download finished: Legends Showcase (3/3 card images, 3/3 cards priced)")
     await expect.poll(() => page.evaluate(() => new Promise<number>((resolve, reject) => {
-      const request = indexedDB.open("binderdex-offline")
+      const request = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1))
       request.onerror = () => reject(request.error)
       request.onsuccess = () => {
         const db = request.result

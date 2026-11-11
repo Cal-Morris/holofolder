@@ -15,7 +15,6 @@ const listSearch = (harness: Harness) => harness.page.getByPlaceholder("Search n
 const setsView = (harness: Harness) => harness.page.getByRole("group", { name: "Browse perspective" })
 
 test.describe("edge swipe back", () => {
-  test.use({ signedIn: true })
 
   test("returns to the previous view in the installed app only", async ({ harness, standalone }) => {
     await harness.dock().getByRole("button", { name: "List", exact: true }).click()

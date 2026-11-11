@@ -2,7 +2,6 @@ import { test, expect } from "./fixtures"
 import { mockCardPrices } from "./price-fixtures"
 
 test.describe("rising price indicator", () => {
-  test.use({ signedIn: true })
 
   test("shows on confidently rising printings only, never on low-confidence data", async ({ harness }) => {
     await mockCardPrices(harness.page, {

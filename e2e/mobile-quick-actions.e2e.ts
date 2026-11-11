@@ -1,7 +1,6 @@
 import { test, expect } from "./fixtures"
 
 test.describe("mobile slot quick actions", () => {
-  test.use({ signedIn: true })
 
   test("tapping opens details directly", async ({ harness }) => {
     await harness.page.locator('button[data-dex-id="1"]').first().tap()

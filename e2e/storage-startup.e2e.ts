@@ -39,7 +39,7 @@ async function inventory(route: Route) {
 }
 async function records(page: Page) {
   return page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     const rows = await new Promise<unknown[]>((yes, no) => { const r = db.transaction("records").objectStore("records").getAll(); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     db.close(); return rows
   })
@@ -80,7 +80,7 @@ async function seedResetSentinels(page: Page) {
     localStorage.setItem("sb-synthetic-auth-token", "synthetic credentials")
     await (await caches.open("binderdex-v6-shell")).put("/app/synthetic-reset-sentinel", new Response("synthetic offline executable"))
     await (await caches.open("unrelated-app-cache")).put("/unrelated-sentinel", new Response("unrelated"))
-    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     await new Promise<void>((yes, no) => { const tx = db.transaction("records", "readwrite"); tx.objectStore("records").put("synthetic offline data", "synthetic-reset-sentinel"); tx.oncomplete = () => yes(); tx.onerror = () => no(tx.error) })
     db.close()
   })

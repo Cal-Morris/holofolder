@@ -7,7 +7,7 @@ const card = { id: "synthetic-pick-snorlax", localId: "9", name: "Synthetic Pick
   set: { id: "synthetic-pick", name: "Synthetic pick set", officialCardCount: 9, releaseDate: "2026-01-01" }, rarity: "Common", variants: { normal: true, holo: true } }
 async function record(page: Page) {
   return page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     const rows = await new Promise<unknown[]>((yes, no) => { const r = db.transaction("records").objectStore("records").getAll(); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) }); db.close()
     return rows.find((r): r is { pending: { status: string; intent: { request: { operationId: string } } }[]; receipts: { operationId: string; outcome: string }[] } => !!r && typeof r === "object" && "pending" in r) ?? null
   })
