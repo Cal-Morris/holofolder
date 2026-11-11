@@ -13,6 +13,7 @@ import { useBinderOnboarding } from '@/hooks/use-binder-onboarding';
 import { recoveryUnresolved } from '@/lib/collection/recovery-rejection';
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { DatabaseBackup, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { StorageMenu, type StorageMenuAction } from './storage-menu';
 import dynamic from 'next/dynamic';
 import type { InventorySnapshot } from '@/lib/domain/inventory';
@@ -1219,11 +1220,20 @@ function ScopedBrowserSession({
                     attention={Boolean(queue.record?.recovery?.some(recoveryUnresolved))}
                     actions={[
                       ...extra,
-                      { label: 'Backup', onSelect: () => setBackupOpen(true) },
+                      { label: 'Backup', icon: DatabaseBackup, separated: true, onSelect: () => setBackupOpen(true) },
                       {
                         label: 'New binder',
+                        icon: Plus,
                         disabled: !creationAvailable,
                         onSelect: () => startCreation(surface.openCreated, layout),
+                      },
+                      {
+                        label: 'Refresh',
+                        icon: RefreshCw,
+                        disabled: !online,
+                        onSelect: () => {
+                          void refresh().catch(() => {});
+                        },
                       },
                       ...(surface.state.main === 'collection' && surface.state.collectionId
                         ? [
@@ -1233,18 +1243,14 @@ function ScopedBrowserSession({
                                 'binder'
                                   ? 'Delete this binder'
                                   : 'Delete this collection',
+                              icon: Trash2,
+                              danger: true,
+                              separated: true,
                               disabled: !deletionAvailable,
                               onSelect: () => setDeleting(surface.state.collectionId),
                             },
                           ]
                         : []),
-                      {
-                        label: 'Refresh',
-                        disabled: !online,
-                        onSelect: () => {
-                          void refresh().catch(() => {});
-                        },
-                      },
                     ]}
                   >
                     {surface.state.main === 'collection' && binder?.presetManifest?.setScope && (

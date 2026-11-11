@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
+import { ScanLine, ScanSearch } from 'lucide-react';
 import { closeAllOverlays } from '@/hooks/use-overlay';
 import type { NativePageScanAdmission } from '@/components/native-page-scanner';
 import type { StorageMenuAction } from '@/components/collection-navigation/storage-menu';
@@ -31,8 +32,8 @@ export default function NativeBinderScanner({
     <>
       {/* Disabled until storage is current, sync is idle and the saved grid matches. */}
       {menu([
-        { label: 'Scan page', disabled: !available, onSelect: () => open('page') },
-        { label: 'Scan card', disabled: !available, onSelect: () => open('card') },
+        { label: 'Scan page', icon: ScanLine, disabled: !available, onSelect: () => open('page') },
+        { label: 'Scan card', icon: ScanSearch, disabled: !available, onSelect: () => open('card') },
       ])}
       {opened === 'page' && <NativePageScanner admission={admission} onClose={close} />}
       {opened === 'card' && (
