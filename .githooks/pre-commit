@@ -1,0 +1,22 @@
+#!/bin/sh
+# Formats staged files and type-checks the repo before each commit (~3s). Lint, tests and the
+# build run in CI. Install once per clone: git config core.hooksPath .githooks
+set -e
+
+case "$(bun --version 2>/dev/null)" in
+  1.[4-9].* | [2-9].*) ;;
+  *)
+    echo "pre-commit: needs Bun 1.4.4+ on PATH for bun fmt / bun check (found: $(bun --version 2>/dev/null || echo none))" >&2
+    exit 1
+    ;;
+esac
+if [ ! -d node_modules ]; then
+  echo "pre-commit: run bun install first (bun fmt needs the project's tailwindcss to sort classes)" >&2
+  exit 1
+fi
+
+# Formats and re-stages only the staged files. Note: a partly staged file is re-staged whole.
+# ponytail: second pass because bun fmt 1.4.4 doesn't always settle in one; drop when it does.
+bun fmt --staged
+bun fmt --staged
+bun run --silent typecheck

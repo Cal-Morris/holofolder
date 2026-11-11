@@ -89,9 +89,12 @@ See [docs/architecture.md](docs/architecture.md) for ownership, startup, synchro
 
 ```bash
 bun install
+git config core.hooksPath .githooks   # once per clone: pre-commit formats and type-checks
 cp .env.example .env.local   # fill in the values you need
 bun run dev                  # http://localhost:3000/app
 ```
+
+- If `core.hooksPath` already points elsewhere (a worktree manager, say), call `.githooks/pre-commit` from that hook instead of replacing it.
 
 - Only `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are needed for local dev. `.env.example` documents every variable, and R2 setup is in `docs/card-image-store.md`.
 - **Never commit secrets** or `.env*` files, apart from `.env.example`. Never paste tokens into code, tests, PR descriptions or logs.
@@ -184,6 +187,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 
 ## Code conventions
 
+- **Before every commit, run `bun run format` and `bun run typecheck`.** The pre-commit hook (`.githooks/pre-commit`) does both for staged files; if it isn't installed, run them by hand. Never commit with `--no-verify`. Run `bun run lint` and the affected unit tests when you touch logic; CI runs everything again, but a red CI run costs a push.
 - Formatting belongs to `bun fmt`; don't hand-format or argue style in review. Put `eslint-disable-next-line` directly above the reported line (in wrapped JSX, as a `//` comment right above the element).
 - TypeScript strict. Use `@/` path imports. Use `import type` for type-only imports.
 - Keep pure logic in `lib/` (unit-testable, no React), and keep components and hooks thin.
