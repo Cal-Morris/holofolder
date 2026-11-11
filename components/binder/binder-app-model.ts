@@ -62,7 +62,8 @@ export type DeviceMotionWithPermission = typeof DeviceMotionEvent & {
   requestPermission?: () => Promise<DeviceOrientationPermissionState>
 }
 
-export type CollectionViewFilter = "all" | "needed" | "wanted" | "upgradeable" | "favorite"
+import type { CollectionViewFilter } from "@/lib/collection-view-filter"
+export type { CollectionViewFilter } from "@/lib/collection-view-filter"
 
 export type ActiveMainView = "binder" | "list" | "wanted" | "sets" | "pokemon" | "analytics"
 
@@ -73,6 +74,7 @@ export const COLLECTION_VIEW_FILTERS: Array<{
   description: string
 }> = [
   { id: "all", label: "All", mobileLabel: "All", description: "Show the full binder, including empty, upgradeable, and perfect slots." },
+  { id: "owned", label: "Owned", mobileLabel: "Owned", description: "Only show slots with a card in them." },
   { id: "needed", label: "Need", mobileLabel: "Need", description: "Only show slots that still need collecting." },
   { id: "wanted", label: "Wanted", mobileLabel: "Wanted", description: "Only show slots with cards on the want list." },
   { id: "upgradeable", label: "Upgrades", mobileLabel: "Upgrades", description: "Show collected slots that are not marked perfect yet." },

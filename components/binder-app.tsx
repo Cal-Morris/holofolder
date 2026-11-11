@@ -92,6 +92,8 @@ import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
 import type { LayoutSessionStart, LayoutTap } from "@/components/binder/layout-editor"
 import type { WantedDashboardCard } from "@/lib/wanted-dashboard"
 import { pocketPlace } from "@/lib/pocket-labels"
+import { CollectionFilterBar } from "@/components/binder/collection-filter-bar"
+import { displaySlotFilterFacts, legacyItemFilterFacts, matchesCollectionViewFilter } from "@/lib/collection-view-filter"
 import { buildSlotDisplay, displaySlotImageUrl, displaySlotPriceLookup, nativeBinderCoverStats, paginateDisplaySlots, resolveDisplaySelection, speciesPocket, type SlotDisplayInput } from "@/lib/binder-display-model"
 
 import { useBrowserCollectionScope } from "@/hooks/use-browser-collection-scope"
@@ -1018,27 +1020,8 @@ function BinderAppSurface(props: BinderAppProps) {
       return generationFilteredPokemonList
     }
 
-    return generationFilteredPokemonList.filter((pokemon) => {
-      const item = collection.find((entry) => entry.pokemon_id === pokemon.id)
-
-      if (collectionViewFilter === "needed") {
-        return !item || item.status === "wishlisted"
-      }
-
-      if (collectionViewFilter === "wanted") {
-        return Boolean(item?.wanted_cards?.length)
-      }
-
-      if (!item || item.status === "wishlisted") {
-        return false
-      }
-
-      if (collectionViewFilter === "favorite") {
-        return item.status === "finalized"
-      }
-
-      return item.status !== "finalized"
-    })
+    return generationFilteredPokemonList.filter((pokemon) =>
+      matchesCollectionViewFilter(legacyItemFilterFacts(collection.find((entry) => entry.pokemon_id === pokemon.id)), collectionViewFilter))
   }, [collection, collectionViewFilter, generationFilteredPokemonList])
 
   const filteredPokemonSummaryList = useMemo(
@@ -1112,11 +1095,7 @@ function BinderAppSurface(props: BinderAppProps) {
 
   const orderedDisplayPages = useMemo(() => orderedDisplaySlots ? paginateDisplaySlots(orderedDisplaySlots, settings.binderRows, settings.binderCols, slot => {
     if (selectedGen !== 0 && (!slot.pokemon || slot.pokemon.id < GENERATIONS[selectedGen].start || slot.pokemon.id > GENERATIONS[selectedGen].end)) return false
-    if (collectionViewFilter === "all") return true
-    if (collectionViewFilter === "needed") return slot.target !== null && !slot.item
-    if (collectionViewFilter === "wanted") return slot.wantedCards.length > 0
-    const status = stagedSlotDisplay?.binder.slots.find(s => s.id === slot.id)?.status
-    return Boolean(slot.item) && (collectionViewFilter === "favorite" ? status === "finalized" : status !== "finalized")
+    return matchesCollectionViewFilter(displaySlotFilterFacts(slot, stagedSlotDisplay?.binder.slots.find(s => s.id === slot.id)?.status), collectionViewFilter)
   }) : undefined, [orderedDisplaySlots, settings.binderRows, settings.binderCols, selectedGen, collectionViewFilter, stagedSlotDisplay])
   useEffect(() => {
     if (browserSurface?.surface.state.main === "collection" && browserSurface.surface.collection?.state.page !== currentBinderPage)
@@ -3010,6 +2989,8 @@ function BinderAppSurface(props: BinderAppProps) {
         {!editingLayout && layoutToolbar}
         {browserSurface.storageMenu}
       </div>}
+      {browserSurface?.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder"
+        && activeMainView === "binder" && stagedSlotDisplay && !editingLayout && <CollectionFilterBar value={collectionViewFilter} onChange={setCollectionViewFilter} />}
       {browserHeader}
       {isInstalledApp && isShowModeOn && user && !readOnlyMode && <PartnerPushPrompt userId={user.id} onOpen={() => openExclusively(() => { setPushSettingsRequested(true); setIsSettingsOpen(true) })} />}
 
