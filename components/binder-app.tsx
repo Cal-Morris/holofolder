@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "@/components/ui/toast"
 import { CHECKED_STARTUP_TIMEOUT_MS, CHECKED_STARTUP_TIMEOUT_ERROR, resetStartupCaches, STARTUP_RESET_KEY } from "@/lib/startup-cache-reset"
 
 import { nativeSpeciesCollection, type NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
@@ -303,7 +304,6 @@ function BinderAppSurface(props: BinderAppProps) {
   const pendingBinderPage = pageNavigation?.page ?? null
   const [pageInputValue, setPageInputValue] = useState("1")
   const [collectionViewFilter, setCollectionViewFilter] = useState<CollectionViewFilter>("all")
-  const [wantedShareMessage, setWantedShareMessage] = useState<string | null>(null)
   const [isMobileNavExpanded, setIsMobileNavExpanded] = useState(false)
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false)
   const [longPressedPokemon, setLongPressedPokemon] = useState<{ id: number; name: string } | null>(null)
@@ -348,8 +348,6 @@ function BinderAppSurface(props: BinderAppProps) {
   const [isShareEnabled, setIsShareEnabled] = useState(Boolean(shareViewToken))
   const [shareShowPrices, setShareShowPrices] = useState(false)
   const [isShareLoading, setIsShareLoading] = useState(false)
-  const [shareMessage, setShareMessage] = useState<string | null>(null)
-  const [shareCopyMessage, setShareCopyMessage] = useState<string | null>(null)
   const [isRefreshingPrices, setIsRefreshingPrices] = useState(false)
   const [priceRefreshMessage, setPriceRefreshMessage] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(true)
@@ -2156,7 +2154,6 @@ function BinderAppSurface(props: BinderAppProps) {
         setIsShareEnabled(false)
         setShareShowPrices(false)
         setIsShareLoading(false)
-        setShareMessage(null)
       }
       return
     }
@@ -2165,7 +2162,6 @@ function BinderAppSurface(props: BinderAppProps) {
 
     const loadShareState = async () => {
       setIsShareLoading(true)
-      setShareMessage(null)
 
       try {
         const response = await fetch(binderShareUrl(shareBinderId), {
@@ -2184,7 +2180,7 @@ function BinderAppSurface(props: BinderAppProps) {
         setShareShowPrices(payload?.share?.show_prices === true)
       } catch (error) {
         if (!cancelled) {
-          setShareMessage(error instanceof Error ? error.message : "Could not load the share link.")
+          toast(error instanceof Error ? error.message : "Could not load the share link.", "error")
         }
       } finally {
         if (!cancelled) {
@@ -2205,8 +2201,6 @@ function BinderAppSurface(props: BinderAppProps) {
     const scopeKey = shareScopeKey
 
     setIsShareLoading(true)
-    setShareMessage(null)
-    setShareCopyMessage(null)
 
     try {
       const response = await fetch("/app/api/binder-share", {
@@ -2224,9 +2218,9 @@ function BinderAppSurface(props: BinderAppProps) {
       setSharePath(payload?.share?.path ?? null)
       setIsShareEnabled(Boolean(payload?.share?.is_enabled))
       setShareShowPrices(payload?.share?.show_prices === true)
-      setShareMessage(typeof showPrices === "boolean" ? "Share pricing updated." : "Read-only share link is live.")
+      toast(typeof showPrices === "boolean" ? "Share pricing updated" : "Read-only share link is live")
     } catch (error) {
-      if (shareScopeRef.current === scopeKey) setShareMessage(error instanceof Error ? error.message : "Could not enable the share link.")
+      if (shareScopeRef.current === scopeKey) toast(error instanceof Error ? error.message : "Could not enable the share link", "error")
     } finally {
       if (shareScopeRef.current === scopeKey) setIsShareLoading(false)
     }
@@ -2234,16 +2228,15 @@ function BinderAppSurface(props: BinderAppProps) {
 
   const handleCopyReadOnlyShareLink = useCallback(async () => {
     if (!fullShareUrl) {
-      setShareCopyMessage("Generate a share link first.")
+      toast("Generate a share link first", "error")
       return
     }
 
     try {
       await navigator.clipboard.writeText(fullShareUrl)
-      setShareCopyMessage("Share link copied.")
-      setShareMessage(null)
+      toast("Share link copied")
     } catch {
-      setShareCopyMessage("Could not copy the share link.")
+      toast("Could not copy the share link", "error")
     }
   }, [fullShareUrl])
 
@@ -2252,8 +2245,6 @@ function BinderAppSurface(props: BinderAppProps) {
     const scopeKey = shareScopeKey
 
     setIsShareLoading(true)
-    setShareMessage(null)
-    setShareCopyMessage(null)
 
     try {
       const response = await fetch(binderShareUrl(shareBinderId), {
@@ -2268,9 +2259,9 @@ function BinderAppSurface(props: BinderAppProps) {
 
       setSharePath(payload?.share?.path ?? sharePath)
       setIsShareEnabled(false)
-      setShareMessage("Read-only share link disabled.")
+      toast("Read-only share link disabled")
     } catch (error) {
-      if (shareScopeRef.current === scopeKey) setShareMessage(error instanceof Error ? error.message : "Could not disable the share link.")
+      if (shareScopeRef.current === scopeKey) toast(error instanceof Error ? error.message : "Could not disable the share link", "error")
     } finally {
       if (shareScopeRef.current === scopeKey) setIsShareLoading(false)
     }
@@ -2878,7 +2869,6 @@ function BinderAppSurface(props: BinderAppProps) {
     if (isTouch && typeof navigator.share === "function") {
       try {
         await navigator.share({ title: "Want list", text })
-        setWantedShareMessage(null)
         return
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return
@@ -2886,9 +2876,9 @@ function BinderAppSurface(props: BinderAppProps) {
     }
     try {
       await navigator.clipboard.writeText(text)
-      setWantedShareMessage("Want list copied.")
+      toast("Want list copied")
     } catch {
-      setWantedShareMessage("Could not copy the want list.")
+      toast("Could not copy the want list", "error")
     }
   }
 
@@ -2922,12 +2912,11 @@ function BinderAppSurface(props: BinderAppProps) {
   // Native storage swaps List for Inventory in both the header and the dock.
   const inventoryNavigation = browserSurface ? { active: browserSurface.surface.state.main === "inventory" && activeMainView === "binder", open: browserSurface.surface.onInventory, binderOpen: nativeBinderOpen,
     collectionActive: browserSurface.surface.state.main === "collection" && (activeMainView === "binder" || activeMainView === "list") } : undefined
-  const renderAppHeader = () => renderAppHeaderView({ inventoryNavigation, activeBinder: browserSurface ? null : activeBinder, nativeStorage: Boolean(browserSurface), canManageShare, onNationalDex: browserSurface?.surface.onDex, activeJumpLabel, activeJumpPokemonList, activeMainView, binderCardControls, binderDimension, binderDisplayControls, binders, canFilterCollection, canGoToNextVisiblePage, canGoToPreviousVisiblePage, collectionCount, collectionStats, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut: onBrowserSignOut ?? handleSignOut, installPromptEvent, isDarkMode, isDesktopActionsOpen, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, lastBrowseViewRef, onJoin: () => openExclusively(() => { setAuthInitialMode("sign-up"); setIsAuthOpen(true) }), openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode: browserSurface ? legacyReadOnlyMode : readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsDesktopActionsOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages, user, visiblePageLabel })
+  const renderAppHeader = () => renderAppHeaderView({ inventoryNavigation, activeBinder: browserSurface ? null : activeBinder, nativeStorage: Boolean(browserSurface), canManageShare, onNationalDex: browserSurface?.surface.onDex, activeJumpLabel, activeJumpPokemonList, activeMainView, binderCardControls, binderDimension, binderDisplayControls, binders, canFilterCollection, canGoToNextVisiblePage, canGoToPreviousVisiblePage, collectionCount, collectionStats, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut: onBrowserSignOut ?? handleSignOut, installPromptEvent, isDarkMode, isDesktopActionsOpen, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, lastBrowseViewRef, onJoin: () => openExclusively(() => { setAuthInitialMode("sign-up"); setIsAuthOpen(true) }), openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode: browserSurface ? legacyReadOnlyMode : readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsDesktopActionsOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages, user, visiblePageLabel })
 
   const renderMainContent = () => renderMainContentView({ listTitle: browserSurface ? "National Dex" : undefined, nativeSpecies: speciesCollection, nativeWanted: nativeConsumer ? <>
-      {wantedShareMessage && <p role="status" className="mx-auto w-full max-w-6xl px-4 pt-2 text-sm">{wantedShareMessage}</p>}
       <NativeWantedEntries presentation="wanted" binding={nativeConsumer} onCheck={nativeConsumer.openCard}
-        pricing={pricingEnabled ? { region: pricingPreferences.region, formatAmount: priceFormat.amount } : undefined} onShare={cards => { void handleShareWantedList(cards) }} /></> : undefined, nativeAnalytics: browserSurface ? <NativeCollectionAnalytics {...browserSurface.analytics} collectionId={browserSurface.surface.state.collectionId ?? undefined} region={pricingPreferences.region} /> : undefined, layoutToolbar: browserSurface && !editingLayout ? undefined : layoutToolbar, orderedDisplaySlots: orderedDisplayPages?.flat(), onSelectSlot: setSelectedSlotId, pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: requireAccount, activeJumpLabel, activeMainView, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, setBinderStageRef, setCurrentBinderPage, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
+        pricing={pricingEnabled ? { region: pricingPreferences.region, formatAmount: priceFormat.amount } : undefined} onShare={cards => { void handleShareWantedList(cards) }} /></> : undefined, nativeAnalytics: browserSurface ? <NativeCollectionAnalytics {...browserSurface.analytics} collectionId={browserSurface.surface.state.collectionId ?? undefined} region={pricingPreferences.region} /> : undefined, layoutToolbar: browserSurface && !editingLayout ? undefined : layoutToolbar, orderedDisplaySlots: orderedDisplayPages?.flat(), onSelectSlot: setSelectedSlotId, pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: requireAccount, activeJumpLabel, activeMainView, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, setBinderStageRef, setCurrentBinderPage, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedTotalLabel })
 
   const renderSearchOverlay = () => renderSearchOverlayView({ nativeConsumer, history, binderCardDisplay, closeSearch, collected, currentPagePokemon: publicIndex ? publicIndex.pageSpecies(currentBinderPage) : currentPagePokemon, filteredPokemonList, getCardState: getQuickCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, searchSwipe, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages })
 
@@ -3091,7 +3080,6 @@ function BinderAppSurface(props: BinderAppProps) {
         onShareShowPricesChange={value => { void handleEnableReadOnlyShare(value) }}
         isShareEnabled={isShareEnabled}
         isShareLoading={isShareLoading}
-        shareMessage={shareMessage}
         onEnableReadOnlyShare={() => { void handleEnableReadOnlyShare() }}
         onDisableReadOnlyShare={handleDisableReadOnlyShare}
         trackedCardCount={trackedPriceLookups.length}

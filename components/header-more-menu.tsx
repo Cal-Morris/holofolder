@@ -9,9 +9,9 @@ export type HeaderMoreItem = {
   id: string
   label: string
   icon: ReactNode
-} & ({ href: string; onSelect?: never; disabled?: never; keepOpen?: never } | { href?: never; onSelect: () => void; disabled?: boolean; keepOpen?: boolean })
+} & ({ href: string; onSelect?: never; disabled?: never } | { href?: never; onSelect: () => void; disabled?: boolean })
 
-export function HeaderMoreMenu({ items, message, compact = false }: { items: HeaderMoreItem[]; message?: string | null; /** 36px wide on phones, where the header is short of room. */ compact?: boolean }) {
+export function HeaderMoreMenu({ items, compact = false }: { items: HeaderMoreItem[]; /** 36px wide on phones, where the header is short of room. */ compact?: boolean }) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -35,16 +35,13 @@ export function HeaderMoreMenu({ items, message, compact = false }: { items: Hea
               <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:h-4 [&>svg]:w-4" aria-hidden>{item.icon}</span>
               {item.label}
             </OverlayLink> : <button key={item.id} role="menuitem" type="button" disabled={item.disabled} onClick={() => {
-              if (!item.keepOpen) {
-                close()
-                buttonRef.current?.focus()
-              }
+              close()
+              buttonRef.current?.focus()
               item.onSelect?.()
             }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium hover:bg-muted/70 disabled:opacity-40">
               <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:h-4 [&>svg]:w-4" aria-hidden>{item.icon}</span>
               {item.label}
             </button>)}
-            {message && <p role="status" className="px-3 py-2 text-xs text-primary">{message}</p>}
           </div>
         </div>
       </>}

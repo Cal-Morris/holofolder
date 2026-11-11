@@ -73,8 +73,6 @@ export interface AppHeaderContext {
   setPageInputValue: Dispatch<SetStateAction<string>>
   setSelectedPokemon: Dispatch<SetStateAction<PokemonSummary | null>>
   setShowMode: (on: boolean) => void
-  shareCopyMessage: string | null
-  shareMessage: string | null
   shellNavRef: RefObject<HTMLElement | null>
   showTally: ShowSessionSummary
   switchMainView: (view: ActiveMainView) => Promise<void>
@@ -85,7 +83,7 @@ export interface AppHeaderContext {
 }
 
 export function renderAppHeaderView(ctx: AppHeaderContext) {
-  const { activeBinder, activeJumpLabel, activeJumpPokemonList, activeMainView, binderDimension, canGoToNextVisiblePage, canGoToPreviousVisiblePage, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut, installPromptEvent, isDarkMode, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, onJoin, openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages } = ctx
+  const { activeBinder, activeJumpLabel, activeJumpPokemonList, activeMainView, binderDimension, canGoToNextVisiblePage, canGoToPreviousVisiblePage, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut, installPromptEvent, isDarkMode, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, onJoin, openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages } = ctx
   const inventory = ctx.inventoryNavigation
   const destinations = [
     { id: "binder", label: "Binder", icon: Grid3X3 },
@@ -153,7 +151,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             </Button>
           )}
           {!ctx.user ? <Button type="button" className="h-11 shrink-0 rounded-xl px-1.5 text-xs md:px-2" onClick={onJoin}>Join now</Button> : isShowModeOn ? <button type="button" onClick={() => setShowMode(false)} aria-label="Exit show mode" className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-amber-900 hover:bg-amber-200/60 dark:text-amber-100 dark:hover:bg-amber-800/60 md:px-2"><Ticket className="hidden h-4 w-4 md:block" aria-hidden /><span className="hidden md:inline">Show ·</span>Exit</button> : ctx.collectionCount > 0 ? <button type="button" onClick={() => setShowMode(true)} aria-label="Show mode" data-testid="header-show-mode" className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-primary hover:bg-primary/10 md:px-2" aria-pressed={false}><Ticket className="hidden h-4 w-4 md:block" aria-hidden />Show</button> : null}
-          <HeaderMoreMenu compact={!ctx.user} message={shareCopyMessage || shareMessage} items={[
+          <HeaderMoreMenu compact={!ctx.user} items={[
             ...(!ctx.user || ctx.collectionCount === 0 ? [{ id: "show-mode", label: isShowModeOn ? "Exit show mode" : "Show mode", icon: <Ticket />, onSelect: () => setShowMode(!isShowModeOn) }] : []),
             ...(!readOnlyMode ? [{ id: "studio", label: "Binder Studio", icon: <Paintbrush />, href: "/studio" }] : []),
             ...(activeMainView === "binder" && binderDimension === "2d" ? [
@@ -165,7 +163,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             ...(installPromptEvent && !isInstalledApp ? [{ id: "install", label: "Install app", icon: <Sparkles />, onSelect: () => { void handleInstallApp() } }] : []),
             ...(!readOnlyMode && ctx.user ? [
               { id: "partner", label: "Partner", icon: <Users />, onSelect: () => openExclusively(() => setIsPartnerOpen(true)) },
-              ...(!ctx.canManageShare ? [] : [{ id: "share", label: isShareEnabled ? "Copy share link" : "Create share link", icon: isShareLoading ? <Loader2 className="animate-spin" /> : <Link2 />, disabled: isShareLoading, keepOpen: true, onSelect: () => { if (isShareEnabled && fullShareUrl) void handleCopyReadOnlyShareLink(); else void handleEnableReadOnlyShare() } }]),
+              ...(!ctx.canManageShare ? [] : [{ id: "share", label: isShareEnabled ? "Copy share link" : "Create share link", icon: isShareLoading ? <Loader2 className="animate-spin" /> : <Link2 />, disabled: isShareLoading, onSelect: () => { if (isShareEnabled && fullShareUrl) void handleCopyReadOnlyShareLink(); else void handleEnableReadOnlyShare() } }]),
             ] : []),
             { id: "settings", label: "Settings", icon: <Settings />, onSelect: () => openExclusively(() => setIsSettingsOpen(true)) },
             { id: "theme", label: isDarkMode ? "Light mode" : "Dark mode", icon: isDarkMode ? <Sun /> : <Moon />, onSelect: toggleDarkMode },

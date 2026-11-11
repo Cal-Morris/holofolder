@@ -63,7 +63,6 @@ export type WantedDashboardProps = {
   priceFormat: PriceFormat
   isLoadingPrices: boolean
   readOnlyMode: boolean
-  wantedShareMessage: string | null
   handleShareWantedList: (scope?: "binder" | "all") => void
   handleGotWantedCard: (pokemonId: number, pokemonName: string, wantedCard: WantedCard) => void
   handleClearWantedCard: (pokemonId: number, wantedCard: WantedCard) => void
@@ -132,7 +131,6 @@ export default function WantedDashboard({
   priceFormat,
   isLoadingPrices,
   readOnlyMode,
-  wantedShareMessage,
   handleShareWantedList,
   handleGotWantedCard,
   handleClearWantedCard,
@@ -341,7 +339,6 @@ export default function WantedDashboard({
               ) : null}
             </div>
           ) : null}
-          {wantedShareMessage ? <p role="status" className="text-xs text-muted-foreground">{wantedShareMessage}</p> : null}
         </div>
 
         {visibleCards.length === 0 ? (

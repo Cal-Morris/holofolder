@@ -112,12 +112,11 @@ export interface MainContentContext {
   wantedDashboard: WantedDashboardSummary
   wantedModeCombinedPriceSummary: PriceSummary
   wantedModeCombinedTotalLabel: string
-  wantedShareMessage: string | null
   wantedTotalLabel: string
 }
 
 export function renderMainContentView(ctx: MainContentContext) {
-  const { pendingBinderPage, cancelPageNavigation, onHideBinderValue, assignWantedCard, activeJumpLabel, activeMainView, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, setBinderStageRef, setCurrentBinderPage, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel } = ctx
+  const { pendingBinderPage, cancelPageNavigation, onHideBinderValue, assignWantedCard, activeJumpLabel, activeMainView, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, setBinderStageRef, setCurrentBinderPage, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedTotalLabel } = ctx
   const speciesById = ctx.nativeSpecies?.bySpecies ?? collectionByPokemonId
   return (
     <div data-testid="main-content" className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(var(--dock-clearance)+0.5rem)] sm:px-4 md:pb-4 ${activeMainView === "binder" ? "max-w-none" : "max-w-7xl"}`}>
@@ -190,7 +189,6 @@ export function renderMainContentView(ctx: MainContentContext) {
             priceFormat={priceFormat}
             isLoadingPrices={isLoadingPrices}
             readOnlyMode={readOnlyMode}
-            wantedShareMessage={wantedShareMessage}
             handleShareWantedList={handleShareWantedList}
             handleGotWantedCard={handleGotWantedCard}
             handleClearWantedCard={handleClearWantedCard}

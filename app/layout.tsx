@@ -1,5 +1,6 @@
 import { GoogleAnalyticsProvider } from "@/components/google-analytics"
 import { CollectorFunnelProvider } from "@/components/collector-funnel"
+import { Toaster } from "@/components/ui/toast"
 import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
@@ -69,6 +70,7 @@ export default async function RootLayout({
         <GoogleAnalyticsProvider enabled={process.env.VERCEL_ENV === "production"} gaId={process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID}>
           <CollectorFunnelProvider enabled={process.env.VERCEL_ENV === "production" && process.env.HOLOFOLDER_FUNNEL_ENABLED === "true"}>{children}</CollectorFunnelProvider>
         </GoogleAnalyticsProvider>
+        <Toaster />
         <Analytics scriptSrc="/app/_vercel/insights/script.js" endpoint="/app/_vercel/insights" />
         {/* Real-user Core Web Vitals per route (enabled on the Vercel project). */}
         <SpeedInsights scriptSrc="/app/_vercel/speed-insights/script.js" endpoint="/app/_vercel/speed-insights/vitals" />
