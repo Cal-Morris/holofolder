@@ -179,7 +179,7 @@ test('full-screen card tilts towards the pointer and settles when it leaves', as
   const image = viewer.getByRole('img', { name: 'Bulbasaur', exact: true });
   await expect(image).toBeVisible();
   const box = (await image.boundingBox())!;
-  const card = image.locator('xpath=ancestor::div[contains(@class, "aspect-")][1]');
+  const card = image.locator('xpath=ancestor::div[contains(@class, "trading-card")][1]');
   const tilt = () => card.evaluate((node: HTMLElement) => node.style.getPropertyValue('--card-ry'));
   await harness.page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.5);
   await expect.poll(tilt).not.toBe('');

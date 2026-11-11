@@ -104,14 +104,14 @@ function CardImageViewer({ src, alt, onClose }: { src: string; alt: string; onCl
         </div>
         <div className="flex min-h-0 flex-1 items-center justify-center">
           <div
-            className="pointer-events-auto relative aspect-[600/825] max-h-full"
+            className="trading-card pointer-events-auto relative max-h-full"
             onPointerMove={tiltCard}
             onPointerLeave={resetCardTilt}
             onPointerUp={resetCardTilt}
             onPointerCancel={resetCardTilt}
             style={{
               width:
-                'min(calc(100vw - 2rem), calc((100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 5rem) * 600 / 825))',
+                'min(calc(100vw - 2rem), calc((100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 5rem) * 63 / 88))',
               transform: 'perspective(1000px) rotateX(var(--card-rx, 0deg)) rotateY(var(--card-ry, 0deg))',
             }}
           >
@@ -124,10 +124,10 @@ function CardImageViewer({ src, alt, onClose }: { src: string; alt: string; onCl
               className="object-contain select-none"
               onError={() => setFailed(true)}
             />
-            {/* Card corners are transparent in the image, so the shine is clipped to a card-shaped radius. */}
+            {/* trading-card clips to the card's corners: JPEG sources (TCGplayer) have white corners, not transparent. */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 rounded-[4.5%/3.3%] transition-opacity duration-300"
+              className="pointer-events-none absolute inset-0 transition-opacity duration-300"
               style={{
                 opacity: 'var(--card-shine, 0)',
                 background:
