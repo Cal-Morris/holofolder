@@ -129,7 +129,7 @@ export function OrderedSlot({
           alt=""
           fill
           sizes={imageSizes}
-          className={`object-contain ${hasCardImage ? '' : 'p-[3px]'} ${tone}`}
+          className={`${hasCardImage ? 'object-cover' : 'object-contain p-[3px]'} ${tone}`}
           draggable={false}
         />
       )}

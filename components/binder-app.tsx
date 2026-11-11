@@ -1003,7 +1003,7 @@ function BinderAppSurface(props: BinderAppProps) {
     }
   }, [isCompactViewport, isMobileSpreadPreview]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const stage = binderStageRef.current;
     if (!stage || typeof ResizeObserver === 'undefined') {
       return;
