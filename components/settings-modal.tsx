@@ -15,6 +15,7 @@ import { PublicNameSettings } from '@/components/public-name-settings';
 import { PricingPreferencesSettings } from '@/components/pricing-preferences-settings';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { useShowMode } from '@/hooks/use-show-mode';
+import { useSlotLabels } from '@/hooks/use-slot-labels';
 import { useBillingContext } from '@/hooks/use-billing';
 import { DealThresholdSettings, ShowTallySettings } from '@/components/deal-settings';
 import {
@@ -197,6 +198,7 @@ export default function SettingsModal({
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const [isBackingUp, setIsBackingUp] = useState(false);
   const { isShowModeOn, setShowMode } = useShowMode();
+  const [slotLabelsOn, setSlotLabels] = useSlotLabels();
   const billing = useBillingContext();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const backRef = useRef<HTMLButtonElement | null>(null);
@@ -477,6 +479,17 @@ export default function SettingsModal({
                 disabled={isReadOnlyView}
               />
             </div>
+            {!isReadOnlyView && (
+              <div className="border-border/40 flex items-center justify-between gap-4 border-b py-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Slot positions</p>
+                  <p className="text-muted-foreground text-xs">
+                    Show A1, B4 and so on in each pocket. This device only.
+                  </p>
+                </div>
+                <Switch checked={slotLabelsOn} onCheckedChange={setSlotLabels} aria-label="Show slot positions" />
+              </div>
+            )}
             <div className="border-border/50 bg-muted/35 rounded-2xl border px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">

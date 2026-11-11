@@ -55,6 +55,8 @@ export interface BinderGridPageContext {
   isDesktopViewport: boolean;
   isPriceMode: boolean;
   isSpreadLayout: boolean;
+  /** A1/B4 pocket badges: off on shares and when the device switch is off. */
+  showSlotLabels: boolean;
   longPressedPokemon: { id: number; name: string } | null;
   priceFormat: {
     label: (price: CardPriceSnapshot | undefined) => string | null;
@@ -220,6 +222,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
     readOnlyMode,
     selectedPokemon,
     settings,
+    showSlotLabels,
     slotActions,
     slotGlareOverlayStyle,
     user,
@@ -249,11 +252,13 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
         }}
       />
       <div className="absolute inset-0 rounded-2xl" style={{ background: pageTheme.gloss }} />
-      <div
-        className={`absolute bottom-1 z-10 rounded-full border border-white/15 bg-black/25 px-2 py-px text-[9px] font-semibold tracking-[0.16em] text-white/78 uppercase backdrop-blur-sm ${side === 'left' ? 'left-3' : 'right-3'}`}
-      >
-        Page {pageNumber}
-      </div>
+      {!readOnlyMode && (
+        <div
+          className={`absolute bottom-1 z-10 rounded-full border border-white/15 bg-black/25 px-2 py-px text-[9px] font-semibold tracking-[0.16em] text-white/78 uppercase backdrop-blur-sm ${side === 'left' ? 'left-3' : 'right-3'}`}
+        >
+          Page {pageNumber}
+        </div>
+      )}
       <div
         className="absolute inset-0 overflow-auto overscroll-contain"
         role={scrollable ? 'region' : undefined}
@@ -295,7 +300,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
                       ? priceFormat.label(pricesByCardId[getCardPriceKey(displayPrice.cardId, displayPrice.language)])
                       : null
                   }
-                  slotLabel={slotLabel}
+                  slotLabel={showSlotLabels ? slotLabel : undefined}
                   cardDisplay={binderCardDisplay}
                   interactionKey={ctx.slotInteractionKey}
                   selected={ctx.selectedSlotId === displaySlot.id}
@@ -352,6 +357,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
                 isSelected={isSelected}
                 isLongPressed={isLongPressed}
                 slotLabel={slotLabel}
+                showSlotLabel={showSlotLabels}
                 status={binderCardDisplay !== 'wanted' ? item?.status : undefined}
                 cardImage={slotCardImage}
                 imageSizes={binderSlotImageSizes}
