@@ -119,6 +119,8 @@ test("an owner with cards in the binder has Show in the header on every view; an
   const h = new Harness(page, insets, true)
   for (const view of ["Binder", "Inventory", "Wanted", "Browse"]) {
     await nav(page).getByRole("button", { name: view, exact: true }).click()
+    // The view remounts on arrival, so wait for the destination before measuring its header.
+    await expect(nav(page).getByRole("button", { name: view, exact: true })).toHaveAttribute("aria-pressed", "true")
     await expect(show).toBeVisible()
     await h.expectMinTapTarget(show); await h.expectHittable(show); await h.expectNoHorizontalOverflow()
     const title = header.getByText("Holo Folder", { exact: true })
@@ -134,7 +136,7 @@ test("an owner with cards in the binder has Show in the header on every view; an
   empty.items = []; empty.placements = []
   empty.binders.forEach(binder => binder.slots.forEach(slot => { slot.inventoryItemId = null; slot.status = null }))
   await page.route("**/app/e2e-harness/storage/inventory?*", route => fulfillInventory(route, inventoryBrowseCatalog, empty))
-  await page.reload()
+  await page.goto(`${entry}&binder=${alpha}`)
   await expect(collectionPicker(page)).toBeVisible()
   await expect(page.locator("button[data-slot-id]").first()).toBeVisible()
   await expect(show).toHaveCount(0)
