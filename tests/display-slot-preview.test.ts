@@ -26,5 +26,6 @@ describe("displaySlotPreview", () => {
     assert.equal(preview.isCard, false)
     assert.equal(displaySlotPreview({ ...owned, wantedCards: [{}] }, "current").image, "owned.webp")
   })
+  test("Wanted display dims owned copies without a want", () => assert.deepEqual(displaySlotPreview(owned, "wanted"), { image: "owned.webp", isCard: true, tone: "grayscale opacity-45" }))
   test("plain unfilled target keeps existing dimming", () => assert.equal(displaySlotPreview({ ...owned, item: null }).tone, "grayscale opacity-45"))
 })
