@@ -4,6 +4,7 @@ import {createR2Deps,getR2Config} from '../lib/card-image-r2'
 import {recordMirroredCardImages} from '../lib/card-image-inventory'
 import {createAdminClient} from '../lib/supabase/admin'
 import {loadProjectEnvFiles} from '../lib/load-project-env'
+import {CARD_IMAGE_BLOB_PREFIX} from '../lib/tcgdex-card-image'
 
 async function main() {
 await loadProjectEnvFiles()
@@ -15,7 +16,7 @@ const deps=createR2Deps(config,{fetch:async (...args)=>{
  if(++pages>150)throw new Error('Inventory LIST budget exceeded')
  return fetch(...args)
 }})
-const keys=await deps.list('cards/')
+const keys=await deps.list(`${CARD_IMAGE_BLOB_PREFIX}/`)
 await recordMirroredCardImages(config.bucket,keys)
 // Only prune after a complete successful listing; preserve uploads recorded during it.
 const {error}=await createAdminClient().from('card_image_inventory').delete().eq('bucket',config.bucket).lt('observed_at',started)

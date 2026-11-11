@@ -136,15 +136,24 @@ function legacyApiRequest(request) {
   return url.href
 }
 
-// Existing installs keep their proxy caches when public images move to the asset domain.
+// Card objects live under a brand/game root; the old bucket layout had none (/cards/...).
+const CARD_ASSET_ROOT = "/pokemon/tcg"
+function currentCardAssetPath(path) {
+  return path.startsWith("/cards/") ? CARD_ASSET_ROOT + path : path
+}
+function isPublicCardAsset(url) {
+  return url.origin === "https://assets.holofolder.com" && (url.pathname.startsWith("/cards/") || url.pathname.startsWith(`${CARD_ASSET_ROOT}/cards/`))
+}
+
+// Existing installs keep their proxy and old-layout caches when public images move to the asset domain.
 function publicCardAssetPath(value) {
   try {
     let url = new URL(value, self.location.origin)
     if (url.pathname.endsWith("/api/card-image-proxy")) url = new URL(url.searchParams.get("url"))
-    if (["assets.holofolder.com", "pub-47cc306087724b00a06ee44b2d4ff58a.r2.dev"].includes(url.hostname)) return url.pathname
+    if (["assets.holofolder.com", "pub-47cc306087724b00a06ee44b2d4ff58a.r2.dev"].includes(url.hostname)) return currentCardAssetPath(url.pathname)
     if (url.hostname === "assets.tcgdex.net") {
       const parts = url.pathname.split("/")
-      if (parts.length === 6) return `/cards/${parts[1]}/${parts[3]}/${parts[4]}/${parts[5]}`
+      if (parts.length === 6) return `${CARD_ASSET_ROOT}/cards/${parts[1]}/${parts[3]}/${parts[4]}/${parts[5]}`
     }
     const sources = [
       ["product-images.tcgplayer.com", /^\/([1-9]\d*)\.jpg$/, "tcgplayer"],
@@ -155,7 +164,7 @@ function publicCardAssetPath(value) {
     ]
     for (const [host, pattern, provider] of sources) {
       const match = url.hostname === host && pattern.exec(url.pathname)
-      if (match) return `/cards/src/${provider}/${match.slice(1).join("/").replaceAll("!", "exclamation")}.webp`
+      if (match) return `${CARD_ASSET_ROOT}/cards/src/${provider}/${match.slice(1).join("/").replaceAll("!", "exclamation")}.webp`
     }
   } catch {}
   return null
@@ -163,12 +172,12 @@ function publicCardAssetPath(value) {
 
 async function legacyPublicCardImage(request) {
   const url = new URL(request.url)
-  if (url.origin !== "https://assets.holofolder.com" || !url.pathname.startsWith("/cards/")) return null
+  if (!isPublicCardAsset(url)) return null
   const identity = path => path?.replace(/\/(?:high|low)\.(webp|png|jpg)$/, "/image.$1")
   for (const name of [IMAGE_CACHE, SHOW_IMAGE_CACHE]) {
     const cache = await caches.open(name)
     for (const key of await cache.keys()) {
-      if (identity(publicCardAssetPath(key.url)) === identity(url.pathname)) return cache.match(key)
+      if (identity(publicCardAssetPath(key.url)) === identity(currentCardAssetPath(url.pathname))) return cache.match(key)
     }
   }
   return null
@@ -570,7 +579,7 @@ self.addEventListener("fetch", (event) => {
 
   if (
     request.destination === "image" ||
-    (url.origin === "https://assets.holofolder.com" && url.pathname.startsWith("/cards/")) ||
+    isPublicCardAsset(url) ||
     url.pathname.startsWith("/app/api/card-image-proxy")
   ) {
     event.respondWith(cacheFirst(request, IMAGE_CACHE, event))

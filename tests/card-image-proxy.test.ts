@@ -56,7 +56,7 @@ test("featured card srcset uses public stored variants while canonical artwork r
   const card = FEATURED_CARDS[0]
   const candidates = getFeaturedCardImageSrcSet(card).split(", ")
   assert.equal(candidates.length, 2)
-  assert.ok(candidates.every(url=>url.startsWith("https://assets.holofolder.com/cards/")))
+  assert.ok(candidates.every(url=>url.startsWith("https://assets.holofolder.com/pokemon/tcg/cards/")))
   assert.ok(candidates[0].endsWith("/low.webp 320w"))
   assert.ok(candidates[1].endsWith("/high.webp 600w"))
   assert.ok(getFeaturedCardImageUrl(card).startsWith("/app/api/card-image-proxy?"))

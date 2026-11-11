@@ -105,7 +105,7 @@ test("expanded owned and wanted images each open their own printing", async ({ h
   const detail = await harness.openCardDetail()
   await detail.locator("summary").filter({ hasText: "Card & variant" }).click()
   const expanded = detail.locator("details").filter({ has: harness.page.locator("summary").filter({ hasText: "Card & variant" }) })
-  for (const [name, source] of [["Bulbasaur", "https://assets.holofolder.com/cards/en/base1/44/high.webp"], ["Wanted Bulbasaur", "https://assets.holofolder.com/cards/en/sv03.5/001/high.webp"]]) {
+  for (const [name, source] of [["Bulbasaur", "https://assets.holofolder.com/pokemon/tcg/cards/en/base1/44/high.webp"], ["Wanted Bulbasaur", "https://assets.holofolder.com/pokemon/tcg/cards/en/sv03.5/001/high.webp"]]) {
     const opener = expanded.getByRole("button", { name: `View ${name} full screen`, exact: true })
     await opener.click()
     const viewer = harness.page.getByRole("dialog", { name: `${name} full screen`, exact: true })

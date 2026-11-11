@@ -29,7 +29,7 @@ describe("pokemonComCardImageUrl", () => {
 
 describe("pokemoncom image source", () => {
   test("only the card image path on the shared asset host is a source, keyed deterministically", () => {
-    assert.equal(parseSourceCardImageUrl(`${BASE}/BW10/BW10_EN_8.png`)?.pathname, "cards/src/pokemoncom/BW10/BW10_EN_8.webp")
+    assert.equal(parseSourceCardImageUrl(`${BASE}/BW10/BW10_EN_8.png`)?.pathname, "pokemon/tcg/cards/src/pokemoncom/BW10/BW10_EN_8.webp")
     assert.equal(parseSourceCardImageUrl(`${BASE}/BW10/SV01_EN_8.png`), null)
     assert.equal(parseSourceCardImageUrl("https://assets.pokemon.com/static2/_ui/js/main.js"), null)
   })

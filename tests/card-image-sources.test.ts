@@ -50,11 +50,11 @@ function fakeDeps(options: { existing?: string[]; originStatus?: number } = {}) 
 describe("parseSourceCardImageUrl", () => {
   test("maps each fallback source to a deterministic WebP key", () => {
     const cases: Array<[string, string]> = [
-      ["https://product-images.tcgplayer.com/716203.jpg", "cards/src/tcgplayer/716203.webp"],
-      ["https://images.pokemontcg.io/smp/SM168_hires.png", "cards/src/pokemontcg/smp/SM168_hires.webp"],
-      ["https://images.pokemontcg.io/ex10/!_hires.png", "cards/src/pokemontcg/ex10/exclamation_hires.webp"],
-      ["https://images.scrydex.com/pokemon/me55c-106p/large", "cards/src/scrydex/me55c-106p/large.webp"],
-      ["https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/MEP/MEP_001_R_EN_LG.png", "cards/src/limitless/MEP/MEP_001_R_EN_LG.webp"],
+      ["https://product-images.tcgplayer.com/716203.jpg", "pokemon/tcg/cards/src/tcgplayer/716203.webp"],
+      ["https://images.pokemontcg.io/smp/SM168_hires.png", "pokemon/tcg/cards/src/pokemontcg/smp/SM168_hires.webp"],
+      ["https://images.pokemontcg.io/ex10/!_hires.png", "pokemon/tcg/cards/src/pokemontcg/ex10/exclamation_hires.webp"],
+      ["https://images.scrydex.com/pokemon/me55c-106p/large", "pokemon/tcg/cards/src/scrydex/me55c-106p/large.webp"],
+      ["https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/MEP/MEP_001_R_EN_LG.png", "pokemon/tcg/cards/src/limitless/MEP/MEP_001_R_EN_LG.webp"],
     ]
     for (const [url, pathname] of cases) {
       assert.equal(parseSourceCardImageUrl(url)?.pathname, pathname, url)
@@ -91,7 +91,7 @@ describe("pickMirrorableSourceImage", () => {
     const externalIds = { pokemon_tcg: { imageLarge: "https://images.pokemontcg.io/smp/SM168_hires.png" }, tcgdex: { thirdParty: { tcgplayer: 1 } } }
     assert.equal(pickMirrorableSourceImage({ imageLanguages: [], externalIds })?.source, "pokemontcg")
     assert.equal(pickMirrorableSourceImage({ imageLanguages: ["en"], externalIds }), null)
-    assert.equal(pickMirrorableSourceImage({ imageLanguages: [], externalIds: { tcgdex: { thirdParty: { tcgplayer: 42 } } } })?.pathname, "cards/src/tcgplayer/42.webp")
+    assert.equal(pickMirrorableSourceImage({ imageLanguages: [], externalIds: { tcgdex: { thirdParty: { tcgplayer: 42 } } } })?.pathname, "pokemon/tcg/cards/src/tcgplayer/42.webp")
   })
 
   test("ignores TCGdex images (those use the TCGdex mirror keys)", () => {
@@ -116,7 +116,7 @@ describe("source image mirroring", () => {
     assert.equal(first.source, "upstream")
     assert.equal(first.contentType, "image/webp")
     await first.pendingUpload?.()
-    assert.deepEqual(calls.put, [{ pathname: "cards/src/scrydex/me55c-106p/large.webp", contentType: "image/webp" }])
+    assert.deepEqual(calls.put, [{ pathname: "pokemon/tcg/cards/src/scrydex/me55c-106p/large.webp", contentType: "image/webp" }])
     const second = await mirror.loadSourceImage(ref)
     assert.equal(second.source, "blob")
     assert.equal(calls.origin.length, 1)
@@ -142,7 +142,7 @@ describe("source image mirroring", () => {
   })
 
   test("set backfill copies fallback images once per key alongside TCGdex images", async () => {
-    const { deps, calls } = fakeDeps({ existing: ["cards/src/tcgplayer/1.webp"] })
+    const { deps, calls } = fakeDeps({ existing: ["pokemon/tcg/cards/src/tcgplayer/1.webp"] })
     const cards = [
       { seriesId: "me", setId: "mep", localId: "001", imageLanguages: [], externalIds: { catalog: { image: "https://product-images.tcgplayer.com/1.jpg" } } },
       { seriesId: "me", setId: "mep", localId: "002", imageLanguages: [], externalIds: { catalog: { image: "https://product-images.tcgplayer.com/2.jpg" } } },
@@ -164,7 +164,7 @@ describe("source image mirroring", () => {
 describe("playshop source", () => {
   test("accepts only the playshop.fr store path on the shared Shopify CDN", () => {
     const ok = "https://cdn.shopify.com/s/files/1/1015/7057/6719/files/pokemon-2018sm-fr-1-feuillajou.png"
-    assert.equal(parseSourceCardImageUrl(ok)?.pathname, "cards/src/playshop/pokemon-2018sm-fr-1-feuillajou.webp")
+    assert.equal(parseSourceCardImageUrl(ok)?.pathname, "pokemon/tcg/cards/src/playshop/pokemon-2018sm-fr-1-feuillajou.webp")
     assert.equal(isCardImageSourceUrl(new URL(ok)), true)
     for (const other of [
       "https://cdn.shopify.com/s/files/1/0000/0000/0001/files/pokemon-2018sm-fr-1-feuillajou.png",

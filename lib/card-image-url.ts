@@ -1,5 +1,5 @@
 import { appPath } from "@/lib/app-path"
-import { parseTcgdexCardImageUrl, getCardImageBlobPathname } from "@/lib/tcgdex-card-image"
+import { parseTcgdexCardImageUrl, getCardImageBlobPathname, currentCardImageKey } from "@/lib/tcgdex-card-image"
 import { parseSourceCardImageUrl, isCardImageSourceUrl } from "@/lib/card-image-sources"
 
 export const PUBLIC_CARD_IMAGE_BASE = "https://assets.holofolder.com/"
@@ -37,7 +37,8 @@ export function toCardImageSrc(value:unknown):string|null {
     if(tcgdex)return PUBLIC_CARD_IMAGE_BASE+getCardImageBlobPathname(tcgdex)
     const external=parseSourceCardImageUrl(url)
     if(external)return PUBLIC_CARD_IMAGE_BASE+external.pathname
-    if(url.origin==="https://pub-47cc306087724b00a06ee44b2d4ff58a.r2.dev"&&url.pathname.startsWith("/cards/"))return PUBLIC_CARD_IMAGE_BASE+url.pathname.slice(1)
+    // Old-bucket URLs (its r2.dev address, or the asset domain before the pokemon/tcg prefix) map to the current key.
+    if((url.origin==="https://pub-47cc306087724b00a06ee44b2d4ff58a.r2.dev"||url.origin===PUBLIC_CARD_IMAGE_BASE.slice(0,-1))&&url.pathname.startsWith("/cards/"))return PUBLIC_CARD_IMAGE_BASE+currentCardImageKey(url.pathname.slice(1))
   }catch{}
   return proxy
 }

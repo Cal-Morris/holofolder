@@ -127,12 +127,12 @@ describe("native page-turn image urls", () => {
   const owned = { id: "a", target: { kind: "pokemon" as const, pokemonId: 6 }, item: { id: "copy" } as never, card: { name: "Synthetic", image: "https://assets.tcgdex.net/en/base/base1/4/high.webp" }, pokemon: { id: 6, name: "charizard" }, wantedCards: [] }
   const want = { card_id: "base1-2", card_name: "Synthetic want", card_image: "https://assets.tcgdex.net/en/base/base1/2/high.webp", added_at: "2026-11-10T00:00:00Z" }
   test("owned printing uses the public asset, not Pokémon artwork", () => {
-    assert.equal(displaySlotImageUrl(owned), "https://assets.holofolder.com/cards/en/base1/4/high.webp")
+    assert.equal(displaySlotImageUrl(owned), "https://assets.holofolder.com/pokemon/tcg/cards/en/base1/4/high.webp")
   })
   test("wants keep their dimmed printing outside current, and current shows the owned card", () => {
     const wanted = { ...owned, wantedCards: [want] }
-    assert.equal(displaySlotImageUrl(wanted, "mixed"), "https://assets.holofolder.com/cards/en/base1/2/high.webp")
-    assert.equal(displaySlotImageUrl(wanted, "current"), "https://assets.holofolder.com/cards/en/base1/4/high.webp")
+    assert.equal(displaySlotImageUrl(wanted, "mixed"), "https://assets.holofolder.com/pokemon/tcg/cards/en/base1/2/high.webp")
+    assert.equal(displaySlotImageUrl(wanted, "current"), "https://assets.holofolder.com/pokemon/tcg/cards/en/base1/4/high.webp")
   })
   test("unfilled targets keep the artwork fallback, spacers request nothing", () => {
     const target = { ...owned, item: null, card: null }

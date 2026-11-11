@@ -38,8 +38,10 @@ test('returned R2 URLs keep stable object identity without persisting signed que
  const {developerImageKey,normalizeStoredDeveloperImage}=await import('../lib/developer-api/image-identity')
  const base='https://synthetic-r2.test/'
  const returned=`${base}cards/en/base1/1/high.webp?X-Amz-Signature=synthetic&X-Amz-Expires=300`
- assert.equal(developerImageKey(returned,[base]),'cards/en/base1/1/high.webp')
- assert.equal(normalizeStoredDeveloperImage(returned,[base]),`${base}cards/en/base1/1/high.webp`)
+ assert.equal(developerImageKey(returned,[base]),'pokemon/tcg/cards/en/base1/1/high.webp')
+ assert.equal(normalizeStoredDeveloperImage(returned,[base]),`${base}pokemon/tcg/cards/en/base1/1/high.webp`)
+ assert.equal(developerImageKey(`${base}pokemon/tcg/cards/en/base1/1/high.webp`,[base]),'pokemon/tcg/cards/en/base1/1/high.webp')
+ assert.equal(developerImageKey(`${base}pokemon/tcg/private/x.webp`,[base]),null)
  assert.equal(developerImageKey('https://evil.test/cards/en/base1/1/high.webp',[base]),null)
  assert.equal(developerImageKey(`${base}private/owner/file`,[base]),null)
 })
@@ -48,13 +50,13 @@ test('appearance card artwork exposes an opaque stable reference and R2-only dis
  const {defaultBinderDesign}=await import('../lib/binder-design')
  const design=defaultBinderDesign();design.surfaces.cover.artwork='/app/api/card-image-proxy?url='+encodeURIComponent('https://assets.tcgdex.net/en/base/base1/1/high.webp')
  design.surfaces.back.artwork='upload:9ade73fb-d75e-4174-86a1-9e4769b85f30'
- const result=await serializeDeveloperAppearance({design,revision:1},async()=>({url:'https://synthetic-r2.test/cards/en/base1/1/high.webp',availability:'available'}))
+ const result=await serializeDeveloperAppearance({design,revision:1},async()=>({url:'https://synthetic-r2.test/pokemon/tcg/cards/en/base1/1/high.webp',availability:'available'}))
  assert.deepEqual({...result},{
   revision:1,
   design:{...design,surfaces:{...design.surfaces,cover:{
    ...design.surfaces.cover,
    artwork:'tcgdex:en/base/base1/1/high.webp',
-   artworkImage:{url:'https://synthetic-r2.test/cards/en/base1/1/high.webp',availability:'available'},
+   artworkImage:{url:'https://synthetic-r2.test/pokemon/tcg/cards/en/base1/1/high.webp',availability:'available'},
   }}},
  })
  const restored=restoreDeveloperAppearance(result.design)

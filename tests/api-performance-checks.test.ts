@@ -25,7 +25,7 @@ test('the smoke suite has response assertions for every registered operation',as
  assert.throws(()=>assertSmokeResponse('list_cards',{data:[],nextCursor:123},{}))
  assert.throws(()=>assertSmokeResponse('get_card',{id:'wrong-printing',game:'pokemon'},{id:'base1-1'}))
  assert.throws(()=>assertSmokeResponse('refresh_price_checks',{ebay:null,soldcomps:null,errors:{ebay:'Unavailable'}},{source:'ebay'}))
- assert.throws(()=>assertSmokeResponse('get_artwork',{id:'synthetic',storage:'r2-private',downloadUrl:'https://assets.holofolder.com/cards/en/base1/1/high.webp'},{id:'synthetic'}))
+ assert.throws(()=>assertSmokeResponse('get_artwork',{id:'synthetic',storage:'r2-private',downloadUrl:'https://assets.holofolder.com/pokemon/tcg/cards/en/base1/1/high.webp'},{id:'synthetic'}))
 })
 
 test('negative scenarios do not substitute for successful coverage or corrupt latency medians',()=>{

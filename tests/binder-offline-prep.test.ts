@@ -116,7 +116,7 @@ describe("binder offline prep", () => {
     assert.ok(saved > 0)
     const result = await downloadBinderPrep(binderPrintings(rows), scope, deps)
     assert.equal(result.complete, true)
-    assert.equal(deps.requests.filter(url => url.includes("card-image-proxy") || url.startsWith("https://assets.holofolder.com/cards/")).length, 8)
+    assert.equal(deps.requests.filter(url => url.includes("card-image-proxy") || url.startsWith("https://assets.holofolder.com/pokemon/tcg/cards/")).length, 8)
   })
 })
 

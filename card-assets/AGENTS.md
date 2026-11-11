@@ -27,7 +27,8 @@ tests/card-assets.test.ts        unit tests, including parity with the app's ima
 | Command | What it does |
 |---|---|
 | `bun run card-assets plan [--set a,b]` | Reads every card from Postgres (read-only), applies `rules.csv` and rewrites the ledger. Prints counts by source and kind, and the weak images: no image, a foreign print, or a retail photo. |
-| `bun run card-assets verify [--bucket binderdex-card-images]` | Fails if `sources.csv` or `rules.csv` is invalid, an `atlas_id` doesn't exist, or the committed ledger is out of date. Reports how many cards the ledger picks differently from what the app serves today (`differsFromApp`); that's expected after a rule change until it is published. With `--bucket`, also counts chosen images missing from `card_image_inventory`. |
+| `bun run card-assets verify [--bucket holofolder-assets]` | Fails if `sources.csv` or `rules.csv` is invalid, an `atlas_id` doesn't exist, or the committed ledger is out of date. Reports how many cards the ledger picks differently from what the app serves today (`differsFromApp`); that's expected after a rule change until it is published. With `--bucket`, also counts chosen images missing from `card_image_inventory`. |
+| `bun run card-assets migrate-bucket [--apply]` | One-off move of every `cards/...` object in `binderdex-card-images` to `pokemon/tcg/cards/...` in `holofolder-assets`, with server-side copies (no downloads), then records the new bucket's keys in `card_image_inventory`. Without `--apply` it only reports what is missing or differs (exit 1 if anything does), which doubles as the post-move check. Needs `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` for a token that reads the source and writes the destination. |
 | `bun run card-assets atlas` | Refreshes `atlas/` from the atlas repo's `main` and lists atlas sources we haven't classified yet. Review the diff before committing. |
 
 It needs `POSTGRES_URL_NON_POOLING` (or `DATABASE_URL`) in `.env.local`. Nothing here uploads to R2 or writes to the database yet; publishing is phase 3 of the plan below.
@@ -89,7 +90,7 @@ Every source names cards differently. This is where each mapping lives.
 | Scrydex, Limitless and playshop picks | Chosen per set by the gap-fill rules, stored as the reviewed catalog image. | `GAP_IMAGE_SOURCES` in `lib/card-gap-fill.ts`, `scripts/fill-card-gaps.ts` |
 | malie (planned) | malie's own set codes and abbreviations (`me6`/`DLR`, `mebsp`/`MEP`, `svbsp`/`PR-SV`, `sve`) from `cdn.malie.io/file/malie-io/tcgl/export/index.json`. They differ from our set ids (`me06`, `mep`, `svp`), so this needs a mapping table here when malie lands. | to do |
 | Atlas sources | Atlas source ids (`pcom`, `pokemontcgio`, `malie`, …) map to ours through `atlas_id`. The atlas has no per-card data, only per-source facts and per-language gap counts, so it informs rules rather than matching cards. | `sources.csv`, `atlas/data.json` |
-| R2 object | `cards/{lang}/{setId}/{localId}/{high\|low}.{ext}` for TCGdex copies, `cards/src/{source}/…` for the rest. From a URL: `developerImageKey` in `lib/developer-api/image-identity.ts`. | `card_image_inventory (bucket, object_key)` records what is stored |
+| R2 object | `pokemon/tcg/cards/{lang}/{setId}/{localId}/{high\|low}.{ext}` for TCGdex copies, `pokemon/tcg/cards/src/{source}/…` for the rest (bucket `holofolder-assets`). Old `cards/…` keys and URLs map across with `currentCardImageKey` in `lib/tcgdex-card-image.ts`. From a URL: `developerImageKey` in `lib/developer-api/image-identity.ts`. | `card_image_inventory (bucket, object_key)` records what is stored |
 
 ## Where this is going
 

@@ -5,19 +5,26 @@
  *   bun run card-assets verify [--bucket <name>]                check sources, rules, atlas, ledger freshness and
  *                                                               what the app serves; --bucket also checks R2 coverage
  *   bun run card-assets atlas                                   refresh the pinned PTCG Image Atlas data.json
+ *   bun run card-assets migrate-bucket [--apply]                copy cards/... from binderdex-card-images to
+ *                                                               pokemon/tcg/cards/... in holofolder-assets
  *
- * Reads Postgres (POSTGRES_URL_NON_POOLING or DATABASE_URL) in a read-only transaction. Writes only files under
- * card-assets/. Nothing here uploads or changes the database.
+ * plan, verify and atlas read Postgres (POSTGRES_URL_NON_POOLING or DATABASE_URL) in a read-only transaction and
+ * write only files under card-assets/. migrate-bucket copies R2 objects server side and records them in
+ * card_image_inventory; it needs R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY for a token that can
+ * read the source bucket and write the destination.
  */
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
+import { AwsClient } from "aws4fetch"
 import { Client } from "pg"
+import { parseListedObjects, planBucketCopy, type ListedObject } from "../lib/card-assets/bucket-migration"
 import { pickCardImageUrl } from "../lib/card-image-sources"
 import { crossCheckAtlas, LEDGER_COLUMNS, ledgerRow, parseRules, parseSources, toCsv, imageCandidates, type AtlasData, type LedgerRow, type MirrorCardRow } from "../lib/card-assets/ledger"
 import { getMirrorDatabaseUrl } from "../lib/card-db-sync"
 import { developerImageKey } from "../lib/developer-api/image-identity"
 import { loadProjectEnvFiles } from "../lib/load-project-env"
 import { buildTcgdexAssetImageUrl, pickImageLanguage } from "../lib/tcgdex-shared"
+import { CARD_IMAGE_BLOB_PREFIX, LEGACY_CARD_IMAGE_BLOB_PREFIX } from "../lib/tcgdex-card-image"
 
 const ATLAS_REPO = "nstrelow/ptcg-image-atlas"
 const LANG = "en"
@@ -185,7 +192,80 @@ async function refreshAtlas() {
   console.log(JSON.stringify({ commit: commit.sha, atlasSources: atlas.sources.length, notInSourcesCsv: atlas.sources.filter(source => !known.has(source.id)).map(source => source.id) }, null, 2))
 }
 
-const commands: Record<string, () => Promise<void>> = { plan, verify, atlas: refreshAtlas }
+async function migrateBucket() {
+  await loadProjectEnvFiles()
+  const from = arg("from") ?? "binderdex-card-images"
+  const to = arg("to") ?? "holofolder-assets"
+  const apply = process.argv.includes("--apply")
+  const concurrency = Number(arg("concurrency") ?? 8)
+  const [accountId, accessKeyId, secretAccessKey] = ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"].map(name => process.env[name]?.trim() ?? "")
+  if (!/^[a-f0-9]{32}$/i.test(accountId) || !accessKeyId || !secretAccessKey) throw new Error("Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY (a token that reads the source and writes the destination)")
+  const client = new AwsClient({ accessKeyId, secretAccessKey, service: "s3", region: "auto", retries: 3 })
+  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`
+
+  async function list(bucket: string, prefix: string) {
+    const objects: ListedObject[] = []
+    let token: string | null = null
+    do {
+      const query = new URLSearchParams({ "list-type": "2", prefix, "max-keys": "1000" })
+      if (token) query.set("continuation-token", token)
+      const response = await client.fetch(`${endpoint}/${bucket}?${query}`)
+      if (!response.ok) throw new Error(`LIST ${bucket}: HTTP ${response.status} ${await response.text()}`)
+      const page = parseListedObjects(await response.text())
+      objects.push(...page.objects)
+      token = page.nextContinuationToken
+    } while (token)
+    return objects
+  }
+
+  const destinationPrefix = `${CARD_IMAGE_BLOB_PREFIX}/`
+  const source = await list(from, `${LEGACY_CARD_IMAGE_BLOB_PREFIX}/`)
+  let destination = await list(to, destinationPrefix)
+  let plan = planBucketCopy(source, destination)
+  console.log(JSON.stringify({ from, to, sourceObjects: source.length, destinationObjects: destination.length, toCopy: plan.copy.length, toCopyBytes: plan.copy.reduce((sum, item) => sum + item.size, 0), alreadyThere: plan.matching, mismatched: plan.mismatched.length, apply }, null, 2))
+  if (!apply) {
+    if (plan.copy.length || plan.mismatched.length) process.exitCode = 1
+    return
+  }
+
+  let next = 0
+  let copied = 0
+  const failures: string[] = []
+  await Promise.all(Array.from({ length: Math.min(concurrency, plan.copy.length) }, async () => {
+    while (next < plan.copy.length) {
+      const item = plan.copy[next++]
+      // Server-side CopyObject: no download, one Class A operation; metadata and Cache-Control are copied.
+      const response = await client.fetch(`${endpoint}/${to}/${item.to}`, { method: "PUT", headers: { "x-amz-copy-source": `/${from}/${item.from}` } })
+      if (response.ok) copied++
+      else failures.push(`${item.from}: HTTP ${response.status}`)
+      if ((copied + failures.length) % 2000 === 0) console.log(`copied ${copied}, failed ${failures.length} of ${plan.copy.length}`)
+    }
+  }))
+  if (failures.length) console.error(failures.slice(0, 20).join("\n"))
+
+  destination = await list(to, destinationPrefix)
+  plan = planBucketCopy(source, destination)
+  // Record every copied object for the developer API, so the new bucket's inventory is complete before the switch.
+  const keys = destination.map(object => object.key)
+  const db = new Client({ connectionString: getMirrorDatabaseUrl() })
+  await db.connect()
+  try {
+    for (let i = 0; i < keys.length; i += 1000) {
+      await db.query(
+        `insert into public.card_image_inventory (bucket, object_key, observed_at)
+         select $1, key, now() from unnest($2::text[]) as key
+         on conflict (bucket, object_key) do update set observed_at = excluded.observed_at`,
+        [to, keys.slice(i, i + 1000)],
+      )
+    }
+  } finally {
+    await db.end()
+  }
+  console.log(JSON.stringify({ copied, failed: failures.length, destinationObjects: destination.length, inventoryRows: keys.length, stillMissing: plan.copy.length, mismatched: plan.mismatched.length }, null, 2))
+  if (failures.length || plan.copy.length || plan.mismatched.length) process.exitCode = 1
+}
+
+const commands: Record<string, () => Promise<void>> = { plan, verify, atlas: refreshAtlas, "migrate-bucket": migrateBucket }
 const command = commands[process.argv[2] ?? ""]
 if (!command) {
   console.error(`Usage: bun run card-assets <${Object.keys(commands).join("|")}> [options]. See card-assets/AGENTS.md.`)

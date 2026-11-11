@@ -20,19 +20,21 @@ If a backend is selected but its credentials are missing or invalid, the mirror 
 
 Production and Preview use `CARD_IMAGE_STORE=r2` with the same R2 bucket and credentials. Development uses `CARD_IMAGE_STORE=off` unless configured explicitly. Deterministic object keys let previews reuse existing mirrored images. An inherited `BLOB_READ_WRITE_TOKEN` never enables Blob on its own. Environment changes only affect new deployments; older preview URLs retain their original configuration.
 
+Every object lives under a brand/game root, `pokemon/tcg/` (`CARD_ASSET_ROOT` in `lib/tcgdex-card-image.ts`), so other games can share the bucket later. The bucket is `holofolder-assets`. Until 2026-11 images lived in `binderdex-card-images` without the root (`cards/...`); `bun run card-assets migrate-bucket` copied them, a Cloudflare URL-rewrite rule on `assets.holofolder.com` maps old `/cards/*` URLs to `/pokemon/tcg/cards/*`, and the app, service worker and developer API accept old-layout URLs and keys and answer with the current ones. `card_image_inventory` accepts both key shapes (migration 111).
+
 Object keys are deterministic:
 
-- TCGdex: `cards/<lang>/<setId>/<localId>/<high|low>.<webp|png|jpg>`, stored as fetched.
-- Fallback sources: `cards/src/<source>/<key>.webp`, derived from the origin URL only (so the proxy needs no database lookup):
+- TCGdex: `pokemon/tcg/cards/<lang>/<setId>/<localId>/<high|low>.<webp|png|jpg>`, stored as fetched.
+- Fallback sources: `pokemon/tcg/cards/src/<source>/<key>.webp`, derived from the origin URL only (so the proxy needs no database lookup):
 
   | Source | Origin URL | Key |
   | --- | --- | --- |
-  | `tcgplayer` | `https://product-images.tcgplayer.com/<productId>.jpg` | `cards/src/tcgplayer/<productId>.webp` |
-  | `pokemontcg` | `https://images.pokemontcg.io/<set>/<file>.png` | `cards/src/pokemontcg/<set>/<file>.webp` |
-  | `scrydex` | `https://images.scrydex.com/pokemon/<cardId>/<large\|medium\|small>` | `cards/src/scrydex/<cardId>/<size>.webp` |
-  | `limitless` | `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/<SET>/<file>.png` | `cards/src/limitless/<SET>/<file>.webp` |
-  | `playshop` | `https://cdn.shopify.com/s/files/1/1015/7057/6719/files/<handle>.<png\|jpg>` | `cards/src/playshop/<handle>.webp` |
-  | `pokemoncom` | `https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/<SET>/<SET>_EN_<number>.png` | `cards/src/pokemoncom/<SET>/<SET>_EN_<number>.webp` |
+  | `tcgplayer` | `https://product-images.tcgplayer.com/<productId>.jpg` | `pokemon/tcg/cards/src/tcgplayer/<productId>.webp` |
+  | `pokemontcg` | `https://images.pokemontcg.io/<set>/<file>.png` | `pokemon/tcg/cards/src/pokemontcg/<set>/<file>.webp` |
+  | `scrydex` | `https://images.scrydex.com/pokemon/<cardId>/<large\|medium\|small>` | `pokemon/tcg/cards/src/scrydex/<cardId>/<size>.webp` |
+  | `limitless` | `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/<SET>/<file>.png` | `pokemon/tcg/cards/src/limitless/<SET>/<file>.webp` |
+  | `playshop` | `https://cdn.shopify.com/s/files/1/1015/7057/6719/files/<handle>.<png\|jpg>` | `pokemon/tcg/cards/src/playshop/<handle>.webp` |
+  | `pokemoncom` | `https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/<SET>/<SET>_EN_<number>.png` | `pokemon/tcg/cards/src/pokemoncom/<SET>/<SET>_EN_<number>.webp` |
 
   `cdn.shopify.com` serves every Shopify store, so only the playshop.fr store path counts as a card image (`isCardImageSourceUrl`); the proxy refuses any other path on that host. playshop.fr scans are used only for the French McDonald's collections (2013, 2018, 2019), which no card database has scans for; their stored copies are trimmed of any white margin around the card.
 
@@ -42,7 +44,7 @@ Uploads never overwrite (`If-None-Match: *` on R2, `allowOverwrite: false` on Bl
 
 ## Cloudflare R2 setup
 
-1. Cloudflare dashboard → R2 → **Create bucket**. Name it e.g. `binderdex-card-images`, keep the Standard storage class (the free tier doesn't cover Infrequent Access), and leave the location on Automatic.
+1. Cloudflare dashboard → R2 → **Create bucket**. Name it `holofolder-assets`, keep the Standard storage class (the free tier doesn't cover Infrequent Access), and leave the location on Automatic.
 2. Give the bucket a public URL by choosing one of these:
    - **Custom domain** (recommended for production; cached by Cloudflare's CDN): bucket → Settings → Custom Domains → Add → `assets.holofolder.com`. The `holofolder.com` zone must be on Cloudflare in the same account. Production also has **Always Use HTTPS** on for the zone, and a cache rule (`assets.holofolder.com`, path starts with `/cards/`) that caches eligible responses, respects the object's `cache-control` and caches 404s at the edge for 60 s only, so a newly mirrored image isn't hidden behind Cloudflare's default 4-hour 404 cache.
    - **r2.dev**: bucket → Settings → Public Development URL → Enable. Cloudflare rate-limits this URL and says it is for development only. It is disabled on the production bucket; keep it off so all reads go through the cached custom domain.
@@ -52,7 +54,7 @@ Uploads never overwrite (`If-None-Match: *` on R2, `allowOverwrite: false` on Bl
    - `R2_ACCOUNT_ID=<32-char account id>`
    - `R2_ACCESS_KEY_ID=<token access key id>` (sensitive)
    - `R2_SECRET_ACCESS_KEY=<token secret>` (sensitive)
-   - `R2_BUCKET=binderdex-card-images`
+   - `R2_BUCKET=holofolder-assets`
    - `R2_PUBLIC_BASE_URL=https://assets.holofolder.com` (the public card-image bucket custom domain)
 
    `CARD_IMAGE_BLOB=0` can stay; it only affects Blob. Redeploy production afterwards.
@@ -96,7 +98,7 @@ Afterwards run the backfill for the touched sets (`POST /api/admin/mirror-card-i
 
 ## Developer API image availability
 
-REST and MCP return stable public `https://assets.holofolder.com/cards/...` URLs. They read `card_image_inventory` in batches, including nested provider image fields, and never make HEAD or LIST requests to R2 while building JSON. Unknown objects return a null image. Private binder artwork uses its separate bucket and signed URLs.
+REST and MCP return stable public `https://assets.holofolder.com/pokemon/tcg/cards/...` URLs. They read `card_image_inventory` in batches, including nested provider image fields, and never make HEAD or LIST requests to R2 while building JSON. Unknown objects return a null image. Private binder artwork uses its separate bucket and signed URLs.
 
 Apply migrations 068–070 before deploying the API optimization. Seed migration 068 with `bun scripts/sync-card-image-inventory.ts` using the public card bucket's R2 credentials and Supabase service role. This lists only `cards/`, with a 150-request budget, and records confirmed keys without downloading or uploading images. A failed listing never prunes inventory. Mirror uploads and backfills maintain the inventory; rerun the sync after manual object deletions. API reads fail closed if the inventory is unavailable.
 
