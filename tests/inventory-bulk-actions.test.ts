@@ -15,7 +15,7 @@ function many(count: number) {
   const collectionId = snapshot.collections[0].id
   snapshot.items = []; snapshot.placements = []; snapshot.binders[0].slots = []
   for (let n = 0; n < count; n++) {
-    snapshot.items.push({ id: `copy-${n}`, ownerUserId: snapshot.ownerUserId, identity: { kind: "card", cardId: "unknown" }, grading: null, acquiredAt: null, version: 0, legacySource: { original: ["0007", null] } })
+    snapshot.items.push({ id: `copy-${n}`, ownerUserId: snapshot.ownerUserId, identity: { kind: "card", cardId: "unknown" }, grading: null, acquiredAt: null, version: 0 })
     for (const suffix of ["source", "dest"]) snapshot.binders[0].slots.push({ id: `${suffix}-${n}`, collectionId, ownerUserId: snapshot.ownerUserId, target: null, inventoryItemId: suffix === "source" ? `copy-${n}` : null, status: suffix === "source" ? "collected" : null, wantedCards: [], version: 0, presetOrigin: null })
     snapshot.placements.push({ inventoryItemId: `copy-${n}`, collectionId, slotId: `source-${n}`, version: 0 })
   }

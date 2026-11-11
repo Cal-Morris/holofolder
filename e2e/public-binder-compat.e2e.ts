@@ -1,24 +1,35 @@
 import { test, expect, emulateStandalone } from './fixtures'
-import type { CDPSession, Locator, Page } from '@playwright/test'
+import { mockCardPrices } from './price-fixtures'
+import type { CDPSession, Locator, Page, Request } from '@playwright/test'
 
-// Run only with scripts/verify-public-share-backend.ts and a build using that synthetic origin.
+// The REAL token and named share routes, rendered server-side against the synthetic PostgREST that
+// playwright.config.ts starts (scripts/verify-public-share-backend.ts). Each scenario is its own share.
 // Uses `page` directly: the harness fixture boots the private app first, whose storage reset can reload this page.
-const backend = process.env.PUBLIC_SHARE_BACKEND_URL ?? 'http://127.0.0.1:54471'
-test.skip(process.env.PUBLIC_SHARE_TEST_BACKEND !== '1', 'Requires the explicitly configured local synthetic PostgREST backend')
-test.describe.configure({ mode: 'serial' })
-const PATHS = ['/app/share/synthetic-token', '/app/u/synthetic-owner/mixed']
+const paths = (scenario: string, slug = scenario) => [`/app/share/synthetic-${scenario}`, `/app/u/synthetic-owner/${slug}`]
+const CATALOG = ['synthetic-mon', 'synthetic-trainer', 'synthetic-energy']
 
-for (const path of PATHS) {
-  test(`real share route keeps order, privacy and revocation in the read-only binder: ${path}`, async ({ page, request, standalone, insets }) => {
-    const priceRequests: string[] = []
-    page.on('request', r => { if (/card-prices|pokepulse|tcgplayer|cardmarket/i.test(r.url())) priceRequests.push(r.url()) })
-    const phone = await open(page, request, path, standalone, insets, '')
+/** Every request a share page makes. Only public catalog reads and images, plus card prices when the owner shares them. */
+function watch(page: Page) {
+  const writes: string[] = [], api: string[] = [], prices: Request[] = []
+  page.on('request', r => {
+    if (/\/app\/api\/card-prices/.test(r.url())) prices.push(r)
+    else if (r.method() !== 'GET' && r.method() !== 'HEAD') writes.push(`${r.method()} ${r.url()}`)
+    if (/\/app\/api\/(?!card-image-proxy|tcg-card-search|tcg-set-slots|tcg-illustrators|tcgdex-cache|card-prices)/.test(r.url())) api.push(r.url())
+  })
+  return { writes, api, prices }
+}
+
+for (const path of paths('token', 'mixed')) {
+  test(`prices off: order, privacy, Quick, Show, details and Join now on the real route: ${path}`, async ({ page, standalone, insets }) => {
+    const traffic = watch(page)
+    const phone = await open(page, path, standalone, insets)
     const response = phone.response
     expect(response.status()).toBe(200)
     expect(response.headers()['cache-control']).toContain('no-store')
     expect(response.headers()['cdn-cache-control']).toBe('no-store')
+    // HTML carries the RSC payload: no account, copy or storage IDs, private fields or price data.
     const html = await response.text()
-    for (const sentinel of ['PRIVATE', 'certificate', 'assetIds', 'wanted_by', 'purchase_cost', 'binder-allowed', 'marketGBP']) expect(html).not.toContain(sentinel)
+    for (const sentinel of ['PRIVATE', 'certificate', 'assetIds', 'wanted_by', 'purchase_cost', 'binder-allowed', 'marketGBP', 'gbp']) expect(html).not.toContain(sentinel)
     expect(html).toContain('noindex')
     const pockets = page.locator('[data-slot-id]')
     await expect(pockets).toHaveCount(6)
@@ -27,61 +38,81 @@ for (const path of PATHS) {
     ])
     await expect(page.getByText('Shared binder', { exact: true })).toBeVisible()
     await phone.expectNoHorizontalOverflow()
-    // Prices off: no saved estimate in details and no price reads anywhere.
-    await page.getByRole('button', { name: 'Synthetic Snorlax, Owned' }).first().click()
-    const unpriced = page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' })
-    await expect(unpriced).toContainText('Owned copy')
-    await expect(unpriced).not.toContainText('£')
-    await expect(unpriced).not.toContainText('market estimate')
-    await page.keyboard.press('Escape')
-    await page.getByRole('button', { name: 'Next binder page', exact: true }).click()
-    await expect(page.getByRole('button', { name: 'snorlax, Unfilled target' })).toBeVisible()
-    const calls = await (await request.get(`${backend}/_synthetic/calls`)).json()
-    expect(calls.filter((c: { table: string }) => c.table === 'card_prices')).toHaveLength(0)
-    expect(priceRequests).toEqual([])
-    await request.get(`${backend}/_synthetic/reset?rows=3&cols=8&light=1&stress=1`)
-    await page.reload()
-    await expect(page.getByRole('region', { name: 'Scrollable binder page 1' })).toBeVisible({ timeout: 30_000 })
-    await phone.expectNoHorizontalOverflow()
+    // Card details from a pocket, read-only and without a price.
     await page.getByRole('button', { name: 'Synthetic Snorlax, Owned' }).first().click()
     const detail = page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' })
-    await expect(detail).toContainText('Recorded grading provider')
-    // Not checked against the safe area here: a 500-character stress grade overflows the shared SlotDetail
-    // in standalone (private app too). Normal details are checked in the next test.
+    await expect(detail).toContainText('Owned copy')
+    await expect(detail).not.toContainText('£')
+    await expect(detail).not.toContainText('Market price')
     await page.keyboard.press('Escape')
     await expect(detail).toHaveCount(0)
+    await page.getByRole('button', { name: 'Next binder page', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'snorlax, Unfilled target' })).toBeVisible()
+    // The View sheet has no Prices switch when the owner doesn't share prices.
+    await page.getByRole('button', { name: 'View', exact: true }).click()
+    await expect(page.getByRole('dialog', { name: 'View options' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Prices/ })).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    // Search works read-only; Quick mode is the price checker, so without shared prices it stays on Search.
+    await page.getByRole('button', { name: 'Search', exact: true }).click()
+    const search = page.getByRole('dialog', { name: 'Search Pokemon' })
+    await search.getByRole('button', { name: 'Quick mode' }).click()
+    await expect(page.getByRole('dialog', { name: 'Quick mode' })).toHaveCount(0)
+    await expect(search).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(search).toHaveCount(0)
+    // Show mode, read-only, from More.
+    await page.getByRole('button', { name: 'More' }).click()
+    await page.getByRole('menuitem', { name: 'Show mode' }).click()
+    await page.getByRole('button', { name: 'More' }).click()
+    await page.getByRole('menuitem', { name: 'Exit show mode' }).click()
+    // Join now opens the same Create account dialog guests get.
+    const join = page.getByRole('button', { name: 'Join now' })
+    await phone.expectMinTapTarget(join, 36)
+    await join.click()
+    await expect(page.getByRole('dialog', { name: 'Create account' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog', { name: 'Create account' })).toHaveCount(0)
     await phone.expectNoHorizontalOverflow()
-    await request.get(`${backend}/_synthetic/reset?revoked=1`)
-    const revoked = await page.reload()
-    // Streamed Next notFound can retain HTTP 200 after the public PPR shell was sent.
-    expect([200, 404]).toContain(revoked?.status())
-    expect(revoked?.headers()['cache-control']).toContain('no-store')
-    await expect(page.getByRole('heading', { name: /Page not found/i })).toBeVisible()
-    await expect(page.locator('[data-slot-id]')).toHaveCount(0)
+    expect(traffic.prices.map(r => r.url())).toEqual([])
+    expect(traffic.writes).toEqual([])
+    expect(traffic.api).toEqual([])
   })
+}
 
-  test(`swipe turns one page, wants are dimmed, details and app controls stay read-only: ${path}`, async ({ page, request, standalone, insets }) => {
-    const writes: string[] = []
-    const api: string[] = []
-    page.on('request', r => {
-      if (r.method() !== 'GET' && r.method() !== 'HEAD') writes.push(`${r.method()} ${r.url()}`)
-      // Only public catalog reads (card search, sets, illustrators) and images; never account, collection, storage or price APIs.
-      if (/\/app\/api\/(?!card-image-proxy|tcg-card-search|tcg-set-slots|tcg-illustrators|tcgdex-cache)/.test(r.url())) api.push(r.url())
-    })
-    const phone = await open(page, request, path, standalone, insets, 'wanted=1&prices=1&rows=1&cols=3')
+for (const path of paths('priced')) {
+  test(`prices on: Prices view, price details, swipe, search and wants on the real route: ${path}`, async ({ page, standalone, insets }) => {
+    // Fixture: synthetic prices only, served from a mocked /app/api/card-prices.
+    await mockCardPrices(page, { 'synthetic-mon': { confidence: 'high', market: 12.34 }, 'synthetic-trainer': { confidence: 'high', market: 3.5 } })
+    const traffic = watch(page)
+    const phone = await open(page, path, standalone, insets)
     const html = await phone.response.text()
-    for (const sentinel of ['PRIVATE', 'wanted_by', '00000000-0000', 'added_at', 'notes']) expect(html).not.toContain(sentinel)
+    for (const sentinel of ['PRIVATE', 'wanted_by', '00000000-0000', 'added_at', 'notes', 'gbp']) expect(html).not.toContain(sentinel)
     const pageNumber = page.getByRole('spinbutton', { name: 'Binder page number' })
     const current = page.locator('[data-binder-page]')
     await expect(current).toHaveAttribute('data-binder-page', '1')
     // An owned copy with a stored want previews the want dimmed in Mixed, as the private binder does.
     await expect(page.locator('[data-slot-id="public-0"] img')).toHaveClass(/grayscale/)
-    // Prices on: the owner's saved estimate from the share payload, with no live price request.
+    // Shared prices open in the Prices view: each owned pocket shows its printing's price.
+    await expect(page.locator('[data-slot-id="public-0"]')).toContainText('£12.34')
+    await expect(page.locator('[data-slot-id="public-2"]')).toContainText('£3.50')
     await page.locator('[data-slot-id="public-0"]').tap()
     const priced = page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' })
-    await expect(priced).toContainText('Saved market estimate: £12.34')
+    await expect(priced).toContainText('Market price: £12.34')
     await page.keyboard.press('Escape')
     await expect(priced).toHaveCount(0)
+    // The View sheet's Prices switch turns pocket prices off and on.
+    await page.getByRole('button', { name: 'View', exact: true }).click()
+    const prices = page.getByRole('button', { name: /^Prices/ })
+    await expect(prices).toHaveAttribute('aria-pressed', 'true')
+    await prices.click()
+    await expect(prices).toHaveAttribute('aria-pressed', 'false')
+    await page.keyboard.press('Escape')
+    await expect(page.locator('[data-slot-id="public-0"]')).not.toContainText('£')
+    // Price lookups name only public catalog printings.
+    const looked = traffic.prices.flatMap(r => (r.postDataJSON()?.cards ?? []).map((c: { cardId: string }) => c.cardId))
+    expect(looked.length).toBeGreaterThan(0)
+    expect(looked.every((id: string) => CATALOG.includes(id))).toBe(true)
     // One swipe moves exactly one of three pages; the last page is a hard stop; vertical drags never turn.
     await phone.swipe(-90)
     await expect(current).toHaveAttribute('data-binder-page', '2')
@@ -100,6 +131,7 @@ for (const path of PATHS) {
     await wanted.tap()
     await expect(detail).toBeVisible()
     await expect(detail.getByRole('button', { name: /assign|place|remove|edit/i })).toHaveCount(0)
+    await expect(detail).not.toContainText('Market price')
     const close = detail.getByRole('button', { name: /close/i }).first()
     await phone.expectMinTapTarget(close, 36)
     await phone.expectWithinSafeViewport(close)
@@ -140,32 +172,54 @@ for (const path of PATHS) {
     await expect(current).toHaveAttribute('data-binder-page', '3')
     await expect(page.getByRole('dialog', { name: 'snorlax, Unfilled target details' })).toBeVisible()
     await page.keyboard.press('Escape')
-    await pageNumber.fill('1')
-    await pageNumber.press('Enter')
-    await expect(current).toHaveAttribute('data-binder-page', '1')
-    await page.getByRole('button', { name: 'More' }).click()
-    await expect(page.getByRole('menuitem', { name: 'Show mode' })).toBeVisible()
-    await page.keyboard.press('Escape')
-    const join = page.getByRole('button', { name: 'Join now' })
-    await phone.expectMinTapTarget(join, 36)
-    await join.click()
-    await expect(page.getByRole('dialog', { name: 'Create account' })).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(page.getByRole('dialog', { name: 'Create account' })).toHaveCount(0)
+    // Quick mode, from the Search sheet, with the shared prices.
+    await page.getByRole('button', { name: 'Search', exact: true }).click()
+    await page.getByRole('dialog', { name: 'Search Pokemon' }).getByRole('button', { name: 'Quick mode' }).click()
+    const quick = page.getByRole('dialog', { name: 'Quick mode' })
+    await expect(quick).toBeVisible()
+    await phone.expectWithinSafeViewport(quick.getByRole('button', { name: 'Close quick mode' }))
+    await quick.getByRole('button', { name: 'Close quick mode' }).click()
+    await expect(quick).toHaveCount(0)
     await phone.expectMinTapTarget(page.getByRole('button', { name: 'Previous binder page' }), 36)
     // The dock pads itself over the home indicator; its buttons must sit above it.
     await phone.expectWithinSafeViewport(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Binder' }))
     await phone.expectWithinSafeViewport(current)
     await phone.expectNoHorizontalOverflow()
-    // No account, collection, settings or storage traffic; nothing is ever written.
-    expect(writes).toEqual([])
-    expect(api).toEqual([])
+    expect(traffic.writes).toEqual([])
+    expect(traffic.api).toEqual([])
   })
 }
 
-async function open(page: Page, request: { get: (url: string) => Promise<unknown> }, path: string, standalone: boolean, insets: { top: number; bottom: number; left: number; right: number }, reset: string) {
+for (const path of paths('stress')) {
+  test(`wide 3x8 light page and long recorded grading stay inside the phone: ${path}`, async ({ page, standalone, insets }) => {
+    // One page only: there is no page turn, so no swipe handler to wait for.
+    const phone = await open(page, path, standalone, insets, false)
+    await expect(page.getByRole('region', { name: 'Scrollable binder page 1' })).toBeVisible()
+    await phone.expectNoHorizontalOverflow()
+    await page.getByRole('button', { name: 'Synthetic Snorlax, Owned' }).first().click()
+    const detail = page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' })
+    await expect(detail).toContainText('Recorded grading provider')
+    // Not checked against the safe area here: a 500-character stress grade overflows the shared SlotDetail
+    // in standalone (private app too). Normal details are checked above.
+    await page.keyboard.press('Escape')
+    await expect(detail).toHaveCount(0)
+    await phone.expectNoHorizontalOverflow()
+  })
+}
+
+for (const path of paths('revoked')) {
+  test(`a revoked share is not found and renders no pockets: ${path}`, async ({ page }) => {
+    const response = await page.goto(path)
+    // Streamed Next notFound can retain HTTP 200 after the public PPR shell was sent.
+    expect([200, 404]).toContain(response?.status())
+    expect(response?.headers()['cache-control']).toContain('no-store')
+    await expect(page.getByRole('heading', { name: /Page not found/i })).toBeVisible()
+    await expect(page.locator('[data-slot-id]')).toHaveCount(0)
+  })
+}
+
+async function open(page: Page, path: string, standalone: boolean, insets: { top: number; bottom: number; left: number; right: number }, swipeable = true) {
   if (standalone) await emulateStandalone(page, insets)
-  await request.get(`${backend}/_synthetic/reset?${reset}`)
   const response = (await page.goto(path))!
   const stageSelector = '[data-page-turn-ms]'
   // Streamed content waits in a hidden Suspense placeholder until React reveals it.
@@ -173,7 +227,7 @@ async function open(page: Page, request: { get: (url: string) => Promise<unknown
   // Synthetic images 404, and CardImage re-mounts an <img> on failure; a touch on a detached node never ends.
   await page.waitForLoadState('networkidle')
   const touch = await page.context().newCDPSession(page)
-  await swipeReady(touch)
+  if (swipeable) await swipeReady(touch)
   const box = async (locator: Locator) => { const value = await locator.boundingBox(); expect(value).not.toBeNull(); return value! }
   return {
     response,

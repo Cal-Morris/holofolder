@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { fixture, owner, collection } from "./inventory-read-server"
+import { fixture, owner, collection, developerRead } from "./inventory-read-server"
 import { createDeveloperKey } from "../../lib/server/developer-access/key-secret"
 import type { OperationContext } from "../../lib/developer-api/types"
 import { PRESET_OPERATIONS, PRESET_PERMISSIONS, PRESET_PREVIEW_LIMITS } from "../../lib/developer-api/presets"
@@ -46,6 +46,7 @@ async function main() {
     if (table === "resolve_developer_access") return Response.json({ owner_user_id: resolvedOwner, member_ids: members, billing_access: { perpetual: paid }, budget: { allowed: budget } })
     if (table === "consume_developer_preauth" || table === "consume_developer_request") return Response.json({ allowed: budget })
     if (table === "billing_partner_allowed") return Response.json(allowed)
+    if (table === "developer_inventory_read_v1") return developerRead(f.tables, init?.body, { oauthPermissions: grant ? permissions : undefined, paid, allowed })
     assert.ok(["developer_api_keys", "partnerships", "tcg_cards", "tcg_sets"].includes(table), "no executor/private state/cookie reader: " + table)
     operationQueries++
     return f.transport(input, init)
@@ -125,7 +126,7 @@ async function main() {
         if (mode === "billing") paid = false
         if (mode === "partner") allowed = false
         if (mode === "unlink") f.tables.partnerships = []
-        if (mode === "owner") resolvedOwner = partner
+        if (mode === "owner") f.tables.partnerships[0].owner_user_id = partner
       }
       await assert.rejects(preview({ presetId: "selected-printings", printings: [printing] }, context(transport)), mode)
       race = undefined; Object.assign(f.tables, saved); members = originalMembers; resolvedOwner = owner; paid = grant = allowed = true; permissions = PRESET_PERMISSIONS

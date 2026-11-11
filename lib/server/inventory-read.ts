@@ -1,51 +1,36 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { isSlotContractId } from "@/lib/domain/binder-slots"
-import { readTrustedInventoryState, InventoryReadError, type InventoryReadOptions } from "./inventory-read-core"
-export { InventoryReadError, type InventoryReadOptions } from "./inventory-read-core"
+import { InventoryReadError, isRow, parseInventorySnapshot, rows, unavailable } from "./inventory-read-core"
+import { buildInventoryCatalog } from "./inventory-read-catalog"
+export { InventoryReadError } from "./inventory-read-core"
 
 /** Cookie/RLS boundary only. Never pass an admin client or developer credentials here.
- * Invoke freshly after successful ledger replay; retained snapshots cannot prove a fresh-read ACK. */
-export async function readOwnerInventorySnapshot(client?: SupabaseClient, options: InventoryReadOptions = {}) {
-  return (await readOwnerInventoryState(client, options)).snapshot
+ * inventory_read_v2 checks the live session, user, partnership and billing, then reads everything in one snapshot. */
+export async function readOwnerInventorySnapshot(client?: SupabaseClient) {
+  return (await readOwnerInventoryState(client)).snapshot
 }
-export async function readOwnerInventoryState(client?: SupabaseClient, options: InventoryReadOptions = {}) {
+export async function readOwnerInventoryState(client?: SupabaseClient) {
   const db = client ?? await (await import("@/lib/supabase/server")).createClient()
-  const fail = (code: InventoryReadError["code"], status: InventoryReadError["status"]): never => { throw new InventoryReadError(code, status) }
-  const unavailable = (): never => fail("inventory_read_unavailable", 503)
-  const rows = (value: unknown): Record<string, unknown>[] => {
-    if (!Array.isArray(value) || value.some(r => !r || typeof r !== "object" || Array.isArray(r))) return unavailable()
-    return value
+  const { data, error } = await db.rpc("inventory_read_v2").abortSignal(AbortSignal.timeout(15_000))
+  if (error) {
+    // Anonymous callers aren't granted the function at all; both are a sign-in problem.
+    if (error.code === "42501") throw error.message === "inventory_read_forbidden"
+      ? new InventoryReadError("inventory_read_forbidden", 403) : new InventoryReadError("inventory_sign_in_required", 401)
+    return unavailable()
   }
-  const result = await readTrustedInventoryState(db, { privateSettings: false, scope: async (check, signal) => {
-    check()
-    const claims = await db.auth.getClaims()
-    if (claims.error || !claims.data?.claims.sub || claims.data.claims.client_id || claims.data.claims.role !== "authenticated") fail("inventory_sign_in_required", 401)
-    const authSessionId = claims.data!.claims.session_id
-    if (!isSlotContractId(authSessionId)) return fail("inventory_sign_in_required", 401)
-    check()
-    const user = await db.auth.getUser()
-    const actor = user.data.user?.id
-    if (user.error || !actor || actor !== claims.data!.claims.sub) return fail("inventory_sign_in_required", 401)
-    check()
-    const membership = await db.from("partnerships").select("id,owner_user_id,user1_id,user2_id")
-      .or(`user1_id.eq.${actor},user2_id.eq.${actor}`).limit(2).abortSignal(signal)
-    if (membership.error) return unavailable()
-    const partners = rows(membership.data)
-    if (partners.length > 1) return unavailable()
-    const p = partners[0]
-    if (p && (p.user1_id !== actor && p.user2_id !== actor || p.owner_user_id !== p.user1_id && p.owner_user_id !== p.user2_id)) return fail("inventory_read_forbidden", 403)
-    const owner = p ? p.owner_user_id : actor
-    if (!isSlotContractId(owner)) return unavailable()
-    check()
-    const access = await db.rpc("billing_partner_allowed", { owner_id: owner, actor_id: actor }).abortSignal(signal)
-    // Unlike legacy compatibility, missing billing policy never silently allows new reads.
-    if (access.error || typeof access.data !== "boolean") return unavailable()
-    // A paused partner reads their own collection, matching storage_execute_v1's owner selection.
-    if (!access.data) return owner === actor ? fail("inventory_read_forbidden", 403) : { actor, owner: actor, authorityId: authSessionId, partnership: null, partnerPaused: true }
-    return { actor, owner, authorityId: authSessionId, partnership: p ?? null }
-  } }, options)
-  const { authorityId, slotPositions: _slotPositions, collectionMetadata, ...state } = result
+  if (!isRow(data) || !isRow(data.scope) || !isRow(data.snapshot)) return unavailable()
+  const { actor, owner, session_id: authSessionId, partnership, settings } = data.scope
+  if (![actor, owner, authSessionId].every(isSlotContractId) || partnership !== null && !isRow(partnership)
+    || settings !== null && !isRow(settings)) return unavailable()
+  const members = partnership ? [partnership.user1_id, partnership.user2_id] : [actor]
+  if (!members.includes(actor) || !members.includes(owner)) return unavailable()
+  const partnerUserId = partnership ? (partnership.user1_id === owner ? partnership.user2_id : partnership.user1_id) : null
+  if (partnerUserId !== null && (!isSlotContractId(partnerUserId) || partnerUserId === owner)) return unavailable()
+  const { snapshot, evidence, layouts, collectionMetadata } = await parseInventorySnapshot(data.snapshot, owner as string, settings as Record<string, unknown> | null)
+  const catalog = isRow(data.snapshot.catalog) ? buildInventoryCatalog({ cards: rows(data.snapshot.catalog.cards),
+    dex: rows(data.snapshot.catalog.dex), sets: rows(data.snapshot.catalog.sets) }) : unavailable()
   const defaults = Object.entries(collectionMetadata).filter(([, c]) => c.isDefault === true)
   const defaultCollectionId = defaults.length === 1 && Object.values(collectionMetadata).every(c => typeof c.isDefault === "boolean") ? defaults[0][0] : undefined
-  return { ...state, authSessionId: authorityId, ...(defaultCollectionId ? { defaultCollectionId } : {}) }
+  return { snapshot, evidence, navigation: { catalog, layouts }, actorUserId: actor as string, partnerUserId,
+    authSessionId: authSessionId as string, ...(defaultCollectionId ? { defaultCollectionId } : {}) }
 }

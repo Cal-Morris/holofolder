@@ -3,12 +3,12 @@ import { backupContentKey } from '@/lib/binder-backup-v2'
 import { blankPreset } from '@/lib/binder-creation-draft'
 import { projectCollectionCreation, parseCollectionCreation } from "@/lib/domain/storage-creation"
 import { createClient } from "@supabase/supabase-js"
-import { fixture } from "./inventory-read-server"
+import { fixture, catalogRows, snapshotCardIds } from "./inventory-read-server"
 import { readOwnerInventorySnapshot } from "@/lib/server/inventory-read"
 import { projectSlotIntent } from "@/lib/collection/slot-optimistic"
 import { parseStorageRequest } from "@/lib/server/operations/storage-contract"
 import { browserHostCatalog } from "@/lib/collection/browser-host-catalog"
-import { readInventoryCatalog } from "@/lib/server/inventory-read-catalog"
+import { buildInventoryCatalog } from "@/lib/server/inventory-read-catalog"
 import { emptyGradingRecord } from "@/lib/grading/draft"
 import { seedSlotRemoval, seedSlotRemovalBound } from "./slot-removal-host"
 import { readAuditHeader } from "@/lib/supabase/audit-header"
@@ -351,7 +351,7 @@ export function storageCommandHarness(id: string) {
       }
       // Like slot_catalog_card_v1, the server resolves any mirror printing a command names, owned or not.
       const named = JSON.stringify(request).match(/"cardId":"[^"]+"/g)?.map(m => ({ identity: { kind: "card", cardId: m.slice(10, -1) } })) ?? []
-      const catalog = browserHostCatalog(await readInventoryCatalog(state.client, { ...snapshot, items: [...snapshot.items, ...named] } as typeof snapshot, new AbortController().signal, () => {}))
+      const catalog = browserHostCatalog(buildInventoryCatalog(catalogRows(state.tables, snapshotCardIds({ ...snapshot, items: [...snapshot.items, ...named] } as typeof snapshot))))
       const next = projectSlotIntent(snapshot, { kind: input.operation, request,
         context: { source: "app", clientId: null, operationId: key, batchId: key, clientOccurredAt: null } } as Parameters<typeof projectSlotIntent>[1], catalog)
       if (id.startsWith("raw-")) {
@@ -379,7 +379,7 @@ export function storageCommandHarness(id: string) {
       state.tables.binder_slots = next.binders.flatMap(b => b.slots.map((s, position) => ({ id: s.id, owner_user_id: owner, collection_id: b.collectionId,
         position, target: s.target, status: s.status, wanted_cards: s.wantedCards, preset_origin: s.presetOrigin, version: s.version })))
       state.tables.inventory_items = next.items.map(i => ({ ...state.tables.inventory_items.find(row => row.id === i.id),
-        id: i.id, owner_user_id: owner, identity: i.identity, grading: i.grading, acquired_at: i.acquiredAt, version: i.version, legacy_source: i.legacySource ?? null }))
+        id: i.id, owner_user_id: owner, identity: i.identity, grading: i.grading, acquired_at: i.acquiredAt, version: i.version }))
       state.tables.inventory_placements = next.placements.map(p => ({ inventory_item_id: p.inventoryItemId, owner_user_id: owner,
         collection_id: p.collectionId, slot_id: p.slotId, version: p.version }))
       const result = input.operation === "inventory" ? { inventoryRevision: next.inventoryRevision, changed: next.inventoryRevision !== snapshot.inventoryRevision,

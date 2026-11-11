@@ -16,7 +16,9 @@ const MOVE_TOLERANCE_PX = 8
  * menu key or a long press opens them instead; a long press is dropped as soon as the finger pans, scrolls or
  * turns the page, and never also counts as a tap. `marked` shows layout selection on the pocket itself.
  */
-export function OrderedSlot({ slot, slotLabel, selected, onSelect, onMenu, marked, dimmed, imageSizes, glareStyle, glare, interactionKey, cardDisplay }: {
+export function OrderedSlot({ slot, slotLabel, selected, onSelect, onMenu, marked, dimmed, imageSizes, glareStyle, glare, interactionKey, cardDisplay, priceLabel }: {
+  /** The saved market price shown on the pocket in the Prices view. */
+  priceLabel?: string | null
   cardDisplay?: BinderCardDisplay; interactionKey?: string; slot: ReadOnlyDisplaySlot; slotLabel?: string; selected: boolean; onSelect: (id: string) => void
   onMenu?: (id: string, point: { x: number; y: number }) => void
   /** Layout selection: undefined outside layout editing, otherwise whether this pocket is selected. */
@@ -73,6 +75,8 @@ export function OrderedSlot({ slot, slotLabel, selected, onSelect, onMenu, marke
       <span className="block truncate">{slot.item ? "Owned" : slot.target ? "Unfilled target" : "Empty spacer"}</span>
       {slot.item?.grading && <span className="block truncate">Recorded grade: {slot.item.grading.grade ?? "Unknown"}</span>}
     </span>
+    {/* Prices view: the owned copy's market price, over the card's foot like the legacy pocket subtitle. */}
+    {priceLabel && <span className="absolute inset-x-0.5 bottom-0.5 z-10 truncate rounded bg-black/72 px-1 py-0.5 text-center text-[9px] font-semibold tabular-nums text-white sm:text-[10px]">{priceLabel}</span>}
     {glare && <BinderSlotGlare glareStyle={glareStyle} innerRadius={TRADING_CARD_CORNER_RADIUS} />}
   </button>
 }

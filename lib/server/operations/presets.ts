@@ -7,7 +7,7 @@ import { PRESET_OPERATIONS, COPIED_PRESETS, PRESET_PREVIEW_LIMITS as limits, PRE
 import { paginateEntries } from "@/lib/developer-api/pagination"
 import { DeveloperAccessError, requirePermissions } from "@/lib/developer-api/permissions"
 import type { OperationContext } from "@/lib/developer-api/types"
-import { developerReadAuthority } from "@/lib/server/developer-access/native-read"
+import { readDeveloperScope } from "@/lib/server/developer-access/native-read"
 import { readPresetPrintings } from "@/lib/server/preset-catalog"
 
 export async function executePresetOperation(context: OperationContext, name: string, input: unknown) {
@@ -25,8 +25,8 @@ export async function executePresetOperation(context: OperationContext, name: st
   try {
     return await Promise.race([ (async () => {
       const { createAdminClient } = await import("@/lib/supabase/admin")
-      const db = createAdminClient(), authority = developerReadAuthority(db, context, PRESET_PERMISSIONS)
-      const before = await authority.scope(check, controller.signal)
+      const db = createAdminClient(), scope = () => readDeveloperScope(db, context, "scope", {}, PRESET_PERMISSIONS)
+      const before = await scope()
       const envelope = { projection: "copied-preset-preview-v1", completeSnapshot: false }
       let result: unknown
       if (name === "list_storage_presets") {
@@ -59,7 +59,7 @@ export async function executePresetOperation(context: OperationContext, name: st
           exclusions: ["Set/master-set preview generation and complete variant coverage are unsupported here. Reviewed manifest.setScope can be persisted through creation with migration 101.", ...(query.printings ? ["Only explicitly selected mirrored row IDs; no exhaustive species/form/set search or alias resolution."] : ["No separate species-form identities or card-printing expansion."])],
           unknowns: query.printings?.some(p => !p.finish) ? ["Omitted finish is unconstrained, not evidence that any particular finish exists."] : [] }
       }
-      const after = await authority.scope(check, controller.signal)
+      const after = await scope()
       if (JSON.stringify(before) !== JSON.stringify(after)) throw new DeveloperAccessError("native_read_forbidden", "Current developer scope changed. Authenticate again.", 403)
       const output = operation.responseSchema!.parse(result)
       if (Buffer.byteLength(JSON.stringify(output)) > limits.responseBytes) throw exhausted()

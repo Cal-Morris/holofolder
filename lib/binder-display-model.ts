@@ -8,8 +8,6 @@ import { toCardImageSrc } from "@/lib/card-image-url"
 
 export interface DisplayCatalogCard {
   name: string; image?: string; localId?: string; set?: { name: string }; rarity?: string; illustrator?: string
-  /** Public shares only: the owner-opted-in saved GBP market estimate already in the share payload. */
-  savedMarketGBP?: number
 }
 /** Ephemeral read model. The item is a reference, never slot-local ownership. */
 export interface BinderDisplaySlot {
@@ -21,6 +19,11 @@ export interface BinderDisplaySlot {
   wantedCards: readonly WantedCard[]
   legacyPokemonId?: number
   legacyItem?: CollectedPokemon
+}
+/** The printing an owned pocket is priced by: its copy's card and language. Targets, wants and Pokémon copies have none. */
+export function displaySlotPriceLookup(slot: Pick<BinderDisplaySlot, "item">): { cardId: string; language: CardLanguage } | null {
+  const identity = slot.item?.identity
+  return identity?.kind === "card" ? { cardId: identity.cardId, language: identity.language ?? "en" } : null
 }
 /** Minimal browse contract shared by private display references and public projections. */
 export interface ReadOnlyDisplaySlot {

@@ -5,43 +5,62 @@ import { DeveloperAccessError, requirePermissions } from "@/lib/developer-api/pe
 import { decodePage } from "@/lib/developer-api/pagination"
 import { COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
 import { NATIVE_READ_OPERATIONS } from "@/lib/developer-api/native-read"
-import { developerReadAuthority } from "@/lib/server/developer-access/native-read"
-import { readTrustedInventoryState, InventoryReadError } from "@/lib/server/inventory-read-core"
+import { readDeveloperScope, type DeveloperReadPart } from "@/lib/server/developer-access/native-read"
+import { InventoryReadError, collectionGrid, collectionMetadata, rows, toCollection, toItem, toPlacement, toSlot, type Row } from "@/lib/server/inventory-read-core"
+import { isSlotRevision, normalizeBinderSnapshot } from "@/lib/domain/binder-slots"
+import type { WantedCard } from "@/lib/domain/cards"
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex")
 const conflict = (): never => { throw new DeveloperAccessError("stale_native_cursor", "Collection state changed. Restart pagination without a cursor.", 409) }
 const invalid = (): never => { throw new DeveloperAccessError("invalid_pagination", "Use an unchanged cursor from this credential and query.", 400) }
 const maxResponseBytes = 1024 * 1024
+const PARTS: Record<string, DeveloperReadPart> = { list_inventory_items: "items", get_inventory_item: "item",
+  list_storage_collections: "collections", list_storage_slots: "slots", get_storage_slot: "slots" }
 
-/** Declared authenticated projection, not the private planner transport or a complete/fresh-read ACK. */
-function project(state: Awaited<ReturnType<typeof readTrustedInventoryState>>) {
-  const { snapshot: s } = state
-  const placements = new Map(s.placements.map(p => [p.inventoryItemId, p]))
-  const items = s.items.map(i => ({ id: i.id, version: i.version, identity: i.identity, acquiredAt: i.acquiredAt,
+const want = (w: WantedCard) => ({ card_id: w.card_id, card_name: w.card_name, added_at: w.added_at,
+  ...(w.card_language ? { card_language: w.card_language } : {}), ...(w.card_finish ? { card_finish: w.card_finish } : {}),
+  ...(w.card_set !== undefined ? { card_set: w.card_set } : {}), ...(w.rarity !== undefined ? { rarity: w.rarity } : {}),
+  ...(w.local_id !== undefined ? { local_id: w.local_id } : {}), ...(w.illustrator !== undefined ? { illustrator: w.illustrator } : {}),
+  ...(w.set_total !== undefined ? { set_total: w.set_total } : {}) })
+
+/** Declared authenticated projection of one scoped inventory_snapshot_v2 part, never the private planner transport. */
+function project(doc: Row, owner: string, settings: Row | null) {
+  if (doc.revision !== null && !isSlotRevision(doc.revision)) throw new InventoryReadError("inventory_read_unavailable", 503)
+  const placements = new Map(rows(doc.placements).map(toPlacement).map(p => [p.inventoryItemId, p]))
+  const placedIn = new Map([...placements.values()].map(p => [p.slotId, p.inventoryItemId]))
+  const itemRecords = rows(doc.items).map(r => toItem(r, owner))
+  const items = itemRecords.map(i => ({ id: i.id, version: i.version, identity: i.identity, acquiredAt: i.acquiredAt,
     grading: i.grading ? { provider: i.grading.provider, grade: i.grading.grade, scale: i.grading.scale,
       designation: i.grading.designation, holder: i.grading.holder, subgrades: i.grading.subgrades, labelVariant: i.grading.label.variant } : null,
     placement: placements.get(i.id) ?? null }))
-  const itemVersions = new Map(s.items.map(i => [i.id, i.version]))
-  const collections = s.collections.map(c => {
-    const b = s.binders.find(b => b.collectionId === c.id)!, grid = state.navigation.layouts.find(l => l.collectionId === c.id)
-    return { ...state.collectionMetadata[c.id], presetManifest: b.presetManifest, id: c.id, name: c.name, kind: c.kind, defaultPresentation: c.defaultPresentation, version: c.version,
-      ...(c.location !== undefined ? { location: c.location } : {}), layoutRevision: b.layoutRevision, slotCount: b.slots.length,
-      grid: grid ? { rows: grid.rows, cols: grid.cols } : null }
-  })
-  const collectionVersions = new Map(s.collections.map(c => [c.id, c.version]))
-  const slots = s.binders.flatMap(b => b.slots.map(slot => ({ id: slot.id, collectionId: slot.collectionId,
-    position: state.slotPositions[slot.id], version: slot.version, collectionVersion: collectionVersions.get(b.collectionId)!,
-    layoutRevision: b.layoutRevision, inventoryItemId: slot.inventoryItemId,
-    itemVersion: slot.inventoryItemId === null ? null : itemVersions.get(slot.inventoryItemId)!,
-    placementVersion: slot.inventoryItemId === null ? null : placements.get(slot.inventoryItemId)!.version,
-    target: slot.target, status: slot.status,
-    wantedCards: slot.wantedCards.map(w => ({ card_id: w.card_id, card_name: w.card_name, added_at: w.added_at,
-      ...(w.card_language ? { card_language: w.card_language } : {}), ...(w.card_finish ? { card_finish: w.card_finish } : {}),
-      ...(w.card_set !== undefined ? { card_set: w.card_set } : {}), ...(w.rarity !== undefined ? { rarity: w.rarity } : {}),
-      ...(w.local_id !== undefined ? { local_id: w.local_id } : {}), ...(w.illustrator !== undefined ? { illustrator: w.illustrator } : {}),
-      ...(w.set_total !== undefined ? { set_total: w.set_total } : {}) })),
-  })))
-  return { items, collections, slots }
+  const itemVersions = new Map(itemRecords.map(i => [i.id, i.version]))
+  const collections = [], slots = []
+  for (const c of rows(doc.collections)) {
+    const collection = toCollection(c, owner)
+    const binder = normalizeBinderSnapshot({ ownerUserId: owner, collectionId: collection.id, layoutRevision: c.layout_revision, presetManifest: c.preset_manifest, slots: [] })
+    if (!binder) throw new InventoryReadError("inventory_read_unavailable", 503)
+    const slotRows = c.slots === null ? [] : rows(c.slots)
+    for (const r of slotRows) {
+      const slot = toSlot(r, owner, collection.id, placedIn.get(String(r.id)) ?? null)
+      if (!isSlotRevision(r.position)) throw new InventoryReadError("inventory_read_unavailable", 503)
+      slots.push({ id: slot.id, collectionId: collection.id, position: r.position, version: slot.version, collectionVersion: collection.version,
+        layoutRevision: binder.layoutRevision, inventoryItemId: slot.inventoryItemId,
+        itemVersion: slot.inventoryItemId === null ? null : itemVersions.get(slot.inventoryItemId)!,
+        placementVersion: slot.inventoryItemId === null ? null : placements.get(slot.inventoryItemId)!.version,
+        target: slot.target, status: slot.status, wantedCards: slot.wantedCards.map(want) })
+    }
+    if (c.slots !== null && slotRows.length) {
+      // Every placement into these slots must be present, so occupied slots and placements stay a bijection.
+      if ([...placements.values()].filter(p => p.collectionId === collection.id).length !== slots.filter(s => s.collectionId === collection.id && s.inventoryItemId).length)
+        throw new InventoryReadError("inventory_read_unavailable", 503)
+    }
+    const grid = collectionGrid(c, settings)
+    collections.push({ ...collectionMetadata(c), presetManifest: binder.presetManifest, id: collection.id, name: collection.name, kind: collection.kind,
+      defaultPresentation: collection.defaultPresentation, version: collection.version,
+      ...(collection.location !== undefined ? { location: collection.location } : {}), layoutRevision: binder.layoutRevision,
+      slotCount: isSlotRevision(c.slot_count) ? c.slot_count : slotRows.length, grid })
+  }
+  return { inventoryRevision: (doc.revision ?? 0) as number, items, collections, slots }
 }
 
 /** Entry point is shared by the real dispatcher and both transports. Admission has no override. */
@@ -54,14 +73,14 @@ export async function executeNativeDeveloperRead(context: OperationContext, name
   const query = parsed.data as Record<string, unknown>
   try {
     const { createAdminClient } = await import("@/lib/supabase/admin")
-    const db = createAdminClient()
-    // One attempt: changes fail closed, clients restart. Never retain private planning state.
-    const state = await readTrustedInventoryState(db, developerReadAuthority(db, context), { attempts: 1, timeoutMs: 15000, maxRequests: 512 })
-    const data = project(state)
-    // Fences include independent metadata/counts, not only the owner inventory revision.
-    const readRevision = hash({ inventoryRevision: state.snapshot.inventoryRevision, evidence: state.evidence, data })
+    const part = PARTS[name]
+    const collectionId = query.collectionId as string | undefined
+    const read = await readDeveloperScope(createAdminClient(), context, part, { collectionId, itemId: name === "get_inventory_item" ? query.id as string : undefined })
+    const data = project(read.snapshot!, read.owner, read.settings)
+    // One snapshot of exactly this query's scope: a cursor goes stale only when what it pages changed.
+    const readRevision = hash(data)
     const envelope = { projection: "developer-native-v1" as const, completeSnapshot: false as const,
-      inventoryRevision: state.snapshot.inventoryRevision, readRevision }
+      inventoryRevision: data.inventoryRevision, readRevision }
     const params = new URLSearchParams(Object.entries(query).filter(([key]) => key !== "cursor").map(([key, value]) => [key, String(value)]))
     const { limit } = decodePage(params)
     const secret = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -86,7 +105,6 @@ export async function executeNativeDeveloperRead(context: OperationContext, name
       if (c.revision !== readRevision) return conflict()
       after = c.after
     }
-    const collectionId = query.collectionId
     if (collectionId && !data.collections.some(c => c.id === collectionId)) throw new DeveloperAccessError("not_found", "Collection not found.", 404)
     const cardId = query.cardId
     const itemRows = data.items.filter(i => (!collectionId || i.placement?.collectionId === collectionId)

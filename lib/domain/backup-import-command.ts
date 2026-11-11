@@ -16,7 +16,7 @@ export interface BackupArrangementCommand {
   emptyDestinationSlots: SlotPrecondition[]
   manifest: PresetManifest | null
   slots: Omit<BinderSlot, 'collectionId' | 'ownerUserId' | 'version'>[]
-  copies: { kind: 'add' | 'existing'; item: Omit<InventoryItem, 'ownerUserId' | 'legacySource'>; ref: InventoryItemRef | null }[]
+  copies: { kind: 'add' | 'existing'; item: Omit<InventoryItem, 'ownerUserId'>; ref: InventoryItemRef | null }[]
 }
 const invalid = (): never => { throw new Error('Invalid or unsupported atomic arrangement import') }
 /** No owner, credentials, appearance, assets or frozen provenance is accepted as authority. */

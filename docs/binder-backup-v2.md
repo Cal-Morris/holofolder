@@ -53,15 +53,13 @@ Only publish after the missing execution/offline/API/UI gates pass. Artwork and 
 
 ## Optional private metadata compatibility
 
-The authenticated read extension adds optional `collections[].location`,
-`items[].legacySource` and `binders[].slots[].legacySource` (legacy row ID plus
-complete original source JSON) to canonical normalization. The existing portable
-v2 serializer/parser/hydrator carries these fields unchanged. Location is bounded
-by 083 and private to owner/partner; omission in an old file means unknown, not
-recorded absence. Explicit null stays null. Copied preset manifests and origin IDs
-remain detached and unchanged. Source JSON preserves original unknown fields,
-duplicated wants and timestamps; per-source bounds are 10,000 values and 30 levels.
-Invalid source values reject the snapshot instead of being silently stripped.
+The authenticated read extension adds optional `collections[].location` to
+canonical normalization, and the portable v2 serializer/parser/hydrator carries it
+unchanged. Location is bounded by 083 and private to owner/partner; omission in an
+old file means unknown, not recorded absence. Explicit null stays null. Copied
+preset manifests and origin IDs remain detached and unchanged. Legacy provenance
+(`legacySource`) was removed with migration 107; files that still carry it are
+rejected rather than silently stripped.
 
 This additive v2 change accepts old files. Older strict v2 readers reject new files
 that contain these fields; there is no promise of forward compatibility and no

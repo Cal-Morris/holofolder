@@ -10,7 +10,6 @@ import type { CollectionNavigationRead } from "@/lib/collection-navigation"
 // Synthetic authority only; real complete-read branding and serializer/parser.
 function fixture() {
   const source = snapshot()
-  source.items[3].legacySource = { original: ["0007", null, { unknown: true }] }
   const scope: InventoryReadScope = { actorUserId: source.ownerUserId, ownerUserId: source.ownerUserId, authSessionId: "synthetic-auth", sessionId: "synthetic-session" }
   let live: InventoryReadScope | null = scope
   const read = async (): Promise<CollectionNavigationRead> => {
@@ -31,7 +30,6 @@ test("actual bytes preserve all native data, private certificates/source, unknow
   assert.deepEqual(parseBinderBackupV2(await blob.text()), backup)
   assert.equal(backup.items.length, 4); assert.equal(backup.placements.length, 2)
   assert.equal(backup.items[3].grading?.certificate, "0000123")
-  assert.deepEqual(backup.items[3].legacySource, f.source.items[3].legacySource)
   assert.deepEqual(backup.binders[0].presetManifest, f.source.binders[0].presetManifest)
   assert.equal(backup.binders[0].slots.length, 1028)
   assert.equal(backup.binders[0].slots[3].wantedCards.length, 1)

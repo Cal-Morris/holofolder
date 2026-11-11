@@ -34,7 +34,7 @@ const iconButton = "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl
  * Card details for a binder pocket: the card first (art, name, printing, price), then where it sits and what is
  * wanted there. Card actions live in the More menu; pocket structure is edited in layout editing, never here.
  */
-export default function SlotDetail({ slot, onClose, picker, host }: { slot: BinderDisplaySlot; onClose: () => void; picker?: SlotPickerBoundary; host?: CardDetailHost }) {
+export default function SlotDetail({ slot, onClose, picker, host, priceLabel }: { slot: BinderDisplaySlot; /** A share's Prices view: the market price of the card in this pocket. */ priceLabel?: string | null; onClose: () => void; picker?: SlotPickerBoundary; host?: CardDetailHost }) {
   const ref = useRef<HTMLDivElement>(null)
   useOverlay(true, onClose, { containerRef: ref })
   const swipe = useSwipeToDismiss(ref, onClose)
@@ -130,10 +130,10 @@ export default function SlotDetail({ slot, onClose, picker, host }: { slot: Bind
         </div>}
         {copy && host?.pricing && isCardLanguage(copy.language) && <NativeCardPrice cardId={copy.cardId} language={copy.language} finish={copy.finish}
           name={slot.card?.name ?? name} setName={slot.card?.set?.name} localId={slot.card?.localId} pricing={host.pricing} />}
-        {/* Only a share's opted-in saved figure; no live price lookup. */}
-        {slot.item && slot.card?.savedMarketGBP !== undefined && <section aria-label="Prices" className="rounded-2xl border border-border/60 bg-background/25 px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Saved market estimate</p>
-          <p className="mt-0.5 text-sm font-bold tabular-nums">{new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(slot.card.savedMarketGBP)}</p>
+        {/* A share's Prices view. The owner's own cards use the saved-price panel instead. */}
+        {slot.item && priceLabel && !host?.pricing && <section aria-label="Prices" className="rounded-2xl border border-border/60 bg-background/25 px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Market price</p>
+          <p className="mt-0.5 text-sm font-bold tabular-nums">{priceLabel}</p>
         </section>}
         {slot.wantedCards.length > 0 && <section aria-label="Wanted here" className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-3">
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700 dark:text-amber-300">{slot.item ? "Wanted upgrade" : "Wanted here"}</p>

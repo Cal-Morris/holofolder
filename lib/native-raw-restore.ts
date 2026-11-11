@@ -25,7 +25,6 @@ export async function inspectRawRestore(binding: NativeBackupBinding, text: stri
     || binder.slots.length > RAW_RESTORE_V2_LIMITS.slots || backup.items.length > RAW_RESTORE_V2_LIMITS.items
     || backupContentKey(source.slots.map(s => s.id).sort()) !== backupContentKey(binder.slots.map(s => s.id).sort())
     || backupContentKey(source.presetManifest) !== backupContentKey(binder.presetManifest)
-    || source.slots.some(s => backupContentKey(s.legacySource ?? null) !== backupContentKey(binder.slots.find(b => b.id === s.id)?.legacySource ?? null))
     || source.slots.some(s => backupContentKey(s.presetOrigin) !== backupContentKey(binder.slots.find(b => b.id === s.id)?.presetOrigin))
     || backup.items.some(i => i.grading !== null)) return fail()
   const { version: _v, ...before } = original, { version: _cv, ownerUserId: _o, ...now } = config
@@ -37,9 +36,8 @@ export async function inspectRawRestore(binding: NativeBackupBinding, text: stri
     || 2 * binder.slots.length + involved.size + source.slots.reduce((n, s) => n + s.wantedCards.length, 0) > RAW_RESTORE_V2_LIMITS.work) return fail()
   for (const id of involved) {
     const item = snapshot.items.find(i => i.id === id), fromFile = backup.items.find(i => i.id === id), placement = snapshot.placements.find(p => p.inventoryItemId === id)
-    if (!item || item.grading !== null || item.legacySource != null && !binder.slots.some(s => s.legacySource?.legacyRowId === id
-      && backupContentKey(s.legacySource.sourceRow) === backupContentKey(item.legacySource)) || placement && placement.collectionId !== collectionId
-      || fromFile && (backupContentKey(fromFile.legacySource ?? null) !== backupContentKey(item.legacySource ?? null) || backupContentKey(fromFile.identity) !== backupContentKey(item.identity) || fromFile.acquiredAt !== item.acquiredAt)) return fail()
+    if (!item || item.grading !== null || placement && placement.collectionId !== collectionId
+      || fromFile && (backupContentKey(fromFile.identity) !== backupContentKey(item.identity) || fromFile.acquiredAt !== item.acquiredAt)) return fail()
   }
   const desired = hydrateBackupSnapshot(backup, snapshot.ownerUserId, read.partnerUserId ?? undefined)
   if (rawRestoreV2GraphBytes(snapshot, desired.binders[0]) > RAW_RESTORE_V2_LIMITS.graphBytes) {

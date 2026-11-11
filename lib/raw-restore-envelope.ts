@@ -32,8 +32,7 @@ export function rawRestoreV2GraphBytes(current: InventorySnapshot, desired: Bind
   graph.push({ table: 'storage_collection_state', id: collectionId, before: root, after: { ...root, version: root.version + 1, layout_revision: root.layout_revision + (reordered ? 1 : 0) } },
     { table: 'inventory_owner_state', id: owner, before: { owner_user_id: owner, inventory_revision: current.inventoryRevision },
       after: { owner_user_id: owner, inventory_revision: current.inventoryRevision + 1 } })
-  const converted = before.presetManifest?.source.version === 'legacy-v1' || before.slots.some(s => s.legacySource != null)
-    || current.items.some(i => ids.has(i.id) && i.legacySource != null)
+  const converted = before.presetManifest?.source.version === 'legacy-v1'
   // Complete reads omit the receipt; reserve both canonical 073 receipt/timestamp roots. SQL budgets the exact graph.
   return rawRestoreV2JsonbBytes(graph) + (converted ? 4096 : 0)
 }
