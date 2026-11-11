@@ -1,6 +1,5 @@
 'use client';
 
-import { SetChecklistScopePreview } from '@/components/set-preset-picker';
 import { collectionDeletionEvidence, type CollectionDeletionDraft } from '@/lib/native-collection-deletion';
 import type { InventoryOwnershipBinding } from '@/lib/inventory-actions';
 import type { NativeRawRestoreBinding } from '@/lib/native-raw-restore';
@@ -1247,21 +1246,7 @@ function ScopedBrowserSession({
                           ]
                         : []),
                     ]}
-                  >
-                    {surface.state.main === 'collection' && binder?.presetManifest?.setScope && (
-                      <details className="rounded-xl px-3">
-                        <summary className="min-h-11 cursor-pointer py-3 font-medium">
-                          What this set binder covers
-                        </summary>
-                        <div className="max-h-48 overflow-y-auto pb-3">
-                          <SetChecklistScopePreview
-                            checklist={{ manifest: binder.presetManifest, scope: binder.presetManifest.setScope }}
-                            binder={binder}
-                          />
-                        </div>
-                      </details>
-                    )}
-                  </StorageMenu>
+                  />
                 ),
                 surface: {
                   ...surface,

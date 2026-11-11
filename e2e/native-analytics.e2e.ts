@@ -149,49 +149,19 @@ test('weak saved prices remain unknown and never produce a zero or graded value'
   await expect(analytics.getByText(/low confidence/)).toHaveCount(5);
   await new Harness(page, insets, true).expectNoHorizontalOverflow();
 });
-test("the binder shows its total and the open page's total from saved prices, and Prices labels pockets", async ({
+test('the toolbar Show prices toggle labels pockets without a value banner, and an unpriced page never shows £0', async ({
   page,
   insets,
 }) => {
   await page.goto(entry);
-  const value = page.getByRole('region', { name: 'Binder value', exact: true });
-  // This fixture binder holds one Pokémon-only copy, which has no price: shown as unpriced, never £0. Sums are unit-tested.
-  await expect(value).toContainText(/Binder (£\d|Unknown)/);
-  await expect(value).toContainText(/\d+ of \d+ cards priced/);
-  await expect(value.getByTestId('binder-page-total')).toContainText(/^Page 1: (£\d|no cards)/);
-  const prices = value.getByRole('button', { name: 'Prices', exact: true });
-  const h = new Harness(page, insets, true);
-  for (const target of [prices, value.getByRole('button', { name: 'Hide binder value', exact: true })]) {
-    await h.expectMinTapTarget(target, 44);
-    await h.expectHittable(target);
-  }
-  await h.expectWithinSafeViewport(value);
-  await h.expectNoHorizontalOverflow();
-  await prices.click();
-  await expect(prices).toHaveAttribute('aria-pressed', 'true');
-});
-test('a binder with no priced copies shows Unknown, never £0', async ({ page }) => {
-  await page.route('**/api/card-prices?*', (route) => route.fulfill({ json: { prices: inventoryProjectionPrices() } }));
-  await page.goto(entry);
-  const value = page.getByRole('region', { name: 'Binder value', exact: true });
-  await expect(value).toContainText('Binder Unknown');
-  await expect(value.getByText(/£0\.00/)).toHaveCount(0);
-});
-test('the toolbar coin toggles the binder value, so a dismissed total can be brought back', async ({
-  page,
-  insets,
-}) => {
-  await page.goto(entry);
-  const value = page.getByRole('region', { name: 'Binder value', exact: true });
-  const toggle = page.getByRole('button', { name: 'Binder value', exact: true });
-  await expect(value).toBeVisible();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  await value.getByRole('button', { name: 'Hide binder value', exact: true }).click();
-  await expect(value).toBeHidden();
+  const toggle = page.getByRole('button', { name: 'Show prices', exact: true });
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('region', { name: 'Binder value', exact: true })).toHaveCount(0);
   const h = new Harness(page, insets, true);
   await h.expectMinTapTarget(toggle, 36);
   await toggle.click();
-  await expect(value).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  // This fixture binder holds one Pokémon-only copy, which has no price: the page label stays "Page 1", never £0.
+  await expect(page.getByText(/£0\.00/)).toHaveCount(0);
+  await h.expectNoHorizontalOverflow();
 });

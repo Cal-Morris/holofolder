@@ -191,8 +191,8 @@ import {
   legacyItemFilterFacts,
   matchesCollectionViewFilter,
 } from '@/lib/collection-view-filter';
-import { NativeBinderTotals, useNativeBinderValue } from '@/components/binder-value';
-import { nativeValueLabel } from '@/lib/collection/native-analytics';
+import { useNativeBinderValue } from '@/components/binder-value';
+import { nativeValueLabel, sumCopyValues } from '@/lib/collection/native-analytics';
 import { rememberBinderScope } from '@/lib/binders/all-binders';
 import {
   buildSlotDisplay,
@@ -2224,13 +2224,17 @@ function BinderAppSurface(props: BinderAppProps) {
     () => getOfflineCacheWarmupSignature(offlineCacheWarmupUrls),
     [offlineCacheWarmupUrls],
   );
-  const visiblePageItemIds = useMemo(
-    () =>
-      visibleBinderPageNumbers
-        .flatMap((page) => orderedDisplayPages?.[page - 1] ?? [])
-        .flatMap((slot) => (slot?.item ? [slot.item.id] : [])),
-    [orderedDisplayPages, visibleBinderPageNumbers],
-  );
+  // Price mode: each binder page's saved value, shown in its bottom "Page N" label.
+  const pageValueLabel = useMemo(() => {
+    const copies = nativeBinderValue.summary?.copies;
+    if (!isPriceMode || !copies || !orderedDisplayPages) return undefined;
+    const gbp = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
+    return (page: number) => {
+      const ids = new Set(orderedDisplayPages[page - 1]?.flatMap((slot) => (slot?.item ? [slot.item.id] : [])));
+      const { valueGbp } = sumCopyValues(copies, ids);
+      return valueGbp === null ? null : gbp.format(valueGbp);
+    };
+  }, [isPriceMode, nativeBinderValue.summary, orderedDisplayPages]);
   const visiblePageTrackedCards = useMemo(
     () =>
       collection.flatMap((item) => {
@@ -3972,7 +3976,7 @@ function BinderAppSurface(props: BinderAppProps) {
                 (c) => c.id === stagedSlotDisplay!.binder.collectionId,
               )?.name,
               slotCount: stagedSlotDisplay!.binder.slots.length,
-              valueLabel: nativeValueLabel(nativeBinderValue.summary),
+              valueLabel: isPriceMode ? nativeValueLabel(nativeBinderValue.summary) : undefined,
             }
           : undefined,
         activeCollectionFilterOption,
@@ -4035,6 +4039,7 @@ function BinderAppSurface(props: BinderAppProps) {
           isCollected,
           isDesktopViewport,
           isPriceMode,
+          pageValueLabel,
           isSpreadLayout,
           longPressedPokemon,
           priceFormat,
@@ -4232,26 +4237,6 @@ function BinderAppSurface(props: BinderAppProps) {
           />
         </>
       ) : undefined,
-      nativeBinderTotals:
-        browserSurface && stagedSlotDisplay && pricingEnabled && settings.showBinderValue !== false ? (
-          <NativeBinderTotals
-            value={nativeBinderValue}
-            pageItemIds={visiblePageItemIds}
-            pageLabel={visiblePageLabel}
-            priceMode={
-              hasTrackedCards
-                ? { on: isPriceMode, loading: isLoadingPrices, toggle: () => setIsPriceMode((on) => !on) }
-                : undefined
-            }
-            onOpen={() => {
-              rememberBinderScope('analytics', 'binder');
-              void switchMainView('analytics');
-            }}
-            onDismiss={() => {
-              void updateSettings({ showBinderValue: false });
-            }}
-          />
-        ) : undefined,
       nativeAnalytics: browserSurface ? (
         <NativeCollectionAnalytics
           {...browserSurface.analytics}
@@ -4499,10 +4484,10 @@ function BinderAppSurface(props: BinderAppProps) {
                 !editingLayout && (
                   <button
                     type="button"
-                    aria-label="Binder value"
-                    title="Binder value"
-                    aria-pressed={settings.showBinderValue !== false}
-                    onClick={() => void updateSettings({ showBinderValue: settings.showBinderValue === false })}
+                    aria-label="Show prices"
+                    title="Show prices"
+                    aria-pressed={isPriceMode}
+                    onClick={() => setIsPriceMode((on) => !on)}
                     className="text-muted-foreground hover:bg-muted/60 aria-pressed:text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                   >
                     <Coins className="h-4 w-4" aria-hidden />

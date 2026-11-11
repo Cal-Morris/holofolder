@@ -190,9 +190,11 @@ test.describe('queued layout ordering', () => {
     });
     await page.goto('/app/e2e-harness?signedIn=1&binders=1');
     await expect(harness.dock()).toBeVisible();
-    await page.getByRole('button', { name: 'Hide binder value', exact: true }).click();
-    await expect.poll(() => Boolean(rejectOlder)).toBe(true);
     const dialog = await openSettings(harness);
+    await openSettingsPage(dialog, 'Appearance');
+    await dialog.getByRole('switch', { name: 'Toggle binder slot glare', exact: true }).click();
+    await expect.poll(() => Boolean(rejectOlder)).toBe(true);
+    await openSettingsPage(dialog, 'Layout');
     await expect(dialog.getByRole('spinbutton', { name: 'Rows', exact: true })).toBeVisible();
     await page.context().setOffline(true);
     await dialog.getByRole('spinbutton', { name: 'Rows', exact: true }).fill('8');

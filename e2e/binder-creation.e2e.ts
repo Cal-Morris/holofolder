@@ -6,7 +6,6 @@ import {
   Harness,
   storageAction,
   closeStorage,
-  openStorage,
   collectionPicker,
   viewPicker,
   chooseCollection,
@@ -936,9 +935,6 @@ for (const finishes of [false, true])
     const binder = saved.snapshot.binders.find((b) => b.collectionId === id) as unknown as { presetManifest: unknown };
     expect(binder.presetManifest).toEqual(manifest);
     await chooseCollection(page, id);
-    await (await openStorage(page)).getByText('What this set binder covers', { exact: true }).click();
-    await expect(page.getByLabel('Copied set scope')).toContainText('1 selected promos.');
-    await expect(page.getByLabel('Copied set scope')).toContainText(manifest.setScope.capturedAt);
     await h.expectNoHorizontalOverflow();
     await page.route('**/app/e2e-harness/storage/inventory?*', (route) => route.abort('failed'));
     await page.reload();
