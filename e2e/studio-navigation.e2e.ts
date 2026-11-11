@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures"
+import { test, expect, openSettingsPage } from "./fixtures"
 
 test.use({ signedIn: true })
 
@@ -10,7 +10,10 @@ for (const entry of ["More", "Binders", "Settings"] as const) {
       await page.getByTestId("binder-switcher-trigger").click()
     } else {
       await page.getByRole("button", { name: "More", exact: true }).click()
-      if (entry === "Settings") await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
+      if (entry === "Settings") {
+        await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
+        await openSettingsPage(page.getByRole("dialog", { name: "Settings", exact: true }), "Layout")
+      }
     }
     const studioLink = entry === "More"
       ? page.getByRole("menuitem", { name: "Binder Studio", exact: true })

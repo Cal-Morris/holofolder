@@ -1,5 +1,5 @@
 import type { Locator } from "@playwright/test"
-import { test, expect, SEEDED_COLLECTION, SUPABASE_URL } from "./fixtures"
+import { test, expect, openSettingsPage, SEEDED_COLLECTION, SUPABASE_URL } from "./fixtures"
 
 test.use({ signedIn: true })
 
@@ -46,7 +46,7 @@ test("inside cover keeps collection progress and value readable on phones", asyn
   await page.screenshot({ path: test.info().outputPath("inside-cover-light.png") })
   await page.getByTestId("app-header").getByRole("button", { name: "More", exact: true }).click()
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
-  const settings = page.getByRole("dialog", { name: "Settings", exact: true })
+  const settings = await openSettingsPage(page.getByRole("dialog", { name: "Settings", exact: true }), "Layout")
   await settings.getByRole("button", { name: "3x4 12 slots", exact: true }).click()
   await harness.closeControl(settings).click()
   await expect(cover.getByText("3 × 4 pockets", { exact: false })).toBeVisible()

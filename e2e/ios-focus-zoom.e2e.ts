@@ -1,4 +1,4 @@
-import { test, expect, type Harness } from "./fixtures"
+import { test, expect, openSettingsPage, type Harness } from "./fixtures"
 import type { Locator } from "@playwright/test"
 import type { TCGSetSlotsResponse } from "../lib/tcg-set-slots"
 
@@ -92,7 +92,7 @@ test.describe("search fields do not trigger iOS focus zoom", () => {
     await page.getByRole("button", { name: "More", exact: true }).click()
     await page.getByRole("menuitem", { name: "Settings" }).click()
     const settings = page.getByRole("dialog", { name: /settings/i })
-    await settings.getByRole("button", { name: "Display", exact: true }).click()
+    await openSettingsPage(settings, "Appearance")
     await expectNoFocusZoom(settings.getByRole("spinbutton"), "Page-range end")
   })
 

@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from "@playwright/test"
-import { expect, MOCK_CARDS, placeholderSvg, SEEDED_COLLECTION, SUPABASE_URL, test } from "./fixtures"
+import { expect, MOCK_CARDS, openSettingsPage, placeholderSvg, SEEDED_COLLECTION, SUPABASE_URL, test } from "./fixtures"
 
 const BASE_SET = { id: "base1", name: "Base Set", seriesName: "Base", officialCardCount: 102, releaseDate: "1999-01-09" }
 const SV151 = { id: "sv03.5", name: "151", seriesName: "Scarlet & Violet", officialCardCount: 165, releaseDate: "2023-09-22" }
@@ -123,7 +123,7 @@ test.describe("offline search and card show prep", () => {
     await page.locator("nav").first().getByRole("button", { name: "More", exact: true }).click()
     await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
     const settings = page.getByRole("dialog", { name: /settings/i })
-    await settings.getByRole("button", { name: "Display", exact: true }).click()
+    await openSettingsPage(settings, "Offline & app")
     const offlineSets = settings.getByRole("region", { name: "Offline sets" })
     await offlineSets.getByRole("searchbox", { name: "Find sets to save" }).fill("legends")
     await offlineSets.getByRole("button", { name: "Find", exact: true }).click()

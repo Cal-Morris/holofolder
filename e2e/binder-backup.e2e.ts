@@ -1,12 +1,12 @@
 import { readFile } from "node:fs/promises"
-import { test, expect, type Harness } from "./fixtures"
+import { test, expect, openSettingsPage, settingsRow, type Harness } from "./fixtures"
 
 async function openBackup(harness: Harness) {
   const { page } = harness
   await page.getByRole("button", { name: "More", exact: true }).click()
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
   const dialog = page.getByRole("dialog", { name: "Settings", exact: true })
-  await dialog.getByRole("button", { name: "Account", exact: true }).click()
+  await openSettingsPage(dialog, "Backup")
   return dialog.getByRole("button", { name: "Download backup", exact: true })
 }
 
@@ -24,5 +24,7 @@ test("a guest can download the binder on screen and read-only shares hide the ba
   await page.getByRole("button", { name: "More", exact: true }).click()
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
   expect(await page.getByRole("button", { name: "Download backup", exact: true }).count()).toBe(0)
-  expect(await page.getByRole("button", { name: "Account", exact: true }).count()).toBe(0)
+  const dialog = page.getByRole("dialog", { name: "Settings", exact: true })
+  await expect(settingsRow(dialog, "Layout")).toBeVisible()
+  await expect(settingsRow(dialog, "Backup")).toHaveCount(0)
 })

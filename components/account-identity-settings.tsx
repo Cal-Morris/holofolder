@@ -38,7 +38,6 @@ export function AccountIdentitySettings({ user, isOnline, onUsernameSaved }: { u
 
   return (
     <section className="space-y-4 rounded-2xl border border-border/50 bg-muted/25 p-3" aria-label="Your profile">
-      <h3 className="font-semibold">Your profile</h3>
       <form className="space-y-2" onSubmit={async event => {
         event.preventDefault()
         const value = normalizeDisplayName(name)

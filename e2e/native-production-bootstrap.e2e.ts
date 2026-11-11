@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, E2E_USER, SUPABASE_URL, Harness, storageAction, closeStorage, collectionPicker, viewPicker, chooseView, chooseCollection } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, E2E_USER, SUPABASE_URL, Harness, openSettingsPage, settingsRow, storageAction, closeStorage, collectionPicker, viewPicker, chooseView, chooseCollection } from "./fixtures"
 import type { Route } from "@playwright/test"
 import { inventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowseLayouts } from "../tests/fixtures/inventory-browse"
 
@@ -301,15 +301,19 @@ test("native owner can open Account and save pricing preferences without legacy 
   await page.getByRole("button", { name: "More", exact: true }).click()
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
   const dialog = page.getByRole("dialog", { name: "Settings", exact: true })
-  const account = dialog.getByRole("button", { name: "Account", exact: true })
-  await expect(account).toBeVisible()
+  const profile = settingsRow(dialog, "Profile")
+  await expect(profile).toBeVisible()
   const h = new Harness(page, insets, true)
-  await h.expectMinTapTarget(account); await h.expectWithinSafeViewport(account); await h.expectHittable(account)
-  await account.click()
-  for (const name of ["Holo Folder plan", "Developer access", "Passkeys", "Your profile"]) await expect(dialog.getByRole("region", { name, exact: true })).toBeAttached()
-  await expect(dialog.getByRole("region", { name: "Holo Folder plan", exact: true }).getByRole("heading", { name: "Lifetime access", exact: true })).toBeVisible()
+  await h.expectMinTapTarget(profile); await h.expectWithinSafeViewport(profile); await h.expectHittable(profile)
   await expect(dialog.getByText("Collection sync", { exact: true })).toHaveCount(0)
-  await expect(dialog.getByRole("button", { name: "Download backup", exact: true })).toHaveCount(0)
+  await expect(settingsRow(dialog, "Backup")).toHaveCount(0)
+  for (const [row, name] of [["Profile", "Your profile"], ["Plan & billing", "Holo Folder plan"], ["Sign-in & security", "Passkeys"], ["Developer", "Developer access"]]) {
+    await openSettingsPage(dialog, row)
+    await expect(dialog.getByRole("region", { name, exact: true })).toBeAttached()
+  }
+  await openSettingsPage(dialog, "Plan & billing")
+  await expect(dialog.getByRole("region", { name: "Holo Folder plan", exact: true }).getByRole("heading", { name: "Lifetime access", exact: true })).toBeVisible()
+  await openSettingsPage(dialog, "Prices")
   await dialog.getByRole("combobox", { name: "Currency", exact: true }).selectOption("USD")
   await expect.poll(() => saves.length).toBe(1)
   expect(saves[0]).toMatchObject({ preferredCurrency: "USD", binderId: alpha, binderRows: 3, binderCols: 3 })
@@ -335,8 +339,9 @@ test("shared read-only Settings keeps account and layout restricted", async ({ p
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
   const dialog = page.getByRole("dialog", { name: "Settings", exact: true })
   await expect(dialog).toBeVisible()
-  await expect(dialog.getByRole("button", { name: "Account", exact: true })).toHaveCount(0)
-  await expect(dialog.getByRole("button", { name: "Share", exact: true })).toHaveCount(0)
+  await expect(settingsRow(dialog, "Layout")).toBeVisible()
+  for (const row of ["Profile", "Plan & billing", "Sign-in & security", "Sharing", "Notifications", "Backup", "Developer"]) await expect(settingsRow(dialog, row)).toHaveCount(0)
+  await openSettingsPage(dialog, "Layout")
   await expect(dialog.getByRole("button", { name: /2x2/ })).toBeDisabled()
   expect(writes).toEqual([])
 })

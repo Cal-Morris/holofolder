@@ -78,8 +78,7 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
   }
   if (!userId) return null
   const current = devices.find(device => device.endpoint === endpoint)
-  return <section aria-label="Notifications" className="space-y-3 border-t border-border pt-4">
-    <h3 className="font-semibold">Notifications</h3>
+  return <section aria-label="Notifications" className="space-y-3">
     <p className="text-sm text-muted-foreground">Get an alert when your price checks finish, and when your partner adds an owned card or marks a wanted card Got. Enable this separately on each device.</p>
     {!supported ? <p className="text-sm text-muted-foreground">Push notifications are unavailable in this browser.</p>
       : needsInstall ? <p className="text-sm text-muted-foreground">On iPhone or iPad, add Holo Folder to your Home Screen, then enable notifications inside the installed app.</p>

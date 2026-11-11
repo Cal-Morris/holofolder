@@ -61,8 +61,8 @@ export function DeveloperApiKeys({isOnline,onSignIn}:{isOnline:boolean;onSignIn?
 }
 
 export default function DeveloperSettings({isOnline}:{isOnline:boolean}) {
- return <section className="space-y-3 border-t border-border pt-4" aria-label="Developer access">
-  <div><h3 className="font-semibold">Developer access</h3><p className="mt-1 text-xs text-muted-foreground">API keys are for scripts. MCP clients connect through OAuth.</p><a href="https://holofolder.com/app/docs" className="inline-flex min-h-9 items-center text-sm text-primary">Read the developer docs</a></div>
+ return <section className="space-y-3" aria-label="Developer access">
+  <div><p className="text-xs text-muted-foreground">API keys are for scripts. MCP clients connect through OAuth.</p><a href="https://holofolder.com/app/docs" className="inline-flex min-h-9 items-center text-sm text-primary">Read the developer docs</a></div>
   <DeveloperApiKeys isOnline={isOnline}/>
   <DeveloperClients isOnline={isOnline}/>
  </section>

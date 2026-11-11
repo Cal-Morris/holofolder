@@ -9,14 +9,15 @@ import { BillingSettings } from "@/components/billing-settings"
 import { AccountPasskeys } from "@/components/account-passkeys"
 import { AccountIdentitySettings } from "@/components/account-identity-settings"
 import { PartnerPushSettings } from "@/components/partner-push-settings"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { CardDataAttribution } from "@/components/card-data-attribution"
 import { PublicNameSettings } from "@/components/public-name-settings"
 import { PricingPreferencesSettings } from "@/components/pricing-preferences-settings"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useShowMode } from "@/hooks/use-show-mode"
+import { useBillingContext } from "@/hooks/use-billing"
 import { DealThresholdSettings, ShowTallySettings } from "@/components/deal-settings"
-import { X, Grid3X3, Copy, Download, Link2, Loader2, Moon, Sun, Palette, Wifi, WifiOff, RefreshCw, Smartphone, Ticket } from "lucide-react"
+import { X, Grid3X3, Copy, Download, Link2, Loader2, Palette, Wifi, WifiOff, RefreshCw, Smartphone, Ticket, UserRound, CreditCard, KeyRound, Tag, Bell, Archive, Code2, ChevronRight, ChevronLeft, LogIn, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type { BinderSettings } from "@/hooks/use-settings"
@@ -28,20 +29,21 @@ import type { User } from "@supabase/supabase-js"
 const OfflineSetPicker = dynamic(() => import("@/components/show-offline-prep").then(module => module.OfflineSetPicker), { loading: () => <p className="text-xs text-muted-foreground">Loading offline tools…</p> })
 const DeveloperSettings = dynamic(() => import("@/components/developer-settings"), { loading: () => <p className="text-sm text-muted-foreground">Loading developer access…</p> })
 
-type SettingsTabId = "binder" | "display" | "share" | "account"
+export type SettingsPageId =
+  | "profile" | "plan" | "security"
+  | "layout" | "appearance" | "sharing"
+  | "prices" | "show" | "notifications"
+  | "offline" | "backup"
+  | "developer"
 
-const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
-  { id: "binder", label: "Binder" },
-  { id: "display", label: "Display" },
-  { id: "share", label: "Share" },
-  { id: "account", label: "Account" },
-]
+interface SettingsRow { id: SettingsPageId; title: string; icon: LucideIcon; summary?: string; visible: boolean }
 
 interface SettingsModalProps {
   binderId?: string | null
   binderName?: string
   onPublicIdentityChange?: () => void
-  initialTab?: SettingsTabId
+  /** Opens straight to a page instead of the list, e.g. Notifications after a push prompt. */
+  initialPage?: SettingsPageId
   backupReady: boolean
   onDownloadBackup: () => Promise<string>
   appearance?: { pageColor: string; pageColors: Record<string, string> }
@@ -85,12 +87,27 @@ interface SettingsModalProps {
   onRequestMotionGlint: () => void
 }
 
+/** Root and page panes slide; `visibility` flips after the slide out so hidden panes leave focus and the a11y tree. */
+const PANE = "absolute inset-0 overflow-y-auto overscroll-contain transition-[translate,visibility] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
+const PANE_STYLE = { WebkitOverflowScrolling: "touch", touchAction: "pan-y" } as const
+
+function SettingsGroup({ label, quiet = false, children }: { label: string; quiet?: boolean; children: ReactNode }) {
+  return (
+    <section aria-label={label} className="space-y-1.5">
+      <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</h3>
+      <div className={`divide-y divide-border/40 overflow-hidden rounded-2xl border ${quiet ? "border-border/35 bg-transparent" : "border-border/50 bg-muted/25"}`}>
+        {children}
+      </div>
+    </section>
+  )
+}
+
 export default function SettingsModal({
   binderId,
   binderName,
   onPublicIdentityChange = () => {},
   user,
-  initialTab,
+  initialPage,
   backupReady,
   onDownloadBackup,
   appearance,
@@ -134,28 +151,85 @@ export default function SettingsModal({
   const [backupMessage, setBackupMessage] = useState<string | null>(null)
   const [isBackingUp, setIsBackingUp] = useState(false)
   const { isShowModeOn, setShowMode } = useShowMode()
+  const billing = useBillingContext()
   const dialogRef = useRef<HTMLDivElement | null>(null)
+  const backRef = useRef<HTMLButtonElement | null>(null)
+  const focusAfterNavigation = useRef(false)
   const [selectedBinderColorId, setSelectedBinderColorId] = useState<BinderColorId>(currentPageBinderColorId)
   const [pageRangeInput, setPageRangeInput] = useState(String(currentBinderPage))
-  const [activeTab, setActiveTab] = useState<SettingsTabId>("binder")
-  const visibleSettingsTabs = SETTINGS_TABS.filter(tab =>
-    tab.id === "account" ? !isAccountReadOnly : tab.id === "share" ? !isReadOnlyView || canManageShare : true)
-  const effectiveActiveTab: SettingsTabId =
-    (activeTab === "share" && isReadOnlyView && !canManageShare) || (activeTab === "account" && isAccountReadOnly) ? "binder" : activeTab
+  const pageScrollRef = useRef<HTMLDivElement | null>(null)
+  const [page, setPage] = useState<SettingsPageId | null>(isOpen ? initialPage ?? null : null)
+  // The last opened page stays rendered while the pane slides back out.
+  const [shownPage, setShownPage] = useState<SettingsPageId | null>(page)
+  const [wasOpen, setWasOpen] = useState(isOpen)
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen)
+    if (isOpen) { setPage(initialPage ?? null); setShownPage(initialPage ?? null) }
+  }
 
   useEffect(() => {
     if (isOpen) {
-      if (initialTab) setActiveTab(initialTab)
       setSelectedBinderColorId(currentPageBinderColorId)
       setPageRangeInput(String(currentBinderPage))
       setBackupMessage(null)
     }
-  }, [currentBinderPage, currentPageBinderColorId, isOpen, initialTab])
+  }, [currentBinderPage, currentPageBinderColorId, isOpen])
 
   useOverlay(isOpen, onClose, { containerRef: dialogRef })
   const swipe = useSwipeToDismiss(dialogRef, onClose, isOpen)
 
+  const signedInAccount = Boolean(user) && !isAccountReadOnly
+  const access = billing?.access
+  const planSummary = access?.source === "perpetual" ? "Lifetime" : access?.source === "trial" ? "Trial" : access?.tier === "paid" ? "Premium" : access ? "Free" : undefined
+  const groups: Array<{ label: string; quiet?: boolean; rows: SettingsRow[] }> = [
+    { label: "Account", rows: [
+      { id: "profile", title: "Profile", icon: UserRound, summary: user?.email ?? undefined, visible: signedInAccount },
+      { id: "plan", title: "Plan & billing", icon: CreditCard, summary: planSummary, visible: signedInAccount && Boolean(billing) },
+      { id: "security", title: "Sign-in & security", icon: KeyRound, visible: signedInAccount },
+    ] },
+    { label: "This binder", rows: [
+      { id: "layout", title: "Layout", icon: Grid3X3, summary: `${settings.binderRows}×${settings.binderCols}`, visible: true },
+      { id: "appearance", title: "Appearance", icon: Palette, summary: isDarkMode ? "Dark" : "Light", visible: true },
+      { id: "sharing", title: "Sharing", icon: Link2, summary: isShareEnabled ? "Link on" : "Off", visible: canManageShare },
+    ] },
+    { label: "Collecting", rows: [
+      { id: "prices", title: "Prices", icon: Tag, summary: settings.preferredCurrency ?? undefined, visible: !isAccountReadOnly || !isReadOnlyView },
+      { id: "show", title: "Show mode", icon: Ticket, summary: isShowModeOn ? "On" : "Off", visible: true },
+      { id: "notifications", title: "Notifications", icon: Bell, visible: signedInAccount },
+    ] },
+    { label: "Data & offline", rows: [
+      { id: "offline", title: "Offline & app", icon: isOnline ? Wifi : WifiOff, summary: isInstalledApp ? "Installed" : "Browser", visible: true },
+      { id: "backup", title: "Backup", icon: Archive, visible: !isReadOnlyView && !isAccountReadOnly },
+    ] },
+    { label: "Advanced", quiet: true, rows: [
+      { id: "developer", title: "Developer", icon: Code2, visible: signedInAccount },
+    ] },
+  ]
+  const rows = groups.flatMap(group => group.rows)
+  const isVisible = (id: SettingsPageId | null) => id !== null && rows.some(row => row.id === id && row.visible)
+  const activePage = isVisible(page) ? page : null
+  const renderedPage = isVisible(shownPage) ? shownPage : null
+  const pageTitle = rows.find(row => row.id === (activePage ?? renderedPage))?.title
+
+  useEffect(() => {
+    if (!focusAfterNavigation.current) return
+    focusAfterNavigation.current = false
+    if (activePage) backRef.current?.focus({ preventScroll: true })
+    else if (shownPage) dialogRef.current?.querySelector<HTMLElement>(`[data-settings-row="${shownPage}"]`)?.focus({ preventScroll: true })
+  }, [activePage, shownPage])
+
   if (!isOpen) return null
+
+  const openPage = (id: SettingsPageId) => {
+    focusAfterNavigation.current = true
+    if (pageScrollRef.current) pageScrollRef.current.scrollTop = 0
+    setShownPage(id)
+    setPage(id)
+  }
+  const goBack = () => {
+    focusAfterNavigation.current = true
+    setPage(null)
+  }
 
   const handleBinderSizeChange = (rows: number, cols: number) => {
     return onUpdateSettings({ binderRows: rows, binderCols: cols })
@@ -202,53 +276,16 @@ export default function SettingsModal({
     && motionGlintStatus !== "active"
     && motionGlintStatus !== "unsupported"
 
-  return (
-    <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={onClose}>
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Settings"
-        className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--dock-clearance)+0.75rem)] mx-auto flex w-auto max-w-md flex-col holo-panel overflow-hidden rounded-[1.5rem] border border-border/50 bg-card shadow-2xl backdrop-blur-xl animate-slide-up md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(85vh,48rem)] md:w-full md:-translate-x-1/2 md:-translate-y-1/2"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div data-sheet-grabber className="relative flex items-center justify-between border-b border-border/50 px-5 py-4 shrink-0" {...swipe}>
-          <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30 md:hidden" />
-          <h2 className="text-lg font-semibold tracking-tight">Settings</h2>
-          <button onClick={onClose} aria-label="Close settings" className="mr-0.5 flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted/70 transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="shrink-0 border-b border-border/45 px-3 py-2">
-          <div className={`grid gap-1 rounded-2xl border border-border/45 bg-muted/35 p-1 ${visibleSettingsTabs.length === 2 ? "grid-cols-2" : "grid-cols-4"}`}>
-            {visibleSettingsTabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                aria-pressed={effectiveActiveTab === tab.id}
-                className={`h-9 rounded-xl text-xs font-semibold transition ${
-                  effectiveActiveTab === tab.id
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-background/55 hover:text-foreground"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div
-          className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6 sm:py-6 space-y-6"
-          style={{
-            WebkitOverflowScrolling: "touch",
-            touchAction: "pan-y",
-          }}
-        >
-          {/* Binder Size */}
-          {effectiveActiveTab === "binder" && (
+  const renderPage = (id: SettingsPageId) => {
+    switch (id) {
+      case "profile":
+        return user && <AccountIdentitySettings key={user.id} user={user} isOnline={isOnline} onUsernameSaved={onPublicIdentityChange} />
+      case "plan":
+        return <BillingSettings signedIn={isSignedIn} onSignIn={() => { onClose(); window.dispatchEvent(new Event("holofolder-sign-in")) }} />
+      case "security":
+        return user && <AccountPasskeys key={`passkeys-${user.id}`} isOnline={isOnline} />
+      case "layout":
+        return (
           <div className="space-y-4">
             {!isReadOnlyView && (
               <OverlayLink href="/studio" onClose={onClose} className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted">
@@ -256,35 +293,12 @@ export default function SettingsModal({
                 <span className="text-xs font-normal text-muted-foreground">3D studio ↗</span>
               </OverlayLink>
             )}
-            <div className="flex items-center gap-2">
-              <Grid3X3 className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold">Binder layout</h3>
-            </div>
             <BinderLayoutSettings rows={settings.binderRows} cols={settings.binderCols} readOnly={isReadOnlyView} onChange={handleBinderSizeChange} />
           </div>
-          )}
-
-          {effectiveActiveTab === "display" && (
+        )
+      case "appearance":
+        return (
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Ticket className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold">Card show mode</h3>
-            </div>
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/50 bg-muted/35 px-4 py-3">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Show mode</p>
-                <p className="text-xs text-muted-foreground">
-                  For card shows: Search opens Quick mode, tapping a card checks an asking price, and the screen stays on. Saved on this device.
-                </p>
-              </div>
-              <Switch checked={isShowModeOn} onCheckedChange={setShowMode} aria-label="Show mode" />
-            </div>
-            <DealThresholdSettings />
-            <ShowTallySettings />
-            <div className="flex items-center gap-2">
-              {isDarkMode ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4 text-primary" />}
-              <h3 className="font-semibold">Appearance</h3>
-            </div>
             {!isReadOnlyView && <div className="flex items-center justify-between gap-4 border-b border-border/40 py-3">
               <div className="space-y-1">
                 <p className="text-sm font-medium">Show binder value</p>
@@ -448,14 +462,107 @@ export default function SettingsModal({
               </div>
             </div>
           </div>
-          )}
-
-          {effectiveActiveTab === "display" && (
-          <div className="pt-4 border-t border-border space-y-4">
-            <div className="flex items-center gap-2">
-              <Download className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold">App mode</h3>
+        )
+      case "sharing":
+        return (
+          <div className="space-y-6">
+            {isSignedIn && <PublicNameSettings binderId={binderId} binderName={binderName} isOnline={isOnline} onSaved={onPublicIdentityChange} />}
+            <div className="space-y-4">
+              <h3 className="font-semibold">Read-only share link</h3>
+              <p className="text-xs text-muted-foreground">
+                Share a public binder link. Prices are hidden unless you enable them. Viewers can browse and filter, but they cannot collect, edit cards, or change your binder.
+              </p>
+              {isShareEnabled && fullShareUrl ? (
+                <div className="space-y-3 rounded-2xl border border-border/50 bg-muted/25 p-3">
+                  <div className="rounded-xl border border-border/50 bg-background/70 px-3 py-2 text-xs text-muted-foreground break-all">
+                    {fullShareUrl}
+                  </div>
+                  <label className="flex min-h-11 items-center justify-between gap-3 text-sm" htmlFor="share-show-prices">
+                    Show prices on shared binder
+                    <Switch id="share-show-prices" className="min-h-9 min-w-9" checked={shareShowPrices} onCheckedChange={onShareShowPricesChange} disabled={isShareLoading || !isOnline} />
+                  </label>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" className="flex-1 gap-2" onClick={handleCopyShareLink} disabled={isShareLoading}>
+                      <Copy className="w-4 h-4" />
+                      Copy link
+                    </Button>
+                    <Button type="button" variant="destructive" className="flex-1" onClick={onDisableReadOnlyShare} disabled={isShareLoading}>
+                      Disable link
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button type="button" className="w-full gap-2" onClick={onEnableReadOnlyShare} disabled={!isSignedIn || isShareLoading}>
+                  {isShareLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                  Generate read-only share link
+                </Button>
+              )}
+              {!isSignedIn && (
+                <p className="text-xs text-muted-foreground">
+                  Sign in first to manage your public share link.
+                </p>
+              )}
             </div>
+          </div>
+        )
+      case "prices":
+        return (
+          <div className="space-y-6">
+            {!isAccountReadOnly && <PricingPreferencesSettings settings={settings} onUpdateSettings={onUpdateSettings} />}
+            {!isReadOnlyView && (
+              <div className="rounded-2xl border border-border/50 bg-muted/25 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">Background price refresh</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      Recalculates cached prices for every assigned card. The job runs on Vercel and keeps going if one card has no market price.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    {trackedCardCount} cards
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3 w-full gap-2"
+                  disabled={!isSignedIn || trackedCardCount === 0 || isRefreshingPrices}
+                  onClick={onRefreshPrices}
+                >
+                  {isRefreshingPrices ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  Refresh prices in background
+                </Button>
+                {priceRefreshMessage && (
+                  <p className="mt-2 text-xs text-primary">{priceRefreshMessage}</p>
+                )}
+                {!isSignedIn && (
+                  <p className="mt-2 text-xs text-muted-foreground">Sign in first to refresh your binder prices.</p>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      case "show":
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/50 bg-muted/35 px-4 py-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Show mode</p>
+                <p className="text-xs text-muted-foreground">
+                  For card shows: Search opens Quick mode, tapping a card checks an asking price, and the screen stays on. Saved on this device.
+                </p>
+              </div>
+              <Switch checked={isShowModeOn} onCheckedChange={setShowMode} aria-label="Show mode" />
+            </div>
+            <DealThresholdSettings />
+            <ShowTallySettings />
+          </div>
+        )
+      case "notifications":
+        return <PartnerPushSettings userId={user?.id ?? null} isInstalledApp={isInstalledApp} />
+      case "offline":
+        return (
+          <div className="space-y-4">
             <div className="rounded-2xl border border-border/50 bg-muted/25 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -505,128 +612,108 @@ export default function SettingsModal({
               <OfflineSetPicker isOnline={isOnline} />
             </section>
           </div>
-          )}
-
-          {effectiveActiveTab === "share" && !isReadOnlyView && (
-            <div className="pt-4 border-t border-border space-y-4">
-              <div className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 text-primary" />
-                <h3 className="font-semibold">Pricing</h3>
-              </div>
-              <div className="rounded-2xl border border-border/50 bg-muted/25 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium">Background price refresh</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      Recalculates cached prices for every assigned card. The job runs on Vercel and keeps going if one card has no market price.
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    {trackedCardCount} cards
-                  </span>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="mt-3 w-full gap-2"
-                  disabled={!isSignedIn || trackedCardCount === 0 || isRefreshingPrices}
-                  onClick={onRefreshPrices}
-                >
-                  {isRefreshingPrices ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                  Refresh prices in background
-                </Button>
-                {priceRefreshMessage && (
-                  <p className="mt-2 text-xs text-primary">{priceRefreshMessage}</p>
-                )}
-                {!isSignedIn && (
-                  <p className="mt-2 text-xs text-muted-foreground">Sign in first to refresh your binder prices.</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {effectiveActiveTab === "share" && canManageShare && isSignedIn && <PublicNameSettings binderId={binderId} binderName={binderName} isOnline={isOnline} onSaved={onPublicIdentityChange} />}
-
-          {effectiveActiveTab === "share" && canManageShare && (
-            <div className="pt-4 border-t border-border space-y-4">
-              <div className="flex items-center gap-2">
-                <Link2 className="w-4 h-4 text-primary" />
-                <h3 className="font-semibold">Read-only share link</h3>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Share a public binder link. Prices are hidden unless you enable them. Viewers can browse and filter, but they cannot collect, edit cards, or change your binder.
-              </p>
-              {isShareEnabled && fullShareUrl ? (
-                <div className="space-y-3 rounded-2xl border border-border/50 bg-muted/25 p-3">
-                  <div className="rounded-xl border border-border/50 bg-background/70 px-3 py-2 text-xs text-muted-foreground break-all">
-                    {fullShareUrl}
-                  </div>
-                  <label className="flex min-h-11 items-center justify-between gap-3 text-sm" htmlFor="share-show-prices">
-                    Show prices on shared binder
-                    <Switch id="share-show-prices" className="min-h-9 min-w-9" checked={shareShowPrices} onCheckedChange={onShareShowPricesChange} disabled={isShareLoading || !isOnline} />
-                  </label>
-                  <div className="flex gap-2">
-                    <Button type="button" variant="outline" className="flex-1 gap-2" onClick={handleCopyShareLink} disabled={isShareLoading}>
-                      <Copy className="w-4 h-4" />
-                      Copy link
-                    </Button>
-                    <Button type="button" variant="destructive" className="flex-1" onClick={onDisableReadOnlyShare} disabled={isShareLoading}>
-                      Disable link
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Button type="button" className="w-full gap-2" onClick={onEnableReadOnlyShare} disabled={!isSignedIn || isShareLoading}>
-                  {isShareLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                  Generate read-only share link
-                </Button>
-              )}
-              {!isSignedIn && (
-                <p className="text-xs text-muted-foreground">
-                  Sign in first to manage your public share link.
-                </p>
-              )}
-            </div>
-          )}
-
-          {effectiveActiveTab === "account" && !isAccountReadOnly && <BillingSettings signedIn={isSignedIn} onSignIn={() => { onClose(); window.dispatchEvent(new Event("holofolder-sign-in")) }} />}
-          {effectiveActiveTab === "account" && !isAccountReadOnly && user && <DeveloperSettings key={`developer-${user.id}`} isOnline={isOnline} />}
-          {effectiveActiveTab === "account" && !isAccountReadOnly && user && <AccountPasskeys key={`passkeys-${user.id}`} isOnline={isOnline} />}
-          {effectiveActiveTab === "account" && !isAccountReadOnly && user && <AccountIdentitySettings key={user.id} user={user} isOnline={isOnline} onUsernameSaved={onPublicIdentityChange} />}
-
-          {effectiveActiveTab === "account" && !isReadOnlyView && (
-            <div className="space-y-2">
-              <Button variant="outline" className="w-full min-h-10 justify-start gap-2" disabled={!backupReady || isBackingUp} onClick={async () => {
-                setIsBackingUp(true)
-                setBackupMessage(null)
-                try { setBackupMessage(await onDownloadBackup()) }
-                catch (error) { setBackupMessage(error instanceof Error ? error.message : "Could not create the backup. Try again.") }
-                finally { setIsBackingUp(false) }
-              }}>
-                <Download className="h-4 w-4" />
-                {isBackingUp ? "Preparing backup…" : "Download backup"}
-              </Button>
-              <p className="text-xs text-muted-foreground">This binder’s owned cards, wanted cards and settings, including unsynced edits. Saves a JSON file.</p>
-              {backupMessage && <p role="status" className="text-xs text-muted-foreground">{backupMessage}</p>}
-            </div>
-          )}
-
-          {effectiveActiveTab === "account" && !isAccountReadOnly && <PartnerPushSettings userId={user?.id ?? null} isInstalledApp={isInstalledApp} />}
-
-          {effectiveActiveTab === "account" && !isAccountReadOnly && (
-            <PricingPreferencesSettings settings={settings} onUpdateSettings={onUpdateSettings} />
-          )}
-
-          {/* About */}
-          {effectiveActiveTab === "account" && (
-          <div className="pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground text-center">
-              Holo Folder helps you organize your Pokemon card collection by National Dex number.
-            </p>
+        )
+      case "backup":
+        return (
+          <div className="space-y-2">
+            <Button variant="outline" className="w-full min-h-10 justify-start gap-2" disabled={!backupReady || isBackingUp} onClick={async () => {
+              setIsBackingUp(true)
+              setBackupMessage(null)
+              try { setBackupMessage(await onDownloadBackup()) }
+              catch (error) { setBackupMessage(error instanceof Error ? error.message : "Could not create the backup. Try again.") }
+              finally { setIsBackingUp(false) }
+            }}>
+              <Download className="h-4 w-4" />
+              {isBackingUp ? "Preparing backup…" : "Download backup"}
+            </Button>
+            <p className="text-xs text-muted-foreground">This binder’s owned cards, wanted cards and settings, including unsynced edits. Saves a JSON file.</p>
+            {backupMessage && <p role="status" className="text-xs text-muted-foreground">{backupMessage}</p>}
           </div>
-          )}
+        )
+      case "developer":
+        return user && <DeveloperSettings key={`developer-${user.id}`} isOnline={isOnline} />
+    }
+  }
 
-          <CardDataAttribution className="border-t border-border/60 pt-3 text-center text-[11px] leading-snug text-muted-foreground/80" />
+  return (
+    <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={onClose}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
+        className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--dock-clearance)+0.75rem)] mx-auto flex w-auto max-w-md flex-col holo-panel overflow-hidden rounded-[1.5rem] border border-border/50 bg-card shadow-2xl backdrop-blur-xl animate-slide-up md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(85vh,48rem)] md:w-full md:-translate-x-1/2 md:-translate-y-1/2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div data-sheet-grabber className="relative flex items-center justify-between gap-2 border-b border-border/50 px-3 py-3 shrink-0" {...swipe}>
+          <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30 md:hidden" />
+          {activePage ? (
+            <div className="flex min-w-0 items-center gap-1">
+              <button ref={backRef} type="button" onClick={goBack} aria-label="Back to Settings" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-muted/70 transition-colors">
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <h2 className="truncate text-lg font-semibold tracking-tight">{pageTitle}</h2>
+            </div>
+          ) : (
+            <h2 className="px-2 text-lg font-semibold tracking-tight">Settings</h2>
+          )}
+          <button onClick={onClose} aria-label="Close settings" className="mr-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-muted/70 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="relative flex-1 overflow-hidden">
+          <div className={`${PANE} px-4 py-4 space-y-5 ${activePage ? "invisible -translate-x-1/4" : "visible translate-x-0"}`} style={PANE_STYLE}>
+            {!user && !isAccountReadOnly && (
+              <button
+                type="button"
+                onClick={() => { onClose(); window.dispatchEvent(new Event("holofolder-sign-in")) }}
+                className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-3 py-3 text-left transition-colors hover:bg-primary/15"
+              >
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><LogIn className="size-4" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold">Sign in</span>
+                  <span className="block text-xs text-muted-foreground">Sync across devices, share binders and unlock Premium.</span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+              </button>
+            )}
+            {groups.map(group => {
+              const visibleRows = group.rows.filter(row => row.visible)
+              if (visibleRows.length === 0) return null
+              return (
+                <SettingsGroup key={group.label} label={group.label} quiet={group.quiet}>
+                  {visibleRows.map(row => (
+                    <button
+                      key={row.id}
+                      type="button"
+                      data-settings-row={row.id}
+                      aria-label={row.summary ? `${row.title}, ${row.summary}` : row.title}
+                      onClick={() => openPage(row.id)}
+                      className={`flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/50 ${group.quiet ? "text-muted-foreground" : ""}`}
+                    >
+                      <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${group.quiet ? "bg-muted/60" : "bg-primary/10 text-primary"}`}>
+                        <row.icon className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.title}</span>
+                      {row.summary && <span className="min-w-0 max-w-[45%] truncate text-sm text-muted-foreground">{row.summary}</span>}
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground/70" />
+                    </button>
+                  ))}
+                </SettingsGroup>
+              )
+            })}
+            <div className="space-y-3 pt-1">
+              <p className="text-xs text-muted-foreground text-center">
+                Holo Folder helps you organize your Pokemon card collection by National Dex number.
+              </p>
+              <CardDataAttribution className="border-t border-border/60 pt-3 text-center text-[11px] leading-snug text-muted-foreground/80" />
+            </div>
+          </div>
+
+          <div ref={pageScrollRef} className={`${PANE} px-5 py-5 sm:px-6 ${activePage ? "visible translate-x-0" : "invisible translate-x-full"}`} style={PANE_STYLE}>
+            {renderedPage && <div key={renderedPage}>{renderPage(renderedPage)}</div>}
+          </div>
         </div>
       </div>
     </div>

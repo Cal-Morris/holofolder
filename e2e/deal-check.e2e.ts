@@ -1,5 +1,5 @@
 import type { Locator } from "@playwright/test"
-import { test, expect, type Harness } from "./fixtures"
+import { test, expect, openSettingsPage, type Harness } from "./fixtures"
 import { mockCardPrices } from "./price-fixtures"
 
 const SCREENS = process.env.E2E_SCREENSHOT_DIR
@@ -105,7 +105,7 @@ test.describe("deal checker", () => {
     await page.getByRole("button", { name: "More", exact: true }).click()
     await page.getByRole("menuitem", { name: "Settings" }).click()
     const settings = page.getByRole("dialog", { name: /settings/i })
-    await settings.getByRole("button", { name: "Display", exact: true }).click()
+    await openSettingsPage(settings, "Show mode")
     const deal = settings.getByRole("group", { name: "Deal checker" })
     const great = deal.getByRole("spinbutton", { name: "Great deal threshold" }).or(deal.getByRole("textbox", { name: "Great deal threshold" }))
     await great.fill("40")

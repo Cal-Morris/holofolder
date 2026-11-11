@@ -139,6 +139,19 @@ export async function closeStorage(page: Page) {
 }
 
 /** Native collection and view selectors are enclosed menu buttons. `data-value` carries the exact id or view. */
+/** A row of the Settings list (its name may carry a summary after a comma, e.g. "Layout, 3×3"). */
+export const settingsRow = (dialog: Locator, title: string) =>
+  dialog.getByRole("button", { name: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(,|$)`) })
+
+/** Opens a page of the open Settings dialog, going back to the list first if another page is showing. */
+export async function openSettingsPage(dialog: Locator, title: string) {
+  const back = dialog.getByRole("button", { name: "Back to Settings", exact: true })
+  if (await back.isVisible()) await back.click()
+  await settingsRow(dialog, title).click()
+  await expect(dialog.getByRole("heading", { name: title, exact: true })).toBeVisible()
+  return dialog
+}
+
 export const collectionPicker = (page: Page) => page.getByRole("button", { name: "Collection", exact: true })
 export const viewPicker = (page: Page) => page.getByRole("button", { name: "Collection view", exact: true })
 async function choose(page: Page, trigger: Locator, menu: string, value: string) {

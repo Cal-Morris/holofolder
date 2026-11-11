@@ -1,4 +1,4 @@
-import { test, expect, E2E_USER, type Harness } from "./fixtures"
+import { test, expect, E2E_USER, openSettingsPage, type Harness } from "./fixtures"
 import { getDefaultBinderSettings } from "../lib/settings"
 
 const BINDER = "e2e00000-0000-4000-8000-000000000001"
@@ -7,7 +7,7 @@ async function openSettings(harness: Harness) {
   await harness.page.getByRole("menuitem", { name: "Settings", exact: true }).click()
   const dialog = harness.page.getByRole("dialog", { name: /settings/i })
   await expect(dialog).toBeVisible()
-  return dialog
+  return openSettingsPage(dialog, "Layout")
 }
 
 test.describe("custom binder layouts", () => {
