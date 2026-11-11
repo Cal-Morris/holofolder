@@ -13,7 +13,7 @@ or cancel without changing either copy.
 
 Your ownership count, recorded grading and acquisition details stay the same.
 Targets and wants stay with their slots, and moving a copy does not clear wants.
-After sync, Find acknowledged change can locate the exact Activity entry. Recovery
+After sync, the change shows in Activity. Undo
 is checked against current storage and may be unavailable.
 
 ## Actual boundary

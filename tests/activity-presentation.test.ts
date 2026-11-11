@@ -38,3 +38,8 @@ test('receipts expand only useful deltas or bulk changes',()=>{
   assert.equal(activityReceipt(make(row,{...row,card_id:'mep-038'})).hasDetails,true)
   assert.equal(activityReceipt({...base,changes:[...make(null,row).changes,...make(null,row).changes]}).hasDetails,true)
 })
+test('slot changes without a card name read as a slot, not "slot an item"',()=>{
+  const slot={...base,changes:[{table:'binder_slots',id:'s',before:{position:1},after:{position:2}}]}
+  assert.equal(activitySummary(slot,[{id:'binder',name:'test'}]).title,'Updated a slot in test')
+  assert.equal(readableActivityChanges({...base,changes:[{table:'binder_slots',id:'s',before:null,after:{card_name:'Bulbasaur'}}]})[0].title,'Added Bulbasaur')
+})

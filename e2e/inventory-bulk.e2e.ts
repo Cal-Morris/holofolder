@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, openStorage } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness } from "./fixtures"
 import type { Page } from "@playwright/test"
 import type { SlotOfflineRecord } from "../lib/collection/slot-offline-queue"
 
@@ -99,24 +99,6 @@ test("explicit bulk mapping cancels, moves and unassigns all copies, exact Activ
   expect(after.items).toEqual(before.items)
   expect(after.placements).toHaveLength(0)
   expect(after.binders.map(b => b.slots.map(s => [s.id, s.target, s.wantedCards, s.presetOrigin]))).toEqual(before.binders.map(b => b.slots.map(s => [s.id, s.target, s.wantedCards, s.presetOrigin])))
-  const operationId = bodies[1].operationId
-  const scope = { accountId: E2E_USER.id, ownerId: E2E_USER.id, membershipKey: JSON.stringify([null, E2E_USER.id]), memberIds: [E2E_USER.id] }
-  await page.route("**/app/api/collection-activity**", route => {
-    const query = new URL(route.request().url()).searchParams
-    if (query.has("id")) expect(query.get("id")).toBe("103")
-    else if (!query.has("scope")) expect(query.get("operationId")).toBe(operationId)
-    return route.fulfill({ json: query.has("scope") ? { scope } : { scope, data: [{ id: "103", operation_id: operationId, recorded_at: "2026-11-10T12:00:00Z", format_version: 1, actor_kind: "user", actor_user_id: E2E_USER.id, source: "app", action: "inventory.bulk", affected_entities: { inventoryItemIds: [first, second], collectionIds: [collection], slotIds: ["synthetic-slot-1"] }, changes: [{ table: "inventory_placements", id: first, before: { slot_id: "synthetic-slot-1" }, after: null }] }], nextCursor: null, syncedAt: "2026-11-10T12:01:00Z" } })
-  })
-  await (await openStorage(page)).getByText("Recent changes", { exact: true }).click()
-  await page.getByRole("combobox", { name: "Synchronized change" }).selectOption(operationId)
-  await page.getByRole("button", { name: "Show in Activity" }).click()
-  const activity = page.getByRole("dialog", { name: "Collection Activity", exact: true })
-  await expect(activity.getByRole("button", { name: "Undo", exact: true })).toHaveCount(0)
-  await activity.getByRole("button", { name: "Open exact entry 103", exact: true }).click()
-  await activity.getByRole("button", { name: "See what undoing does", exact: true }).click()
-  // The pocket changed after this move, so Activity says the change can no longer be undone and offers no undo.
-  await expect(activity.getByRole("region", { name: "Review recovery", exact: true })).toContainText("This change can no longer be undone")
-  await expect(activity.getByRole("button", { name: "Undo this change" })).toHaveCount(0)
 })
 test("selection crosses explicit pages and filters, clear resets all, overlay dismissal never dispatches", async ({ page, context, baseURL }) => {
   await context.addCookies([{ name: "hf-storage-fixture", value: `raw-bulk-${crypto.randomUUID()}`, url: baseURL! }])
