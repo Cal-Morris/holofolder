@@ -186,6 +186,10 @@ export function projectSlotIntent(base: InventorySnapshot, raw: SlotOfflineInten
           return { ...b, slots: b.slots.filter(s => !ids.has(s.id)) }
         })
         if (c.kind === "deleteCollection") {
+          if (c.removeOwned) {
+            const placed = new Set(refs.map(r => r.slot.inventoryItemId))
+            state.items = state.items.filter(i => !placed.has(i.id) || i.grading !== null)
+          }
           state.collections = state.collections.filter(col => col.id !== c.collectionId)
           state.binders = state.binders.filter(b => b.collectionId !== c.collectionId)
           touched.add(c.collectionId)

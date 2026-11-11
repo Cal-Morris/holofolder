@@ -14,7 +14,7 @@ export function collectionDeletionEvidence(read: CollectionNavigationRead) {
 }
 
 /** The existing exclusive deleteCollection family owns the full bounded atomic intent. */
-export function prepareCollectionDeletion(read: CollectionNavigationRead, collectionId: string, replacementId: string | null, context: OperationIntentContext) {
+export function prepareCollectionDeletion(read: CollectionNavigationRead, collectionId: string, replacementId: string | null, context: OperationIntentContext, removeOwned = false) {
   const evidence = collectionDeletionEvidence(read)
   if (read.evidence.kind !== 'complete') throw new Error('fresh-scoped-read-required')
   const snapshot = read.evidence.snapshot
@@ -29,13 +29,20 @@ export function prepareCollectionDeletion(read: CollectionNavigationRead, collec
     version: snapshot.collections.find(c => c.id === id)!.version, layoutRevision: snapshot.binders.find(b => b.collectionId === id)!.layoutRevision }))
   const intent = parseSlotIntent({ kind: 'inventory', context, request: { operationId: context.operationId,
     inventoryRevision: snapshot.inventoryRevision, collections: refs, commands: [{ kind: 'deleteCollection', collectionId,
-      replacementDefaultCollectionId: replacementId, slots: rows.map(({ slot, item }) => ({ id: slot.id, version: slot.version,
+      replacementDefaultCollectionId: replacementId, ...(removeOwned ? { removeOwned: true as const } : {}), slots: rows.map(({ slot, item }) => ({ id: slot.id, version: slot.version,
         inventoryItemId: slot.inventoryItemId, itemVersion: item?.version ?? null, placementVersion: placements.get(slot.id)?.version ?? null })) }] } })
-  // Validates every exact slot/item/placement precondition, without catalog guesses or ownership removal.
+  // Validates every exact slot/item/placement precondition, without catalog guesses.
   projectSlotIntent(snapshot, intent, () => undefined)
   return { scope: { ownerUserId: snapshot.ownerUserId, collectionId, slotId: null }, intent, evidence,
     collection: structuredClone(collection), replacement: structuredClone(snapshot.collections.find(c => c.id === replacementId) ?? null), rows,
     counts: { slots: rows.length, targets: rows.filter(r => r.slot.target).length,
-      wants: rows.reduce((n, r) => n + r.slot.wantedCards.length, 0), unassigned: rows.filter(r => r.item).length } }
+      wants: rows.reduce((n, r) => n + r.slot.wantedCards.length, 0), ...cardCounts(rows, removeOwned) } }
+}
+
+/** removeOwned deletes raw copies only; graded copies stay Unassigned (their label assets can't be restored). */
+function cardCounts(rows: { item: { grading: unknown } | null }[], removeOwned: boolean) {
+  const cards = rows.filter(r => r.item), graded = cards.filter(r => r.item!.grading !== null).length
+  const removed = removeOwned ? cards.length - graded : 0
+  return { cards: cards.length, graded, removed, unassigned: cards.length - removed }
 }
 export type CollectionDeletionDraft = ReturnType<typeof prepareCollectionDeletion>

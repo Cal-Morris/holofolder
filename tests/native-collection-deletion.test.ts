@@ -4,6 +4,8 @@ import { collectionDeletionEvidence, prepareCollectionDeletion } from '@/lib/nat
 import { projectSlotIntent } from '@/lib/collection/slot-optimistic'
 import { createSlotOfflineQueue } from '@/lib/collection/slot-offline-queue'
 import { createMemoryStore } from '@/lib/offline-store/kv'
+import { parseInventoryCommand } from '@/lib/domain/inventory-commands'
+import { emptyGradingRecord } from '@/lib/grading/draft'
 import { deletionRead, deletionCollection, deletionRemaining, deletionOwner } from './fixtures/collection-deletion'
 
 const context = { source: 'app' as const, clientId: null, operationId: 'synthetic-delete-operation', batchId: null, clientOccurredAt: '2026-01-01' }
@@ -12,7 +14,8 @@ for (const count of [0, 1025, 4096]) test(`whole ${count}-slot preview keeps eve
   if (read.evidence.kind !== 'complete') throw new Error('fixture')
   const before = structuredClone(read.evidence.snapshot)
   const draft = prepareCollectionDeletion(read, deletionCollection, deletionRemaining, context)
-  assert.deepEqual(draft.counts, { slots: count, targets: count, wants: count, unassigned: count })
+  assert.deepEqual(draft.counts, { slots: count, targets: count, wants: count, cards: count, graded: 0, removed: 0, unassigned: count })
+  assert.equal('removeOwned' in draft.intent.request.commands[0], false)
   assert.equal(draft.intent.kind, 'inventory')
   assert.equal(draft.intent.request.commands.length, 1)
   assert.deepEqual(draft.rows.map(r => r.slot.id), before.binders[0].slots.map(s => s.id))
@@ -93,4 +96,27 @@ test('503 retains exact original whole-collection intent and a historical reply 
 test('oversized collections fail closed without truncation, splitting or manual clearing guidance', async () => {
   const read = await deletionRead(4097)
   assert.throws(() => prepareCollectionDeletion(read, deletionCollection, deletionRemaining, context), /4096-slot atomic deletion bound/)
+})
+
+test('removeOwned removes the binder raw copies in the same command and keeps graded ones Unassigned', async () => {
+  const read = await deletionRead(3)
+  if (read.evidence.kind !== 'complete') throw new Error('fixture')
+  const graded = read.evidence.snapshot.items[0]
+  graded.identity = { kind: 'card', cardId: 'synthetic-graded-card' }; graded.grading = emptyGradingRecord()
+  const unrelated = { ...read.evidence.snapshot.items[1], id: 'synthetic-unplaced-copy' }
+  read.evidence.snapshot.items.push(unrelated)
+  const draft = prepareCollectionDeletion(read, deletionCollection, deletionRemaining, context, true)
+  assert.deepEqual(draft.counts, { slots: 3, targets: 3, wants: 3, cards: 3, graded: 1, removed: 2, unassigned: 1 })
+  assert.equal(draft.intent.request.commands.length, 1)
+  assert.deepEqual(parseInventoryCommand(draft.intent.request), draft.intent.request)
+  const after = projectSlotIntent(read.evidence.snapshot, draft.intent, () => undefined)
+  assert.deepEqual(after.items.map(i => i.id).sort(), [graded.id, unrelated.id].sort())
+  assert.deepEqual(after.placements, [])
+})
+test('deleteCollection accepts removeOwned only as true', () => {
+  const request = (extra: object) => ({ operationId: 'synthetic-delete-operation', inventoryRevision: 7, collections: [{ collectionId: deletionCollection, version: 3, layoutRevision: 4 }],
+    commands: [{ kind: 'deleteCollection', collectionId: deletionCollection, slots: [], replacementDefaultCollectionId: null, ...extra }] })
+  assert.doesNotThrow(() => parseInventoryCommand(request({})))
+  assert.doesNotThrow(() => parseInventoryCommand(request({ removeOwned: true })))
+  for (const removeOwned of [false, 'true', 1]) assert.throws(() => parseInventoryCommand(request({ removeOwned })))
 })
