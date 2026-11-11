@@ -13,7 +13,7 @@ Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are 
 2. **Dry run** (no writes):
    ```sh
    curl -X POST -H "Authorization: Bearer $CARD_DB_SYNC_SECRET" \
-     "https://holofolder.com/app/api/admin/sync-card-db?set=<id>&dryRun=1"
+     "https://app.holofolder.com/app/api/admin/sync-card-db?set=<id>&dryRun=1"
    ```
    Check the card count and the dex links in the response.
 3. **Sync it.** Drop `dryRun`, or omit `?set=` to sync everything missing or incomplete, newest first. Repeat the call until the response has `"done": true`. Each call handles `maxSets` sets (default 4, max 12) and returns `remainingSetIds`.
@@ -24,7 +24,7 @@ Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are 
    - API, resumable:
      ```sh
      curl -X POST -H "Authorization: Bearer $CARD_DB_SYNC_SECRET" \
-       "https://holofolder.com/app/api/admin/mirror-card-images?set=<id>"
+       "https://app.holofolder.com/app/api/admin/mirror-card-images?set=<id>"
      ```
      Then call it again with `?cursor=<nextCursor>` until `"done": true`.
    - Local alternative that costs no deploy: `bun run card-assets mirror-tcgdex --set <id>`. Flags: `--lang`, `--quality`, `--concurrency`, `--max-class-a`, `--max-gb`. It retries 429s and 5xx with backoff, and stops before the budgets.
