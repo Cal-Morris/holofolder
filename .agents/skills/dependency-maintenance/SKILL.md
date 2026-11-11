@@ -35,4 +35,4 @@ Report the reason for the version/removal, affected behavior, validation at the 
 
 Example: an icon comparison differs in six encoded bytes but has identical dimensions and decoded pixels. Preserve the images, check the encoding contract, and keep strict pixel/dimension assertions if the test protects visual content.
 
-Finish through [release-and-deploy](../release-and-deploy/SKILL.md): prepare locally before the first push, respect exact-head checks/reviews and use the documented quota exception only for an explicit quota failure. This skill does not grant permission to upgrade unrelated packages or bypass a failing build.
+Finish through [release-and-deploy](../release-and-deploy/SKILL.md): prepare locally before the first push, respect exact-head checks and reviews. This skill does not grant permission to upgrade unrelated packages or bypass a failing build.
