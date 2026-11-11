@@ -9,7 +9,10 @@ async function main() {
   mock.module('server-only', () => ({}))
   const f = await rawRestoreFixture(), scope = f.input.evidence
   let session = scope.authSessionId, current = f.input.current, unknown = true, terminal = false, errorCode: string | null = null
-  const client = { auth: { getClaims: async () => ({ data: { claims: { sub: scope.actorUserId, role: 'authenticated', session_id: session } } }) } }
+  const client = { auth: { getClaims: async () => ({ data: { claims: { sub: scope.actorUserId, role: 'authenticated', session_id: session } } }) },
+    // Synthetic inventory_read_scope_v2 for the live session.
+    rpc: () => ({ abortSignal: async () => ({ data: { actor: scope.actorUserId, owner: scope.ownerUserId, session_id: session, partner_paused: false }, error: null }) }) }
+  mock.module('../../lib/supabase/server', () => ({ createClient: async () => client }))
   mock.module('../../lib/server/developer-access/first-party', () => ({ requireDeveloperSettingsUser: async () => ({ user: { id: scope.actorUserId }, client }) }))
   mock.module('../../lib/server/inventory-read', () => ({ readOwnerInventoryState: async () => ({ snapshot: current, actorUserId: scope.actorUserId,
     authSessionId: session, partnerUserId: scope.partnerUserId, navigation: { layouts: f.input.layouts } }) }))

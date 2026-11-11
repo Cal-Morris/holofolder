@@ -48,6 +48,13 @@ async function run() {
   assert.equal((await put(8, 8)).status, 200)
   assert.equal((await put(3, 4)).status, 200)
   assert.equal(billingChecks, before)
+  // A developer context passes the owner it already authenticated with paid access: no second billing check.
+  const { saveCollectionSettings } = await import("../../lib/server/operations/settings")
+  grid = { binder_rows: 4, binder_cols: 4 }
+  const developerBefore = billingChecks
+  const developerPut = await saveCollectionSettings(new NextRequest("https://operations.holofolder.invalid/", { method: "PUT", body: JSON.stringify({ ...getDefaultBinderSettings(), binderRows: 8, binderCols: 8, binderId }) }), { id: "partner" }, false, "owner")
+  assert.equal(developerPut.status, 200)
+  assert.equal(billingChecks, developerBefore)
   exists = false
   assert.equal((await put(4, 4)).status, 404)
 }

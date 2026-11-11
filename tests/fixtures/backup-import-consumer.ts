@@ -12,7 +12,9 @@ async function main() {
   let signedIn = true, unknown = true
   mock.module('../../lib/supabase/server', () => ({ createClient: async () => ({ auth: {
     getClaims: async () => ({ data: { claims: { sub: actor, role: 'authenticated', session_id: 'synthetic-import-session' } } }), getUser: async () => ({ data: { user: signedIn ? { id: actor } : null } }),
-  } }) }))
+  }, rpc: () => ({ abortSignal: async () => signedIn // Synthetic inventory_read_scope_v2: live session, then the shared owner.
+    ? { data: { actor, owner, session_id: 'synthetic-import-session', partner_paused: false }, error: null }
+    : { data: null, error: { code: '42501', message: 'inventory_sign_in_required' } } }) }) }))
   const options = arrangementFixture()
   options.current.ownerUserId = owner
   options.current.collections.forEach(c => { c.ownerUserId = owner })

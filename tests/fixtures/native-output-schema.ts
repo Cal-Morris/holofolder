@@ -6,7 +6,6 @@ async function main() {
   const { mock } = await import('bun:test')
   mock.module('server-only', () => ({}))
   const principal = { actorId: 'synthetic-actor', credentialId: 'synthetic-credential', transport: 'mcp' as const, permissions: ['collection:write', 'binders:write'] as const }
-  mock.module('../../lib/server/developer-access/principal', () => ({ requireMcpContext: async () => ({ principal, ownerUserId: principal.actorId, memberIds: [principal.actorId], requestId: 'synthetic-request' }) }))
   mock.module('../../lib/server/developer-access/audit', () => ({ auditDeveloperOperation() {} }))
   let result: unknown = { inventoryRevision: 2, changed: true, selectedItemIds: [], acquiredItemIds: [] }
   const state: { failure?: unknown } = {}
@@ -18,7 +17,7 @@ async function main() {
   const args = { operationId: 'synthetic-output-schema', inventoryRevision: 1, collections: [], commands: [{ kind: 'add', itemId: 'synthetic-copy', identity: { kind: 'pokemon', pokemonId: 1 }, grading: null, acquiredAt: null }] }
   async function call() {
     const request = new Request('https://synthetic.test/app/mcp', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' } })
-    const server = createHoloMcpServer(request, 'synthetic-request', principal)
+    const server = createHoloMcpServer({ principal, ownerUserId: principal.actorId, memberIds: [principal.actorId], requestId: 'synthetic-request' })
     const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
     try {
       await server.connect(transport)

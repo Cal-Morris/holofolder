@@ -31,10 +31,10 @@ async function main() {
     const response = await slots.POST(request(command, extra))
     assert.equal(response.status, 403); privateReply(response)
   }
-  const getUser = f.client.auth.getUser.bind(f.client.auth)
-  f.client.auth.getUser = async () => ({ data: { user: null }, error: null }) as never
+  // A session revoked server-side (auth.sessions row gone, user banned or deleted) fails inventory_read_scope_v2.
+  f.revoke()
   assert.equal((await slots.POST(request())).status, 401)
-  f.client.auth.getUser = getUser
+  f.revoke(false)
   const getClaims = f.client.auth.getClaims.bind(f.client.auth)
   for (const claims of [{ sub: owner, role: 'authenticated', session_id: 'synthetic-e2e-auth-session', client_id: 'oauth-client' },
     { sub: 'another-actor', role: 'authenticated', session_id: 'synthetic-e2e-auth-session' },
@@ -48,8 +48,9 @@ async function main() {
   f.tables.partnerships.push({ id: collectionId, owner_user_id: owner, user1_id: owner, user2_id: partner })
   f.setActor(partner)
   const rpc = f.client.rpc.bind(f.client)
-  f.client.rpc = ((name: string, args: Record<string, unknown>) => name === 'billing_partner_allowed'
-    ? Promise.resolve({ data: null, error: { code: 'PGRST202' } }) : rpc(name, args)) as typeof f.client.rpc
+  // inventory_read_scope_v2 resolves the partner's billing in SQL; a missing billing function is an error there.
+  f.client.rpc = ((name: string, args: Record<string, unknown>) => name === 'inventory_read_scope_v2'
+    ? { abortSignal: async () => ({ data: null, error: { code: '42883', message: 'synthetic missing billing_partner_allowed' } }) } : rpc(name, args)) as typeof f.client.rpc
   const unavailableBilling = await slots.POST(request(command, { 'X-Binder-Actor': partner }))
   assert.equal(unavailableBilling.status, 503); privateReply(unavailableBilling)
   f.client.rpc = rpc; f.tables.partnerships.length = 0; f.setActor(owner)

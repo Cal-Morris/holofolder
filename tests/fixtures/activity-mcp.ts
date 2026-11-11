@@ -7,9 +7,12 @@ async function main() {
  const {DeveloperAccessError}=await import('../../lib/developer-api/permissions')
  const principal={actorId:'04470000-0000-4000-8000-000000000001',credentialId:'synthetic-grant',transport:'mcp' as const,permissions:['collection:read','collection:write','binders:write']}
  let revoked=false
- mock.module('../../lib/server/developer-access/grants',()=>({authenticateMcpToken:async()=>{if(revoked)throw new DeveloperAccessError('oauth_revoked','Revoked',401);return principal}}))
- mock.module('../../lib/server/developer-access/entitlement',()=>({requireDeveloperEntitlement:async()=>({ownerUserId:principal.actorId,memberIds:[principal.actorId]})}))
- mock.module('../../lib/server/developer-access/limits',()=>({consumeDeveloperLimit:async()=>{},consumeDeveloperPreauth:async()=>{},developerPreauthBucket:()=>"synthetic"}))
+ // Authentication is synthetic: one context per HTTP request, from the bearer credential's transport.
+ mock.module('../../lib/server/developer-access/principal',()=>({
+  requireRestContext:async(_request:Request,required:readonly string[])=>{const {requirePermissions}=await import('../../lib/developer-api/permissions');requirePermissions(principal.permissions as never,required as never);return {principal:{...principal,transport:'rest'},ownerUserId:principal.actorId,memberIds:[principal.actorId],requestId:'synthetic-rest'}},
+  requireMcpContext:async()=>{if(revoked)throw new DeveloperAccessError('oauth_revoked','Revoked',401);return {principal:{...principal,permissions:[...principal.permissions]},ownerUserId:principal.actorId,memberIds:[principal.actorId],requestId:'synthetic-mcp'}},
+ }))
+ mock.module('../../lib/server/developer-access/grants',()=>({verifyMcpToken:async()=>({actorId:principal.actorId})}))
  mock.module('../../lib/server/developer-access/audit',()=>({auditDeveloperOperation:()=>{}}))
  const {auditContextHeader}=await import('../../lib/server/audit-context')
  const calls:string[]=[]
@@ -26,7 +29,6 @@ async function main() {
    const data=args.operation==='preview' ? {planVersion:1,eventId:'12',supported:true,unsupported:[],conflicts:[],planToken:'a'.repeat(64),restoreUnassignedItemIds:[],changes:[],rootRevisionsAdvance:false} : {eventId:'13',recoveredEventId:'12'}
    return {abortSignal:async()=>({data,error:null})}
  }})}))
- mock.module('../../lib/server/developer-access/keys',()=>({authenticateKey:async()=>({...principal,transport:'rest'})}))
  const {handleRestRequest}=await import('../../lib/server/developer-access/http')
  const rest=(query:string)=>handleRestRequest(new Request('https://synthetic.test/app/api/v1/collection/audit'+query,{headers:{Authorization:'Bearer synthetic-rest-key'}}),{params:Promise.resolve({path:['collection','audit']})})
  let restResponse=await rest('?operationId=synthetic-original-op')
