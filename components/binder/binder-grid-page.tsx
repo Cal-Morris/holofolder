@@ -253,7 +253,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
       <div className="absolute inset-0 rounded-2xl" style={{ background: pageTheme.gloss }} />
       {showPageLabel && (
         <div
-          className={`absolute top-3 z-10 rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[10px] font-semibold tracking-[0.16em] text-white/78 uppercase backdrop-blur-sm ${side === 'left' ? 'left-3' : 'right-3'}`}
+          className={`absolute bottom-1 z-10 rounded-full border border-white/15 bg-black/25 px-2 py-px text-[9px] font-semibold tracking-[0.16em] text-white/78 uppercase backdrop-blur-sm ${side === 'left' ? 'left-3' : 'right-3'}`}
         >
           Page {pageNumber}
         </div>
@@ -265,7 +265,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
         tabIndex={scrollable ? 0 : undefined}
       >
         <div
-          className={`relative h-full w-full p-2 sm:p-4 ${showPageLabel ? 'pt-10 sm:pt-10' : ''}`}
+          className={`relative h-full w-full p-2 sm:p-4 ${showPageLabel ? 'pb-6 sm:pb-6' : ''}`}
           style={{
             minWidth:
               settings.binderCols * (scrollable ? 64 : 36) +
@@ -275,7 +275,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
               settings.binderRows * (scrollable ? 90 : 36) +
               (settings.binderRows - 1) * 6 +
               (isDesktopViewport ? 32 : 16) +
-              (showPageLabel ? 32 : 0),
+              (showPageLabel ? 16 : 0),
             display: 'grid',
             gridTemplateColumns: `repeat(${settings.binderCols}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${settings.binderRows}, minmax(0, 1fr))`,
