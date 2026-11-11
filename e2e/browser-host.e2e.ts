@@ -124,6 +124,8 @@ test("online startup 503 resets once and reports the second failure", async ({ p
 })
 
 test("pending real IDB edits survive Edit layout teardown, view changes and failed refresh", async ({ page }) => {
+  // The command never reaches the server, so the edit stays queued on the device for the whole test.
+  await page.route("**/app/e2e-harness/storage/**", route => route.request().method() === "GET" ? route.fallback() : route.abort("failed"))
   await page.goto(`${entry}&binder=${alpha}`)
   await expect(collectionPicker(page)).toBeVisible()
   await expect(page.getByRole("button", {name:"Edit layout", exact:true})).toBeVisible()
@@ -135,6 +137,7 @@ test("pending real IDB edits survive Edit layout teardown, view changes and fail
   await layout.getByRole("button", { name: "Add", exact: true }).click()
   await layout.getByRole("menuitem", { name: "Before the selection" }).click()
   await expect(layout.getByRole("alert")).toHaveCount(0)
+  await expect(page.locator("[data-sync-state]")).toBeVisible()
   await nav(page).getByRole("button", { name: "Inventory", exact: true }).click()
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await page.goBack()
@@ -142,7 +145,8 @@ test("pending real IDB edits survive Edit layout teardown, view changes and fail
   await expect(page.getByRole("button", { name: "Done", exact: true })).not.toBeVisible()
   await page.route("**/app/e2e-harness/storage/inventory?*", route => route.fulfill({ status: 503, json: { error: "inventory_operations_staged" } }))
   await page.reload()
-  await expect(page.locator("[data-sync-state]")).toBeVisible()
+  // A refused read at startup stops at the storage error page. The edit made before it is still on the device.
+  await expect(page.getByRole("alert").filter({ hasText: "Could not open storage:" })).toBeVisible({ timeout: 20_000 })
   const record = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     return new Promise<unknown[]>((yes, no) => { const r = db.transaction("records").objectStore("records").getAll(); r.onsuccess = () => { db.close(); yes(r.result) }; r.onerror = () => no(r.error) })
@@ -181,19 +185,23 @@ test("auth lifecycle closes private detail and rejects an old in-flight location
   await page.getByRole("button", { name: "Go to pocket", exact: true }).click()
   await started
   await page.evaluate(() => {
+    const seen = window as unknown as { closedOnce?: boolean }
+    const note = () => { if (document.querySelector('[data-testid="binder-skeleton"]') || /Saved storage is paused/.test(document.body.innerText)) seen.closedOnce = true }
+    new MutationObserver(note).observe(document.body, { childList: true, subtree: true })
+  })
+  await page.evaluate(() => {
     const channel = new BroadcastChannel("sb-127-auth-token")
     channel.postMessage({ event: "SIGNED_OUT", session: null })
     channel.close()
   })
+  // The card's details close and the open view is torn down to the loading skeleton (or the paused notice).
+  // That frame is short, so it is recorded as it happens instead of being looked for afterwards.
+  await expect.poll(() => page.evaluate(() => (window as unknown as { closedOnce?: boolean }).closedOnce)).toBe(true)
   await expect(page.getByRole("dialog")).not.toBeVisible()
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).not.toBeVisible()
-  // The private view closes to the loading skeleton, or the paused notice once the check fails. Every read is
-  // still held here, so this is the state the sign-out itself leaves, not a moment between two renders.
-  await expect(page.getByTestId("binder-skeleton").or(page.getByRole("status").filter({ hasText: "Saved storage is paused" }))).toBeVisible()
-  await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
   release()
-  // The session is checked again and Inventory reopens (or stays paused). The location answer that was
-  // in flight when the session ended is dropped: it never opens the pocket it was asked for.
+  // While the account is checked again this device's own saved copy may show, then Inventory reopens (or
+  // stays paused). The location answer that was in flight when the session ended is dropped: it never
+  // opens the pocket it was asked for, and the details stay closed.
   await expect(page.getByRole("searchbox", { name: "Search inventory" }).or(page.getByRole("status").filter({ hasText: "Saved storage is paused" }))).toBeVisible()
   await expect(page.locator("button[data-slot-id]")).toHaveCount(0)
   await expect(page.getByRole("dialog")).not.toBeVisible()
