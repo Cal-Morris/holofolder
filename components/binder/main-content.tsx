@@ -552,6 +552,7 @@ export function renderMainContentView(ctx: MainContentContext) {
                 style={{
                   width: binderFitSize ? `${binderFitSize.width}px` : '100%',
                   height: binderFitSize ? `${binderFitSize.height}px` : 'auto',
+                  visibility: binderFitSize ? undefined : 'hidden',
                 }}
               >
                 <div className={`grid h-full w-full ${isSpreadLayout ? 'grid-cols-2 gap-3 xl:gap-4' : 'grid-cols-1'}`}>
