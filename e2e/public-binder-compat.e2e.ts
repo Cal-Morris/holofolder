@@ -135,7 +135,10 @@ for (const path of paths('priced')) {
     await expect(page.locator('[data-slot-id="public-2"]')).toContainText('£3.50');
     await page.locator('[data-slot-id="public-0"]').tap();
     const priced = page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' });
-    await expect(priced).toContainText('Market price: £12.34');
+    // The same price panel as the owner's own binder, details included.
+    const panel = priced.getByRole('region', { name: 'Prices' });
+    await expect(panel).toContainText('£12.34');
+    await expect(panel.getByText('Price details')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(priced).toHaveCount(0);
     // The View sheet's Prices switch turns pocket prices off and on.

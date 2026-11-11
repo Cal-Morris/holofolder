@@ -4797,9 +4797,9 @@ function BinderAppSurface(props: BinderAppProps) {
               picker={slotPickerBoundary(selectedDisplaySlot.id)}
               host={{
                 onOpenWant: hasNativeConsumer ? openWantedCard : undefined,
-                // Saved prices for the owner's own cards; a share shows only the figure its owner opted in to.
+                // Full price panel for the owner's cards, and on a public share when its owner turned prices on.
                 pricing:
-                  !shareViewToken && !publicIndex && pricingEnabled
+                  !shareViewToken && pricingEnabled
                     ? {
                         region: pricingPreferences.region,
                         formatAmount: priceFormat.amount,
