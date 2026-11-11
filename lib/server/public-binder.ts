@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { cacheLife, cacheTag } from 'next/cache';
 import type { BinderShareRecord } from '@/lib/binder-share';
 import type { PublicBinder, PublicDisplaySlot, PublicShareIdentity } from '@/lib/public-binder';
 import { normalizeUsername, normalizeBinderSlug, isMissingIdentitySchema } from '@/lib/public-binder-identity';
@@ -57,9 +58,40 @@ const color = (v: unknown): BinderColorId =>
   BINDER_COLOR_PRESETS.find((p) => p.id === v)?.id ?? DEFAULT_BINDER_COLOR_ID;
 
 /** The only production entry accepts a public identity, never a caller's owner or collection scope.
- * Injected client is a trusted server/test dependency. No persistent cache or hosted mutation. */
+ * Injected client is a trusted server/test dependency and is never cached. Otherwise a cheap uncached read of
+ * the share, binder, revisions, settings and username (the stamp) runs first, so a disabled share or any edit
+ * takes effect at once, and the full payload is cached under that stamp. No hosted mutation. */
 export async function loadPublicBinder(identity: PublicShareIdentity, client?: SupabaseClient): Promise<PublicBinder> {
-  const db = client ?? (await import('@/lib/supabase/admin')).createAdminClient();
+  if (client) return (await readPublicBinder(identity, client)).binder!;
+  const db = (await import('@/lib/supabase/admin')).createAdminClient();
+  const { stamp } = await readPublicBinder(identity, db, true);
+  try {
+    return await cachedPublicBinder(identity, stamp);
+  } catch {
+    // A write landed between the stamp and the cached read: read it fresh, uncached.
+    return (await readPublicBinder(identity, db)).binder!;
+  }
+}
+
+async function cachedPublicBinder(identity: PublicShareIdentity, stamp: string): Promise<PublicBinder> {
+  'use cache: remote';
+  cacheLife('days');
+  // Card names and images come from the mirror, which a card sync revalidates.
+  cacheTag('tcg-mirror');
+  const db = (await import('@/lib/supabase/admin')).createAdminClient();
+  const read = await readPublicBinder(identity, db);
+  // Only ever store a payload under the stamp it was read at; throwing keeps it out of the cache.
+  if (read.stamp !== stamp) throw new PublicBinderUnavailable();
+  return read.binder!;
+}
+
+/** Every write command bumps the collection's version and the owner's inventory revision in the same
+ * transaction, so the stamp changes whenever anything the payload shows changes. */
+async function readPublicBinder(
+  identity: PublicShareIdentity,
+  db: SupabaseClient,
+  stampOnly = false,
+): Promise<{ stamp: string; binder?: PublicBinder }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
   let requests = 0;
@@ -203,6 +235,8 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       username(),
       revision(),
     ]);
+    const stamp = JSON.stringify([share, initialBinder, initialState, settings.data ?? null, publicUsername, rev]);
+    if (stampOnly) return { stamp };
     const appearanceRow: Row = settings.data ? object(settings.data) : {};
     const pageColors: Record<string, BinderColorId> = {};
     if (appearanceRow.binder_page_colors && typeof appearanceRow.binder_page_colors === 'object') {
@@ -545,7 +579,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       revision().then((final) => same(rev, final)),
       permission().then((final) => same(share, final)),
     ]);
-    return { ...base, prices: share.show_prices === true, slots };
+    return { stamp, binder: { ...base, prices: share.show_prices === true, slots } };
   } catch {
     return fail();
   } finally {
