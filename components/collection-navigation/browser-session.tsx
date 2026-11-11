@@ -526,6 +526,12 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         const head = queue.record?.pending[0]
         // The first change that has not been accepted yet. Accepted ones ahead of it are already saved.
         const waiting = queue.record?.pending.find(p => p.status !== "acknowledged")
+        // Sends that change again as the exact request it already is: same bytes, same operation ID.
+        const retryWaiting = () => {
+          const current = latest.current.queue.record?.pending.find(p => p.status !== "acknowledged")
+          if (!current || !valid()) return
+          void latest.current.queue.queue?.resume(current.intent.request.operationId).then(() => latest.current.queue.refresh()).then(() => kickSender.current()).catch(() => { if (valid()) setNotice("Still working on it. Your change is saved on this device.") })
+        }
         return <>{deleting && <NativeCollectionDeletion key={`${scope.sessionId}:${deleting}`} collectionId={deleting} binding={{ read, available: deletionAvailable, receive: receiveDeletion }} onClose={() => setDeleting(null)} />}{backupOpen && <NativeBackup key={`${scope.sessionId}:${surface.state.collectionId}:${surface.state.main}`} binding={backupBinding} restore={restoreBinding} collectionId={surface.state.collectionId} onClose={() => setBackupOpen(false)} />}{renderSurface({ nativeConsumer: { scope: navigationScope, read: visibleRead,
           collectionId: surface.state.main === "inventory" ? surface.state.inventory.query.collectionId || undefined : surface.state.collectionId ?? undefined,
           editingAvailable: bulkFillAvailable && !queue.record?.legacy.length, admit: () => consumerAdmission.current() }, analytics: { scope: navigationScope, read: visibleRead }, toolbar: surface.header,
@@ -548,15 +554,13 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           {waiting && !waiting.conflict?.rejected && !["conflict", "blocked", "billing"].includes(waiting.status) && (!online
             ? <p role="status" data-sync-state="offline" className="px-4 text-sm text-muted-foreground">Saved on this device. It&apos;ll sync when you&apos;re back online.</p>
             : waiting.status === "unavailable" && <p role="status" data-sync-state="retrying" className="px-4 text-sm text-muted-foreground">Couldn&apos;t save your latest change yet. Trying again…
-              <button type="button" className="ml-2 min-h-9 underline" onClick={() => {
-                const current = latest.current.queue.record?.pending.find(p => p.status !== "acknowledged")
-                if (!current || !valid()) return
-                void latest.current.queue.queue?.resume(current.intent.request.operationId).then(() => latest.current.queue.refresh()).then(() => kickSender.current()).catch(() => { if (valid()) setNotice("Still working on it. Your change is saved on this device.") })
-              }}>Try now</button></p>)}
+              <button type="button" className="ml-2 min-h-9 underline" onClick={retryWaiting}>Try now</button></p>)}
           {head && ["conflict", "blocked", "billing"].includes(head.status) && !head.conflict?.rejected && <p role="status" className="px-4 text-sm">
             {head.status === "conflict" ? "Your collection changed somewhere else, so your latest change is on hold. Nothing is lost."
               : head.status === "billing" ? "Syncing is paused until your plan is active again. Your change is saved on this device."
               : "Syncing is paused. Your change is saved on this device. Check you're signed in to the right account."}
+            {/* A paused change is never sent again by itself: it waits for this, with the same request as before. */}
+            <button type="button" className="ml-2 min-h-9 underline" onClick={retryWaiting}>Try again</button>
           </p>}
           {head?.intent.kind === "raw-restore" && head.conflict?.rejected
             && head.intent.request.planning.authSessionId === scope.authSessionId && <div className="px-4 text-sm">
