@@ -10,7 +10,6 @@ import { NativeActivityRecovery, type NativeRecoveryBinding } from "@/components
 import { isNativeRecoveryEvent } from "@/lib/collection/native-recovery-intent"
 import type { ActivityInitialFilter } from "@/components/collection-activity-context"
 import type { Binder } from "@/lib/binders/model"
-import { operationActivityMatch } from "@/lib/acknowledged-activity"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { Select } from "@/components/ui/select"
 
@@ -27,7 +26,7 @@ export default function CollectionActivitySheet(props:Props) {
   const panel = useRef<HTMLDivElement|null>(null)
   useOverlay(true,onClose,{containerRef:panel})
   const swipe = useSwipeToDismiss(panel,onClose)
-  const [filters,setFilters] = useState(()=>new URLSearchParams(initialFilter.operationId ? {limit:'50',operationId:initialFilter.operationId} : {limit:'50',...(binderId ? {collectionId:binderId} : {}),...(initialFilter.pokemonId ? {pokemonId:String(initialFilter.pokemonId)} : {}),...(initialFilter.inventoryItemId ? {inventoryItemId:initialFilter.inventoryItemId} : {})}).toString())
+  const [filters,setFilters] = useState(()=>new URLSearchParams({limit:'50',...(binderId ? {collectionId:binderId} : {}),...(initialFilter.pokemonId ? {pokemonId:String(initialFilter.pokemonId)} : {}),...(initialFilter.inventoryItemId ? {inventoryItemId:initialFilter.inventoryItemId} : {})}).toString())
   const [showFilters,setShowFilters] = useState(false)
   const [revision,setRevision] = useState(0)
   useEffect(()=>{
@@ -53,9 +52,8 @@ export default function CollectionActivitySheet(props:Props) {
         <div className="flex items-center justify-between gap-2"><h2 className="text-base font-semibold">Activity</h2><button type="button" aria-label="Close Activity" className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted" onClick={onClose}><X className="h-4 w-4"/></button></div>
       </header>
       <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 text-sm [overflow-wrap:anywhere]">
-        {pendingCount>0 && <p role="status" className="mb-3 rounded-xl bg-muted/60 p-3 text-xs">{pendingCount} {pendingCount===1 ? 'change waiting' : 'changes waiting'} to sync. {props.nativeRecovery ? 'Recovery needs acknowledged history and a supported current preview.' : 'Undo will be available once they’re saved.'}</p>}
-        <div className="mb-2 flex gap-2">{!initialFilter.operationId && <button type="button" className="min-h-10 rounded-lg border border-border px-3" aria-expanded={showFilters} onClick={()=>setShowFilters(v=>!v)}>Filters</button>}<button type="button" className="min-h-10 rounded-lg border border-border px-3" disabled={!isOnline} onClick={()=>{if(scope)setRevision(v=>v+1);else props.onVerify()}}>Refresh</button></div>
-        {initialFilter.operationId && <p className="mb-2 text-xs wrap-anywhere">Acknowledged operation {initialFilter.operationId}. History lookup does not undo this change.</p>}
+        {pendingCount>0 && <p role="status" className="mb-3 rounded-xl bg-muted/60 p-3 text-xs">{pendingCount} {pendingCount===1 ? 'change waiting' : 'changes waiting'} to sync. Undo will be available once they’re saved.</p>}
+        <div className="mb-2 flex gap-2"><button type="button" className="min-h-10 rounded-lg border border-border px-3" aria-expanded={showFilters} onClick={()=>setShowFilters(v=>!v)}>Filters</button><button type="button" className="min-h-10 rounded-lg border border-border px-3" disabled={!isOnline} onClick={()=>{if(scope)setRevision(v=>v+1);else props.onVerify()}}>Refresh</button></div>
         <p className="mb-2 text-xs text-muted-foreground">{selected.has('collectionId') ? binders.find(b=>b.id===selected.get('collectionId'))?.name ?? 'Previous collection' : selected.has('id') ? 'Selected change' : selected.has('recoveryOfEventId') ? 'Undo history' : 'All collections'}{selected.has('pokemonId') ? ` · Pokémon #${selected.get('pokemonId')}` : ''}{selected.has('inventoryItemId') ? ' · Selected copy' : ''}</p>
         {showFilters && <form onSubmit={apply} className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-border p-3">
           <label className="col-span-2 text-xs">Collection<Select name="collectionId" defaultValue={selected.get('collectionId') ?? ''} className="w-full"><option value="">All collections</option>{binders.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</Select></label>
@@ -65,7 +63,7 @@ export default function CollectionActivitySheet(props:Props) {
           <label className="col-span-2 text-xs">Action<Select name="action" defaultValue={selected.get('action') ?? ''} className="w-full"><option value="">All changes</option><option value="collection_item">Cards and wanted lists</option><option value="collection_change">Collections and settings</option><option value="legacy">Older recorded changes</option></Select></label>
           <button type="submit" className="col-span-2 min-h-10 rounded-lg bg-primary px-3 font-medium text-primary-foreground">Apply filters</button>
         </form>}
-        {scope ? <ActivityResults key={`${JSON.stringify(scope)}:${filters}:${revision}`} {...props} scope={scope} query={filters} onSelectEvent={id=>setFilters(new URLSearchParams({id}).toString())} /> : <p role="status" className="py-4">{isOnline ? 'Verifying current collection access. If this does not load, use Refresh history to retry.' : 'History is not cached for this account and collection access. Reconnect to load it.'}</p>}
+        {scope ? <ActivityResults key={`${JSON.stringify(scope)}:${filters}:${revision}`} {...props} scope={scope} query={filters} onSelectEvent={id=>setFilters(new URLSearchParams({id}).toString())} /> : <p role="status" className="py-4">{isOnline ? 'Loading activity…' : 'Connect to load activity.'}</p>}
       </div>
     </section>
   </div>,document.body)
@@ -104,36 +102,27 @@ function ActivityPageView({scope,pageQuery,isOnline,onInvalidScope,onNext,...pro
       if(!sameActivityScope(scope,value.scope)) {onInvalidScope();return}
       const page = parseActivityPage(value)
       if (!page || typeof value.syncedAt!=='string') throw new Error('History could not be read.')
-      if (props.initialFilter.operationId && page.data.length && operationActivityMatch(page,props.initialFilter.operationId,new URLSearchParams(pageQuery).get('id')) === 'unavailable') throw new Error('Exact operation history could not be verified. No recovery is offered.')
       setSaved({page,syncedAt:value.syncedAt});setCached(false)
       writeActivityCache(localStorage,scope,key,page,value.syncedAt)
     }).catch(error=>{if(!cancelled)setError(error instanceof Error && error.name!=='AbortError' ? error.message : 'History request timed out. Refresh to try again.')})
       .finally(()=>{window.clearTimeout(timeout);if(!cancelled)setLoading(false)})
     return ()=>{cancelled=true;abort.abort();window.clearTimeout(timeout)}
-  },[scope,pageQuery,isOnline,key,onInvalidScope,props.initialFilter.operationId])
-  const linked = props.initialFilter.operationId
-  const selectedEvent = new URLSearchParams(pageQuery).get('id')
-  const match = saved && linked ? operationActivityMatch(saved.page,linked,selectedEvent,new URLSearchParams(pageQuery).has('cursor')) : null
-  // Cached history never establishes this operation's exact event.
-  const linkedReady = !linked || !cached && isOnline && !loading && !error && (match === 'single' || match === 'multiple')
+  },[scope,pageQuery,isOnline,key,onInvalidScope])
   return <>
     {loading && <p role="status" className="py-2 text-xs">Loading activity…</p>}
     {error && <p role="alert" className="my-2 rounded-lg bg-destructive/10 p-3 text-sm">{error}</p>}
-    {linked && !loading && !error && (!linkedReady || match === 'unavailable') && <p role="status" className="py-2">Exact operation history is unavailable. Reconnect and refresh; no recovery is offered.</p>}
-    {linked && linkedReady && match === 'multiple' && <p role="status" className="py-2">Multiple events match this operation. Inspect and select an exact entry; no event was chosen automatically.</p>}
-    {linked && linkedReady && match === 'single' && !selectedEvent && <p role="status" className="py-2">One event matches this operation. Open the exact entry to inspect recovery.</p>}
     {saved && (cached || !isOnline) && <p className="mb-3 text-xs text-muted-foreground">Saved activity · Last updated {activityTime(saved.syncedAt)}. Reconnect for the latest changes and Undo.</p>}
     {!saved && !loading && <p className="py-4">{!isOnline ? 'Connect to load this activity.' : 'Couldn’t load activity. Try Refresh.'}</p>}
     {saved?.page.data.length===0 && <p className="py-4">{cached || !isOnline ? 'No saved activity on this page. Reconnect to check for more.' : 'No activity matches these filters.'}</p>}
-    <ol className="space-y-2" aria-label="Committed activity">{linkedReady && saved?.page.data.map((event,index)=>{
+    <ol className="space-y-2" aria-label="Committed activity">{saved?.page.data.map((event,index)=>{
       const day=activityDay(event.recorded_at)
-      return <ActivityEntry key={event.id} event={event} inspectOnly={!!linked && !selectedEvent} undone={saved.page.data.some(other=>other.recovery_of_event_id===event.id)} day={index===0 || day!==activityDay(saved.page.data[index-1].recorded_at) ? day : undefined} {...props} scope={scope} isOnline={isOnline} onInvalidScope={onInvalidScope}/>
+      return <ActivityEntry key={event.id} event={event} undone={saved.page.data.some(other=>other.recovery_of_event_id===event.id)} day={index===0 || day!==activityDay(saved.page.data[index-1].recorded_at) ? day : undefined} {...props} scope={scope} isOnline={isOnline} onInvalidScope={onInvalidScope}/>
     })}</ol>
-    {linkedReady && saved?.page.nextCursor && <button type="button" className="mt-3 min-h-10 rounded-lg border border-border px-3" onClick={()=>onNext(saved.page.nextCursor!)}>Older page</button>}
+    {saved?.page.nextCursor && <button type="button" className="mt-3 min-h-10 rounded-lg border border-border px-3" onClick={()=>onNext(saved.page.nextCursor!)}>Older page</button>}
   </>
 }
 
-function ActivityEntry({event,day,binders,isOnline,pendingCount,scope,nativeRecovery,onSelectEvent,inspectOnly}:Props & {event:ActivityEvent;day?:string;undone:boolean;inspectOnly?:boolean}) {
+function ActivityEntry({event,day,binders,isOnline,pendingCount,scope,nativeRecovery,onSelectEvent}:Props & {event:ActivityEvent;day?:string;undone:boolean}) {
   const [expanded,setExpanded] = useState(false)
   const [count,setCount] = useState(10)
   const summary=activitySummary(event,binders)
@@ -149,10 +138,9 @@ function ActivityEntry({event,day,binders,isOnline,pendingCount,scope,nativeReco
         {summary.subtitle && <p className="mt-1 text-xs text-muted-foreground">{summary.subtitle}</p>}
         <p className="mt-1 text-xs text-muted-foreground">{person.startsWith('Account ') ? 'Previous member' : person} · <time dateTime={event.recorded_at}>{new Date(event.recorded_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}</time></p>
       </div>
-      {!inspectOnly && nativeRecovery && isNativeRecoveryEvent(event) && <NativeActivityRecovery event={event} binding={nativeRecovery} disabled={!isOnline||pendingCount>0}/>}
-      {!inspectOnly && nativeRecovery && !isNativeRecoveryEvent(event) && <p className="col-span-2 mt-2 text-xs text-muted-foreground">Recovery is unavailable for this kind of change in this view. Open its original collection view to use supported Undo.</p>}
-      {inspectOnly && <button type="button" className="col-span-2 mt-2 min-h-10 rounded-lg border border-border px-3 text-xs" onClick={()=>onSelectEvent?.(event.id)}>Open exact entry {event.id}</button>}
-      {event.recovery_of_event_id && <p className="col-span-2 mt-2 text-xs text-muted-foreground"><button type="button" className="min-h-10 underline" onClick={()=>onSelectEvent?.(event.recovery_of_event_id!)}>Open original entry {event.recovery_of_event_id}</button></p>}
+      {nativeRecovery && isNativeRecoveryEvent(event) && <NativeActivityRecovery event={event} binding={nativeRecovery} disabled={!isOnline||pendingCount>0}/>}
+      {nativeRecovery && !isNativeRecoveryEvent(event) && <p className="col-span-2 mt-2 text-xs text-muted-foreground">This change can’t be undone from here.</p>}
+      {event.recovery_of_event_id && <p className="col-span-2 mt-2 text-xs text-muted-foreground"><button type="button" className="min-h-10 underline" onClick={()=>onSelectEvent?.(event.recovery_of_event_id!)}>View original</button></p>}
       {hasDetails && <div className="col-span-2 min-w-0">
         <button type="button" aria-expanded={expanded} className="mt-1 min-h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted" onClick={()=>setExpanded(v=>!v)}>{expanded ? 'Hide changes' : summary.count>1 ? `View ${summary.count} changes` : 'View changes'}</button>
         {expanded && <div className="mt-2 space-y-3 border-t border-border/60 pt-3 text-xs wrap-anywhere">

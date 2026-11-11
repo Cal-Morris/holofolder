@@ -64,7 +64,7 @@ test('native event review, exact durable lost-reply retry, post-reply read ACK a
   expect(requests).toEqual([JSON.stringify(original),JSON.stringify(original)]);expect(reads).toBeGreaterThan(0)
   await expect(dialog.getByText('Recovery verified against current storage.').last()).toBeVisible()
   const selected=page.waitForRequest(r=>r.url().includes('/api/collection-activity?id=101'))
-  await dialog.getByRole('button',{name:'Open original entry 101'}).click()
+  await dialog.getByRole('button',{name:'View original'}).click()
   expect([...new URL((await selected).url()).searchParams.keys()]).toEqual(['id'])
   await expect(dialog.getByRole('article')).toHaveCount(1)
   await h.expectNoHorizontalOverflow()

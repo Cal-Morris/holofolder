@@ -13,7 +13,6 @@ import { useBinderOnboarding } from "@/hooks/use-binder-onboarding"
 import { recoveryUnresolved } from "@/lib/collection/recovery-rejection"
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { AcknowledgedCommandActivity } from "@/components/acknowledged-command-activity"
 import { StorageMenu, type StorageMenuAction } from "./storage-menu"
 import dynamic from "next/dynamic"
 import type { InventorySnapshot } from "@/lib/domain/inventory"
@@ -559,7 +558,6 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
               <summary className="min-h-11 cursor-pointer py-3 font-medium">What this set binder covers</summary>
               <div className="max-h-48 overflow-y-auto pb-3"><SetChecklistScopePreview checklist={{ manifest: binder.presetManifest, scope: binder.presetManifest.setScope }} binder={binder} /></div>
             </details>}
-            <AcknowledgedCommandActivity record={valid() ? queue.record : null} scope={{ deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }} />
           </StorageMenu>,
           surface: { ...surface, header: <>
           {queue.record?.recovery?.some(recoveryUnresolved) && <p role="status" className="px-4 text-sm">An undo didn&apos;t finish. Open Activity from the manage menu to check it.</p>}

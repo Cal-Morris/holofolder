@@ -19,7 +19,7 @@ The destination reference includes the exact occupied copy and its item/placemen
 
 A graded destination copy is supported only through these existing exact-ref commands and the accepting projector, with no metadata reconstruction or grade edit. Selected graded copies use the same individual assign/move/unassign review, including compatible occupied decisions. Every item field is retained, including custom providers, grade/scale/designation/subgrades, certificate, holder, label variant/private asset IDs, acquisition and immutable source. Commands send exact references, never replacement grading. Swap is absent for Unassigned sources or incompatible reverse targets; incomplete references and unsupported projector decisions fail closed. A new pending deletion, raw restore, creation, recovery or ordinary command fences this same sink/queue. Account/session/owner/membership and revision changes invalidate review before dispatch or conflict at the authoritative server; retries keep original intent rather than rebasing.
 
-After a strict reply and separately fresh complete ACK, expand **Review synchronized changes** and use the shared **Find acknowledged change** control. This compact disclosure keeps the short standalone viewport usable after ACK. It looks up the exact operation, then the exact Activity event. Missing, ambiguous, stale or unsupported history never invents an event or inverse. Recovery is offered only by the existing engine preview and current permission/version checks, with no guaranteed Undo.
+After sync, the change appears in Activity like any other. Recovery is offered only by the existing engine preview and current permission/version checks, with no guaranteed Undo.
 
 ## Recovery and deliberate limits
 

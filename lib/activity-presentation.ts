@@ -7,15 +7,15 @@ const text = (v:unknown) => typeof v==='string' && v.trim() ? v : null
 const human = (v:unknown):string => v==null ? 'Not set' : typeof v==='boolean' ? v ? 'Yes' : 'No' : typeof v==='string' ? languages[v] ?? statuses[v] ?? (v.replaceAll('_',' ').replace(/^./,s=>s.toUpperCase())) : typeof v==='number' ? String(v) : 'Changed'
 const number = (s:ActivityState|null) => typeof s?.card_id==='string' ? s.card_id.match(/-([\d]+[a-z]?)$/i)?.[1] : null
 const printing = (s:ActivityState|null) => [text(s?.card_set),number(s) ? `#${number(s)}` : null].filter(Boolean).join(' · ') || 'Another printing'
-function name(s:ActivityState|null) {
+function name(s:ActivityState|null,fallback='an item') {
   const identity = record(s?.identity) ? s.identity : record(s?.target) ? s.target : null
-  return text(s?.card_name) ?? text(s?.name) ?? (text(s?.card_id) || text(identity?.cardId) ? 'a card' : 'an item')
+  return text(s?.card_name) ?? text(s?.name) ?? (text(s?.card_id) || text(identity?.cardId) ? 'a card' : fallback)
 }
 function verb(c:ActivityChange) {
   const {before:b,after:a,table:t}=c
   if(t==='binders') return !a ? 'Deleted' : !b ? 'Created' : b.name!==a.name ? 'Renamed' : 'Updated'
   if(t==='inventory_placements') return !a ? 'Unassigned' : !b ? 'Assigned' : 'Moved'
-  if(t==='binder_slots') return !a ? 'Removed slot' : !b ? 'Added slot' : 'Updated slot'
+  if(t==='binder_slots') return !a ? 'Removed' : !b ? 'Added' : 'Updated'
   if(t==='user_settings'||t==='binder_appearances'||t==='binder_shares') return 'Updated'
   if(!a) return 'Removed'
   if(!b) return a.status==='wishlisted' ? 'Added to want list:' : 'Added'
@@ -28,7 +28,7 @@ export function readableActivityChanges(event:ActivityEvent) {
   const labels: Record<string,string> = {status:'Status',card_name:'Card',card_set:'Set',card_finish:'Finish',card_language:'Language',name:'Name',condition:'Condition',grade:'Grade',grading_company:'Grading company',quantity:'Quantity',favorite:'Favourite',rows:'Rows',cols:'Columns',show_prices:'Show prices',is_enabled:'Sharing',position:'Position'}
   return event.changes.filter(c=>!['inventory_owner_state','storage_collection_state'].includes(c.table)).map(c=>{
     const s=c.after??c.before
-    const title=c.table==='binders' && c.before && c.after && c.before.name!==c.after.name ? `Renamed ${name(c.before)} to ${name(c.after)}` : `${verb(c)} ${name(s)}`
+    const title=c.table==='binders' && c.before && c.after && c.before.name!==c.after.name ? `Renamed ${name(c.before)} to ${name(c.after)}` : `${verb(c)} ${name(s,c.table==='binder_slots' ? 'a slot' : 'an item')}`
     const subtitle=[text(s?.card_set),number(s) ? `#${number(s)}` : null,s?.card_finish ? human(s.card_finish) : null,s?.card_language ? human(s.card_language) : null].filter(Boolean).join(' · ')
     const fields=c.before && c.after ? Object.entries(labels).filter(([key])=>JSON.stringify(c.before?.[key])!==JSON.stringify(c.after?.[key])).map(([key,label])=>({label,before:human(c.before?.[key]),after:human(c.after?.[key])})) : []
     if(c.before && c.after && c.before.card_id!==c.after.card_id)fields.unshift({label:'Printing',before:printing(c.before),after:printing(c.after)})

@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction, openStorage } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction } from "./fixtures"
 import type { Page } from "@playwright/test"
 import type { SlotOfflineRecord } from "../lib/collection/slot-offline-queue"
 
@@ -395,19 +395,6 @@ for (const decision of ["unassign", "swap"] as const) test(`occupied ${decision}
   expect(after.binders.map(b => b.slots.map(s => [s.id, s.target, s.wantedCards, s.presetOrigin]))).toEqual(before.binders.map(b => b.slots.map(s => [s.id, s.target, s.wantedCards, s.presetOrigin])))
   expect(sent[1].commands).toHaveLength(1)
   expect(sent[1].commands[0]).toMatchObject({ kind: "move", occupied: decision, fulfillWant: null })
-  const operationId = (await record(page)).receipts[1].operationId
-  const activityScope = { accountId: E2E_USER.id, ownerId: E2E_USER.id, membershipKey: JSON.stringify([null, E2E_USER.id]), memberIds: [E2E_USER.id] }
-  await page.route("**/app/api/collection-activity**", route => {
-    const query = new URL(route.request().url()).searchParams
-    if (!query.has("scope")) expect(query.get("operationId")).toBe(operationId)
-    return route.fulfill({ json: query.has("scope") ? { scope: activityScope } : { scope: activityScope, data: [], nextCursor: null, syncedAt: "2026-11-10T12:01:00Z" } })
-  })
-  await (await openStorage(page)).getByText("Review synchronized changes", { exact: true }).click()
-  await page.getByRole("combobox", { name: "Synchronized change" }).selectOption(operationId)
-  await page.getByRole("button", { name: "Find acknowledged change" }).click()
-  const activity = page.getByRole("dialog", { name: "Collection Activity", exact: true })
-  await expect(activity).toContainText("Exact operation history is unavailable")
-  await expect(activity.getByRole("button", { name: "Confirm recovery" })).toHaveCount(0)
 })
 
 test("occupied assignment has no swap, and lost committed reply retries exact decision without duplicate ownership", async ({ page }) => {
@@ -430,7 +417,6 @@ test("occupied assignment has no swap, and lost committed reply retries exact de
   await d.getByRole("button", { name: "Confirm change", exact: true }).click()
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("unavailable")
   const original = (await record(page)).pending[0].intent
-  await expect(page.getByRole("button", { name: "Find acknowledged change" })).toHaveCount(0)
   await page.reload(); await inventory(page)
   expect((await record(page)).pending[0].intent).toEqual(original)
   await expect(page.getByRole("button", { name: "Add owned card", exact: true })).toHaveCount(0)
@@ -480,7 +466,7 @@ for (const selected of ["synthetic-raw-copy-1", "synthetic-raw-copy-2"]) for (co
 })
 
 const gradedCopy = "synthetic-raw-copy-2"
-for (const decision of ["swap", "unassign"] as const) test(`selected graded ${decision} preserves private fields and exact Activity linkage`, async ({ page, context, baseURL, insets }) => {
+for (const decision of ["swap", "unassign"] as const) test(`selected graded ${decision} preserves private fields`, async ({ page, context, baseURL, insets }) => {
   await context.addCookies([{ name: "hf-storage-fixture", value: `raw-graded-placement-${crypto.randomUUID()}`, url: baseURL! }])
   await open(page)
   const before = (await record(page)).snapshot!
@@ -504,24 +490,6 @@ for (const decision of ["swap", "unassign"] as const) test(`selected graded ${de
   expect(after.placements.find(p => p.inventoryItemId === gradedCopy)?.slotId).toBe("synthetic-slot-0")
   expect(after.placements.find(p => p.inventoryItemId === copy)?.slotId).toBe(decision === "swap" ? "synthetic-other-slot" : undefined)
   expect(after.binders.map(b => b.slots.map(s => [s.id, s.target, s.wantedCards, s.presetOrigin]))).toEqual(before.binders.map(b => b.slots.map(s => [s.id, s.target, s.wantedCards, s.presetOrigin])))
-  const operationId = (await record(page)).receipts[0].operationId
-  const scope = { accountId: E2E_USER.id, ownerId: E2E_USER.id, membershipKey: JSON.stringify([null, E2E_USER.id]), memberIds: [E2E_USER.id] }
-  await page.route("**/app/api/collection-activity**", route => {
-    const query = new URL(route.request().url()).searchParams
-    if (query.has("scope")) return route.fulfill({ json: { scope } })
-    if (query.has("id")) expect(query.get("id")).toBe("101")
-    else expect(query.get("operationId")).toBe(operationId)
-    const event = { id: "101", operation_id: operationId, recorded_at: "2026-11-10T12:00:00Z", format_version: 1, actor_kind: "user", actor_user_id: E2E_USER.id, source: "app", action: "inventory.move", affected_entities: { inventoryItemIds: [gradedCopy, copy], collectionIds: [collection], slotIds: ["synthetic-slot-0"] }, changes: [] }
-    return route.fulfill({ json: { scope, data: [event], nextCursor: null, syncedAt: "2026-11-10T12:01:00Z" } })
-  })
-  await (await openStorage(page)).getByText("Review synchronized changes", { exact: true }).click()
-  await page.getByRole("button", { name: "Find acknowledged change" }).click()
-  const activity = page.getByRole("dialog", { name: "Collection Activity", exact: true })
-  await expect(activity).toContainText("One event matches")
-  await activity.getByRole("button", { name: "Open exact entry 101" }).click()
-  await expect(activity).toContainText(`Acknowledged operation ${operationId}`)
-  await expect(activity).toContainText("Selected change")
-  await expect(activity.getByRole("list", { name: "Committed activity" }).getByRole("article")).toHaveCount(1)
 })
 
 test("selected graded unassign, lost committed assignment, cached reload and exact replay need fresh ACK", async ({ page, context, baseURL }) => {
