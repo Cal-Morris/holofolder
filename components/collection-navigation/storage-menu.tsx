@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { Archive, X } from "lucide-react"
+import { EllipsisVertical, X } from "lucide-react"
 import { runAfterOverlayHistory, useOverlay } from "@/hooks/use-overlay"
 import { useActivityOpener } from "@/components/collection-activity-context"
 
@@ -31,7 +31,7 @@ export function StorageMenu({ actions, children, attention = false }: { actions:
   return <div className="relative shrink-0">
     <button type="button" aria-label="Storage" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(current => !current)}
       className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted/60">
-      <Archive className="h-4 w-4" aria-hidden />
+      <EllipsisVertical className="h-4 w-4" aria-hidden />
       {attention && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-500" aria-hidden />}
     </button>
     {open && <>

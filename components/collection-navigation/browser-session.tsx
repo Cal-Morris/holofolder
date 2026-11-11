@@ -14,7 +14,7 @@ import { recoveryUnresolved } from "@/lib/collection/recovery-rejection"
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { AcknowledgedCommandActivity } from "@/components/acknowledged-command-activity"
-import { StorageMenu } from "./storage-menu"
+import { StorageMenu, type StorageMenuAction } from "./storage-menu"
 import dynamic from "next/dynamic"
 import type { InventorySnapshot } from "@/lib/domain/inventory"
 import type { SlotOfflineIntent } from "@/lib/collection/slot-optimistic"
@@ -52,7 +52,8 @@ export interface BrowserSurfaceBinding {
   surface: NavigationSurface
   /** Collection picker and view, shown in one row under the app header. */
   toolbar: ReactNode
-  storageMenu: ReactNode
+  /** The storage menu, with any host actions (e.g. scanning) listed first. */
+  storageMenu: ((extra: StorageMenuAction[]) => ReactNode) | null
   display?: SlotDisplayInput
   catalog: InventoryCatalogResolver
   receive: SlotCommandSink
@@ -547,7 +548,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         return <>{deleting && <NativeCollectionDeletion key={`${scope.sessionId}:${deleting}`} collectionId={deleting} binding={{ read, available: deletionAvailable, receive: receiveDeletion }} onClose={() => setDeleting(null)} />}{backupOpen && <NativeBackup key={`${scope.sessionId}:${surface.state.collectionId}:${surface.state.main}`} binding={backupBinding} restore={restoreBinding} collectionId={surface.state.collectionId} onClose={() => setBackupOpen(false)} />}{renderSurface({ nativeConsumer: { scope: navigationScope, read: visibleRead,
           collectionId: surface.state.main === "inventory" ? surface.state.inventory.query.collectionId || undefined : surface.state.collectionId ?? undefined,
           editingAvailable: bulkFillAvailable && !queue.record?.legacy.length, admit: () => consumerAdmission.current() }, analytics: { scope: navigationScope, read: visibleRead }, toolbar: surface.header,
-          storageMenu: <StorageMenu attention={Boolean(queue.record?.recovery?.some(recoveryUnresolved))} actions={[
+          storageMenu: extra => <StorageMenu attention={Boolean(queue.record?.recovery?.some(recoveryUnresolved))} actions={[
+            ...extra,
             { label: "Backup", onSelect: () => setBackupOpen(true) },
             { label: "New binder", disabled: !creationAvailable, onSelect: () => startCreation(surface.openCreated, layout) },
             ...(surface.state.main === "collection" && surface.state.collectionId ? [{ label: snapshot?.collections.find(c => c.id === surface.state.collectionId)?.kind === "binder" ? "Delete this binder" : "Delete this collection", disabled: !deletionAvailable, onSelect: () => setDeleting(surface.state.collectionId) }] : []),

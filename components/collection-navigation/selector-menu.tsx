@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react"
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { Check, ChevronDown, Plus, X } from "lucide-react"
 import { useOverlay } from "@/hooks/use-overlay"
 import { useMenuAction } from "@/components/collection-navigation/storage-menu"
@@ -9,7 +9,7 @@ export interface SelectorOption { value: string; label: string }
 
 /** An enclosed selector: a bordered trigger showing the current value and a chevron, opening a bounded
  * single-choice menu on the shared overlay primitive. `onSelect` runs after the menu and its history entry are gone. */
-export function SelectorMenu({ label, heading, menuLabel, value, valueLabel, options, onSelect, action, width, className = "", textClassName = "" }: {
+export function SelectorMenu({ label, heading, menuLabel, value, valueLabel, options, onSelect, action, width, icon, className = "", textClassName = "" }: {
   /** One extra entry under the choices, for making a new one of the things listed (e.g. New binder). */
   action?: { label: string; hint?: string; disabled?: boolean; onSelect: () => void }
   /** Accessible name of the trigger. */
@@ -21,6 +21,8 @@ export function SelectorMenu({ label, heading, menuLabel, value, valueLabel, opt
   valueLabel: string
   options: SelectorOption[]
   onSelect: (value: string) => void
+  /** Icon-only trigger (like the toolbar's icon buttons); the value label stays for screen readers. */
+  icon?: ReactNode
   /** Menu width in px, capped to the viewport. */
   width: number
   className?: string
@@ -56,9 +58,11 @@ export function SelectorMenu({ label, heading, menuLabel, value, valueLabel, opt
   return <div className={`relative ${className}`}>
     <button ref={triggerRef} type="button" aria-label={label} aria-describedby={textId} aria-haspopup="dialog" aria-expanded={open} data-value={value}
       disabled={options.length === 0 && !action} onClick={show}
-      className={`flex h-9 w-full min-w-0 items-center gap-1 rounded-lg border border-border bg-muted/50 pl-2.5 pr-1.5 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-60 ${textClassName}`}>
-      <span id={textId} className="min-w-0 flex-1 truncate">{valueLabel}</span>
-      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+      className={icon ? "relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-60"
+        : `flex h-9 w-full min-w-0 items-center gap-1 rounded-lg border border-border bg-muted/50 pl-2.5 pr-1.5 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-60 ${textClassName}`}>
+      {icon}
+      <span id={textId} className={icon ? "sr-only" : "min-w-0 flex-1 truncate"}>{valueLabel}</span>
+      {!icon && <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />}
     </button>
     {open && <>
       <div className="fixed inset-0 z-40" data-overlay-backdrop aria-hidden onClick={close} />

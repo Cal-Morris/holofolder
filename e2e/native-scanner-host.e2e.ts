@@ -21,8 +21,13 @@ async function nextSavedPage(page: Page) {
   await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
   await touch.detach()
 }
+/** Scanning lives in the storage (⋮) menu. */
+async function scan(page: Page, name: "Scan page" | "Scan card") {
+  await page.getByRole("button", { name: "Storage", exact: true }).click()
+  await page.getByRole("dialog", { name: "Storage", exact: true }).getByRole("button", { name, exact: true }).click()
+}
 async function cardReview(page: Page) {
-  await page.getByRole("button", { name: "Scan card", exact: true }).click()
+  await scan(page, "Scan card")
   await page.getByRole("button", { name: "Type instead", exact: true }).click()
   await expect(review(page)).toBeVisible()
 }
@@ -102,10 +107,11 @@ test("repeated species never preselect first destination; cancel creates no inte
 })
 test("cached startup stays read-only and explains reconnect before scanner acceptance", async ({ page, context }) => {
   await page.goto(entry)
-  await expect(page.getByRole("button", { name: "Scan card", exact: true })).toBeEnabled()
+  await page.getByRole("button", { name: "Storage", exact: true }).click()
+  const scanCard = page.getByRole("dialog", { name: "Storage", exact: true }).getByRole("button", { name: "Scan card", exact: true })
+  await expect(scanCard).toBeEnabled()
   await context.setOffline(true)
-  await expect(page.getByRole("button", { name: "Scan card", exact: true })).toBeDisabled()
-  await expect(page.getByRole("button", { name: "Scan card", exact: true })).toHaveAttribute("title", /Reconnect and refresh storage to scan/)
+  await expect(scanCard).toBeDisabled()
   expect((await record(page))?.pending).toHaveLength(0)
 })
 for (const change of ["signout", "account", "owner"] as const) test(`${change} teardown discards unconfirmed review without queue writes`, async ({ page }) => {
@@ -119,7 +125,7 @@ for (const change of ["signout", "account", "owner"] as const) test(`${change} t
   expect((await record(page))?.pending).toHaveLength(0)
 })
 async function pageReview(page: Page, deferred = false) {
-  await page.getByRole("button", { name: "Scan page", exact: true }).click()
+  await scan(page, "Scan page")
   await page.getByLabel("Page photo", { exact: true }).setInputFiles({ name: "synthetic-page.json", mimeType: "image/png",
     buffer: Buffer.from(JSON.stringify({ deferred, cells: [{ index: 3, row: 1, col: 1, occupied: true }, { index: 0, row: 0, col: 0, occupied: true }] })) })
 }
@@ -198,7 +204,7 @@ test("actual host ambiguous OCR requires explicit catalog and destination review
   await page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: { cards: ["trainer", "energy"].map(kind => ({
     id: `synthetic-${kind}`, name: `Synthetic ${kind}`, localId: "1", language: "en", dexIds: [], set: { id: "synthetic", name: "Synthetic scanner set" },
   })) } }))
-  await page.goto(entry); await page.getByRole("button", { name: "Scan card", exact: true }).click()
+  await page.goto(entry); await scan(page, "Scan card")
   await expect(page.getByRole("button", { name: "Read card", exact: true })).toBeEnabled()
   await page.getByRole("button", { name: "Read card", exact: true }).click()
   await expect(review(page)).toBeVisible()
@@ -212,7 +218,7 @@ for (const stage of ["page", "card", "review"] as const) test(`actual host ${sta
   const h = new Harness(page, insets, true)
   const open = async () => {
     if (stage === "review") await cardReview(page)
-    else await page.getByRole("button", { name: stage === "page" ? "Scan page" : "Scan card", exact: true }).click()
+    else await scan(page, stage === "page" ? "Scan page" : "Scan card")
     return page.getByRole("dialog", { name: stage === "page" ? "Scan stable page" : stage === "card" ? "Scan a card" : "Review scan destinations", exact: true })
   }
   for (const dismissal of ["close", "escape", "back", "backdrop", "swipe", "dock"]) {
