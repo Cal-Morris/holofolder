@@ -138,7 +138,7 @@ describe("card image mirror", () => {
     const mirror = createCardImageMirror(deps)
     store.set("pokemon/tcg/cards/en/me05/001/high.webp", new Uint8Array([7]).buffer)
     const result = await mirror.ensureMirrored(ref, { assumeMissing: true })
-    assert.equal(result.url, `${BLOB_BASE}cards/en/me05/001/high.webp`)
+    assert.equal(result.url, `${BLOB_BASE}pokemon/tcg/cards/en/me05/001/high.webp`)
     assert.equal(calls.put, 1)
   })
 
