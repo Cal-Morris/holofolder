@@ -1,6 +1,7 @@
 import { cardSearchSetCandidates, correctedCardSearchQuery, resolveCardSearchQuery } from "@/lib/card-search-query"
 import type { ImportLookup } from "@/lib/collection-import"
 import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
+import { pickSetArtwork } from "@/lib/set-browse"
 import type { CardCatalogIdentity } from "@/lib/domain/cards"
 import { deduplicateCatalogCards, readCatalogMetadata } from "@/lib/card-catalog"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -269,6 +270,54 @@ export async function getRecentMirroredSets(asOfDate: string, limit = 6): Promis
     }))
 
   return selectRecentSetSummaries(sets, { asOfDate, limit })
+}
+
+/** Every mirrored set with its symbol and logo, for the Sets browse grid (a few hundred rows). */
+export async function getBrowsableMirroredSets(): Promise<TCGSetSummary[]> {
+  "use cache: remote"
+  cacheLife(MIRROR_CACHE_LIFE)
+  cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, "tcg-sets", "browse-sets")
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from("tcg_sets")
+    .select(`
+      id,
+      name_json,
+      name_en,
+      official_card_count,
+      release_date,
+      tcgdex_symbol:raw_json->>symbol,
+      tcgdex_logo:raw_json->>logo,
+      pokemon_tcg_images:raw_json->supplementalSources->pokemon_tcg->images,
+      tcg_series!inner(
+        id,
+        name_json,
+        name_en
+      )
+    `)
+    .order("release_date", { ascending: false, nullsFirst: false })
+    .limit(1000)
+
+  if (error) {
+    throw error
+  }
+
+  type BrowseSetRow = {
+    id: string; name_json: unknown; name_en: string | null; official_card_count: unknown; release_date: unknown
+    tcgdex_symbol: unknown; tcgdex_logo: unknown; pokemon_tcg_images: unknown
+    tcg_series: { name_json: unknown; name_en: string | null } | null
+  }
+  return ((data || []) as unknown as BrowseSetRow[])
+    .filter((set) => !HIDDEN_SET_IDS.has(set.id))
+    .map((set): TCGSetSummary => ({
+      id: set.id,
+      name: pickLocalizedText(set.name_json, "en") || set.name_en || set.id,
+      seriesName: pickLocalizedText(set.tcg_series?.name_json, "en") || set.tcg_series?.name_en || undefined,
+      officialCardCount: typeof set.official_card_count === "number" ? set.official_card_count : undefined,
+      releaseDate: typeof set.release_date === "string" ? set.release_date : undefined,
+      ...pickSetArtwork({ tcgdexSymbol: set.tcgdex_symbol, tcgdexLogo: set.tcgdex_logo, pokemonTcgImages: set.pokemon_tcg_images }),
+    }))
 }
 
 export async function readSetCardPages<T>(fetchPage:(from:number,to:number)=>PromiseLike<{data:T[]|null;error:unknown}>) {

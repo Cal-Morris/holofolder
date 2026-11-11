@@ -50,16 +50,19 @@ export default function PokemonBrowseView({ collectionByPokemonId, ownedElsewher
     </div>
     <div data-testid="view-scroller" ref={node => { scrollerRef.current = node; return attachScroller(node) }} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
       {visible.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No Pokémon match this search.</p> : <ul aria-label="Pokémon catalogue" className="relative" style={{ height: range.totalHeight, paddingTop: range.offsetTop }}>
-        {visible.slice(range.start, range.end).map(({ pokemon, owned, wanted }) => <li key={pokemon.id} ref={measureRow} data-virtual-key={pokemon.id} className="mb-1.5 flex min-w-0 items-center gap-3 rounded-2xl border border-border/40 bg-background/35 p-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={getOfficialArtworkUrl(pokemon.id)} alt="" loading="lazy" className="h-12 w-12 shrink-0 object-contain" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] tabular-nums text-muted-foreground">{formatDexNumber(pokemon.id)}</p>
-            <p className="truncate text-sm font-semibold">{formatPokemonDisplayName(pokemon.name)}</p>
-            <p className="text-xs text-muted-foreground">{owned ? "Owned species" : "Missing species"}{wanted ? " · Wanted printing" : ""}</p>
-            {ownedElsewhere?.(pokemon.id) ? <p className="truncate text-xs font-medium text-primary" data-testid="owned-elsewhere">{ownedElsewhere(pokemon.id)}</p> : null}
-          </div>
-          <button type="button" onClick={() => { const summary = getPokemonSummary(pokemon.id); if (summary) onBrowsePokemon(summary) }} aria-label={`Browse ${formatPokemonDisplayName(pokemon.name)} cards`} className="min-h-9 shrink-0 rounded-full border border-border/55 px-3 text-xs font-semibold">Cards</button>
+        {visible.slice(range.start, range.end).map(({ pokemon, owned, wanted }) => <li key={pokemon.id} ref={measureRow} data-virtual-key={pokemon.id} className="mb-1.5 min-w-0">
+          {/* The whole row opens the species' cards; "Cards" is only the visual cue. */}
+          <button type="button" onClick={() => { const summary = getPokemonSummary(pokemon.id); if (summary) onBrowsePokemon(summary) }} aria-label={`Browse ${formatPokemonDisplayName(pokemon.name)} cards`} aria-describedby={`pokemon-browse-${pokemon.id}`} className="flex w-full min-w-0 items-center gap-3 rounded-2xl border border-border/40 bg-background/35 p-3 text-left transition-[background-color,transform] duration-150 ease-out hover:bg-background/70 active:scale-[0.98]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={getOfficialArtworkUrl(pokemon.id)} alt="" loading="lazy" className="h-12 w-12 shrink-0 object-contain" />
+            <span id={`pokemon-browse-${pokemon.id}`} className="min-w-0 flex-1">
+              <span className="block text-[11px] tabular-nums text-muted-foreground">{formatDexNumber(pokemon.id)}</span>
+              <span className="block truncate text-sm font-semibold">{formatPokemonDisplayName(pokemon.name)}</span>
+              <span className="block text-xs text-muted-foreground">{owned ? "Owned species" : "Missing species"}{wanted ? " · Wanted printing" : ""}</span>
+              {ownedElsewhere?.(pokemon.id) ? <span className="block truncate text-xs font-medium text-primary" data-testid="owned-elsewhere">{ownedElsewhere(pokemon.id)}</span> : null}
+            </span>
+            <span aria-hidden="true" className="flex min-h-9 shrink-0 items-center rounded-full border border-border/55 px-3 text-xs font-semibold">Cards</span>
+          </button>
         </li>)}
       </ul>}
     </div>

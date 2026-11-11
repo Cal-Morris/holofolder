@@ -116,10 +116,18 @@ test.describe("offline search and card show prep", () => {
     })
     await page.evaluate(() => { delete (window as { TextDetector?: unknown }).TextDetector })
 
+    // Visit Sets online first so its set list is saved for offline browsing.
     await harness.dock().getByRole("button", { name: "Browse", exact: true }).click()
-    await page.getByText("Offline set tools", { exact: true }).click()
-    const prep = page.getByRole("region", { name: "Prepare for card show" })
-    await prep.getByRole("button", { name: "Prepare for card show" }).click()
+    await expect(page.getByRole("button", { name: "Legends Showcase", exact: true })).toBeVisible()
+    // Saving sets for offline lives in Settings → Display → Offline sets.
+    await page.locator("nav").first().getByRole("button", { name: "More", exact: true }).click()
+    await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
+    const settings = page.getByRole("dialog", { name: /settings/i })
+    await settings.getByRole("button", { name: "Display", exact: true }).click()
+    const offlineSets = settings.getByRole("region", { name: "Offline sets" })
+    await offlineSets.getByRole("searchbox", { name: "Find sets to save" }).fill("legends")
+    await offlineSets.getByRole("button", { name: "Find", exact: true }).click()
+    const prep = offlineSets.getByRole("region", { name: "Prepare for card show" })
     await prep.getByRole("checkbox", { name: /legends showcase/i }).check()
 
     // Size first: only the set data and a couple of sample thumbnails are fetched.
@@ -161,13 +169,15 @@ test.describe("offline search and card show prep", () => {
       return prepared.length
     }), "the everyday image cache had them too").toBe(3)
 
+    await harness.closeControl(settings).click()
+    await expect(settings).toHaveCount(0)
     await goOffline(page, network)
 
     // Sets view offline: find the saved set by name and open it with its card thumbnails.
     const search = page.getByRole("textbox", { name: "Search sets by name or code" })
     await search.fill("legends")
-    await expect(page.getByText("Showing saved set data on this device.")).toBeVisible()
     await page.getByRole("button", { name: /^Legends Showcase/ }).first().click()
+    await expect(page.getByText("Showing saved set data on this device.")).toBeVisible()
     await expect(page.getByRole("button", { name: "Select Mewtwo", exact: true })).toBeVisible()
     const thumbnail = page.locator('img[alt="Mewtwo"]').first()
     await expect(thumbnail).toHaveAttribute("data-saved-thumbnail", "1")

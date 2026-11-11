@@ -2,7 +2,7 @@
 
 import { BinderCreationPresets } from "@/components/binder-creation-presets"
 import type { BinderCreationDraft } from "@/lib/binder-creation-draft"
-import { toCardImageSrc } from "@/lib/card-image-url"
+import { toCardImageProxySrc, toCardImageSrc } from "@/lib/card-image-url"
 import { catalogCardIds, deduplicateCatalogCards, matchesCatalogCardId } from "@/lib/card-catalog"
 
 import NextImage from "next/image"
@@ -17,11 +17,11 @@ import type { CollectedPokemon } from "@/lib/domain/cards"
 import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSlotsResponse, TCGSetSummary } from "@/lib/tcg-set-slots"
 import { getOfflineStore } from "@/lib/offline-store/kv"
 import { loadSetQuery, saveSetQuery } from "@/lib/offline-store/records"
-import CardShowPrep from "@/components/card-show-prep"
 import { getProxiedThumbnailUrl } from "@/lib/card-show-prep"
 import { readOfflineSets, searchOfflineSets } from "@/lib/offline-card-index"
 import { useCollapseOnScroll } from "@/hooks/use-collapse-on-scroll"
 import { getSetCompletion } from "@/lib/set-completion"
+import { filterSetGroups, getSetMonogram, listSetSeries } from "@/lib/set-browse"
 import { getSetSlotState, getSetCardState, hasWantedSetCard, getSetChecklistCards, mergeSetSlots, matchesSetSlotFilter, type SetSlotFilter } from "@/lib/set-checklist"
 import { POKEMON_CATALOG, formatPokemonDisplayName, formatDexNumber } from "@/lib/pokemon-catalog"
 import { formatCardNumber, getCardVariantLabels } from "@/lib/pokemon-card-browse"
@@ -55,16 +55,27 @@ const SET_SLOT_FILTERS: Array<{ id: SetSlotFilter; label: string }> = [
   { id: "multiple", label: "Variants" },
 ]
 
-// Fallback shortcuts used until the live "latest sets" list loads (or if it fails).
-// Newest English main-line releases per TCGdex (api.tcgdex.net/v2/en/sets), checked Oct 2026.
-const SET_SHORTCUTS = [
-  { label: "30th Celebration", query: "30th Celebration" },
-  { label: "30th Classic Collection", query: "30th Classic Collection" },
-  { label: "Pitch Black", query: "Pitch Black" },
-  { label: "Chaos Rising", query: "Chaos Rising" },
-  { label: "Perfect Order", query: "Perfect Order" },
-  { label: "Ascended Heroes", query: "Ascended Heroes" },
-]
+/** A set symbol or logo, resized by the image proxy; null for any URL the proxy would not serve. */
+function setArtworkSrc(url: string | undefined, width: 96 | 320) {
+  const proxied = toCardImageProxySrc(url)
+  return proxied?.startsWith("/app/api/card-image-proxy?") ? `${proxied}&w=${width}` : null
+}
+
+/** Logo, else symbol, else a monogram; an image that fails to load (offline, missing asset) falls through. */
+function SetArtwork({ set }: { set: TCGSetSummary }) {
+  const sources = [
+    { src: setArtworkSrc(set.logo, 320), kind: "logo" },
+    { src: setArtworkSrc(set.symbol, 96), kind: "symbol" },
+  ].filter((source): source is { src: string; kind: string } => Boolean(source.src))
+  const [failed, setFailed] = useState(0)
+  const source = sources[failed]
+  return <span className="flex h-12 w-full items-center justify-center">
+    {source
+      // eslint-disable-next-line @next/next/no-img-element
+      ? <img key={source.src} src={source.src} alt="" loading="lazy" decoding="async" onError={() => setFailed(count => count + 1)} className={source.kind === "logo" ? "max-h-full max-w-full object-contain" : "h-11 w-11 rounded-xl bg-white/90 object-contain p-1.5"} />
+      : <span className="holo-selected flex h-11 min-w-11 items-center justify-center rounded-xl px-2 text-xs font-bold tracking-wide text-primary">{getSetMonogram(set)}</span>}
+  </span>
+}
 
 /** Offline, a card image that was never loaded falls back to its saved thumbnail (via the image proxy). */
 /** Offline, the full-size image may not be saved; fall back once to the saved low-res thumbnail. */
@@ -127,7 +138,10 @@ export default function SetPopulationView({
   const [slotFilter, setSlotFilter] = useState<SetSlotFilter>("all")
   const [selectedCardIdsByDexId, setSelectedCardIdsByDexId] = useState<Record<number, string>>({})
   const [selectedDexIds, setSelectedDexIds] = useState<Set<number>>(() => new Set())
-  const [recentSets, setRecentSets] = useState<TCGSetSummary[]>([])
+  const [allSets, setAllSets] = useState<TCGSetSummary[]>([])
+  const [allSetsState, setAllSetsState] = useState<"loading" | "live" | "saved" | "failed">("loading")
+  const [seriesFilter, setSeriesFilter] = useState<string | null>(null)
+  const isBrowsing = !selectedSet && allSets.length > 0
   const priceLookups = useMemo(() => setCards.map((card) => ({ cardId: card.id, language: card.language })), [setCards])
   const setPrices = useRegionalCardPrices(priceLookups, pricingEnabled && Boolean(selectedSet) && !isLoading, pricingRegion)
   const highlightCards = useMemo(() => setCards.map((card) => ({
@@ -142,21 +156,22 @@ export default function SetPopulationView({
     const controller = new AbortController()
 
     const offlineStore = getOfflineStore()
-    void fetch("/app/api/tcg-set-slots?recent=1", { signal: controller.signal })
+    void fetch("/app/api/tcg-set-slots?all=1", { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) return null
-        return (await response.json().catch(() => null)) as TCGSetSlotsResponse | null
-      })
-      .then((payload) => {
-        if (payload && Array.isArray(payload.sets)) {
-          setRecentSets(payload.sets)
-          if (offlineStore) void saveSetQuery(offlineStore, "recent=1", payload).catch(() => undefined)
-        }
+        const payload = response.ok ? (await response.json().catch(() => null)) as TCGSetSlotsResponse | null : null
+        if (!payload || !Array.isArray(payload.sets)) throw new Error("Set list unavailable")
+        setAllSets(payload.sets)
+        setAllSetsState("live")
+        if (offlineStore) void saveSetQuery(offlineStore, "all=1", payload).catch(() => undefined)
       })
       .catch(async () => {
-        // Offline: the last saved list, else the static shortcuts below.
-        const saved = offlineStore && !controller.signal.aborted ? await loadSetQuery(offlineStore, "recent=1").catch(() => null) : null
-        if (saved && !controller.signal.aborted) setRecentSets(saved.sets)
+        if (controller.signal.aborted) return
+        // Offline: the last saved list, else whatever sets this device has saved data for.
+        const saved = offlineStore ? await loadSetQuery(offlineStore, "all=1").catch(() => null) : null
+        const fallback = saved?.sets.length ? saved.sets : await readOfflineSets().catch(() => [])
+        if (controller.signal.aborted) return
+        setAllSets([...new Map(fallback.map(set => [set.id, set])).values()])
+        setAllSetsState(fallback.length ? "saved" : "failed")
       })
 
     return () => controller.abort()
@@ -164,7 +179,8 @@ export default function SetPopulationView({
 
   useEffect(() => {
     const trimmedQuery = query.trim()
-    if (trimmedQuery.length < 2) return
+    // With no set open, the browse grid filters the full list on the device instead.
+    if (trimmedQuery.length < 2 || isBrowsing) return
     const controller = new AbortController()
     const timer = window.setTimeout(async () => {
       const queryString = new URLSearchParams({ query: trimmedQuery }).toString()
@@ -175,7 +191,7 @@ export default function SetPopulationView({
         if (!controller.signal.aborted) setSets(payload.sets)
       } catch {
         if (controller.signal.aborted) return
-        const savedSets = searchOfflineSets([...recentSets, ...await readOfflineSets().catch(() => [])], trimmedQuery)
+        const savedSets = searchOfflineSets([...allSets, ...await readOfflineSets().catch(() => [])], trimmedQuery)
         if (!controller.signal.aborted) {
           setSets(savedSets)
           setIsShowingSavedSets(savedSets.length > 0)
@@ -184,7 +200,7 @@ export default function SetPopulationView({
       }
     }, 220)
     return () => { window.clearTimeout(timer); controller.abort() }
-  }, [query, recentSets])
+  }, [query, allSets, isBrowsing])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -331,9 +347,8 @@ export default function SetPopulationView({
     [filteredSlots, selectedCardIdsByDexId, selectedDexIds],
   )
 
-  const setShortcutQuery = (nextQuery: string) => {
-    setQuery(nextQuery)
-  }
+  const seriesOptions = useMemo(() => listSetSeries(allSets), [allSets])
+  const browseGroups = useMemo(() => isBrowsing ? filterSetGroups(allSets, { series: seriesFilter, query }) : [], [allSets, isBrowsing, query, seriesFilter])
 
   const addSet = (set: TCGSetSummary) => {
     setError(null)
@@ -376,7 +391,7 @@ export default function SetPopulationView({
               setSets([])
               setError(null)
             }}
-            placeholder="Add sets by name or code"
+            placeholder={selectedSet ? "Add another set by name or code" : "Find a set by name or code"}
             aria-label="Search sets by name or code"
             enterKeyHint="search"
             className="min-w-0 -my-2 flex-1 bg-transparent py-2 text-base md:text-sm outline-none placeholder:text-muted-foreground/70"
@@ -401,7 +416,19 @@ export default function SetPopulationView({
           <p className="mt-2 text-[11px] text-muted-foreground">Showing saved set data on this device.</p>
         ) : null}
 
-        {sets.length > 0 ? (
+        {isBrowsing ? (
+          <div role="group" aria-label="Filter sets by series" className="-mx-4 mt-3 flex gap-1.5 overflow-x-auto px-4 pb-1 scrollbar-hide">
+            {[{ series: null, count: allSets.length }, ...seriesOptions].map(({ series, count }) => {
+              const isActive = seriesFilter === series
+              return <button key={series ?? "all"} type="button" aria-pressed={isActive} onClick={() => setSeriesFilter(series)}
+                className={`min-h-9 shrink-0 whitespace-nowrap rounded-full border px-3 text-xs font-semibold transition-colors ${isActive ? "holo-selected border-transparent text-primary" : "border-border/55 bg-background/45 text-muted-foreground hover:text-foreground dark:border-white/10"}`}>
+                {series ?? "All series"} <span className="tabular-nums opacity-70">{count}</span>
+              </button>
+            })}
+          </div>
+        ) : null}
+
+        {!isBrowsing && sets.length > 0 ? (
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
             {sets.map((set) => {
               const isActive = selectedSets.some(selected => selected.id === set.id)
@@ -480,15 +507,6 @@ export default function SetPopulationView({
             </div> : <p className="text-xs text-muted-foreground">All Pokémon in your selected sets. Add names to narrow the matches.</p>}
           </div>
         ) : null}
-
-        <details className="mt-3">
-          <summary className="min-h-9 cursor-pointer py-2 text-xs font-semibold text-muted-foreground">Offline set tools</summary>
-          <CardShowPrep
-          candidateSets={[...selectedSets, ...sets, ...recentSets].filter(
-            (set, index, all): set is TCGSetSummary => Boolean(set) && all.findIndex((other) => other?.id === set?.id) === index,
-          )}
-          />
-        </details>
 
         {selectedSet && checklistView === "cards" ? (
           <div className="mt-3 grid grid-cols-4 gap-2">
@@ -614,36 +632,30 @@ export default function SetPopulationView({
         {selectedSets.length === 1 && matchedPokemonIds.length === 0 && !isLoading ? <CardHighlights key={selectedSet.id} name={selectedSet.name} cards={highlightCards} prices={setPrices.pricesByCardId} formatPrice={formatPrice} showValues isLoading={setPrices.isLoading} /> : null}
         {error ? <div role="alert" className="mb-2 rounded-2xl border border-destructive/25 bg-destructive/8 p-4 text-sm text-destructive">{error}</div> : null}
         {!selectedSet ? (
-          <div className="px-2 py-3">
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Latest sets</h3>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {recentSets.length > 0
-                  ? recentSets.map((set) => (
-                      <button
-                        key={set.id}
-                        type="button"
-                        onClick={() => {
-                          addSet(set)
-                        }}
-                        title={formatSetMeta(set) || set.id}
-                        className="min-h-9 rounded-full border border-border/55 bg-background/55 px-3.5 py-2 text-xs font-semibold text-muted-foreground hover:bg-background/85 hover:text-foreground dark:border-white/10"
-                      >
-                        {set.name}
+          <div className="px-1 pb-2">
+            {allSetsState === "saved" ? <p className="px-1 py-2 text-xs text-muted-foreground">Offline. Showing sets saved on this device; sets you haven&apos;t opened before need a connection.</p> : null}
+            {allSetsState === "loading" ? <p className="flex items-center gap-2 px-1 py-3 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading sets…</p> : null}
+            {allSetsState === "failed" ? <p className="px-1 py-3 text-sm text-muted-foreground">Couldn&apos;t load the set list. Search by name or code, or reconnect.</p> : null}
+            {isBrowsing && browseGroups.length === 0 ? <p className="px-1 py-3 text-sm text-muted-foreground">No sets match this search.</p> : null}
+            {browseGroups.map(group => (
+              <section key={group.series} aria-label={`${group.series} sets`} className="pt-3">
+                <h3 className="flex items-baseline justify-between gap-2 px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  <span className="truncate">{group.series}</span><span className="shrink-0 tabular-nums">{group.sets.length}</span>
+                </h3>
+                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {group.sets.map(set => (
+                    <li key={set.id} className="min-w-0">
+                      <button type="button" aria-label={set.name} title={formatSetMeta(set) || set.id} onClick={() => addSet(set)}
+                        className="flex h-full min-h-[8.5rem] w-full flex-col gap-2 rounded-2xl border border-border/45 bg-background/45 p-3 text-left transition-[background-color,transform] duration-150 ease-out hover:bg-background/75 active:scale-[0.97] dark:border-white/10">
+                        <SetArtwork set={set} />
+                        <span className="line-clamp-2 break-words text-sm font-semibold leading-tight">{set.name}</span>
+                        <span className="mt-auto truncate text-[11px] tabular-nums text-muted-foreground">{[set.releaseDate?.slice(0, 4), set.officialCardCount ? `${set.officialCardCount} cards` : null, set.id.toUpperCase()].filter(Boolean).join(" · ")}</span>
                       </button>
-                    ))
-                  : SET_SHORTCUTS.map((shortcut) => (
-                      <button
-                        key={shortcut.label}
-                        type="button"
-                        onClick={() => setShortcutQuery(shortcut.query)}
-                        className="min-h-9 rounded-full border border-border/55 bg-background/55 px-3.5 py-2 text-xs font-semibold text-muted-foreground hover:bg-background/85 hover:text-foreground dark:border-white/10"
-                      >
-                        {shortcut.label}
-                      </button>
-                    ))}
-              </div>
-            </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
           </div>
         ) : selectedSet && checklistView === "cards" ? (
           <ul aria-label={`${setLabel} card checklist`} className="space-y-2">
