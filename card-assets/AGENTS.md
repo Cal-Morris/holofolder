@@ -1,6 +1,6 @@
 # card-assets
 
-This folder decides **which image each card shows, where it comes from, and why**. Read this before adding an image source, changing which source a set uses, or touching the image backfill scripts.
+This folder decides **which image each card shows, where it comes from, and why**. The human-facing overview, including how the PTCG Image Atlas shaped this approach, is [`README.md`](README.md). Read this before adding an image source, changing which source a set uses, or touching the image backfill scripts.
 
 It is built on the [PTCG Image Atlas](https://github.com/nstrelow/ptcg-image-atlas) by Luna ([live map](https://nstrelow.github.io/ptcg-image-atlas/#v=network)). The atlas maps where Pokémon TCG card images come from: which official sites publish them, who scans or re-hosts them, who copies whom (pixel-verified where possible), what TCGdex is missing per language, and whose permission reusing each source needs. We keep a pinned copy of its `data.json` and key our sources to its ids, so its research (kind of image, size, permission) drives our choices. Credit Luna's atlas whenever you explain why we use a source.
 
@@ -39,7 +39,7 @@ tests/card-assets.test.ts        unit tests, including parity with the app's ima
 | `bun run card-assets inventory` | Rebuilds `card_image_inventory` for the app's bucket from an R2 LIST (after manual deletions). |
 | `bun run card-assets atlas` | Refreshes `atlas/` from the atlas repo's `main` and lists atlas sources we haven't classified yet. Review the diff before committing. |
 
-It needs `POSTGRES_URL_NON_POOLING` (or `DATABASE_URL`) in `.env.local`. Nothing here uploads to R2 or writes to the database yet; publishing is phase 3 of the plan below.
+Every command needs `POSTGRES_URL_NON_POOLING` (or `DATABASE_URL`) in `.env.local`. `plan`, `verify`, `discover` and `atlas` only read the database and write files here; `publish`, `renditions`, the `mirror-*` commands, `fill-gaps --apply`, `inventory` and `migrate-bucket --apply` write to R2 and/or the database.
 
 ## `sources.csv`
 
@@ -109,7 +109,7 @@ The plan, with the audit behind it, is in Cal's plans repo (`holofolder-card-ima
 1. **This folder**: sources, rules, ledger, `plan`, `verify` (done).
 2. **New bucket and prefix**: everything lives in the `holofolder-assets` bucket under `pokemon/tcg/` (for example `pokemon/tcg/cards/en/sv01/001/high.webp`), still on `assets.holofolder.com`. Old `/cards/…` URLs keep working through a Cloudflare rewrite (done).
 3. **malie**: `discover malie` and `publish` (done).
-4. **Stored sizes**: `large`, `medium` and `small` WebP per card instead of resizing in the proxy.
+4. **Small copies**: a 320 px `<key>.low.webp` beside every fallback-source image, used by lists, thumbnails and srcsets (done). A separate medium size was left out: the small and full copies cover every view.
 5. **One script**: the old `mirror-card-images`, `mirror-pokemoncom-images`, `fill-card-gaps` and `sync-card-image-inventory` scripts are now `card-assets` subcommands in `scripts/card-assets/` (done).
 
 Credit malie.io, Luna's atlas and Martin of Pokémon Paradijs when their work is used, here and in `THIRD_PARTY_NOTICES.md`.
