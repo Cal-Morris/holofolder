@@ -5,7 +5,7 @@ import { ChevronRight, X } from 'lucide-react';
 import { buildCollectionAnalytics } from '@/lib/collection-analytics';
 import type { CardPriceSnapshot } from '@/lib/card-pricing';
 import type { CollectedPokemon } from '@/lib/domain/cards';
-import { buildNativeAnalytics, nativeValueNote, sumCopyValues } from '@/lib/collection/native-analytics';
+import { buildNativeAnalytics } from '@/lib/collection/native-analytics';
 import { selectInventoryCollection } from '@/lib/collection/inventory-projection';
 import {
   navigationIndex,
@@ -98,88 +98,4 @@ export function useNativeBinderValue(
     [analytics, collectionId, prices, region],
   );
   return { summary, status };
-}
-
-const gbp = (amount: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount);
-
-/**
- * Signed-in (native) binder: whole-binder and open-page totals from every saved price, the same evidence as Analytics
- * and the card sheet. Low confidence is labelled, not dropped. Unpriced and graded copies stay unpriced, never guessed.
- */
-export function NativeBinderTotals({
-  value: { summary, status },
-  pageItemIds,
-  pageLabel,
-  priceMode,
-  onOpen,
-  onDismiss,
-}: {
-  value: ReturnType<typeof useNativeBinderValue>;
-  pageItemIds: readonly string[];
-  pageLabel: string;
-  /** The pocket price labels toggle (View → Prices on the legacy binder). */
-  priceMode?: { on: boolean; loading: boolean; toggle: () => void };
-  onOpen: () => void;
-  onDismiss: () => void;
-}) {
-  const page = useMemo(
-    () => (summary ? sumCopyValues(summary.copies, new Set(pageItemIds)) : null),
-    [summary, pageItemIds],
-  );
-  if (!summary || !page || summary.physicalCopies === 0) return null;
-  const amount = (value: number | null) =>
-    value !== null
-      ? gbp(value)
-      : status === 'loading'
-        ? 'Loading…'
-        : status === 'unavailable'
-          ? 'Unavailable'
-          : 'Unknown';
-  return (
-    <section
-      aria-label="Binder value"
-      className="holo-panel border-border/60 relative mb-2 shrink-0 rounded-2xl border"
-    >
-      <button
-        type="button"
-        aria-label="View binder value in Analytics"
-        onClick={onOpen}
-        className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl py-2 pl-3 text-left ${priceMode ? 'pr-[7.5rem]' : 'pr-14'}`}
-      >
-        <span className="min-w-0">
-          <span className="block text-sm font-medium">
-            Binder <span className="ml-1 text-lg font-semibold tabular-nums">{amount(summary.rawValueGbp)}</span>
-          </span>
-          <span className="text-muted-foreground block text-xs">
-            {summary.pricedCopies} of {summary.physicalCopies} cards priced
-            {nativeValueNote(summary)}
-          </span>
-          <span data-testid="binder-page-total" className="block text-xs font-medium tabular-nums">
-            {pageLabel}: {page.total ? `${amount(page.valueGbp)} · ${page.priced} of ${page.total} priced` : 'no cards'}
-          </span>
-        </span>
-        <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden="true" />
-      </button>
-      <span className="absolute top-1 right-1 flex items-center">
-        {priceMode && (
-          <button
-            type="button"
-            aria-pressed={priceMode.on}
-            onClick={priceMode.toggle}
-            className={`min-h-11 rounded-full px-3 text-xs font-semibold ${priceMode.on ? 'bg-primary/12 text-primary' : 'text-muted-foreground hover:bg-accent'}`}
-          >
-            {priceMode.on && priceMode.loading ? 'Loading' : 'Prices'}
-          </button>
-        )}
-        <button
-          type="button"
-          aria-label="Hide binder value"
-          onClick={onDismiss}
-          className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-ring flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-2"
-        >
-          <X className="h-4 w-4" aria-hidden />
-        </button>
-      </span>
-    </section>
-  );
 }

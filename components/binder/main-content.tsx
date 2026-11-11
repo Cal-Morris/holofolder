@@ -44,8 +44,6 @@ import type {
 export interface MainContentContext {
   nativeWanted?: import('react').ReactNode;
   nativeAnalytics?: import('react').ReactNode;
-  /** Signed-in binder and open-page totals; the legacy BinderValue below never renders under native storage. */
-  nativeBinderTotals?: import('react').ReactNode;
   listTitle?: string;
   /** Read-only native ownership for the Pokémon-specific views; the legacy collection is empty for native hosts. */
   nativeSpecies?: { bySpecies: Map<number, CollectedPokemon>; rows: CollectedPokemon[] } | null;
@@ -294,7 +292,6 @@ export function renderMainContentView(ctx: MainContentContext) {
             {viewLoadError}
           </p>
         ) : null}
-        {activeMainView === 'binder' && ctx.nativeBinderTotals}
         {activeMainView === 'binder' && !readOnlyMode && settings.showBinderValue !== false && (
           <BinderValue
             onDismiss={onHideBinderValue}

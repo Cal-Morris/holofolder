@@ -446,21 +446,6 @@ export default function SettingsModal({
       case 'appearance':
         return (
           <div className="space-y-4">
-            {!isReadOnlyView && (
-              <div className="border-border/40 flex items-center justify-between gap-4 border-b py-3">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Show binder value</p>
-                  <p className="text-muted-foreground text-xs">
-                    Show the total above your binder. Analytics is always available.
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.showBinderValue !== false}
-                  onCheckedChange={(value) => onUpdateSettings({ showBinderValue: value })}
-                  aria-label="Show binder value"
-                />
-              </div>
-            )}
             <div className="border-border/40 flex items-center justify-between gap-4 border-b py-3">
               <div className="space-y-1">
                 <p className="text-sm font-medium">Dark mode</p>

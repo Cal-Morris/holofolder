@@ -54,6 +54,8 @@ export interface BinderGridPageContext {
   isCollected: (pokemonId: number) => boolean;
   isDesktopViewport: boolean;
   isPriceMode: boolean;
+  /** Price mode on a signed-in binder: the page's saved value for its bottom label, null when nothing is priced. */
+  pageValueLabel?: (page: number) => string | null;
   isSpreadLayout: boolean;
   /** A1/B4 pocket badges: off on shares and when the device switch is off. */
   showSlotLabels: boolean;
@@ -216,6 +218,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
     isCollected,
     isDesktopViewport,
     isPriceMode,
+    pageValueLabel,
     longPressedPokemon,
     priceFormat,
     pricesByCardId,
@@ -257,6 +260,9 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
           className={`absolute bottom-1 z-10 rounded-full border border-white/15 bg-black/25 px-2 py-px text-[9px] font-semibold tracking-[0.16em] text-white/78 uppercase backdrop-blur-sm ${side === 'left' ? 'left-3' : 'right-3'}`}
         >
           Page {pageNumber}
+          {pageValueLabel?.(pageNumber) && (
+            <span className="tracking-normal normal-case"> · {pageValueLabel(pageNumber)}</span>
+          )}
         </div>
       )}
       <div
