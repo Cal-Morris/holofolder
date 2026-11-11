@@ -11,7 +11,6 @@
     "sync-card-db": "bun scripts/sync-card-db.ts",
     "sync-card-prices": "bun scripts/sync-card-prices.ts",
     "sync-card-supplements": "bun scripts/sync-card-supplements.ts",
-    "mirror-card-images": "bun scripts/mirror-card-images.ts",
     "card-assets": "bun scripts/card-assets.ts",
     "start": "next start",
     "test": "bun test --parallel tests/",

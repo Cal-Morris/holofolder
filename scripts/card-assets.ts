@@ -12,6 +12,13 @@
  *                                                               the cards, so the app shows them
  *   bun run card-assets renditions [--set a,b] [--apply]        store the small copy (<key>.low.webp) beside every
  *                                                               chosen fallback-source image that lacks one
+ *   bun run card-assets mirror-tcgdex [--set a,b] …             copy TCGdex images (and fallbacks) into R2
+ *   bun run card-assets mirror-pokemoncom [--set a,b] …         copy pokemon.com's official images into R2
+ *   bun run card-assets fill-gaps [--apply]                     fill catalog gaps (images, aliases, promo sets)
+ *   bun run card-assets inventory                               rebuild card_image_inventory from an R2 LIST
+ *
+ * This is the one entry point for collecting, uploading and recording card images; the subcommands above live in
+ * scripts/card-assets/.
  *
  * plan, verify and atlas read Postgres (POSTGRES_URL_NON_POOLING or DATABASE_URL) in a read-only transaction and
  * write only files under card-assets/. migrate-bucket copies R2 objects server side and records them in
@@ -51,6 +58,10 @@ import {
   type MirrorCardRow,
 } from '../lib/card-assets/ledger';
 import { getMirrorDatabaseUrl } from '../lib/card-db-sync';
+import { run as fillGaps } from './card-assets/fill-gaps';
+import { run as rebuildInventory } from './card-assets/inventory';
+import { run as mirrorPokemonCom } from './card-assets/mirror-pokemoncom';
+import { run as mirrorTcgdex } from './card-assets/mirror-tcgdex';
 import { developerImageKey } from '../lib/developer-api/image-identity';
 import { loadProjectEnvFiles } from '../lib/load-project-env';
 import { buildTcgdexAssetImageUrl, pickImageLanguage } from '../lib/tcgdex-shared';
@@ -754,6 +765,10 @@ const commands: Record<string, () => Promise<void>> = {
   discover,
   publish,
   renditions,
+  'mirror-tcgdex': mirrorTcgdex,
+  'mirror-pokemoncom': mirrorPokemonCom,
+  'fill-gaps': fillGaps,
+  inventory: rebuildInventory,
 };
 const command = commands[process.argv[2] ?? ''];
 if (!command) {
