@@ -145,7 +145,9 @@ function currentCardAssetPath(path) {
 function isPublicCardAsset(url) {
   return (
     url.origin === 'https://assets.holofolder.com' &&
-    (url.pathname.startsWith('/cards/') || url.pathname.startsWith(`${CARD_ASSET_ROOT}/cards/`))
+    (url.pathname.startsWith('/cards/') ||
+      url.pathname.startsWith(`${CARD_ASSET_ROOT}/cards/`) ||
+      url.pathname.startsWith(`${CARD_ASSET_ROOT}/sets/`))
   );
 }
 

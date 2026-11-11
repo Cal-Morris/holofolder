@@ -114,3 +114,23 @@ Vercel functions run in `iad1`, next to the existing Supabase database in US Eas
 ## Official pokemon.com scans
 
 `bun run card-assets mirror-pokemoncom [--set a,b] [--dry-run]` copies pokemon.com's official scan of every card it has into R2 and records it as `external_ids_json.pokemoncom.image`, which the read path prefers over the other fallback sources when TCGdex has no image. URLs are built from our own set and card ids (`lib/pokemoncom-card-images.ts`), so only the asset CDN is fetched. The script is idempotent; rerun it after syncing a new set. Sets pokemon.com doesn't have (Base to e-Card, most promos, trainer kits) are skipped after five probes.
+
+## Set symbols and logos
+
+Set artwork is mirrored separately from card scans under `pokemon/tcg/sets/<setId>/<symbol|logo>-<content hash>.webp`
+in `holofolder-assets`, served directly from `https://assets.holofolder.com`. Search, Quick mode and Sets never load
+set artwork from an upstream host. Cached older payloads containing upstream URLs show a fallback instead.
+The service worker caches these public objects with the existing image cache.
+
+`card-assets/pokemon/tcg/set-artwork.json` records each verified public URL and its original source. Only manifest
+objects are returned by set browse/search and developer set listings. Missing artwork remains unknown.
+
+Run `bun run card-assets mirror-sets --apply` with the public bucket's R2 credentials and the existing database
+connection after adding sets. The command matches PokéSymbols names to catalogue names, with explicit aliases for
+known naming differences, and falls back to artwork already recorded by TCGdex/pokemontcg.io/Scrydex. It validates and resizes
+images, uses content-addressed keys without overwrites, and caps mirrored artwork at 20 MB. `--prepare <directory>` instead
+writes local files, an upload list and a proposed manifest for a connector-assisted upload. Verify every uploaded URL
+before copying that manifest into the repository. The upload does not change the database or card-image inventory.
+
+Credits appear in Settings and `/app/credits`, and in `THIRD_PARTY_NOTICES.md`, including PokéSymbols and its credited
+image contributor u/hexcalibur01000.

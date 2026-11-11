@@ -6,7 +6,7 @@ export interface TCGSetSummary {
   seriesName?: string;
   officialCardCount?: number;
   releaseDate?: string;
-  /** Set symbol and logo image URLs (origin URLs; load them through the image proxy). Only on the browse list. */
+  /** Verified public CDN set artwork, available on browse and search summaries. */
   symbol?: string;
   logo?: string;
 }

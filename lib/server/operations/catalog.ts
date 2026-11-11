@@ -1,3 +1,4 @@
+import { getSetArtwork } from '@/lib/set-artwork';
 import { CATALOG_GAME, readExternalIdentifiers } from '@/lib/developer-api/catalog';
 import { developerArtworkReference } from '@/lib/developer-api/image-identity';
 import { cacheLife, cacheTag } from 'next/cache';
@@ -190,6 +191,9 @@ export async function listCatalogGroups(kind: 'sets' | 'series', rawParams: stri
     .limit(page.limit + 1);
   if (page.after) query = query.gt('id', page.after);
   if (params.get('series') && kind === 'sets') query = query.eq('series_id', params.get('series')!);
+  const year = params.get('year');
+  if (kind === 'sets' && year)
+    query = query.gte('release_date', `${year}-01-01`).lt('release_date', `${Number(year) + 1}-01-01`);
   const { data, error } = await query;
   if (error) throw new Error('Catalog groups unavailable');
   const rows = (data ?? []).map(record),
@@ -202,6 +206,7 @@ export async function listCatalogGroups(kind: 'sets' | 'series', rawParams: stri
       names: record(row.name_json),
       ...(kind === 'sets'
         ? {
+            ...getSetArtwork(String(row.id)),
             seriesId: row.series_id,
             officialCardCount: row.official_card_count ?? null,
             releaseDate: row.release_date ?? null,

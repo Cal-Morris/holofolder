@@ -2,7 +2,7 @@
 
 import { BinderCreationPresets } from '@/components/binder-creation-presets';
 import type { BinderCreationDraft } from '@/lib/binder-creation-draft';
-import { toCardImageProxySrc, toCardImageSrc } from '@/lib/card-image-url';
+import { toCardImageSrc } from '@/lib/card-image-url';
 import { catalogCardIds, deduplicateCatalogCards, matchesCatalogCardId } from '@/lib/card-catalog';
 
 import NextImage from 'next/image';
@@ -21,7 +21,7 @@ import { getProxiedThumbnailUrl } from '@/lib/card-show-prep';
 import { readOfflineSets, searchOfflineSets } from '@/lib/offline-card-index';
 import { useCollapseOnScroll } from '@/hooks/use-collapse-on-scroll';
 import { getSetCompletion } from '@/lib/set-completion';
-import { filterSetGroups, getSetMonogram, listSetSeries } from '@/lib/set-browse';
+import { filterSetGroups, getSetMonogram, publicSetArtworkUrl, listSetSeries } from '@/lib/set-browse';
 import {
   getSetSlotState,
   getSetCardState,
@@ -63,17 +63,11 @@ const SET_SLOT_FILTERS: Array<{ id: SetSlotFilter; label: string }> = [
   { id: 'multiple', label: 'Variants' },
 ];
 
-/** A set symbol or logo, resized by the image proxy; null for any URL the proxy would not serve. */
-function setArtworkSrc(url: string | undefined, width: 96 | 320) {
-  const proxied = toCardImageProxySrc(url);
-  return proxied?.startsWith('/app/api/card-image-proxy?') ? `${proxied}&w=${width}` : null;
-}
-
 /** Logo, else symbol, else a monogram; an image that fails to load (offline, missing asset) falls through. */
 function SetArtwork({ set }: { set: TCGSetSummary }) {
   const sources = [
-    { src: setArtworkSrc(set.logo, 320), kind: 'logo' },
-    { src: setArtworkSrc(set.symbol, 96), kind: 'symbol' },
+    { src: publicSetArtworkUrl(set.logo), kind: 'logo' },
+    { src: publicSetArtworkUrl(set.symbol), kind: 'symbol' },
   ].filter((source): source is { src: string; kind: string } => Boolean(source.src));
   const [failed, setFailed] = useState(0);
   const source = sources[failed];
@@ -508,8 +502,8 @@ export default function SetPopulationView({
               setSets([]);
               setError(null);
             }}
-            placeholder={selectedSet ? 'Add another set by name or code' : 'Find a set by name or code'}
-            aria-label="Search sets by name or code"
+            placeholder={selectedSet ? 'Add another set by name, code or year' : 'Find a set by name, code or year'}
+            aria-label="Search sets by name, code or year"
             enterKeyHint="search"
             className="placeholder:text-muted-foreground/70 -my-2 min-w-0 flex-1 bg-transparent py-2 text-base outline-none md:text-sm"
           />
@@ -928,7 +922,7 @@ export default function SetPopulationView({
             ) : null}
             {allSetsState === 'failed' ? (
               <p className="text-muted-foreground px-1 py-3 text-sm">
-                Couldn&apos;t load the set list. Search by name or code, or reconnect.
+                Couldn&apos;t load the set list. Search by name, code or year, or reconnect.
               </p>
             ) : null}
             {isBrowsing && browseGroups.length === 0 ? (

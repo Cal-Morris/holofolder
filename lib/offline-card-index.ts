@@ -1,3 +1,4 @@
+import { isSetYearQuery, rankSetMatches } from '@/lib/set-search';
 import { appPath } from '@/lib/app-path';
 import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
 import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
@@ -219,6 +220,7 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
 
 /** Sets whose name or id matches, for the Sets view while offline. */
 export function searchOfflineSets(sets: TCGSetSummary[], query: string) {
+  if (isSetYearQuery(query)) return rankSetMatches(sets, query);
   const text = query.trim().replace(/\s+/g, ' ').toLowerCase();
   const code = resolveSetSearchAlias(query);
   if (text.length < 2) return [];

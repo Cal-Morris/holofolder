@@ -25,3 +25,9 @@ test('settings replacement requires a snapshot fingerprint', async () => {
   assert.equal(schema.safeParse(getDefaultBinderSettings()).success, false);
   assert.equal(schema.safeParse({ ...getDefaultBinderSettings(), baseFingerprint: 'a'.repeat(64) }).success, true);
 });
+
+test('set listing accepts an exact release year and rejects malformed years', () => {
+  const schema = DEVELOPER_OPERATIONS.find((op) => op.name === 'list_sets')!.schema;
+  assert.equal(schema.safeParse({ year: '2017' }).success, true);
+  for (const year of ['17', '2017-01', '2017,2018', '2017%']) assert.equal(schema.safeParse({ year }).success, false);
+});

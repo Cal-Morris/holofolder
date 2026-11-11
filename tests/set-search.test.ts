@@ -64,3 +64,22 @@ test('Delta Reign matches its name, canonical id and printed DLR code', () => {
     assert.deepEqual(rankSetMatches([delta], query), [delta]);
   assert.deepEqual(rankSetMatches([], 'DLR'), []);
 });
+
+// Synthetic dates and ids exercise year lookup independently of set names.
+test('year lookup returns every release in that year, newest first, with no three-set cap', () => {
+  const releases = [1, 4, 2, 3].map((month) => ({
+    id: `year-${month}`,
+    name: `Fixture ${month}`,
+    releaseDate: `2017-0${month}-01`,
+  }));
+  const unrelated = [
+    { id: '2017', name: '2017 Fixture', releaseDate: '2018-01-01' },
+    { id: 'unknown', name: 'Unknown' },
+  ];
+  assert.deepEqual(
+    rankSetMatches([...releases, ...unrelated, releases[0]], ' 2017 ').map((set) => set.id),
+    ['year-4', 'year-3', 'year-2', 'year-1'],
+  );
+  assert.deepEqual(rankSetMatches(releases, '2016'), []);
+  assert.equal(rankSetMatches(releases, '2017', 2).length, 2);
+});

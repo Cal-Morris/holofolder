@@ -73,6 +73,9 @@ async function main() {
     validate(kind === 'sets' ? 'get_set' : 'get_series', detail);
     assert.equal((detail as { game: string }).game, 'pokemon');
   }
+  await listCatalogGroups('sets', 'year=2017');
+  const yearCall = calls.at(-1)!;
+  assert.deepEqual(yearCall.searchParams.getAll('release_date'), ['gte.2017-01-01', 'lt.2018-01-01']);
   assert.ok(calls.length > 0);
 }
 main().catch((error) => {

@@ -68,10 +68,21 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     responseSchema: catalogPageSchema(catalogGroupSchema),
     method: 'GET',
     path: '/sets',
-    description: 'List card sets with game:pokemon and global application IDs.',
+    description:
+      'List card sets with game:pokemon and global application IDs. Filter by release year, for example 2017. Available symbol and logo URLs are served from the Holo Folder CDN.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.object({ ...paging, language, series: id.optional() }).strict(),
+    schema: z
+      .object({
+        ...paging,
+        language,
+        series: id.optional(),
+        year: z
+          .string()
+          .regex(/^(19|20)\d{2}$/)
+          .optional(),
+      })
+      .strict(),
   },
   {
     name: 'get_set',

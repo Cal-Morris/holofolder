@@ -1,4 +1,4 @@
-import { test, expect, mockBackends } from './fixtures';
+import { test, expect, mockBackends, seedNativeStorage, SEEDED_COLLECTION } from './fixtures';
 import { test as plainTest } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type { TCGSetSlotsResponse } from '../lib/tcg-set-slots';
@@ -97,6 +97,66 @@ test.describe('search by set', () => {
     await expectSetOpened(harness.page);
   });
 
+  for (const mode of ['Search', 'Quick mode'] as const) {
+    test(`${mode} finds every set by year with CDN symbols, including saved sets offline`, async ({ harness }) => {
+      const page = harness.page;
+      // Synthetic catalogue, deliberately larger than the usual three-result cap.
+      const releases = [4, 3, 2, 1].map((month) => ({
+        ...set,
+        id: `fixture-year-${month}`,
+        name: `Fixture Year Set ${month}`,
+        releaseDate: `2017-0${month}-01`,
+        symbol: `https://assets.holofolder.com/pokemon/tcg/sets/fixture-${month}/symbol.webp`,
+      }));
+      await page.route('https://assets.holofolder.com/pokemon/tcg/sets/**', (route) =>
+        route.fulfill({
+          contentType: 'image/png',
+          body: Buffer.from(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0ioAAAAASUVORK5CYII=',
+            'base64',
+          ),
+        }),
+      );
+      await page.route('**/app/api/tcg-set-slots**', (route) =>
+        route.fulfill({ json: { sets: releases, selectedSet: null, slots: [] } }),
+      );
+      const search = harness.dock().getByRole('button', { name: 'Search', exact: true });
+      if (mode === 'Quick mode') {
+        const box = (await search.boundingBox())!;
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await expect(page.getByRole('dialog', { name: mode })).toBeVisible();
+        await page.mouse.up();
+      } else await search.click();
+      const dialog = page.getByRole('dialog', { name: mode === 'Search' ? /search pokemon/i : mode });
+      const input = dialog.getByRole(mode === 'Search' ? 'textbox' : 'searchbox');
+      await input.fill('2017');
+      const region = dialog.getByRole('region', { name: mode === 'Search' ? 'Set results' : 'Sets', exact: true });
+      await expect(region.getByRole('button')).toHaveCount(4);
+      for (const row of await region.getByRole('button').all()) {
+        await harness.expectMinTapTarget(row, 36);
+        await expect(row.locator('img')).toHaveAttribute(
+          'src',
+          /^https:\/\/assets\.holofolder\.com\/pokemon\/tcg\/sets\//,
+        );
+      }
+      await region.getByRole('button').last().scrollIntoViewIfNeeded();
+      await harness.expectWithinSafeViewport(region.getByRole('button').last());
+      await harness.expectNoHorizontalOverflow();
+      // Exercise the hook's saved-data fallback without requiring a worker in this harness.
+      await page.evaluate(async (sets) => {
+        const cache = await caches.open('synthetic-set-search-data');
+        await cache.put('/app/api/tcg-set-slots?all=1', Response.json({ sets }));
+      }, releases);
+      await page.context().setOffline(true);
+      await input.fill('2016');
+      await expect(region).toHaveCount(0);
+      await input.fill('2017');
+      await expect(region.getByRole('button')).toHaveCount(4);
+      await page.context().setOffline(false);
+    });
+  }
+
   test('Show mode keeps the lookup: no set rows', async ({ harness }) => {
     await mockSets(harness.page);
     await harness.page.getByRole('button', { name: 'Show mode', exact: true }).first().click();
@@ -117,9 +177,10 @@ plainTest.describe('search by set on desktop 1280×800', () => {
   plainTest('Ctrl+K and the header Search both open Sets on a set hit', async ({ page, baseURL }) => {
     plainTest.skip(plainTest.info().project.name !== 'browser-390x844', 'desktop context: run once');
     await mockBackends(page, page.context(), { signedIn: true, baseURL });
+    await seedNativeStorage(page.context(), baseURL, SEEDED_COLLECTION);
     await mockSets(page);
-    await page.goto('/app/e2e-harness?signedIn=1');
-    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible({ timeout: 30_000 });
+    await page.goto('/app/e2e-harness?signedIn=1&browserHost=1');
+    await expect(page.locator('[data-slot-id="synthetic-dex-1"]').first()).toBeVisible({ timeout: 30_000 });
 
     await page.keyboard.press('Control+k');
     const dialog = page.getByRole('dialog', { name: 'Quick mode' });

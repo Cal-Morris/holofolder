@@ -47,3 +47,10 @@ API keys are REST-only. MCP requires resource-bound OAuth with explicit grants. 
 The [operator smoke guide](../api-smoke.md) runs every registered operation against a deployed environment with synthetic accounts. It has no native fixture lifecycle yet, so native operations are reported as uncovered. Focused unit suites cover the registry, dispatch and generated docs: `tests/developer-operations.test.ts`, `tests/developer-operation-round-trips.test.ts`, `tests/native-developer-operations.test.ts`, `tests/native-developer-read.test.ts` and `tests/docs-openapi.test.ts`.
 
 The slice-by-slice rollout notes that used to follow this table described staged `503` admission and harness-only wiring that no longer applies. They are in git history, and the design records indexed in [docs/README.md](../README.md#native-storage-design-and-rollout-records) keep the invariants and proofs.
+
+### Set year lookup and artwork
+
+Search, Quick mode and Sets accept a four-digit release year, matching known set release dates. REST `GET /sets?year=2017`
+and MCP `list_sets` expose the same filter with existing cursor pagination and optional series filtering. Set listings
+include optional `symbol` and `logo` URLs for verified CDN objects; unknown artwork is omitted. UI result ranking and
+on-device cached-set lookup are presentation/device behavior. See `content/docs/set-lookup.mdx`.

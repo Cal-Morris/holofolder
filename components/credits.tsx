@@ -68,6 +68,14 @@ export function Credits() {
           </li>
         </ul>
       </Group>
+      <Group title="Set symbols">
+        <p>
+          <External href="https://pokesymbols.com/tcg/sets">PokéSymbols</External>: set symbols for looking up cards,
+          including images by <External href="https://www.reddit.com/user/hexcalibur01000/">u/hexcalibur01000</External>{' '}
+          and recreations by PokéSymbols. Additional symbols and logos come from TCGdex, pokemontcg.io and Scrydex. All
+          are served from Holo Folder&apos;s CDN.
+        </p>
+      </Group>
       <Group title="Copyright">
         <p>
           Pokémon and all card names, text and artwork are © The Pokémon Company, Nintendo, Creatures and GAME FREAK.

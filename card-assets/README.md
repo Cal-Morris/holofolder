@@ -44,3 +44,9 @@ To change which image a set uses, add a row to `rules.csv`, run `plan`, and revi
 ## Licensing
 
 Card images are © The Pokémon Company, Nintendo, Creatures and GAME FREAK (Wizards of the Coast for English cards from 1999 to 2003). No source here grants a licence to the artwork. We use official digital images, credit every source, and leave fan scans off unless the scanner has agreed. The atlas's own data is MIT licensed.
+
+### Set artwork
+
+Set symbols and logos use `bun run card-assets mirror-sets --apply`, independently of card scans. The committed
+`pokemon/tcg/set-artwork.json` manifest records the upstream source and verified CDN URL for each file. See
+[the storage guide](../docs/card-image-store.md#set-symbols-and-logos) for upload and verification steps.

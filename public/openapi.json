@@ -16827,7 +16827,7 @@
       "get": {
         "operationId": "list_sets",
         "summary": "List sets",
-        "description": "List card sets with game:pokemon and global application IDs.\n\nRequired permissions: `catalog:read`. MCP tool: `list_sets`.",
+        "description": "List card sets with game:pokemon and global application IDs. Filter by release year, for example 2017. Available symbol and logo URLs are served from the Holo Folder CDN.\n\nRequired permissions: `catalog:read`. MCP tool: `list_sets`.",
         "tags": [
           "Catalog"
         ],
@@ -16883,6 +16883,15 @@
               "minLength": 1,
               "maxLength": 200
             }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(19|20)\\d{2}$"
+            }
           }
         ],
         "responses": {
@@ -16918,6 +16927,16 @@
                               "type": "string"
                             },
                             "additionalProperties": {}
+                          },
+                          "symbol": {
+                            "description": "Available set symbol on the Holo Folder CDN.",
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "logo": {
+                            "description": "Available set logo on the Holo Folder CDN.",
+                            "type": "string",
+                            "format": "uri"
                           }
                         },
                         "required": [
@@ -17856,6 +17875,16 @@
                               "type": "string"
                             },
                             "additionalProperties": {}
+                          },
+                          "symbol": {
+                            "description": "Available set symbol on the Holo Folder CDN.",
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "logo": {
+                            "description": "Available set logo on the Holo Folder CDN.",
+                            "type": "string",
+                            "format": "uri"
                           }
                         },
                         "required": [
