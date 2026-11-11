@@ -11,7 +11,7 @@ function snapshot(): InventorySnapshot {
   return { ownerUserId: owner, inventoryRevision: 7,
     items: ["psa", "ace", "raw"].map((id, n) => ({ id, ownerUserId: owner, version: 2,
       identity: { kind: "card", cardId: "synthetic-unknown", language: "ja", finish: "holo" },
-      acquiredAt: "2026-01-01T00:00:00Z", legacySource: { future: [null, { unknown: "0007" }] },
+      acquiredAt: "2026-01-01T00:00:00Z",
       grading: id === "raw" ? null : { ...emptyGradingRecord(), provider: { kind: "known", id: n ? "ace" : "psa" },
         grade: n ? "Legacy / unknown" : null, certificate: "00001234", label: { variant: "Legacy", assetIds: ["private-label"] } } })),
     placements: [{ inventoryItemId: "psa", collectionId, slotId: "synthetic-slot", version: 3 }],

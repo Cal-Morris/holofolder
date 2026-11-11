@@ -12,7 +12,7 @@ export async function rawRestoreFixture(blank = false) {
     binders: [{ ownerUserId: rawOwner, collectionId: rawCollection, layoutRevision: 3, presetManifest: blank ? blankPreset() : null,
       slots: ['a', 'b'].map((k, n) => ({ id: 'slot-' + k, ownerUserId: rawOwner, collectionId: rawCollection, version: 4,
         target: null, status: 'collected', inventoryItemId: 'copy-' + (n ? 'a' : 'b'), wantedCards: [], presetOrigin: null })) }],
-    items: ['a', 'b'].map(k => ({ id: 'copy-' + k, ownerUserId: rawOwner, identity: { kind: 'pokemon', pokemonId: 1 }, grading: null, legacySource: null, acquiredAt: null, version: 1 })),
+    items: ['a', 'b'].map(k => ({ id: 'copy-' + k, ownerUserId: rawOwner, identity: { kind: 'pokemon', pokemonId: 1 }, grading: null, acquiredAt: null, version: 1 })),
     placements: ['a', 'b'].map((k, n) => ({ inventoryItemId: 'copy-' + k, collectionId: rawCollection, slotId: n ? 'slot-a' : 'slot-b', version: 2 })) }
   const brand = (s: InventorySnapshot) => {
     const page = <T>(rows: T[]) => async () => ({ rows, total: rows.length, inventoryRevision: s.inventoryRevision, next: null })

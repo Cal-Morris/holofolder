@@ -28,7 +28,6 @@ async function main() {
       f.tables.storage_collection_state[0].kind = "custom"
       f.tables.storage_collection_state[0].default_presentation = "list"
       f.tables.storage_collection_state[0].location = "Synthetic private shelf"
-      f.tables.inventory_items[0].legacy_source = { original: "Synthetic immutable source" }
       f.tables.binders[0].binder_rows = 2
       f.tables.binders[0].binder_cols = 4
       const context = await browser.newContext({ serviceWorkers: "block" })
@@ -52,7 +51,6 @@ async function main() {
       const navigation = await page.evaluate(() => window.inventoryReadProof.navigation())
       assert.equal(navigation.indexKind, "complete")
       assert.equal(navigation.privateLocation, "Synthetic private shelf")
-      assert.deepEqual(navigation.source, { original: "Synthetic immutable source" })
       assert.equal(navigation.location.kind, "assigned")
       if (navigation.location.kind === "assigned") {
         assert.equal(navigation.location.page, 129)

@@ -55,15 +55,14 @@ async function complete(db: Client, readOwner = owner, readActor = partner) {
     }
   }
   const items = (await all('inventory_items', 'id')).map(r => ({ id: r.id, ownerUserId: readOwner, identity: r.identity, grading: r.grading,
-    acquiredAt: r.acquired_at?.toISOString() ?? null, legacySource: r.legacy_source, version: Number(r.version) }))
+    acquiredAt: r.acquired_at?.toISOString() ?? null, version: Number(r.version) }))
   const placements = (await all('inventory_placements', 'inventory_item_id')).map(r => ({ inventoryItemId: r.inventory_item_id, collectionId: r.collection_id, slotId: r.slot_id, version: Number(r.version) }))
-  const mappings = await all('binder_legacy_rows', 'legacy_row_id')
   const roots = await all('storage_collection_state', 'collection_id'), bs = await all('binders', 'id'), slots = await all('binder_slots', 'collection_id,position')
   const collections = roots.map(r => ({ id: r.collection_id, ownerUserId: readOwner, name: bs.find(b => b.id === r.collection_id)!.name, kind: r.kind,
     defaultPresentation: r.default_presentation, location: r.location, version: Number(r.version) }))
   const binders = roots.map(r => ({ ownerUserId: readOwner, collectionId: r.collection_id, layoutRevision: Number(r.layout_revision), presetManifest: r.preset_manifest,
     slots: slots.filter(s => s.collection_id === r.collection_id).map(s => ({ id: s.id, ownerUserId: readOwner, collectionId: r.collection_id, version: Number(s.version),
-      target: s.target, status: s.status, wantedCards: s.wanted_cards, inventoryItemId: placements.find(p => p.slotId === s.id)?.inventoryItemId ?? null, presetOrigin: s.preset_origin, legacySource: mappings.find(m => m.slot_id === s.id) ? { legacyRowId: mappings.find(m => m.slot_id === s.id)!.legacy_row_id, sourceRow: mappings.find(m => m.slot_id === s.id)!.source_row } : null })) }))
+      target: s.target, status: s.status, wantedCards: s.wanted_cards, inventoryItemId: placements.find(p => p.slotId === s.id)?.inventoryItemId ?? null, presetOrigin: s.preset_origin })) }))
   const settings=(await db.query('SELECT binder_rows,binder_cols FROM public.user_settings WHERE user_id=$1',[readOwner])).rows[0]
   const layouts = roots.map(r => ({ collectionId: r.collection_id, layoutRevision: Number(r.layout_revision), rows: bs.find(b => b.id === r.collection_id)!.binder_rows ?? settings?.binder_rows ?? 4, cols: bs.find(b => b.id === r.collection_id)!.binder_cols ?? settings?.binder_cols ?? 4 }))
   const page = <T>(rows: T[]) => async (cursor?: string | null) => {

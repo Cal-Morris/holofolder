@@ -4,6 +4,68 @@ import { createClient } from "@supabase/supabase-js"
 export const owner = "11111111-1111-4111-8111-111111111111"
 export const collection = "22222222-2222-4222-8222-222222222222"
 type Row = Record<string, unknown>
+const text = (a: unknown, b: unknown) => String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0
+
+/** Mirror rows the catalog evidence needs for these card ids, matching inventory_snapshot_v2's catalog (exact id, then canonical/alias). */
+export function catalogRows(tables: Record<string, Row[]>, ids: Iterable<string>) {
+  const wanted = [...new Set(ids)]
+  const meta = (c: Row) => (c.external_ids_json as { catalog?: { canonicalId?: string; aliasIds?: string[] } } | null)?.catalog
+  const direct = tables.tcg_cards.filter(c => wanted.includes(String(c.id)))
+  const fallback = tables.tcg_cards.filter(c => !direct.includes(c) && wanted.some(id => !direct.some(d => d.id === id)
+    && (meta(c)?.canonicalId === id || meta(c)?.aliasIds?.includes(id))))
+  const cards = [...direct, ...fallback].sort((a, b) => text(a.id, b.id))
+  return { cards, dex: tables.tcg_card_dex_ids.filter(d => cards.some(c => c.id === d.card_id)).sort((a, b) => text(a.card_id, b.card_id) || Number(a.dex_id) - Number(b.dex_id)),
+    sets: tables.tcg_sets.filter(t => cards.some(c => c.set_id === t.id)).sort((a, b) => text(a.id, b.id)) }
+}
+/** Card ids a snapshot names: copies, slot targets and wants. */
+export function snapshotCardIds(snapshot: { items: { identity: { kind: string; cardId?: string } }[]; binders: { slots: { target: { kind: string; cardId?: string } | null; wantedCards: { card_id: string }[] }[] }[] }) {
+  return [...snapshot.items.flatMap(i => i.identity.kind === "card" ? [i.identity.cardId!] : []),
+    ...snapshot.binders.flatMap(b => b.slots.flatMap(s => [...(s.target?.kind === "card" ? [s.target.cardId!] : []), ...s.wantedCards.map(w => w.card_id)]))]
+}
+/** Synthetic inventory_snapshot_v2: same parts, filters, ordering and JSON keys as migration 107. */
+export function snapshotDocument(tables: Record<string, Row[]>, owner: string, part = "all", onlyCollection: string | null = null, onlyItem: string | null = null) {
+  const own = (t: string) => (tables[t] ?? []).filter(r => r.owner_user_id === owner)
+  const slots = own("binder_slots").filter(s => ["all", "slots"].includes(part) && (!onlyCollection || s.collection_id === onlyCollection))
+  const binders = own("binders"), states = own("storage_collection_state")
+  const ids = [...new Set([...binders.map(b => String(b.id)), ...states.map(s => String(s.collection_id))])]
+    .filter(id => part !== "item" && (!onlyCollection || id === onlyCollection)).sort()
+  const placementsAll = own("inventory_placements")
+  const items = own("inventory_items").filter(i => part === "all" || part === "item" && i.id === onlyItem
+    || ["items", "slots"].includes(part) && (!onlyCollection || placementsAll.some(p => p.inventory_item_id === i.id && p.collection_id === onlyCollection)))
+    .sort((a, b) => text(a.id, b.id))
+  const pick = (r: Row, keys: string[]) => Object.fromEntries(keys.map(k => [k, r[k] ?? null]))
+  const cardIds = part !== "all" ? [] : [...items.flatMap(i => (i.identity as Row)?.kind === "card" ? [String((i.identity as Row).cardId)] : []),
+    ...slots.flatMap(s => [...((s.target as Row)?.kind === "card" ? [String((s.target as Row).cardId)] : []),
+      ...(Array.isArray(s.wanted_cards) ? s.wanted_cards.map(w => String((w as Row).card_id)) : [])])]
+  return {
+    revision: own("inventory_owner_state")[0]?.inventory_revision ?? null,
+    collections: ids.map(id => {
+      const b = binders.find(r => r.id === id), st = states.find(r => r.collection_id === id)
+      return { id, binder: !!b, state: !!st, ...pick(b ?? {}, ["name", "is_default", "sort_order", "binder_rows", "binder_cols", "updated_at"]),
+        ...pick(st ?? {}, ["kind", "default_presentation", "version", "layout_revision", "preset_manifest", "location"]),
+        slot_count: part === "collections" ? own("binder_slots").filter(s => s.collection_id === id).length : null,
+        slots: ["all", "slots"].includes(part) ? slots.filter(s => s.collection_id === id).sort((a, b) => Number(a.position) - Number(b.position))
+          .map(s => pick(s, ["id", "position", "target", "status", "wanted_cards", "preset_origin", "version"])) : null }
+    }),
+    items: items.map(i => pick(i, ["id", "identity", "grading", "acquired_at", "version"])),
+    placements: placementsAll.filter(p => items.some(i => i.id === p.inventory_item_id)).sort((a, b) => text(a.inventory_item_id, b.inventory_item_id))
+      .map(p => pick(p, ["inventory_item_id", "collection_id", "slot_id", "version"])),
+    catalog: part === "all" ? catalogRows(tables, cardIds) : null,
+  }
+}
+/** Synthetic developer_inventory_read_v1: credential, user, membership and billing checks, then one scoped snapshot. */
+export function developerRead(tables: Record<string, Row[]>, body: unknown, current: { oauthPermissions?: unknown; paid: boolean; allowed?: boolean }) {
+  const a = JSON.parse(String(body)), forbidden = () => Response.json({ code: "42501", message: "native_read_forbidden" }, { status: 403 })
+  const permissions = a.transport === "rest" ? (tables.developer_api_keys ?? []).find(k => k.id === a.credential && k.actor_id === a.actor
+    && !k.revoked_at && Date.parse(String(k.expires_at)) > Date.now())?.permissions : a.transport === "mcp" ? current.oauthPermissions : undefined
+  if (!permissions) return forbidden()
+  const m = tables.partnerships.find(p => p.user1_id === a.actor || p.user2_id === a.actor)
+  if (m && ![m.user1_id, m.user2_id].includes(m.owner_user_id) || current.allowed === false) return forbidden()
+  const owner = String(m?.owner_user_id ?? a.actor)
+  return Response.json({ scope: { permissions, owner, members: m ? [m.user1_id, m.user2_id] : [a.actor], partnership: m ?? null, billing_access: { perpetual: current.paid } },
+    snapshot: a.part === "scope" ? null : snapshotDocument(tables, owner, a.part, a.only_collection, a.only_item),
+    settings: a.part === "collections" ? tables.user_settings.find(u => u.user_id === owner) ?? null : null })
+}
 export function fixture(size = 1031, owner = "11111111-1111-4111-8111-111111111111", authSessionId = "synthetic-auth-session") {
   const tables: Record<string, Row[]> = {
     pokemon_collection: [], partnerships: [], inventory_owner_state: [{ owner_user_id: owner, inventory_revision: 7 }],
@@ -26,13 +88,21 @@ export function fixture(size = 1031, owner = "11111111-1111-4111-8111-1111111111
     requests.push({ table, url, method, headers: new Headers(init?.headers) })
     const overridden = intercept?.(table, url, init)
     if (overridden) return overridden
-    if (table === "inventory_grid_read_v1") {
+    if (table === "inventory_read_v2") {
+      const fail = (message: string, code = "42501") => Response.json({ code, message }, { status: code === "42501" ? 403 : 400 })
+      if (oauth) return fail("inventory_sign_in_required")
       const membership = tables.partnerships.filter(p => p.user1_id === actor || p.user2_id === actor)
-      const resolved = membership[0]?.owner_user_id ?? actor
-      const settings = tables.user_settings.filter(s => s.user_id === resolved)
-      if (!allowed || oauth || membership.length > 1 || settings.length > 1) return Response.json({ code: "42501" }, { status: 403 })
-      return Response.json({ owner_user_id: resolved, partnership: membership[0] ?? null,
-        settings: settings[0] ? Object.fromEntries(["binder_rows", "binder_cols", "updated_at"].map(k => [k, settings[0][k] ?? null])) : null })
+      if (membership.length > 1) return fail("inventory_read_unavailable", "55000")
+      let owner = String(membership[0]?.owner_user_id ?? actor), partnership: Row | null = membership[0] ?? null
+      if (!allowed) {
+        if (owner === actor) return fail("inventory_read_forbidden")
+        owner = actor; partnership = null
+      }
+      const settings = tables.user_settings.find(s => s.user_id === owner)
+      return Response.json({ scope: { actor, owner, session_id: authSessionId, partner_paused: !allowed,
+        partnership: partnership && { id: partnership.id, owner_user_id: partnership.owner_user_id, user1_id: partnership.user1_id, user2_id: partnership.user2_id },
+        settings: settings ? { binder_rows: settings.binder_rows ?? null, binder_cols: settings.binder_cols ?? null, updated_at: settings.updated_at ?? null } : null },
+      snapshot: snapshotDocument(tables, owner) })
     }
     if (table === "billing_partner_allowed") return Response.json(allowed)
     let rows = [...(tables[table] ?? [])]

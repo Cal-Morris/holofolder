@@ -45,7 +45,6 @@ test("real host downloads complete scoped data and private fields, local immutab
   expect(backup.items.map(i => i.id)).toEqual(["synthetic-backup-copy-0", "synthetic-backup-copy-1", "synthetic-backup-copy-2"])
   expect(backup.items[0].grading?.certificate).toBe("00001234")
   expect(backup.items[1].grading?.certificate).toBe("00001234")
-  expect(backup.items[0].legacySource).toEqual({ original: ["00007", null, { unknown: true }] })
   expect(backup.binders[0].presetManifest?.source.version).toBe("original-v1")
   expect(backup.binders[0].slots.map(s => s.id)).toEqual([0, 1, 2, 3].map(n => `synthetic-slot-${n}`))
   expect(backup.binders[0].slots[0].target).toEqual({ kind: "card", cardId: "synthetic-unknown-printing" })

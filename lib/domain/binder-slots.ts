@@ -1,4 +1,3 @@
-import { normalizeInventorySource, type InventorySource } from "@/lib/domain/inventory-source"
 import { normalizePresetManifest, type PresetManifest, type PresetSource } from "@/lib/domain/binder-presets"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 import { isCardFinish, isCardLanguage, isSlotStatus, normalizeWantedPeople, type CardCatalogIdentity, type CardFinish, type CardLanguage, type SlotStatus, type WantedCard } from "@/lib/domain/cards"
@@ -50,8 +49,6 @@ export function matchesSlotTarget(candidate: SlotTargetCandidate, target: SlotTa
 
 /** A storage slot carries references, never an owned-copy/card/grading payload. */
 export interface BinderSlot {
-  /** Complete immutable binder_legacy_rows record, private and optional on old snapshots. */
-  legacySource?: { legacyRowId: string; sourceRow: InventorySource } | null
   id: string
   ownerUserId: string
   collectionId: string
@@ -110,20 +107,9 @@ function normalizeSlotWant(value: unknown): WantedCard | undefined {
 
 /** Invalid fields fail the entire slot; normalization never drops contents or removes a target. */
 export function normalizeBinderSlot(value: unknown): BinderSlot | undefined {
-  if (!isContractRecord(value, ["id", "ownerUserId", "collectionId", "target", "inventoryItemId", "wantedCards", "status", "version", "presetOrigin", "legacySource"])) return undefined
+  if (!isContractRecord(value, ["id", "ownerUserId", "collectionId", "target", "inventoryItemId", "wantedCards", "status", "version", "presetOrigin"])) return undefined
   if (!isSlotContractId(value.id) || !isSlotContractId(value.ownerUserId) || !isSlotContractId(value.collectionId)
     || !isSlotRevision(value.version) || !Array.isArray(value.wantedCards)) return undefined
-  let legacySource: BinderSlot["legacySource"]
-  if ("legacySource" in value) {
-    if (value.legacySource === null) legacySource = null
-    else {
-      const raw = value.legacySource
-      if (!isContractRecord(raw, ["legacyRowId", "sourceRow"]) || !isSlotContractId(raw.legacyRowId)) return undefined
-      const sourceRow = normalizeInventorySource(raw.sourceRow)
-      if (!sourceRow || typeof sourceRow !== "object" || Array.isArray(sourceRow)) return undefined
-      legacySource = { legacyRowId: raw.legacyRowId, sourceRow }
-    }
-  }
   const target = normalizeSlotTarget(value.target)
   if (target === undefined || (value.inventoryItemId !== null && !isSlotContractId(value.inventoryItemId))) return undefined
   if (value.status !== null && !isSlotStatus(value.status)) return undefined
@@ -141,7 +127,7 @@ export function normalizeBinderSlot(value: unknown): BinderSlot | undefined {
   return {
     id: value.id, ownerUserId: value.ownerUserId, collectionId: value.collectionId, target,
     inventoryItemId: value.inventoryItemId, wantedCards: wants as WantedCard[],
-    status: value.status, version: value.version, presetOrigin, ...("legacySource" in value ? { legacySource } : {}),
+    status: value.status, version: value.version, presetOrigin,
   }
 }
 

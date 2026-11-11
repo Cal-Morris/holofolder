@@ -16,7 +16,7 @@ function snapshot(): InventorySnapshot {
   }))
   const items: InventorySnapshot["items"] = Array.from({ length: 655 }, (_, n) => ({
     id: `synthetic-copy-${n}`, ownerUserId, identity: { kind: "pokemon", pokemonId: n % 1025 + 1 },
-    grading: null, acquiredAt: null, version: 1, legacySource: { original: ["00007", null, { preserved: true }] },
+    grading: null, acquiredAt: null, version: 1,
   }))
   const placements = items.map((item, n) => ({ inventoryItemId: item.id, collectionId: collections[n % 3].id,
     slotId: `synthetic-slot-${n % 3}-${Math.floor(n / 3)}`, version: 1 }))

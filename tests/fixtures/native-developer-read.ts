@@ -1,7 +1,7 @@
 import { generateSetChecklist } from "../../lib/set-preset"
 import { syntheticPresetCards, syntheticPresetSet } from "./set-preset"
 import assert from "node:assert/strict"
-import { fixture, owner, collection } from "./inventory-read-server"
+import { fixture, owner, collection, developerRead } from "./inventory-read-server"
 import { createDeveloperKey } from "../../lib/server/developer-access/key-secret"
 import type { OperationContext } from "../../lib/developer-api/types"
 import { isCompleteInventorySnapshot, captureCompleteInventoryReadFence, isCompleteInventoryReadAfter } from "../../lib/collection/slot-snapshot"
@@ -48,6 +48,12 @@ async function main() {
     if (table === "resolve_developer_access") return Response.json({ owner_user_id: owner, member_ids: context("mcp").memberIds,
       billing_access: { perpetual: paid }, budget: { allowed: budget } })
     if (table === "consume_developer_preauth" || table === "consume_developer_request") return Response.json({ allowed: true })
+    if (table === "developer_inventory_read_v1") {
+      const args = JSON.parse(String(init?.body))
+      if (args.transport === "mcp") assert.deepEqual([args.oauth_session, args.oauth_client, args.credential], [oauth.sessionId, oauth.clientId, grantId])
+      f.requests.push({ table, url, method: "POST", headers: new Headers() })
+      return developerRead(f.tables, init?.body, { oauthPermissions: grant ? grantPermissions : undefined, paid })
+    }
     assert.ok(!/storage_execute|command|audit|recovery/.test(table), "reads never execute a write or protected audit read")
     return f.transport(input, init)
   }
@@ -84,9 +90,6 @@ async function main() {
   }
   const read = (name = "list_inventory_items", input: Record<string, unknown> = {}, transport: "rest" | "mcp" = "rest") => executeDeveloperOperation(context(transport), name, input) as Promise<Record<string, any>> // eslint-disable-line @typescript-eslint/no-explicit-any
   const fence = captureCompleteInventoryReadFence()
-  // Every immutable source stream also crosses the PostgREST 1000-row cap.
-  f.tables.binder_legacy_rows = f.tables.binder_slots.map((s, n) => ({ legacy_row_id: `source-${String(n).padStart(5, "0")}`,
-    owner_user_id: owner, collection_id: collection, slot_id: s.id, source_row: { synthetic: "PRIVATE SOURCE" } }))
   const first = await read("list_inventory_items", { limit: 100 })
   assert.equal(first.total, 1031); assert.equal(first.data.length, 100)
   assert.equal(isCompleteInventorySnapshot(first), false); assert.equal(isCompleteInventoryReadAfter(first, fence), false)
@@ -94,7 +97,6 @@ async function main() {
   const ids = new Set(first.data.map((i: { id: string }) => i.id))
   while (cursor) { const page = await read("list_inventory_items", { limit: 100, cursor }); count += page.data.length; page.data.forEach((i: { id: string }) => ids.add(i.id)); cursor = page.nextCursor }
   assert.equal(count, 1031); assert.equal(ids.size, 1031)
-  assert.ok(f.requests.some(r => r.table === "inventory_items" && r.url.searchParams.has("id")))
   for (const bad of ["bad", first.nextCursor + "x", "a".repeat(1025)]) await assert.rejects(read("list_inventory_items", { limit: 100, cursor: bad }))
   for (const input of [{ limit: 99, cursor: first.nextCursor }, { limit: 100, cursor: first.nextCursor, cardId: "synthetic-energy" }]) await assert.rejects(read("list_inventory_items", input), { code: "invalid_pagination" })
   await assert.rejects(read("list_inventory_items", { limit: 100, cursor: first.nextCursor }, "mcp"), { code: "invalid_pagination" })
@@ -107,16 +109,25 @@ async function main() {
     Object.assign(oauth, saved)
   }
   assert.equal((await read("list_inventory_items", { limit: 100, cursor: oauthPage.nextCursor }, "mcp")).data.length, 100)
-  for (const change of ["inventory", "content", "layout", "metadata", "settings"]) {
+  for (const change of ["inventory", "content", "layout", "metadata", "item"]) {
     reset(3)
     const before = await read("list_inventory_items", { limit: 1 })
     if (change === "inventory") f.tables.inventory_owner_state[0].inventory_revision = 8
     if (change === "content") f.tables.storage_collection_state[0].version = 8
     if (change === "layout") f.tables.storage_collection_state[0].layout_revision = 8
     if (change === "metadata") f.tables.binders[0].name = "Synthetic changed"
-    if (change === "settings") f.tables.user_settings.push({ user_id: owner, binder_rows: 4, binder_cols: 3, updated_at: "2099-01-01" })
+    if (change === "item") f.tables.inventory_items[2].version = 8
     await assert.rejects(read("list_inventory_items", { limit: 1, cursor: before.nextCursor }), { code: "stale_native_cursor" })
   }
+  // A cursor only covers what it pages: another collection's slots changing doesn't restart an item listing.
+  reset(3)
+  const items = await read("list_inventory_items", { limit: 1 })
+  f.tables.user_settings.push({ user_id: owner, binder_rows: 4, binder_cols: 3, updated_at: "2099-01-01" })
+  assert.equal((await read("list_inventory_items", { limit: 1, cursor: items.nextCursor })).data.length, 1)
+  // get_inventory_item reads one item, not the inventory.
+  const itemRequest = f.requests.length
+  await read("get_inventory_item", { id: "synthetic-00001" })
+  assert.deepEqual(f.requests.slice(itemRequest).map(r => r.table), ["developer_inventory_read_v1"])
   reset(0)
   const checklist = generateSetChecklist({ set: syntheticPresetSet, cards: syntheticPresetCards, promos: [], excludedCardIds: [], finishes: [], language: "en", capturedAt: "2026-11-10T12:00:00.000Z" })
   const copiedManifest = { ...checklist.manifest, setScope: checklist.scope }
@@ -159,7 +170,6 @@ async function main() {
   assert.deepEqual(rest.data.map((s: { position: number }) => s.position), [0, 2, 4])
   assert.equal(rest.data[1].placementVersion, 1); assert.equal(rest.data[1].itemVersion, 1)
   f.tables.inventory_items[1].grading = { provider: { kind: "known", id: "psa" }, grade: "10", scale: null, designation: null, holder: "recorded", subgrades: [], certificate: "PRIVATE CERTIFICATE", label: { variant: "recorded", assetIds: ["PRIVATE ASSET"] } }
-  f.tables.inventory_items[1].legacy_source = { private: "PRIVATE SOURCE" }
   f.tables.binder_slots[1].wanted_cards = [{ card_id: "synthetic-energy", card_name: "Synthetic", added_at: "2026-01-01", card_image: "https://private.invalid/asset", wanted_by: [owner] }]
   const item = await read("get_inventory_item", { id: "synthetic-00001" })
   assert.equal(item.data.grading.grade, "10"); assert.equal(item.data.grading.labelVariant, "recorded")
@@ -170,24 +180,16 @@ async function main() {
     reset(2); actor = partner; f.tables.developer_api_keys[0].actor_id = partner
     f.tables.partnerships = [{ id: collection, owner_user_id: owner, user1_id: owner, user2_id: partner }]
     assert.equal((await read("list_inventory_items", {}, transport)).total, 2)
-    for (const mode of ["unlink", "owner", "membership", "billing", "revoked", "permissions", "inventory", "content", "layout", "metadata", "count", "error"]) {
+    // One RPC rechecks the credential, membership and billing in the same snapshot as the rows.
+    for (const mode of ["unlink", "owner", "billing", "revoked", "permissions", "error"]) {
       const saved = structuredClone(f.tables)
-      race = (table, url) => {
-        if (table !== "inventory_items" || !url.searchParams.has("order")) return
-        if (mode === "unlink") f.tables.partnerships = []
-        if (mode === "owner") f.tables.partnerships[0].owner_user_id = partner
-        if (mode === "membership") f.tables.partnerships[0].id = key.id
-        if (mode === "billing") paid = false
-        if (mode === "revoked") { f.tables.developer_api_keys[0].revoked_at = "2026-01-01"; grant = false }
-        if (mode === "permissions") { f.tables.developer_api_keys[0].permissions = []; grantPermissions = [] }
-        if (mode === "inventory") f.tables.inventory_owner_state[0].inventory_revision = 8
-        if (mode === "content") f.tables.storage_collection_state[0].version = 8
-        if (mode === "layout") f.tables.storage_collection_state[0].layout_revision = 8
-        if (mode === "metadata") f.tables.binders[0].name = "Synthetic rename"
-        if (mode === "count") f.tables.binder_slots.pop()
-        if (mode === "error") return Response.json({ code: "42501", message: "PRIVATE DETAILS" }, { status: 403 })
-      }
-      await assert.rejects(read("list_inventory_items", {}, transport), mode)
+      if (mode === "unlink") f.tables.partnerships = []
+      if (mode === "owner") f.tables.partnerships[0].owner_user_id = partner
+      if (mode === "billing") paid = false
+      if (mode === "revoked") { f.tables.developer_api_keys[0].revoked_at = "2026-01-01"; grant = false }
+      if (mode === "permissions") { f.tables.developer_api_keys[0].permissions = []; grantPermissions = [] }
+      if (mode === "error") race = table => table === "developer_inventory_read_v1" ? Response.json({ code: "55000", message: "PRIVATE DETAILS" }, { status: 400 }) : undefined
+      await assert.rejects(read("list_inventory_items", {}, transport), (error: Error) => !error.message.includes("PRIVATE"))
       race = undefined; f.tables = Object.assign(f.tables, saved); paid = true; grant = true; grantPermissions = permissions
     }
   }
@@ -223,23 +225,6 @@ async function main() {
   reset(1)
   f.tables.binder_slots[0].wanted_cards = [{ card_id: "synthetic-energy", card_name: "Synthetic".repeat(150000), added_at: "2026-01-01" }]
   await assert.rejects(read("list_storage_slots", { collectionId: collection }), { code: "native_read_too_large" })
-  reset(0); f.tables.storage_collection_state[0].authority = "legacy"
-  await assert.rejects(read(), { code: "legacy_inventory_incomplete" })
-  for (const source of ["catalog", "alias", "dex", "set"]) {
-    reset(1)
-    const cardId = source === "alias" ? "synthetic-alias" : "synthetic-budget-card"
-    f.tables.inventory_items[0].identity = { kind: "card", cardId, language: "en" }
-    f.tables.tcg_cards = [{ id: "synthetic-budget-card", set_id: "synthetic-budget-set", local_id: "1", name_en: "Synthetic card", name_json: { en: "Synthetic card" },
-      external_ids_json: source === "alias" ? { catalog: { aliasIds: [cardId] } } : {} }]
-    f.tables.tcg_sets = [{ id: "synthetic-budget-set", name_en: "Synthetic set" }]
-    f.tables.tcg_card_dex_ids = [{ card_id: "synthetic-budget-card", dex_id: 6 }]
-    const oversized = "x".repeat(33 * 1024 * 1024)
-    if (source === "catalog") f.tables.tcg_cards[0].name_json = { en: "Synthetic card", xx: oversized }
-    if (source === "alias") f.tables.tcg_cards[0].external_ids_json = { catalog: { aliasIds: [cardId] }, synthetic: oversized }
-    if (source === "dex") f.tables.tcg_card_dex_ids[0].dex_id = oversized
-    if (source === "set") f.tables.tcg_sets[0].name_en = oversized
-    await assert.rejects(read("list_inventory_items", {}), { code: "inventory_read_unavailable" }, source + " response must consume the source byte budget")
-  }
   console.log("synthetic trusted authority, privacy, large paging, race and REST/MCP proof passed")
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

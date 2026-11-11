@@ -1,7 +1,7 @@
 import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness } from "./fixtures"
 import { inventoryBrowseFixture } from "../tests/fixtures/inventory-browse"
-import { fixture } from "../tests/fixtures/inventory-read-server"
-import { readInventoryCatalog } from "../lib/server/inventory-read-catalog"
+import { fixture, catalogRows, snapshotCardIds } from "../tests/fixtures/inventory-read-server"
+import { buildInventoryCatalog } from "../lib/server/inventory-read-catalog"
 
 const alpha = "22222222-2222-4222-8222-222222222222"
 
@@ -35,7 +35,7 @@ for (const desktop of [false, true]) test(`native pocket presentation ${desktop 
     name_json: { en: "Charizard" }, image_languages_json: ["en"], external_ids_json: {} }]
   f.tables.tcg_sets = [{ id: "base1", name_en: "Base Set" }]
   f.tables.tcg_card_dex_ids = [{ card_id: "base1-4", dex_id: 6 }]
-  const catalog = await readInventoryCatalog(f.client, snapshot, new AbortController().signal, () => {})
+  const catalog = buildInventoryCatalog(catalogRows(f.tables, snapshotCardIds(snapshot)))
   await page.route("**/app/api/inventory?*", async route => {
     const url = new URL(route.request().url())
     await route.fulfill({ headers: { "Cache-Control": "private, no-store" }, json: { version: 2, requestId: url.searchParams.get("requestId"),
