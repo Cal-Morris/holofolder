@@ -1,296 +1,296 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-me02.5-001,001,Erika's Oddish,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/001/high.webp,scrydex tcgplayer
-me02.5-002,002,Erika's Gloom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/002/high.webp,scrydex tcgplayer
-me02.5-003,003,Erika's Vileplume ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/003/high.webp,scrydex tcgplayer
-me02.5-004,004,Erika's Bellsprout,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/004/high.webp,scrydex tcgplayer
-me02.5-005,005,Erika's Weepinbell,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/005/high.webp,scrydex tcgplayer
-me02.5-006,006,Erika's Victreebel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/006/high.webp,scrydex tcgplayer
-me02.5-007,007,Erika's Tangela,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/007/high.webp,scrydex tcgplayer
-me02.5-008,008,Chikorita,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/008/high.webp,scrydex tcgplayer
-me02.5-009,009,Bayleef,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/009/high.webp,scrydex tcgplayer
-me02.5-010,010,Mega Meganium ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/010/high.webp,scrydex tcgplayer
-me02.5-011,011,Wurmple,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/011/high.webp,scrydex tcgplayer
-me02.5-012,012,Silcoon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/012/high.webp,scrydex tcgplayer
-me02.5-013,013,Beautifly,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/013/high.webp,scrydex tcgplayer
-me02.5-014,014,Cascoon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/014/high.webp,scrydex tcgplayer
-me02.5-015,015,Dustox,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/015/high.webp,scrydex tcgplayer
-me02.5-016,016,Budew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/016/high.webp,scrydex tcgplayer
-me02.5-017,017,Grubbin,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/017/high.webp,scrydex tcgplayer
-me02.5-018,018,Team Rocket's Tarountula,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/018/high.webp,scrydex tcgplayer
-me02.5-019,019,Team Rocket's Spidops,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/019/high.webp,scrydex tcgplayer
-me02.5-020,020,Charmander,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/020/high.webp,scrydex tcgplayer
-me02.5-021,021,Charmeleon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/021/high.webp,scrydex tcgplayer
-me02.5-022,022,Mega Charizard Y ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/022/high.webp,scrydex tcgplayer
-me02.5-023,023,Ethan's Slugma,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/023/high.webp,scrydex tcgplayer
-me02.5-024,024,Ethan's Magcargo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/024/high.webp,scrydex tcgplayer
-me02.5-025,025,Entei,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/025/high.webp,scrydex tcgplayer
-me02.5-026,026,Ethan's Ho-Oh ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/026/high.webp,scrydex tcgplayer
-me02.5-027,027,Numel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/027/high.webp,scrydex tcgplayer
-me02.5-028,028,Camerupt,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/028/high.webp,scrydex tcgplayer
-me02.5-029,029,Tepig,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/029/high.webp,scrydex tcgplayer
-me02.5-030,030,Pignite,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/030/high.webp,scrydex tcgplayer
-me02.5-031,031,Mega Emboar ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/031/high.webp,scrydex tcgplayer
-me02.5-032,032,N's Darumaka,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/032/high.webp,scrydex tcgplayer
-me02.5-033,033,N's Darmanitan,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/033/high.webp,scrydex tcgplayer
-me02.5-034,034,Salandit,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/034/high.webp,scrydex tcgplayer
-me02.5-035,035,Salazzle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/035/high.webp,scrydex tcgplayer
-me02.5-036,036,Scorbunny,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/036/high.webp,scrydex tcgplayer
-me02.5-037,037,Raboot,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/037/high.webp,scrydex tcgplayer
-me02.5-038,038,Cinderace ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/038/high.webp,scrydex tcgplayer
-me02.5-039,039,Psyduck,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/039/high.webp,scrydex tcgplayer
-me02.5-040,040,Golduck,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/040/high.webp,scrydex tcgplayer
-me02.5-041,041,Totodile,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/041/high.webp,scrydex tcgplayer
-me02.5-042,042,Croconaw,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/042/high.webp,scrydex tcgplayer
-me02.5-043,043,Mega Feraligatr ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/043/high.webp,scrydex tcgplayer
-me02.5-044,044,Sneasel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/044/high.webp,scrydex tcgplayer
-me02.5-045,045,Weavile,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/045/high.webp,scrydex tcgplayer
-me02.5-046,046,Snorunt,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/046/high.webp,scrydex tcgplayer
-me02.5-047,047,Mega Froslass ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/047/high.webp,scrydex tcgplayer
-me02.5-048,048,Regice ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/048/high.webp,scrydex tcgplayer
-me02.5-049,049,N's Vanillite,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/049/high.webp,scrydex tcgplayer
-me02.5-050,050,N's Vanillish,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/050/high.webp,scrydex tcgplayer
-me02.5-051,051,N's Vanilluxe,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/051/high.webp,scrydex tcgplayer
-me02.5-052,052,Snom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/052/high.webp,scrydex tcgplayer
-me02.5-053,053,Frosmoth,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/053/high.webp,scrydex tcgplayer
-me02.5-054,054,Glastrier,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/054/high.webp,scrydex tcgplayer
-me02.5-055,055,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/055/high.webp,scrydex tcgplayer
-me02.5-056,056,Raichu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/056/high.webp,scrydex tcgplayer
-me02.5-057,057,Pikachu ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/057/high.webp,scrydex tcgplayer
-me02.5-058,058,Voltorb ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/058/high.webp,scrydex tcgplayer
-me02.5-059,059,Tynamo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/059/high.webp,scrydex tcgplayer
-me02.5-060,060,Eelektrik,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/060/high.webp,scrydex tcgplayer
-me02.5-061,061,Mega Eelektross ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/061/high.webp,scrydex tcgplayer
-me02.5-062,062,Stunfisk,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/062/high.webp,scrydex tcgplayer
-me02.5-063,063,Helioptile,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/063/high.webp,scrydex tcgplayer
-me02.5-064,064,Heliolisk,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/064/high.webp,scrydex tcgplayer
-me02.5-065,065,Charjabug,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/065/high.webp,scrydex tcgplayer
-me02.5-066,066,Vikavolt,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/066/high.webp,scrydex tcgplayer
-me02.5-067,067,Tapu Koko,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/067/high.webp,scrydex tcgplayer
-me02.5-068,068,Hop's Pincurchin ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/068/high.webp,scrydex tcgplayer
-me02.5-069,069,Iono's Tadbulb,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/069/high.webp,scrydex tcgplayer
-me02.5-070,070,Iono's Bellibolt ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/070/high.webp,scrydex tcgplayer
-me02.5-071,071,Iono's Wattrel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/071/high.webp,scrydex tcgplayer
-me02.5-072,072,Iono's Kilowattrel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/072/high.webp,scrydex tcgplayer
-me02.5-073,073,Miraidon ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/073/high.webp,scrydex tcgplayer
-me02.5-074,074,Clefairy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/074/high.webp,scrydex tcgplayer
-me02.5-075,075,Clefable,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/075/high.webp,scrydex tcgplayer
-me02.5-076,076,Lillie's Clefairy ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/076/high.webp,scrydex tcgplayer
-me02.5-077,077,Team Rocket's Exeggcute,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/077/high.webp,scrydex tcgplayer
-me02.5-078,078,Team Rocket's Exeggutor,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/078/high.webp,scrydex tcgplayer
-me02.5-079,079,Team Rocket's Mewtwo ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/079/high.webp,scrydex tcgplayer
-me02.5-080,080,Togepi,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/080/high.webp,scrydex tcgplayer
-me02.5-081,081,Togetic,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/081/high.webp,scrydex tcgplayer
-me02.5-082,082,Togekiss,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/082/high.webp,scrydex tcgplayer
-me02.5-083,083,Marill,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/083/high.webp,scrydex tcgplayer
-me02.5-084,084,Azumarill ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/084/high.webp,scrydex tcgplayer
-me02.5-085,085,Misdreavus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/085/high.webp,scrydex tcgplayer
-me02.5-086,086,Mismagius,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/086/high.webp,scrydex tcgplayer
-me02.5-087,087,Ralts,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/087/high.webp,scrydex tcgplayer
-me02.5-088,088,Kirlia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/088/high.webp,scrydex tcgplayer
-me02.5-089,089,Mega Gardevoir ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/089/high.webp,scrydex tcgplayer
-me02.5-090,090,Shuppet,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/090/high.webp,scrydex tcgplayer
-me02.5-091,091,Banette,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/091/high.webp,scrydex tcgplayer
-me02.5-092,092,Rotom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/092/high.webp,scrydex tcgplayer
-me02.5-093,093,Swirlix,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/093/high.webp,scrydex tcgplayer
-me02.5-094,094,Slurpuff,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/094/high.webp,scrydex tcgplayer
-me02.5-095,095,Hop's Phantump,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/095/high.webp,scrydex tcgplayer
-me02.5-096,096,Hop's Trevenant,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/096/high.webp,scrydex tcgplayer
-me02.5-097,097,Team Rocket's Mimikyu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/097/high.webp,scrydex tcgplayer
-me02.5-098,098,Spectrier,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/098/high.webp,scrydex tcgplayer
-me02.5-099,099,Munkidori,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/099/high.webp,scrydex tcgplayer
-me02.5-100,100,Team Rocket's Diglett,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/100/high.webp,scrydex tcgplayer
-me02.5-101,101,Team Rocket's Dugtrio,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/101/high.webp,scrydex tcgplayer
-me02.5-102,102,Hitmontop,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/102/high.webp,scrydex tcgplayer
-me02.5-103,103,Meditite,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/103/high.webp,scrydex tcgplayer
-me02.5-104,104,Medicham,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/104/high.webp,scrydex tcgplayer
-me02.5-105,105,Lunatone,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/105/high.webp,scrydex tcgplayer
-me02.5-106,106,Solrock,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/106/high.webp,scrydex tcgplayer
-me02.5-107,107,Regirock ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/107/high.webp,scrydex tcgplayer
-me02.5-108,108,Groudon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/108/high.webp,scrydex tcgplayer
-me02.5-109,109,Cynthia's Gible,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/109/high.webp,scrydex tcgplayer
-me02.5-110,110,Cynthia's Gabite,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/110/high.webp,scrydex tcgplayer
-me02.5-111,111,Cynthia's Garchomp ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/111/high.webp,scrydex tcgplayer
-me02.5-112,112,Riolu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/112/high.webp,scrydex tcgplayer
-me02.5-113,113,Mega Lucario ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/113/high.webp,scrydex tcgplayer
-me02.5-114,114,Stunfisk ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/114/high.webp,scrydex tcgplayer
-me02.5-115,115,Pancham,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/115/high.webp,scrydex tcgplayer
-me02.5-116,116,Mega Hawlucha ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/116/high.webp,scrydex tcgplayer
-me02.5-117,117,Carbink,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/117/high.webp,scrydex tcgplayer
-me02.5-118,118,Rolycoly,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/118/high.webp,scrydex tcgplayer
-me02.5-119,119,Carkol,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/119/high.webp,scrydex tcgplayer
-me02.5-120,120,Coalossal,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/120/high.webp,scrydex tcgplayer
-me02.5-121,121,Koraidon ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/121/high.webp,scrydex tcgplayer
-me02.5-122,122,Okidogi,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/122/high.webp,scrydex tcgplayer
-me02.5-123,123,Gastly,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/123/high.webp,scrydex tcgplayer
-me02.5-124,124,Haunter,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/124/high.webp,scrydex tcgplayer
-me02.5-125,125,Mega Gengar ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/125/high.webp,scrydex tcgplayer
-me02.5-126,126,Team Rocket's Murkrow,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/126/high.webp,scrydex tcgplayer
-me02.5-127,127,Team Rocket's Honchkrow,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/127/high.webp,scrydex tcgplayer
-me02.5-128,128,Poochyena,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/128/high.webp,scrydex tcgplayer
-me02.5-129,129,Mightyena,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/129/high.webp,scrydex tcgplayer
-me02.5-130,130,Galarian Zigzagoon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/130/high.webp,scrydex tcgplayer
-me02.5-131,131,Galarian Linoone,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/131/high.webp,scrydex tcgplayer
-me02.5-132,132,Galarian Obstagoon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/132/high.webp,scrydex tcgplayer
-me02.5-133,133,Cynthia's Spiritomb,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/133/high.webp,scrydex tcgplayer
-me02.5-134,134,Scraggy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/134/high.webp,scrydex tcgplayer
-me02.5-135,135,Mega Scrafty ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/135/high.webp,scrydex tcgplayer
-me02.5-136,136,N's Zorua,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/136/high.webp,scrydex tcgplayer
-me02.5-137,137,N's Zoroark ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/137/high.webp,scrydex tcgplayer
-me02.5-138,138,Vullaby,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/138/high.webp,scrydex tcgplayer
-me02.5-139,139,Mandibuzz ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/139/high.webp,scrydex tcgplayer
-me02.5-140,140,Pangoro,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/140/high.webp,scrydex tcgplayer
-me02.5-141,141,Hoopa,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/141/high.webp,scrydex tcgplayer
-me02.5-142,142,Fezandipiti ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/142/high.webp,scrydex tcgplayer
-me02.5-143,143,Pecharunt,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/143/high.webp,scrydex tcgplayer
-me02.5-144,144,Mawile,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/144/high.webp,scrydex tcgplayer
-me02.5-145,145,Registeel ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/145/high.webp,scrydex tcgplayer
-me02.5-146,146,Pawniard,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/146/high.webp,scrydex tcgplayer
-me02.5-147,147,Bisharp,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/147/high.webp,scrydex tcgplayer
-me02.5-148,148,Kingambit,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/148/high.webp,scrydex tcgplayer
-me02.5-149,149,Togedemaru ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/149/high.webp,scrydex tcgplayer
-me02.5-150,150,Dratini,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/150/high.webp,scrydex tcgplayer
-me02.5-151,151,Dragonair,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/151/high.webp,scrydex tcgplayer
-me02.5-152,152,Mega Dragonite ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/152/high.webp,scrydex tcgplayer
-me02.5-153,153,Rayquaza,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/153/high.webp,scrydex tcgplayer
-me02.5-154,154,N's Reshiram,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/154/high.webp,scrydex tcgplayer
-me02.5-155,155,N's Zekrom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/155/high.webp,scrydex tcgplayer
-me02.5-156,156,Noibat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/156/high.webp,scrydex tcgplayer
-me02.5-157,157,Noivern,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/157/high.webp,scrydex tcgplayer
-me02.5-158,158,Dreepy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/158/high.webp,scrydex tcgplayer
-me02.5-159,159,Drakloak,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/159/high.webp,scrydex tcgplayer
-me02.5-160,160,Dragapult ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/160/high.webp,scrydex tcgplayer
-me02.5-161,161,Team Rocket's Meowth,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/161/high.webp,scrydex tcgplayer
-me02.5-162,162,Team Rocket's Kangaskhan ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/162/high.webp,scrydex tcgplayer
-me02.5-163,163,Larry's Dunsparce,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/163/high.webp,scrydex tcgplayer
-me02.5-164,164,Larry's Dudunsparce ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/164/high.webp,scrydex tcgplayer
-me02.5-165,165,Skitty,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/165/high.webp,scrydex tcgplayer
-me02.5-166,166,Delcatty,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/166/high.webp,scrydex tcgplayer
-me02.5-167,167,Zangoose ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/167/high.webp,scrydex tcgplayer
-me02.5-168,168,Larry's Starly,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/168/high.webp,scrydex tcgplayer
-me02.5-169,169,Larry's Staravia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/169/high.webp,scrydex tcgplayer
-me02.5-170,170,Larry's Staraptor,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/170/high.webp,scrydex tcgplayer
-me02.5-171,171,Fan Rotom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/171/high.webp,scrydex tcgplayer
-me02.5-172,172,Mega Audino ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/172/high.webp,scrydex tcgplayer
-me02.5-173,173,Larry's Rufflet,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/173/high.webp,scrydex tcgplayer
-me02.5-174,174,Larry's Braviary,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/174/high.webp,scrydex tcgplayer
-me02.5-175,175,Larry's Komala,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/175/high.webp,scrydex tcgplayer
-me02.5-176,176,Drampa,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/176/high.webp,scrydex tcgplayer
-me02.5-177,177,Hop's Cramorant,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/177/high.webp,scrydex tcgplayer
-me02.5-178,178,Terapagos,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/178/high.webp,scrydex tcgplayer
-me02.5-179,179,Terapagos ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/179/high.webp,scrydex tcgplayer
-me02.5-180,180,Acerola's Mischief,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/180/high.webp,scrydex tcgplayer
-me02.5-181,181,Air Balloon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/181/high.webp,scrydex tcgplayer
-me02.5-182,182,Anthea & Concordia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/182/high.webp,scrydex tcgplayer
-me02.5-183,183,Boss's Orders,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/183/high.webp,scrydex tcgplayer
-me02.5-184,184,Buddy-Buddy Poffin,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/184/high.webp,scrydex tcgplayer
-me02.5-185,185,Canari,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/185/high.webp,scrydex tcgplayer
-me02.5-186,186,Counter Gain,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/186/high.webp,scrydex tcgplayer
-me02.5-187,187,Fighting Gong,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/187/high.webp,scrydex tcgplayer
-me02.5-188,188,Forest of Vitality,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/188/high.webp,scrydex tcgplayer
-me02.5-189,189,Glass Trumpet,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/189/high.webp,scrydex tcgplayer
-me02.5-190,190,Iris's Fighting Spirit,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/190/high.webp,scrydex tcgplayer
-me02.5-191,191,Light Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/191/high.webp,scrydex tcgplayer
-me02.5-192,192,Lillie's Determination,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/192/high.webp,scrydex tcgplayer
-me02.5-193,193,Mega Signal,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/193/high.webp,scrydex tcgplayer
-me02.5-194,194,Mystery Garden,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/194/high.webp,scrydex tcgplayer
-me02.5-195,195,N's PP Up,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/195/high.webp,scrydex tcgplayer
-me02.5-196,196,Night Stretcher,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/196/high.webp,scrydex tcgplayer
-me02.5-197,197,Nighttime Mine,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/197/high.webp,scrydex tcgplayer
-me02.5-198,198,Poké Pad,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/198/high.webp,scrydex tcgplayer
-me02.5-199,199,Premium Power Pro,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/199/high.webp,scrydex tcgplayer
-me02.5-200,200,Surfer,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/200/high.webp,scrydex tcgplayer
-me02.5-201,201,Team Rocket's Archer,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/201/high.webp,scrydex tcgplayer
-me02.5-202,202,Team Rocket's Ariana,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/202/high.webp,scrydex tcgplayer
-me02.5-203,203,Team Rocket's Factory,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/203/high.webp,scrydex tcgplayer
-me02.5-204,204,Team Rocket's Giovanni,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/204/high.webp,scrydex tcgplayer
-me02.5-205,205,Team Rocket's Great Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/205/high.webp,scrydex tcgplayer
-me02.5-206,206,Team Rocket's Hypnotizer,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/206/high.webp,scrydex tcgplayer
-me02.5-207,207,Team Rocket's Petrel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/207/high.webp,scrydex tcgplayer
-me02.5-208,208,Team Rocket's Proton,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/208/high.webp,scrydex tcgplayer
-me02.5-209,209,Team Rocket's Transceiver,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/209/high.webp,scrydex tcgplayer
-me02.5-210,210,Team Rocket's Watchtower,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/210/high.webp,scrydex tcgplayer
-me02.5-211,211,Thick Scale,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/211/high.webp,scrydex tcgplayer
-me02.5-212,212,Tool Scrapper,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/212/high.webp,scrydex tcgplayer
-me02.5-213,213,Ultra Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/213/high.webp,scrydex tcgplayer
-me02.5-214,214,Urbain,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/214/high.webp,scrydex tcgplayer
-me02.5-215,215,Waitress,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/215/high.webp,scrydex tcgplayer
-me02.5-216,216,Prism Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/216/high.webp,scrydex tcgplayer
-me02.5-217,217,Team Rocket's Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/217/high.webp,scrydex tcgplayer
-me02.5-218,218,Erika's Tangela,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/218/high.webp,scrydex tcgplayer
-me02.5-219,219,Beautifly,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/219/high.webp,scrydex tcgplayer
-me02.5-220,220,Dustox,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/220/high.webp,scrydex tcgplayer
-me02.5-221,221,Budew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/221/high.webp,scrydex tcgplayer
-me02.5-222,222,Ethan's Magcargo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/222/high.webp,scrydex tcgplayer
-me02.5-223,223,Numel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/223/high.webp,scrydex tcgplayer
-me02.5-224,224,Salazzle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/224/high.webp,scrydex tcgplayer
-me02.5-225,225,Scorbunny,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/225/high.webp,scrydex tcgplayer
-me02.5-226,226,Psyduck,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/226/high.webp,scrydex tcgplayer
-me02.5-227,227,Snorunt,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/227/high.webp,scrydex tcgplayer
-me02.5-228,228,Weavile,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/228/high.webp,scrydex tcgplayer
-me02.5-229,229,Heliolisk,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/229/high.webp,scrydex tcgplayer
-me02.5-230,230,Vikavolt,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/230/high.webp,scrydex tcgplayer
-me02.5-231,231,Iono's Wattrel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/231/high.webp,scrydex tcgplayer
-me02.5-232,232,Marill,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/232/high.webp,scrydex tcgplayer
-me02.5-233,233,Misdreavus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/233/high.webp,scrydex tcgplayer
-me02.5-234,234,Banette,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/234/high.webp,scrydex tcgplayer
-me02.5-235,235,Togekiss,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/235/high.webp,scrydex tcgplayer
-me02.5-236,236,Slurpuff,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/236/high.webp,scrydex tcgplayer
-me02.5-237,237,Hop's Trevenant,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/237/high.webp,scrydex tcgplayer
-me02.5-238,238,Team Rocket's Mimikyu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/238/high.webp,scrydex tcgplayer
-me02.5-239,239,Team Rocket's Dugtrio,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/239/high.webp,scrydex tcgplayer
-me02.5-240,240,Hitmontop,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/240/high.webp,scrydex tcgplayer
-me02.5-241,241,Medicham,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/241/high.webp,scrydex tcgplayer
-me02.5-242,242,Carbink,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/242/high.webp,scrydex tcgplayer
-me02.5-243,243,Mightyena,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/243/high.webp,scrydex tcgplayer
-me02.5-244,244,Cynthia's Spiritomb,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/244/high.webp,scrydex tcgplayer
-me02.5-245,245,Galarian Obstagoon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/245/high.webp,scrydex tcgplayer
-me02.5-246,246,Mawile,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/246/high.webp,scrydex tcgplayer
-me02.5-247,247,Dreepy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/247/high.webp,scrydex tcgplayer
-me02.5-248,248,Drakloak,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/248/high.webp,scrydex tcgplayer
-me02.5-249,249,Larry's Staraptor,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/249/high.webp,scrydex tcgplayer
-me02.5-250,250,Fan Rotom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/250/high.webp,scrydex tcgplayer
-me02.5-251,251,Sprigatito ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/251/high.webp,scrydex tcgplayer
-me02.5-252,252,Stunfisk ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/252/high.webp,scrydex tcgplayer
-me02.5-253,253,Mega Audino ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/253/high.webp,scrydex tcgplayer
-me02.5-254,254,Anthea & Concordia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/254/high.webp,scrydex tcgplayer
-me02.5-255,255,Black Belt's Training,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/255/high.webp,scrydex tcgplayer
-me02.5-256,256,Boss's Orders,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/256/high.webp,scrydex tcgplayer
-me02.5-257,257,Canari,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/257/high.webp,scrydex tcgplayer
-me02.5-258,258,Cheren,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/258/high.webp,scrydex tcgplayer
-me02.5-259,259,Counter Gain,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/259/high.webp,scrydex tcgplayer
-me02.5-260,260,Glass Trumpet,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/260/high.webp,scrydex tcgplayer
-me02.5-261,261,Jamming Tower,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/261/high.webp,scrydex tcgplayer
-me02.5-262,262,N's PP Up,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/262/high.webp,scrydex tcgplayer
-me02.5-263,263,Team Rocket's Transceiver,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/263/high.webp,scrydex tcgplayer
-me02.5-264,264,Ultra Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/264/high.webp,scrydex tcgplayer
-me02.5-265,265,Mega Froslass ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/265/high.webp,scrydex tcgplayer
-me02.5-266,266,Mega Eelektross ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/266/high.webp,scrydex tcgplayer
-me02.5-267,267,Mega Diancie ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/267/high.webp,scrydex tcgplayer
-me02.5-268,268,Mega Hawlucha ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/268/high.webp,scrydex tcgplayer
-me02.5-269,269,Mega Gengar ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/269/high.webp,scrydex tcgplayer
-me02.5-270,270,Mega Scrafty ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/270/high.webp,scrydex tcgplayer
-me02.5-271,271,Mega Dragonite ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/271/high.webp,scrydex tcgplayer
-me02.5-272,272,Mega Meganium ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/272/high.webp,scrydex tcgplayer
-me02.5-273,273,Mega Emboar ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/273/high.webp,scrydex tcgplayer
-me02.5-274,274,Mega Feraligatr ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/274/high.webp,scrydex tcgplayer
-me02.5-275,275,Mega Froslass ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/275/high.webp,scrydex tcgplayer
-me02.5-276,276,Pikachu ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/276/high.webp,scrydex tcgplayer
-me02.5-277,277,Pikachu ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/277/high.webp,scrydex tcgplayer
-me02.5-278,278,Mega Eelektross ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/278/high.webp,scrydex tcgplayer
-me02.5-279,279,Iono's Bellibolt ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/279/high.webp,scrydex tcgplayer
-me02.5-280,280,Lillie's Clefairy ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/280/high.webp,scrydex tcgplayer
-me02.5-281,281,Team Rocket's Mewtwo ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/281/high.webp,scrydex tcgplayer
-me02.5-282,282,Mega Diancie ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/282/high.webp,scrydex tcgplayer
-me02.5-283,283,Mega Hawlucha ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/283/high.webp,scrydex tcgplayer
-me02.5-284,284,Mega Gengar ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/284/high.webp,scrydex tcgplayer
-me02.5-285,285,Mega Scrafty ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/285/high.webp,scrydex tcgplayer
-me02.5-286,286,N's Zoroark ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/286/high.webp,scrydex tcgplayer
-me02.5-287,287,Marnie's Grimmsnarl ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/287/high.webp,scrydex tcgplayer
-me02.5-288,288,Fezandipiti ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/288/high.webp,scrydex tcgplayer
-me02.5-289,289,Steven's Metagross ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/289/high.webp,scrydex tcgplayer
-me02.5-290,290,Mega Dragonite ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/290/high.webp,scrydex tcgplayer
-me02.5-291,291,Canari,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/291/high.webp,scrydex tcgplayer
-me02.5-292,292,Iris's Fighting Spirit,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/292/high.webp,scrydex tcgplayer
-me02.5-293,293,Surfer,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/293/high.webp,scrydex tcgplayer
-me02.5-294,294,Mega Charizard Y ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/294/high.webp,scrydex tcgplayer
-me02.5-295,295,Mega Dragonite ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/me/me02.5/295/high.webp,scrydex tcgplayer
+me02.5-001,001,Erika's Oddish,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_001_std.png,tcgdex:en scrydex tcgplayer
+me02.5-002,002,Erika's Gloom,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_002_std.png,tcgdex:en scrydex tcgplayer
+me02.5-003,003,Erika's Vileplume ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_003_std.png,tcgdex:en scrydex tcgplayer
+me02.5-004,004,Erika's Bellsprout,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_004_std.png,tcgdex:en scrydex tcgplayer
+me02.5-005,005,Erika's Weepinbell,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_005_std.png,tcgdex:en scrydex tcgplayer
+me02.5-006,006,Erika's Victreebel,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_006_std.png,tcgdex:en scrydex tcgplayer
+me02.5-007,007,Erika's Tangela,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_007_std.png,tcgdex:en scrydex tcgplayer
+me02.5-008,008,Chikorita,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_008_std.png,tcgdex:en scrydex tcgplayer
+me02.5-009,009,Bayleef,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_009_std.png,tcgdex:en scrydex tcgplayer
+me02.5-010,010,Mega Meganium ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_010_std.png,tcgdex:en scrydex tcgplayer
+me02.5-011,011,Wurmple,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_011_std.png,tcgdex:en scrydex tcgplayer
+me02.5-012,012,Silcoon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_012_std.png,tcgdex:en scrydex tcgplayer
+me02.5-013,013,Beautifly,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_013_std.png,tcgdex:en scrydex tcgplayer
+me02.5-014,014,Cascoon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_014_std.png,tcgdex:en scrydex tcgplayer
+me02.5-015,015,Dustox,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_015_std.png,tcgdex:en scrydex tcgplayer
+me02.5-016,016,Budew,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_016_std.png,tcgdex:en scrydex tcgplayer
+me02.5-017,017,Grubbin,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_017_std.png,tcgdex:en scrydex tcgplayer
+me02.5-018,018,Team Rocket's Tarountula,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_018_std.png,tcgdex:en scrydex tcgplayer
+me02.5-019,019,Team Rocket's Spidops,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_019_std.png,tcgdex:en scrydex tcgplayer
+me02.5-020,020,Charmander,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_020_std.png,tcgdex:en scrydex tcgplayer
+me02.5-021,021,Charmeleon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_021_std.png,tcgdex:en scrydex tcgplayer
+me02.5-022,022,Mega Charizard Y ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_022_std.png,tcgdex:en scrydex tcgplayer
+me02.5-023,023,Ethan's Slugma,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_023_std.png,tcgdex:en scrydex tcgplayer
+me02.5-024,024,Ethan's Magcargo,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_024_std.png,tcgdex:en scrydex tcgplayer
+me02.5-025,025,Entei,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_025_std.png,tcgdex:en scrydex tcgplayer
+me02.5-026,026,Ethan's Ho-Oh ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_026_std.png,tcgdex:en scrydex tcgplayer
+me02.5-027,027,Numel,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_027_std.png,tcgdex:en scrydex tcgplayer
+me02.5-028,028,Camerupt,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_028_std.png,tcgdex:en scrydex tcgplayer
+me02.5-029,029,Tepig,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_029_std.png,tcgdex:en scrydex tcgplayer
+me02.5-030,030,Pignite,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_030_std.png,tcgdex:en scrydex tcgplayer
+me02.5-031,031,Mega Emboar ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_031_std.png,tcgdex:en scrydex tcgplayer
+me02.5-032,032,N's Darumaka,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_032_std.png,tcgdex:en scrydex tcgplayer
+me02.5-033,033,N's Darmanitan,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_033_std.png,tcgdex:en scrydex tcgplayer
+me02.5-034,034,Salandit,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_034_std.png,tcgdex:en scrydex tcgplayer
+me02.5-035,035,Salazzle,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_035_std.png,tcgdex:en scrydex tcgplayer
+me02.5-036,036,Scorbunny,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_036_std.png,tcgdex:en scrydex tcgplayer
+me02.5-037,037,Raboot,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_037_std.png,tcgdex:en scrydex tcgplayer
+me02.5-038,038,Cinderace ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_038_std.png,tcgdex:en scrydex tcgplayer
+me02.5-039,039,Psyduck,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_039_std.png,tcgdex:en scrydex tcgplayer
+me02.5-040,040,Golduck,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_040_std.png,tcgdex:en scrydex tcgplayer
+me02.5-041,041,Totodile,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_041_std.png,tcgdex:en scrydex tcgplayer
+me02.5-042,042,Croconaw,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_042_std.png,tcgdex:en scrydex tcgplayer
+me02.5-043,043,Mega Feraligatr ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_043_std.png,tcgdex:en scrydex tcgplayer
+me02.5-044,044,Sneasel,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_044_std.png,tcgdex:en scrydex tcgplayer
+me02.5-045,045,Weavile,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_045_std.png,tcgdex:en scrydex tcgplayer
+me02.5-046,046,Snorunt,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_046_std.png,tcgdex:en scrydex tcgplayer
+me02.5-047,047,Mega Froslass ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_047_std.png,tcgdex:en scrydex tcgplayer
+me02.5-048,048,Regice ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_048_std.png,tcgdex:en scrydex tcgplayer
+me02.5-049,049,N's Vanillite,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_049_std.png,tcgdex:en scrydex tcgplayer
+me02.5-050,050,N's Vanillish,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_050_std.png,tcgdex:en scrydex tcgplayer
+me02.5-051,051,N's Vanilluxe,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_051_std.png,tcgdex:en scrydex tcgplayer
+me02.5-052,052,Snom,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_052_std.png,tcgdex:en scrydex tcgplayer
+me02.5-053,053,Frosmoth,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_053_std.png,tcgdex:en scrydex tcgplayer
+me02.5-054,054,Glastrier,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_054_std.png,tcgdex:en scrydex tcgplayer
+me02.5-055,055,Pikachu,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_055_std.png,tcgdex:en scrydex tcgplayer
+me02.5-056,056,Raichu,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_056_std.png,tcgdex:en scrydex tcgplayer
+me02.5-057,057,Pikachu ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_057_std.png,tcgdex:en scrydex tcgplayer
+me02.5-058,058,Voltorb ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_058_std.png,tcgdex:en scrydex tcgplayer
+me02.5-059,059,Tynamo,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_059_std.png,tcgdex:en scrydex tcgplayer
+me02.5-060,060,Eelektrik,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_060_std.png,tcgdex:en scrydex tcgplayer
+me02.5-061,061,Mega Eelektross ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_061_std.png,tcgdex:en scrydex tcgplayer
+me02.5-062,062,Stunfisk,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_062_std.png,tcgdex:en scrydex tcgplayer
+me02.5-063,063,Helioptile,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_063_std.png,tcgdex:en scrydex tcgplayer
+me02.5-064,064,Heliolisk,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_064_std.png,tcgdex:en scrydex tcgplayer
+me02.5-065,065,Charjabug,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_065_std.png,tcgdex:en scrydex tcgplayer
+me02.5-066,066,Vikavolt,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_066_std.png,tcgdex:en scrydex tcgplayer
+me02.5-067,067,Tapu Koko,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_067_std.png,tcgdex:en scrydex tcgplayer
+me02.5-068,068,Hop's Pincurchin ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_068_std.png,tcgdex:en scrydex tcgplayer
+me02.5-069,069,Iono's Tadbulb,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_069_std.png,tcgdex:en scrydex tcgplayer
+me02.5-070,070,Iono's Bellibolt ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_070_std.png,tcgdex:en scrydex tcgplayer
+me02.5-071,071,Iono's Wattrel,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_071_std.png,tcgdex:en scrydex tcgplayer
+me02.5-072,072,Iono's Kilowattrel,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_072_std.png,tcgdex:en scrydex tcgplayer
+me02.5-073,073,Miraidon ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_073_std.png,tcgdex:en scrydex tcgplayer
+me02.5-074,074,Clefairy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_074_std.png,tcgdex:en scrydex tcgplayer
+me02.5-075,075,Clefable,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_075_std.png,tcgdex:en scrydex tcgplayer
+me02.5-076,076,Lillie's Clefairy ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_076_std.png,tcgdex:en scrydex tcgplayer
+me02.5-077,077,Team Rocket's Exeggcute,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_077_std.png,tcgdex:en scrydex tcgplayer
+me02.5-078,078,Team Rocket's Exeggutor,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_078_std.png,tcgdex:en scrydex tcgplayer
+me02.5-079,079,Team Rocket's Mewtwo ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_079_std.png,tcgdex:en scrydex tcgplayer
+me02.5-080,080,Togepi,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_080_std.png,tcgdex:en scrydex tcgplayer
+me02.5-081,081,Togetic,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_081_std.png,tcgdex:en scrydex tcgplayer
+me02.5-082,082,Togekiss,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_082_std.png,tcgdex:en scrydex tcgplayer
+me02.5-083,083,Marill,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_083_std.png,tcgdex:en scrydex tcgplayer
+me02.5-084,084,Azumarill ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_084_std.png,tcgdex:en scrydex tcgplayer
+me02.5-085,085,Misdreavus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_085_std.png,tcgdex:en scrydex tcgplayer
+me02.5-086,086,Mismagius,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_086_std.png,tcgdex:en scrydex tcgplayer
+me02.5-087,087,Ralts,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_087_std.png,tcgdex:en scrydex tcgplayer
+me02.5-088,088,Kirlia,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_088_std.png,tcgdex:en scrydex tcgplayer
+me02.5-089,089,Mega Gardevoir ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_089_std.png,tcgdex:en scrydex tcgplayer
+me02.5-090,090,Shuppet,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_090_std.png,tcgdex:en scrydex tcgplayer
+me02.5-091,091,Banette,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_091_std.png,tcgdex:en scrydex tcgplayer
+me02.5-092,092,Rotom,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_092_std.png,tcgdex:en scrydex tcgplayer
+me02.5-093,093,Swirlix,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_093_std.png,tcgdex:en scrydex tcgplayer
+me02.5-094,094,Slurpuff,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_094_std.png,tcgdex:en scrydex tcgplayer
+me02.5-095,095,Hop's Phantump,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_095_std.png,tcgdex:en scrydex tcgplayer
+me02.5-096,096,Hop's Trevenant,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_096_std.png,tcgdex:en scrydex tcgplayer
+me02.5-097,097,Team Rocket's Mimikyu,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_097_std.png,tcgdex:en scrydex tcgplayer
+me02.5-098,098,Spectrier,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_098_std.png,tcgdex:en scrydex tcgplayer
+me02.5-099,099,Munkidori,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_099_std.png,tcgdex:en scrydex tcgplayer
+me02.5-100,100,Team Rocket's Diglett,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_100_std.png,tcgdex:en scrydex tcgplayer
+me02.5-101,101,Team Rocket's Dugtrio,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_101_std.png,tcgdex:en scrydex tcgplayer
+me02.5-102,102,Hitmontop,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_102_std.png,tcgdex:en scrydex tcgplayer
+me02.5-103,103,Meditite,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_103_std.png,tcgdex:en scrydex tcgplayer
+me02.5-104,104,Medicham,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_104_std.png,tcgdex:en scrydex tcgplayer
+me02.5-105,105,Lunatone,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_105_std.png,tcgdex:en scrydex tcgplayer
+me02.5-106,106,Solrock,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_106_std.png,tcgdex:en scrydex tcgplayer
+me02.5-107,107,Regirock ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_107_std.png,tcgdex:en scrydex tcgplayer
+me02.5-108,108,Groudon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_108_std.png,tcgdex:en scrydex tcgplayer
+me02.5-109,109,Cynthia's Gible,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_109_std.png,tcgdex:en scrydex tcgplayer
+me02.5-110,110,Cynthia's Gabite,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_110_std.png,tcgdex:en scrydex tcgplayer
+me02.5-111,111,Cynthia's Garchomp ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_111_std.png,tcgdex:en scrydex tcgplayer
+me02.5-112,112,Riolu,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_112_std.png,tcgdex:en scrydex tcgplayer
+me02.5-113,113,Mega Lucario ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_113_std.png,tcgdex:en scrydex tcgplayer
+me02.5-114,114,Stunfisk ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_114_std.png,tcgdex:en scrydex tcgplayer
+me02.5-115,115,Pancham,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_115_std.png,tcgdex:en scrydex tcgplayer
+me02.5-116,116,Mega Hawlucha ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_116_std.png,tcgdex:en scrydex tcgplayer
+me02.5-117,117,Carbink,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_117_std.png,tcgdex:en scrydex tcgplayer
+me02.5-118,118,Rolycoly,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_118_std.png,tcgdex:en scrydex tcgplayer
+me02.5-119,119,Carkol,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_119_std.png,tcgdex:en scrydex tcgplayer
+me02.5-120,120,Coalossal,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_120_std.png,tcgdex:en scrydex tcgplayer
+me02.5-121,121,Koraidon ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_121_std.png,tcgdex:en scrydex tcgplayer
+me02.5-122,122,Okidogi,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_122_std.png,tcgdex:en scrydex tcgplayer
+me02.5-123,123,Gastly,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_123_std.png,tcgdex:en scrydex tcgplayer
+me02.5-124,124,Haunter,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_124_std.png,tcgdex:en scrydex tcgplayer
+me02.5-125,125,Mega Gengar ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_125_std.png,tcgdex:en scrydex tcgplayer
+me02.5-126,126,Team Rocket's Murkrow,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_126_std.png,tcgdex:en scrydex tcgplayer
+me02.5-127,127,Team Rocket's Honchkrow,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_127_std.png,tcgdex:en scrydex tcgplayer
+me02.5-128,128,Poochyena,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_128_std.png,tcgdex:en scrydex tcgplayer
+me02.5-129,129,Mightyena,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_129_std.png,tcgdex:en scrydex tcgplayer
+me02.5-130,130,Galarian Zigzagoon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_130_std.png,tcgdex:en scrydex tcgplayer
+me02.5-131,131,Galarian Linoone,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_131_std.png,tcgdex:en scrydex tcgplayer
+me02.5-132,132,Galarian Obstagoon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_132_std.png,tcgdex:en scrydex tcgplayer
+me02.5-133,133,Cynthia's Spiritomb,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_133_std.png,tcgdex:en scrydex tcgplayer
+me02.5-134,134,Scraggy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_134_std.png,tcgdex:en scrydex tcgplayer
+me02.5-135,135,Mega Scrafty ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_135_std.png,tcgdex:en scrydex tcgplayer
+me02.5-136,136,N's Zorua,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_136_std.png,tcgdex:en scrydex tcgplayer
+me02.5-137,137,N's Zoroark ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_137_std.png,tcgdex:en scrydex tcgplayer
+me02.5-138,138,Vullaby,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_138_std.png,tcgdex:en scrydex tcgplayer
+me02.5-139,139,Mandibuzz ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_139_std.png,tcgdex:en scrydex tcgplayer
+me02.5-140,140,Pangoro,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_140_std.png,tcgdex:en scrydex tcgplayer
+me02.5-141,141,Hoopa,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_141_std.png,tcgdex:en scrydex tcgplayer
+me02.5-142,142,Fezandipiti ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_142_std.png,tcgdex:en scrydex tcgplayer
+me02.5-143,143,Pecharunt,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_143_std.png,tcgdex:en scrydex tcgplayer
+me02.5-144,144,Mawile,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_144_std.png,tcgdex:en scrydex tcgplayer
+me02.5-145,145,Registeel ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_145_std.png,tcgdex:en scrydex tcgplayer
+me02.5-146,146,Pawniard,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_146_std.png,tcgdex:en scrydex tcgplayer
+me02.5-147,147,Bisharp,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_147_std.png,tcgdex:en scrydex tcgplayer
+me02.5-148,148,Kingambit,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_148_std.png,tcgdex:en scrydex tcgplayer
+me02.5-149,149,Togedemaru ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_149_std.png,tcgdex:en scrydex tcgplayer
+me02.5-150,150,Dratini,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_150_std.png,tcgdex:en scrydex tcgplayer
+me02.5-151,151,Dragonair,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_151_std.png,tcgdex:en scrydex tcgplayer
+me02.5-152,152,Mega Dragonite ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_152_std.png,tcgdex:en scrydex tcgplayer
+me02.5-153,153,Rayquaza,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_153_std.png,tcgdex:en scrydex tcgplayer
+me02.5-154,154,N's Reshiram,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_154_std.png,tcgdex:en scrydex tcgplayer
+me02.5-155,155,N's Zekrom,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_155_std.png,tcgdex:en scrydex tcgplayer
+me02.5-156,156,Noibat,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_156_std.png,tcgdex:en scrydex tcgplayer
+me02.5-157,157,Noivern,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_157_std.png,tcgdex:en scrydex tcgplayer
+me02.5-158,158,Dreepy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_158_std.png,tcgdex:en scrydex tcgplayer
+me02.5-159,159,Drakloak,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_159_std.png,tcgdex:en scrydex tcgplayer
+me02.5-160,160,Dragapult ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_160_std.png,tcgdex:en scrydex tcgplayer
+me02.5-161,161,Team Rocket's Meowth,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_161_std.png,tcgdex:en scrydex tcgplayer
+me02.5-162,162,Team Rocket's Kangaskhan ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_162_std.png,tcgdex:en scrydex tcgplayer
+me02.5-163,163,Larry's Dunsparce,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_163_std.png,tcgdex:en scrydex tcgplayer
+me02.5-164,164,Larry's Dudunsparce ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_164_std.png,tcgdex:en scrydex tcgplayer
+me02.5-165,165,Skitty,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_165_std.png,tcgdex:en scrydex tcgplayer
+me02.5-166,166,Delcatty,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_166_std.png,tcgdex:en scrydex tcgplayer
+me02.5-167,167,Zangoose ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_167_std.png,tcgdex:en scrydex tcgplayer
+me02.5-168,168,Larry's Starly,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_168_std.png,tcgdex:en scrydex tcgplayer
+me02.5-169,169,Larry's Staravia,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_169_std.png,tcgdex:en scrydex tcgplayer
+me02.5-170,170,Larry's Staraptor,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_170_std.png,tcgdex:en scrydex tcgplayer
+me02.5-171,171,Fan Rotom,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_171_std.png,tcgdex:en scrydex tcgplayer
+me02.5-172,172,Mega Audino ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_172_std.png,tcgdex:en scrydex tcgplayer
+me02.5-173,173,Larry's Rufflet,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_173_std.png,tcgdex:en scrydex tcgplayer
+me02.5-174,174,Larry's Braviary,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_174_std.png,tcgdex:en scrydex tcgplayer
+me02.5-175,175,Larry's Komala,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_175_std.png,tcgdex:en scrydex tcgplayer
+me02.5-176,176,Drampa,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_176_std.png,tcgdex:en scrydex tcgplayer
+me02.5-177,177,Hop's Cramorant,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_177_std.png,tcgdex:en scrydex tcgplayer
+me02.5-178,178,Terapagos,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_178_std.png,tcgdex:en scrydex tcgplayer
+me02.5-179,179,Terapagos ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_179_std.png,tcgdex:en scrydex tcgplayer
+me02.5-180,180,Acerola's Mischief,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_180_std.png,tcgdex:en scrydex tcgplayer
+me02.5-181,181,Air Balloon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_181_std.png,tcgdex:en scrydex tcgplayer
+me02.5-182,182,Anthea & Concordia,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_182_std.png,tcgdex:en scrydex tcgplayer
+me02.5-183,183,Boss's Orders,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_183_std.png,tcgdex:en scrydex tcgplayer
+me02.5-184,184,Buddy-Buddy Poffin,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_184_std.png,tcgdex:en scrydex tcgplayer
+me02.5-185,185,Canari,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_185_std.png,tcgdex:en scrydex tcgplayer
+me02.5-186,186,Counter Gain,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_186_std.png,tcgdex:en scrydex tcgplayer
+me02.5-187,187,Fighting Gong,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_187_std.png,tcgdex:en scrydex tcgplayer
+me02.5-188,188,Forest of Vitality,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_188_std.png,tcgdex:en scrydex tcgplayer
+me02.5-189,189,Glass Trumpet,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_189_std.png,tcgdex:en scrydex tcgplayer
+me02.5-190,190,Iris's Fighting Spirit,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_190_std.png,tcgdex:en scrydex tcgplayer
+me02.5-191,191,Light Ball,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_191_std.png,tcgdex:en scrydex tcgplayer
+me02.5-192,192,Lillie's Determination,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_192_std.png,tcgdex:en scrydex tcgplayer
+me02.5-193,193,Mega Signal,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_193_std.png,tcgdex:en scrydex tcgplayer
+me02.5-194,194,Mystery Garden,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_194_std.png,tcgdex:en scrydex tcgplayer
+me02.5-195,195,N's PP Up,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_195_std.png,tcgdex:en scrydex tcgplayer
+me02.5-196,196,Night Stretcher,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_196_std.png,tcgdex:en scrydex tcgplayer
+me02.5-197,197,Nighttime Mine,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_197_std.png,tcgdex:en scrydex tcgplayer
+me02.5-198,198,Poké Pad,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_198_std.png,tcgdex:en scrydex tcgplayer
+me02.5-199,199,Premium Power Pro,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_199_std.png,tcgdex:en scrydex tcgplayer
+me02.5-200,200,Surfer,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_200_std.png,tcgdex:en scrydex tcgplayer
+me02.5-201,201,Team Rocket's Archer,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_201_std.png,tcgdex:en scrydex tcgplayer
+me02.5-202,202,Team Rocket's Ariana,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_202_std.png,tcgdex:en scrydex tcgplayer
+me02.5-203,203,Team Rocket's Factory,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_203_std.png,tcgdex:en scrydex tcgplayer
+me02.5-204,204,Team Rocket's Giovanni,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_204_std.png,tcgdex:en scrydex tcgplayer
+me02.5-205,205,Team Rocket's Great Ball,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_205_std.png,tcgdex:en scrydex tcgplayer
+me02.5-206,206,Team Rocket's Hypnotizer,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_206_std.png,tcgdex:en scrydex tcgplayer
+me02.5-207,207,Team Rocket's Petrel,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_207_std.png,tcgdex:en scrydex tcgplayer
+me02.5-208,208,Team Rocket's Proton,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_208_std.png,tcgdex:en scrydex tcgplayer
+me02.5-209,209,Team Rocket's Transceiver,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_209_std.png,tcgdex:en scrydex tcgplayer
+me02.5-210,210,Team Rocket's Watchtower,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_210_std.png,tcgdex:en scrydex tcgplayer
+me02.5-211,211,Thick Scale,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_211_std.png,tcgdex:en scrydex tcgplayer
+me02.5-212,212,Tool Scrapper,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_212_std.png,tcgdex:en scrydex tcgplayer
+me02.5-213,213,Ultra Ball,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_213_std.png,tcgdex:en scrydex tcgplayer
+me02.5-214,214,Urbain,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_214_std.png,tcgdex:en scrydex tcgplayer
+me02.5-215,215,Waitress,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_215_std.png,tcgdex:en scrydex tcgplayer
+me02.5-216,216,Prism Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_216_std.png,tcgdex:en scrydex tcgplayer
+me02.5-217,217,Team Rocket's Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_217_std.png,tcgdex:en scrydex tcgplayer
+me02.5-218,218,Erika's Tangela,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_218_std.png,tcgdex:en scrydex tcgplayer
+me02.5-219,219,Beautifly,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_219_std.png,tcgdex:en scrydex tcgplayer
+me02.5-220,220,Dustox,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_220_std.png,tcgdex:en scrydex tcgplayer
+me02.5-221,221,Budew,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_221_std.png,tcgdex:en scrydex tcgplayer
+me02.5-222,222,Ethan's Magcargo,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_222_std.png,tcgdex:en scrydex tcgplayer
+me02.5-223,223,Numel,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_223_std.png,tcgdex:en scrydex tcgplayer
+me02.5-224,224,Salazzle,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_224_std.png,tcgdex:en scrydex tcgplayer
+me02.5-225,225,Scorbunny,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_225_std.png,tcgdex:en scrydex tcgplayer
+me02.5-226,226,Psyduck,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_226_std.png,tcgdex:en scrydex tcgplayer
+me02.5-227,227,Snorunt,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_227_std.png,tcgdex:en scrydex tcgplayer
+me02.5-228,228,Weavile,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_228_std.png,tcgdex:en scrydex tcgplayer
+me02.5-229,229,Heliolisk,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_229_std.png,tcgdex:en scrydex tcgplayer
+me02.5-230,230,Vikavolt,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_230_std.png,tcgdex:en scrydex tcgplayer
+me02.5-231,231,Iono's Wattrel,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_231_std.png,tcgdex:en scrydex tcgplayer
+me02.5-232,232,Marill,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_232_std.png,tcgdex:en scrydex tcgplayer
+me02.5-233,233,Misdreavus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_233_std.png,tcgdex:en scrydex tcgplayer
+me02.5-234,234,Banette,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_234_std.png,tcgdex:en scrydex tcgplayer
+me02.5-235,235,Togekiss,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_235_std.png,tcgdex:en scrydex tcgplayer
+me02.5-236,236,Slurpuff,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_236_std.png,tcgdex:en scrydex tcgplayer
+me02.5-237,237,Hop's Trevenant,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_237_std.png,tcgdex:en scrydex tcgplayer
+me02.5-238,238,Team Rocket's Mimikyu,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_238_std.png,tcgdex:en scrydex tcgplayer
+me02.5-239,239,Team Rocket's Dugtrio,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_239_std.png,tcgdex:en scrydex tcgplayer
+me02.5-240,240,Hitmontop,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_240_std.png,tcgdex:en scrydex tcgplayer
+me02.5-241,241,Medicham,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_241_std.png,tcgdex:en scrydex tcgplayer
+me02.5-242,242,Carbink,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_242_std.png,tcgdex:en scrydex tcgplayer
+me02.5-243,243,Mightyena,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_243_std.png,tcgdex:en scrydex tcgplayer
+me02.5-244,244,Cynthia's Spiritomb,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_244_std.png,tcgdex:en scrydex tcgplayer
+me02.5-245,245,Galarian Obstagoon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_245_std.png,tcgdex:en scrydex tcgplayer
+me02.5-246,246,Mawile,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_246_std.png,tcgdex:en scrydex tcgplayer
+me02.5-247,247,Dreepy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_247_std.png,tcgdex:en scrydex tcgplayer
+me02.5-248,248,Drakloak,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_248_std.png,tcgdex:en scrydex tcgplayer
+me02.5-249,249,Larry's Staraptor,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_249_std.png,tcgdex:en scrydex tcgplayer
+me02.5-250,250,Fan Rotom,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_250_std.png,tcgdex:en scrydex tcgplayer
+me02.5-251,251,Sprigatito ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_251_std.png,tcgdex:en scrydex tcgplayer
+me02.5-252,252,Stunfisk ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_252_std.png,tcgdex:en scrydex tcgplayer
+me02.5-253,253,Mega Audino ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_253_std.png,tcgdex:en scrydex tcgplayer
+me02.5-254,254,Anthea & Concordia,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_254_std.png,tcgdex:en scrydex tcgplayer
+me02.5-255,255,Black Belt's Training,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_255_std.png,tcgdex:en scrydex tcgplayer
+me02.5-256,256,Boss's Orders,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_256_std.png,tcgdex:en scrydex tcgplayer
+me02.5-257,257,Canari,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_257_std.png,tcgdex:en scrydex tcgplayer
+me02.5-258,258,Cheren,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_258_std.png,tcgdex:en scrydex tcgplayer
+me02.5-259,259,Counter Gain,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_259_std.png,tcgdex:en scrydex tcgplayer
+me02.5-260,260,Glass Trumpet,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_260_std.png,tcgdex:en scrydex tcgplayer
+me02.5-261,261,Jamming Tower,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_261_std.png,tcgdex:en scrydex tcgplayer
+me02.5-262,262,N's PP Up,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_262_std.png,tcgdex:en scrydex tcgplayer
+me02.5-263,263,Team Rocket's Transceiver,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_263_std.png,tcgdex:en scrydex tcgplayer
+me02.5-264,264,Ultra Ball,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_264_std.png,tcgdex:en scrydex tcgplayer
+me02.5-265,265,Mega Froslass ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_265_std.png,tcgdex:en scrydex tcgplayer
+me02.5-266,266,Mega Eelektross ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_266_std.png,tcgdex:en scrydex tcgplayer
+me02.5-267,267,Mega Diancie ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_267_std.png,tcgdex:en scrydex tcgplayer
+me02.5-268,268,Mega Hawlucha ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_268_std.png,tcgdex:en scrydex tcgplayer
+me02.5-269,269,Mega Gengar ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_269_std.png,tcgdex:en scrydex tcgplayer
+me02.5-270,270,Mega Scrafty ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_270_std.png,tcgdex:en scrydex tcgplayer
+me02.5-271,271,Mega Dragonite ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_271_std.png,tcgdex:en scrydex tcgplayer
+me02.5-272,272,Mega Meganium ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_272_std.png,tcgdex:en scrydex tcgplayer
+me02.5-273,273,Mega Emboar ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_273_std.png,tcgdex:en scrydex tcgplayer
+me02.5-274,274,Mega Feraligatr ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_274_std.png,tcgdex:en scrydex tcgplayer
+me02.5-275,275,Mega Froslass ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_275_std.png,tcgdex:en scrydex tcgplayer
+me02.5-276,276,Pikachu ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_276_std.png,tcgdex:en scrydex tcgplayer
+me02.5-277,277,Pikachu ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_277_std.png,tcgdex:en scrydex tcgplayer
+me02.5-278,278,Mega Eelektross ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_278_std.png,tcgdex:en scrydex tcgplayer
+me02.5-279,279,Iono's Bellibolt ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_279_std.png,tcgdex:en scrydex tcgplayer
+me02.5-280,280,Lillie's Clefairy ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_280_std.png,tcgdex:en scrydex tcgplayer
+me02.5-281,281,Team Rocket's Mewtwo ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_281_std.png,tcgdex:en scrydex tcgplayer
+me02.5-282,282,Mega Diancie ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_282_std.png,tcgdex:en scrydex tcgplayer
+me02.5-283,283,Mega Hawlucha ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_283_std.png,tcgdex:en scrydex tcgplayer
+me02.5-284,284,Mega Gengar ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_284_std.png,tcgdex:en scrydex tcgplayer
+me02.5-285,285,Mega Scrafty ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_285_std.png,tcgdex:en scrydex tcgplayer
+me02.5-286,286,N's Zoroark ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_286_std.png,tcgdex:en scrydex tcgplayer
+me02.5-287,287,Marnie's Grimmsnarl ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_287_std.png,tcgdex:en scrydex tcgplayer
+me02.5-288,288,Fezandipiti ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_288_std.png,tcgdex:en scrydex tcgplayer
+me02.5-289,289,Steven's Metagross ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_289_std.png,tcgdex:en scrydex tcgplayer
+me02.5-290,290,Mega Dragonite ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_290_std.png,tcgdex:en scrydex tcgplayer
+me02.5-291,291,Canari,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_291_std.png,tcgdex:en scrydex tcgplayer
+me02.5-292,292,Iris's Fighting Spirit,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_292_std.png,tcgdex:en scrydex tcgplayer
+me02.5-293,293,Surfer,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_293_std.png,tcgdex:en scrydex tcgplayer
+me02.5-294,294,Mega Charizard Y ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_294_std.png,tcgdex:en scrydex tcgplayer
+me02.5-295,295,Mega Dragonite ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me2-5/me2-5_en_295_std.png,tcgdex:en scrydex tcgplayer

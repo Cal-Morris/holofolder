@@ -1,31 +1,31 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-tk-xy-latio-1,1,Skitty,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/1/high.webp,tcgplayer
-tk-xy-latio-2,2,Fighting Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/2/high.webp,tcgplayer
-tk-xy-latio-3,3,Fighting Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/3/high.webp,tcgplayer
-tk-xy-latio-4,4,Rhydon,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/4/high.webp,tcgplayer
-tk-xy-latio-5,5,Fighting Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/5/high.webp,tcgplayer
-tk-xy-latio-6,6,Fighting Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/6/high.webp,tcgplayer
-tk-xy-latio-7,7,Fighting Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/7/high.webp,tcgplayer
-tk-xy-latio-8,8,Fighting Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/8/high.webp,tcgplayer
-tk-xy-latio-9,9,Fighting Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/9/high.webp,tcgplayer
-tk-xy-latio-10,10,Fighting Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/10/high.webp,tcgplayer
-tk-xy-latio-11,11,Machop,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/11/high.webp,tcgplayer
-tk-xy-latio-12,12,Solrock,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/12/high.webp,tcgplayer
-tk-xy-latio-13,13,Latios,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/13/high.webp,tcgplayer
-tk-xy-latio-14,14,Machoke,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/14/high.webp,tcgplayer
-tk-xy-latio-15,15,Rhyhorn,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/15/high.webp,tcgplayer
-tk-xy-latio-16,16,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/16/high.webp,tcgplayer
-tk-xy-latio-17,17,Fighting Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/17/high.webp,tcgplayer
-tk-xy-latio-18,18,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/18/high.webp,tcgplayer
-tk-xy-latio-19,19,Delcatty,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/19/high.webp,tcgplayer
-tk-xy-latio-20,20,Acro Bike,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/20/high.webp,tcgplayer
-tk-xy-latio-21,21,Potion,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/21/high.webp,tcgplayer
-tk-xy-latio-22,22,Machoke,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/22/high.webp,tcgplayer
-tk-xy-latio-23,23,Rhyhorn,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/23/high.webp,tcgplayer
-tk-xy-latio-24,24,Delcatty,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/24/high.webp,tcgplayer
-tk-xy-latio-25,25,Rhydon,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/25/high.webp,tcgplayer
-tk-xy-latio-26,26,Solrock,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/26/high.webp,tcgplayer
-tk-xy-latio-27,27,Skitty,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/27/high.webp,tcgplayer
-tk-xy-latio-28,28,Machop,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/28/high.webp,tcgplayer
-tk-xy-latio-29,29,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/29/high.webp,tcgplayer
-tk-xy-latio-30,30,Latios,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latio/30/high.webp,tcgplayer
+tk-xy-latio-1,1,Skitty,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-001-skitty.png,tcgdex:de tcgplayer
+tk-xy-latio-2,2,Fighting Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-002-fighting_energy.png,tcgdex:de tcgplayer
+tk-xy-latio-3,3,Fighting Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-003-fighting_energy.png,tcgdex:de tcgplayer
+tk-xy-latio-4,4,Rhydon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-004-rhydon.png,tcgdex:de tcgplayer
+tk-xy-latio-5,5,Fighting Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-005-fighting_energy.png,tcgdex:de tcgplayer
+tk-xy-latio-6,6,Fighting Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-006-fighting_energy.png,tcgdex:de tcgplayer
+tk-xy-latio-7,7,Fighting Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-007-fighting_energy.png,tcgdex:de tcgplayer
+tk-xy-latio-8,8,Fighting Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-008-fighting_energy.png,tcgdex:de tcgplayer
+tk-xy-latio-9,9,Fighting Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-009-fighting_energy.png,tcgdex:de tcgplayer
+tk-xy-latio-10,10,Fighting Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-010-fighting_energy.png,tcgdex:de tcgplayer
+tk-xy-latio-11,11,Machop,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-011-machop.png,tcgdex:de tcgplayer
+tk-xy-latio-12,12,Solrock,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-012-solrock.png,tcgdex:de tcgplayer
+tk-xy-latio-13,13,Latios,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-013-latios.png,tcgdex:de tcgplayer
+tk-xy-latio-14,14,Machoke,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-014-machoke.png,tcgdex:de tcgplayer
+tk-xy-latio-15,15,Rhyhorn,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-015-rhyhorn.png,tcgdex:de tcgplayer
+tk-xy-latio-16,16,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-016-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-latio-17,17,Fighting Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-017-fighting_energy.png,tcgdex:de tcgplayer
+tk-xy-latio-18,18,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-018-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-latio-19,19,Delcatty,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-019-delcatty.png,tcgdex:de tcgplayer
+tk-xy-latio-20,20,Acro Bike,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-020-acro_bike.png,tcgdex:de tcgplayer
+tk-xy-latio-21,21,Potion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-021-potion.png,tcgdex:de tcgplayer
+tk-xy-latio-22,22,Machoke,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-022-machoke.png,tcgdex:de tcgplayer
+tk-xy-latio-23,23,Rhyhorn,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-023-rhyhorn.png,tcgdex:de tcgplayer
+tk-xy-latio-24,24,Delcatty,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-024-delcatty.png,tcgdex:de tcgplayer
+tk-xy-latio-25,25,Rhydon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-025-rhydon.png,tcgdex:de tcgplayer
+tk-xy-latio-26,26,Solrock,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-026-solrock.png,tcgdex:de tcgplayer
+tk-xy-latio-27,27,Skitty,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-027-skitty.png,tcgdex:de tcgplayer
+tk-xy-latio-28,28,Machop,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-028-machop.png,tcgdex:de tcgplayer
+tk-xy-latio-29,29,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-029-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-latio-30,30,Latios,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8A-TK_Latios/en_US-TK8A-030-latios.png,tcgdex:de tcgplayer

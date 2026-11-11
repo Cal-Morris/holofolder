@@ -1,31 +1,31 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-swsh11tg-TG01,TG01,Parasect,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG01.png,pokemontcg
-swsh11tg-TG02,TG02,Roserade,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG02.png,pokemontcg
-swsh11tg-TG03,TG03,Charizard,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG03.png,pokemontcg
-swsh11tg-TG04,TG04,Chandelure,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG04.png,pokemontcg
-swsh11tg-TG05,TG05,Pikachu,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG05.png,pokemontcg
-swsh11tg-TG06,TG06,Gengar,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG06.png,pokemontcg
-swsh11tg-TG07,TG07,Banette,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG07.png,pokemontcg
-swsh11tg-TG08,TG08,Hisuian Arcanine,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG08.png,pokemontcg
-swsh11tg-TG09,TG09,Spiritomb,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG09.png,pokemontcg
-swsh11tg-TG10,TG10,Snorlax,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG10.png,pokemontcg
-swsh11tg-TG11,TG11,Castform,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG11.png,pokemontcg
-swsh11tg-TG12,TG12,Orbeetle V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG12.png,pokemontcg
-swsh11tg-TG13,TG13,Orbeetle VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG13.png,pokemontcg
-swsh11tg-TG14,TG14,Centiskorch V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG14.png,pokemontcg
-swsh11tg-TG15,TG15,Centiskorch VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG15.png,pokemontcg
-swsh11tg-TG16,TG16,Pikachu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG16.png,pokemontcg
-swsh11tg-TG17,TG17,Pikachu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG17.png,pokemontcg
-swsh11tg-TG18,TG18,Enamorus V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG18.png,pokemontcg
-swsh11tg-TG19,TG19,Gallade V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG19.png,pokemontcg
-swsh11tg-TG20,TG20,Crobat V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG20.png,pokemontcg
-swsh11tg-TG21,TG21,Eternatus V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG21.png,pokemontcg
-swsh11tg-TG22,TG22,Eternatus VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG22.png,pokemontcg
-swsh11tg-TG23,TG23,Adventurer's Discovery,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG23.png,pokemontcg
-swsh11tg-TG24,TG24,Boss's Orders,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG24.png,pokemontcg
-swsh11tg-TG25,TG25,Cook,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG25.png,pokemontcg
-swsh11tg-TG26,TG26,Kabu,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG26.png,pokemontcg
-swsh11tg-TG27,TG27,Nessa,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG27.png,pokemontcg
-swsh11tg-TG28,TG28,Opal,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG28.png,pokemontcg
-swsh11tg-TG29,TG29,Pikachu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG29.png,pokemontcg
-swsh11tg-TG30,TG30,Mew VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH11/SWSH11_EN_TG30.png,pokemontcg
+swsh11tg-TG01,TG01,Parasect,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG001-parasect.png,pokemoncom pokemontcg
+swsh11tg-TG02,TG02,Roserade,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG002-roserade.png,pokemoncom pokemontcg
+swsh11tg-TG03,TG03,Charizard,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG003-charizard.png,pokemoncom pokemontcg
+swsh11tg-TG04,TG04,Chandelure,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG004-chandelure.png,pokemoncom pokemontcg
+swsh11tg-TG05,TG05,Pikachu,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG005-pikachu.png,pokemoncom pokemontcg
+swsh11tg-TG06,TG06,Gengar,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG006-gengar.png,pokemoncom pokemontcg
+swsh11tg-TG07,TG07,Banette,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG007-banette.png,pokemoncom pokemontcg
+swsh11tg-TG08,TG08,Hisuian Arcanine,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG008-hisuian_arcanine.png,pokemoncom pokemontcg
+swsh11tg-TG09,TG09,Spiritomb,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG009-spiritomb.png,pokemoncom pokemontcg
+swsh11tg-TG10,TG10,Snorlax,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG010-snorlax.png,pokemoncom pokemontcg
+swsh11tg-TG11,TG11,Castform,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG011-castform.png,pokemoncom pokemontcg
+swsh11tg-TG12,TG12,Orbeetle V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG012-orbeetle_v.png,pokemoncom pokemontcg
+swsh11tg-TG13,TG13,Orbeetle VMAX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG013-orbeetle_vmax.png,pokemoncom pokemontcg
+swsh11tg-TG14,TG14,Centiskorch V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG014-centiskorch_v.png,pokemoncom pokemontcg
+swsh11tg-TG15,TG15,Centiskorch VMAX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG015-centiskorch_vmax.png,pokemoncom pokemontcg
+swsh11tg-TG16,TG16,Pikachu V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG016-pikachu_v.png,pokemoncom pokemontcg
+swsh11tg-TG17,TG17,Pikachu VMAX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG017-pikachu_vmax.png,pokemoncom pokemontcg
+swsh11tg-TG18,TG18,Enamorus V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG018-enamorus_v.png,pokemoncom pokemontcg
+swsh11tg-TG19,TG19,Gallade V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG019-gallade_v.png,pokemoncom pokemontcg
+swsh11tg-TG20,TG20,Crobat V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG020-crobat_v.png,pokemoncom pokemontcg
+swsh11tg-TG21,TG21,Eternatus V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG021-eternatus_v.png,pokemoncom pokemontcg
+swsh11tg-TG22,TG22,Eternatus VMAX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG022-eternatus_vmax.png,pokemoncom pokemontcg
+swsh11tg-TG23,TG23,Adventurer's Discovery,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG023-adventurers_discovery.png,pokemoncom pokemontcg
+swsh11tg-TG24,TG24,Boss's Orders,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG024-bosss_orders.png,pokemoncom pokemontcg
+swsh11tg-TG25,TG25,Cook,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG025-cook.png,pokemoncom pokemontcg
+swsh11tg-TG26,TG26,Kabu,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG026-kabu.png,pokemoncom pokemontcg
+swsh11tg-TG27,TG27,Nessa,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG027-nessa.png,pokemoncom pokemontcg
+swsh11tg-TG28,TG28,Opal,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG028-opal.png,pokemoncom pokemontcg
+swsh11tg-TG29,TG29,Pikachu VMAX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG029-pikachu_vmax.png,pokemoncom pokemontcg
+swsh11tg-TG30,TG30,Mew VMAX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH11-LOR/en_US-SWSH11-TG030-mew_vmax.png,pokemoncom pokemontcg

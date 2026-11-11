@@ -1,17 +1,17 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-mee-001,001,Grass Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_1.png,tcgplayer
-mee-002,002,Fire Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_2.png,tcgplayer
-mee-003,003,Water Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_3.png,tcgplayer
-mee-004,004,Lightning Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_4.png,tcgplayer
-mee-005,005,Psychic Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_5.png,tcgplayer
-mee-006,006,Fighting Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_6.png,tcgplayer
-mee-007,007,Darkness Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_7.png,tcgplayer
-mee-008,008,Metal Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_8.png,tcgplayer
-mee-009,009,Basic Grass Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_9.png,tcgplayer
-mee-010,010,Basic Fire Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_10.png,tcgplayer
-mee-011,011,Basic Water Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_11.png,tcgplayer
-mee-012,012,Basic Lightning Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_12.png,tcgplayer
-mee-013,013,Basic Psychic Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_13.png,tcgplayer
-mee-014,014,Basic Fighting Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_14.png,tcgplayer
-mee-015,015,Basic Darkness Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_15.png,tcgplayer
-mee-016,016,Basic Metal Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_16.png,tcgplayer
+mee-001,001,Grass Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_001_std.png,pokemoncom tcgplayer
+mee-002,002,Fire Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_002_std.png,pokemoncom tcgplayer
+mee-003,003,Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_003_std.png,pokemoncom tcgplayer
+mee-004,004,Lightning Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_004_std.png,pokemoncom tcgplayer
+mee-005,005,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_005_std.png,pokemoncom tcgplayer
+mee-006,006,Fighting Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_006_std.png,pokemoncom tcgplayer
+mee-007,007,Darkness Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_007_std.png,pokemoncom tcgplayer
+mee-008,008,Metal Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_008_std.png,pokemoncom tcgplayer
+mee-009,009,Basic Grass Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_009_std.png,pokemoncom tcgplayer
+mee-010,010,Basic Fire Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_010_std.png,pokemoncom tcgplayer
+mee-011,011,Basic Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_011_std.png,pokemoncom tcgplayer
+mee-012,012,Basic Lightning Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_012_std.png,pokemoncom tcgplayer
+mee-013,013,Basic Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_013_std.png,pokemoncom tcgplayer
+mee-014,014,Basic Fighting Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_014_std.png,pokemoncom tcgplayer
+mee-015,015,Basic Darkness Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_015_std.png,pokemoncom tcgplayer
+mee-016,016,Basic Metal Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/mee/mee_en_016_std.png,pokemoncom tcgplayer

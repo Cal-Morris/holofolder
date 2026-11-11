@@ -239,3 +239,105 @@ describe('card-assets bucket migration', () => {
     });
   });
 });
+
+describe('card-assets malie', () => {
+  test('normalizes collector numbers and names across sources', async () => {
+    const { normalizeCollectorNumber, namesMatch } = await import('../lib/card-assets/malie');
+    assert.equal(normalizeCollectorNumber('001'), '1');
+    assert.equal(normalizeCollectorNumber('SM01'), normalizeCollectorNumber('SM001'));
+    assert.equal(normalizeCollectorNumber('GG070'), 'GG70');
+    assert.equal(normalizeCollectorNumber('9A'), '9A');
+    assert.ok(namesMatch('Basic {G} Energy', 'Grass Energy'));
+    assert.ok(namesMatch('aromatic_g_energy', 'Aromatic Grass Energy'));
+    assert.ok(namesMatch('pikachu_zekrom_gx', 'Pikachu & Zekrom-GX'));
+    assert.ok(namesMatch('mewtwo_gx-ya', 'Mewtwo-GX'));
+    assert.ok(!namesMatch('charmander', 'Squirtle'));
+  });
+
+  test('reads the standard print from a TCG Live export and English PNGs from a TCG Online listing', async () => {
+    const { parseTcglExport, parseTcgoListing } = await import('../lib/card-assets/malie');
+    // Synthetic shapes of malie's real files.
+    const png = (n: string, v: string) =>
+      `https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/tst/tst_en_${n}_${v}.png`;
+    const exported = [
+      {
+        name: 'Testmon',
+        collector_number: { numerator: '001' },
+        ext: { tcgl: { longFormID: 'Testmon_tst_1_std_Common_NonFoil_None' } },
+        images: { tcgl: { png: { front: png('001', 'std') } } },
+      },
+      {
+        name: 'Testmon',
+        collector_number: { numerator: '001' },
+        ext: { tcgl: { longFormID: 'Testmon_tst_1_ph_Common_FlatSilver_Reverse' } },
+        images: { tcgl: { png: { front: png('001', 'std') } } },
+      },
+    ];
+    assert.deepEqual(parseTcglExport(exported), [{ number: '001', name: 'Testmon', url: png('001', 'std') }]);
+    const listing = `<a href="https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TST-TS/en_US-TST-SV12-testmon_gx.png">en</a>
+      <a href="https://cdn.malie.io/file/malie-io/art/cards/png/fr_FR/SM/TST-TS/fr_FR-TST-SV12-testmon_gx.png">fr</a>`;
+    assert.deepEqual(parseTcgoListing(listing, 'TST'), [
+      {
+        number: 'SV12',
+        name: 'testmon_gx',
+        url: 'https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TST-TS/en_US-TST-SV12-testmon_gx.png',
+      },
+    ]);
+  });
+
+  test('matches by number and name, and skips a number whose name disagrees', async () => {
+    const { matchMalieEntries } = await import('../lib/card-assets/malie');
+    const cards = [
+      { id: 't-1', local_id: '1', name_en: 'Testmon' },
+      { id: 't-2', local_id: '2', name_en: 'Othermon' },
+      { id: 't-3', local_id: '3', name_en: 'Lonelymon' },
+    ];
+    const entries = [
+      { number: '001', name: 'testmon_gx', url: 'u1-alt' },
+      { number: '001', name: 'testmon', url: 'u1' },
+      { number: '002', name: 'wrongmon', url: 'u2' },
+    ];
+    const result = matchMalieEntries(cards, entries);
+    assert.equal(result.matches.get('t-1')?.url, 'u1', 'the closest name wins among prints sharing a number');
+    assert.equal(result.matches.has('t-2'), false);
+    assert.equal(result.nameMismatch, 1);
+    assert.equal(result.unmatched, 2);
+  });
+
+  test('malie URLs are storable only for English PNGs', async () => {
+    const { parseSourceCardImageUrl } = await import('../lib/card-image-sources');
+    assert.equal(
+      parseSourceCardImageUrl('https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me6/me6_en_001_std.png')?.pathname,
+      'pokemon/tcg/cards/src/malie/tcgl/me6/me6_en_001_std.webp',
+    );
+    assert.equal(
+      parseSourceCardImageUrl(
+        'https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SF-SHF/en_US-SF-001-yanma.png',
+      )?.pathname,
+      'pokemon/tcg/cards/src/malie/ptcgo/SWSH/SF-SHF/en_US-SF-001-yanma.webp',
+    );
+    assert.equal(
+      parseSourceCardImageUrl(
+        'https://cdn.malie.io/file/malie-io/art/cards/png/fr_FR/SWSH/SF-SHF/fr_FR-SF-001-yanma.png',
+      ),
+      null,
+    );
+    assert.equal(parseSourceCardImageUrl('https://cdn.malie.io/file/malie-io/tcgl/export/index.json'), null);
+  });
+
+  test('a discovered malie image wins under the default rule', () => {
+    const url = 'https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/tst/tst_en_001_std.png';
+    const row = ledgerRow(
+      card({
+        image_languages_json: ['en'],
+        external_ids_json: { catalog: { image: 'https://product-images.tcgplayer.com/1.jpg' } },
+      }),
+      rules,
+      sources,
+      'en',
+      [url],
+    );
+    assert.equal(row.source, 'malie');
+    assert.equal(row.url, url);
+  });
+});

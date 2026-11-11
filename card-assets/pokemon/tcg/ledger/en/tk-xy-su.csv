@@ -1,31 +1,31 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-tk-xy-su-1,1,Water Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/1/high.webp,tcgplayer
-tk-xy-su-2,2,Water Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/2/high.webp,tcgplayer
-tk-xy-su-3,3,Water Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/3/high.webp,tcgplayer
-tk-xy-su-4,4,Eevee,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/4/high.webp,tcgplayer
-tk-xy-su-5,5,Water Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/5/high.webp,tcgplayer
-tk-xy-su-6,6,Frogadier,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/6/high.webp,tcgplayer
-tk-xy-su-7,7,Ducklett,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/7/high.webp,tcgplayer
-tk-xy-su-8,8,Water Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/8/high.webp,tcgplayer
-tk-xy-su-9,9,Water Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/9/high.webp,tcgplayer
-tk-xy-su-10,10,Water Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/10/high.webp,tcgplayer
-tk-xy-su-11,11,Froakie,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/11/high.webp,tcgplayer
-tk-xy-su-12,12,Seaking,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/12/high.webp,tcgplayer
-tk-xy-su-13,13,Goldeen,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/13/high.webp,tcgplayer
-tk-xy-su-14,14,Suicune,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/14/high.webp,tcgplayer
-tk-xy-su-15,15,Potion,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/15/high.webp,tcgplayer
-tk-xy-su-16,16,Piplup,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/16/high.webp,tcgplayer
-tk-xy-su-17,17,Water Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/17/high.webp,tcgplayer
-tk-xy-su-18,18,Swanna,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/18/high.webp,tcgplayer
-tk-xy-su-19,19,Water Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/19/high.webp,tcgplayer
-tk-xy-su-20,20,Tierno,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/20/high.webp,tcgplayer
-tk-xy-su-21,21,Frogadier,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/21/high.webp,tcgplayer
-tk-xy-su-22,22,Water Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/22/high.webp,tcgplayer
-tk-xy-su-23,23,Froakie,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/23/high.webp,tcgplayer
-tk-xy-su-24,24,Ducklett,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/24/high.webp,tcgplayer
-tk-xy-su-25,25,Seaking,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/25/high.webp,tcgplayer
-tk-xy-su-26,26,Goldeen,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/26/high.webp,tcgplayer
-tk-xy-su-27,27,Swanna,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/27/high.webp,tcgplayer
-tk-xy-su-28,28,Water Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/28/high.webp,tcgplayer
-tk-xy-su-29,29,Tierno,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/29/high.webp,tcgplayer
-tk-xy-su-30,30,Suicune,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-su/30/high.webp,tcgplayer
+tk-xy-su-1,1,Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-001-water_energy.png,tcgdex:de tcgplayer
+tk-xy-su-2,2,Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-002-water_energy.png,tcgdex:de tcgplayer
+tk-xy-su-3,3,Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-003-water_energy.png,tcgdex:de tcgplayer
+tk-xy-su-4,4,Eevee,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-004-eevee.png,tcgdex:de tcgplayer
+tk-xy-su-5,5,Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-005-water_energy.png,tcgdex:de tcgplayer
+tk-xy-su-6,6,Frogadier,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-006-frogadier.png,tcgdex:de tcgplayer
+tk-xy-su-7,7,Ducklett,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-007-ducklett.png,tcgdex:de tcgplayer
+tk-xy-su-8,8,Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-008-water_energy.png,tcgdex:de tcgplayer
+tk-xy-su-9,9,Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-009-water_energy.png,tcgdex:de tcgplayer
+tk-xy-su-10,10,Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-010-water_energy.png,tcgdex:de tcgplayer
+tk-xy-su-11,11,Froakie,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-011-froakie.png,tcgdex:de tcgplayer
+tk-xy-su-12,12,Seaking,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-012-seaking.png,tcgdex:de tcgplayer
+tk-xy-su-13,13,Goldeen,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-013-goldeen.png,tcgdex:de tcgplayer
+tk-xy-su-14,14,Suicune,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-014-suicune.png,tcgdex:de tcgplayer
+tk-xy-su-15,15,Potion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-015-potion.png,tcgdex:de tcgplayer
+tk-xy-su-16,16,Piplup,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-016-piplup.png,tcgdex:de tcgplayer
+tk-xy-su-17,17,Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-017-water_energy.png,tcgdex:de tcgplayer
+tk-xy-su-18,18,Swanna,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-018-swanna.png,tcgdex:de tcgplayer
+tk-xy-su-19,19,Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-019-water_energy.png,tcgdex:de tcgplayer
+tk-xy-su-20,20,Tierno,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-020-tierno.png,tcgdex:de tcgplayer
+tk-xy-su-21,21,Frogadier,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-021-frogadier.png,tcgdex:de tcgplayer
+tk-xy-su-22,22,Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-022-water_energy.png,tcgdex:de tcgplayer
+tk-xy-su-23,23,Froakie,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-023-froakie.png,tcgdex:de tcgplayer
+tk-xy-su-24,24,Ducklett,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-024-ducklett.png,tcgdex:de tcgplayer
+tk-xy-su-25,25,Seaking,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-025-seaking.png,tcgdex:de tcgplayer
+tk-xy-su-26,26,Goldeen,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-026-goldeen.png,tcgdex:de tcgplayer
+tk-xy-su-27,27,Swanna,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-027-swanna.png,tcgdex:de tcgplayer
+tk-xy-su-28,28,Water Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-028-water_energy.png,tcgdex:de tcgplayer
+tk-xy-su-29,29,Tierno,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-029-tierno.png,tcgdex:de tcgplayer
+tk-xy-su-30,30,Suicune,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9B-TK_Suicune/en_US-TK9B-030-suicune.png,tcgdex:de tcgplayer

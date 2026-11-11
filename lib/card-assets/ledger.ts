@@ -187,7 +187,7 @@ function tcgplayerProductUrl(externalIds: unknown) {
  * Every image we already know about for a card, from the fields the app reads (`pickCardImageUrl` in
  * `lib/card-image-sources.ts`). New sources (malie, …) add their candidates here.
  */
-export function imageCandidates(card: MirrorCardRow, lang = "en"): ImageCandidate[] {
+export function imageCandidates(card: MirrorCardRow, lang = "en", discovered: readonly string[] = []): ImageCandidate[] {
   const externalIds = card.external_ids_json
   const candidates: ImageCandidate[] = []
   const add = (url: string | null | undefined, extra: Partial<ImageCandidate> = {}) => {
@@ -203,6 +203,8 @@ export function imageCandidates(card: MirrorCardRow, lang = "en"): ImageCandidat
   const pokemonTcg = asRecord(asRecord(externalIds)?.pokemon_tcg)
   add([pokemonTcg?.imageLarge, pokemonTcg?.imageSmall].find((value): value is string => typeof value === "string" && value.length > 0))
   add(tcgplayerProductUrl(externalIds))
+  // Images found by `discover` (card-assets/<game>/discovered/*.csv), such as malie's renders.
+  for (const url of discovered) add(url)
   return candidates
 }
 
@@ -219,9 +221,9 @@ export function chooseImage(candidates: readonly ImageCandidate[], prefer: reado
   return null
 }
 
-export function ledgerRow(card: MirrorCardRow, rules: readonly AssetRule[], sources: readonly AssetSource[], lang = "en"): LedgerRow {
+export function ledgerRow(card: MirrorCardRow, rules: readonly AssetRule[], sources: readonly AssetSource[], lang = "en", discovered: readonly string[] = []): LedgerRow {
   const rule = matchRule(rules, card, lang)
-  const candidates = imageCandidates(card, lang)
+  const candidates = imageCandidates(card, lang, discovered)
   const chosen = rule ? chooseImage(candidates, rule.prefer) : null
   const kinds = new Map(sources.map(source => [source.id, source.kind]))
   return {

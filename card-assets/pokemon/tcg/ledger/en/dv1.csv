@@ -1,22 +1,22 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-dv1-1,1,Dratini,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/1/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-2,2,Dratini,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/2/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-3,3,Dragonair,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/3/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-4,4,Dragonair,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/4/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-5,5,Dragonite,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/5/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-6,6,Bagon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/6/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-7,7,Shelgon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/7/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-8,8,Salamence,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/8/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-9,9,Latias,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/9/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-10,10,Latios,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/10/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-11,11,Rayquaza,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/11/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-12,12,Axew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/12/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-13,13,Axew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/13/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-14,14,Fraxure,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/14/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-15,15,Fraxure,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/15/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-16,16,Haxorus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/16/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-17,17,Druddigon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/17/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-18,18,Exp. Share,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/18/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-19,19,First Ticket,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/19/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-20,20,Super Rod,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/20/high.webp,pokemoncom pokemontcg tcgplayer
-dv1-21,21,Kyurem,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/dv1/21/high.webp,pokemoncom pokemontcg tcgplayer
+dv1-1,1,Dratini,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-001-dratini.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-2,2,Dratini,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-002-dratini.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-3,3,Dragonair,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-003-dragonair.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-4,4,Dragonair,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-004-dragonair.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-5,5,Dragonite,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-005-dragonite.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-6,6,Bagon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-006-bagon.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-7,7,Shelgon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-007-shelgon.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-8,8,Salamence,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-008-salamence.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-9,9,Latias,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-009-latias.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-10,10,Latios,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-010-latios.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-11,11,Rayquaza,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-011-rayquaza.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-12,12,Axew,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-012-axew.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-13,13,Axew,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-013-axew.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-14,14,Fraxure,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-014-fraxure.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-15,15,Fraxure,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-015-fraxure.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-16,16,Haxorus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-016-haxorus.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-17,17,Druddigon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-017-druddigon.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-18,18,Exp. Share,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-018-exp_share.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-19,19,First Ticket,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-019-first_ticket.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-20,20,Super Rod,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-020-super_rod.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dv1-21,21,Kyurem,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/DV-DRV/en_US-DV-021-kyurem.png,pokemoncom tcgdex:en pokemontcg tcgplayer

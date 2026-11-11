@@ -1,19 +1,19 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-tk-sm-l-1,1,Caterpie,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/1/high.webp,
-tk-sm-l-4,4,Trumbeak,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/4/high.webp,
-tk-sm-l-5,5,Fighting Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/5/high.webp,
-tk-sm-l-11,11,Fletchling,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/11/high.webp,
-tk-sm-l-12,12,Yungoos,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/12/high.webp,
-tk-sm-l-13,13,Fletchinder,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/13/high.webp,
-tk-sm-l-14,14,Rockruff,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/14/high.webp,
-tk-sm-l-15,15,Pikipek,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/15/high.webp,
-tk-sm-l-16,16,Lycanroc,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/16/high.webp,
-tk-sm-l-18,18,Makuhita,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/18/high.webp,
-tk-sm-l-19,19,Hau,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/19/high.webp,
-tk-sm-l-21,21,Great Ball,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/21/high.webp,
-tk-sm-l-22,22,Toucannon,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/22/high.webp,
-tk-sm-l-23,23,Hau,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/23/high.webp,
-tk-sm-l-25,25,Great Ball,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/25/high.webp,
-tk-sm-l-27,27,Big Malasada,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/27/high.webp,
-tk-sm-l-29,29,Rockruff,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/29/high.webp,
-tk-sm-l-30,30,Lycanroc,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-l/30/high.webp,
+tk-sm-l-1,1,Caterpie,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-001-caterpie.png,tcgdex:de
+tk-sm-l-4,4,Trumbeak,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-004-trumbeak.png,tcgdex:de
+tk-sm-l-5,5,Fighting Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-005-fighting_energy.png,tcgdex:de
+tk-sm-l-11,11,Fletchling,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-011-fletchling.png,tcgdex:de
+tk-sm-l-12,12,Yungoos,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-012-yungoos.png,tcgdex:de
+tk-sm-l-13,13,Fletchinder,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-013-fletchinder.png,tcgdex:de
+tk-sm-l-14,14,Rockruff,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-014-rockruff.png,tcgdex:de
+tk-sm-l-15,15,Pikipek,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-015-pikipek.png,tcgdex:de
+tk-sm-l-16,16,Lycanroc,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-016-lycanroc.png,tcgdex:de
+tk-sm-l-18,18,Makuhita,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-018-makuhita.png,tcgdex:de
+tk-sm-l-19,19,Hau,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-019-hau.png,tcgdex:de
+tk-sm-l-21,21,Great Ball,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-021-great_ball.png,tcgdex:de
+tk-sm-l-22,22,Toucannon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-022-toucannon.png,tcgdex:de
+tk-sm-l-23,23,Hau,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-023-hau.png,tcgdex:de
+tk-sm-l-25,25,Great Ball,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-025-great_ball.png,tcgdex:de
+tk-sm-l-27,27,Big Malasada,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-027-big_malasada.png,tcgdex:de
+tk-sm-l-29,29,Rockruff,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-029-rockruff.png,tcgdex:de
+tk-sm-l-30,30,Lycanroc,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SM/TK10A-TK_Lycanroc/en_US-TK10A-030-lycanroc.png,tcgdex:de

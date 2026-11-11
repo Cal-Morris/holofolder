@@ -7,22 +7,40 @@
  *   bun run card-assets atlas                                   refresh the pinned PTCG Image Atlas data.json
  *   bun run card-assets migrate-bucket [--apply]                copy cards/... from binderdex-card-images to
  *                                                               pokemon/tcg/cards/... in holofolder-assets
+ *   bun run card-assets discover malie                          find malie.io renders for the sets in malie-sets.csv
+ *   bun run card-assets publish [--set a,b] [--apply]           upload the ledger's chosen images and record them on
+ *                                                               the cards, so the app shows them
  *
  * plan, verify and atlas read Postgres (POSTGRES_URL_NON_POOLING or DATABASE_URL) in a read-only transaction and
  * write only files under card-assets/. migrate-bucket copies R2 objects server side and records them in
  * card_image_inventory; it needs R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY for a token that can
- * read the source bucket and write the destination.
+ * read the source bucket and write the destination. publish needs CARD_IMAGE_STORE=r2 and the app's R2_* variables,
+ * writes card rows and the inventory, and revalidates the app's mirror cache when CARD_DB_SYNC_SECRET is set.
  */
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { AwsClient } from 'aws4fetch';
 import { Client } from 'pg';
 import { parseListedObjects, planBucketCopy, type ListedObject } from '../lib/card-assets/bucket-migration';
-import { pickCardImageUrl } from '../lib/card-image-sources';
+import { createCardImageMirror } from '../lib/card-image-blob';
+import { parseSourceCardImageUrl, pickCardImageUrl } from '../lib/card-image-sources';
+import { createR2Deps, getR2Config } from '../lib/card-image-r2';
+import { getCardImageStoreKind } from '../lib/card-image-store';
+import { convertSourceImageToWebp } from '../lib/card-image-transform';
+import {
+  matchMalieEntries,
+  MALIE_EXPORT_BASE,
+  MALIE_EXPORT_INDEX,
+  MALIE_LISTING_BASE,
+  parseTcgoListing,
+  parseTcglExport,
+  type MalieEntry,
+} from '../lib/card-assets/malie';
 import {
   crossCheckAtlas,
   LEDGER_COLUMNS,
   ledgerRow,
+  parseCsv,
   parseRules,
   parseSources,
   toCsv,
@@ -34,9 +52,15 @@ import { getMirrorDatabaseUrl } from '../lib/card-db-sync';
 import { developerImageKey } from '../lib/developer-api/image-identity';
 import { loadProjectEnvFiles } from '../lib/load-project-env';
 import { buildTcgdexAssetImageUrl, pickImageLanguage } from '../lib/tcgdex-shared';
-import { CARD_IMAGE_BLOB_PREFIX, LEGACY_CARD_IMAGE_BLOB_PREFIX } from '../lib/tcgdex-card-image';
+import {
+  CARD_IMAGE_BLOB_PREFIX,
+  LEGACY_CARD_IMAGE_BLOB_PREFIX,
+  getCardImageBlobPathname,
+  parseTcgdexCardImageUrl,
+} from '../lib/tcgdex-card-image';
 
 const ATLAS_REPO = 'nstrelow/ptcg-image-atlas';
+const USER_AGENT = 'HoloFolderCardAssets/1.0 (+https://holofolder.com)';
 const LANG = 'en';
 
 function arg(name: string) {
@@ -53,7 +77,16 @@ async function loadConfig() {
   const sources = parseSources(await readFile(path.join(root, 'sources.csv'), 'utf8'));
   const rules = parseRules(await readFile(path.join(root, 'rules.csv'), 'utf8'), sources);
   const atlas = JSON.parse(await readFile(path.join(root, 'atlas', 'data.json'), 'utf8')) as AtlasData;
-  return { sources, rules, atlas };
+  // Discovered images, per card: discovered/<source>.csv with card_id and url columns.
+  const discovered = new Map<string, string[]>();
+  for (const file of (await readdir(path.join(root, 'discovered')).catch(() => [] as string[]))
+    .filter((name) => name.endsWith('.csv'))
+    .sort()) {
+    for (const row of parseCsv(await readFile(path.join(root, 'discovered', file), 'utf8'))) {
+      if (row.card_id && row.url) discovered.set(row.card_id, [...(discovered.get(row.card_id) ?? []), row.url]);
+    }
+  }
+  return { sources, rules, atlas, discovered };
 }
 
 async function withDb<T>(run: (db: Client) => Promise<T>) {
@@ -83,7 +116,7 @@ function buildLedgers(cards: readonly MirrorCardRow[], config: Awaited<ReturnTyp
   const ledgers = new Map<string, LedgerRow[]>();
   for (const card of cards) {
     const rows = ledgers.get(card.set_id) ?? [];
-    rows.push(ledgerRow(card, config.rules, config.sources, LANG));
+    rows.push(ledgerRow(card, config.rules, config.sources, LANG, config.discovered.get(card.id)));
     ledgers.set(card.set_id, rows);
   }
   return ledgers;
@@ -94,16 +127,29 @@ function ledgerFile(setId: string) {
 }
 
 /** What the app serves today for this card (lib/tcg-mirror.ts calls pickCardImageUrl the same way). */
-function appImage(card: MirrorCardRow) {
+function appImage(card: MirrorCardRow, { withPublished = true } = {}) {
   const imageLanguage = pickImageLanguage(card.image_languages_json, LANG);
+  const externalIds = withPublished ? card.external_ids_json : withoutPublished(card.external_ids_json);
   return (
     pickCardImageUrl(
-      card.external_ids_json,
+      externalIds,
       imageLanguage,
       imageLanguage && buildTcgdexAssetImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id),
       LANG,
     ) ?? ''
   );
+}
+
+function withoutPublished(externalIds: unknown) {
+  if (!externalIds || typeof externalIds !== 'object' || Array.isArray(externalIds)) return externalIds;
+  const { assets: _assets, ...rest } = externalIds as Record<string, unknown>;
+  return rest;
+}
+
+function publishedImage(card: MirrorCardRow) {
+  const assets = (card.external_ids_json as { assets?: Record<string, { image?: unknown }> } | null)?.assets;
+  const image = assets?.[LANG]?.image;
+  return typeof image === 'string' ? image : null;
 }
 
 function summarize(ledgers: Map<string, LedgerRow[]>) {
@@ -372,11 +418,225 @@ async function migrateBucket() {
   if (failures.length || plan.copy.length || plan.mismatched.length) process.exitCode = 1;
 }
 
+async function fetchOk(url: string) {
+  const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(60_000) });
+  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  return response;
+}
+
+/** Finds malie.io renders for every set in malie-sets.csv and writes discovered/malie.csv. */
+async function discover() {
+  if (process.argv[3] !== 'malie') throw new Error('Usage: bun run card-assets discover malie');
+  await loadProjectEnvFiles();
+  const mapping = parseCsv(await readFile(path.join(root, 'malie-sets.csv'), 'utf8'));
+  const cards = await withDb((db) => loadCards(db, [...new Set(mapping.map((row) => row.set_id))]));
+  const bySet = new Map<string, MirrorCardRow[]>();
+  for (const card of cards) bySet.set(card.set_id, [...(bySet.get(card.set_id) ?? []), card]);
+  const index =
+    ((await (await fetchOk(MALIE_EXPORT_INDEX)).json()) as Record<string, Record<string, { path?: string }>>)[
+      'en-US'
+    ] ?? {};
+  const pages = new Map<string, MalieEntry[]>();
+  const rows: Record<string, string>[] = [];
+  const report: Array<{ set: string; code: string; cards: number; matched: number; nameMismatch: number }> = [];
+  for (const { set_id: setId, format, code } of mapping) {
+    const key = `${format}:${code}`;
+    if (!pages.has(key)) {
+      if (format === 'tcgl') {
+        const exportPath = index[code]?.path;
+        pages.set(key, exportPath ? parseTcglExport(await (await fetchOk(MALIE_EXPORT_BASE + exportPath)).json()) : []);
+      } else if (format === 'tcgo') {
+        pages.set(
+          key,
+          parseTcgoListing(await (await fetchOk(`${MALIE_LISTING_BASE}${encodeURIComponent(code)}.html`)).text(), code),
+        );
+      } else {
+        throw new Error(`malie-sets.csv: unknown format "${format}" for ${setId}`);
+      }
+    }
+    const setCards = bySet.get(setId) ?? [];
+    const { matches, nameMismatch } = matchMalieEntries(setCards, pages.get(key)!);
+    for (const [cardId, entry] of matches) {
+      // Only URLs the image store can serve; anything odd is left out rather than widened.
+      if (parseSourceCardImageUrl(entry.url)?.source === 'malie')
+        rows.push({ card_id: cardId, url: entry.url, malie_number: entry.number, malie_name: entry.name });
+    }
+    report.push({ set: setId, code, cards: setCards.length, matched: matches.size, nameMismatch });
+  }
+  rows.sort((a, b) => a.card_id.localeCompare(b.card_id));
+  await mkdir(path.join(root, 'discovered'), { recursive: true });
+  await writeFile(
+    path.join(root, 'discovered', 'malie.csv'),
+    toCsv(['card_id', 'url', 'malie_number', 'malie_name'], rows),
+  );
+  const weak = report.filter((entry) => entry.matched < entry.cards);
+  console.log(
+    JSON.stringify(
+      {
+        sets: report.length,
+        cards: cards.length,
+        matched: rows.length,
+        setsWithUnmatchedCards: weak.map(
+          (entry) =>
+            `${entry.set} ${entry.matched}/${entry.cards}${entry.nameMismatch ? ` (${entry.nameMismatch} name mismatches)` : ''}`,
+        ),
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+/**
+ * Makes the app show the ledger's choices. For every card whose chosen image differs from what the app would pick on
+ * its own, the image is uploaded to R2 (if it isn't there yet) and recorded as external_ids_json.assets.<lang>;
+ * cards whose choice now matches the default lose their published entry. Dry run unless --apply.
+ */
+async function publish() {
+  await loadProjectEnvFiles();
+  const apply = process.argv.includes('--apply');
+  const sets =
+    arg('set')
+      ?.split(',')
+      .map((id) => id.trim())
+      .filter(Boolean) ?? null;
+  const config = await loadConfig();
+  const cards = await withDb((db) => loadCards(db, sets));
+  const ledgers = buildLedgers(cards, config);
+  for (const [setId, rows] of ledgers) {
+    if ((await readFile(ledgerFile(setId), 'utf8').catch(() => null)) !== toCsv(LEDGER_COLUMNS, rows))
+      throw new Error(`The ledger for ${setId} is out of date: run plan and review the diff first`);
+  }
+  const byId = new Map(cards.map((card) => [card.id, card]));
+  const changes: Array<{ card: MirrorCardRow; row: LedgerRow; image: string | null }> = [];
+  for (const row of [...ledgers.values()].flat()) {
+    const card = byId.get(row.card_id)!;
+    const image = row.url && row.url !== appImage(card, { withPublished: false }) ? row.url : null;
+    if (image !== publishedImage(card)) changes.push({ card, row, image });
+  }
+  const toPublish = changes.filter((change) => change.image);
+  const toClear = changes.filter((change) => !change.image);
+  const bySource: Record<string, number> = {};
+  for (const change of toPublish) bySource[change.row.source] = (bySource[change.row.source] ?? 0) + 1;
+  console.log(
+    JSON.stringify(
+      { apply, cards: cards.length, toPublish: toPublish.length, toClear: toClear.length, bySource },
+      null,
+      2,
+    ),
+  );
+  if (!apply || !changes.length) return;
+
+  const r2 = getCardImageStoreKind() === 'r2' ? getR2Config() : null;
+  if (!r2) throw new Error("Set CARD_IMAGE_STORE=r2 and the R2_* variables for the app's bucket");
+  const deps = createR2Deps(r2);
+  const mirror = createCardImageMirror({
+    ...deps,
+    logger: (message) => console.warn(`[publish] ${message}`),
+    transformSourceImage: convertSourceImageToWebp,
+  });
+  const db = new Client({ connectionString: getMirrorDatabaseUrl() });
+  await db.connect();
+  try {
+    const stored = new Set(
+      (
+        await db.query<{ object_key: string }>('select object_key from public.card_image_inventory where bucket = $1', [
+          r2.bucket,
+        ])
+      ).rows.map((row) => row.object_key),
+    );
+    const ready: typeof toPublish = [];
+    const failed: string[] = [];
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: 6 }, async () => {
+        while (next < toPublish.length) {
+          const change = toPublish[next++];
+          const url = new URL(change.image!);
+          const tcgdex = parseTcgdexCardImageUrl(url);
+          const source = tcgdex ? null : parseSourceCardImageUrl(url);
+          const key = tcgdex ? getCardImageBlobPathname(tcgdex) : source?.pathname;
+          if (!key) {
+            failed.push(`${change.card.id}: not a storable image URL`);
+            continue;
+          }
+          if (!stored.has(key)) {
+            try {
+              const image = tcgdex ? await mirror.loadImage(tcgdex) : await mirror.loadSourceImage(source!);
+              await image.pendingUpload?.();
+              if (!(await deps.head(key))) throw new Error('not in the bucket after upload');
+              stored.add(key);
+              await db.query(
+                'insert into public.card_image_inventory (bucket, object_key) values ($1, $2) on conflict (bucket, object_key) do update set observed_at = now()',
+                [r2.bucket, key],
+              );
+            } catch (error) {
+              failed.push(`${change.card.id}: ${error instanceof Error ? error.message : String(error)}`);
+              continue;
+            }
+          }
+          ready.push(change);
+          if (ready.length % 500 === 0) console.log(`ready ${ready.length} of ${toPublish.length}`);
+        }
+      }),
+    );
+    await db.query('begin');
+    const ids = ready.map((change) => change.card.id);
+    const values = ready.map((change) =>
+      JSON.stringify({ image: change.image, source: change.row.source, rule: change.row.rule }),
+    );
+    await db.query(
+      `update public.tcg_cards c
+          set external_ids_json = jsonb_set(coalesce(c.external_ids_json, '{}'::jsonb), '{assets}',
+                coalesce(c.external_ids_json->'assets', '{}'::jsonb) || jsonb_build_object($3::text, v.value::jsonb))
+         from unnest($1::text[], $2::text[]) as v(id, value)
+        where c.id = v.id`,
+      [ids, values, LANG],
+    );
+    await db.query(
+      "update public.tcg_cards set external_ids_json = external_ids_json #- array['assets', $2::text] where id = any($1)",
+      [toClear.map((change) => change.card.id), LANG],
+    );
+    await db.query('commit');
+    console.log(
+      JSON.stringify(
+        { published: ready.length, cleared: toClear.length, failed: failed.length, failures: failed.slice(0, 20) },
+        null,
+        2,
+      ),
+    );
+    if (failed.length) process.exitCode = 1;
+  } catch (error) {
+    await db.query('rollback').catch(() => {});
+    throw error;
+  } finally {
+    await db.end();
+  }
+
+  // The app caches mirror reads for days; any real sync revalidates the whole tcg-mirror tag.
+  const secret = process.env.CARD_DB_SYNC_SECRET?.trim();
+  const site = process.env.CARD_ASSETS_SITE ?? 'https://holofolder.com';
+  if (!secret) {
+    console.warn(
+      'CARD_DB_SYNC_SECRET is not set: revalidate the mirror cache with a real POST /app/api/admin/sync-card-db?set=<id>&images=0',
+    );
+    return;
+  }
+  const setId = changes[0].card.set_id;
+  const response = await fetch(`${site}/app/api/admin/sync-card-db?set=${encodeURIComponent(setId)}&images=0`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${secret}` },
+  });
+  console.log(`revalidated the mirror cache via a sync of ${setId}: HTTP ${response.status}`);
+}
+
 const commands: Record<string, () => Promise<void>> = {
   plan,
   verify,
   atlas: refreshAtlas,
   'migrate-bucket': migrateBucket,
+  discover,
+  publish,
 };
 const command = commands[process.argv[2] ?? ''];
 if (!command) {

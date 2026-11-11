@@ -1,31 +1,31 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-swsh12tg-TG01,TG01,Braixen,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG01_hires.png,
-swsh12tg-TG02,TG02,Milotic,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG02_hires.png,
-swsh12tg-TG03,TG03,Flaaffy,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG03_hires.png,
-swsh12tg-TG04,TG04,Jynx,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG04_hires.png,
-swsh12tg-TG05,TG05,Gardevoir,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG05_hires.png,
-swsh12tg-TG06,TG06,Malamar,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG06_hires.png,
-swsh12tg-TG07,TG07,Rockruff,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG07_hires.png,
-swsh12tg-TG08,TG08,Passimian,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG08_hires.png,
-swsh12tg-TG09,TG09,Druddigon,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG09_hires.png,
-swsh12tg-TG10,TG10,Smeargle,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG10_hires.png,
-swsh12tg-TG11,TG11,Altaria,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG11_hires.png,
-swsh12tg-TG12,TG12,Kricketune V,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG12_hires.png,
-swsh12tg-TG13,TG13,Serperior V,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG13_hires.png,
-swsh12tg-TG14,TG14,Blaziken V,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG14_hires.png,
-swsh12tg-TG15,TG15,Blaziken VMAX,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG15_hires.png,
-swsh12tg-TG16,TG16,Zeraora V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH12/SWSH12_EN_TG16.png,pokemontcg
-swsh12tg-TG17,TG17,Mawile V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH12/SWSH12_EN_TG17.png,pokemontcg
-swsh12tg-TG18,TG18,Corviknight V,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG18_hires.png,
-swsh12tg-TG19,TG19,Corviknight VMAX,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG19_hires.png,
-swsh12tg-TG20,TG20,Rayquaza VMAX,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG20_hires.png,
-swsh12tg-TG21,TG21,Duraludon VMAX,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG21_hires.png,
-swsh12tg-TG22,TG22,Blissey V,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG22_hires.png,
-swsh12tg-TG23,TG23,Friends in Galar,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG23_hires.png,
-swsh12tg-TG24,TG24,Gordie,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG24_hires.png,
-swsh12tg-TG25,TG25,Judge,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG25_hires.png,
-swsh12tg-TG26,TG26,Professor Burnet,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG26_hires.png,
-swsh12tg-TG27,TG27,Raihan,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG27_hires.png,
-swsh12tg-TG28,TG28,Sordward & Shielbert,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG28_hires.png,
-swsh12tg-TG29,TG29,Rayquaza VMAX,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG29_hires.png,
-swsh12tg-TG30,TG30,Duraludon VMAX,*,pokemontcg,rehost,,https://images.pokemontcg.io/swsh12tg/TG30_hires.png,
+swsh12tg-TG01,TG01,Braixen,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG001-braixen.png,pokemontcg
+swsh12tg-TG02,TG02,Milotic,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG002-milotic.png,pokemontcg
+swsh12tg-TG03,TG03,Flaaffy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG003-flaaffy.png,pokemontcg
+swsh12tg-TG04,TG04,Jynx,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG004-jynx.png,pokemontcg
+swsh12tg-TG05,TG05,Gardevoir,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG005-gardevoir.png,pokemontcg
+swsh12tg-TG06,TG06,Malamar,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG006-malamar.png,pokemontcg
+swsh12tg-TG07,TG07,Rockruff,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG007-rockruff.png,pokemontcg
+swsh12tg-TG08,TG08,Passimian,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG008-passimian.png,pokemontcg
+swsh12tg-TG09,TG09,Druddigon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG009-druddigon.png,pokemontcg
+swsh12tg-TG10,TG10,Smeargle,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG010-smeargle.png,pokemontcg
+swsh12tg-TG11,TG11,Altaria,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG011-altaria.png,pokemontcg
+swsh12tg-TG12,TG12,Kricketune V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG012-kricketune_v.png,pokemontcg
+swsh12tg-TG13,TG13,Serperior V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG013-serperior_v.png,pokemontcg
+swsh12tg-TG14,TG14,Blaziken V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG014-blaziken_v.png,pokemontcg
+swsh12tg-TG15,TG15,Blaziken VMAX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG015-blaziken_vmax.png,pokemontcg
+swsh12tg-TG16,TG16,Zeraora V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG016-zeraora_v.png,pokemoncom pokemontcg
+swsh12tg-TG17,TG17,Mawile V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG017-mawile_v.png,pokemoncom pokemontcg
+swsh12tg-TG18,TG18,Corviknight V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG018-corviknight_v.png,pokemontcg
+swsh12tg-TG19,TG19,Corviknight VMAX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG019-corviknight_vmax.png,pokemontcg
+swsh12tg-TG20,TG20,Rayquaza VMAX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG020-rayquaza_vmax.png,pokemontcg
+swsh12tg-TG21,TG21,Duraludon VMAX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG021-duraludon_vmax.png,pokemontcg
+swsh12tg-TG22,TG22,Blissey V,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG022-blissey_v.png,pokemontcg
+swsh12tg-TG23,TG23,Friends in Galar,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG023-friends_in_galar.png,pokemontcg
+swsh12tg-TG24,TG24,Gordie,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG024-gordie.png,pokemontcg
+swsh12tg-TG25,TG25,Judge,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG025-judge.png,pokemontcg
+swsh12tg-TG26,TG26,Professor Burnet,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG026-professor_burnet.png,pokemontcg
+swsh12tg-TG27,TG27,Raihan,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG027-raihan.png,pokemontcg
+swsh12tg-TG28,TG28,Sordward & Shielbert,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG028-sordward_shielbert.png,pokemontcg
+swsh12tg-TG29,TG29,Rayquaza VMAX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG029-rayquaza_vmax.png,pokemontcg
+swsh12tg-TG30,TG30,Duraludon VMAX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/SWSH/SWSH12-SIT/en_US-SWSH12-TG030-duraludon_vmax.png,pokemontcg

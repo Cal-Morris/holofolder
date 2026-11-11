@@ -1,35 +1,35 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-dc1-1,1,Team Magma's Numel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/1/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-2,2,Team Magma's Camerupt,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/2/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-3,3,Team Aqua's Spheal,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/3/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-4,4,Team Aqua's Sealeo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/4/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-5,5,Team Aqua's Walrein,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/5/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-6,6,Team Aqua's Kyogre EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/6/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-7,7,Team Aqua's Grimer,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/7/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-8,8,Team Aqua's Muk,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/8/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-9,9,Team Aqua's Seviper,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/9/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-10,10,Team Magma's Baltoy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/10/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-11,11,Team Magma's Claydol,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/11/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-12,12,Team Magma's Aron,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/12/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-13,13,Team Magma's Lairon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/13/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-14,14,Team Magma's Aggron,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/14/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-15,15,Team Magma's Groudon EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/15/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-16,16,Team Aqua's Poochyena,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/16/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-17,17,Team Magma's Poochyena,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/17/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-18,18,Team Aqua's Mightyena,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/18/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-19,19,Team Magma's Mightyena,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/19/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-20,20,Team Aqua's Carvanha,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/20/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-21,21,Team Aqua's Sharpedo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/21/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-22,22,Team Magma's Zangoose,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/22/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-23,23,Aqua Diffuser,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/23/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-24,24,Magma Pointer,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/24/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-25,25,Team Aqua Admin,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/25/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-26,26,Team Aqua Grunt,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/26/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-27,27,Team Aqua's Great Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/27/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-28,28,Team Aqua's Secret Base,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/28/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-29,29,Team Magma Admin,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/29/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-30,30,Team Magma Grunt,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/30/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-31,31,Team Magma's Great Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/31/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-32,32,Team Magma's Secret Base,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/32/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-33,33,Double Aqua Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/33/high.webp,pokemoncom pokemontcg tcgplayer
-dc1-34,34,Double Magma Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/xy/dc1/34/high.webp,pokemoncom pokemontcg tcgplayer
+dc1-1,1,Team Magma's Numel,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-001-team_magmas_numel.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-2,2,Team Magma's Camerupt,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-002-team_magmas_camerupt.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-3,3,Team Aqua's Spheal,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-003-team_aquas_spheal.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-4,4,Team Aqua's Sealeo,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-004-team_aquas_sealeo.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-5,5,Team Aqua's Walrein,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-005-team_aquas_walrein.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-6,6,Team Aqua's Kyogre EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-006-team_aquas_kyogre_ex.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-7,7,Team Aqua's Grimer,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-007-team_aquas_grimer.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-8,8,Team Aqua's Muk,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-008-team_aquas_muk.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-9,9,Team Aqua's Seviper,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-009-team_aquas_seviper.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-10,10,Team Magma's Baltoy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-010-team_magmas_baltoy.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-11,11,Team Magma's Claydol,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-011-team_magmas_claydol.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-12,12,Team Magma's Aron,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-012-team_magmas_aron.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-13,13,Team Magma's Lairon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-013-team_magmas_lairon.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-14,14,Team Magma's Aggron,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-014-team_magmas_aggron.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-15,15,Team Magma's Groudon EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-015-team_magmas_groudon_ex.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-16,16,Team Aqua's Poochyena,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-016-team_aquas_poochyena.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-17,17,Team Magma's Poochyena,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-017-team_magmas_poochyena.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-18,18,Team Aqua's Mightyena,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-018-team_aquas_mightyena.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-19,19,Team Magma's Mightyena,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-019-team_magmas_mightyena.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-20,20,Team Aqua's Carvanha,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-020-team_aquas_carvanha.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-21,21,Team Aqua's Sharpedo,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-021-team_aquas_sharpedo.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-22,22,Team Magma's Zangoose,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-022-team_magmas_zangoose.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-23,23,Aqua Diffuser,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-023-aqua_diffuser.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-24,24,Magma Pointer,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-024-magma_pointer.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-25,25,Team Aqua Admin,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-025-team_aqua_admin.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-26,26,Team Aqua Grunt,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-026-team_aqua_grunt.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-27,27,Team Aqua's Great Ball,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-027-team_aquas_great_ball.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-28,28,Team Aqua's Secret Base,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-028-team_aquas_secret_base.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-29,29,Team Magma Admin,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-029-team_magma_admin.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-30,30,Team Magma Grunt,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-030-team_magma_grunt.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-31,31,Team Magma's Great Ball,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-031-team_magmas_great_ball.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-32,32,Team Magma's Secret Base,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-032-team_magmas_secret_base.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-33,33,Double Aqua Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-033-double_aqua_energy.png,pokemoncom tcgdex:en pokemontcg tcgplayer
+dc1-34,34,Double Magma Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TATM-DCR/en_US-TATM-034-double_magma_energy.png,pokemoncom tcgdex:en pokemontcg tcgplayer

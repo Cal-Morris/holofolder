@@ -18,6 +18,15 @@ export function CardDataAttribution({ className = '', compact = false }: { class
       {' · '}
       <a href="https://tcgcsv.com" target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
         TCGCSV
+      </a>
+      {' · '}
+      <a
+        href="https://malie.io/static/"
+        target="_blank"
+        rel="noreferrer"
+        className="underline-offset-2 hover:underline"
+      >
+        malie.io
       </a>{' '}
       {compact
         ? '(TCGdex data: MIT). Cards © The Pokémon Company / Nintendo / Creatures / GAME FREAK. Unaffiliated.'

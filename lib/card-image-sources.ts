@@ -11,7 +11,8 @@ import { pickTcgdexImageFromExternalIds, TCGDEX_ASSET_HOST } from './tcgdex-shar
  */
 export const CARD_IMAGE_SOURCE_PREFIX = `${CARD_IMAGE_BLOB_PREFIX}/src`;
 
-export type CardImageSource = 'tcgplayer' | 'pokemontcg' | 'scrydex' | 'limitless' | 'playshop' | 'pokemoncom';
+export type CardImageSource =
+  'tcgplayer' | 'pokemontcg' | 'scrydex' | 'limitless' | 'playshop' | 'pokemoncom' | 'malie';
 
 export const CARD_IMAGE_SOURCE_HOSTS: Readonly<Record<string, CardImageSource>> = {
   'product-images.tcgplayer.com': 'tcgplayer',
@@ -22,13 +23,16 @@ export const CARD_IMAGE_SOURCE_HOSTS: Readonly<Record<string, CardImageSource>> 
   'cdn.shopify.com': 'playshop',
   // Shared Pokémon asset CDN: only the TCG card image path is a card image source (see PATH_RULES).
   'assets.pokemon.com': 'pokemoncom',
+  // malie.io's exports of the official Pokémon TCG Live and TCG Online card renders (English PNGs only, see PATH_RULES).
+  'cdn.malie.io': 'malie',
 };
 
 /** Sources on a host that also serves other content: only URLs matching the source's path rule are card images. */
-const SHARED_HOST_SOURCES: ReadonlySet<CardImageSource> = new Set(['playshop', 'pokemoncom']);
+const SHARED_HOST_SOURCES: ReadonlySet<CardImageSource> = new Set(['playshop', 'pokemoncom', 'malie']);
 
 /** Source priority when several are known for a card (best scans first). */
 export const CARD_IMAGE_SOURCE_PRIORITY: readonly CardImageSource[] = [
+  'malie',
   'pokemoncom',
   'limitless',
   'scrydex',
@@ -75,6 +79,13 @@ const PATH_RULES: Record<CardImageSource, { pattern: RegExp; key: (match: RegExp
   pokemoncom: {
     pattern: /^\/static-assets\/content-assets\/cms2\/img\/cards\/web\/([A-Z0-9]{1,16})\/(\1_EN_[A-Z0-9]{1,12})\.png$/,
     key: (m) => `${m[1]}/${m[2]}`,
+  },
+  // https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/<set>/<set>_en_<NNN>_std.png (TCG Live)
+  // https://cdn.malie.io/file/malie-io/art/cards/png/en_US/<ERA>/<CODE>/en_US-<CODE>-<NNN>-<name>.png (TCG Online)
+  malie: {
+    pattern:
+      /^\/file\/malie-io\/(?:tcgl\/cards\/png\/en\/([a-z0-9-]{1,16})\/([a-z0-9_-]{1,64})|art\/cards\/png\/en_US\/([A-Za-z0-9_]{1,16})\/([A-Za-z0-9_-]{1,32})\/(en_US-[A-Za-z0-9_.-]{1,120}))\.png$/,
+    key: (m) => (m[1] ? `tcgl/${m[1]}/${m[2]}` : `ptcgo/${m[3]}/${m[4]}/${m[5]}`),
   },
 };
 

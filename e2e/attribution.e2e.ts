@@ -14,5 +14,6 @@ test('settings credits all catalog sources and the Pokémon rights holders', asy
     'https://github.com/PokemonTCG/pokemon-tcg-data',
   );
   await expect(attribution.getByRole('link', { name: 'TCGCSV' })).toHaveAttribute('href', 'https://tcgcsv.com');
+  await expect(attribution.getByRole('link', { name: 'malie.io' })).toHaveAttribute('href', 'https://malie.io/static/');
   await harness.expectNoHorizontalOverflow();
 });

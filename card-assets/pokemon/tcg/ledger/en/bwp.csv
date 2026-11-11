@@ -1,102 +1,102 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-bwp-BW01,BW01,Snivy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW01/high.webp,pokemoncom
-bwp-BW02,BW02,Tepig,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW02/high.webp,pokemoncom
-bwp-BW03,BW03,Oshawott,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW03/high.webp,pokemoncom
-bwp-BW04,BW04,Reshiram,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/BWP/BWP_EN_BW04.png,tcgdex:fr
-bwp-BW05,BW05,Zekrom,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/BWP/BWP_EN_BW05.png,tcgdex:fr
-bwp-BW06,BW06,Snivy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW06/high.webp,pokemoncom
-bwp-BW07,BW07,Tepig,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW07/high.webp,pokemoncom
-bwp-BW08,BW08,Oshawott,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW08/high.webp,pokemoncom
-bwp-BW09,BW09,Zoroark,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW09/high.webp,pokemoncom
-bwp-BW10,BW10,Axew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW10/high.webp,pokemoncom
-bwp-BW11,BW11,Pansage,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW11/high.webp,pokemoncom
-bwp-BW12,BW12,Zorua,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW12/high.webp,pokemoncom
-bwp-BW13,BW13,Minccino,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW13/high.webp,pokemoncom
-bwp-BW14,BW14,Pansage,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW14/high.webp,pokemoncom
-bwp-BW15,BW15,Pidove,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW15/high.webp,pokemoncom
-bwp-BW16,BW16,Axew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW16/high.webp,pokemoncom
-bwp-BW17,BW17,Ducklett,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW17/high.webp,pokemoncom
-bwp-BW18,BW18,Darumaka,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW18/high.webp,pokemoncom
-bwp-BW19,BW19,Zoroark,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW19/high.webp,pokemoncom
-bwp-BW20,BW20,Serperior,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW20/high.webp,pokemoncom
-bwp-BW21,BW21,Emboar,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW21/high.webp,pokemoncom
-bwp-BW22,BW22,Samurott,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW22/high.webp,pokemoncom
-bwp-BW23,BW23,Reshiram,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW23/high.webp,pokemoncom
-bwp-BW24,BW24,Zekrom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW24/high.webp,pokemoncom
-bwp-BW25,BW25,Scraggy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW25/high.webp,pokemoncom
-bwp-BW26,BW26,Axew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW26/high.webp,pokemoncom
-bwp-BW27,BW27,Litwick,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW27/high.webp,pokemoncom
-bwp-BW28,BW28,Tropical Beach,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW28/high.webp,pokemoncom
+bwp-BW01,BW01,Snivy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW001-snivy.png,pokemoncom tcgdex:en
+bwp-BW02,BW02,Tepig,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW002-tepig.png,pokemoncom tcgdex:en
+bwp-BW03,BW03,Oshawott,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW003-oshawott.png,pokemoncom tcgdex:en
+bwp-BW04,BW04,Reshiram,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW004-reshiram.png,pokemoncom tcgdex:fr
+bwp-BW05,BW05,Zekrom,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW005-zekrom.png,pokemoncom tcgdex:fr
+bwp-BW06,BW06,Snivy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW006-snivy.png,pokemoncom tcgdex:en
+bwp-BW07,BW07,Tepig,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW007-tepig.png,pokemoncom tcgdex:en
+bwp-BW08,BW08,Oshawott,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW008-oshawott.png,pokemoncom tcgdex:en
+bwp-BW09,BW09,Zoroark,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW009-zoroark.png,pokemoncom tcgdex:en
+bwp-BW10,BW10,Axew,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW010-axew.png,pokemoncom tcgdex:en
+bwp-BW11,BW11,Pansage,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW011-pansage.png,pokemoncom tcgdex:en
+bwp-BW12,BW12,Zorua,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW012-zorua.png,pokemoncom tcgdex:en
+bwp-BW13,BW13,Minccino,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW013-minccino.png,pokemoncom tcgdex:en
+bwp-BW14,BW14,Pansage,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW014-pansage.png,pokemoncom tcgdex:en
+bwp-BW15,BW15,Pidove,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW015-pidove.png,pokemoncom tcgdex:en
+bwp-BW16,BW16,Axew,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW016-axew.png,pokemoncom tcgdex:en
+bwp-BW17,BW17,Ducklett,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW017-ducklett.png,pokemoncom tcgdex:en
+bwp-BW18,BW18,Darumaka,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW018-darumaka.png,pokemoncom tcgdex:en
+bwp-BW19,BW19,Zoroark,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW019-zoroark.png,pokemoncom tcgdex:en
+bwp-BW20,BW20,Serperior,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW020-serperior.png,pokemoncom tcgdex:en
+bwp-BW21,BW21,Emboar,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW021-emboar.png,pokemoncom tcgdex:en
+bwp-BW22,BW22,Samurott,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW022-samurott.png,pokemoncom tcgdex:en
+bwp-BW23,BW23,Reshiram,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW023-reshiram.png,pokemoncom tcgdex:en
+bwp-BW24,BW24,Zekrom,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW024-zekrom.png,pokemoncom tcgdex:en
+bwp-BW25,BW25,Scraggy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW025-scraggy.png,pokemoncom tcgdex:en
+bwp-BW26,BW26,Axew,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW026-axew.png,pokemoncom tcgdex:en
+bwp-BW27,BW27,Litwick,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW027-litwick.png,pokemoncom tcgdex:en
+bwp-BW28,BW28,Tropical Beach,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW028-tropical_beach.png,pokemoncom tcgdex:en
 bwp-BW29,BW29,Victory Cup,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW29/high.webp,pokemoncom
 bwp-BW30,BW30,Victory Cup,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW30/high.webp,pokemoncom
 bwp-BW31,BW31,Victory Cup,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW31/high.webp,pokemoncom
-bwp-BW32,BW32,Victini,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW32/high.webp,pokemoncom
-bwp-BW33,BW33,Riolu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW33/high.webp,pokemoncom
-bwp-BW34,BW34,Luxio,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW34/high.webp,pokemoncom
+bwp-BW32,BW32,Victini,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW032-victini.png,pokemoncom tcgdex:en
+bwp-BW33,BW33,Riolu,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW033-riolu.png,pokemoncom tcgdex:en
+bwp-BW34,BW34,Luxio,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW034-luxio.png,pokemoncom tcgdex:en
 bwp-BW35,BW35,Meowth,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW35/high.webp,pokemoncom
-bwp-BW36,BW36,Reshiram-EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW36/high.webp,pokemoncom
-bwp-BW37,BW37,Kyurem-EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW37/high.webp,pokemoncom
-bwp-BW38,BW38,Zekrom-EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW38/high.webp,pokemoncom
-bwp-BW39,BW39,Battle City,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW39/high.webp,pokemoncom
-bwp-BW40,BW40,Volcarona,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW40/high.webp,pokemoncom
-bwp-BW41,BW41,Thundurus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW41/high.webp,pokemoncom
-bwp-BW42,BW42,Tornadus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW42/high.webp,pokemoncom
-bwp-BW43,BW43,Landorus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW43/high.webp,pokemoncom
-bwp-BW44,BW44,Kyurem,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW44/high.webp,pokemoncom
-bwp-BW45,BW45,Mewtwo-EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW45/high.webp,pokemoncom
-bwp-BW46,BW46,Darkrai-EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW46/high.webp,pokemoncom
-bwp-BW47,BW47,Rayquaza-EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW47/high.webp,pokemoncom
-bwp-BW48,BW48,Altaria,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW48/high.webp,pokemoncom
-bwp-BW49,BW49,Lilligant,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW49/high.webp,pokemoncom
-bwp-BW50,BW50,Tropical Beach,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW50/high.webp,pokemoncom
-bwp-BW51,BW51,Crobat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW51/high.webp,pokemoncom
+bwp-BW36,BW36,Reshiram-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW036-reshiram_ex.png,pokemoncom tcgdex:en
+bwp-BW37,BW37,Kyurem-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW037-kyurem_ex.png,pokemoncom tcgdex:en
+bwp-BW38,BW38,Zekrom-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW038-zekrom_ex.png,pokemoncom tcgdex:en
+bwp-BW39,BW39,Battle City,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW039-battle_city.png,pokemoncom tcgdex:en
+bwp-BW40,BW40,Volcarona,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW040-volcarona.png,pokemoncom tcgdex:en
+bwp-BW41,BW41,Thundurus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW041-thundurus.png,pokemoncom tcgdex:en
+bwp-BW42,BW42,Tornadus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW042-tornadus.png,pokemoncom tcgdex:en
+bwp-BW43,BW43,Landorus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW043-landorus.png,pokemoncom tcgdex:en
+bwp-BW44,BW44,Kyurem,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW044-kyurem.png,pokemoncom tcgdex:en
+bwp-BW45,BW45,Mewtwo-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW045-mewtwo_ex.png,pokemoncom tcgdex:en
+bwp-BW46,BW46,Darkrai-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW046-darkrai_ex.png,pokemoncom tcgdex:en
+bwp-BW47,BW47,Rayquaza-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW047-rayquaza_ex.png,pokemoncom tcgdex:en
+bwp-BW48,BW48,Altaria,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW048-altaria.png,pokemoncom tcgdex:en
+bwp-BW49,BW49,Lilligant,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW049-lilligant.png,pokemoncom tcgdex:en
+bwp-BW50,BW50,Tropical Beach,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW050-tropical_beach.png,pokemoncom tcgdex:en
+bwp-BW51,BW51,Crobat,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW051-crobat.png,pokemoncom tcgdex:en
 bwp-BW52,BW52,Lillipup,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW52/high.webp,pokemoncom
-bwp-BW53,BW53,Flygon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW53/high.webp,pokemoncom
-bwp-BW54,BW54,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW54/high.webp,pokemoncom
+bwp-BW53,BW53,Flygon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW053-flygon.png,pokemoncom tcgdex:en
+bwp-BW54,BW54,Pikachu,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW054-pikachu.png,pokemoncom tcgdex:en
 bwp-BW55,BW55,Elgyem,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW55/high.webp,pokemoncom
-bwp-BW56,BW56,Empoleon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW56/high.webp,pokemoncom
-bwp-BW57,BW57,Haxorus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW57/high.webp,pokemoncom
-bwp-BW58,BW58,Black Kyurem,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW58/high.webp,pokemoncom
-bwp-BW59,BW59,White Kyurem,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW59/high.webp,pokemoncom
+bwp-BW56,BW56,Empoleon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW056-empoleon.png,pokemoncom tcgdex:en
+bwp-BW57,BW57,Haxorus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW057-haxorus.png,pokemoncom tcgdex:en
+bwp-BW58,BW58,Black Kyurem,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW058-black_kyurem.png,pokemoncom tcgdex:en
+bwp-BW59,BW59,White Kyurem,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW059-white_kyurem.png,pokemoncom tcgdex:en
 bwp-BW60,BW60,Keldeo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW60/high.webp,pokemoncom
-bwp-BW61,BW61,Keldeo-EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW61/high.webp,pokemoncom
-bwp-BW62,BW62,Black Kyurem-EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW62/high.webp,pokemoncom
-bwp-BW63,BW63,White Kyurem-EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW63/high.webp,pokemoncom
-bwp-BW64,BW64,Drifblim,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW64/high.webp,pokemoncom
+bwp-BW61,BW61,Keldeo-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW061-keldeo_ex.png,pokemoncom tcgdex:en
+bwp-BW62,BW62,Black Kyurem-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW062-black_kyurem_ex.png,pokemoncom tcgdex:en
+bwp-BW63,BW63,White Kyurem-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW063-white_kyurem_ex.png,pokemoncom tcgdex:en
+bwp-BW64,BW64,Drifblim,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW064-drifblim.png,pokemoncom tcgdex:en
 bwp-BW65,BW65,Jigglypuff,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW65/high.webp,pokemoncom
-bwp-BW66,BW66,Ninetales,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW66/high.webp,pokemoncom
-bwp-BW67,BW67,Ampharos,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW67/high.webp,pokemoncom
-bwp-BW68,BW68,Meloetta,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW68/high.webp,pokemoncom
-bwp-BW69,BW69,Meloetta,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW69/high.webp,pokemoncom
-bwp-BW70,BW70,Virizion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW70/high.webp,pokemoncom
-bwp-BW71,BW71,Terrakion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW71/high.webp,pokemoncom
-bwp-BW72,BW72,Cobalion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW72/high.webp,pokemoncom
-bwp-BW73,BW73,Darkrai,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW73/high.webp,pokemoncom
-bwp-BW74,BW74,Giratina,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW74/high.webp,pokemoncom
-bwp-BW75,BW75,Metagross,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW75/high.webp,pokemoncom
-bwp-BW76,BW76,Electrode,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW76/high.webp,pokemoncom
+bwp-BW66,BW66,Ninetales,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW066-ninetales.png,pokemoncom tcgdex:en
+bwp-BW67,BW67,Ampharos,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW067-ampharos.png,pokemoncom tcgdex:en
+bwp-BW68,BW68,Meloetta,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW068-meloetta.png,pokemoncom tcgdex:en
+bwp-BW69,BW69,Meloetta,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW069-meloetta.png,pokemoncom tcgdex:en
+bwp-BW70,BW70,Virizion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW070-virizion.png,pokemoncom tcgdex:en
+bwp-BW71,BW71,Terrakion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW071-terrakion.png,pokemoncom tcgdex:en
+bwp-BW72,BW72,Cobalion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW072-cobalion.png,pokemoncom tcgdex:en
+bwp-BW73,BW73,Darkrai,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW073-darkrai.png,pokemoncom tcgdex:en
+bwp-BW74,BW74,Giratina,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW074-giratina.png,pokemoncom tcgdex:en
+bwp-BW75,BW75,Metagross,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW075-metagross.png,pokemoncom tcgdex:en
+bwp-BW76,BW76,Electrode,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW076-electrode.png,pokemoncom tcgdex:en
 bwp-BW77,BW77,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW77/high.webp,
 bwp-BW78,BW78,Raichu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW78/high.webp,
-bwp-BW79,BW79,Landorus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW79/high.webp,pokemoncom
-bwp-BW80,BW80,Druddigon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW80/high.webp,pokemoncom
-bwp-BW81,BW81,Thundurus-EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW81/high.webp,pokemoncom
-bwp-BW82,BW82,Deoxys-EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW82/high.webp,pokemoncom
-bwp-BW83,BW83,Lugia-EX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW83/high.webp,pokemoncom
-bwp-BW84,BW84,Porygon-Z,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW84/high.webp,pokemoncom
-bwp-BW85,BW85,Lucario,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW85/high.webp,pokemoncom
-bwp-BW86,BW86,Genesect,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW86/high.webp,pokemoncom
+bwp-BW79,BW79,Landorus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW079-landorus.png,pokemoncom tcgdex:en
+bwp-BW80,BW80,Druddigon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW080-druddigon.png,pokemoncom tcgdex:en
+bwp-BW81,BW81,Thundurus-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW081-thundurus_ex.png,pokemoncom tcgdex:en
+bwp-BW82,BW82,Deoxys-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW082-deoxys_ex.png,pokemoncom tcgdex:en
+bwp-BW83,BW83,Lugia-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW083-lugia_ex.png,pokemoncom tcgdex:en
+bwp-BW84,BW84,Porygon-Z,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW084-porygon_z.png,pokemoncom tcgdex:en
+bwp-BW85,BW85,Lucario,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW085-lucario.png,pokemoncom tcgdex:en
+bwp-BW86,BW86,Genesect,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW086-genesect.png,pokemoncom tcgdex:en
 bwp-BW87,BW87,Leafeon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW87/high.webp,pokemoncom
 bwp-BW88,BW88,Flareon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW88/high.webp,pokemoncom
 bwp-BW89,BW89,Vaporeon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW89/high.webp,pokemoncom
 bwp-BW90,BW90,Glaceon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW90/high.webp,pokemoncom
 bwp-BW91,BW91,Jolteon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW91/high.webp,pokemoncom
 bwp-BW92,BW92,Espeon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW92/high.webp,pokemoncom
-bwp-BW93,BW93,Umbreon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW93/high.webp,pokemoncom
-bwp-BW94,BW94,Eevee,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW94/high.webp,pokemoncom
-bwp-BW95,BW95,Champions Festival,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW95/high.webp,pokemoncom
-bwp-BW96,BW96,Tornadus-EX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/BWP/BWP_EN_BW96.png,tcgdex:fr
+bwp-BW93,BW93,Umbreon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW093-umbreon.png,pokemoncom tcgdex:en
+bwp-BW94,BW94,Eevee,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW094-eevee.png,pokemoncom tcgdex:en
+bwp-BW95,BW95,Champions Festival,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW095-champions_festival.png,pokemoncom tcgdex:en
+bwp-BW96,BW96,Tornadus-EX,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW096-tornadus_ex.png,pokemoncom tcgdex:fr
 bwp-BW97,BW97,Eevee,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW97/high.webp,pokemoncom
-bwp-BW98,BW98,Mew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW98/high.webp,pokemoncom
-bwp-BW99,BW99,Genesect,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW99/high.webp,pokemoncom
-bwp-BW100,BW100,N,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW100/high.webp,pokemoncom
-bwp-BW101,BW101,Genesect,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/bw/bwp/BW101/high.webp,pokemoncom
+bwp-BW98,BW98,Mew,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW098-mew.png,pokemoncom tcgdex:en
+bwp-BW99,BW99,Genesect,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW099-genesect.png,pokemoncom tcgdex:en
+bwp-BW100,BW100,N,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW100-n.png,pokemoncom tcgdex:en
+bwp-BW101,BW101,Genesect,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/BW/Promo_BW-PR_BLW/en_US-Promo_BW-BW101-genesect.png,pokemoncom tcgdex:en
