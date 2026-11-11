@@ -31,3 +31,19 @@ test('printing browser keeps a physical card outline at every size', async ({ ha
   expect(dimensions.radius).toBe('4.76% / 3.41%');
   await harness.expectNoHorizontalOverflow();
 });
+
+test.describe('signed-in native binder', () => {
+  test.use({ signedIn: true });
+
+  test('owner can change binder colour and finish glints', async ({ harness }) => {
+    await harness.page.locator('nav').first().getByRole('button', { name: 'More', exact: true }).click();
+    await harness.page.getByRole('menuitem', { name: 'Settings' }).click();
+    const settings = await openSettingsPage(harness.page.getByRole('dialog', { name: /settings/i }), 'Appearance');
+    await expect(settings.getByRole('switch', { name: 'Toggle card finish glints' })).toBeEnabled();
+    await settings.getByRole('button', { name: 'Ruby', exact: true }).click();
+    const apply = settings.getByRole('button', { name: 'Use for page 1', exact: true });
+    await apply.scrollIntoViewIfNeeded();
+    await apply.click();
+    await expect(settings.getByText(/Page 1 is currently using Ruby via a page override/)).toBeVisible();
+  });
+});

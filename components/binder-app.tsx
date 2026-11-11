@@ -786,7 +786,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const binderAppearance = useBinderAppearance({
     owner: resolvedCollectionOwnerUserId,
     settings,
-    enabled: Boolean(user && resolvedCollectionOwnerUserId) && !readOnlyMode,
+    enabled: Boolean(user && resolvedCollectionOwnerUserId) && !accountSettingsReadOnly,
     legacyKey: user && resolvedCollectionOwnerUserId ? `owner:${user.id}:${resolvedCollectionOwnerUserId}` : undefined,
   });
   const updateSettings = useCallback(
@@ -801,7 +801,7 @@ function BinderAppSurface(props: BinderAppProps) {
           ),
         );
       }
-      if (!binderAppearance.hasSavedDesign || readOnlyMode) return;
+      if (!binderAppearance.hasSavedDesign || accountSettingsReadOnly) return;
       if (
         updates.binderColorId === undefined &&
         updates.binderPageColors === undefined &&
@@ -839,7 +839,7 @@ function BinderAppSurface(props: BinderAppProps) {
         )
         .catch(() => {});
     },
-    [initialBinderId, updateLegacySettings, binderAppearance, readOnlyMode, settings.binderPageColors],
+    [initialBinderId, updateLegacySettings, binderAppearance, accountSettingsReadOnly, settings.binderPageColors],
   );
 
   const canEditBinder = !readOnlyMode;
@@ -2381,18 +2381,18 @@ function BinderAppSurface(props: BinderAppProps) {
 
   const handleSetGlobalBinderColor = useCallback(
     (binderColorId: BinderColorId) => {
-      if (readOnlyMode) return;
+      if (accountSettingsReadOnly) return;
       updateSettings({
         binderColorId,
         binderPageColors: {},
       });
     },
-    [readOnlyMode, updateSettings],
+    [accountSettingsReadOnly, updateSettings],
   );
 
   const handleSetCurrentPageBinderColor = useCallback(
     (binderColorId: BinderColorId) => {
-      if (readOnlyMode) return;
+      if (accountSettingsReadOnly) return;
       updateSettings(
         {
           binderPageColors: {
@@ -2406,12 +2406,18 @@ function BinderAppSurface(props: BinderAppProps) {
         },
       );
     },
-    [currentBinderPage, readOnlyMode, settings.binderPageColors, updateSettings, binderAppearance.design.pageColors],
+    [
+      currentBinderPage,
+      accountSettingsReadOnly,
+      settings.binderPageColors,
+      updateSettings,
+      binderAppearance.design.pageColors,
+    ],
   );
 
   const handleSetBinderColorForPageRange = useCallback(
     (binderColorId: BinderColorId, endPage: number) => {
-      if (readOnlyMode) return;
+      if (accountSettingsReadOnly) return;
 
       const safeEndPage = Math.min(Math.max(endPage, 1), totalBinderPages);
       const nextPageColors = { ...settings.binderPageColors };
@@ -2425,17 +2431,29 @@ function BinderAppSurface(props: BinderAppProps) {
         appearancePageColors[String(page)] = getBinderColorPreset(binderColorId).swatch[0];
       updateSettings({ binderPageColors: nextPageColors }, appearancePageColors);
     },
-    [readOnlyMode, settings.binderPageColors, totalBinderPages, updateSettings, binderAppearance.design.pageColors],
+    [
+      accountSettingsReadOnly,
+      settings.binderPageColors,
+      totalBinderPages,
+      updateSettings,
+      binderAppearance.design.pageColors,
+    ],
   );
 
   const handleClearCurrentPageBinderColor = useCallback(() => {
-    if (readOnlyMode) return;
+    if (accountSettingsReadOnly) return;
     const nextPageColors = { ...settings.binderPageColors };
     delete nextPageColors[String(currentBinderPage)];
     const appearancePageColors = { ...binderAppearance.design.pageColors };
     delete appearancePageColors[String(currentBinderPage)];
     updateSettings({ binderPageColors: nextPageColors }, appearancePageColors);
-  }, [currentBinderPage, readOnlyMode, settings.binderPageColors, updateSettings, binderAppearance.design.pageColors]);
+  }, [
+    currentBinderPage,
+    accountSettingsReadOnly,
+    settings.binderPageColors,
+    updateSettings,
+    binderAppearance.design.pageColors,
+  ]);
 
   const {
     ref: binderRef,

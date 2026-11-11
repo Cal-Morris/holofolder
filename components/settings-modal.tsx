@@ -476,7 +476,7 @@ export default function SettingsModal({
                 checked={settings.binderSlotGlareEnabled}
                 onCheckedChange={(checked) => onUpdateSettings({ binderSlotGlareEnabled: checked })}
                 aria-label="Toggle binder slot glare"
-                disabled={isReadOnlyView}
+                disabled={isAccountReadOnly}
               />
             </div>
             {!isReadOnlyView && (
@@ -533,7 +533,7 @@ export default function SettingsModal({
                 checked={settings.cardFinishEffectsEnabled}
                 onCheckedChange={(checked) => onUpdateSettings({ cardFinishEffectsEnabled: checked })}
                 aria-label="Toggle card finish glints"
-                disabled={isReadOnlyView}
+                disabled={isAccountReadOnly}
               />
             </div>
             <div className="pt-2">
@@ -551,7 +551,7 @@ export default function SettingsModal({
                       key={preset.id}
                       type="button"
                       onClick={() => setSelectedBinderColorId(preset.id)}
-                      disabled={isReadOnlyView}
+                      disabled={isAccountReadOnly}
                       className={`rounded-2xl border p-2 text-left transition-colors ${
                         isSelected
                           ? 'border-primary bg-primary/10 shadow-sm'
@@ -575,7 +575,7 @@ export default function SettingsModal({
                   variant="outline"
                   className="w-full"
                   onClick={() => onSetGlobalBinderColor(selectedBinderColorId)}
-                  disabled={isReadOnlyView}
+                  disabled={isAccountReadOnly}
                 >
                   Use for all pages
                 </Button>
@@ -583,7 +583,7 @@ export default function SettingsModal({
                   type="button"
                   className="w-full"
                   onClick={() => onSetCurrentPageBinderColor(selectedBinderColorId)}
-                  disabled={isReadOnlyView}
+                  disabled={isAccountReadOnly}
                 >
                   Use for page {currentBinderPage}
                 </Button>
@@ -600,7 +600,7 @@ export default function SettingsModal({
                     max={totalBinderPages}
                     inputMode="numeric"
                     value={pageRangeInput}
-                    disabled={isReadOnlyView}
+                    disabled={isAccountReadOnly}
                     onChange={(event) => setPageRangeInput(event.target.value)}
                     onBlur={() => setPageRangeInput(String(safePageRangeEnd))}
                     className="border-border/50 bg-background/80 h-10 w-20 rounded-xl border px-3 text-base font-medium tabular-nums md:text-sm"
@@ -609,7 +609,7 @@ export default function SettingsModal({
                     type="button"
                     variant="outline"
                     className="flex-1"
-                    disabled={isReadOnlyView}
+                    disabled={isAccountReadOnly}
                     onClick={() => {
                       onSetBinderColorForPageRange(selectedBinderColorId, safePageRangeEnd);
                       setPageRangeInput(String(safePageRangeEnd));
@@ -640,7 +640,7 @@ export default function SettingsModal({
                     variant="ghost"
                     className="text-muted-foreground hover:text-foreground mt-2 h-8 px-0 text-xs"
                     onClick={onClearCurrentPageBinderColor}
-                    disabled={isReadOnlyView}
+                    disabled={isAccountReadOnly}
                   >
                     Clear page {currentBinderPage} override
                   </Button>
