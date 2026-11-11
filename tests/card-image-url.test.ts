@@ -61,3 +61,58 @@ test('only proxies the playshop.fr path on the shared Shopify CDN', () => {
   const other = 'https://cdn.shopify.com/s/files/1/0000/0000/0001/files/logo.png';
   assert.equal(toCardImageSrc(other), other);
 });
+
+describe('small card renditions', () => {
+  const base = 'https://assets.holofolder.com/';
+  test('maps public objects to their stored small copy', async () => {
+    const { toSmallCardAssetSrc, toCardThumbnailSrc } = await import('../lib/card-image-url');
+    assert.equal(
+      toSmallCardAssetSrc(`${base}pokemon/tcg/cards/en/sv01/001/high.webp`),
+      `${base}pokemon/tcg/cards/en/sv01/001/low.webp`,
+    );
+    assert.equal(
+      toSmallCardAssetSrc(`${base}pokemon/tcg/cards/src/malie/tcgl/me6/me6_en_001_std.webp`),
+      `${base}pokemon/tcg/cards/src/malie/tcgl/me6/me6_en_001_std.low.webp`,
+    );
+    assert.equal(toSmallCardAssetSrc(`${base}pokemon/tcg/cards/src/malie/tcgl/me6/me6_en_001_std.low.webp`), null);
+    assert.equal(toSmallCardAssetSrc('https://example.com/card.webp'), null);
+    const malie = 'https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/me6/me6_en_001_std.png';
+    assert.deepEqual(toCardThumbnailSrc(malie), {
+      src: `${base}pokemon/tcg/cards/src/malie/tcgl/me6/me6_en_001_std.low.webp`,
+      full: `${base}pokemon/tcg/cards/src/malie/tcgl/me6/me6_en_001_std.webp`,
+    });
+    assert.equal(toCardThumbnailSrc(null), null);
+  });
+
+  test('card images offer the small copy in their srcset', async () => {
+    const { getCardImageAttributes } = await import('../lib/card-image-loader');
+    const source = `${base}pokemon/tcg/cards/src/malie/tcgl/me6/me6_en_001_std.webp`;
+    assert.equal(
+      getCardImageAttributes(source, '25vw').srcSet,
+      `${base}pokemon/tcg/cards/src/malie/tcgl/me6/me6_en_001_std.low.webp 320w, ${source} 734w`,
+    );
+    const tcgdex = `${base}pokemon/tcg/cards/en/sv01/001/high.webp`;
+    assert.equal(
+      getCardImageAttributes(tcgdex, '25vw').srcSet,
+      `${base}pokemon/tcg/cards/en/sv01/001/low.webp 320w, ${tcgdex} 600w`,
+    );
+  });
+
+  test('the small rendition is 320 wide WebP', async () => {
+    const { default: sharp } = await import('sharp');
+    const { renderLowRendition } = await import('../lib/card-image-transform');
+    // Synthetic 734 × 1024 grey image.
+    const input = await sharp({ create: { width: 734, height: 1024, channels: 3, background: '#888888' } })
+      .webp()
+      .toBuffer();
+    const output = await sharp(
+      Buffer.from(
+        await renderLowRendition(
+          input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength) as ArrayBuffer,
+        ),
+      ),
+    ).metadata();
+    assert.equal(output.width, 320);
+    assert.equal(output.format, 'webp');
+  });
+});
