@@ -6,6 +6,9 @@ export interface TCGSetSummary {
   seriesName?: string
   officialCardCount?: number
   releaseDate?: string
+  /** Set symbol and logo image URLs (origin URLs; load them through the image proxy). Only on the browse list. */
+  symbol?: string
+  logo?: string
 }
 
 export interface TCGSetSlotCard extends CardCatalogIdentity {

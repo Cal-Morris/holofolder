@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { searchMirroredSets, getMirroredSetDexSlots, getRecentMirroredSets } from "@/lib/tcg-mirror"
+import { searchMirroredSets, getMirroredSetDexSlots, getRecentMirroredSets, getBrowsableMirroredSets } from "@/lib/tcg-mirror"
 import { normalizeCardLanguage } from "@/lib/domain/cards"
 import { POKEMON_CATALOG } from "@/lib/pokemon-catalog"
 import { SET_SEARCH_RESULT_LIMIT } from "@/lib/tcg-set-slots"
@@ -11,6 +11,10 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
 
   try {
+    if (searchParams.get("all") === "1") {
+      return NextResponse.json({ sets: await getBrowsableMirroredSets(), selectedSet: null, slots: [] }, { headers: PUBLIC_JSON_CACHE_HEADERS })
+    }
+
     if (searchParams.get("recent") === "1") {
       const asOfDate = new Date().toISOString().slice(0, 10)
       const recentSets = await getRecentMirroredSets(asOfDate, 6)

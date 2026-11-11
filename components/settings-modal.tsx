@@ -24,6 +24,7 @@ import { buildBinderShareUrl } from "@/lib/binder-share"
 import type { User } from "@supabase/supabase-js"
 
 
+const OfflineSetPicker = dynamic(() => import("@/components/show-offline-prep").then(module => module.OfflineSetPicker), { loading: () => <p className="text-xs text-muted-foreground">Loading offline tools…</p> })
 const DeveloperSettings = dynamic(() => import("@/components/developer-settings"), { loading: () => <p className="text-sm text-muted-foreground">Loading developer access…</p> })
 
 type SettingsTabId = "binder" | "display" | "share" | "account"
@@ -499,6 +500,13 @@ export default function SettingsModal({
             {pwaStatusMessage && (
               <p className="text-xs text-primary">{pwaStatusMessage}</p>
             )}
+            <section aria-label="Offline sets" className="space-y-3 rounded-2xl border border-border/50 bg-muted/25 p-3">
+              <div>
+                <p className="text-sm font-medium">Offline sets</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Save whole sets (checklists, card thumbnails and last-known prices) to browse them with no signal.</p>
+              </div>
+              <OfflineSetPicker isOnline={isOnline} />
+            </section>
           </div>
           )}
 
