@@ -64,7 +64,7 @@ async function checkToolbar(page: import("@playwright/test").Page, insets: { top
   await info.attach("computed styles", { path: measurements, contentType: "application/json" })
   await info.attach("toolbar", { path: screenshot, contentType: "image/png" })
   const font = await page.locator("body").evaluate(e => getComputedStyle(e).fontFamily)
-  for (const control of [picker, view, edit, ...["Scan page", "Scan card", "Storage"].map(name => page.getByRole("button", { name, exact: true }))]) {
+  for (const control of [picker, view, edit, ...["Show pockets", "Scan page", "Scan card", "Storage"].map(name => page.getByRole("button", { name, exact: true }))]) {
     await expect(control).toHaveCSS("font-family", font)
     const h = new Harness(page, insets, true)
     await h.expectMinTapTarget(control)

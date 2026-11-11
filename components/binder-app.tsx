@@ -2976,6 +2976,8 @@ function BinderAppSurface(props: BinderAppProps) {
       {browserSurface && <div className="flex shrink-0 items-center gap-1 px-3 pb-1 sm:px-4 md:px-7">
         {browserSurface.toolbar}
         {browserSurface.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder"
+          && activeMainView === "binder" && stagedSlotDisplay && !editingLayout && <CollectionFilterBar value={collectionViewFilter} onChange={setCollectionViewFilter} />}
+        {browserSurface.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder"
           && activeMainView === "binder" && !legacyReadOnlyMode && !shareViewToken && !editingLayout && stagedSlotDisplay && stagedSlotCatalog && browserSurface.scan
           && collectionViewFilter === "all" && selectedGen === 0 && <NativeBinderScanner
             key={`${layoutScopeKey}:${currentBinderPage}`} available={browserSurface.scan.available && browserSurface.scan.rows === settings.binderRows && browserSurface.scan.cols === settings.binderCols} online={browserSurface.scan.online}
@@ -2987,8 +2989,6 @@ function BinderAppSurface(props: BinderAppProps) {
         {!editingLayout && layoutToolbar}
         {browserSurface.storageMenu}
       </div>}
-      {browserSurface?.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder"
-        && activeMainView === "binder" && stagedSlotDisplay && !editingLayout && <CollectionFilterBar value={collectionViewFilter} onChange={setCollectionViewFilter} />}
       {browserHeader}
       {isInstalledApp && isShowModeOn && user && !readOnlyMode && <PartnerPushPrompt userId={user.id} onOpen={() => openExclusively(() => { setPushSettingsRequested(true); setIsSettingsOpen(true) })} />}
 
