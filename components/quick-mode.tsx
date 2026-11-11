@@ -432,11 +432,13 @@ function QuickMode({
   const detailOpen = Boolean(checkView ?? bundleView)
   const wideWorkspace = Boolean(show) && isWide
   const twoPane = wideWorkspace && detailOpen
+  // Desktop and tablet get a centred command palette with the search on top, phones keep the full-height thumb layout.
+  const palette = isWide && !show
 
   const nothingFound = Boolean(trimmed) && !cardSearch.loading && destinations.length === 0 && pokemonResults.length === 0 && cardResults.length === 0 && illustrators.length === 0 && setHits.length === 0
 
   const searchControls = (
-    <div className={`holo-panel shrink-0 rounded-3xl border border-border/60 px-3 py-3 ${wideWorkspace ? "mx-3 mb-3" : "mx-3 mb-[calc(var(--safe-bottom)+0.5rem)] mt-2"}`}>
+    <div className={palette ? "mx-3 mb-2 shrink-0" : `holo-panel shrink-0 rounded-3xl border border-border/60 px-3 py-3 ${wideWorkspace ? "mx-3 mb-3" : "mx-3 mb-[calc(var(--safe-bottom)+0.5rem)] mt-2"}`}>
       {show && bundle.length > 0 && (
         <button
           type="button"
@@ -511,9 +513,11 @@ function QuickMode({
         onClick={(event) => event.stopPropagation()}
         // While the phone's keyboard is up the dialog fits the visible part of the page (app/globals.css).
         data-keyboard-fit
-        className={`mx-auto flex h-[100dvh] w-full ${wideWorkspace ? "max-w-6xl" : "max-w-xl"} flex-col bg-background pt-[var(--top-inset)] sm:border-x sm:border-border/60`}
+        className={palette
+          ? "mx-auto mt-[12dvh] flex max-h-[min(40rem,76dvh)] w-[calc(100%-2rem)] max-w-2xl flex-col overflow-hidden rounded-[28px] border border-border/60 bg-background pb-1 pt-3 shadow-2xl shadow-black/40"
+          : `mx-auto flex h-[100dvh] w-full ${wideWorkspace ? "max-w-6xl" : "max-w-xl"} flex-col bg-background pt-[var(--top-inset)] sm:border-x sm:border-border/60`}
       >
-        <header data-sheet-grabber {...prepSwipe} className="holo-panel mx-3 mb-3 flex shrink-0 items-center gap-2 rounded-3xl border border-border/60 px-3 py-2">
+        <header data-sheet-grabber {...prepSwipe} className={`flex shrink-0 items-center gap-2 ${palette ? "mx-3 mb-2 pl-2" : "holo-panel mx-3 mb-3 rounded-3xl border border-border/60 px-3 py-2"}`}>
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-bold leading-tight">{preparingOffline ? "Prepare offline" : lookupOnly ? "Price check" : show ? "Show mode" : "Quick mode"}</h2>
           </div>
@@ -539,7 +543,7 @@ function QuickMode({
         // Keep the finder mounted when detail opens so filters and scroll position survive selection.
         <div className={wideWorkspace ? `grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] ${twoPane ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "grid-cols-1"}` : "contents"}>
         <div className={wideWorkspace ? `flex min-h-0 min-w-0 flex-col ${twoPane ? "border-r border-border/50" : ""}` : "contents"}>
-        {wideWorkspace && searchControls}
+        {(wideWorkspace || palette) && searchControls}
         {show && !trimmed && browsing ? (
           <ShowPokemonCards
             key={browsing.id}
@@ -577,7 +581,7 @@ function QuickMode({
           />
         ) : (
         /* Results grow upwards from the search field so the best match sits nearest the thumb. */
-        <div className={`flex min-h-0 flex-1 ${wideWorkspace ? "flex-col" : "flex-col-reverse"} overflow-y-auto overscroll-contain px-2 pb-2`} data-testid="quick-results">
+        <div className={`flex min-h-0 flex-1 ${wideWorkspace || palette ? "flex-col" : "flex-col-reverse"} overflow-y-auto overscroll-contain px-2 pb-2`} data-testid="quick-results">
           <div>
             {!trimmed && <>
               {history.status && <p role="status" className="py-1 text-xs text-muted-foreground">{history.status}</p>}
@@ -700,7 +704,7 @@ function QuickMode({
             {destinations.length > 0 && (
               <section aria-label="Go to">
                 <h3 className={sectionTitle}>Go to</h3>
-                <div className={trimmed ? "" : "grid grid-cols-2 gap-2 px-1"}>
+                <div className={trimmed ? "" : `grid ${palette ? "grid-cols-3" : "grid-cols-2"} gap-2 px-1`}>
                   {destinations.map((destination) => {
                     const Icon = DESTINATION_ICONS[destination.id]
                     return (
@@ -755,7 +759,7 @@ function QuickMode({
         </div>
         )}
 
-        {!wideWorkspace && searchControls}
+        {!wideWorkspace && !palette && searchControls}
         </div>
         {twoPane && (
           <div className="flex min-h-0 min-w-0 flex-col" data-testid="show-detail-pane">
