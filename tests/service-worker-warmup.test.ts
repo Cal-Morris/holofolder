@@ -106,3 +106,22 @@ test('public asset requests reuse existing proxy/show caches when offline', asyn
   context.request = new Request('https://private.synthetic.test/cards/en/base1/1/low.webp');
   await assert.rejects(() => runInContext('cacheFirst(request, IMAGE_CACHE)', context), /synthetic offline/);
 });
+
+test('set artwork uses the existing public image cache for offline reuse', () => {
+  const context = createContext({
+    URL,
+    self: { location: { origin: 'https://holofolder.com' }, addEventListener: () => {} },
+  });
+  runInContext(readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8'), context);
+  assert.equal(
+    runInContext(
+      "isPublicCardAsset(new URL('https://assets.holofolder.com/pokemon/tcg/sets/fixture/symbol.webp'))",
+      context,
+    ),
+    true,
+  );
+  assert.equal(
+    runInContext("isPublicCardAsset(new URL('https://pokesymbols.com/images/tcg/sets/symbols/fixture.png'))", context),
+    false,
+  );
+});

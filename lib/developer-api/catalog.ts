@@ -9,7 +9,16 @@ const catalogId = z
   .describe('Globally unique opaque application ID, never a reusable provider-local key.');
 const game = z.literal(CATALOG_GAME);
 const names = z.record(z.string(), z.unknown());
-export const catalogGroupSchema = z.object({ id: catalogId, game, name: z.string(), names }).passthrough();
+export const catalogGroupSchema = z
+  .object({
+    id: catalogId,
+    game,
+    name: z.string(),
+    names,
+    symbol: z.url().optional().describe('Available set symbol on the Holo Folder CDN.'),
+    logo: z.url().optional().describe('Available set logo on the Holo Folder CDN.'),
+  })
+  .passthrough();
 // Detail reads retain their existing database-shaped fields.
 export const catalogGroupDetailSchema = z.object({ id: catalogId, game, name_json: names }).passthrough();
 export const catalogCardSchema = z

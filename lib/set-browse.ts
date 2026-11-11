@@ -1,3 +1,4 @@
+import { isSetYearQuery } from '@/lib/set-search';
 import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
 import type { TCGSetSummary } from '@/lib/tcg-set-slots';
 
@@ -39,7 +40,9 @@ export function filterSetGroups(
       ...group,
       sets: text
         ? group.sets.filter((set) =>
-            [set.name, set.id, group.series].some((value) => value.toLowerCase().includes(text)),
+            isSetYearQuery(text)
+              ? set.releaseDate?.startsWith(`${text}-`)
+              : [set.name, set.id, group.series].some((value) => value.toLowerCase().includes(text)),
           )
         : group.sets,
     }))
@@ -82,4 +85,22 @@ export function pickSetArtwork({
   const symbol = httpsUrl(images.symbol) ?? tcgdexAsset(tcgdexSymbol);
   const logo = tcgdexAsset(tcgdexLogo) ?? httpsUrl(images.logo);
   return { ...(symbol ? { symbol } : {}), ...(logo ? { logo } : {}) };
+}
+
+/** Old offline payloads may contain upstream URLs; never send those to a browser. */
+export function publicSetArtworkUrl(value: string | undefined) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.origin === 'https://assets.holofolder.com' &&
+      url.pathname.startsWith('/pokemon/tcg/sets/') &&
+      !url.search &&
+      !url.hash &&
+      !url.username &&
+      !url.password
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
 }

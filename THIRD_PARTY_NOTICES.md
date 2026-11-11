@@ -61,3 +61,13 @@ These images are not covered by AGPL, the TCGdex database MIT license or the Pok
 ## Historical starter assets
 
 Early commits contain v0 starter icons and the `public/placeholder-*`/`public/placeholder.*` assets. They came with the initial [v0](https://v0.dev) scaffold (`2c07972`), not the Holo Folder mark, and were later replaced or removed. This attribution does not assign an invented MIT/AGPL license to them. See [asset provenance](docs/asset-provenance.md) for the exact paths and remaining source-license limits.
+
+## Set symbols and logos
+
+Set symbol lookup is inspired by [PokéSymbols](https://pokesymbols.com/tcg/sets).
+Symbols copied from that site include images by [u/hexcalibur01000](https://www.reddit.com/user/hexcalibur01000/)
+and recreations by PokéSymbols, as described on its [About page](https://pokesymbols.com/about).
+Additional symbols and logos come from TCGdex, pokemontcg.io and Scrydex. The source URL for each mirrored file is recorded
+in `card-assets/pokemon/tcg/set-artwork.json`. These files are served from Holo Folder's CDN.
+No separate reuse licence was stated for the PokéSymbols images; credit does not change Pokémon's ownership
+of its symbols, names and artwork. These assets are not covered by this repository's software licence.

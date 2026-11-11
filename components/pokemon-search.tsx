@@ -25,6 +25,7 @@ import { formatCardNumber, type SearchCardResult } from '@/lib/pokemon-card-brow
 import type { BinderHistory } from '@/hooks/use-binder-history';
 import RecentSearches from '@/components/recent-searches';
 import { toRecentCard, type RecentCard } from '@/lib/recent-cards';
+import { SetSymbol } from '@/components/set-symbol';
 import { useCardSearch, useIllustratorSearch, useSetSearch } from '@/hooks/use-card-search';
 import { formatSetHitMeta } from '@/lib/set-search';
 import type { TCGSetSummary } from '@/lib/tcg-set-slots';
@@ -614,9 +615,7 @@ export default function PokemonSearch({
                         aria-label={`Open set ${set.name}${meta ? `, ${meta}` : ''}`}
                         className="hover:bg-primary/10 flex min-h-11 w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left"
                       >
-                        <span className="bg-muted text-muted-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded-full">
-                          <Layers3 className="h-4 w-4" />
-                        </span>
+                        <SetSymbol set={set} />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold">{set.name}</span>
                           {meta ? (

@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { SetSymbol } from '@/components/set-symbol';
 import { useCardSearch, useIllustratorSearch, useSetSearch } from '@/hooks/use-card-search';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { getCardPriceKey, useStableCardPriceLookups, type CardPriceSnapshot } from '@/hooks/use-card-prices';
@@ -836,9 +837,7 @@ function QuickMode({
                                 onBrowseSet?.(set);
                               }}
                             >
-                              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sky-500">
-                                <Layers3 className="h-5 w-5" aria-hidden />
-                              </span>
+                              <SetSymbol set={set} />
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate text-[15px] font-semibold">{set.name}</span>
                                 {meta ? (

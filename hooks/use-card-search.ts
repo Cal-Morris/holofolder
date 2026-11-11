@@ -15,7 +15,7 @@ import {
 import { readOfflineSets, searchOfflineCardsWithCorrection } from '@/lib/offline-card-index';
 import { loadIllustratorDirectory } from '@/lib/illustrator-client';
 import { normalizeIllustratorText, searchIllustrators, type IllustratorSummary } from '@/lib/illustrators';
-import { isSetSearchQuery, rankSetMatches, SEARCH_SET_RESULT_LIMIT } from '@/lib/set-search';
+import { isSetSearchQuery, rankSetMatches } from '@/lib/set-search';
 import type { TCGSetSlotsResponse, TCGSetSummary } from '@/lib/tcg-set-slots';
 
 const CARD_SEARCH_DEBOUNCE_MS = 250;
@@ -180,10 +180,10 @@ export function useIllustratorSearch(query: string, enabled: boolean) {
 type SetSearchState = { key: string; sets: TCGSetSummary[] };
 
 /**
- * Mirrored sets whose name or id match the query (the Sets view's search API), best match first. Offline it
+ * Mirrored sets whose name, id or release year match the query (the Sets view's search API), best match first. Offline it
  * matches the set lists saved on this device; nothing saved means no set rows, never a guess.
  */
-export function useSetSearch(query: string, enabled: boolean, limit = SEARCH_SET_RESULT_LIMIT) {
+export function useSetSearch(query: string, enabled: boolean, limit?: number) {
   const [state, setState] = useState<SetSearchState>({ key: '', sets: [] });
   const key = enabled && isSetSearchQuery(query) ? query.trim().replace(/\s+/g, ' ').toLowerCase() : '';
 

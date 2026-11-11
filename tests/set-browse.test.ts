@@ -74,3 +74,11 @@ describe('set browse', () => {
     assert.deepEqual(pickSetArtwork({}), {});
   });
 });
+
+test('browse filters by exact release year while retaining the series filter', () => {
+  assert.deepEqual(
+    filterSetGroups(sets, { series: null, query: '2026' }).flatMap((group) => group.sets.map((set) => set.id)),
+    ['new2', 'new1'],
+  );
+  assert.deepEqual(filterSetGroups(sets, { series: 'Old Era', query: '2026' }), []);
+});

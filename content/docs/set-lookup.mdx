@@ -1,0 +1,21 @@
+---
+title: Find sets by year
+description: Identify a set from the year and symbol printed on a card.
+---
+
+Type a four-digit release year, such as `2017`, into Search or Quick mode to see all matching sets in the catalogue,
+newest first. Each result shows the set's symbol, name and available release details. Tap a result to open its cards.
+You can also search by year in Sets. Name and printed-code searches continue to work.
+
+Year lookup uses the set's release date, which may differ from a copyright year on a reprinted card.
+Sets without a known release date cannot be matched by year. Offline, search uses only set lists already saved on
+this device; an image that has not been cached falls back to the set's initials.
+
+Symbols and logos are served from Holo Folder's CDN. Credits & attributions lists their sources, including PokéSymbols.
+Show mode keeps its card and price lookup, without set navigation results.
+
+## REST and MCP
+
+`GET /app/api/v1/sets?year=2017` and MCP `list_sets` with `{"year":"2017"}` filter the catalogue by the same release year.
+Use the existing cursor to page through every match. The optional `symbol` and `logo` fields contain available public
+CDN URLs. Missing artwork is omitted. Series filtering can be combined with the year.

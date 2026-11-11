@@ -61,6 +61,7 @@ import { getMirrorDatabaseUrl } from '../lib/card-db-sync';
 import { run as fillGaps } from './card-assets/fill-gaps';
 import { run as rebuildInventory } from './card-assets/inventory';
 import { run as mirrorPokemonCom } from './card-assets/mirror-pokemoncom';
+import { run as mirrorSets } from './card-assets/mirror-sets';
 import { run as mirrorTcgdex } from './card-assets/mirror-tcgdex';
 import { developerImageKey } from '../lib/developer-api/image-identity';
 import { loadProjectEnvFiles } from '../lib/load-project-env';
@@ -767,6 +768,7 @@ const commands: Record<string, () => Promise<void>> = {
   publish,
   renditions,
   'mirror-tcgdex': mirrorTcgdex,
+  'mirror-sets': mirrorSets,
   'mirror-pokemoncom': mirrorPokemonCom,
   'fill-gaps': fillGaps,
   inventory: rebuildInventory,
