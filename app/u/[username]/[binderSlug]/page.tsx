@@ -19,7 +19,11 @@ const load = cache(async (username: string, binderSlug: string) => {
 type Props = { params: Promise<{ username: string; binderSlug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username, binderSlug } = await params;
-  return loadShareMetadata(await load(username, binderSlug), username);
+  return loadShareMetadata(
+    await load(username, binderSlug),
+    username,
+    `https://holofolder.com/app/u/${encodeURIComponent(username)}/${encodeURIComponent(binderSlug)}/preview.jpg`,
+  );
 }
 export default async function NamedBinderPage({ params }: Props) {
   const { username, binderSlug } = await params;

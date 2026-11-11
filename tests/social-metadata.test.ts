@@ -32,3 +32,11 @@ test('invalid usernames never become public identity in previews', () => {
   assert.equal(metadata.title, 'Synthetic binder · Holo Folder');
   assert.ok(!JSON.stringify(metadata).includes('private@example.com'));
 });
+
+test('named binder previews use their own rendered image', () => {
+  const url = 'https://holofolder.com/app/u/synthetic-owner/national-dex/preview.jpg';
+  const metadata = binderShareMetadata('synthetic-owner', 'National Dex', url);
+  const images = [{ url, width: 1200, height: 630, alt: metadata.title }];
+  assert.deepEqual(metadata.openGraph?.images, images);
+  assert.deepEqual(metadata.twitter?.images, images);
+});

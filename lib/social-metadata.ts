@@ -15,16 +15,18 @@ export const socialMetadata = {
   twitter: { card: 'summary_large_image', title, description, images: [image] },
 } satisfies Metadata;
 
-export function binderShareMetadata(username: unknown, binderName: unknown): Metadata {
+/** `previewImage`: the binder's own rendered preview, else the site artwork. */
+export function binderShareMetadata(username: unknown, binderName: unknown, previewImage?: string): Metadata {
   const owner = normalizeUsername(username);
   const binder = normalizeBinderName(binderName) ?? 'Pokémon binder';
   const title = `${owner ? `@${owner}’s ` : ''}${binder} · Holo Folder`;
   const description = `View ${owner ? `@${owner}’s ` : ''}${binder} on Holo Folder, a read-only Pokémon card collection.`;
+  const images = previewImage ? [{ url: previewImage, width: 1200, height: 630, alt: title }] : [image];
   return {
     title,
     description,
     robots: { index: false, follow: false },
-    openGraph: { ...socialMetadata.openGraph, title, description },
-    twitter: { ...socialMetadata.twitter, title, description },
+    openGraph: { ...socialMetadata.openGraph, title, description, images },
+    twitter: { ...socialMetadata.twitter, title, description, images },
   };
 }
