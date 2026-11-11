@@ -12,7 +12,6 @@ Requirements: [Bun](https://bun.sh) and a Supabase project.
 
 ```bash
 bun install --frozen-lockfile
-git config core.hooksPath .githooks   # pre-commit: format staged files and type-check
 cp .env.example .env.local   # fill in the Supabase URL, anon key and service role key
 bun run dev                   # http://localhost:3000/app
 ```
