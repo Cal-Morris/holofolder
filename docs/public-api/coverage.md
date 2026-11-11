@@ -40,6 +40,7 @@ API keys are REST-only. MCP requires resource-bound OAuth with explicit grants. 
 - `get_pokemon_set_slots` at `/pokemon/sets/{id}/slots` is a dex grouping of species, not stable storage.
 - Catalog cards, sets and series declare `game:"pokemon"`, with opaque global IDs and source-keyed provider evidence. No other game is supported.
 - Native developer reads are pages and details, not complete snapshots. They omit certificates, private assets, immutable sources and planning evidence.
+- Deleting a binder with its cards, as the app offers, is `execute_inventory_commands` with `deleteCollection` and `removeOwned: true` (migration 111). `delete_binder` keeps its older behaviour and releases copies to Unassigned.
 - `restore_raw_collection_content` accepts command version 4 only and supports existing converted binders. Full-owner, settings, asset, CSV, graded and structural restores are unsupported.
 
 ## Verification

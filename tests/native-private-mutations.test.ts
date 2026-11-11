@@ -169,3 +169,11 @@ test('generated API and agent reference exports describe preserve and replacemen
     assert.doesNotMatch(markdown, /native_operations_staged/);
   }
 });
+
+test('deleteCollection accepts removeOwned:true only, matching the app delete-with-cards option', () => {
+  const del = { kind: 'deleteCollection', collectionId, slots: [slot], replacementDefaultCollectionId: null };
+  const parse = (command: object) =>
+    schema('execute_inventory_commands').safeParse({ ...inventory, commands: [command] }).success;
+  assert.equal(parse({ ...del, removeOwned: true }), true);
+  assert.equal(parse({ ...del, removeOwned: false }), false);
+});

@@ -25,7 +25,7 @@ Use the same arguments with the REST path below or the same-named MCP tool. Path
 
 Use current inventory, collection, layout, slot, item and placement revisions. Preserve the original `operationId`, identities, expected owner and request across retries. A timeout or lost response is an unknown outcome. Never refresh preconditions or allocate a replacement ID to retry an unknown write.
 
-Only explicit `removeOwned` deletes ownership. Clearing or removing a slot, removing a placement, and deleting a collection release its copies to Unassigned. Deleting the default requires an explicit valid replacement where the command requires one. Empty targets, spacers and wants never manufacture owned copies.
+Only explicit `removeOwned` deletes ownership. Clearing or removing a slot, removing a placement, and deleting a collection release its copies to Unassigned. To delete a collection together with its cards, send `deleteCollection` with `removeOwned: true` (migration 111): raw copies in it are deleted, graded copies still go to Unassigned because their label assets can't be restored. Deleting the default requires an explicit valid replacement where the command requires one. Empty targets, spacers and wants never manufacture owned copies.
 
 ## Preserve private fields
 
