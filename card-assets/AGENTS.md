@@ -59,9 +59,9 @@ The mapping of which source we prefer for what. One row per decision.
 | `prefer` | Source ids in order, separated by `>`. The first source that has an image for the card wins. `reviewed` means the card's hand-reviewed catalog image (`external_ids_json.catalog.image`), whatever its host. |
 | `reason`, `decided` | Why, and when. Write the reason for someone who wasn't there. |
 
-The only rule today is `*`, which encodes the app's current order (`pickCardImageUrl` in `lib/card-image-sources.ts`). `verify` proves it: `differsFromApp` is 0. To change a set, add a more specific row, run `plan`, and review the ledger diff: it shows exactly which cards move from which source to which.
+The `*` rule encodes the app's default order (`pickCardImageUrl` in `lib/card-image-sources.ts`), and `verify` proves it: `differsFromApp` is 0 when nothing else is pending. A token can name a language: `tcgdex:en` matches only TCGdex's English print, while a plain `tcgdex` matches a print in any language. To change a set, add a more specific row, run `plan`, and review the ledger diff: it shows exactly which cards move from which source to which.
 
-The app also hides pokemon.com's English image when TCGdex only has a foreign print. The tool keeps that gate (the candidate is marked ineligible), so it matches the app. `plan` counts the cards affected (`foreignPrintWithStoredEnglishOfficial`).
+pokemon.com's images are only 245 × 342, so the default order puts them after TCGdex's English print (600 × 825) and before any foreign print.
 
 ## The ledger
 

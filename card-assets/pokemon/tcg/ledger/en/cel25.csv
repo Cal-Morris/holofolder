@@ -1,38 +1,38 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-cel25-1,1,Ho-Oh,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_1.png,tcgdex:en pokemontcg tcgplayer
-cel25-2,2,Reshiram,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_2.png,tcgdex:en pokemontcg tcgplayer
+cel25-1,1,Ho-Oh,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/1/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-2,2,Reshiram,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/2/high.webp,pokemoncom pokemontcg tcgplayer
 cel25-2A,2A,Blastoise,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/swsh/cel25/2A/high.webp,
-cel25-3,3,Kyogre,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_3.png,tcgdex:en pokemontcg tcgplayer
-cel25-4,4,Palkia,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_4.png,tcgdex:en pokemontcg tcgplayer
+cel25-3,3,Kyogre,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/3/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-4,4,Palkia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/4/high.webp,pokemoncom pokemontcg tcgplayer
 cel25-4A,4A,Charizard,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/swsh/cel25/4A/high.webp,
-cel25-5,5,Pikachu,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_5.png,tcgdex:en pokemontcg tcgplayer
-cel25-6,6,Flying Pikachu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_6.png,tcgdex:en pokemontcg tcgplayer
-cel25-7,7,Flying Pikachu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_7.png,tcgdex:en pokemontcg tcgplayer
-cel25-8,8,Surfing Pikachu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_8.png,tcgdex:en pokemontcg tcgplayer
+cel25-5,5,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/5/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-6,6,Flying Pikachu V,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/6/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-7,7,Flying Pikachu VMAX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/7/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-8,8,Surfing Pikachu V,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/8/high.webp,pokemoncom pokemontcg tcgplayer
 cel25-8A,8A,Dark Gyarados,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/swsh/cel25/8A/high.webp,
-cel25-9,9,Surfing Pikachu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_9.png,tcgdex:en pokemontcg tcgplayer
+cel25-9,9,Surfing Pikachu VMAX,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/9/high.webp,pokemoncom pokemontcg tcgplayer
 cel25-9A,9A,Team Magma's Groudon,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/swsh/cel25/9A/high.webp,
-cel25-10,10,Zekrom,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_10.png,tcgdex:en pokemontcg tcgplayer
-cel25-11,11,Mew,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_11.png,tcgdex:en pokemontcg tcgplayer
-cel25-12,12,Xerneas,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_12.png,tcgdex:en pokemontcg tcgplayer
-cel25-13,13,Cosmog,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_13.png,tcgdex:en pokemontcg tcgplayer
-cel25-14,14,Cosmoem,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_14.png,tcgdex:en pokemontcg tcgplayer
-cel25-15,15,Lunala,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_15.png,tcgdex:en pokemontcg tcgplayer
+cel25-10,10,Zekrom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/10/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-11,11,Mew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/11/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-12,12,Xerneas,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/12/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-13,13,Cosmog,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/13/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-14,14,Cosmoem,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/14/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-15,15,Lunala,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/15/high.webp,pokemoncom pokemontcg tcgplayer
 cel25-15A1,15A1,Venusaur,*,pokemontcg,rehost,,https://images.pokemontcg.io/cel25c/15_A_hires.png,
 cel25-15A2,15A2,Here Comes Team Rocket!,*,pokemontcg,rehost,,https://images.pokemontcg.io/cel25c/15_B_hires.png,
 cel25-15A3,15A3,Rocket's Zapdos,*,pokemontcg,rehost,,https://images.pokemontcg.io/cel25c/15_C_hires.png,
 cel25-15A4,15A4,Claydol,*,pokemontcg,rehost,,https://images.pokemontcg.io/cel25c/15_D_hires.png,
-cel25-16,16,Zacian V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_16.png,tcgdex:en pokemontcg tcgplayer
-cel25-17,17,Groudon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_17.png,tcgdex:en pokemontcg tcgplayer
+cel25-16,16,Zacian V,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/16/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-17,17,Groudon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/17/high.webp,pokemoncom pokemontcg tcgplayer
 cel25-17A,17A,Umbreon ☆,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/swsh/cel25/17A/high.webp,
-cel25-18,18,Zamazenta V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_18.png,tcgdex:en pokemontcg tcgplayer
-cel25-19,19,Yveltal,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_19.png,tcgdex:en pokemontcg tcgplayer
-cel25-20,20,Dialga,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_20.png,tcgdex:en pokemontcg tcgplayer
+cel25-18,18,Zamazenta V,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/18/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-19,19,Yveltal,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/19/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-20,20,Dialga,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/20/high.webp,pokemoncom pokemontcg tcgplayer
 cel25-20A,20A,Cleffa,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/swsh/cel25/20A/high.webp,
-cel25-21,21,Solgaleo,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_21.png,tcgdex:en pokemontcg tcgplayer
-cel25-22,22,Lugia,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_22.png,tcgdex:en pokemontcg tcgplayer
-cel25-23,23,Professor's Research (Professor Oak),*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_23.png,tcgdex:en pokemontcg tcgplayer
-cel25-24,24,Professor's Research (Professor Oak),*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_24.png,tcgdex:en pokemontcg tcgplayer
+cel25-21,21,Solgaleo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/21/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-22,22,Lugia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/22/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-23,23,Professor's Research (Professor Oak),*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/23/high.webp,pokemoncom pokemontcg tcgplayer
+cel25-24,24,Professor's Research (Professor Oak),*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/cel25/24/high.webp,pokemoncom pokemontcg tcgplayer
 cel25-24A,24A,_____'s Pikachu,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/swsh/cel25/24A/high.webp,
 cel25-25,25,Mew,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/CEL25/CEL25_EN_25.png,pokemontcg tcgplayer
 cel25-54A,54A,Mewtwo EX,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/swsh/cel25/54A/high.webp,

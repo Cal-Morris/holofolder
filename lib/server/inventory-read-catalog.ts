@@ -4,7 +4,7 @@ import type { InventoryCatalogEvidence } from "@/lib/domain/inventory-browse"
 import { readCatalogMetadata } from "@/lib/card-catalog"
 import { formatPokemonDisplayName, getPokemonById } from "@/lib/pokemon-catalog"
 import { buildTcgdexAssetImageUrl, pickImageLanguage } from "@/lib/tcgdex-shared"
-import { pickExternalCardImageUrl } from "@/lib/card-image-sources"
+import { pickCardImageUrl } from "@/lib/card-image-sources"
 
 type Row = Record<string, unknown>
 /** Public mirror rows from inventory_snapshot_v2's catalog: the cards the snapshot names, their dex links and sets. */
@@ -30,9 +30,8 @@ export function buildInventoryCatalog({ cards, dex, sets }: InventoryCatalogRows
     }))]
     const imageForLanguage = (language: string) => {
       const imageLanguage = pickImageLanguage(raw.image_languages_json, language)
-      return metadata.image ?? (imageLanguage && isSlotContractId(raw.series_id)
-        ? buildTcgdexAssetImageUrl(imageLanguage, raw.series_id, String(set.id), String(raw.local_id))
-        : pickExternalCardImageUrl(raw.external_ids_json)) ?? undefined
+      const tcgdexImage = imageLanguage && isSlotContractId(raw.series_id) ? buildTcgdexAssetImageUrl(imageLanguage, raw.series_id, String(set.id), String(raw.local_id)) : null
+      return pickCardImageUrl(raw.external_ids_json, tcgdexImage ? imageLanguage : null, tcgdexImage, language) ?? undefined
     }
     const translations = raw.name_json && typeof raw.name_json === "object" ? raw.name_json as Record<string, unknown> : {}
     // Only attested languages, never infer a printing's language from the owner's preference.

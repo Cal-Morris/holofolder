@@ -72,11 +72,14 @@ R2 free tier (Standard storage, per month): 10 GB-month storage, 1M Class A ops 
 
 ## Fallback sources
 
-Which image a card shows is decided when the mirror tables are read (`lib/tcg-mirror.ts`):
+Which image a card shows is decided by `pickCardImageUrl` in `lib/card-image-sources.ts`, which every surface uses (search, sets and card detail through `lib/tcg-mirror.ts`, binder slots through `lib/server/inventory-read-catalog.ts`, and the developer API):
 
-1. A reviewed catalog image (`external_ids_json.catalog.image`), set by the catalog tooling when TCGdex has no image or the card is a printing TCGdex doesn't list. Allowed hosts are in `lib/card-catalog.ts`.
-2. The TCGdex image, in the requested language or the nearest fallback language (`image_languages_json`), or `external_ids_json.tcgdex.image` for sets missing from the asset manifest.
-3. `pickExternalCardImageUrl` in `lib/card-image-sources.ts`: the pokemontcg.io / Scrydex image matched during the sync, then the TCGplayer product image from TCGdex's third-party ids.
+1. The image published from the [`card-assets`](../card-assets/AGENTS.md) ledger for the requested language (`external_ids_json.assets.<language>.image`).
+2. A reviewed catalog image (`external_ids_json.catalog.image`), set by the catalog tooling when TCGdex has no image or the card is a printing TCGdex doesn't list. Allowed hosts are in `lib/card-catalog.ts`.
+3. The TCGdex image in the requested language.
+4. For English, the official pokemon.com image. It is only 245 × 342, so it comes after TCGdex's 600 × 825 English print but before a foreign print.
+5. The TCGdex image in the nearest fallback language (`image_languages_json`), or `external_ids_json.tcgdex.image` for sets missing from the asset manifest.
+6. `pickExternalCardImageUrl`: the pokemontcg.io / Scrydex image matched during the sync, then the TCGplayer product image from TCGdex's third-party ids.
 
 `pickMirrorableSourceImage` follows the same order to find the fallback image for each card, and the backfill uses it:
 

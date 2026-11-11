@@ -1,6 +1,6 @@
 import { readCatalogMetadata } from "./card-catalog"
 import { CARD_IMAGE_BLOB_PREFIX } from "./tcgdex-card-image"
-import { pickTcgdexImageFromExternalIds } from "./tcgdex-shared"
+import { pickTcgdexImageFromExternalIds, TCGDEX_ASSET_HOST } from "./tcgdex-shared"
 
 /**
  * Fallback card image sources (used when TCGdex has no image for a card).
@@ -116,13 +116,35 @@ export function pickPokemonComImageUrl(externalIds: unknown) {
 }
 
 /**
- * Image URL the app shows for a card: the reviewed catalog image, then the official pokemon.com scan when the card is
- * shown in English (or has no TCGdex image at all), then the TCGdex image, then the other fallback sources.
+ * The image `card-assets publish` chose for this card and language (`external_ids_json.assets.<language>.image`,
+ * see card-assets/AGENTS.md). Only URLs the image store can serve count.
  */
-export function pickCardImageUrl(externalIds: unknown, imageLanguage: string | null, tcgdexImageUrl: string | null) {
-  const reviewed = readCatalogMetadata(externalIds).image
-  if (reviewed) return reviewed
-  const official = imageLanguage === null || imageLanguage === "en" ? pickPokemonComImageUrl(externalIds) : undefined
+export function pickPublishedCardImageUrl(externalIds: unknown, language: string) {
+  const image = asRecord(asRecord(asRecord(externalIds)?.assets)?.[language])?.image
+  if (typeof image !== "string") return undefined
+  try {
+    const url = new URL(image)
+    return (url.protocol === "https:" && url.hostname === TCGDEX_ASSET_HOST) || parseSourceCardImageUrl(url) ? image : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Image URL the app shows for a card in `language`. Every surface (search, sets, card detail, binder slots and the
+ * developer API) goes through this, and `card-assets` mirrors it as its default rule:
+ * 1. the image published from the card-assets ledger for this language,
+ * 2. the reviewed catalog image,
+ * 3. TCGdex in the requested language,
+ * 4. for English, the official pokemon.com image (245 × 342, so only when TCGdex has no English print),
+ * 5. TCGdex in the nearest other language,
+ * 6. the other fallback sources.
+ */
+export function pickCardImageUrl(externalIds: unknown, imageLanguage: string | null, tcgdexImageUrl: string | null, language = "en") {
+  const chosen = pickPublishedCardImageUrl(externalIds, language) ?? readCatalogMetadata(externalIds).image
+  if (chosen) return chosen
+  if (tcgdexImageUrl && imageLanguage === language) return tcgdexImageUrl
+  const official = language === "en" ? pickPokemonComImageUrl(externalIds) : undefined
   return official ?? (tcgdexImageUrl || pickExternalCardImageUrl(externalIds))
 }
 
@@ -156,11 +178,11 @@ export function pickExternalCardImageUrl(value: unknown) {
 
 /**
  * The fallback-source image the app shows for this card, if any (null when it shows a TCGdex image or nothing).
- * Mirrors `pickCardImageUrl`: the catalog image wins, then the English pokemon.com scan, then TCGdex, then the fallbacks.
+ * Mirrors `pickCardImageUrl` for English.
  */
 export function pickMirrorableSourceImage(card: { imageLanguages: readonly string[]; externalIds: unknown }): SourceCardImageRef | null {
-  const reviewed = readCatalogMetadata(card.externalIds).image
-  const official = !card.imageLanguages.length || card.imageLanguages.includes("en") ? pickPokemonComImageUrl(card.externalIds) : undefined
-  const url = reviewed ?? official ?? (card.imageLanguages.length ? undefined : pickExternalCardImageUrl(card.externalIds))
+  // The English image pickCardImageUrl shows, when it isn't a TCGdex image.
+  const chosen = pickPublishedCardImageUrl(card.externalIds, "en") ?? readCatalogMetadata(card.externalIds).image
+  const url = chosen ?? (card.imageLanguages.includes("en") ? undefined : pickPokemonComImageUrl(card.externalIds) ?? (card.imageLanguages.length ? undefined : pickExternalCardImageUrl(card.externalIds)))
   return url ? parseSourceCardImageUrl(url) : null
 }
