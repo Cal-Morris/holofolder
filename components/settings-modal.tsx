@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "@/components/ui/toast"
 
 import dynamic from "next/dynamic"
 
@@ -73,7 +74,6 @@ interface SettingsModalProps {
   onShareShowPricesChange: (value: boolean) => void
   isShareEnabled: boolean
   isShareLoading: boolean
-  shareMessage: string | null
   onEnableReadOnlyShare: () => void
   onDisableReadOnlyShare: () => void
   trackedCardCount: number
@@ -121,7 +121,6 @@ export default function SettingsModal({
   onShareShowPricesChange,
   isShareEnabled,
   isShareLoading,
-  shareMessage,
   onEnableReadOnlyShare,
   onDisableReadOnlyShare,
   trackedCardCount,
@@ -137,7 +136,6 @@ export default function SettingsModal({
   const { isShowModeOn, setShowMode } = useShowMode()
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const [selectedBinderColorId, setSelectedBinderColorId] = useState<BinderColorId>(currentPageBinderColorId)
-  const [copyMessage, setCopyMessage] = useState<string | null>(null)
   const [pageRangeInput, setPageRangeInput] = useState(String(currentBinderPage))
   const [activeTab, setActiveTab] = useState<SettingsTabId>("binder")
   const visibleSettingsTabs = SETTINGS_TABS.filter(tab =>
@@ -150,7 +148,6 @@ export default function SettingsModal({
       if (initialTab) setActiveTab(initialTab)
       setSelectedBinderColorId(currentPageBinderColorId)
       setPageRangeInput(String(currentBinderPage))
-      setCopyMessage(null)
       setBackupMessage(null)
     }
   }, [currentBinderPage, currentPageBinderColorId, isOpen, initialTab])
@@ -175,9 +172,9 @@ export default function SettingsModal({
 
     try {
       await navigator.clipboard.writeText(fullShareUrl)
-      setCopyMessage("Share link copied.")
+      toast("Share link copied")
     } catch {
-      setCopyMessage("Could not copy the share link.")
+      toast("Could not copy the share link", "error")
     }
   }
   const parsedPageRangeEnd = Number.parseInt(pageRangeInput, 10)
@@ -583,9 +580,6 @@ export default function SettingsModal({
                   {isShareLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
                   Generate read-only share link
                 </Button>
-              )}
-              {(copyMessage || shareMessage) && (
-                <p className="text-xs text-primary">{copyMessage || shareMessage}</p>
               )}
               {!isSignedIn && (
                 <p className="text-xs text-muted-foreground">
