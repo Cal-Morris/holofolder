@@ -10,7 +10,7 @@ import { pickTcgdexImageFromExternalIds } from "./tcgdex-shared"
  */
 export const CARD_IMAGE_SOURCE_PREFIX = "cards/src"
 
-export type CardImageSource = "tcgplayer" | "pokemontcg" | "scrydex" | "limitless" | "playshop"
+export type CardImageSource = "tcgplayer" | "pokemontcg" | "scrydex" | "limitless" | "playshop" | "pokemoncom"
 
 export const CARD_IMAGE_SOURCE_HOSTS: Readonly<Record<string, CardImageSource>> = {
   "product-images.tcgplayer.com": "tcgplayer",
@@ -19,13 +19,15 @@ export const CARD_IMAGE_SOURCE_HOSTS: Readonly<Record<string, CardImageSource>> 
   "limitlesstcg.nyc3.cdn.digitaloceanspaces.com": "limitless",
   // Shared Shopify CDN: only the playshop.fr store path is a card image source (see PATH_RULES).
   "cdn.shopify.com": "playshop",
+  // Shared Pokémon asset CDN: only the TCG card image path is a card image source (see PATH_RULES).
+  "assets.pokemon.com": "pokemoncom",
 }
 
 /** Sources on a host that also serves other content: only URLs matching the source's path rule are card images. */
-const SHARED_HOST_SOURCES: ReadonlySet<CardImageSource> = new Set(["playshop"])
+const SHARED_HOST_SOURCES: ReadonlySet<CardImageSource> = new Set(["playshop", "pokemoncom"])
 
 /** Source priority when several are known for a card (best scans first). */
-export const CARD_IMAGE_SOURCE_PRIORITY: readonly CardImageSource[] = ["limitless", "scrydex", "pokemontcg", "tcgplayer", "playshop"]
+export const CARD_IMAGE_SOURCE_PRIORITY: readonly CardImageSource[] = ["pokemoncom", "limitless", "scrydex", "pokemontcg", "tcgplayer", "playshop"]
 
 /** Sources whose stored copy is trimmed of the plain white margin around the card (retailer photos). */
 export const TRIMMED_CARD_IMAGE_SOURCES: ReadonlySet<CardImageSource> = new Set(["playshop"])
@@ -49,6 +51,8 @@ const PATH_RULES: Record<CardImageSource, { pattern: RegExp; key: (match: RegExp
   limitless: { pattern: /^\/tpci\/([A-Z0-9]{1,10})\/([A-Za-z0-9][A-Za-z0-9_-]{0,63})\.(png|jpg|webp)$/, key: (m) => `${m[1]}/${m[2]}` },
   // https://cdn.shopify.com/s/files/1/1015/7057/6719/files/<handle>.<png|jpg> (playshop.fr product scans of single cards)
   playshop: { pattern: /^\/s\/files\/1\/1015\/7057\/6719\/files\/([a-z0-9][a-z0-9-]{0,95})\.(png|jpg)$/, key: (m) => m[1] },
+  // https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/<SET>/<SET>_EN_<number>.png
+  pokemoncom: { pattern: /^\/static-assets\/content-assets\/cms2\/img\/cards\/web\/([A-Z0-9]{1,16})\/(\1_EN_[A-Z0-9]{1,12})\.png$/, key: (m) => `${m[1]}/${m[2]}` },
 }
 
 export function getCardImageSourceForHost(hostname: string): CardImageSource | null {
@@ -104,9 +108,27 @@ function pickTcgplayerProductId(tcgdex: Record<string, unknown> | null) {
   return null
 }
 
+/** The official pokemon.com scan recorded by `scripts/mirror-pokemoncom-images.ts` (English only). */
+export function pickPokemonComImageUrl(externalIds: unknown) {
+  const image = asRecord(asRecord(externalIds)?.pokemoncom)?.image
+  return typeof image === "string" && parseSourceCardImageUrl(image)?.source === "pokemoncom" ? image : undefined
+}
+
+/**
+ * Image URL the app shows for a card: the reviewed catalog image, then the official pokemon.com scan when the card is
+ * shown in English (or has no TCGdex image at all), then the TCGdex image, then the other fallback sources.
+ */
+export function pickCardImageUrl(externalIds: unknown, imageLanguage: string | null, tcgdexImageUrl: string | null) {
+  const reviewed = readCatalogMetadata(externalIds).image
+  if (reviewed) return reviewed
+  const official = imageLanguage === null || imageLanguage === "en" ? pickPokemonComImageUrl(externalIds) : undefined
+  return official ?? (tcgdexImageUrl || pickExternalCardImageUrl(externalIds))
+}
+
 /**
  * Best image URL for a card without a TCGdex asset-manifest image: the reviewed catalog image, then the TCGdex
- * image recorded on the card, then pokemontcg.io / Scrydex, then the TCGplayer product image.
+ * image recorded on the card, then the official pokemon.com scan, then pokemontcg.io / Scrydex, then the TCGplayer
+ * product image.
  */
 export function pickExternalCardImageUrl(value: unknown) {
   const externalIds = asRecord(value)
@@ -117,6 +139,9 @@ export function pickExternalCardImageUrl(value: unknown) {
 
   const tcgdexImage = pickTcgdexImageFromExternalIds(externalIds)
   if (tcgdexImage) return tcgdexImage
+
+  const pokemonCom = pickPokemonComImageUrl(externalIds)
+  if (pokemonCom) return pokemonCom
 
   const pokemonTcg = asRecord(externalIds.pokemon_tcg)
   for (const key of ["imageLarge", "imageSmall"] as const) {
@@ -130,10 +155,11 @@ export function pickExternalCardImageUrl(value: unknown) {
 
 /**
  * The fallback-source image the app shows for this card, if any (null when it shows a TCGdex image or nothing).
- * Mirrors the read path in `lib/tcg-mirror.ts`: the catalog image wins, then TCGdex languages, then the fallbacks.
+ * Mirrors `pickCardImageUrl`: the catalog image wins, then the English pokemon.com scan, then TCGdex, then the fallbacks.
  */
 export function pickMirrorableSourceImage(card: { imageLanguages: readonly string[]; externalIds: unknown }): SourceCardImageRef | null {
   const reviewed = readCatalogMetadata(card.externalIds).image
-  const url = reviewed ?? (card.imageLanguages.length ? undefined : pickExternalCardImageUrl(card.externalIds))
+  const official = !card.imageLanguages.length || card.imageLanguages.includes("en") ? pickPokemonComImageUrl(card.externalIds) : undefined
+  const url = reviewed ?? official ?? (card.imageLanguages.length ? undefined : pickExternalCardImageUrl(card.externalIds))
   return url ? parseSourceCardImageUrl(url) : null
 }

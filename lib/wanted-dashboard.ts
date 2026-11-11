@@ -1,5 +1,5 @@
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
-import type { WantedCard } from "@/hooks/use-collection"
+import type { WantedCard } from "@/lib/domain/cards"
 import { getFallingMomentum, getRisingMomentum, isMomentumEligibleConfidence } from "@/lib/price-momentum"
 import { buildHuntGroups, getSetEra, getSetIdFromCardId, type HuntCard, type HuntSourceItem } from "@/lib/show-hunt"
 

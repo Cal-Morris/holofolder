@@ -1,6 +1,5 @@
 "use client"
 import { CHECKED_STARTUP_TIMEOUT_MS, CHECKED_STARTUP_TIMEOUT_ERROR, resetStartupCaches, STARTUP_RESET_KEY } from "@/lib/startup-cache-reset"
-import { LegacyDeviceReview } from "@/components/legacy-device-review"
 
 import { nativeSpeciesCollection, type NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
 
@@ -9,19 +8,15 @@ import { CollectionActivityProvider } from "@/components/collection-activity-con
 import dynamic from "next/dynamic"
 import { useGoogleAnalytics } from "@/components/google-analytics"
 import { appPath } from "@/lib/app-path"
-import { toCardImageSrc } from "@/lib/card-image-url"
 import { createBinderBackup, downloadBinderBackup } from "@/lib/binder-backup"
 import { useCollectorAppOpen } from "@/components/collector-funnel"
 import type { Binder } from "@/lib/binders/model"
 import { binderHref, rememberBinderGrid, rememberLastOpenedBinder } from "@/lib/binders/client"
 import { offlineAvailableBinderIds, rememberDeviceBinders } from "@/lib/binders/offline"
-import { allBindersCollection, allBindersWantedEntries, cardsOwnedElsewhere, formatOwnedIn, speciesOwnedElsewhere } from "@/lib/binders/all-binders"
-import { useAllBinders } from "@/hooks/use-all-binders"
 import { showBudgetStorageKey } from "@/lib/show-budget"
 import { revisitStorageKey } from "@/lib/show-revisit"
 import { getQuickCardState as resolveQuickCardState } from "@/lib/quick-card-state"
-import { catalogCardIds, matchesCatalogCardId } from "@/lib/card-catalog"
-import { hasWantedSetCard } from "@/lib/set-checklist"
+import { matchesCatalogCardId } from "@/lib/card-catalog"
 
 import { useState, useMemo, useEffect, useEffectEvent, useLayoutEffect, useRef, useCallback, type CSSProperties, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react"
 import dashboardStyles from "@/components/dashboard-binder-preview.module.css"
@@ -30,50 +25,35 @@ import { CardDataAttribution } from "@/components/card-data-attribution"
 import { useRouter } from "next/navigation"
 import { WifiOff } from "lucide-react"
 import { type PokemonSearchResultMeta } from "@/components/pokemon-search"
-import type { CardSelectorMode } from "@/components/card-selector"
 import { closeAllOverlays, runAfterOverlayHistory, useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
-import OwnedRemoveSheet from "@/components/owned-remove-sheet"
-import UndoSnackbar, { type UndoAction } from "@/components/undo-snackbar"
-import type { OwnedRemovalMode } from "@/lib/collection/owned-removal"
 import { inferCardFinish } from "@/lib/pokemon-card-browse"
-import { aggregatePageSlotScanMatches, type AggregatedCardScanMatch, type CardScanFrameMatch } from "@/lib/card-scan-matching"
-import type { CardImageDescriptor } from "@/lib/card-image-match"
-import { selectCandidateCardsForAssetTextOcr } from "@/lib/card-scan-candidate-text"
-import { buildCardMetadataTextSignals, mergeCardTextSignals, type CardTextSignals } from "@/lib/card-scan-text"
-import { rankAggregatedCardScanMatchesWithText } from "@/lib/card-scan-ranking"
 import { getCardPriceKey, useCardPrices, type CardPriceLookup, type CardPriceSnapshot, type SupportedCurrency } from "@/hooks/use-card-prices"
 import { PartnerPushPrompt } from "@/components/partner-push-prompt"
 import { usePartnerPush } from "@/hooks/use-partner-push"
 import { clearPushDevice } from "@/lib/push-device-client"
-import { useCollection, type CardFinish, type CardLanguage, type CollectedPokemon, type SlotStatus, type WantedCard } from "@/hooks/use-collection"
+import { type CardFinish, type WantedCard } from "@/lib/domain/cards"
 import { useBinderAppearance } from "@/hooks/use-binder-appearance"
 import { useSettings, type BinderSettings } from "@/hooks/use-settings"
 import { usePricingPreferences } from "@/hooks/use-pricing-preferences"
 import { formatDisplayAmount, formatDisplayRange, formatDisplayTotals, formatRegionalPriceLabel, getRegionalFinishPrices, regionalizeCardPrices, type PriceDisplayContext } from "@/lib/regional-price"
-import { useOfflineStoreSync } from "@/hooks/use-offline-store-sync"
+import { normalizeCollectionItems } from "@/lib/collection/normalize"
 import { useTouchGestures } from "@/hooks/use-touch-gestures"
-import { loadCardsForPokemon, useTCGdex, type TCGCard } from "@/hooks/use-tcgdex"
-import { scanBinderPageImage, type BinderPageScanResult } from "@/lib/binder-page-scan"
-import { canAutoAcceptCardScanMatch } from "@/lib/card-scan-acceptance"
-import { selectCardScanEvidenceImages, type CardScanImageCandidate } from "@/lib/card-scan-evidence"
+import { loadCardsForPokemon } from "@/hooks/use-tcgdex"
 import { POKEMON_CATALOG, formatPokemonDisplayName, getPokemonSummary, type PokemonSummary } from "@/lib/pokemon-catalog"
 import { getBinderColorPreset, type BinderColorId } from "@/lib/binder-colors"
 import { activeBinderEffects } from "@/lib/binder-effects"
 import { buildBinderShareUrl, shareManagementTarget } from "@/lib/binder-share"
 import { shouldClearSelectedPokemonForPage } from "@/lib/binder-selection-state"
 import { getSelectedSlotCardDisplay, getBinderDisplayCard, type BinderCardDisplay } from "@/lib/selected-slot-card-display"
-import { beginBinderCardSelection } from "@/lib/card-selector-selection-flow"
-import { getSettingsLocalCollectedCount } from "@/lib/settings-collection-sync"
 import { OFFLINE_CACHE_WARMUP_MESSAGE_TYPE, buildOfflineCacheWarmupUrls, getOfflineCacheWarmupSignature, shouldPostOfflineCacheWarmup } from "@/lib/offline-cache-warmup"
 import { buildPokemonSearchPreview } from "@/lib/pokemon-search-preview"
 import { buildWantedDashboardSummary } from "@/lib/wanted-dashboard"
 import { buildWantedListText } from "@/lib/wanted-share"
-import { TRADING_CARD_ASPECT_RATIO, getSlotLabel, type PageScanCardMatchSummary, type PageScanSummary } from "@/lib/page-scan"
+import { TRADING_CARD_ASPECT_RATIO } from "@/lib/page-scan"
 import { formatPriceConfidenceLabel, formatPriceSourceLabel } from "@/lib/card-labels"
-import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSummary } from "@/lib/tcg-set-slots"
+import type { TCGSetDexSlot, TCGSetSummary } from "@/lib/tcg-set-slots"
 import type { User } from "@supabase/supabase-js"
 import { TopBannerSlot } from "@/components/top-banner-slot"
-import { offlineChipLabel, syncingChipLabel } from "@/lib/connection-chip"
 import { registerServiceWorker } from "@/lib/service-worker-registration"
 import { ADJACENT_PREFETCH_DELAY_MS, getAdjacentPageNumbers } from "@/lib/binder-page-turn"
 import { BinderSlotImages } from "@/lib/binder-slot-images"
@@ -83,16 +63,14 @@ import { useEdgeSwipeBack } from "@/hooks/use-edge-swipe-back"
 import { usePressFeedback } from "@/hooks/use-press-feedback"
 import { useFreezeBlurOnScroll } from "@/hooks/use-freeze-blur-on-scroll"
 import { QUICK_LONG_PRESS_MS, type QuickDestinationId } from "@/lib/quick-mode"
-import { groupGlobalWanted } from "@/lib/wanted-people"
 import { useShowMode } from "@/hooks/use-show-mode"
 import { useShowSession } from "@/hooks/use-show-session"
 import { useBinderHistory } from "@/hooks/use-binder-history"
 import { useShowPurchaseSync } from "@/hooks/use-show-purchase-sync"
 import { summarizeShowSession } from "@/lib/show-session"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
-import type { QuickCardAction } from "@/components/quick-card-check"
 import { clampGlareValue, getPokemonOfficialArtworkUrl, resolveSlotImageUrl } from "@/components/binder/pokemon-slot"
-import { type ActiveMainView, BINDER_PAGE_QUERY_PARAM, type BeforeInstallPromptEvent, COLLECTION_VIEW_FILTERS, type CollectionViewFilter, DEFAULT_SLOT_GLARE_STATE, type DeviceMotionWithPermission, type DeviceOrientationPermissionState, type DeviceOrientationWithPermission, type DisplaySpreadPage, GENERATIONS, type InitialCollectionRow, type MotionGlintStatus, PAGE_SCAN_CANDIDATE_ASSET_OCR_LIMIT, PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT, PAGE_SCAN_OCR_BASE_CROP_LIMIT, type QuickPanelPosition, type SlotGlareState, THEME_COLOR_DARK, THEME_COLOR_LIGHT, binderShareUrl, combinePriceSummaries, formatCollectedDate, getCollectionItemPriceKey, getDetailArtwork, getDisplayArtworkTone, getKnownCardIllustrator, getPokemonArtwork, getSlotGlareState, getWantedCardKey, summarizeOwnedCardPrices, sumPriceSnapshots } from "@/components/binder/binder-app-model"
+import { type ActiveMainView, BINDER_PAGE_QUERY_PARAM, type BeforeInstallPromptEvent, COLLECTION_VIEW_FILTERS, type CollectionViewFilter, DEFAULT_SLOT_GLARE_STATE, type DeviceMotionWithPermission, type DeviceOrientationPermissionState, type DeviceOrientationWithPermission, type DisplaySpreadPage, GENERATIONS, type InitialCollectionRow, type MotionGlintStatus, type QuickPanelPosition, type SlotGlareState, THEME_COLOR_DARK, THEME_COLOR_LIGHT, binderShareUrl, combinePriceSummaries, formatCollectedDate, getCollectionItemPriceKey, getDetailArtwork, getDisplayArtworkTone, getKnownCardIllustrator, getPokemonArtwork, getSlotGlareState, getWantedCardKey, summarizeOwnedCardPrices, sumPriceSnapshots } from "@/components/binder/binder-app-model"
 import type { PricedCardFinish } from "@/lib/card-pricing"
 import type { CardPriceCheck } from "@/lib/card-price-checks"
 import { buildSoldPriceGuide } from "@/lib/sold-price-guide"
@@ -102,7 +80,7 @@ import { renderMobileSlotActionBarView } from "@/components/binder/mobile-slot-a
 import { renderSpreadInfoPageView } from "@/components/binder/spread-info-page"
 import { renderSpreadBlankPageView } from "@/components/binder/spread-blank-page"
 import { renderBinderGridPageView, useBinderSlotActions } from "@/components/binder/binder-grid-page"
-import { AuthModal, BinderSwitcherSheet, CardSelector, IllustratorCardsBrowser, PartnerModal, PokemonCardsBrowser, QuickMode, scheduleIdleViewPreload, SettingsModal } from "@/components/binder/lazy-views"
+import { AuthModal, BinderSwitcherSheet, IllustratorCardsBrowser, PartnerModal, PokemonCardsBrowser, QuickMode, scheduleIdleViewPreload, SettingsModal } from "@/components/binder/lazy-views"
 import { renderAppHeaderView } from "@/components/binder/app-header"
 import { renderMainContentView } from "@/components/binder/main-content"
 import { renderSearchOverlayView } from "@/components/binder/search-overlay"
@@ -139,7 +117,6 @@ const PocketMenu = dynamic(() => import("@/components/binder/pocket-menu"), { ss
 interface BinderAppProps {
   /** Minted only by the server-gated loopback harness. Production bootstrap never supplies this. */
   localBrowserHost?: boolean
-  stagedDurableQueue?: boolean
   browserSurface?: BrowserSurfaceBinding
   browserHeader?: ReactNode
   onBrowserSignOut?: () => Promise<void>
@@ -260,7 +237,7 @@ export default function BinderApp(props: BinderAppProps) {
 
 function BinderAppSurface(props: BinderAppProps) {
   const {
-  localBrowserHost = false, stagedDurableQueue = false, browserSurface, browserHeader, onBrowserSignOut,
+  localBrowserHost = false, browserSurface, browserHeader, onBrowserSignOut,
   stagedSlotDisplay,
   onStagedSlotCommandIntent,
   stagedSlotCatalog,
@@ -291,7 +268,6 @@ function BinderAppSurface(props: BinderAppProps) {
   const selectedDisplaySlot = orderedDisplaySlots ? resolveDisplaySelection(orderedDisplaySlots, selectedSlotId) : null
   const [selectedPokemon, setSelectedPokemon] = useState<PokemonSummary | null>(null)
   const [wantedDetail, setWantedDetail] = useState<{ pokemonId: number; card: WantedCard } | null>(null)
-  const [editingWantedCard, setEditingWantedCard] = useState<WantedCard | null>(null)
   const [isDarkMode, setIsDarkMode] = useState(initialDarkMode)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
@@ -300,9 +276,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const [isBinderSwitcherOpen, setIsBinderSwitcherOpen] = useState(false)
   const [binders, setBinders] = useState<Binder[]>(initialBinders)
   const activeBinder = binders.find((binder) => binder.id === initialBinderId) ?? null
-  const [isCardSelectorOpen, setIsCardSelectorOpen] = useState(false)
   const [themeCookieChoice, setThemeCookieChoice] = useState<"dark" | "light" | null>(null)
-  const [cardSelectorMode, setCardSelectorMode] = useState<CardSelectorMode>("collect")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isQuickModeOpen, setIsQuickModeOpen] = useState(false)
   // The want list's "Check price of any card": Quick mode as a price lookup (deal checker) outside Show mode.
@@ -332,10 +306,6 @@ function BinderAppSurface(props: BinderAppProps) {
   const [isMobileNavExpanded, setIsMobileNavExpanded] = useState(false)
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false)
   const [longPressedPokemon, setLongPressedPokemon] = useState<{ id: number; name: string } | null>(null)
-  const [ownedRemoveTarget, setOwnedRemoveTarget] = useState<{ id: number; name: string } | null>(null)
-  const [quickUndo, setQuickUndo] = useState<(UndoAction & { id: string; accountId: string | null; ownerId: string | null }) | null>(null)
-  const [undoBusy, setUndoBusy] = useState(false)
-  const [ownedRemoveUndo, setOwnedRemoveUndo] = useState<{ message: string; previous: CollectedPokemon; activityEventId?:string; expected?:CollectedPokemon|null; accountId?:string; ownerId?:string|null } | null>(null)
   // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
   const [nativeLookup, setNativeLookupState] = useState<{ card: SearchCardResult; finish?: CardFinish } | null>(null)
   const setNativeLookup = useCallback((card: SearchCardResult | null, finish?: CardFinish) => setNativeLookupState(card ? { card, finish } : null), [])
@@ -371,14 +341,6 @@ function BinderAppSurface(props: BinderAppProps) {
       cancelPreload?.()
     }
   }, [])
-  const [isScanningPage, setIsScanningPage] = useState(false)
-  const [pageScanSummary, setPageScanSummary] = useState<PageScanSummary | null>(null)
-  const [pageScanError, setPageScanError] = useState<string | null>(null)
-  const [isBurstScannerOpen, setIsBurstScannerOpen] = useState(false)
-  const [scannerStartSlotIndex, setScannerStartSlotIndex] = useState(0)
-  const closeBurstScanner = useCallback(() => setIsBurstScannerOpen(false), [])
-  const [isSyncingLocalCollection, setIsSyncingLocalCollection] = useState(false)
-  const [localCollectionSyncMessage, setLocalCollectionSyncMessage] = useState<string | null>(null)
   const [shareIdentityRevision, setShareIdentityRevision] = useState(0)
   const handlePublicIdentityChange = useCallback(() => setShareIdentityRevision(value => value + 1), [])
   const [sharePath, setSharePath] = useState<string | null>(initialSharePath ?? (shareViewToken ? `/app/share/${shareViewToken}` : null))
@@ -411,9 +373,6 @@ function BinderAppSurface(props: BinderAppProps) {
   const binderStageRef = useRef<HTMLDivElement | null>(null)
   const binderPageRef = useRef<HTMLDivElement | null>(null)
   const slotButtonRefs = useRef(new Map<number, HTMLButtonElement>())
-  const pageScanCardCandidatesCacheRef = useRef<Map<number, Promise<TCGCard[]>>>(new Map())
-  const pageScanCardDescriptorCacheRef = useRef<Map<string, Promise<CardImageDescriptor | null>>>(new Map())
-  const pageScanCardTextSignalCacheRef = useRef<Map<string, Promise<CardTextSignals>>>(new Map())
   const shellNavRef = useRef<HTMLElement | null>(null)
   const motionSensorsEnabledRef = useRef(false)
   const hasAutoRequestedMotionPermissionRef = useRef(false)
@@ -421,48 +380,22 @@ function BinderAppSurface(props: BinderAppProps) {
   const lastOfflineCacheWarmupSignatureRef = useRef<string | null>(null)
 
   const pokemonList = POKEMON_CATALOG
-  const {
-    user,
-    isCollected,
-    isWishlisted,
-    addToCollection,
-    addWantedCard,
-    removeFromCollection,
-    editWantedCard,
-    removeOwnedCard,
-    restoreCollectionItem,
-    refreshAfterRecovery,
-    undoActivityEvent,
-    updateStatus,
-    collectionCount,
-    signOut,
-    isLoading: isCollectionLoading,
-    getCollectionItem,
-    collection,
-    syncLocalCollectionToDatabase,
-    localCollectedCount,
-    localPendingSyncCount,
-    syncStatus,
-    syncNotice,
-    dismissSyncNotice,
-    resolvedCollectionOwnerUserId,
-    durableQueue,
-    retryUnsavedEdit,
-  } = useCollection({
-    initialUser,
-    initialCollection,
-    initialCollectionOwnerUserId,
-    binderId: initialBinderId,
-    isDefaultBinder: !initialBinderId || initialBinders.find((binder) => binder.id === initialBinderId)?.isDefault !== false,
-    readOnly: readOnlyMode,
-    stagedDurableQueue,
-  })
-
-  const offerQuickUndo = useCallback((action: UndoAction) => {
-    setOwnedRemoveUndo(null)
-    setQuickUndo({ ...action, id: crypto.randomUUID(), accountId: user?.id ?? null, ownerId: resolvedCollectionOwnerUserId })
-  }, [user?.id, resolvedCollectionOwnerUserId])
-  useOfflineStoreSync(!readOnlyMode, stagedDurableQueue)
+  // The collection on screen is what the host passed in: native lifetimes and shares bring their own
+  // storage, and signed-out guests can only look. Nothing here writes a collection.
+  const user = initialUser
+  const collection = useMemo(() => normalizeCollectionItems(initialCollection), [initialCollection])
+  const resolvedCollectionOwnerUserId = user ? initialCollectionOwnerUserId : null
+  const collectionCount = useMemo(() => collection.filter((item) => item.status !== "wishlisted").length, [collection])
+  const getCollectionItem = useCallback((pokemonId: number) => collection.find((item) => item.pokemon_id === pokemonId), [collection])
+  const isCollected = useCallback((pokemonId: number) => collection.some((item) => item.pokemon_id === pokemonId && item.status !== "wishlisted"), [collection])
+  const isWishlisted = useCallback((pokemonId: number) => collection.some((item) => item.pokemon_id === pokemonId && (item.status === "wishlisted" || item.wanted_cards.length > 0)), [collection])
+  // Signed-in editing is native (browserSurface or staged slots); a signed-out visitor on their own surface is a guest.
+  const guest = !readOnlyMode && !user && !shareViewToken
+  const requireAccount = useCallback(async (..._edit: unknown[]) => {
+    if (!guest) return
+    closeAllOverlays()
+    runAfterOverlayHistory(() => { setAuthInitialMode("sign-up"); setIsAuthOpen(true) })
+  }, [guest])
 
   // The binder on screen is this device's last opened one (the server reads the cookie on the next visit).
   useEffect(() => {
@@ -485,20 +418,6 @@ function BinderAppSurface(props: BinderAppProps) {
 
   // Show purchases go to the collection owner's account (queued while offline), so a partner sees them too.
   useShowPurchaseSync({ ownerUserId: user && !readOnlyMode ? resolvedCollectionOwnerUserId ?? null : null, isOnline, isShowModeOn })
-  // Read-only lookup across every binder: All binders analytics and want list, "Owned in <binder>" hints.
-  const allBinders = useAllBinders({
-    ownerUserId: user && !readOnlyMode ? resolvedCollectionOwnerUserId : null,
-    binders,
-    currentBinderId: initialBinderId,
-    currentCollection: collection,
-    isOnline,
-  })
-  const allBindersOwned = useMemo(() => allBinders ? allBindersCollection(allBinders) : null, [allBinders])
-  const ownedElsewhereByCard = useMemo(() => cardsOwnedElsewhere(allBinders, initialBinderId), [allBinders, initialBinderId])
-  const ownedElsewhereLabel = useCallback(
-    (pokemonId: number) => formatOwnedIn(speciesOwnedElsewhere(allBinders, pokemonId, initialBinderId)),
-    [allBinders, initialBinderId],
-  )
 
   const [pendingBinderSwitch, setPendingBinderSwitch] = useState<string | null>(null)
   const switchBinder = useCallback((binderId: string) => {
@@ -518,12 +437,6 @@ function BinderAppSurface(props: BinderAppProps) {
     })
   }, [isBinderSwitcherOpen, pendingBinderSwitch, router])
   const closeBinderSwitcher = useCallback(() => setIsBinderSwitcherOpen(false), [])
-  const settingsLocalCollectedCount = getSettingsLocalCollectedCount({
-    isSignedIn: Boolean(user),
-    cloudCollectedCount: collectionCount,
-    localCollectedCount,
-    localPendingSyncCount,
-  })
   const { settings, updateSettings: updateLegacySettings } = useSettings({
     binderId: initialBinderId,
     initialSettings,
@@ -568,7 +481,6 @@ function BinderAppSurface(props: BinderAppProps) {
       pageColors,
     }, binderAppearance.uploads).catch(() => {})
   }, [initialBinderId, updateLegacySettings, binderAppearance, readOnlyMode, settings.binderPageColors])
-  const { fetchCardsForPokemon } = useTCGdex()
 
   const canEditBinder = !readOnlyMode
   // Share management is an owner/partner permission, separate from legacy write suppression (see shareManagementTarget).
@@ -613,9 +525,8 @@ function BinderAppSurface(props: BinderAppProps) {
   usePartnerPush(user?.id ?? null, !readOnlyMode, isShowModeOn)
   const handleSignOut = useCallback(async () => {
     await clearPushDevice().catch(() => undefined)
-    await signOut()
     router.push("/auth/logout")
-  }, [router, signOut])
+  }, [router])
   const collectionByPokemonId = useMemo(
     () => new Map(collection.map((item) => [item.pokemon_id, item] as const)),
     [collection],
@@ -1193,15 +1104,6 @@ function BinderAppSurface(props: BinderAppProps) {
     setPageNavigation(null)
   }, [currentBinderPage])
 
-  useEffect(() => {
-    setPageScanSummary(null)
-    setPageScanError(null)
-  }, [currentBinderPage, selectedGen, collectionViewFilter, settings.binderRows, settings.binderCols])
-
-  useEffect(() => {
-    setLocalCollectionSyncMessage(null)
-  }, [user])
-
   const orderedDisplayPages = useMemo(() => orderedDisplaySlots ? paginateDisplaySlots(orderedDisplaySlots, settings.binderRows, settings.binderCols, slot => {
     if (selectedGen !== 0 && (!slot.pokemon || slot.pokemon.id < GENERATIONS[selectedGen].start || slot.pokemon.id > GENERATIONS[selectedGen].end)) return false
     if (collectionViewFilter === "all") return true
@@ -1308,11 +1210,6 @@ function BinderAppSurface(props: BinderAppProps) {
     [currentPageSlots],
   )
 
-  const firstSweepSlotIndex = useMemo(() => {
-    const index = currentPageSlots.findIndex(Boolean)
-    return index >= 0 ? index : 0
-  }, [currentPageSlots])
-
   const adjustPageForFilters = useEffectEvent(() => {
     setCurrentBinderPage(current => {
       const page = Math.min(current, totalBinderPages)
@@ -1388,15 +1285,6 @@ function BinderAppSurface(props: BinderAppProps) {
     })),
     [selectedTrackedCardItem],
   )
-  // All binders views price the other binders' cards too (only while one of those views is open).
-  const otherBindersPriceLookups = useMemo<CardPriceLookup[]>(() => {
-    if (!allBinders || (activeMainView !== "analytics" && activeMainView !== "wanted")) return []
-    return allBinders.binders.filter((binder) => binder.id !== initialBinderId).flatMap((binder) =>
-      (allBinders.collections.get(binder.id) ?? []).flatMap((item) => [
-        ...(item.card_id && item.status !== "wishlisted" ? [{ cardId: item.card_id, language: item.card_language ?? "en" }] : []),
-        ...(item.wanted_cards ?? []).map((card) => ({ cardId: card.card_id, language: card.card_language ?? "en" })),
-      ]))
-  }, [activeMainView, allBinders, initialBinderId])
   const shouldLoadCollectionPriceLookups = isPriceMode || collectionViewFilter === "wanted" || activeMainView === "list" || activeMainView === "wanted" || activeMainView === "sets" || activeMainView === "analytics"
   const priceLookupCards = useMemo(
     () => {
@@ -1424,13 +1312,9 @@ function BinderAppSurface(props: BinderAppProps) {
         byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
       }
 
-      for (const lookup of otherBindersPriceLookups) {
-        byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
-      }
-
       return [...byKey.values()]
     },
-    [otherBindersPriceLookups, ownedPriceLookups, selectedTrackedPriceLookup, selectedWantedPriceLookups, shouldLoadCollectionPriceLookups, trackedPriceLookups, wantedPriceLookups],
+    [ownedPriceLookups, selectedTrackedPriceLookup, selectedWantedPriceLookups, shouldLoadCollectionPriceLookups, trackedPriceLookups, wantedPriceLookups],
   )
   const hasTrackedCards = trackedPriceLookups.length > 0 || wantedPriceLookups.length > 0
   const shouldLoadCardPrices = ownedPriceLookups.length > 0 || wantedPriceLookups.length > 0 || shouldLoadCollectionPriceLookups || Boolean(selectedTrackedPriceLookup) || selectedWantedPriceLookups.length > 0
@@ -1492,10 +1376,6 @@ function BinderAppSurface(props: BinderAppProps) {
   const wantedDashboard = useMemo(
     () => buildWantedDashboardSummary(wantedCardEntries, pricesByCardId),
     [pricesByCardId, wantedCardEntries],
-  )
-  const allBindersWantedDashboard = useMemo(
-    () => allBinders ? buildWantedDashboardSummary(groupGlobalWanted(allBindersWantedEntries(allBinders)), pricesByCardId) : null,
-    [allBinders, pricesByCardId],
   )
   useEffect(() => {
     if (!hasTrackedCards && isPriceMode) {
@@ -1870,434 +1750,26 @@ function BinderAppSurface(props: BinderAppProps) {
     binderRef(settings.binderRows > 4 || settings.binderCols > 4 ? null : node)
   }, [binderRef, settings.binderRows, settings.binderCols])
 
-  const handleOpenCardSelector = () => {
-    if (!selectedPokemon) return
-    if (readOnlyMode) return
+  const handleOpenCardSelector = requireAccount
 
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
+  // Guests browse read-only: every collection edit asks them to join instead.
+  const handleOpenWishlistSelector = requireAccount
+  const handleOpenSelectedSlotScanner = requireAccount
+  const openCardSelectorForPokemon = requireAccount
+  const handleQuickCollectSelectedPokemon = requireAccount
+  const handleChangeWantedCard = requireAccount
+  const requestOwnedRemoval = requireAccount
+  const handleQuickCollect = requireAccount
+  const handleClearWantedCard = requireAccount
+  const handleCollectSetCard = requireAccount
+  const handleWantSetCard = requireAccount
+  const handleGotWantedCard = requireAccount
+  const handleCollectSetCards = requireAccount
+  const handleWantSetCards = requireAccount
+  const handleSelectedCardFinishChange = requireAccount
+  const handleToggleFavorite = requireAccount
+  const handleToggleFavoriteSelectedPokemon = requireAccount
 
-    setEditingWantedCard(null)
-    setCardSelectorMode("collect")
-    setIsCardSelectorOpen(true)
-  }
-
-  const handleOpenWishlistSelector = () => {
-    if (!selectedPokemon) return
-    if (readOnlyMode) return
-
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-
-    setEditingWantedCard(null)
-    setCardSelectorMode("wishlist")
-    setIsCardSelectorOpen(true)
-  }
-
-  const handleOpenSelectedSlotScanner = () => {
-    if (!selectedPokemon) return
-    if (readOnlyMode) return
-
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-
-    if (!window.isSecureContext || !navigator.mediaDevices) {
-      setPageScanError("Camera scanning needs a secure browser context.")
-      return
-    }
-
-    const slotIndex = currentPageSlots.findIndex((pokemon) => pokemon?.id === selectedPokemon.id)
-    if (slotIndex < 0) {
-      setPageScanError("Open the page containing this slot before scanning it.")
-      return
-    }
-
-    setScannerStartSlotIndex(slotIndex)
-    setSelectedPokemon(null)
-    setIsBurstScannerOpen(true)
-  }
-
-  const openCardSelectorForPokemon = useCallback((pokemon: PokemonSummary, mode: CardSelectorMode) => {
-    if (readOnlyMode) return
-
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-
-    setSelectedPokemon(pokemon)
-    setEditingWantedCard(null)
-    setCardSelectorMode(mode)
-    setIsCardSelectorOpen(true)
-  }, [readOnlyMode, setIsCardSelectorOpen, user])
-
-  const handleQuickCollectSelectedPokemon = async () => {
-    if (!selectedPokemon) return
-    await handleQuickCollect({ id: selectedPokemon.id, name: selectedPokemon.name })
-  }
-
-  const handleChangeWantedCard = (card: WantedCard) => {
-    if (readOnlyMode) return
-    setEditingWantedCard(card)
-    setCardSelectorMode("wishlist")
-    setIsCardSelectorOpen(true)
-  }
-
-  /** Owned slot: ask whether to move it back to Wanted (primary) or remove it completely. */
-  const requestOwnedRemoval = useCallback((pokemon: { id: number; name: string }) => {
-    if (readOnlyMode) return
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-    setLongPressedPokemon(null)
-    setOwnedRemoveTarget({ id: pokemon.id, name: pokemon.name })
-  }, [readOnlyMode, user])
-
-  const closeOwnedRemoveSheet = useCallback(() => setOwnedRemoveTarget(null), [])
-
-  const handleOwnedRemovalChoice = useCallback(async (mode: OwnedRemovalMode) => {
-    const target = ownedRemoveTarget
-    setOwnedRemoveTarget(null)
-    if (!target) return
-    const result = await removeOwnedCard(target.id, mode)
-    if ("previous" in result && result.previous) {
-      const displayName = formatPokemonDisplayName(target.name)
-      setOwnedRemoveUndo({
-        message: mode === "to-wanted" ? `${displayName} moved back to Wanted` : `${displayName} removed`,
-        previous: result.previous,
-        activityEventId: result.activityEventId, expected: result.data, accountId:user?.id, ownerId:resolvedCollectionOwnerUserId,
-      })
-    }
-  }, [ownedRemoveTarget, removeOwnedCard, user, resolvedCollectionOwnerUserId])
-
-  const dismissOwnedRemoveUndo = useCallback(() => setOwnedRemoveUndo(null), [])
-
-  const handleUndoOwnedRemoval = useCallback(async () => {
-    const undo = ownedRemoveUndo
-    if (!undo || (undo.accountId && (undo.accountId!==user?.id || undo.ownerId!==resolvedCollectionOwnerUserId))) return
-    try {
-      if(undo.activityEventId) await undoActivityEvent(undo.activityEventId)
-      else {
-        const result=await restoreCollectionItem(undo.previous,undo.expected)
-        if(result.error)throw new Error(typeof result.error==='string' ? result.error : 'Could not undo. Try again.')
-      }
-      setOwnedRemoveUndo(null)
-    } catch(error) {setOwnedRemoveUndo({...undo,message:error instanceof Error ? error.message : 'Could not undo. Try again.'})}
-  }, [ownedRemoveUndo, restoreCollectionItem, undoActivityEvent, user, resolvedCollectionOwnerUserId])
-
-  const handleQuickCollect = async (pokemon: { id: number; name: string }) => {
-    if (readOnlyMode) return
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-
-    const existingItem = getCollectionItem(pokemon.id)
-
-    if (isCollected(pokemon.id)) {
-      await removeFromCollection(pokemon.id)
-    } else {
-      await addToCollection(
-        pokemon.id,
-        pokemon.name,
-        existingItem?.card_id,
-        existingItem?.card_name,
-        existingItem?.card_image,
-        existingItem?.card_set,
-        existingItem?.card_language ?? "en",
-        "collected",
-        {
-          cardFinish: existingItem?.card_finish ?? "normal",
-          wantedCards: existingItem?.wanted_cards ?? [],
-        },
-      )
-    }
-    setLongPressedPokemon(null)
-  }
-
-  const handleClearWantedCard = useCallback(async (pokemonId: number, wantedCard: WantedCard) => {
-    if (readOnlyMode) return
-    if (!user) { setIsAuthOpen(true); return }
-    const existing = getCollectionItem(pokemonId)
-    if (!existing) return
-    const previous = { ...existing, wanted_cards: [...existing.wanted_cards] }
-    const result = await editWantedCard(pokemonId, wantedCard, null)
-    if (!("error" in result) || ("queued" in result && result.queued)) setOwnedRemoveUndo({ message: `${wantedCard.card_name} removed from want list`, previous, activityEventId: "activityEventId" in result ? result.activityEventId as string|undefined : undefined, expected: "data" in result ? result.data : null, accountId:user?.id,ownerId:resolvedCollectionOwnerUserId })
-  }, [editWantedCard, getCollectionItem, readOnlyMode, user, resolvedCollectionOwnerUserId])
-
-  const handleCollectSetCard = useCallback(async (slot: TCGSetDexSlot, card: TCGSetSlotCard) => {
-    if (readOnlyMode) return
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-
-    const existingItem = getCollectionItem(slot.dexId)
-    await addToCollection(
-      slot.dexId,
-      slot.pokemonName,
-      card.id,
-      card.name,
-      card.image,
-      card.set.name,
-      card.language ?? "en",
-      "collected",
-      {
-        cardFinish: card.inferredFinish,
-        wantedCards: existingItem?.wanted_cards ?? [],
-        cardIds: catalogCardIds(card),
-      },
-    )
-  }, [addToCollection, getCollectionItem, readOnlyMode, user])
-
-  const handleWantSetCard = useCallback(async (slot: TCGSetDexSlot, card: TCGSetSlotCard, toggle = false) => {
-    if (readOnlyMode) return
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-
-    if (hasWantedSetCard(card, getCollectionItem(slot.dexId))) {
-      const saved = getCollectionItem(slot.dexId)?.wanted_cards.find(wanted => matchesCatalogCardId(card, wanted.card_id) && (wanted.card_language ?? "en") === card.language && (wanted.card_finish ?? "normal") === card.inferredFinish)
-      if (toggle && saved) await handleClearWantedCard(slot.dexId, saved)
-      return
-    }
-    await addWantedCard(
-      slot.dexId,
-      slot.pokemonName,
-      {
-        card_id: card.id,
-        card_name: card.name,
-        card_image: card.image,
-        card_set: card.set.name,
-        card_language: card.language ?? "en",
-        card_finish: card.inferredFinish,
-        rarity: card.rarity,
-        local_id: card.localId,
-        set_total: card.set.officialCardCount,
-        added_at: new Date().toISOString(),
-      },
-    )
-  }, [addWantedCard, getCollectionItem, handleClearWantedCard, readOnlyMode, user])
-
-  const handleBrowseWantCard = useCallback(async (pokemon: { id: number; name: string }, card: TCGCard, isWanted: boolean, wantedCard?: WantedCard) => {
-    if (readOnlyMode) return
-    if (!user) {
-      setCardBrowser(null)
-      setIsAuthOpen(true)
-      return
-    }
-    if (isWanted) {
-      const saved = wantedCard ?? getCollectionItem(pokemon.id)?.wanted_cards.find(wanted => matchesCatalogCardId(card, wanted.card_id) && (wanted.card_language ?? "en") === (card.language ?? "en") && (wanted.card_finish ?? "normal") === inferCardFinish(card.rarity, card.variants))
-      if (saved) await handleClearWantedCard(pokemon.id, saved)
-      return
-    }
-    await addWantedCard(pokemon.id, pokemon.name, {
-      card_id: card.id,
-      card_name: card.name,
-      card_image: card.image,
-      card_set: card.set.name,
-      card_language: card.language ?? "en",
-      card_finish: inferCardFinish(card.rarity, card.variants),
-      rarity: card.rarity,
-      local_id: card.localId,
-      set_total: card.set.officialCardCount,
-      illustrator: card.illustrator,
-      added_at: new Date().toISOString(),
-    })
-  }, [setCardBrowser, addWantedCard, getCollectionItem, handleClearWantedCard, readOnlyMode, user])
-
-  const handleBrowseAddCard = useCallback(async (pokemon: { id: number; name: string }, card: TCGCard) => {
-    if (readOnlyMode) return
-    if (!user) {
-      setCardBrowser(null)
-      setIsAuthOpen(true)
-      return
-    }
-    const existingItem = getCollectionItem(pokemon.id)
-    await addToCollection(
-      pokemon.id,
-      pokemon.name,
-      card.id,
-      card.name,
-      card.image,
-      card.set.name,
-      card.language ?? "en",
-      "collected",
-      {
-        cardFinish: inferCardFinish(card.rarity, card.variants),
-        wantedCards: existingItem?.wanted_cards ?? [],
-        cardIds: catalogCardIds(card),
-      },
-    )
-  }, [setCardBrowser, addToCollection, getCollectionItem, readOnlyMode, user])
-
-  const handleGotWantedCard = useCallback(async (pokemonId: number, pokemonName: string, wantedCard: WantedCard) => {
-    if (readOnlyMode) return
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-
-    const existingItem = getCollectionItem(pokemonId)
-    const wantedKey = getWantedCardKey(wantedCard)
-    const nextWantedCards = (existingItem?.wanted_cards ?? []).filter((card) => getWantedCardKey(card) !== wantedKey)
-    const previous = existingItem ? { ...existingItem, wanted_cards: [...(existingItem.wanted_cards ?? [])] } : null
-
-    const gotResult = await addToCollection(
-      pokemonId,
-      pokemonName,
-      wantedCard.card_id,
-      wantedCard.card_name,
-      wantedCard.card_image,
-      wantedCard.card_set,
-      wantedCard.card_language ?? "en",
-      "collected",
-      {
-        cardFinish: wantedCard.card_finish ?? "normal",
-        wantedCards: nextWantedCards,
-      },
-    )
-    if (previous && "data" in gotResult) {
-      setOwnedRemoveUndo({ message: `${wantedCard.card_name} moved to your binder`, previous, activityEventId: "activityEventId" in gotResult ? gotResult.activityEventId as string|undefined : undefined, expected: "data" in gotResult ? gotResult.data : null, accountId:user?.id,ownerId:resolvedCollectionOwnerUserId })
-    }
-  }, [addToCollection, getCollectionItem, readOnlyMode, user, resolvedCollectionOwnerUserId])
-
-  const handleCollectSetCards = useCallback(async (cards: Array<{ slot: TCGSetDexSlot; card: TCGSetSlotCard }>) => {
-    for (const { slot, card } of cards) {
-      await handleCollectSetCard(slot, card)
-    }
-  }, [handleCollectSetCard])
-
-  const handleWantSetCards = useCallback(async (cards: Array<{ slot: TCGSetDexSlot; card: TCGSetSlotCard }>) => {
-    for (const { slot, card } of cards) {
-      await handleWantSetCard(slot, card)
-    }
-  }, [handleWantSetCard])
-
-  const handleCardSelected = async (card: TCGCard | null, selectedMode: CardSelectorMode = cardSelectorMode, finish: CardFinish = "normal") => {
-    if (!selectedPokemon) return
-    if (readOnlyMode) return
-    const pokemon = selectedPokemon
-    const existingCollectionItem = collectionItem
-
-    beginBinderCardSelection({
-      onCloseSelector: () => setIsCardSelectorOpen(false),
-      onCloseSelectedSlot: () => setSelectedPokemon(null),
-    })
-
-    setCardSelectorMode(selectedMode)
-    if (selectedMode === "wishlist") {
-      const replacement: WantedCard | null = card ? {
-        card_id: card.id, card_name: card.name, card_image: card.image, card_set: card.set?.name,
-        card_language: card.language ?? "en", card_finish: finish, rarity: card.rarity,
-        local_id: card.localId, set_total: card.set?.officialCardCount, illustrator: card.illustrator,
-        added_at: new Date().toISOString(),
-      } : null
-      if (editingWantedCard) {
-        if (replacement) {
-          const result = await editWantedCard(pokemon.id, editingWantedCard, replacement)
-          if ((!("error" in result) || ("queued" in result && result.queued)) && existingCollectionItem) setOwnedRemoveUndo({ message: "Wanted card changed", previous: { ...existingCollectionItem, wanted_cards: [...existingCollectionItem.wanted_cards] }, activityEventId: "activityEventId" in result ? result.activityEventId as string|undefined : undefined, expected: "data" in result ? result.data : null, accountId:user?.id,ownerId:resolvedCollectionOwnerUserId })
-        } else await handleClearWantedCard(pokemon.id, editingWantedCard)
-      } else if (replacement) await addWantedCard(pokemon.id, pokemon.name, replacement)
-    } else {
-      await addToCollection(
-        pokemon.id,
-        pokemon.name,
-        card?.id,
-        card?.name,
-        card?.image,
-        card?.set?.name,
-        card?.language ?? "en",
-        "collected",
-        {
-          cardFinish: finish,
-          wantedCards: existingCollectionItem?.wanted_cards ?? [],
-          ...(card ? { cardIds: catalogCardIds(card) } : {}),
-        },
-      )
-    }
-    setIsCardSelectorOpen(false)
-  }
-
-  const handleSelectedCardFinishChange = async (finish: CardFinish) => {
-    if (!selectedPokemon || !collectionItem?.card_id || readOnlyMode) return
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-    if ((collectionItem.card_finish ?? "normal") === finish) return
-
-    await addToCollection(
-      selectedPokemon.id,
-      selectedPokemon.name,
-      collectionItem.card_id,
-      collectionItem.card_name,
-      collectionItem.card_image,
-      collectionItem.card_set,
-      collectionItem.card_language ?? "en",
-      collectionItem.status,
-      {
-        cardFinish: finish,
-        wantedCards: collectionItem.wanted_cards ?? [],
-      },
-    )
-  }
-
-  const handleToggleFavorite = useCallback(async (pokemonId: number) => {
-    if (readOnlyMode) return
-    const item = getCollectionItem(pokemonId)
-    if (!item || item.status === "wishlisted" || !item.card_id) {
-      return
-    }
-
-    const nextStatus: SlotStatus = item.status === "finalized" ? "collected" : "finalized"
-    await updateStatus(pokemonId, nextStatus)
-    setLongPressedPokemon(null)
-  }, [getCollectionItem, readOnlyMode, updateStatus])
-
-  const handleToggleFavoriteSelectedPokemon = useCallback(async () => {
-    if (!selectedPokemon) return
-    await handleToggleFavorite(selectedPokemon.id)
-  }, [handleToggleFavorite, selectedPokemon])
-
-  const handleSyncLocalCollectionToCloud = async () => {
-    if (readOnlyMode) return
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-
-    const confirmed = window.confirm(
-      `Replace the cloud binder (${collectionCount} collected) with this device's local collection (${localCollectedCount} collected)? This removes anything that exists only in the cloud binder.`
-    )
-
-    if (!confirmed) return
-
-    setIsSyncingLocalCollection(true)
-    setLocalCollectionSyncMessage(null)
-
-    const result = await syncLocalCollectionToDatabase(pokemonList, {
-      replaceRemote: true,
-    })
-
-    if (result.error) {
-      setLocalCollectionSyncMessage("Could not sync local collection to the cloud.")
-    } else if (result.data) {
-      setLocalCollectionSyncMessage(
-        `Cloud binder replaced: ${result.data.remoteCountBefore} -> ${result.data.remoteCountAfter} collected. Device source had ${result.data.localCount}. ${result.data.added} added, ${result.data.removed} removed.`
-      )
-    }
-
-    setIsSyncingLocalCollection(false)
-  }
 
   // A share opens the exact pocket: species results go to its first needed/wanted pocket, wants to their own pocket.
   const openPublicLocation = useCallback((location: { page: number; slotId: string } | null) => {
@@ -2428,9 +1900,8 @@ function BinderAppSurface(props: BinderAppProps) {
       isFavorite: item?.status === "finalized",
       isSelected: selectedPokemon?.id === pokemon.id,
       slotState,
-      elsewhereLabel: ownedElsewhereLabel(pokemon.id),
     }
-  }, [getCollectionItem, ownedElsewhereLabel, pokemonList, selectedPokemon?.id, settings.binderCols, slotsPerPage, publicIndex, browserSurface, nativePocket, nativeDisplay, nativeBinderOpen, selectedSlotId])
+  }, [getCollectionItem, pokemonList, selectedPokemon?.id, settings.binderCols, slotsPerPage, publicIndex, browserSurface, nativePocket, nativeDisplay, nativeBinderOpen, selectedSlotId])
 
   const handleJumpBetweenTargets = useCallback((direction: "next" | "prev") => {
     if (publicIndex && orderedDisplaySlots) {
@@ -2522,321 +1993,9 @@ function BinderAppSurface(props: BinderAppProps) {
     }
   }
 
-  const handlePhotoButtonClick = () => {
-    if (readOnlyMode) return
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
+  const handlePhotoButtonClick = requireAccount
 
-    if (isFilteredBinderLayout) {
-      setPageScanError("Turn off the card-status filter before scanning a page photo.")
-      return
-    }
-
-    if (window.isSecureContext && navigator.mediaDevices) {
-      setScannerStartSlotIndex(firstSweepSlotIndex)
-      setIsBurstScannerOpen(true)
-      return
-    }
-
-    pagePhotoInputRef.current?.click()
-  }
-
-  const getPageScanCardsForPokemon = useCallback((pokemonId: number) => {
-    const existingPromise = pageScanCardCandidatesCacheRef.current.get(pokemonId)
-    if (existingPromise) return existingPromise
-
-    const cardsPromise = fetchCardsForPokemon(pokemonId, "en").then((cards) => cards.filter((card) => Boolean(card.image)))
-    pageScanCardCandidatesCacheRef.current.set(pokemonId, cardsPromise)
-    return cardsPromise
-  }, [fetchCardsForPokemon])
-
-  const getPageScanDescriptorForCard = useCallback((card: TCGCard) => {
-    if (!card.image) {
-      return Promise.resolve(null)
-    }
-
-    const existingPromise = pageScanCardDescriptorCacheRef.current.get(card.id)
-    if (existingPromise) return existingPromise
-
-    const proxyUrl = card.image.startsWith("/")
-      ? toCardImageSrc(card.image)!
-      : `/app/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
-    const descriptorPromise = import("@/lib/card-image-match")
-      .then(({ buildCardImageDescriptor }) => buildCardImageDescriptor(proxyUrl))
-      .catch(() => null)
-
-    pageScanCardDescriptorCacheRef.current.set(card.id, descriptorPromise)
-    return descriptorPromise
-  }, [])
-
-  const getPageScanTextSignalsForCard = useCallback((card: TCGCard) => {
-    const existingPromise = pageScanCardTextSignalCacheRef.current.get(card.id)
-    if (existingPromise) return existingPromise
-
-    const metadataSignals = buildCardMetadataTextSignals(card)
-    const proxyUrl = card.image?.startsWith("/")
-      ? toCardImageSrc(card.image)!
-      : card.image
-        ? `/app/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
-        : null
-    const textSignalPromise = proxyUrl
-      ? import("@/lib/card-scan-ocr")
-          .then(({ recognizeCardTextSignalsFromImage }) => recognizeCardTextSignalsFromImage(proxyUrl, { exhaustive: true }))
-          .then((imageSignals) => mergeCardTextSignals([metadataSignals, imageSignals]) ?? metadataSignals)
-          .catch((error) => {
-            console.info("[holofolder] Skipping candidate card OCR scan:", error)
-            return metadataSignals
-          })
-      : Promise.resolve(metadataSignals)
-
-    pageScanCardTextSignalCacheRef.current.set(card.id, textSignalPromise)
-    return textSignalPromise
-  }, [])
-
-  const getPageScanTextSignalsForCards = useCallback(async (
-    candidateCards: TCGCard[],
-    visualMatches: AggregatedCardScanMatch<TCGCard>[],
-    querySignals: CardTextSignals | null | undefined,
-  ) => {
-    const textSignalMap = new Map(
-      candidateCards.map((card) => [card.id, buildCardMetadataTextSignals(card)] as const),
-    )
-    const assetOcrCandidates = selectCandidateCardsForAssetTextOcr(candidateCards, visualMatches, querySignals, {
-      getCardId: (card) => card.id,
-      maxCards: PAGE_SCAN_CANDIDATE_ASSET_OCR_LIMIT,
-    })
-
-    for (const card of assetOcrCandidates) {
-      textSignalMap.set(card.id, await getPageScanTextSignalsForCard(card))
-    }
-
-    return textSignalMap
-  }, [getPageScanTextSignalsForCard])
-
-  const scorePageScanSlotCard = useCallback(async (
-    cardImageDataUrl: string,
-    pokemon: { id: number; name: string },
-  ): Promise<CardScanFrameMatch<TCGCard>[]> => {
-    const candidates = await getPageScanCardsForPokemon(pokemon.id)
-    if (candidates.length === 0) return []
-
-    const { buildCardImageDescriptor, compareCardImageDescriptors } = await import("@/lib/card-image-match")
-    const queryDescriptor = await buildCardImageDescriptor(cardImageDataUrl)
-    const matches = await Promise.all(
-      candidates.map(async (card) => {
-        const descriptor = await getPageScanDescriptorForCard(card)
-        if (!descriptor) return null
-
-        const match = compareCardImageDescriptors(queryDescriptor, descriptor)
-        return {
-          card,
-          similarity: match.similarity,
-        }
-      }),
-    )
-
-    return matches
-      .filter((match): match is CardScanFrameMatch<TCGCard> => Boolean(match))
-      .sort((left, right) => right.similarity - left.similarity)
-      .slice(0, 6)
-  }, [getPageScanCardsForPokemon, getPageScanDescriptorForCard])
-
-  const readPageScanSlotTextSignals = useCallback(async (cardImageDataUrl: string): Promise<CardTextSignals | null> => {
-    try {
-      const { recognizeCardTextSignalsFromImage } = await import("@/lib/card-scan-ocr")
-      return await recognizeCardTextSignalsFromImage(cardImageDataUrl, { exhaustive: true })
-    } catch (error) {
-      console.info("[holofolder] Skipping page slot OCR scan:", error)
-      return null
-    }
-  }, [])
-
-  const rankPageSlotMatchesWithText = useCallback(async (
-    matches: AggregatedCardScanMatch<TCGCard>[],
-    cardImageCandidates?: CardScanImageCandidate[],
-    candidateCards?: TCGCard[],
-  ): Promise<AggregatedCardScanMatch<TCGCard>[]> => {
-    if (!cardImageCandidates || cardImageCandidates.length === 0 || (matches.length <= 1 && !candidateCards?.length)) return matches
-
-    const topMargin = matches.length > 0 ? Math.abs(matches[0].similarity - (matches[1]?.similarity ?? 0)) : 0
-    const cropLimit = topMargin < 0.08 ? PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT : PAGE_SCAN_OCR_BASE_CROP_LIMIT
-    const evidenceImages = selectCardScanEvidenceImages(cardImageCandidates, cropLimit)
-    const textSignals = mergeCardTextSignals(await Promise.all(
-      evidenceImages.map((cardImageDataUrl) => readPageScanSlotTextSignals(cardImageDataUrl)),
-    ))
-    if (!textSignals) return matches
-    const candidateTextSignals = candidateCards?.length
-      ? await getPageScanTextSignalsForCards(candidateCards, matches, textSignals)
-      : undefined
-
-    return rankAggregatedCardScanMatchesWithText(matches, textSignals, {
-      candidateCards,
-      candidateTextSignals,
-      getCardId: (card) => card.id,
-    })
-  }, [getPageScanTextSignalsForCards, readPageScanSlotTextSignals])
-
-  const matchPageScanCards = useCallback(async (
-    results: BinderPageScanResult[],
-  ): Promise<PageScanCardMatchSummary[]> => {
-    const slotFrames = new Map<number, CardScanFrameMatch<TCGCard>[][]>()
-    const slotCropImagesByIndex = new Map<number, CardScanImageCandidate[]>()
-
-    for (const result of results) {
-      await Promise.all(
-        result.slots.map(async (slot) => {
-          const pokemon = currentPageSlots[slot.index]
-          if (!slot.occupied || !slot.cardImageDataUrl || !pokemon) return
-          const slotCropImages = slotCropImagesByIndex.get(slot.index) ?? []
-          slotCropImages.push({ dataUrl: slot.cardImageDataUrl, quality: slot.confidence })
-          slotCropImagesByIndex.set(slot.index, slotCropImages)
-
-          try {
-            const matches = await scorePageScanSlotCard(slot.cardImageDataUrl, pokemon)
-            if (matches.length === 0) return
-
-            const frameMatches = slotFrames.get(slot.index) ?? []
-            frameMatches.push(matches)
-            slotFrames.set(slot.index, frameMatches)
-          } catch (error) {
-            console.info("[holofolder] Skipping page slot card match:", error)
-          }
-        }),
-      )
-    }
-
-    const aggregatedSlots = aggregatePageSlotScanMatches(
-      [...slotFrames.entries()].map(([slotIndex, frameMatches]) => ({ slotIndex, frameMatches })),
-      {
-        getCardId: (card) => card.id,
-        minimumAppearances: results.length > 1 ? Math.max(1, Math.ceil(results.length * 0.34)) : 1,
-        minimumFrameSimilarity: 0.55,
-        maxResultsPerSlot: 6,
-      },
-    )
-    const aggregatedSlotMatchesByIndex = new Map(aggregatedSlots.map((slot) => [slot.slotIndex, slot.matches]))
-    const slotIndexesToRank = [...new Set([
-      ...slotCropImagesByIndex.keys(),
-      ...aggregatedSlotMatchesByIndex.keys(),
-    ])].sort((left, right) => left - right)
-
-    const summaries = await Promise.all(slotIndexesToRank.map(async (slotIndex): Promise<PageScanCardMatchSummary | null> => {
-      const pokemon = currentPageSlots[slotIndex]
-      const candidateCards = pokemon ? await getPageScanCardsForPokemon(pokemon.id) : undefined
-      const rankedMatches = await rankPageSlotMatchesWithText(
-        aggregatedSlotMatchesByIndex.get(slotIndex) ?? [],
-        slotCropImagesByIndex.get(slotIndex),
-        candidateCards,
-      )
-      const match = rankedMatches[0]
-      if (!match) return null
-
-      return {
-        slotIndex,
-        slotLabel: getSlotLabel(Math.floor(slotIndex / settings.binderCols), slotIndex % settings.binderCols),
-        cardId: match.card.id,
-        cardName: match.card.name,
-        setName: match.card.set.name,
-        cardImage: match.card.image,
-        similarity: match.similarity,
-        confidence: match.confidence,
-        margin: match.margin,
-        appearanceRatio: match.appearanceRatio,
-      }
-    }))
-
-    return summaries.filter((summary): summary is PageScanCardMatchSummary => Boolean(summary))
-  }, [currentPageSlots, getPageScanCardsForPokemon, rankPageSlotMatchesWithText, scorePageScanSlotCard, settings.binderCols])
-
-  const handlePagePhotoSelected = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ""
-
-    if (!file) return
-    if (readOnlyMode) return
-
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-
-    if (isFilteredBinderLayout) {
-      setPageScanError("Turn off the card-status filter before scanning a page photo.")
-      return
-    }
-
-    setIsScanningPage(true)
-    setPageScanSummary(null)
-    setPageScanError(null)
-
-    try {
-      const result = await scanBinderPageImage(file, settings.binderRows, settings.binderCols)
-      const cardMatches = await matchPageScanCards([result])
-      const matchedCardsBySlotIndex = new Map(
-        cardMatches
-          .filter((match) => canAutoAcceptCardScanMatch(match))
-          .map((match) => [match.slotIndex, match]),
-      )
-      const mappedOccupiedSlots = result.slots
-        .filter((slot) => slot.occupied)
-        .map((slot) => ({ slotIndex: slot.index, pokemon: currentPageSlots[slot.index] }))
-        .filter((slot): slot is { slotIndex: number; pokemon: { id: number; name: string } } => Boolean(slot.pokemon))
-
-      let alreadyCollected = 0
-      const slotsToCollect = mappedOccupiedSlots
-        .filter(({ pokemon }) => {
-          if (isCollected(pokemon.id)) {
-            alreadyCollected += 1
-            return false
-          }
-
-          return true
-        })
-
-      const collectResults = await Promise.all(
-        slotsToCollect.map(({ pokemon, slotIndex }) => {
-          const cardMatch = matchedCardsBySlotIndex.get(slotIndex)
-
-          return addToCollection(
-            pokemon.id,
-            pokemon.name,
-            cardMatch?.cardId,
-            cardMatch?.cardName,
-            cardMatch?.cardImage,
-            cardMatch?.setName,
-          )
-        })
-      )
-      const newCollected = collectResults.filter((result) => !result?.error).length
-
-      setPageScanSummary({
-        detectedOccupied: mappedOccupiedSlots.length,
-        newCollected,
-        alreadyCollected,
-        matchedCards: cardMatches.length,
-        cardMatches,
-        page: currentBinderPage,
-      })
-    } catch (error) {
-      console.error("[holofolder] Error scanning page photo:", error)
-      setPageScanError(error instanceof Error ? error.message : "Could not scan that page photo.")
-    } finally {
-      setIsScanningPage(false)
-    }
-  }, [
-    addToCollection,
-    currentBinderPage,
-    currentPageSlots,
-    isCollected,
-    matchPageScanCards,
-    settings.binderCols,
-    settings.binderRows,
-    isFilteredBinderLayout,
-    readOnlyMode,
-    user,
-  ])
+  const handlePagePhotoSelected = requireAccount
 
   const toggleDarkMode = () => {
     const next = !isDarkMode
@@ -3350,7 +2509,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const isQuickPanelOpen = Boolean(selectedPokemon) && !isSearchOpen
   const isMobileQuickPanel = isQuickPanelOpen && !isDesktopViewport
   // The card selector and the all-cards view open on top of the card detail, which stays mounted but hidden.
-  const isQuickPanelCovered = isCardSelectorOpen || Boolean(cardBrowser?.nested) || Boolean(illustratorBrowser?.nested)
+  const isQuickPanelCovered = Boolean(cardBrowser?.nested) || Boolean(illustratorBrowser?.nested)
 
   // Card detail: a popover next to the slot on desktop, a modal bottom sheet on mobile.
   useOverlay(isQuickPanelOpen, closeSelectedPokemon, {
@@ -3584,98 +2743,19 @@ function BinderAppSurface(props: BinderAppProps) {
     return meta.stateLabel ? { label: meta.stateLabel, toneClass: meta.stateToneClass ?? "" } : { label: missingLabel, toneClass: "bg-muted text-muted-foreground" }
   }, [getSearchResultMeta, isShowModeOn, quickLookup])
 
-  // Quick mode's deal checker (components/quick-card-check.tsx): card state and actions with snapshot undo.
+  // Quick mode's deal checker (components/quick-card-check.tsx): card state; guests are asked to join to act.
   const getQuickCardState = useCallback((card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish) => {
     if (publicIndex) return publicIndex.quickState(card, pokemon.id, finish)
-    const state = resolveQuickCardState(card, getCollectionItem(pokemon.id), finish, allBinders, initialBinderId)
+    const state = resolveQuickCardState(card, getCollectionItem(pokemon.id), finish)
     return { ...state, otherBindersIncomplete: binders.length > 1 && state.otherBindersIncomplete }
-  }, [allBinders, binders.length, getCollectionItem, initialBinderId, publicIndex])
-  const handleQuickCardAction = useCallback(async (
-    action: QuickCardAction,
-    card: SearchCardResult,
-    pokemon: { id: number; name: string },
-    finish: CardFinish,
-  ): Promise<(() => Promise<void>) | null> => {
-    if (readOnlyMode) return null
-    if (!user) {
-      setIsQuickModeOpen(false)
-      openExclusively(() => setIsAuthOpen(true))
-      return null
-    }
-    const previous = getCollectionItem(pokemon.id)
-    const snapshot = previous ? { ...previous, wanted_cards: [...(previous.wanted_cards ?? [])] } : null
-    let acquired: CollectedPokemon | null | undefined
-    let activityEventId:string|undefined
-    const undo = async () => {
-      if(activityEventId) {await undoActivityEvent(activityEventId);return}
-      const result = snapshot ? await restoreCollectionItem(snapshot, acquired) : await removeFromCollection(pokemon.id, acquired)
-      if (result.error && !("queued" in result && result.queued)) throw new Error(typeof result.error === "string" ? result.error : "Could not undo. Try again.")
-    }
-    const language = (card.language ?? "en") as CardLanguage
-    if (action === "remove-wanted") {
-      const wanted = previous?.wanted_cards.find(entry => matchesCatalogCardId(card, entry.card_id) && (entry.card_language ?? "en") === language && (entry.card_finish ?? "normal") === finish)
-      if (!wanted) return null
-      const result = await editWantedCard(pokemon.id, wanted, null)
-      if ("error" in result && !("queued" in result && result.queued)) throw new Error("Could not remove the wanted card")
-      activityEventId = "activityEventId" in result ? result.activityEventId as string|undefined : undefined
-      acquired = "data" in result ? result.data : null
-      return undo
-    }
-    if (action === "want") {
-      if (getQuickCardState(card, pokemon, finish).wanted) return null
-      const result = await addWantedCard(pokemon.id, pokemon.name, {
-        card_id: card.id,
-        card_name: card.name,
-        card_image: card.image,
-        card_set: card.set.name,
-        card_language: language,
-        card_finish: finish,
-        rarity: card.rarity,
-        local_id: card.localId,
-        set_total: card.set.officialCardCount,
-        illustrator: card.illustrator,
-        added_at: new Date().toISOString(),
-      })
-      if (result.error && !result.queued) throw new Error("Could not add the wanted card")
-      activityEventId = "activityEventId" in result ? result.activityEventId as string|undefined : undefined
-      acquired = result.data
-      return undo
-    }
-    // Bought, Add owned and Got it all put this printing in the binder and take it off the want list.
-    if (getQuickCardState(card, pokemon, finish).owned) return null
-    const result = await addToCollection(pokemon.id, pokemon.name, card.id, card.name, card.image, card.set.name, language, "collected", {
-      cardFinish: finish,
-      wantedCards: (previous?.wanted_cards ?? []).filter((wanted) => !(matchesCatalogCardId(card, wanted.card_id) && (wanted.card_language ?? "en") === language && (wanted.card_finish ?? "normal") === finish)),
-      cardIds: catalogCardIds(card),
-    })
-    if (result.error && !result.queued) throw new Error("Could not add the owned card")
-    activityEventId = "activityEventId" in result ? result.activityEventId as string|undefined : undefined
-    acquired = result.data
-    return undo
-  }, [addToCollection, addWantedCard, editWantedCard, getCollectionItem, getQuickCardState, openExclusively, readOnlyMode, removeFromCollection, restoreCollectionItem, undoActivityEvent, user])
-  const handleQuickChangeCard = useCallback((mode: CardSelectorMode, card: SearchCardResult, pokemon: { id: number; name: string }, finish: CardFinish) => {
-    const summary = getPokemonSummary(pokemon.id)
-    if (!summary || readOnlyMode) return
-    const saved = mode === "wishlist" ? getCollectionItem(pokemon.id)?.wanted_cards.find(wanted => matchesCatalogCardId(card, wanted.card_id) && (wanted.card_language ?? "en") === (card.language ?? "en") && (wanted.card_finish ?? "normal") === finish) : null
-    if (mode === "wishlist" && !saved) return
-    closeAllOverlays()
-    setIsQuickModeOpen(false)
-    handlePokemonSelect(summary)
-    setWantedDetail(saved ? { pokemonId: pokemon.id, card: saved } : null)
-    setEditingWantedCard(saved ?? null)
-    setCardSelectorMode(mode)
-    setIsCardSelectorOpen(true)
-  }, [getCollectionItem, handlePokemonSelect, readOnlyMode, setIsCardSelectorOpen])
-  const handleQuickRemoveOwned = useCallback((pokemon: { id: number; name: string }) => {
-    closeAllOverlays()
-    setIsQuickModeOpen(false)
-    requestOwnedRemoval(pokemon)
-  }, [requestOwnedRemoval])
+  }, [binders.length, getCollectionItem, publicIndex])
+  const handleQuickCardAction = requireAccount
+  const handleQuickChangeCard = requireAccount
+  const handleQuickRemoveOwned = requireAccount
   // The deal check is part of every Quick mode; Show mode (and the price lookup) add the hunt list, bundle and tally.
   const quickCardCheck = useMemo(
-    // eslint-disable-next-line react-hooks/refs -- Collection refs are only read when these event handlers run.
-    () => ({ onUndoAvailable: offerQuickUndo, currency: pricingPreferences.currency, fxRates, readOnly: nativeReadOnly, destinationName: activeBinder?.name ?? "this binder", revisitKey: revisitStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), budgetKey: showBudgetStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), getCardState: getQuickCardState, onAction: handleQuickCardAction, onChangeCard: handleQuickChangeCard, onRemoveOwned: handleQuickRemoveOwned, huntItems: collection }),
-    [offerQuickUndo, nativeReadOnly, activeBinder?.name, collection, fxRates, getQuickCardState, handleQuickCardAction, handleQuickChangeCard, handleQuickRemoveOwned, pricingPreferences.currency, resolvedCollectionOwnerUserId, user?.id],
+    () => ({ currency: pricingPreferences.currency, fxRates, readOnly: nativeReadOnly, destinationName: activeBinder?.name ?? "this binder", revisitKey: revisitStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), budgetKey: showBudgetStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null), getCardState: getQuickCardState, onAction: handleQuickCardAction, onChangeCard: handleQuickChangeCard, onRemoveOwned: handleQuickRemoveOwned, huntItems: collection }),
+    [nativeReadOnly, activeBinder?.name, collection, fxRates, getQuickCardState, handleQuickCardAction, handleQuickChangeCard, handleQuickRemoveOwned, pricingPreferences.currency, resolvedCollectionOwnerUserId, user?.id],
   )
   // Outside Show mode Quick still badges each printing Owned / Wanted and lists wanted ones first.
   const quickCardStanding = useMemo(() => ({ getCardState: getQuickCardState, items: collection }), [collection, getQuickCardState])
@@ -3728,7 +2808,7 @@ function BinderAppSurface(props: BinderAppProps) {
     }
   }, [isAuthOpen, isMobileNavExpanded, isPartnerOpen, isSettingsOpen])
 
-  const renderSelectedPokemonQuickPanel = () => stagedSlotDisplay ? null : renderSelectedPokemonQuickPanelView({ pricingEnabled, selectedComparisonMarketGbp: selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount ?? null, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleChangeWantedCard, handleClearWantedCard, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isCollectionLoading, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards })
+  const renderSelectedPokemonQuickPanel = () => stagedSlotDisplay ? null : renderSelectedPokemonQuickPanelView({ pricingEnabled, selectedComparisonMarketGbp: selectedComparisonPrice?.marketGbpAmount ?? selectedComparisonPrice?.gbpAmount ?? null, selectedUsesSoldGuide, onSelectedSoldCheck, activeJumpPokemonList, binderCardDisplay, closeSelectedPokemon, collected, collectionItem, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleOpenCardSelector, handleOpenSelectedSlotScanner, handleOpenWishlistSelector, handleQuickCollectSelectedPokemon, handleChangeWantedCard, handleClearWantedCard, handleSelectedCardFinishChange, handleToggleFavoriteSelectedPokemon, isDesktopViewport, isLoadingPrices, isMobileQuickPanel, isQuickPanelCovered, isSearchOpen, openCardBrowser, openIllustratorBrowser, priceFormat, pricesByCardId, quickPanelPosition, quickPanelRef, quickPanelSwipe, readOnlyMode, requestOwnedRemoval, selectedAssignedPriceChipLabel, selectedCollectedDateLabel, selectedConfidenceLabel, selectedCurrentCardPreview, selectedDetailPriceLabel, selectedDetailPriceSnapshot, selectedFinishPrices, selectedGoodPriceLabel, selectedHasWantedCard, selectedIllustratorArrivedLate, selectedIllustratorLookupKey, selectedIllustratorName, selectedIllustratorState, selectedMarketPriceLabel, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPokemonHasAssignedCard, selectedPokemonIsFavorite, selectedPriceSourceLabel, selectedPrimaryCardPreview, selectedRangePriceLabel, selectedWantedCardPreview, selectedWantedCards })
 
   const renderMobileSlotActionBar = () => renderMobileSlotActionBarView({ closeMobileActions, getCollectionItem, handleQuickCollect, handleToggleFavorite, isCollected, longPressedPokemon, mobileActionsRef, mobileActionsSwipe, openCardBrowser, openCardSelectorForPokemon, readOnlyMode, requestOwnedRemoval, setLongPressedPokemon, setSelectedPokemon })
 
@@ -3798,7 +2878,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const handleShareWantedList = async (scope: "binder" | "all" | WantedDashboardCard[] = "binder") => {
     if (!billing.premium) { requestUpgrade(); return }
     // The signed-in want list hands over its own cards, as currently searched, filtered and sorted.
-    const cards = Array.isArray(scope) ? scope : (scope === "all" && allBindersWantedDashboard ? allBindersWantedDashboard : wantedDashboard).cards
+    const cards = Array.isArray(scope) ? scope : wantedDashboard.cards
     const text = buildWantedListText(cards, (card) => priceFormat.amount(card.effectiveGbpAmount, card.price))
     // Phones get the share sheet (Messages, WhatsApp, Notes); everywhere else the list is copied.
     const isTouch = window.matchMedia?.("(pointer: coarse)").matches
@@ -3849,16 +2929,16 @@ function BinderAppSurface(props: BinderAppProps) {
   // Native storage swaps List for Inventory in both the header and the dock.
   const inventoryNavigation = browserSurface ? { active: browserSurface.surface.state.main === "inventory" && activeMainView === "binder", open: browserSurface.surface.onInventory, binderOpen: nativeBinderOpen,
     collectionActive: browserSurface.surface.state.main === "collection" && (activeMainView === "binder" || activeMainView === "list") } : undefined
-  const renderAppHeader = () => renderAppHeaderView({ inventoryNavigation, activeBinder: browserSurface ? null : activeBinder, nativeStorage: Boolean(browserSurface), canManageShare, onNationalDex: browserSurface?.surface.onDex, activeJumpLabel, activeJumpPokemonList, activeMainView, binderCardControls, binderDimension, binderDisplayControls, binders, canFilterCollection, canGoToNextVisiblePage, canGoToPreviousVisiblePage, collectionCount, collectionStats, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut: onBrowserSignOut ?? handleSignOut, installPromptEvent, isDarkMode, isDesktopActionsOpen, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, lastBrowseViewRef, localPendingSyncCount, onJoin: () => openExclusively(() => { setAuthInitialMode("sign-up"); setIsAuthOpen(true) }), openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode: browserSurface ? legacyReadOnlyMode : readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsDesktopActionsOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages, user, visiblePageLabel })
+  const renderAppHeader = () => renderAppHeaderView({ inventoryNavigation, activeBinder: browserSurface ? null : activeBinder, nativeStorage: Boolean(browserSurface), canManageShare, onNationalDex: browserSurface?.surface.onDex, activeJumpLabel, activeJumpPokemonList, activeMainView, binderCardControls, binderDimension, binderDisplayControls, binders, canFilterCollection, canGoToNextVisiblePage, canGoToPreviousVisiblePage, collectionCount, collectionStats, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut: onBrowserSignOut ?? handleSignOut, installPromptEvent, isDarkMode, isDesktopActionsOpen, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, lastBrowseViewRef, onJoin: () => openExclusively(() => { setAuthInitialMode("sign-up"); setIsAuthOpen(true) }), openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode: browserSurface ? legacyReadOnlyMode : readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsDesktopActionsOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages, user, visiblePageLabel })
 
   const renderMainContent = () => renderMainContentView({ listTitle: browserSurface ? "National Dex" : undefined, nativeSpecies: speciesCollection, nativeWanted: nativeConsumer ? <>
       {wantedShareMessage && <p role="status" className="mx-auto w-full max-w-6xl px-4 pt-2 text-sm">{wantedShareMessage}</p>}
       <NativeWantedEntries presentation="wanted" binding={nativeConsumer} onCheck={nativeConsumer.openCard}
-        pricing={pricingEnabled ? { region: pricingPreferences.region, formatAmount: priceFormat.amount } : undefined} onShare={cards => { void handleShareWantedList(cards) }} /></> : undefined, nativeAnalytics: browserSurface ? <NativeCollectionAnalytics {...browserSurface.analytics} collectionId={browserSurface.surface.state.collectionId ?? undefined} region={pricingPreferences.region} /> : undefined, layoutToolbar: browserSurface && !editingLayout ? undefined : layoutToolbar, orderedDisplaySlots: orderedDisplayPages?.flat(), onSelectSlot: setSelectedSlotId, pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: (pokemonId, pokemonName, card, people) => { if (!readOnlyMode) void addWantedCard(pokemonId, pokemonName, { ...card, wanted_by: people }) }, activeJumpLabel, activeMainView, addToCollection, allBinders, allBindersOwned, allBindersWantedDashboard, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, closeBurstScanner, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, currentPageSlots, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, getCollectionItem, getPageScanCardsForPokemon, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isBurstScannerOpen, isCollected, isFilteredBinderLayout, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, matchPageScanCards, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedElsewhereLabel, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, pageScanError, pageScanSummary, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, rankPageSlotMatchesWithText, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, scannerStartSlotIndex, scorePageScanSlotCard, setBinderStageRef, setCurrentBinderPage, setIsScanningPage, setPageScanError, setPageScanSummary, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
+        pricing={pricingEnabled ? { region: pricingPreferences.region, formatAmount: priceFormat.amount } : undefined} onShare={cards => { void handleShareWantedList(cards) }} /></> : undefined, nativeAnalytics: browserSurface ? <NativeCollectionAnalytics {...browserSurface.analytics} collectionId={browserSurface.surface.state.collectionId ?? undefined} region={pricingPreferences.region} /> : undefined, layoutToolbar: browserSurface && !editingLayout ? undefined : layoutToolbar, orderedDisplaySlots: orderedDisplayPages?.flat(), onSelectSlot: setSelectedSlotId, pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: requireAccount, activeJumpLabel, activeMainView, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, setBinderStageRef, setCurrentBinderPage, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
 
   const renderSearchOverlay = () => renderSearchOverlayView({ nativeConsumer, history, binderCardDisplay, closeSearch, collected, currentPagePokemon: publicIndex ? publicIndex.pageSpecies(currentBinderPage) : currentPagePokemon, filteredPokemonList, getCardState: getQuickCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages })
 
-  const renderMobileNavMenu = () => renderMobileNavMenuView({ pricingEnabled, activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionStats, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isScanningPage, isSearchOpen, readOnlyMode, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen, switchMainView })
+  const renderMobileNavMenu = () => renderMobileNavMenuView({ pricingEnabled, activeMainView, binderCardControls, binderDisplayControls, canFilterCollection, closeControlsSheet, collectionStats, collectionViewFilter, controlsSheetRef, controlsSheetSwipe, currentPagePokemon, handlePhotoButtonClick, hasTrackedCards, isCompactViewport, isDesktopViewport, isFilteredBinderLayout, isLoadingPrices, isMobileNavExpanded, isMobileSpreadPreview, isPriceMode, isSearchOpen, readOnlyMode, selectedGen, setCollectionViewFilter, setIsMobileNavExpanded, setIsMobileSpreadPreview, setIsPriceMode, setSelectedGen, switchMainView })
 
 
   const renderBottomNav = () => renderBottomNavView({ inventoryNavigation, activeJumpLabel, activeJumpPokemonList, activeMainView, closeControlsSheet, collectionViewFilter, handleJumpToNextNeeded, isMobileNavExpanded, isQuickModeOpen, isSearchOpen, isShowModeOn, lastBrowseViewRef, openExclusively, openQuickMode, openSearch, quickPressFiredRef, quickPressHandlers, setIsMobileNavExpanded, setSelectedPokemon, switchMainView })
@@ -3869,7 +2949,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const legacyHeader = renderAppHeader()
   const legacySurface = (
     <BillingContext.Provider value={billing}>
-    <CollectionActivityProvider nativeRecovery={browserSurface?.recovery} accountId={browserSurface?.recovery?.scope.actorUserId ?? (readOnlyMode ? null : user?.id ?? null)} ownerId={browserSurface?.recovery?.scope.ownerUserId ?? (readOnlyMode ? null : resolvedCollectionOwnerUserId)} binderId={initialBinderId} binders={binders} collection={collection} pendingCount={browserSurface?.pending ?? localPendingSyncCount} isOnline={isOnline} onRecovered={refreshAfterRecovery} onOpenPokemon={id=>{const pokemon=getPokemonSummary(id);if(pokemon)handlePokemonSelect(pokemon)}}>
+    <CollectionActivityProvider nativeRecovery={browserSurface?.recovery} accountId={browserSurface?.recovery?.scope.actorUserId ?? (readOnlyMode ? null : user?.id ?? null)} ownerId={browserSurface?.recovery?.scope.ownerUserId ?? (readOnlyMode ? null : resolvedCollectionOwnerUserId)} binderId={initialBinderId} binders={binders} collection={collection} pendingCount={browserSurface?.pending ?? 0} isOnline={isOnline} onOpenPokemon={id=>{const pokemon=getPokemonSummary(id);if(pokemon)handlePokemonSelect(pokemon)}}>
     <main className={`${dashboardStyles.shell} relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] touch-pan-y flex-col overflow-hidden overscroll-none bg-background select-none`}>
       <div
         aria-hidden="true"
@@ -3881,41 +2961,6 @@ function BinderAppSurface(props: BinderAppProps) {
         className="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-[env(safe-area-inset-bottom)] bg-background md:hidden"
       />
 
-      {ownedRemoveTarget && !readOnlyMode ? (
-        <OwnedRemoveSheet
-          pokemonName={formatPokemonDisplayName(ownedRemoveTarget.name)}
-          cardName={getCollectionItem(ownedRemoveTarget.id)?.card_name}
-          onChoose={handleOwnedRemovalChoice}
-          onClose={closeOwnedRemoveSheet}
-        />
-      ) : null}
-      {quickUndo && quickUndo.accountId === user?.id && quickUndo.ownerId === resolvedCollectionOwnerUserId && !readOnlyMode && (
-        <UndoSnackbar
-          key={quickUndo.id}
-          message={quickUndo.message}
-          durationMs={30_000}
-          placement={isQuickModeOpen ? "top" : "bottom"}
-          busy={undoBusy}
-          onDismiss={() => setQuickUndo(null)}
-          onUndo={() => {
-            if (undoBusy) return
-            const pending = quickUndo
-            setUndoBusy(true)
-            void pending.run().then(() => {
-              setQuickUndo(current => current === pending ? null : current)
-            }).catch(error => {
-              setQuickUndo(current => current === pending ? { ...pending, message: error instanceof Error ? error.message : "Could not undo. Try again." } : current)
-            }).finally(() => setUndoBusy(false))
-          }}
-        />
-      )}
-      {ownedRemoveUndo && !readOnlyMode ? (
-        <UndoSnackbar
-          message={ownedRemoveUndo.message}
-          onUndo={handleUndoOwnedRemoval}
-          onDismiss={dismissOwnedRemoveUndo}
-        />
-      ) : null}
 
       {/* One compact connection chip (Show-style copy): offline (+ queued edits), queued edits syncing, or a rollback notice. */}
       {/* In Show mode the header carries offline/sync state; rollback notices float below its controls. */}
@@ -3929,34 +2974,10 @@ function BinderAppSurface(props: BinderAppProps) {
               className="flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300"
             >
               <WifiOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span>{offlineChipLabel(user && !readOnlyMode ? localPendingSyncCount : 0)}</span>
+              <span>Offline · using saved cards and prices</span>
             </div>
           </TopBannerSlot>
         )
-      ) : (user || stagedDurableQueue) && !readOnlyMode && ((localPendingSyncCount > 0 && !isShowModeOn) || syncNotice) ? (
-        <TopBannerSlot topClassName={isShowModeOn ? "top-[calc(var(--top-inset)+3.5rem)]" : undefined}>
-          <div
-            role="status"
-            data-testid="connection-chip"
-            data-connection="online"
-            data-sync-status={syncStatus === "compatibility" ? "compatibility" : syncNotice ? "rolled-back" : syncStatus}
-            className="pointer-events-auto flex items-center gap-2 rounded-full border border-amber-500/25 bg-card/92 px-3 py-1.5 text-xs font-medium text-amber-600 shadow-[0_12px_32px_-20px_rgba(217,119,6,0.65)] backdrop-blur-xl dark:text-amber-300"
-          >
-            {syncStatus === "compatibility" ? (
-              <span>{syncingChipLabel(localPendingSyncCount, syncStatus)}</span>
-            ) : syncNotice ? (
-              <>
-                <span>{syncNotice}</span>
-                {retryUnsavedEdit && <button type="button" className="min-h-9 shrink-0 underline" onClick={() => void retryUnsavedEdit()}>Retry draft</button>}
-                <button type="button" onClick={dismissSyncNotice} className="underline underline-offset-2">
-                  Dismiss
-                </button>
-              </>
-            ) : (
-              <span>{syncingChipLabel(localPendingSyncCount, syncStatus)}</span>
-            )}
-          </div>
-        </TopBannerSlot>
       ) : null}
 
       {/* Glass Navigation */}
@@ -3977,7 +2998,6 @@ function BinderAppSurface(props: BinderAppProps) {
         {browserSurface.storageMenu}
       </div>}
       {browserHeader}
-      {!readOnlyMode && <LegacyDeviceReview key={JSON.stringify([user?.id, resolvedCollectionOwnerUserId, initialBinderId])} durableQueue={durableQueue} durableEnabled={stagedDurableQueue} actorId={user?.id ?? null} ownerId={resolvedCollectionOwnerUserId ?? null} binderId={initialBinderId} />}
       {isInstalledApp && isShowModeOn && user && !readOnlyMode && <PartnerPushPrompt userId={user.id} onOpen={() => openExclusively(() => { setPushSettingsRequested(true); setIsSettingsOpen(true) })} />}
 
       {browserSurface && activeMainView === "binder" && (browserSurface.surface.state.main === "inventory" || browserSurface.surface.collection?.state.view === "slabs")
@@ -4031,12 +3051,11 @@ function BinderAppSurface(props: BinderAppProps) {
 
       {/* Modals */}
       <SettingsModal
-        collectionImport={!readOnlyMode ? { scopeKey: `${user?.id ?? "guest"}:${resolvedCollectionOwnerUserId ?? "local"}:${initialBinderId ?? "default"}`, collection, binderId: initialBinderId, binderName: activeBinder?.name, signedIn: Boolean(user), ready: !isCollectionLoading, online: isOnline, onSave: (item, expected) => restoreCollectionItem(item, expected, { importOnly: true }) } : undefined}
         binderId={shareBinderId}
         binderName={browserSurface ? shareTarget?.name : activeBinder?.name}
         onPublicIdentityChange={handlePublicIdentityChange}
         initialTab={pushSettingsRequested ? "account" : undefined}
-        backupReady={!readOnlyMode && !isCollectionLoading && !binderAppearance.loading}
+        backupReady={!readOnlyMode && !binderAppearance.loading}
         onDownloadBackup={async () => {
           if (readOnlyMode) throw new Error("Backups are only available in your own binder.")
           const backup = await createBinderBackup({
@@ -4064,12 +3083,6 @@ function BinderAppSurface(props: BinderAppProps) {
         isDarkMode={isDarkMode}
         onToggleDarkMode={toggleDarkMode}
         isSignedIn={Boolean(user)}
-        cloudCollectedCount={collectionCount}
-        localCollectedCount={settingsLocalCollectedCount}
-        localPendingSyncCount={localPendingSyncCount}
-        isSyncingLocalCollection={isSyncingLocalCollection}
-        localCollectionSyncMessage={localCollectionSyncMessage}
-        onSyncLocalCollectionToCloud={handleSyncLocalCollectionToCloud}
         isOnline={isOnline}
         isInstalledApp={isInstalledApp}
         canInstallApp={canInstallApp}
@@ -4116,7 +3129,7 @@ function BinderAppSurface(props: BinderAppProps) {
         pricingEnabled={pricingEnabled} highlightCardId={nativeLookup.card.id}
         // A want's own finish when it came from a want; otherwise the finish this printing usually comes in.
         cardDetails={{ card: nativeLookup.card, finish: nativeLookup.finish ?? inferCardFinish(nativeLookup.card.rarity, nativeLookup.card.variants), getState: () => ({ owned: false, wanted: false }),
-          onAction: async () => null, onRemoveOwned: () => {}, onJumpToSlot: () => {} }}
+          onAction: async () => {}, onRemoveOwned: () => {}, onJumpToSlot: () => {} }}
         isDesktop={isDesktopViewport} readOnly={nativeReadOnly} onClose={() => setNativeLookup(null)}
         formatPrice={priceFormat.label} pricingRegion={pricingPreferences.region} />}
       {cardBrowser ? (
@@ -4130,7 +3143,7 @@ function BinderAppSurface(props: BinderAppProps) {
             card: cardBrowser.focusedCard,
             finish: cardBrowser.finish ?? "normal",
             getState: finish => getQuickCardState(cardBrowser.focusedCard!, cardBrowser.pokemon, finish),
-            onAction: (action, finish) => handleQuickCardAction(action, cardBrowser.focusedCard!, cardBrowser.pokemon, finish),
+            onAction: requireAccount,
             onRemoveOwned: () => {
               closeAllOverlays()
               setCardBrowser(null)
@@ -4147,12 +3160,11 @@ function BinderAppSurface(props: BinderAppProps) {
             },
           } : undefined}
           collectionItem={getCollectionItem(cardBrowser.pokemon.id) ?? null}
-          ownedElsewhereByCard={allBinders ? ownedElsewhereByCard : undefined}
           isDesktop={isDesktopViewport}
           readOnly={nativeReadOnly}
           onClose={closeCardBrowser}
-          onWantCard={readOnlyMode ? undefined : (card, isWanted, wanted) => handleBrowseWantCard(cardBrowser.pokemon, card, isWanted, wanted)}
-          onAddCard={readOnlyMode ? undefined : (card) => handleBrowseAddCard(cardBrowser.pokemon, card)}
+          onWantCard={readOnlyMode ? undefined : requireAccount}
+          onAddCard={readOnlyMode ? undefined : requireAccount}
           formatPrice={priceFormat.label}
           pricingRegion={pricingPreferences.region}
         />
@@ -4186,23 +3198,6 @@ function BinderAppSurface(props: BinderAppProps) {
         onOpen={() => { const id = pocketMenuSlot.id; setPocketMenu(null); if (editingLayout) setLayoutSession(null); setSelectedSlotId(id) }}
         onSelect={() => { const id = pocketMenuSlot.id; setPocketMenu(null); if (editingLayout) layoutTap.current?.(id); else startLayoutEditing({ ids: [id], moving: false }) }}
         onMove={() => startLayoutEditing({ ids: [pocketMenuSlot.id], moving: true })} />}
-      {isCardSelectorOpen && selectedPokemon && (
-        <CardSelector
-          pokemonId={selectedPokemon.id}
-          pokemonName={selectedPokemon.name}
-          onSelect={handleCardSelected}
-          onClose={() => setIsCardSelectorOpen(false)}
-          selectedCardId={cardSelectorMode === "wishlist" ? editingWantedCard?.card_id : collectionItem?.card_id}
-          selectedCollectedCardId={collectionItem?.card_id}
-          selectedWantedCardId={editingWantedCard?.card_id ?? (cardSelectorMode === "collect" ? selectedWantedCardPreview?.card_id : undefined)}
-          replacingWanted={Boolean(editingWantedCard)}
-          onClearWanted={editingWantedCard ? () => void handleCardSelected(null, "wishlist") : undefined}
-          mode={cardSelectorMode}
-          defaultCardLanguage={editingWantedCard?.card_language ?? (cardSelectorMode === "collect" ? collectionItem?.card_language : undefined) ?? pricingPreferences.cardLanguage}
-          pricingRegion={pricingPreferences.region}
-          formatAmount={priceFormat.amount}
-        />
-      )}
 
       <footer className="hidden shrink-0 border-t border-border/20 bg-background/80 px-4 py-1 text-center text-[9px] leading-snug text-muted-foreground/60 md:block safe-area-bottom">
         <CardDataAttribution compact />

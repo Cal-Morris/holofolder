@@ -6,7 +6,7 @@ import { binderDimensions, binderPocket, BINDER_PAGE, BINDER_LAYERS, defaultBind
 
 test.describe("3D binder gestures", () => {
   test.use({ signedIn: true })
-  test("unchanged collection refresh keeps settled 3D slots tappable", async ({ harness }) => {
+  test("appearance refresh keeps settled 3D slots tappable", async ({ harness }) => {
     const { page } = harness, design = defaultBinderDesign()
     await page.route("**/app/api/binder-appearance", route => route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }))
     await page.reload()
@@ -21,16 +21,6 @@ test.describe("3D binder gestures", () => {
       new MutationObserver(() => { if (element.getAttribute("aria-busy") === "true") busy.push("busy") }).observe(element, { attributes: true, attributeFilter: ["aria-busy"] })
       Object.assign(element, { refreshBusyTransitions: busy })
     })
-    const refresh = page.waitForResponse(response => response.url().includes("/rest/v1/pokemon_collection"))
-    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")))
-    await refresh
-    // Observe the entire refresh render, including a transient busy interval that has already ended.
-    await page.evaluate(() => new Promise<void>(resolve => {
-      let frames = 0
-      const observe = () => { if (++frames === 20) resolve(); else requestAnimationFrame(observe) }
-      requestAnimationFrame(observe)
-    }))
-    expect(await stage.evaluate(element => Reflect.get(element, "refreshBusyTransitions"))).toEqual([])
     const box = (await canvas.boundingBox())!, dimensions = binderDimensions(Math.max(design.pageCount, Math.ceil(1025 / (design.rows * design.cols))))
     const camera = new PerspectiveCamera(34, box.width / box.height, .1, 100), frame = binderCameraFrame("inside", box.width, box.height, dimensions.coverZ)
     camera.position.set(...frame.position); camera.lookAt(...frame.target); camera.updateMatrixWorld()

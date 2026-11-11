@@ -30,6 +30,7 @@ Object keys are deterministic:
   | `scrydex` | `https://images.scrydex.com/pokemon/<cardId>/<large\|medium\|small>` | `cards/src/scrydex/<cardId>/<size>.webp` |
   | `limitless` | `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/<SET>/<file>.png` | `cards/src/limitless/<SET>/<file>.webp` |
   | `playshop` | `https://cdn.shopify.com/s/files/1/1015/7057/6719/files/<handle>.<png\|jpg>` | `cards/src/playshop/<handle>.webp` |
+  | `pokemoncom` | `https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/<SET>/<SET>_EN_<number>.png` | `cards/src/pokemoncom/<SET>/<SET>_EN_<number>.webp` |
 
   `cdn.shopify.com` serves every Shopify store, so only the playshop.fr store path counts as a card image (`isCardImageSourceUrl`); the proxy refuses any other path on that host. playshop.fr scans are used only for the French McDonald's collections (2013, 2018, 2019), which no card database has scans for; their stored copies are trimmed of any white margin around the card.
 
@@ -41,8 +42,8 @@ Uploads never overwrite (`If-None-Match: *` on R2, `allowOverwrite: false` on Bl
 
 1. Cloudflare dashboard → R2 → **Create bucket**. Name it e.g. `binderdex-card-images`, keep the Standard storage class (the free tier doesn't cover Infrequent Access), and leave the location on Automatic.
 2. Give the bucket a public URL by choosing one of these:
-   - **Custom domain** (recommended for production; cached by Cloudflare's CDN): bucket → Settings → Custom Domains → Add → `img.cal.gg`. The `cal.gg` zone must be on Cloudflare in the same account.
-   - **r2.dev**: bucket → Settings → Public Development URL → Enable. Cloudflare rate-limits this URL and says it is for development only.
+   - **Custom domain** (recommended for production; cached by Cloudflare's CDN): bucket → Settings → Custom Domains → Add → `assets.holofolder.com`. The `holofolder.com` zone must be on Cloudflare in the same account. Production also has **Always Use HTTPS** on for the zone, and a cache rule (`assets.holofolder.com`, path starts with `/cards/`) that caches eligible responses, respects the object's `cache-control` and caches 404s at the edge for 60 s only, so a newly mirrored image isn't hidden behind Cloudflare's default 4-hour 404 cache.
+   - **r2.dev**: bucket → Settings → Public Development URL → Enable. Cloudflare rate-limits this URL and says it is for development only. It is disabled on the production bucket; keep it off so all reads go through the cached custom domain.
 3. R2 → **Manage R2 API tokens** → Create API token. Set the permission to **Object Read & Write**, limit it to **the specific bucket** only, and leave the TTL as you prefer. Copy the Access Key ID and Secret Access Key, which are shown once. The Account ID appears on the R2 overview page.
 4. Vercel → the existing project (`binderdex` until renamed) → Settings → Environment Variables. Add these for Production (and Preview, if wanted):
    - `CARD_IMAGE_STORE=r2`
@@ -100,3 +101,7 @@ Apply migrations 068–070 before deploying the API optimization. Seed migration
 The main app uses the same public asset domain, with stored low/high image variants and CORS enabled for GET/HEAD. The image proxy remains the miss/legacy-cache fallback and continues to resize Pokémon artwork. The service worker caches public asset requests and can serve an existing proxy or saved-for-show image when offline, without renaming or deleting those caches.
 
 Vercel functions run in `iad1`, next to the existing Supabase database in US East. `vercel.json` records the region so new deployments preserve it.
+
+## Official pokemon.com scans
+
+`bun scripts/mirror-pokemoncom-images.ts [--set a,b] [--dry-run]` copies pokemon.com's official scan of every card it has into R2 and records it as `external_ids_json.pokemoncom.image`, which the read path prefers over the other fallback sources when TCGdex has no image. URLs are built from our own set and card ids (`lib/pokemoncom-card-images.ts`), so only the asset CDN is fetched. The script is idempotent; rerun it after syncing a new set. Sets pokemon.com doesn't have (Base to e-Card, most promos, trainer kits) are skipped after five probes.

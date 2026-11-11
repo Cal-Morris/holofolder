@@ -50,7 +50,7 @@ test.describe("all cards for a Pokémon", () => {
     await expect(harness.page).toHaveURL(/\/app\/e2e-harness/)
   })
 
-  test("filters owned and wanted printings and toggles a wanted printing", async ({ harness }) => {
+  test("filters owned printings and searches", async ({ harness }) => {
     const detail = await harness.openCardDetail()
     await detail.getByRole("button", { name: /all bulbasaur cards/i }).click()
     const dialog = browserDialog(harness, /all bulbasaur cards/i)
@@ -58,11 +58,6 @@ test.describe("all cards for a Pokémon", () => {
     await dialog.getByRole("button", { name: /^owned/i }).click()
     await expect(printings(harness)).toHaveCount(1)
     await dialog.getByRole("button", { name: /^all/i }).click()
-
-    await dialog.getByRole("button", { name: /^want bulbasaur 166\/165/i }).click()
-    await expect(dialog.getByRole("listitem", { name: /166\/165 151, wanted/i })).toBeVisible()
-    await dialog.getByRole("button", { name: /^wanted/i }).click()
-    await expect(printings(harness)).toHaveCount(1)
 
     await dialog.getByRole("searchbox").fill("base")
     await dialog.getByRole("button", { name: /^all/i }).click()

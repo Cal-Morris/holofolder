@@ -23,7 +23,6 @@ test("migration 040 only tightens what the binder-aware code relies on", () => {
 
 test("collection writes upsert on the per-binder slot key", () => {
   const route = readFileSync(new URL("../lib/server/operations/collection.ts", import.meta.url), "utf8")
-  const hook = readFileSync(new URL("../hooks/use-collection.ts", import.meta.url), "utf8")
-  assert.doesNotMatch(route + hook, /"user_id,pokemon_id"/)
+  assert.doesNotMatch(route, /"user_id,pokemon_id"/)
   assert.match(route, /onConflict: "binder_id,pokemon_id"/)
 })

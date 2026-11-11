@@ -243,13 +243,6 @@ test.describe("deal scale geometry", () => {
         expect(box.y + box.height, `${name} bottom`).toBeLessThanOrEqual(height - harness.insets.bottom)
         await harness.expectHittable(button)
       }
-      const want = check.getByRole("button", { name: "Want", exact: true })
-      await want.click()
-      await harness.page.getByRole("button", { name: "Dismiss undo" }).click()
-      const got = check.getByRole("button", { name: "Mark got", exact: true })
-      await got.scrollIntoViewIfNeeded()
-      await harness.expectWithinSafeViewport(got)
-      await harness.expectHittable(got)
       await harness.expectNoHorizontalOverflow()
       if (!size || size.width === 1238) await harness.page.screenshot({ path: `/tmp/cardmarket-${test.info().project.name}-${size ? "desktop" : "phone"}.png` })
     })

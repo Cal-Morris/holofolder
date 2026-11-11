@@ -2,17 +2,9 @@ import { describe, test } from "node:test"
 import assert from "node:assert/strict"
 import { AppearanceConflict, normalizeRemoteAppearance, syncBinderAppearance } from "../lib/binder-appearance-sync"
 import { defaultBinderDesign } from "../lib/binder-design"
-import { getResolvedCollectionOwner } from "../lib/collection/refresh-policy"
 
 const owner = "00000000-0000-4000-8000-0000000000e2"
 describe("appearance sync", () => {
-  test("account switches hide the old owner until the current partner owner resolves", () => {
-    assert.equal(getResolvedCollectionOwner("user-a", "user-a", "owner-a"), "owner-a")
-    assert.equal(getResolvedCollectionOwner("user-b", "user-a", "owner-a"), null)
-    assert.equal(getResolvedCollectionOwner("user-b", null, "owner-a"), null)
-    assert.equal(getResolvedCollectionOwner(null, "user-a", "owner-a"), null)
-    assert.equal(getResolvedCollectionOwner("user-b", "user-b", "partner-owner"), "partner-owner")
-  })
   test("rejects another owner and malformed revisions before installing a cache", () => {
     assert.throws(() => normalizeRemoteAppearance({ ownerId: "other", design: null, revision: 0 }, owner))
     assert.throws(() => normalizeRemoteAppearance({ ownerId: owner, design: null, revision: 2 }, owner))

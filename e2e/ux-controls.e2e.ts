@@ -48,7 +48,7 @@ test("list nested keyboard action does not open the slot", async ({ harness, pag
   await action.focus()
   await action.press("Enter")
   await expect(page.getByRole("dialog")).toHaveCount(1)
-  await expect(page.getByRole("dialog", { name: "Welcome, sign in" })).toBeVisible()
+  await expect(page.getByRole("dialog", { name: "Create account" })).toBeVisible()
 })
 
 test("settings clears the dock and empty wanted offers a price check", async ({ harness, page }) => {

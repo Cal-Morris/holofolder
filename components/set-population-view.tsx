@@ -13,7 +13,7 @@ import { getCardPriceKey, type CardPriceSnapshot } from "@/hooks/use-card-prices
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
 import { DEFAULT_PRICING_REGION, type PricingRegion } from "@/lib/pricing-region"
 import { CardHighlights } from "@/components/card-highlights"
-import type { CollectedPokemon } from "@/hooks/use-collection"
+import type { CollectedPokemon } from "@/lib/domain/cards"
 import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSlotsResponse, TCGSetSummary } from "@/lib/tcg-set-slots"
 import { getOfflineStore } from "@/lib/offline-store/kv"
 import { loadSetQuery, saveSetQuery } from "@/lib/offline-store/records"

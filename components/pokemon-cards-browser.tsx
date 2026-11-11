@@ -12,7 +12,6 @@ import { formatCardFinishLabel, formatCardLanguageLabel } from "@/lib/card-label
 import { wantedCardKey } from "@/lib/collection/wanted-card-edit"
 import { inferCardFinish, formatCardNumber, type SearchCardResult } from "@/lib/pokemon-card-browse"
 import { getCardPickerFinishChoices } from "@/lib/card-picker-filters"
-import UndoSnackbar from "@/components/undo-snackbar"
 import type { QuickCardAction, QuickCardState } from "@/components/quick-card-check"
 import { isCardLanguage, type CardFinish, type WantedCard } from "@/lib/domain/cards"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
@@ -44,7 +43,7 @@ export interface PokemonCardsBrowserProps {
     card: SearchCardResult
     finish: CardFinish
     getState: (finish: CardFinish) => QuickCardState
-    onAction: (action: QuickCardAction, finish: CardFinish) => Promise<(() => Promise<void>) | null>
+    onAction: (action: QuickCardAction, finish: CardFinish) => Promise<void>
     onRemoveOwned: () => void
     onJumpToSlot: (finish: CardFinish) => void
   }
@@ -99,15 +98,13 @@ export default function PokemonCardsBrowser({
   const displayName = pokemon ? formatPokemonDisplayName(pokemon.name) : cardDetails?.card.name ?? "Card"
   const [detailFinish, setDetailFinish] = useState<CardFinish>(cardDetails?.finish ?? "normal")
   const [confirmedReplacement, setConfirmedReplacement] = useState<string | null>(null)
-  const [detailUndo, setDetailUndo] = useState<{ message: string; run: () => Promise<void> } | null>(null)
   const detailState: QuickCardState | undefined = cardDetails ? nativeConsumer ? nativeCardState(nativeModel, cardDetails.card, detailFinish) : cardDetails.getState(detailFinish) : undefined
   const replacementKey = detailState?.replacing ? `${detailFinish}:${detailState.replacing}` : null
   const runDetailAction = async (action: QuickCardAction) => {
     if (!cardDetails || pendingCardId || readOnly || nativeConsumer) return
     setPendingCardId(cardDetails.card.id)
     try {
-      const undo = await cardDetails.onAction(action, detailFinish)
-      if (undo) setDetailUndo({ message: action === "remove-wanted" ? "Removed from want list" : action === "want" ? "Added to want list" : "Added to owned", run: undo })
+      await cardDetails.onAction(action, detailFinish)
     } finally {
       setPendingCardId(null)
     }
@@ -173,7 +170,6 @@ export default function PokemonCardsBrowser({
   }, [cards, highlightCardId, cardDetails])
 
   const runAction = useCallback(async (cardId: string, action: () => void | Promise<void>) => {
-    setDetailUndo(null)
     setPendingCardId(cardId)
     try {
       await action()
@@ -417,7 +413,6 @@ export default function PokemonCardsBrowser({
             </>
           )}
         </div>
-        {detailUndo && <UndoSnackbar message={detailUndo.message} onDismiss={() => setDetailUndo(null)} onUndo={() => { const undo = detailUndo; setDetailUndo(null); void undo.run() }} />}
       </div>
     </>
   )

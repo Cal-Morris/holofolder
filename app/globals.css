@@ -39,6 +39,13 @@
 .binder-skeleton-stage {
   container-type: size;
 }
+.binder-skeleton-icon {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .binder-skeleton-spread {
   --pad: 8px;
   --pages: 1;

@@ -11,7 +11,6 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, Check, ChevronDown, ExternalLink, Heart, Layers, Plus, ShoppingBag, TrendingUp, WifiOff } from "lucide-react"
 import { useRegionalCardPrices } from "@/hooks/use-regional-card-prices"
 import { getCardPriceKey } from "@/hooks/use-card-prices"
-import { useShowSession } from "@/hooks/use-show-session"
 import { toCardImageSrc } from "@/lib/card-image-url"
 import { formatCardNumber, inferCardFinish, type SearchCardResult } from "@/lib/pokemon-card-browse"
 import { getCardPickerFinishChoices } from "@/lib/card-picker-filters"
@@ -33,7 +32,6 @@ import { buildSoldPriceGuide } from "@/lib/sold-price-guide"
 import { CardPriceEvidence } from "@/components/card-price-evidence"
 import { CardPriceComparison } from "@/components/card-price-comparison"
 import { DealPriceScale } from "@/components/deal-price-scale"
-import type { UndoAction } from "@/components/undo-snackbar"
 import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from "@/components/deal-keypad"
 
 export type QuickCardAction = "bought" | "add-owned" | "want" | "got" | "remove-wanted"
@@ -78,9 +76,9 @@ export interface QuickCardCheckProps {
   onRemoveOwned?: () => void
   onChangeCard?: (mode: "collect" | "wishlist", finish: CardFinish) => void
   onOpenDetails: (finish: CardFinish) => void
-  onUndoAvailable: (action: UndoAction) => void
   /** Runs the action; resolves to an undo function, or null when nothing changed. */
-  onAction: (action: QuickCardAction, finish: CardFinish) => Promise<(() => Promise<void>) | null>
+  /** Only guests reach this (native hosts use nativeConsumer); the host asks them to join. */
+  onAction: (action: QuickCardAction, finish: CardFinish) => Promise<void>
   isInBundle: (key: string) => boolean
   onAddToBundle: (entry: QuickBundleEntry) => void
   /** Show mode's extras: Bought (logged to the show tally) and Bundle. Plain Quick mode keeps Own / Want / Got. */
@@ -122,7 +120,6 @@ export default function QuickCardCheck({
   onChangeCard,
   onRemoveOwned,
   onAction,
-  onUndoAvailable,
   isInBundle,
   onAddToBundle,
   showTools = true,
@@ -149,7 +146,6 @@ export default function QuickCardCheck({
     return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh) }
   }, [])
   const [thresholds] = useState(() => readDealThresholds(typeof window === "undefined" ? undefined : window.localStorage))
-  const { logPurchases, removePurchases } = useShowSession()
 
   const inferred = inferCardFinish(card.rarity, card.variants)
   const finishChoices = useMemo(() => getCardPickerFinishChoices(card.variants, inferred, "any", snapshot?.finishPrices), [card.variants, inferred, snapshot?.finishPrices])
@@ -193,36 +189,9 @@ export default function QuickCardCheck({
     ? checkDeal({ askingPrice, marketPrice: market.amount, thresholds, confidence: usesSoldGuide ? "medium" : price?.confidence, dataAgeDays, isRising })
     : null
 
-  const [busy, setBusy] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const run = async (action: QuickCardAction) => {
-    if (nativeConsumer || busy || (action !== "want" && action !== "remove-wanted" && needsConfirmation)) return
-    setBusy(true)
-    setActionError(null)
-    try {
-      const revert = await onAction(action, finish)
-      if (!revert) return
-      const purchaseIds = action === "bought" && askingPrice
-        ? logPurchases([{ cardId: card.id, cardName: card.name, language, finish, price: askingPrice, marketPrice: market?.amount ?? null, currency: moneyCurrency }])
-        : []
-      navigator.vibrate?.(action === "bought" ? [12, 40, 12] : 15)
-      const message = action === "bought"
-        ? `Bought ${card.name}${askingPrice ? ` for ${money(askingPrice)}` : ""}`
-        : action === "remove-wanted" ? `${card.name} removed from want list` : action === "want" ? `${card.name} added to Wanted` : action === "got" ? `Got ${card.name}` : `${card.name} added to your binder`
-      if (revert || purchaseIds.length > 0) {
-        onUndoAvailable({
-          message,
-          run: async () => {
-            await revert()
-            if (purchaseIds.length > 0) removePurchases(purchaseIds)
-          },
-        })
-      }
-    } catch {
-      setActionError("Could not update your binder. Try again.")
-    } finally {
-      setBusy(false)
-    }
+  const run = (action: QuickCardAction) => {
+    if (nativeConsumer || (action !== "want" && action !== "remove-wanted" && needsConfirmation)) return
+    void onAction(action, finish)
   }
 
   const key = bundleKey(card, finish)
@@ -358,35 +327,34 @@ export default function QuickCardCheck({
         {showTools && budgetKey && <ShowBudget compact storageKey={budgetKey} currency={moneyCurrency} />}
         {!readOnly && !nativeConsumer && onChangeCard && (state.wanted || state.owned) && <div className="flex flex-col gap-2">
           {state.wanted && <>
-            <button type="button" disabled={busy} onClick={() => onChangeCard("wishlist", finish)} className="min-h-11 rounded-xl border border-border/70 px-3 py-2 text-sm font-semibold">Change wanted card</button>
-            <button type="button" disabled={busy} onClick={() => void run("remove-wanted")} className="min-h-11 rounded-xl border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive">Remove from want list</button>
+            <button type="button" onClick={() => onChangeCard("wishlist", finish)} className="min-h-11 rounded-xl border border-border/70 px-3 py-2 text-sm font-semibold">Change wanted card</button>
+            <button type="button" onClick={() => run("remove-wanted")} className="min-h-11 rounded-xl border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive">Remove from want list</button>
           </>}
           {state.owned && <>
-            <button type="button" disabled={busy} onClick={() => onChangeCard("collect", finish)} className="min-h-11 rounded-xl border border-border/70 px-3 py-2 text-sm font-semibold">Change owned card</button>
-            {onRemoveOwned && <button type="button" disabled={busy} onClick={onRemoveOwned} className="min-h-11 rounded-xl border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive">Remove owned card</button>}
+            <button type="button" onClick={() => onChangeCard("collect", finish)} className="min-h-11 rounded-xl border border-border/70 px-3 py-2 text-sm font-semibold">Change owned card</button>
+            {onRemoveOwned && <button type="button" onClick={onRemoveOwned} className="min-h-11 rounded-xl border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive">Remove owned card</button>}
           </>}
         </div>}
         {/* Show is about the asking price: the field is ready to type in as soon as the card opens. */}
         <DealPriceInput value={input} onChange={setInput} autoFocus={showTools && !(nativeConsumer && readOnly)} />
-        {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
         {(showTools || !readOnly) && (
         <div className={`grid ${readOnly || nativeConsumer ? "grid-cols-1" : "grid-cols-2"} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
           {showTools && !readOnly && !nativeConsumer && (
-            <button type="button" disabled={busy || needsConfirmation} onClick={() => void run("bought")} className={`${bigButton} bg-primary text-primary-foreground`}>
+            <button type="button" disabled={needsConfirmation} onClick={() => run("bought")} className={`${bigButton} bg-primary text-primary-foreground`}>
               <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />Bought
             </button>
           )}
           {!readOnly && !nativeConsumer && (state.wanted && !state.owned ? (
-            <button type="button" disabled={busy || needsConfirmation} onClick={() => void run("got")} aria-label="Mark got" className={`${bigButton} border border-border/70 bg-card`}>
+            <button type="button" disabled={needsConfirmation} onClick={() => run("got")} aria-label="Mark got" className={`${bigButton} border border-border/70 bg-card`}>
               <Check className="h-5 w-5 shrink-0" aria-hidden />Got it
             </button>
           ) : (
-            <button type="button" disabled={busy || state.owned || needsConfirmation} onClick={() => void run("add-owned")} aria-label={state.owned ? "Owned" : "Add owned"} className={`${bigButton} border border-border/70 bg-card`}>
+            <button type="button" disabled={state.owned || needsConfirmation} onClick={() => run("add-owned")} aria-label={state.owned ? "Owned" : "Add owned"} className={`${bigButton} border border-border/70 bg-card`}>
               <Plus className="h-5 w-5 shrink-0" aria-hidden />{state.owned ? "Owned" : "Own"}
             </button>
           ))}
           {!readOnly && !nativeConsumer && !state.wanted && (
-            <button type="button" disabled={busy} onClick={() => void run("want")} aria-label="Want" className={`${bigButton} border border-border/70 bg-card`}>
+            <button type="button" onClick={() => run("want")} aria-label="Want" className={`${bigButton} border border-border/70 bg-card`}>
               <Heart className="h-5 w-5 shrink-0" aria-hidden />Want
             </button>
           )}

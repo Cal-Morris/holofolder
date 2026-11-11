@@ -53,7 +53,10 @@ function fakeR2(options: { refuse?: number; publicStatus?: number; putStatus?: n
         { headers: { "content-type": "application/xml" } },
       )
     }
-    if (request.method === "HEAD") return new Response(null, { status: objects.has(key) ? 200 : 404 })
+    if (request.method === "HEAD") {
+      const object = objects.get(key)
+      return new Response(null, { status: object ? 200 : 404, headers: object ? [...object.headers].filter(([name]) => name.startsWith("x-amz-meta-")) : [] })
+    }
     if (request.method === "PUT") {
       if (options.putStatus) return new Response(`<Error><Code>InternalError</Code></Error>`, { status: options.putStatus })
       if (request.headers.get("if-none-match") === "*" && objects.has(key)) return new Response("", { status: 412 })
@@ -113,6 +116,9 @@ describe("R2 backend", () => {
     assert.ok(stored)
     assert.equal(stored.headers.get("cache-control"), "public, max-age=31536000, immutable")
     assert.equal(stored.headers.get("content-type"), "image/webp")
+    assert.equal(stored.headers.get("x-amz-meta-source"), "tcgdex")
+    assert.equal(stored.headers.get("x-amz-meta-source-url"), "https://assets.tcgdex.net/en/me/me05/001/high.webp")
+    assert.match(stored.headers.get("x-amz-meta-source-sha256") ?? "", /^[0-9a-f]{64}$/)
 
     const before = r2.requests.length
     const second = await mirror.loadImage(ref)
@@ -129,6 +135,16 @@ describe("R2 backend", () => {
     const image = await mirror.loadImage(ref)
     assert.equal(image.source, "blob")
     assert.equal(r2.requests.at(-1)?.url, `${ENDPOINT}cards/en/me05/001/high.webp`)
+  })
+
+  test("a deliberate overwrite replaces the object and HEAD returns its origin tags", async () => {
+    const r2 = fakeR2()
+    const deps = createR2Deps(config(), { fetch: r2.fetchImpl })
+    const metadata = { source: "pokemoncom", "source-url": "https://example.test/a.png", "source-sha256": "ab", "source-etag": "v1" }
+    await deps.put("cards/src/pokemoncom/A/A_EN_1.webp", new Uint8Array([1]).buffer, "image/webp", { metadata })
+    await assert.rejects(deps.put("cards/src/pokemoncom/A/A_EN_1.webp", new Uint8Array([2]).buffer, "image/webp", { metadata }))
+    await deps.put("cards/src/pokemoncom/A/A_EN_1.webp", new Uint8Array([2]).buffer, "image/webp", { metadata: { ...metadata, "source-etag": "v2" }, overwrite: true })
+    assert.equal((await deps.head("cards/src/pokemoncom/A/A_EN_1.webp"))?.metadata?.["source-etag"], "v2")
   })
 
   test("concurrent writers never overwrite: a 412 reuses the existing object", async () => {

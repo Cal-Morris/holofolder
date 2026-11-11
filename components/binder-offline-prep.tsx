@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { CollectedPokemon } from "@/lib/domain/cards"
 import { binderPrintings, BINDER_IMAGE_CACHE, downloadBinderPrep, inspectBinderPrep, type BinderPrepScope, type BinderPrepStatus } from "@/lib/binder-offline-prep"
 import { getOfflineStore } from "@/lib/offline-store/kv"
-import { flushCollectionMirror } from "@/lib/offline-store/collection-mirror"
 import { loadPriceEvidence, saveCardPricesForOffline } from "@/hooks/use-card-prices"
 import { requestPersistentStorage } from "@/lib/service-worker-registration"
 import { formatPriceCheckAge } from "@/lib/card-price-check-cache"
@@ -25,7 +24,6 @@ export default function BinderOfflinePrep({ collection, scope, isOnline }: Binde
     return { store, shellReady: Boolean(await caches.match("/app/app-shell")), cache: await caches.open(BINDER_IMAGE_CACHE), loadPrices: loadPriceEvidence }
   }
   const inspect = useCallback(async () => {
-    await flushCollectionMirror()
     return inspectBinderPrep(cards, stableScope, await dependencies())
   }, [cards, stableScope])
   useEffect(() => {
@@ -43,7 +41,6 @@ export default function BinderOfflinePrep({ collection, scope, isOnline }: Binde
     void requestPersistentStorage()
     try {
       setMessage("Saving card data…")
-      await flushCollectionMirror()
       const result = await downloadBinderPrep(cards, stableScope, { ...await dependencies(), signal: abort.signal,
         savePrices: saveCardPricesForOffline,
         onProgress: (phase, done, total) => setMessage(`${phase === "prices" ? "Prices (batches of up to 25)" : phase}: ${done}/${total}`),

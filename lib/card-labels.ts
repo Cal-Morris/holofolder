@@ -1,5 +1,5 @@
 import { getPriceSourceLabel, type CardPriceSnapshot } from "@/hooks/use-card-prices"
-import type { CardFinish, CardLanguage } from "@/hooks/use-collection"
+import type { CardFinish, CardLanguage } from "@/lib/domain/cards"
 
 export const CARD_LANGUAGE_LABELS: Record<CardLanguage, string> = {
   en: "English",

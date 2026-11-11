@@ -1,12 +1,23 @@
-import type { CSSProperties } from "react"
-import { Grid3X3, Heart, Layers3, ListChecks, MoreHorizontal, Search } from "lucide-react"
+import type { CSSProperties, ReactNode } from "react"
 
 // The binder while it starts: the app's real frame (header, binder toolbar row, dock) with the page of
 // pockets still empty, so opening fills the page in place and nothing moves. The frame's classes mirror
 // components/binder/app-header.tsx, the toolbar row in binder-app.tsx and bottom-nav.tsx; the page is fitted
 // with the same sums as binderFitSize, in CSS (`.binder-skeleton-*` in globals.css). Server-safe (no hooks)
 // so it can be in the prerendered shell of `/` and `/app-shell`. Nothing here is interactive or announced.
-const destinations = [["Binder", Grid3X3], ["Inventory", ListChecks], ["Wanted", Heart], ["Browse", Layers3]] as const
+//
+// Keep this markup small. React only paints a boundary's content with the static shell while the shell plus
+// that content stays under 12.8 kB; past that the content is held back behind app/loading.tsx until a script
+// runs (and never without one). So the icons are the header's shapes written out bare, with their stroke
+// set once in CSS (`.binder-skeleton-icon`), not ten full lucide elements. The same goes for an eager
+// <img>, which holds its boundary until the image loads. e2e/binder-start.e2e.ts checks it with scripts off.
+const icon = (className: string, shape: ReactNode) => <svg viewBox="0 0 24 24" className={`binder-skeleton-icon ${className}`}>{shape}</svg>
+const search = <><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></>
+const binder = <><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18M3 15h18M9 3v18M15 3v18" /></>
+const inventory = <path d="M13 5h8M13 12h8M13 19h8m-18-2 2 2 4-4M3 7l2 2 4-4" />
+const wanted = <path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5" />
+const browse = <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83zM2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
+const destinations: [string, ReactNode][] = [["Binder", binder], ["Inventory", inventory], ["Wanted", wanted], ["Browse", browse]]
 
 export function BinderSkeleton({ rows = 3, cols = 3 }: { rows?: number; cols?: number }) {
   const page = (second: boolean) => (
@@ -29,14 +40,14 @@ export function BinderSkeleton({ rows = 3, cols = 3 }: { rows?: number; cols?: n
               <span className="truncate text-sm font-semibold">Holo Folder</span>
             </div>
             <div className="order-last hidden w-full items-center gap-1 border-t border-border/40 pt-1 md:flex xl:order-none xl:w-auto xl:flex-1 xl:border-0 xl:pt-0">
-              {[...destinations, ["Search", Search] as const].map(([label, Icon], index) => (
+              {[...destinations, ["Search", search] as const].map(([label, shape], index) => (
                 <span key={label} className={`flex min-h-9 items-center gap-1.5 rounded-full px-2 text-xs font-medium ${index === 0 ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
-                  <Icon className="h-3.5 w-3.5" />{label}
+                  {icon("h-3.5 w-3.5", shape)}{label}
                 </span>
               ))}
             </div>
             <div className="flex h-11 shrink-0 items-center px-3"><span className="h-4 w-20 rounded bg-muted" /></div>
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground"><MoreHorizontal className="h-4 w-4" /></div>
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground">{icon("h-4 w-4", <path d="M5 12h.01M12 12h.01M19 12h.01" />)}</div>
           </div>
         </div>
       </div>
@@ -54,9 +65,9 @@ export function BinderSkeleton({ rows = 3, cols = 3 }: { rows?: number; cols?: n
       </div>
       <div aria-hidden="true" className="fixed inset-x-0 bottom-0 border-t border-border/40 bg-background pb-[var(--dock-inset)] pl-[var(--left-inset)] pr-[var(--right-inset)] md:hidden">
         <div className="mx-auto grid h-[calc(var(--dock-bar)-1px)] w-full max-w-xl grid-cols-5 items-center">
-          {[["Search", Search] as const, ...destinations].map(([label, Icon]) => (
+          {[["Search", search] as const, ...destinations].map(([label, shape]) => (
             <span key={label} className={`flex h-11 flex-col items-center justify-center gap-0.5 ${label === "Binder" ? "text-primary" : "text-muted-foreground"}`}>
-              <Icon className="h-4 w-4" /><span className="text-[10px] font-medium">{label}</span>
+              {icon("h-4 w-4", shape)}<span className="text-[10px] font-medium">{label}</span>
             </span>
           ))}
         </div>

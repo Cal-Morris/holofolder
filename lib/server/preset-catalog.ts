@@ -43,7 +43,7 @@ export async function readPresetPrintings(db: SupabaseClient, printings: Printin
   if (cards.length !== ids.length || cards.some(c => !ids.includes(String(c.id)))) return unavailable()
   // A direct ID must not also identify a different mirrored row via an alias/canonical mapping.
   for (const id of ids) {
-    const aliases = await read("tcg_cards", select, q => q.contains("external_ids_json", { catalog: { aliasIds: [id] } }))
+    const aliases = await read("tcg_cards", select, q => q.contains("external_ids_json->catalog->aliasIds", JSON.stringify([id])))
     const canonical = await read("tcg_cards", select, q => q.eq("external_ids_json->catalog->>canonicalId", id))
     if ([...aliases, ...canonical].some(c => c.id !== id)) return unavailable()
     if (aliases.some(c => !readCatalogMetadata(c.external_ids_json).aliasIds?.includes(id))

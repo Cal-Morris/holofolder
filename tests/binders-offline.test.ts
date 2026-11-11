@@ -12,9 +12,6 @@ import {
   rememberDeviceBinders,
 } from "../lib/binders/offline"
 import { readOfflineBinderBoot } from "../lib/offline-shell"
-import { createMemoryStore } from "../lib/offline-store/kv"
-import { flushCollectionMirror, mirrorCollectionSnapshot, mirrorPendingOperations } from "../lib/offline-store/collection-mirror"
-import { loadCollectionRecord } from "../lib/offline-store/records"
 
 const MAIN = "11111111-1111-4111-8111-111111111111"
 const TRADES = "22222222-2222-4222-8222-222222222222"
@@ -110,24 +107,6 @@ test("the offline shell boots a non-default binder from its own copy, with the r
   const other = readOfflineBinderBoot(memoryStorage({ [DEVICE_BINDERS_KEY]: { ownerUserId: "owner", binders: BINDERS, savedBinderIds: [] } }), "", "stranger", TRADES, null)
   assert.equal(other.binderId, null)
   assert.deepEqual(other.binders, [])
-})
-
-test("the IndexedDB copy is per binder; pending edits stay in the default record", async () => {
-  const store = createMemoryStore()
-  const pikachu = { ...row(25, "base1-58"), wanted_cards: [] } as never
-  const charmander = { ...row(4, "base1-46"), wanted_cards: [] } as never
-  mirrorCollectionSnapshot([pikachu], "owner", "2026-10-06T00:00:00.000Z", store, MAIN, true)
-  mirrorCollectionSnapshot([charmander], "owner", "2026-10-06T00:00:00.000Z", store, TRADES, false)
-  mirrorPendingOperations([{ id: "op", type: "delete", pokemonId: 4, binderId: TRADES }], store)
-  await flushCollectionMirror(store)
-
-  const main = await loadCollectionRecord(store)
-  const trades = await loadCollectionRecord(store, `collection:${TRADES}`)
-  assert.deepEqual(main?.collection.map((item) => item.pokemon_id), [25])
-  assert.equal(main?.pendingOperations.length, 1)
-  assert.deepEqual(trades?.collection.map((item) => item.pokemon_id), [4])
-  assert.equal(trades?.binderId, TRADES)
-  assert.deepEqual(trades?.pendingOperations, [])
 })
 
 test("offline boot keeps each binder's own custom layout and queued device dimensions", () => {

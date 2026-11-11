@@ -1,9 +1,8 @@
 import { readBillingCache } from "@/lib/billing-cache"
 // Boot data for the offline app shell (/app-shell): everything comes from this device, nothing from the network.
 import type { CollectedPokemon } from "@/lib/domain/cards"
-import { LOCAL_COLLECTION_SNAPSHOT_KEY } from "@/lib/collection/offline-queue"
 import type { Binder } from "@/lib/binders/model"
-import { collectionSnapshotKey, offlineAvailableBinderIds, pickOfflineBinder, readDeviceBinders, storedSnapshotIsOf } from "@/lib/binders/offline"
+import { collectionSnapshotKey, LEGACY_COLLECTION_SNAPSHOT_KEY, offlineAvailableBinderIds, pickOfflineBinder, readDeviceBinders, storedSnapshotIsOf } from "@/lib/binders/offline"
 import { normalizeCollectionItems } from "@/lib/collection/normalize"
 import { getDefaultBinderSettings, normalizeBinderSettings, type BinderSettings, type StoredBinderSettings } from "@/lib/settings"
 
@@ -36,7 +35,7 @@ function readThemeCookie(cookie: string) {
  * Builds BinderApp's initial props from the local collection snapshot, stored settings and theme cookie.
  * `snapshotKey` picks the binder (lib/binders/offline.ts); the default binder's key otherwise.
  */
-export function readOfflineShellState(storage: StorageLike, cookie: string, userId: string | null, snapshotKey = LOCAL_COLLECTION_SNAPSHOT_KEY): OfflineShellState {
+export function readOfflineShellState(storage: StorageLike, cookie: string, userId: string | null, snapshotKey = LEGACY_COLLECTION_SNAPSHOT_KEY): OfflineShellState {
   const snapshot = readJson(storage, snapshotKey) as { ownerUserId?: unknown; collection?: unknown } | null
   const snapshotOwner = typeof snapshot?.ownerUserId === "string" ? snapshot.ownerUserId : null
   // Same rule useCollection applies offline: the device's last saved collection is used even when its owner
@@ -44,7 +43,8 @@ export function readOfflineShellState(storage: StorageLike, cookie: string, user
   const access = snapshotOwner && snapshotOwner !== userId ? readBillingCache(storage, userId, snapshotOwner) : null
   const permitted = !snapshotOwner || snapshotOwner === userId || Boolean(access && (!access.enforced || access.tier === "paid"))
   const snapshotUsable = Boolean(permitted && snapshot && Array.isArray(snapshot.collection))
-  const collection = snapshotUsable ? normalizeCollectionItems(snapshot!.collection as Partial<CollectedPokemon>[]) : []
+  // Guests never get a collection: signed-out visitors browse read-only.
+  const collection = userId && snapshotUsable ? normalizeCollectionItems(snapshot!.collection as Partial<CollectedPokemon>[]) : []
   // In partner mode the collection owner differs from the signed-in user; the snapshot remembers it.
   const collectionOwnerUserId = userId ? (snapshotUsable && snapshotOwner ? snapshotOwner : userId) : null
 
