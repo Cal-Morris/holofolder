@@ -75,13 +75,23 @@ export const GAP_CARD_ALIASES: Array<{
   { alias: 'me55c-106p', canonical: '30th-c-022', source: { pokemontcg: 'me55c', cardId: 'me55c-106p' } },
 ];
 
-/** Promo distributions the primary source does not list, imported from TCGplayer product data. */
-export const GAP_NEW_SETS: Array<{ id: string; group: number; name: string; releaseDate: string | null }> = [
+/**
+ * Promo distributions the primary source does not list, imported from TCGplayer product data.
+ * `seriesId` files the set under an existing series; otherwise it goes under the supplemental series.
+ */
+export const GAP_NEW_SETS: Array<{
+  id: string;
+  group: number;
+  name: string;
+  releaseDate: string | null;
+  seriesId?: string;
+}> = [
   { id: 'trick-or-trade-2022', group: 3179, name: 'Trick or Trade BOOster Bundle 2022', releaseDate: '2022-09-01' },
   { id: 'trick-or-trade-2023', group: 23266, name: 'Trick or Trade BOOster Bundle 2023', releaseDate: '2023-09-01' },
   { id: 'trick-or-trade-2024', group: 23561, name: 'Trick or Trade BOOster Bundle 2024', releaseDate: '2024-08-30' },
   { id: 'burger-king-promos', group: 2175, name: 'Burger King Promos', releaseDate: null },
   { id: 'countdown-calendar-2008', group: 2155, name: 'Countdown Calendar Promos', releaseDate: '2008-10-01' },
+  { id: 'mcdonalds-2026', group: 24938, name: "McDonald's Collection 2026", releaseDate: '2026-11-10', seriesId: 'mc' },
 ];
 export const GAP_SERIES_ID = 'catalog-supplements';
 
@@ -406,7 +416,8 @@ export function planCardGapFill(input: {
   }
 
   const seriesNeeded =
-    GAP_NEW_SETS.some((s) => !input.existingSetIds.has(s.id)) && !input.existingSeriesIds.has(GAP_SERIES_ID);
+    GAP_NEW_SETS.some((s) => !s.seriesId && !input.existingSetIds.has(s.id)) &&
+    !input.existingSeriesIds.has(GAP_SERIES_ID);
   if (seriesNeeded)
     plan.series.push({
       id: GAP_SERIES_ID,
@@ -415,6 +426,7 @@ export function planCardGapFill(input: {
       raw_json: { source: 'catalog' },
     });
   for (const def of GAP_NEW_SETS) {
+    const seriesId = def.seriesId ?? GAP_SERIES_ID;
     // A product already imported into another set is the same printing; never import it twice.
     const elsewhere = new Set(
       input.cards
@@ -449,7 +461,7 @@ export function planCardGapFill(input: {
       .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }) || a.base.localeCompare(b.base));
     plan.sets.push({
       id: def.id,
-      series_id: GAP_SERIES_ID,
+      series_id: seriesId,
       name_en: def.name,
       name_json: { en: def.name },
       official_card_count: null,
@@ -466,7 +478,7 @@ export function planCardGapFill(input: {
       const name = row.label ? `${row.base} (${row.label})` : row.base;
       plan.cards.push({
         id,
-        series_id: GAP_SERIES_ID,
+        series_id: seriesId,
         set_id: def.id,
         local_id: localId,
         local_id_sort: index + 1,
