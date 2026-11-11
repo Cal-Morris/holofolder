@@ -1,6 +1,7 @@
 import { readBillingCache } from "@/lib/billing-cache"
 // Local-first binder start: which device data `/` may paint before the server's collection arrives.
 import type { Binder } from "@/lib/binders/model"
+import { matchBinder } from "@/lib/binders/url"
 import { collectionSnapshotKey, LEGACY_COLLECTION_SNAPSHOT_KEY } from "@/lib/binders/offline"
 import { readOfflineShellState, type OfflineShellState } from "@/lib/offline-shell"
 
@@ -73,7 +74,7 @@ export function readLocalBinderStart(storage: StorageLike, cookie: string, userI
     const access = readBillingCache(storage, userId, marker.ownerUserId)
     if (!access || (access.enforced && access.tier !== "paid")) return null
   }
-  if (requestedBinderId && requestedBinderId !== marker.binderId) return null
+  if (requestedBinderId && matchBinder(marker.binders, requestedBinderId)?.id !== marker.binderId) return null
   // A native marker is a display pointer only. IDB/JWT checks happen in CachedNativeStartup.
   // Native sessions need no obsolete legacy row snapshot to open their saved storage.
   if (marker.native) {

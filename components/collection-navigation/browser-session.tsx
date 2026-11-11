@@ -62,7 +62,7 @@ export interface BrowserSurfaceBinding {
   scan?: { detectPage?: NativePageScanAdmission["detectPage"]; available: boolean; online: boolean; rows?: number; cols?: number; sessionId: string; getOfflineCards: () => Promise<SearchCardResult[]>; receive: ScanDestinationAdmission["onCommandIntent"] }
 
 }
-export default function BrowserCollectionSession({ scope, currentScope, renderSurface, renderFallback, initialBinderId, localHarness = false, displayed, onReady, onDisplay, onStartupFailure }: {
+export default function BrowserCollectionSession({ scope, currentScope, renderSurface, renderFallback, initialBinderId, binders, localHarness = false, displayed, onReady, onDisplay, onStartupFailure }: {
   /** The host shows this session; until then it renders nothing and the host's placeholder stays. */
   displayed: boolean
   onReady: () => void
@@ -70,6 +70,7 @@ export default function BrowserCollectionSession({ scope, currentScope, renderSu
   onDisplay: (sessionId: string) => void
   onStartupFailure: (error: string) => void
   initialBinderId: string | null
+  binders?: readonly { id: string; slug?: string | null }[]
   localHarness?: boolean
   renderFallback: () => ReactNode
   scope: InventoryReadScope
@@ -90,14 +91,15 @@ export default function BrowserCollectionSession({ scope, currentScope, renderSu
   if ("error" in device) return displayed ? renderFallback() : null
   const deviceId = device.id
   return <ScopedBrowserSession key={JSON.stringify([deviceId, scope.actorUserId, scope.ownerUserId, scope.authSessionId, scope.sessionId])}
-    {...{ scope, currentScope, renderSurface, deviceId, initialBinderId, localHarness, displayed, onReady, onDisplay, onStartupFailure }} />
+    {...{ scope, currentScope, renderSurface, deviceId, initialBinderId, binders, localHarness, displayed, onReady, onDisplay, onStartupFailure }} />
 }
-function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, initialBinderId, localHarness, displayed, onReady, onDisplay, onStartupFailure }: {
+function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, initialBinderId, binders, localHarness, displayed, onReady, onDisplay, onStartupFailure }: {
   displayed: boolean
   onReady: () => void
   onDisplay: (sessionId: string) => void
   onStartupFailure: (error: string) => void
   initialBinderId: string | null
+  binders?: readonly { id: string; slug?: string | null }[]
   localHarness: boolean
   scope: InventoryReadScope; currentScope: () => InventoryReadScope | null; deviceId: string
   renderSurface: (binding: BrowserSurfaceBinding) => ReactNode
@@ -449,7 +451,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       inventoryGradingReference(read.evidence.snapshot, itemId)
       setGrading({ snapshot: structuredClone(read.evidence.snapshot), itemId, intent: null })
     } catch { setNotice("This copy needs a current complete inventory read before grading can be edited.") }
-  } : undefined} stagedSlabs scope={navigationScope} fallbackCollectionId={read.defaultCollectionId ?? initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length || record?.recovery?.some(recoveryUnresolved)) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
+  } : undefined} stagedSlabs scope={navigationScope} binders={binders} fallbackCollectionId={read.defaultCollectionId ?? initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length || record?.recovery?.some(recoveryUnresolved)) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
 
       renderNationalDex={() => null} renderCollection={() => null} renderSurface={surface => {
         const snapshot = visibleRead.evidence.kind === "unavailable" ? null : visibleRead.evidence.snapshot

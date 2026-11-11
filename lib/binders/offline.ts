@@ -2,6 +2,7 @@
 // without a connection. The default binder keeps the original keys, so data saved before binders stays valid;
 // every other binder gets its own `…:<binderId>` keys (see docs/multiple-binders.md).
 import type { Binder } from "@/lib/binders/model"
+import { matchBinder } from "@/lib/binders/url"
 
 export const LEGACY_COLLECTION_SNAPSHOT_KEY = "pokemon_collection_snapshot_v1"
 export const LEGACY_COLLECTION_RECORD_KEY = "collection"
@@ -122,7 +123,7 @@ export function pickOfflineBinder(
   requestedId: string | null,
   lastOpenedId: string | null,
 ): { binder: Binder | null; unavailable: Binder | null } {
-  const requested = requestedId ? binders.find((binder) => binder.id === requestedId) ?? null : null
+  const requested = requestedId ? matchBinder(binders, requestedId) ?? null : null
   if (requested && available.has(requested.id)) return { binder: requested, unavailable: null }
   const lastOpened = binders.find((binder) => binder.id === lastOpenedId && available.has(binder.id))
   const fallback = lastOpened ?? binders.find((binder) => binder.isDefault) ?? binders[0] ?? null

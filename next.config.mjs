@@ -18,7 +18,11 @@ const nextConfig = {
     }]
   },
   async rewrites() {
-    return { beforeFiles: ["/sw.js", "/api/ebay/account-deletion"].map(source => ({
+    // Binder addresses (lib/binders/url.ts) render the app at `/`. afterFiles: real routes always win.
+    const slug = ":binderSlug((?!api$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)"
+    const afterFiles = [`/${slug}`, `/${slug}/:view(binder|list|slabs)`, `/${slug}/binder/:page(\\d{1,4})`]
+      .map(source => ({ source, destination: "/?binderSlug=:binderSlug" }))
+    return { afterFiles, beforeFiles: ["/sw.js", "/api/ebay/account-deletion"].map(source => ({
       source,
       has: [{ type: "host", value: "binder.cal.gg" }],
       destination: `https://app.holofolder.com/app${source}`,

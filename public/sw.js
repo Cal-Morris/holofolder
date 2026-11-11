@@ -30,6 +30,8 @@ const APP_SHELL_URL = "/app/app-shell"
 const NAVIGATION_TIMEOUT_MS = 6000
 const LEGACY_BINDER_ORIGIN = self.location.origin === "https://binder.cal.gg"
 const APP_ENTRY_PATHS = ["/app", "/app/", APP_SHELL_URL, ...(LEGACY_BINDER_ORIGIN ? ["/", "/home"] : [])]
+// Binder addresses (/app/<slug>, /app/<slug>/binder/3 …, lib/binders/url.ts) are entry pages too.
+const BINDER_ADDRESS = /^\/app\/(?!(?:api|app-shell|auth|docs|e2e-harness|home|mcp|oauth|share|studio|u|settings|admin|new|login|logout|account|inventory|dex|offline|help)(?:\/|$))[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\/(?:list|slabs|binder(?:\/[1-9]\d{0,3})?))?$/
 const APP_SHELL_REFRESH_INTERVAL_MS = 10 * 60 * 1000
 let lastAppShellRefreshAt = 0
 
@@ -404,7 +406,7 @@ async function handleNavigation(event) {
   // Auth routes set cookies and redirect, and share links show someone else's binder: never answer
   // them with the shell (which shows your own binder).
   const canUseShell = url.origin === self.location.origin && (/^\/app(?:\/|$)/.test(url.pathname) || (LEGACY_BINDER_ORIGIN && APP_ENTRY_PATHS.includes(url.pathname))) && !/^\/(?:app\/)?(?:auth|share|u|oauth|mcp|docs)(?:\/|$)/.test(url.pathname)
-  const useTimeout = canUseShell && APP_ENTRY_PATHS.includes(url.pathname) && Boolean(await getOfflineAppShell())
+  const useTimeout = canUseShell && (APP_ENTRY_PATHS.includes(url.pathname) || BINDER_ADDRESS.test(url.pathname)) && Boolean(await getOfflineAppShell())
 
   try {
     const response = useTimeout ? await fetchWithTimeout(request, NAVIGATION_TIMEOUT_MS) : await fetch(request)
