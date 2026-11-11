@@ -59,6 +59,6 @@ export function matchesSetSlotFilter(slot: TCGSetDexSlot, item: CollectedPokemon
   return filter === "all"
     || filter === "open" && !owned
     || filter === "owned" && owned
-    || filter === "wanted" && wanted
+    || filter === "wanted" && wanted && !owned
     || filter === "multiple" && slot.cards.length > 1
 }

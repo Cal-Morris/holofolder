@@ -44,7 +44,7 @@ test("binder filters use species ownership and wants outside the selected sets",
   const wantedElsewhere = { ...owned, wanted_cards: [{ card_id: "fixture-other-3", card_name: "Other", added_at: "2026-01-01" }] }
   assert.equal(matchesSetSlotFilter(slot, wantedElsewhere, "owned"), true)
   assert.equal(matchesSetSlotFilter(slot, wantedElsewhere, "open"), false)
-  assert.equal(matchesSetSlotFilter(slot, wantedElsewhere, "wanted"), true)
+  assert.equal(matchesSetSlotFilter(slot, wantedElsewhere, "wanted"), false, "an owned species is not Wanted")
   assert.equal(matchesSetSlotFilter(slot, { ...owned, status: "wishlisted" }, "owned"), false)
   assert.equal(matchesSetSlotFilter(slot, { ...owned, status: "wishlisted" }, "open"), true)
   assert.equal(matchesSetSlotFilter(slot, { ...owned, status: "wishlisted" }, "wanted"), true)

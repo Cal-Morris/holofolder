@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { buildNativeAnalytics } from "../lib/collection/native-analytics"
+import { buildNativeAnalytics, sumCopyValues } from "../lib/collection/native-analytics"
 import { completeInventoryBrowseFixture, inventoryProjectionFixture, inventoryProjectionCatalog, inventoryProjectionPrices } from "./fixtures/inventory-browse"
 import type { CollectionNavigationRead } from "../lib/collection-navigation"
 
@@ -71,4 +71,15 @@ test("many same-species copies stay distinct; aliases deduplicate price reads wi
   assert.equal(summary.rawValueGbp, 580)
   assert.equal(summary.unpricedRawCopies, 2)
   assert.equal(new Set(summary.copies.map(c => c.itemId)).size, 60)
+})
+test("a page total sums only that page's gated copies and keeps unpriced copies unpriced", async () => {
+  const { read, prices } = await fixture()
+  const { copies } = buildNativeAnalytics(scope, read, undefined, prices, "UK", now)!
+  const all = new Set(copies.map(c => c.itemId))
+  assert.deepEqual(sumCopyValues(copies, all), { valueGbp: 25, priced: 4, total: 6 })
+  const unpriced = copies.filter(c => c.amountGbp === null).map(c => c.itemId)
+  assert.deepEqual(sumCopyValues(copies, new Set(unpriced)), { valueGbp: null, priced: 0, total: unpriced.length })
+  assert.deepEqual(sumCopyValues(copies, new Set()), { valueGbp: null, priced: 0, total: 0 })
+  const weak = prices.map(p => ({ ...p, confidence: "low" as const, finishPrices: p.finishPrices?.map(f => ({ ...f, confidence: "low" as const })) }))
+  assert.equal(sumCopyValues(buildNativeAnalytics(scope, read, undefined, weak, "UK", now)!.copies, all).valueGbp, null)
 })

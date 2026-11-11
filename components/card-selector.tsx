@@ -172,10 +172,11 @@ function CardSelectorImage({
     )
   }
 
+  // The original URL, not the CDN one: CardImage falls back to the proxy (which mirrors the miss) only from the original.
   return (
     <CardImage
       sizes={sizes}
-      src={imageSrc}
+      src={src!}
       alt={alt}
       className={className}
       loading="lazy"
@@ -968,6 +969,7 @@ export default function CardSelector({
             <CardPickerVariantSheet
               cardName={pendingCard.name}
               setName={pendingCard.set.name}
+              image={pendingCard.image}
               actionLabel={isWishlistMode ? "Want" : "Add"}
               choices={pendingChoices.map((choice) => {
                 const finishPrice = pendingFinishPrices[choice.finish]
@@ -1101,7 +1103,7 @@ export default function CardSelector({
               </p>
             )}
             {isLoading && cards.length === 0 ? (
-              <div role="status" aria-label="Loading cards" className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 xl:grid-cols-5">
+              <div role="status" aria-label="Loading cards" className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5">
                 {Array.from({ length: 6 }, (_, index) => (
                   <div key={index} aria-hidden="true" className="overflow-hidden rounded-xl bg-muted/40">
                     <div className="holo-loading trading-card w-full" />
@@ -1158,7 +1160,7 @@ export default function CardSelector({
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5">
+              <div className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5">
                 {displayedCards.map((card) => {
                   const price = pricesByCardId[getCardPriceKey(card.id, selectedCardLanguage)]
                   const priceLabels = getCardSelectorPriceLabels(price, formatAmount)

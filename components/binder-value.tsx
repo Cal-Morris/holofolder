@@ -5,6 +5,11 @@ import { ChevronRight, X } from "lucide-react"
 import { buildCollectionAnalytics } from "@/lib/collection-analytics"
 import type { CardPriceSnapshot } from "@/lib/card-pricing"
 import type { CollectedPokemon } from "@/lib/domain/cards"
+import { buildNativeAnalytics, sumCopyValues } from "@/lib/collection/native-analytics"
+import { selectInventoryCollection } from "@/lib/collection/inventory-projection"
+import { navigationIndex, type CollectionNavigationRead, type CollectionNavigationScope } from "@/lib/collection-navigation"
+import { useInventoryPriceState } from "@/hooks/use-inventory-prices"
+import type { PricingRegion } from "@/lib/pricing-region"
 
 export function BinderValue({ collection, prices, loading, onOpen, onDismiss }: {
   collection: CollectedPokemon[]
@@ -26,5 +31,49 @@ export function BinderValue({ collection, prices, loading, onOpen, onDismiss }: 
     <button type="button" aria-label="Hide binder value" onClick={onDismiss} className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
       <X className="h-4 w-4" aria-hidden />
     </button>
+  </section>
+}
+
+const gbp = (amount: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(amount)
+
+/**
+ * Signed-in (native) binder: whole-binder and open-page totals from saved high/medium confidence prices, the same
+ * evidence as Analytics. Unpriced and graded copies are counted as unpriced, never guessed.
+ */
+export function NativeBinderTotals({ analytics, collectionId, pageItemIds, pageLabel, region, priceMode, onOpen, onDismiss }: {
+  analytics: { scope: CollectionNavigationScope; read: CollectionNavigationRead }
+  collectionId: string
+  pageItemIds: readonly string[]
+  pageLabel: string
+  region: PricingRegion
+  /** The pocket price labels toggle (View → Prices on the legacy binder). */
+  priceMode?: { on: boolean; loading: boolean; toggle: () => void }
+  onOpen: () => void
+  onDismiss: () => void
+}) {
+  const requests = useMemo(() => {
+    const projection = navigationIndex(analytics.scope, analytics.read).projection
+    return projection ? selectInventoryCollection(projection, collectionId).priceRequests : []
+  }, [analytics, collectionId])
+  const { prices, status } = useInventoryPriceState(requests)
+  const summary = useMemo(() => buildNativeAnalytics(analytics.scope, analytics.read, collectionId, prices, region), [analytics, collectionId, prices, region])
+  const page = useMemo(() => summary ? sumCopyValues(summary.copies, new Set(pageItemIds)) : null, [summary, pageItemIds])
+  if (!summary || !page || summary.physicalCopies === 0) return null
+  const amount = (value: number | null) => value !== null ? gbp(value) : status === "loading" ? "Loading…" : status === "unavailable" ? "Unavailable" : "Unknown"
+  return <section aria-label="Binder value" className="holo-panel relative mb-2 shrink-0 rounded-2xl border border-border/60">
+    <button type="button" aria-label="View binder value in Analytics" onClick={onOpen} className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl py-2 pl-3 text-left ${priceMode ? "pr-[7.5rem]" : "pr-14"}`}>
+      <span className="min-w-0">
+        <span className="block text-sm font-medium">Binder <span className="ml-1 text-lg font-semibold tabular-nums">{amount(summary.rawValueGbp)}</span></span>
+        <span className="block text-xs text-muted-foreground">{summary.pricedCopies} of {summary.physicalCopies} cards priced{summary.rawValueGbp !== null && summary.pricedCopies < summary.physicalCopies ? " · partial" : ""}</span>
+        <span data-testid="binder-page-total" className="block text-xs font-medium tabular-nums">{pageLabel}: {page.total ? `${amount(page.valueGbp)} · ${page.priced} of ${page.total} priced` : "no cards"}</span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+    </button>
+    <span className="absolute right-1 top-1 flex items-center">
+      {priceMode && <button type="button" aria-pressed={priceMode.on} onClick={priceMode.toggle} className={`min-h-11 rounded-full px-3 text-xs font-semibold ${priceMode.on ? "bg-primary/12 text-primary" : "text-muted-foreground hover:bg-accent"}`}>{priceMode.on && priceMode.loading ? "Loading" : "Prices"}</button>}
+      <button type="button" aria-label="Hide binder value" onClick={onDismiss} className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+        <X className="h-4 w-4" aria-hidden />
+      </button>
+    </span>
   </section>
 }

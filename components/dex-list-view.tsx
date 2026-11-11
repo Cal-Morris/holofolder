@@ -141,7 +141,7 @@ export default function DexListView({
         activeFilter === "all"
         || (activeFilter === "missing" && !item)
         || (activeFilter === "owned" && isOwned)
-        || (activeFilter === "wanted" && isWanted)
+        || (activeFilter === "wanted" && isWanted && !isOwned)
         || (activeFilter === "perfect" && item?.status === "finalized")
         || (activeFilter === "upgrade" && isOwned && item?.status !== "finalized")
 

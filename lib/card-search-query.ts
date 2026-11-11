@@ -16,7 +16,10 @@ export function cardSearchSetCandidates(raw: string) {
       const phrase = words.slice(start, end).join(" ")
       // Explicit collector syntax must never become a set constraint.
       if (/[#/]/.test(phrase)) continue
-      candidates.push({ phrase: resolveSetSearchAlias(phrase), remainder: [...words.slice(0, start), ...words.slice(end)].join(" ") })
+      const remainder = [...words.slice(0, start), ...words.slice(end)].join(" ")
+      const code = resolveSetSearchAlias(phrase)
+      candidates.push({ phrase: code, remainder })
+      if (code !== phrase) candidates.push({ phrase, remainder })
     }
   }
   return candidates.sort((a, b) => b.phrase.length - a.phrase.length)

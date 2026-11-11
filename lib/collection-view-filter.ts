@@ -1,4 +1,4 @@
-/** Binder slot filters. "needed" is labelled Missing on the binder bar. */
+/** Binder slot filters. "needed" is labelled Missing on the binder bar; "wanted" is wanted and not owned. */
 export type CollectionViewFilter = "all" | "owned" | "wanted" | "needed" | "upgradeable" | "favorite"
 
 /** What a pocket holds, worked out by the caller from either native slots or legacy rows. */
@@ -25,7 +25,8 @@ export function matchesCollectionViewFilter(facts: SlotFilterFacts, filter: Coll
   switch (filter) {
     case "all": return true
     case "owned": return facts.owned
-    case "wanted": return facts.wanted
+    // Wanted means still to get: a want sitting on an owned copy is an upgrade, not a gap.
+    case "wanted": return facts.wanted && !facts.owned
     case "needed": return facts.open
     case "upgradeable": return facts.owned && !facts.perfect
     case "favorite": return facts.owned && facts.perfect

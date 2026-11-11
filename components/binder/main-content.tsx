@@ -32,6 +32,8 @@ import type { ActiveMainView, CollectionViewFilter, DisplaySpreadPage, PriceSumm
 export interface MainContentContext {
   nativeWanted?: import("react").ReactNode
   nativeAnalytics?: import("react").ReactNode
+  /** Signed-in binder and open-page totals; the legacy BinderValue below never renders under native storage. */
+  nativeBinderTotals?: import("react").ReactNode
   listTitle?: string
   /** Read-only native ownership for the Pokémon-specific views; the legacy collection is empty for native hosts. */
   nativeSpecies?: { bySpecies: Map<number, CollectedPokemon>; rows: CollectedPokemon[] } | null
@@ -149,6 +151,7 @@ export function renderMainContentView(ctx: MainContentContext) {
         }`}>
         {ctx.orderedDisplaySlots && ctx.layoutToolbar}
         {viewLoadError ? <p role="alert" className="shrink-0 rounded-2xl border border-border/55 bg-card/70 p-3 text-sm">{viewLoadError}</p> : null}
+        {activeMainView === "binder" && ctx.nativeBinderTotals}
         {activeMainView === "binder" && !readOnlyMode && settings.showBinderValue !== false && <BinderValue onDismiss={onHideBinderValue} collection={collection} prices={pricesByCardId} loading={isLoadingPrices} onOpen={() => { rememberBinderScope("analytics", "binder"); void switchMainView("analytics") }} />}
         {(activeMainView === "pokemon" || activeMainView === "sets") ? (
           <div role="group" aria-label="Browse perspective" className="flex shrink-0 gap-2 px-1 py-1">

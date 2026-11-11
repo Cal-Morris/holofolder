@@ -250,7 +250,7 @@ export function buildIllustratorEntries(
       }
     })
     .filter((entry) => filter === "all"
-      || (filter === "owned" ? entry.owned : filter === "wanted" ? entry.wanted : !entry.owned))
+      || (filter === "owned" ? entry.owned : filter === "wanted" ? entry.wanted && !entry.owned : !entry.owned))
     .filter((entry) => !needle || [entry.card.name, entry.card.set.name, entry.card.set.id, entry.numberLabel, entry.card.rarity ?? ""]
       .some((value) => normalizeIllustratorText(value).includes(needle)))
 }
@@ -259,7 +259,7 @@ export function countIllustratorEntries(entries: readonly IllustratorCardEntry[]
   return {
     all: entries.length,
     owned: entries.filter((entry) => entry.owned).length,
-    wanted: entries.filter((entry) => entry.wanted).length,
+    wanted: entries.filter((entry) => entry.wanted && !entry.owned).length,
     missing: entries.filter((entry) => !entry.owned).length,
   } satisfies Record<IllustratorCardFilter, number>
 }
