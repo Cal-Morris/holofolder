@@ -41,7 +41,7 @@ import { BillingContext, useBilling } from '@/hooks/use-billing';
 import { CreditsNotice } from '@/components/credits';
 import type { SettingsPageId } from '@/components/settings-modal';
 import { useRouter } from 'next/navigation';
-import { WifiOff } from 'lucide-react';
+import { Coins, WifiOff } from 'lucide-react';
 import { type PokemonSearchResultMeta } from '@/components/pokemon-search';
 import {
   closeAllOverlays,
@@ -4451,6 +4451,22 @@ function BinderAppSurface(props: BinderAppProps) {
                 stagedSlotDisplay &&
                 !editingLayout && (
                   <CollectionFilterBar value={collectionViewFilter} onChange={setCollectionViewFilter} />
+                )}
+              {browserSurface.surface.state.main === 'collection' &&
+                activeMainView === 'binder' &&
+                stagedSlotDisplay &&
+                pricingEnabled &&
+                !editingLayout && (
+                  <button
+                    type="button"
+                    aria-label="Binder value"
+                    title="Binder value"
+                    aria-pressed={settings.showBinderValue !== false}
+                    onClick={() => void updateSettings({ showBinderValue: settings.showBinderValue === false })}
+                    className="text-muted-foreground hover:bg-muted/60 aria-pressed:text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                  >
+                    <Coins className="h-4 w-4" aria-hidden />
+                  </button>
                 )}
               {!editingLayout && layoutToolbar}
               {browserSurface.surface.state.main === 'collection' &&
