@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { normalizeWantedCard } from '../lib/collection/normalize'
 import { collectionFingerprint, resolveConflict } from '../lib/collection/sync'
-import { groupGlobalWanted, mergeWantedPeople, wantedPeopleLabel, validateWantedPeople } from '../lib/wanted-people'
+import { groupGlobalWanted, mergeWantedPeople, wantedPeopleLabel } from '../lib/wanted-people'
 import type { WantedCard, CollectedPokemon } from '../lib/domain/cards'
 
 // Synthetic people, cards and binders only.
@@ -48,10 +48,3 @@ test('labels use only current membership and never assign a future partner an ol
  assert.equal(wantedPeopleLabel([former], me, partner, 'Alex'), 'Another collector')
 })
 
-test('server attribution validation rejects outsiders and preserves omitted or unchanged old assignments', () => {
- assert.deepEqual(validateWantedPeople([{ ...card }], [{ ...card, wanted_by: [partner] }], [me, partner])[0].wanted_by, [partner])
- assert.deepEqual(validateWantedPeople([{ ...card, wanted_by: [former] }], [{ ...card, wanted_by: [former] }], [me, partner])[0].wanted_by, [former])
- assert.throws(() => validateWantedPeople([{ ...card, wanted_by: [former] }], [], [me, partner]), /assignment/)
- assert.throws(() => validateWantedPeople([{ ...card, wanted_by: ['invalid'] }], [], [me]), /assignment/)
- assert.deepEqual(validateWantedPeople([{ ...card, wanted_by: [] }], [{ ...card, wanted_by: [me] }], [me])[0].wanted_by, [])
-})

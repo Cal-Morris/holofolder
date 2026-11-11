@@ -38,13 +38,6 @@ export function collectionFingerprint(item: Partial<CollectedPokemon> | null | u
   })
 }
 
-/** Older installed clients do not know wanted_by; their other conflict protections still apply. */
-export function matchesCollectionFingerprint(item: Partial<CollectedPokemon> | null | undefined, expected: string, allowLegacyPeople = false) {
-  if (collectionFingerprint(item) === expected) return true
-  if (!allowLegacyPeople || !item) return false
-  return collectionFingerprint({ ...item, wanted_cards: item.wanted_cards?.map(({ wanted_by: _people, ...card }) => card) }) === expected
-}
-
 export type PendingEdit =
   | { type: "upsert"; pokemonId: number; item: CollectedPokemon; base?: CollectedPokemon | null; importOnly?: true }
   | { type: "delete"; pokemonId: number; base?: CollectedPokemon | null }

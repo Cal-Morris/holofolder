@@ -49,14 +49,14 @@ async function loadServerBoot(searchParams: PageProps["searchParams"]): Promise<
     typeof requestedBinder === "string" ? requestedBinder : null,
     cookieStore.get(ACTIVE_BINDER_COOKIE)?.value ?? null,
   )
-  const { collection, settingsRow, settings, hasStoredSettings } = await loadBinderBootstrap(supabase, collectionOwnerUserId, activeBinder?.id ?? null, "native")
+  const { settingsRow, settings, hasStoredSettings } = await loadBinderBootstrap(supabase, collectionOwnerUserId, activeBinder?.id ?? null)
   const themeCookie = cookieStore.get(THEME_COOKIE)?.value
 
   return {
     initialUser: user,
     initialBinders: binders,
     initialBinderId: activeBinder?.id ?? null,
-    initialCollection: collection,
+    initialCollection: [],
     initialCollectionOwnerUserId: collectionOwnerUserId,
     initialSettings: settings,
     initialHasStoredSettings: hasStoredSettings,

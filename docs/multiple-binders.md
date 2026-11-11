@@ -11,7 +11,7 @@
   replaces `(user_id, pokemon_id)`.
 - Partners: unchanged. A partner resolves to the owner (`resolveCollectionOwnerUserId`), and binders are owned by the owner,
   so the partner gets every binder automatically. RLS on `binders` uses the same `owner_user_id IN (partnerships…)`
-  check as `pokemon_collection`. Writes go through `/api/binders` (service role, after owner resolution), like `/api/collection`.
+  check as `pokemon_collection`. Writes go through `/api/binders` (service role, after owner resolution); creation calls `developer_create_binder`, which also writes the native slots state (migration 105).
 
 ## Migration (zero data loss, live-safe)
 1. `039` (additive, old code keeps working): create `binders`; insert one "My binder" default per existing owner;

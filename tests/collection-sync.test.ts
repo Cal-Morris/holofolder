@@ -7,7 +7,6 @@ import {
   applyPendingEdits,
   classifyWriteFailure,
   collectionFingerprint,
-  matchesCollectionFingerprint,
   nextSyncRetryDelay,
   resolveConflict,
 } from "../lib/collection/sync"
@@ -119,18 +118,6 @@ test("backoff doubles with jitter and is capped", () => {
   assert.ok(nextSyncRetryDelay(1, () => 0) >= 3_000 && nextSyncRetryDelay(1, () => 0.999) <= 6_000)
 })
 
-
-test("legacy collection writes can ignore only wanted-person metadata, while current clients detect it", () => {
-  const before = row({ wanted_cards: [want("a")] })
-  const assigned = row({ wanted_cards: [{ ...want("a"), wanted_by: ["00000000-0000-4000-8000-000000000001"] }] })
-  const legacy = collectionFingerprint(before)
-  assert.equal(matchesCollectionFingerprint(assigned, legacy), false)
-  assert.equal(matchesCollectionFingerprint(assigned, legacy, true), true)
-  assert.equal(matchesCollectionFingerprint(assigned, collectionFingerprint(assigned)), true)
-  for (const changed of [{ ...assigned, status: "finalized" as const }, { ...assigned, card_id: "other" }, { ...assigned, wanted_cards: [...assigned.wanted_cards, want("b")] }]) {
-    assert.equal(matchesCollectionFingerprint(changed, legacy, true), false)
-  }
-})
 
 test('billing rejections pause edits rather than treating them as permanent errors', () => {
   assert.equal(classifyWriteFailure({ status: 402 }), 'paused')

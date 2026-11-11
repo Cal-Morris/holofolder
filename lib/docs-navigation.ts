@@ -9,7 +9,6 @@ const referenceGroups = {
   'reference/collection': [
     { name: 'Binders', path: /^\/binders(?:\/\{id\}|\/order)?$/ },
     { name: 'History & recovery', path: /^\/collection\/(audit|recovery)(\/|$)/ },
-    { name: 'Imports', path: /^\/imports\// },
     { name: 'Sharing & appearance', path: /^\/(binders\/\{binderId\}\/(identity|sharing)|appearance|artwork)(\/|$)/ },
     { name: 'Show purchases', path: /^\/show-purchases(\/|$)/ },
     { name: 'Inventory', path: /^\/inventory\// },
@@ -19,7 +18,6 @@ const referenceGroups = {
   'reference/prices-and-insights': [
     { name: 'Prices', path: /^\/(prices|price-checks)(\/|$)/ },
     { name: 'Comparisons', path: /^\/comparison-jobs(\/|$)/ },
-    { name: 'Legacy Pokémon analytics', path: /^\/legacy\/pokemon\/analytics(\/|$)/ },
     { name: 'Deal checks', path: /^\/(deals|listings)(\/|$)/ },
   ],
 }

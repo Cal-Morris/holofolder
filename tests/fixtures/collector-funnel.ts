@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 
 async function run() {
   process.env.VERCEL_ENV = "production"; process.env.HOLOFOLDER_FUNNEL_ENABLED = "true"
-  let actor: string | null = "synthetic-partner", count = 0, unavailable = false
+  let actor: string | null = "synthetic-partner", unavailable = false
   const events = new Map<string, Record<string,unknown>>()
   const accounts: Record<string,unknown>[] = []
   const scheduled: Array<() => Promise<unknown>> = []
@@ -15,7 +15,7 @@ async function run() {
   mock.module("server-only",()=>({}))
   mock.module("next/server",()=>({after:(action:()=>Promise<unknown>)=>scheduled.push(action)}))
   mock.module("../../lib/supabase/admin",()=>({createAdminClient:()=>admin}))
-  mock.module("../../lib/server/billing",()=>({getBillingAccess:async()=>({savedCardCount:count})}))
+  mock.module("../../lib/server/billing",()=>({getBillingAccess:async()=>({savedCardCount:0})}))
   const now = Math.floor(Date.now()/1000)
   const invoice = (id: string, at: number) => ({id,status:"paid",currency:"gbp",amount_paid:399,billing_reason:"subscription_cycle",parent:{subscription_details:{subscription:"sub_synthetic"}},status_transitions:{paid_at:at},lines:{has_more:false,data:[{amount:399,pricing:{price_details:{price:"price_synthetic"}},period:{start:at,end:at+2592000}}]}})
   mock.module("../../lib/server/stripe",()=>({billingPriceIds:()=>({month:"price_synthetic",year:"price_annual"}),billingRecognizedPriceIds:()=>["price_synthetic","price_annual"],getStripe:()=>({subscriptions:{async *list(){yield {id:"sub_synthetic",metadata:{app:"holofolder"},items:{data:[{price:{id:"price_synthetic"},quantity:1}]}}}},invoices:{async *list(){yield invoice("in_recent",now-60);yield invoice("in_expired",now-100*86400)}}})}))
@@ -38,13 +38,6 @@ async function run() {
   assert.equal(open.owner_id,"synthetic-owner"); assert.equal(open.actor_id,actor)
   assert.equal(accounts[0].as_owner,false); assert.equal(accounts[0].acquisition_campaign,null)
   await POST(request({event:"app_open"})); assert.equal(events.size,1)
-  count = 0
-  await service.recordCollectorSave(actor,"synthetic-owner","import","2026-11-08T01:00:00Z")
-  assert.equal(events.size,1)
-  count = 10
-  await service.recordCollectorSave(actor,"synthetic-owner","import","2026-11-08T01:00:00Z")
-  assert.equal(events.size,3)
-  assert.equal([...events.values()].find(event=>event.name==="activated")?.origin,"import")
   unavailable = true
   assert.equal((await (await POST(request({event:"upgrade_viewed"}))).json()).recorded,false)
   assert.doesNotThrow(()=>service.scheduleCollectorTracking(async()=>{throw new Error("Synthetic failure")}))

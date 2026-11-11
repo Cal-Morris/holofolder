@@ -1,17 +1,17 @@
-import { createHash } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import type { User } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { resolveCollectionOwnerUserId } from "@/lib/server/collection-owner"
 import { ensureDefaultBinderId, listOwnerBinders } from "@/lib/server/binders"
 import { isBinderId, normalizeBinderName, type Binder } from "@/lib/binders/model"
-import { canCreateBinder, nextBinderSortOrder, validateBinderOrder } from "@/lib/binders/manage"
+import { canCreateBinder, validateBinderOrder } from "@/lib/binders/manage"
 import { BillingAccessError, canCreateOwnerBinder, isBillingError } from "@/lib/billing"
 import { billingErrorResponse, getBillingAccess } from "@/lib/server/billing"
 
 /**
  * Binders of the signed-in owner. A partner manages the owner's binders (they share every binder), so every
- * request resolves the owner first and then uses the service role, like /app/api/collection.
+ * request resolves the owner first and then uses the service role.
  */
 async function requireOwner(user: Pick<User, "id">, verifiedOwnerId?: string) {
   const admin = createAdminClient()
@@ -21,27 +21,13 @@ async function requireOwner(user: Pick<User, "id">, verifiedOwnerId?: string) {
 
 type Admin = ReturnType<typeof createAdminClient>
 
-async function slotCount(admin: Admin, ownerUserId: string, binderId: string) {
-  const { count, error } = await admin
-    .from("pokemon_collection")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", ownerUserId)
-    .eq("binder_id", binderId)
-  if (error) throw error
-  return count ?? 0
-}
-
 async function listWithCounts(admin: Admin, ownerUserId: string) {
   const [initialBinders, countsResult] = await Promise.all([listOwnerBinders(admin, ownerUserId), admin.rpc("get_binder_slot_counts", { owner_id: ownerUserId })])
   let binders = initialBinders
   if (binders.length === 0 && await ensureDefaultBinderId(admin, ownerUserId)) {
     binders = await listOwnerBinders(admin, ownerUserId)
   }
-  if (countsResult.error) {
-    if (!["PGRST202", "42883"].includes(countsResult.error.code)) throw countsResult.error
-    const counts = await Promise.all(binders.map((binder) => slotCount(admin, ownerUserId, binder.id)))
-    return binders.map((binder, index) => ({ ...binder, slotCount: counts[index] }))
-  }
+  if (countsResult.error) throw countsResult.error
   const counts = new Map<string,number>((countsResult.data ?? []).map((row: {binder_id:string;slot_count:number}) => {
     const count = Number(row.slot_count)
     if (!Number.isSafeInteger(count) || count < 0) throw new Error("Invalid binder slot count")
@@ -79,20 +65,17 @@ export async function createBinder(request: NextRequest, actor: Pick<User, "id">
 
     const { admin, ownerUserId } = session
     const binders = await listOwnerBinders(admin, ownerUserId)
-    const retryKey = request.headers.get("idempotency-key")
-    if (!retryKey && !canCreateBinder(binders)) {
+    const headerKey = request.headers.get("idempotency-key")
+    if (!headerKey && !canCreateBinder(binders)) {
       return NextResponse.json({ error: "You have the most binders allowed" }, { status: 409 })
     }
-    if (!retryKey) {
+    if (!headerKey) {
       const access = await getBillingAccess(ownerUserId)
       if (!canCreateOwnerBinder(access, binders.length)) throw new BillingAccessError('binder_limit_reached')
     }
-    const { data, error } = retryKey
-      ? await admin.rpc("developer_create_binder", { actor: actor.id, owner_id: ownerUserId, binder_name: name, retry_key: retryKey,
-          digest: createHash("sha256").update(JSON.stringify({ ownerUserId, name })).digest("hex") })
-      : await admin.from("binders")
-          .insert({ owner_user_id: ownerUserId, name, sort_order: nextBinderSortOrder(binders), is_default: binders.length === 0 })
-          .select("id").single()
+    // One SQL path creates the binder and its native slots state together.
+    const { data, error } = await admin.rpc("developer_create_binder", { actor: actor.id, owner_id: ownerUserId, binder_name: name,
+      retry_key: headerKey ?? randomUUID(), digest: createHash("sha256").update(JSON.stringify({ ownerUserId, name })).digest("hex") })
     if (error?.message?.includes("idempotency_conflict")) return NextResponse.json({ error: "This idempotency key was used with another request." }, { status: 409 })
     if (isBillingError(error)) throw new BillingAccessError('binder_limit_reached')
     if (error?.message?.includes('binder_safety_limit_reached')) return NextResponse.json({ error: "You have the most binders allowed" }, { status: 409 })
