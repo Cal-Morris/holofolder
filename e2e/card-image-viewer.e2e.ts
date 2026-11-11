@@ -161,3 +161,30 @@ test('expanded owned and wanted images each open their own printing', async ({ h
     await expect(opener).toBeFocused();
   }
 });
+
+test('full-screen card tilts towards the pointer and settles when it leaves', async ({ harness }) => {
+  // Synthetic collection rows with a mirrored card image, retained after refresh.
+  await harness.page.route('**/rest/v1/pokemon_collection*', (route) =>
+    route.fulfill({
+      json: SEEDED_COLLECTION.map((row) => ({
+        ...row,
+        card_image: 'https://assets.tcgdex.net/en/base/base1/44/high.webp',
+      })),
+    }),
+  );
+  await harness.page.goto(`${harness.path}&cardArtwork=1`);
+  const detail = await harness.openCardDetail();
+  await detail.getByRole('button', { name: 'View Bulbasaur full screen' }).click();
+  const viewer = harness.page.getByRole('dialog', { name: 'Bulbasaur full screen' });
+  const image = viewer.getByRole('img', { name: 'Bulbasaur', exact: true });
+  await expect(image).toBeVisible();
+  const box = (await image.boundingBox())!;
+  const card = image.locator('xpath=ancestor::div[contains(@class, "aspect-")][1]');
+  const tilt = () => card.evaluate((node: HTMLElement) => node.style.getPropertyValue('--card-ry'));
+  await harness.page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.5);
+  await expect.poll(tilt).not.toBe('');
+  expect(Number.parseFloat(await tilt())).toBeGreaterThan(0);
+  await harness.page.mouse.move(4, 4);
+  await expect.poll(tilt).toBe('');
+  await expect(viewer).toBeVisible();
+});
