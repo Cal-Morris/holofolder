@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
-import { LayoutToolbar } from "@/components/binder/layout-editor"
+import { LayoutToolbar, type LayoutTap } from "@/components/binder/layout-editor"
+import { OrderedSlot } from "@/components/binder/ordered-slot"
+import { buildSlotDisplay } from "@/lib/binder-display-model"
 import { useSlotOfflineQueue } from "@/hooks/use-slot-offline-queue"
 import { syntheticSlotPickerSnapshot } from "@/tests/fixtures/slot-picker"
 import { readSyntheticComplete } from "@/tests/fixtures/slot-durable-session"
@@ -28,6 +30,8 @@ export default function BulkLayoutHarness() {
   const [receipt, setReceipt] = useState<unknown>(null)
   const [attempted, setAttempted] = useState<unknown>(null)
   const [controlCount, setControlCount] = useState(0)
+  const layoutTap = useRef<LayoutTap | null>(null)
+  const [marks, setMarks] = useState<{ ids: ReadonlySet<string>; moving: boolean }>({ ids: new Set(), moving: false })
   useEffect(() => {
     let active = true
     void (async () => {
@@ -94,9 +98,16 @@ export default function BulkLayoutHarness() {
         <button className={controlClass} disabled={currentPage === pages - 1} onClick={() => setPage(currentPage + 1)}>Next page</button>
       </nav>
       <output aria-label="Visible synthetic slots" className="block break-words text-xs">{slots.slice(currentPage * rows * cols, (currentPage + 1) * rows * cols).map(s => s.id).join(", ")}</output>
-      <LayoutToolbar editing={editing} onToggle={() => setEditing(n => !n)}
-        boundary={{ snapshot, scope: { ownerUserId: scope.ownerUserId, collectionId: snapshot.binders[0].collectionId, slotId: null }, catalog, onCommandIntent: receive, localDurable: true }}
-        bulk={{ pageIndex: currentPage, rows, cols, sessionKey: String(sessionKey) }} />
+      <LayoutToolbar key={`${sessionKey}:${grid}:${editing}`} editing={editing} onToggle={() => setEditing(n => !n)} host={{ rows, cols }} onTap={tap => { layoutTap.current = tap }}
+        onSelection={(ids, moving) => setMarks({ ids: new Set(ids), moving })}
+        boundary={{ snapshot, scope: { ownerUserId: scope.ownerUserId, collectionId: snapshot.binders[0].collectionId, slotId: null }, catalog, onCommandIntent: receive, localDurable: true,
+          resolveCard: id => seed.cards.find(c => c.id === id) }} />
+      {/* The same pocket component as the binder: layout selection happens on the pockets themselves. */}
+      <div aria-label="Synthetic binder page" className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+        {buildSlotDisplay(snapshot.binders[0], snapshot, id => seed.cards.find(c => c.id === id)).slice(currentPage * rows * cols, (currentPage + 1) * rows * cols).map(slot =>
+          <div key={slot.id} className="h-24 min-w-0"><OrderedSlot slot={slot} selected={false} onSelect={id => { if (editing) layoutTap.current?.(id) }}
+            marked={editing ? marks.ids.has(slot.id) : undefined} dimmed={editing && marks.moving && marks.ids.has(slot.id)} imageSizes="96px" glareStyle={{}} glare={false} /></div>)}
+      </div>
     </>}
     {!snapshot && <p role="status">Opening local synthetic binder…</p>}
     {queue.record?.pending.length ? <p role="status">{queue.record.pending.length} group(s) saved on device · Pending sync</p> : null}

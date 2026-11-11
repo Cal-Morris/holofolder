@@ -3,44 +3,49 @@
 import { useEffect, useState, type ComponentProps } from "react"
 import SlotDetail from "@/components/binder/slot-detail"
 import { CardSelector } from "@/components/binder/lazy-views"
-import type { SlotPickerFlow } from "@/components/binder/slot-picker"
-import type { CardFinish } from "@/lib/domain/cards"
+import NativePickQuestion from "@/components/binder/native-pick-question"
+import { useNativeSlotPick } from "@/hooks/use-native-slot-pick"
+import type { BinderDisplaySlot } from "@/lib/binder-display-model"
 import type { PricingRegion } from "@/lib/pricing-region"
+import { speciesSelectorCard, type SlotPickerBoundary } from "@/lib/slot-picker"
+import { displaySlotName } from "@/lib/pocket-labels"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
-import { speciesSelectorCard } from "@/lib/slot-picker"
-import { formatPokemonDisplayName } from "@/lib/pokemon-catalog"
 
-type Stage = { kind: "detail" | "pick" | "search" | "edit" } | { kind: "chosen"; card: SearchCardResult; finish?: CardFinish }
 type SelectorPricing = Pick<ComponentProps<typeof CardSelector>, "defaultCardLanguage" | "formatAmount"> & { pricingRegion: PricingRegion }
 
 /** Selection only reads the value; the selector's legacy collection write is never reached in native mode. */
 const unusedLegacySelect = () => {}
 
 /**
- * What a tap on a native pocket opens. An editable empty pocket goes straight to choosing a card: the species
- * card selector for a Pokémon target, catalog search otherwise. Owned, read-only and layout-editing pockets keep
- * the card-first detail. The pick is saved by the slot picker's existing command path, never by the selector.
- * Mounted per tapped slot (keyed by the host), so the entry is decided once from the pocket as it was tapped.
+ * What a tap on a native pocket opens. An editable empty pocket always opens the existing visual card selector:
+ * a Pokémon pocket lists that Pokémon's cards, a pocket reserved for one printing shows that printing, and a free
+ * pocket searches every card. The pick (and variant) is saved headlessly through the native durable sink and the
+ * selector closes back onto the binder. Owned and read-only pockets open the card's details.
+ * Mounted per tapped slot (keyed by the host).
  */
 export default function NativeSlotFlow({ pricing, ...detail }: ComponentProps<typeof SlotDetail> & { pricing: SelectorPricing }) {
-  const { slot, picker, layout, onClose } = detail
-  const [stage, setStage] = useState<Stage>(() => picker && !layout && !slot.item ? { kind: slot.pokemon ? "pick" : "search" } : { kind: "detail" })
-  // Same rule as the editable detail sheet: losing the connection ends the selection instead of leaving it open.
-  const selecting = stage.kind === "pick"
+  const { slot, picker, onClose } = detail
+  // Decided once from the pocket as it was tapped; a pocket filled meanwhile falls back to its details.
+  const [choosing] = useState(() => Boolean(picker && !slot.item))
+  const selecting = choosing && picker && !slot.item
   useEffect(() => {
     if (!selecting) return
     window.addEventListener("offline", onClose)
     return () => window.removeEventListener("offline", onClose)
   }, [selecting, onClose])
-  // The selector is only ever shown while this pocket is still editable; otherwise the read-only detail takes over.
-  if (stage.kind === "pick" && picker && !layout && slot.pokemon && !slot.item) {
-    const pokemonId = slot.pokemon.id
-    return <CardSelector pokemonId={pokemonId} pokemonName={formatPokemonDisplayName(slot.pokemon.name)} onSelect={unusedLegacySelect} onClose={onClose}
-      selectedWantedCardId={slot.wantedCards[0]?.card_id} {...pricing}
-      native={{ onPick: (card, finish) => setStage({ kind: "chosen", card: speciesSelectorCard(card, pokemonId), finish }), onEditSlot: () => setStage({ kind: "edit" }) }} />
-  }
-  // A pocket filled meanwhile (another device, a partner) falls back to its detail, never to a selection for it.
-  const flow: SlotPickerFlow | undefined = stage.kind === "detail" || slot.item ? undefined
-    : { entry: stage.kind === "edit" ? "edit" : "assign", chosen: stage.kind === "chosen" ? stage : undefined, onBack: () => setStage({ kind: "pick" }) }
-  return <SlotDetail {...detail} flow={flow} />
+  if (selecting) return <PocketSelector boundary={picker} slot={slot} pricing={pricing} onClose={onClose} />
+  return <SlotDetail {...detail} />
+}
+
+function PocketSelector({ boundary, slot, pricing, onClose }: { boundary: SlotPickerBoundary; slot: BinderDisplaySlot; pricing: SelectorPricing; onClose: () => void }) {
+  const save = useNativeSlotPick(boundary, onClose)
+  const species = slot.target?.kind !== "card" ? slot.pokemon : null
+  const reserved = slot.target?.kind === "card" ? slot.target : null
+  return <>
+    <CardSelector pokemonId={species?.id ?? 0} pokemonName={species ? displaySlotName({ card: null, pokemon: species, target: null }) : ""} onSelect={unusedLegacySelect} onClose={onClose}
+      selectedWantedCardId={slot.wantedCards[0]?.card_id} {...pricing} defaultCardLanguage={reserved?.language ?? pricing.defaultCardLanguage}
+      anyCard={species ? undefined : reserved ? { title: `Add ${displaySlotName(slot)}`, cardId: reserved.cardId } : { title: "Add a card" }}
+      native={{ onPick: (card, finish) => save.pick(species ? speciesSelectorCard(card, species.id) : { ...card, dexIds: card.dexIds ?? [] } as SearchCardResult, finish) }} />
+    {save.question && <NativePickQuestion question={save.question} onClose={save.dismiss} />}
+  </>
 }

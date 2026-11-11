@@ -22,7 +22,8 @@ async function main() {
   const { default: Page } = await import("../../app/page")
   const boot = async () => {
     owners.length = 0
-    const element = Page({ searchParams: Promise.resolve({}) }) as unknown as { props: { serverBoot: Promise<{ initialCollectionOwnerUserId: string | null; initialBinderId: string | null; initialUser: { id: string } | null }> } }
+    // The page is a Suspense boundary (its fallback is the binder skeleton) around BinderStart.
+    const { props: { children: element } } = Page({ searchParams: Promise.resolve({}) }) as unknown as { props: { children: { props: { serverBoot: Promise<{ initialCollectionOwnerUserId: string | null; initialBinderId: string | null; initialUser: { id: string } | null }> } } } }
     return element.props.serverBoot
   }
 

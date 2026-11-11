@@ -37,6 +37,13 @@ describe("device-local collection navigation", () => {
     assert.notEqual(navigationStorageKey(scope), navigationStorageKey({ ...scope, accountUserId: "partner" }))
     assert.notEqual(navigationStorageKey(scope), navigationStorageKey({ ...scope, ownerUserId: "other" }))
   })
+  test("the binder is the starting view, Inventory only when it is named or there is no binder", async () => {
+    assert.equal(normalizeNavigationState(null).main, "collection")
+    const opened = resolveNavigation(normalizeNavigationState(null), scope, await read())
+    assert.equal(opened.state.main, "collection"); assert.equal(opened.state.collectionId, "alpha")
+    assert.equal(resolveNavigation(normalizeNavigationState(null), scope, await read(), new URLSearchParams("view=inventory")).state.main, "inventory")
+    assert.equal(resolveNavigation(normalizeNavigationState(null), scope, { ...await read(), evidence: { kind: "unavailable" } }).state.main, "inventory")
+  })
   test("old binder/page and unsupported slabs links override remembered destination", async () => {
     const saved = normalizeNavigationState({ main: "inventory", collectionId: "trades", collections: { alpha: { view: "list", page: 1 } } })
     const resolved = resolveNavigation(saved, scope, await read(), new URLSearchParams("binder=alpha&page=2"))
@@ -87,7 +94,7 @@ describe("device-local collection navigation", () => {
   })
   test("scroll, search and page are per destination, navigation cannot change canonical data", async () => {
     const r = await read(), before = JSON.stringify(r)
-    let state = normalizeNavigationState({ collectionId: "alpha", collections: { alpha: { ...defaultCollectionView(), page: 2, search: "charizard" } }, inventory: { query: { search: "base" }, window: 1 } })
+    let state = normalizeNavigationState({ main: "inventory", collectionId: "alpha", collections: { alpha: { ...defaultCollectionView(), page: 2, search: "charizard" } }, inventory: { query: { search: "base" }, window: 1 } })
     state = captureNavigationScroll(state, 891)
     state.main = "collection"; state = captureNavigationScroll(state, 403)
     assert.equal(state.inventory.scroll, 891); assert.equal(state.collections.alpha.scroll, 403)

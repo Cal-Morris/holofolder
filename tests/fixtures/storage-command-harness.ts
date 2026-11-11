@@ -44,6 +44,18 @@ export function storageCommandHarness(id: string) {
       identity: { kind: "card", cardId: `synthetic-${kind}`, language: "en" }, grading: null, acquired_at: null, version: 0, legacy_source: null }))
     for (const slot of state.tables.binder_slots.slice(0, 2)) slot.target = { kind: "pokemon", pokemonId: 143 }
   }
+  if (id.startsWith("owned-")) {
+    // Synthetic owned species pocket: one raw copy placed in a Pokémon-target pocket, like a dex binder.
+    state.tables.tcg_sets = [{ id: "synthetic-owned", name_en: "Synthetic owned set" }]
+    state.tables.tcg_cards = [{ id: "synthetic-owned-bulbasaur", set_id: "synthetic-owned", local_id: "133",
+      name_en: "Synthetic Owned Bulbasaur", name_json: { en: "Synthetic Owned Bulbasaur" }, external_ids_json: {} }]
+    state.tables.tcg_card_dex_ids = [{ card_id: "synthetic-owned-bulbasaur", dex_id: 1 }]
+    state.tables.inventory_items = [{ id: "synthetic-owned-copy", owner_user_id: owner, identity: { kind: "card", cardId: "synthetic-owned-bulbasaur", language: "en", finish: "holo" },
+      grading: null, acquired_at: null, version: 0, legacy_source: null }]
+    state.tables.inventory_placements.push({ inventory_item_id: "synthetic-owned-copy", owner_user_id: owner, collection_id: collection, slot_id: "synthetic-slot-0", version: 0 })
+    state.tables.binder_slots[0].target = { kind: "pokemon", pokemonId: 1 }
+    state.tables.binder_slots[0].status = "collected"
+  }
   if (id.startsWith("pick-")) {
     // Synthetic species pocket and an unowned mirror printing: absent from the read catalog until it is owned.
     state.tables.tcg_sets = [{ id: "synthetic-pick", name_en: "Synthetic pick set" }]

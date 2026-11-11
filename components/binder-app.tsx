@@ -11,7 +11,7 @@ import { appPath } from "@/lib/app-path"
 import { createBinderBackup, downloadBinderBackup } from "@/lib/binder-backup"
 import { useCollectorAppOpen } from "@/components/collector-funnel"
 import type { Binder } from "@/lib/binders/model"
-import { binderHref, rememberLastOpenedBinder } from "@/lib/binders/client"
+import { binderHref, rememberBinderGrid, rememberLastOpenedBinder } from "@/lib/binders/client"
 import { offlineAvailableBinderIds, rememberDeviceBinders } from "@/lib/binders/offline"
 import { showBudgetStorageKey } from "@/lib/show-budget"
 import { revisitStorageKey } from "@/lib/show-revisit"
@@ -89,7 +89,10 @@ import { renderBottomNavView } from "@/components/binder/bottom-nav"
 
 import type { SlotCommandSink } from "@/lib/binder-slot-editing"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
-import { buildSlotDisplay, displaySlotImageUrl, displaySlotPriceLookup, nativeBinderCoverStats, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
+import type { LayoutSessionStart, LayoutTap } from "@/components/binder/layout-editor"
+import type { WantedDashboardCard } from "@/lib/wanted-dashboard"
+import { pocketPlace } from "@/lib/pocket-labels"
+import { buildSlotDisplay, displaySlotImageUrl, displaySlotPriceLookup, nativeBinderCoverStats, paginateDisplaySlots, resolveDisplaySelection, speciesPocket, type SlotDisplayInput } from "@/lib/binder-display-model"
 
 import { useBrowserCollectionScope } from "@/hooks/use-browser-collection-scope"
 import CachedNativeStartup from "@/components/cached-native-startup"
@@ -109,6 +112,7 @@ const CollectionSlotList = dynamic(() => import("@/components/collection-navigat
 
 const LayoutToolbar = dynamic(() => import("@/components/binder/layout-editor").then(module => module.LayoutToolbar), { ssr: false })
 const NativeSlotFlow = dynamic(() => import("@/components/binder/native-slot-flow"), { ssr: false })
+const PocketMenu = dynamic(() => import("@/components/binder/pocket-menu"), { ssr: false })
 
 interface BinderAppProps {
   /** Minted only by the server-gated loopback harness. Production bootstrap never supplies this. */
@@ -139,6 +143,8 @@ interface BinderAppProps {
   /** The owner's binders and the one this page shows (null before migration 039). */
   initialBinders?: Binder[]
   initialBinderId?: string | null
+  /** Pockets per page of the binder this device opened last: the starting skeleton's grid. */
+  startGrid?: { rows: number; cols: number }
 }
 
 /** Authenticated lifetimes never mount the writable legacy collection hook. */
@@ -203,7 +209,7 @@ export default function BinderApp(props: BinderAppProps) {
     <a className="flex min-h-10 items-center self-start underline" href={appPath("/auth/logout")}>Sign out</a>
   </main> : null
   // While the check runs: the binder's skeleton, or this device's saved copy when the first check allows it.
-  const loading = failed ?? <BinderSkeleton rows={props.initialSettings.binderRows} cols={props.initialSettings.binderCols} />
+  const loading = failed ?? <BinderSkeleton rows={props.startGrid?.rows ?? props.initialSettings.binderRows} cols={props.startGrid?.cols ?? props.initialSettings.binderCols} />
   const placeholder = browserScope.cachedFallbackAllowed && !accessRetry ? <CachedNativeStartup legacyProps={props} whileChecking>{loading}</CachedNativeStartup> : loading
   const session = scope && admission.admitted ? scope : null
   // The placeholder keeps its place (and its saved copy) until the session has something to paint,
@@ -301,7 +307,8 @@ function BinderAppSurface(props: BinderAppProps) {
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false)
   const [longPressedPokemon, setLongPressedPokemon] = useState<{ id: number; name: string } | null>(null)
   // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
-  const [nativeLookup, setNativeLookup] = useState<SearchCardResult | null>(null)
+  const [nativeLookup, setNativeLookupState] = useState<{ card: SearchCardResult; finish?: CardFinish } | null>(null)
+  const setNativeLookup = useCallback((card: SearchCardResult | null, finish?: CardFinish) => setNativeLookupState(card ? { card, finish } : null), [])
   const [cardBrowser, setCardBrowser] = useState<{ pokemon: { id: number; name: string }; highlightCardId?: string | null; focusedCard?: SearchCardResult; finish?: CardFinish; nested: boolean } | null>(null)
   const [illustratorBrowser, setIllustratorBrowser] = useState<{ name: string; nested: boolean } | null>(null)
   // A set hit tapped in Search or Quick mode; Sets opens on it until he leaves Sets.
@@ -1110,12 +1117,18 @@ function BinderAppSurface(props: BinderAppProps) {
       browserSurface.surface.collection?.onChange({ page: currentBinderPage })
   }, [browserSurface, currentBinderPage])
   const layoutScopeKey = JSON.stringify([stagedSlotSessionId, user?.id, stagedSlotDisplay?.inventory.ownerUserId, stagedSlotDisplay?.binder.collectionId, initialBinderId, activeMainView, collectionViewFilter, selectedGen, binderDimension, isSpreadLayout, settings.binderRows, settings.binderCols])
-  const [layoutSession, setLayoutSession] = useState<{ scope: string; id: string } | null>(null)
+  const [layoutSession, setLayoutSession] = useState<{ scope: string; id: string; start?: LayoutSessionStart } | null>(null)
+  // Drawn on the pockets themselves; the bar owns the selection and reports it here.
+  const [layoutMarks, setLayoutMarks] = useState<{ ids: ReadonlySet<string>; moving: boolean }>({ ids: new Set(), moving: false })
+  const layoutTap = useRef<LayoutTap | null>(null)
+  const registerLayoutTap = useCallback((tap: LayoutTap | null) => { layoutTap.current = tap }, [])
+  const [pocketMenu, setPocketMenu] = useState<{ slotId: string; point: { x: number; y: number } } | null>(null)
+  const reportLayoutSelection = useCallback((ids: readonly string[], moving: boolean) => setLayoutMarks({ ids: new Set(ids), moving }), [])
   const canEditLayout = Boolean((!browserSurface || browserSurface.editingAvailable) && !legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent
     && activeMainView === "binder" && collectionViewFilter === "all" && selectedGen === 0)
   const editingLayout = canEditLayout && layoutSession?.scope === layoutScopeKey
   useEffect(() => {
-    queueMicrotask(() => { setLayoutSession(null); closeSlotDetail() })
+    queueMicrotask(() => { setLayoutSession(null); setPocketMenu(null); closeSlotDetail() })
   }, [layoutScopeKey, canEditLayout, closeSlotDetail])
   const layoutBoundary = canEditLayout && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent ? {
     snapshot: stagedSlotDisplay.inventory,
@@ -1125,9 +1138,19 @@ function BinderAppSurface(props: BinderAppProps) {
     localDurable: stagedSlotLocalDurable,
     bulkFill: browserSurface?.bulkFill,
     removal: browserSurface?.bulkFill,
+    resolveCard: stagedSlotDisplay.resolveCard ?? ((id: string) => stagedSlotDisplay.catalog[id]),
   } : undefined
-  const layoutToolbar = layoutBoundary ? <LayoutToolbar key={`${layoutScopeKey}:${layoutSession?.id ?? "browse"}`} editing={editingLayout}
-    boundary={layoutBoundary} bulk={browserSurface ? { collapsible: true, pageIndex: currentBinderPage - 1, rows: settings.binderRows, cols: settings.binderCols, sessionKey: layoutSession?.id ?? "browse", onPageChange: pageIndex => setCurrentBinderPage(pageIndex + 1) } : undefined} onToggle={() => { closeSlotDetail(); setLayoutSession(editingLayout ? null : { scope: layoutScopeKey, id: crypto.randomUUID() }) }} /> : undefined
+  const startLayoutEditing = (start?: LayoutSessionStart) => { closeSlotDetail(); setPocketMenu(null); setLayoutMarks({ ids: new Set(start?.ids), moving: Boolean(start?.moving) }); setLayoutSession({ scope: layoutScopeKey, id: crypto.randomUUID(), start }) }
+  const layoutToolbar = layoutBoundary ? <LayoutToolbar key={`${layoutScopeKey}:${layoutSession?.id ?? "browse"}`} editing={editingLayout} boundary={layoutBoundary}
+    host={{ rows: settings.binderRows, cols: settings.binderCols }} start={layoutSession?.start} onTap={registerLayoutTap} onSelection={reportLayoutSelection}
+    onToggle={() => { if (editingLayout) { closeSlotDetail(); setLayoutSession(null) } else startLayoutEditing() }} /> : undefined
+  const slotPickerBoundary = (slotId: string) => !legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent
+    ? { snapshot: stagedSlotDisplay.inventory, scope: { ownerUserId: stagedSlotDisplay.inventory.ownerUserId, collectionId: stagedSlotDisplay.binder.collectionId, slotId }, catalog: stagedSlotCatalog, onCommandIntent: onStagedSlotCommandIntent, localDurable: stagedSlotLocalDurable } : undefined
+  const slotPlace = (slotId: string) => {
+    const index = orderedDisplaySlots?.findIndex(slot => slot.id === slotId) ?? -1
+    return index < 0 ? undefined : pocketPlace(index, settings.binderRows, settings.binderCols)
+  }
+  const pocketMenuSlot = pocketMenu && orderedDisplaySlots ? resolveDisplaySelection(orderedDisplaySlots, pocketMenu.slotId) : null
   const getDisplayPageSlots = orderedDisplayPages ? (page: number) => orderedDisplayPages[page - 1] ?? Array.from({ length: slotsPerPage }, () => null) : undefined
 
   // A share's search/jump destination opens after the page or view change that would otherwise close it.
@@ -1140,6 +1163,29 @@ function BinderAppSurface(props: BinderAppProps) {
       else closeSlotDetail()
     })
   }, [currentBinderPage, binderDimension, activeMainView, collectionViewFilter, selectedGen, closeSlotDetail])
+  // The next start's skeleton shows this binder's grid. Only an owner's binder on screen counts.
+  const binderGridShown = !shareViewToken && !publicIndex && (browserSurface ? browserSurface.surface.state.main === "collection" && Boolean(stagedSlotDisplay) : !stagedSlotDisplay)
+  useEffect(() => { if (binderGridShown) rememberBinderGrid(settings.binderRows, settings.binderCols) }, [binderGridShown, settings.binderRows, settings.binderCols])
+  // Arriving from a search result or Quick mode elsewhere in the app: open that pocket once its page is up.
+  const arrivingSlot = browserSurface?.surface.collection?.highlight
+  const arrivingSlotId = arrivingSlot?.open ? arrivingSlot.slotId : null
+  useEffect(() => {
+    if (!arrivingSlotId) return
+    const timer = setTimeout(() => setSelectedSlotId(arrivingSlotId), 0)
+    return () => clearTimeout(timer)
+  }, [arrivingSlotId])
+  // Where a Pokémon lives in the binder being viewed. Collections keep their own pocket order, not dex order.
+  const nativeDisplay = browserSurface?.display, nativeCatalog = browserSurface?.nativeConsumer?.read.catalog, nativeLayouts = browserSurface?.nativeConsumer?.read.layouts
+  const nativePocket = useMemo(() => {
+    const layout = nativeDisplay && nativeLayouts?.find(l => l.collectionId === nativeDisplay.binder.collectionId && l.layoutRevision === nativeDisplay.binder.layoutRevision)
+    if (!nativeDisplay || !nativeCatalog || !layout) return null
+    const cardSpecies = new Map(nativeCatalog.map(c => [c.card.id, c.pokemonIds ?? []]))
+    return (pokemonId: number) => {
+      const pocket = speciesPocket(nativeDisplay, pokemonId, id => cardSpecies.get(id))
+      return pocket && { ...pocket, page: Math.floor(pocket.index / (layout.rows * layout.cols)) + 1, place: pocketPlace(pocket.index, layout.rows, layout.cols) }
+    }
+  }, [nativeDisplay, nativeCatalog, nativeLayouts])
+  const nativeBinderOpen = browserSurface?.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder" && activeMainView === "binder"
 
   const getPageSlots = useCallback((pageNumber: number) => {
     if (pageNumber < 1) {
@@ -1744,6 +1790,18 @@ function BinderAppSurface(props: BinderAppProps) {
   }, [cancelPageNavigation, currentBinderPage, activeMainView])
   const handlePokemonSelect = useCallback((pokemon: PokemonSummary) => {
     if (publicIndex) return openPublicLocation(publicIndex.speciesLocation(pokemon.id))
+    if (browserSurface) {
+      const pocket = nativePocket?.(pokemon.id)
+      setIsSearchOpen(false)
+      if (!pocket) {
+        // No pocket for it in this binder: its cards are the useful place to land.
+        cancelPageNavigation(); closeAllOverlays()
+        return setCardBrowser({ pokemon: { id: pokemon.id, name: pokemon.name }, highlightCardId: null, nested: false })
+      }
+      const page = (nativeBinderOpen ? orderedDisplayPages?.findIndex(slots => slots.some(slot => slot?.id === pocket.slotId)) : undefined) ?? -1
+      // From another view, or when a filter hides the pocket, the host opens the binder on that page.
+      return page < 0 ? browserSurface.surface.onSlot(pocket.slotId, pocket.page) : openPublicLocation({ page: page + 1, slotId: pocket.slotId })
+    }
     cancelPageNavigation()
     viewRequestRef.current += 1
     transitionContent(null, () => {})
@@ -1756,7 +1814,7 @@ function BinderAppSurface(props: BinderAppProps) {
       const targetPage = Math.ceil((idx + 1) / slotsPerPage)
       setCurrentBinderPage(targetPage)
     }
-  }, [pokemonList, slotsPerPage, transitionContent, cancelPageNavigation, publicIndex, openPublicLocation])
+  }, [pokemonList, slotsPerPage, transitionContent, cancelPageNavigation, publicIndex, openPublicLocation, browserSurface, nativePocket, nativeBinderOpen, orderedDisplayPages, setCardBrowser])
 
   const handleWantedSelect = (pokemon: PokemonSummary, card: WantedCard) => {
     if (publicIndex) return openPublicLocation(publicIndex.wantLocation(card))
@@ -1781,6 +1839,21 @@ function BinderAppSurface(props: BinderAppProps) {
   const getSearchResultMeta = useCallback((pokemon: { id: number; name: string }): PokemonSearchResultMeta => {
     if (publicIndex) return publicIndex.searchMeta(pokemon.id)
     const summary = getPokemonSummary(pokemon.id)
+    if (browserSurface) {
+      const pocket = nativePocket?.(pokemon.id)
+      const owned = pocket?.item?.identity.kind === "card" ? nativeDisplay?.resolveCard?.(pocket.item.identity.cardId, pocket.item.identity.language) : undefined
+      return {
+        ...buildPokemonSearchPreview({ pokemonArtwork: summary ? getPokemonArtwork(summary) : getPokemonOfficialArtworkUrl(pokemon.id), cardImage: pocket?.want?.card_image ?? owned?.image, status: pocket?.want ? "wishlisted" : undefined }),
+        stateLabel: pocket?.want ? "Wanted" : pocket?.item ? "Owned" : null,
+        stateToneClass: pocket?.want ? "bg-amber-500/15 text-amber-500" : "bg-emerald-500/15 text-emerald-400",
+        cardLabel: pocket?.want ? `Wanted: ${pocket.want.card_name}` : owned?.name ?? null,
+        locationLabel: pocket?.place ?? null,
+        // The page shortcut only means something while the binder itself is on screen.
+        pageNumber: nativeBinderOpen ? pocket?.page ?? null : null,
+        isSelected: Boolean(pocket && pocket.slotId === selectedSlotId),
+        slotState: pocket?.want ? "wanted" : pocket?.item ? "owned" : "open",
+      }
+    }
     const item = getCollectionItem(pokemon.id)
     const preview = buildPokemonSearchPreview({
       pokemonArtwork: summary ? getPokemonArtwork(summary) : getPokemonOfficialArtworkUrl(pokemon.id),
@@ -1835,7 +1908,7 @@ function BinderAppSurface(props: BinderAppProps) {
       isSelected: selectedPokemon?.id === pokemon.id,
       slotState,
     }
-  }, [getCollectionItem, pokemonList, selectedPokemon?.id, settings.binderCols, slotsPerPage, publicIndex])
+  }, [getCollectionItem, pokemonList, selectedPokemon?.id, settings.binderCols, slotsPerPage, publicIndex, browserSurface, nativePocket, nativeDisplay, nativeBinderOpen, selectedSlotId])
 
   const handleJumpBetweenTargets = useCallback((direction: "next" | "prev") => {
     if (publicIndex && orderedDisplaySlots) {
@@ -2540,8 +2613,8 @@ function BinderAppSurface(props: BinderAppProps) {
     })
   }, [setCardBrowser, openExclusively])
 
-  const openNativeCard = useCallback((card: SearchCardResult) => {
-    openExclusively(() => { setSelectedPokemon(null); setNativeLookup(card) })
+  const openNativeCard = useCallback((card: SearchCardResult, finish?: CardFinish) => {
+    openExclusively(() => { setSelectedPokemon(null); setNativeLookup(card, finish) })
   }, [openExclusively, setNativeLookup, setSelectedPokemon])
   const hasNativeConsumer = Boolean(browserSurface?.nativeConsumer)
   const nativeReadOnly = browserSurface?.nativeConsumer ? !browserSurface.nativeConsumer.editingAvailable : readOnlyMode
@@ -2566,6 +2639,34 @@ function BinderAppSurface(props: BinderAppProps) {
       setIllustratorBrowser({ name, nested: false })
     })
   }, [openExclusively])
+
+  /**
+   * One card from an illustrator's grid: its own details open above the grid, for exactly that card, and closing
+   * them returns to the grid. A card detail the grid was opened from is closed first so only two levels are open.
+   */
+  const openIllustratorCard = useCallback((card: SearchCardResult) => {
+    setIllustratorBrowser(current => current ? { ...current, nested: false } : current)
+    setSelectedSlotId(null)
+    setSelectedPokemon(null)
+    if (hasNativeConsumer) { setNativeLookup(card); return }
+    const dexId = card.dexIds[0]
+    const pokemon = dexId ? getPokemonSummary(dexId) : null
+    if (pokemon) setCardBrowser({ pokemon: { id: pokemon.id, name: pokemon.name }, highlightCardId: card.id, focusedCard: card, nested: true })
+  }, [hasNativeConsumer, setCardBrowser, setNativeLookup, setSelectedPokemon])
+  /** A pocket's wanted card, opened as its own card in the wanted finish. Its full catalog entry is used when the collection has it. */
+  const openWantedCard = useCallback((want: WantedCard) => {
+    const known = nativeRead?.catalog.find(entry => matchesCatalogCardId(entry.card, want.card_id) && (!want.card_language || entry.card.language === want.card_language))
+    const card: SearchCardResult = known ? { ...known.card, dexIds: [...(known.pokemonIds ?? [])] }
+      : { id: want.card_id, localId: "", name: want.card_name, image: want.card_image, language: want.card_language, set: { id: "", name: want.card_set ?? "" }, dexIds: [] }
+    openNativeCard(card, want.card_finish ?? undefined)
+  }, [nativeRead, openNativeCard])
+  // Owned and wanted marks in the illustrator view come from the signed-in collection when there is one.
+  const illustratorCollection = useMemo(() => {
+    if (!illustratorBrowser || !nativeRead || nativeRead.evidence.kind === "unavailable") return collection
+    const snapshot = nativeRead.evidence.snapshot
+    return [...snapshot.items.flatMap(item => item.identity.kind === "card" ? [{ card_id: item.identity.cardId, status: "collected" }] : []),
+      ...snapshot.binders.flatMap(binder => binder.slots.filter(slot => slot.wantedCards.length > 0).map(slot => ({ wanted_cards: slot.wantedCards.map(want => ({ card_id: want.card_id })) })))]
+  }, [illustratorBrowser, nativeRead, collection])
 
   /** A set hit from Search or Quick mode: open Sets on that set (a fresh Sets view, even if Sets is showing). */
   const openSetFromSearch = useCallback((set: TCGSetSummary) => {
@@ -2777,12 +2878,15 @@ function BinderAppSurface(props: BinderAppProps) {
   const renderSpreadBlankPage = (side: "left" | "right") => renderSpreadBlankPageView({ getBinderThemeForPage }, side)
 
   const slotActions = useBinderSlotActions({ currentBinderPage, handleLongPress, handleQuickCollect, handleSlotClick, handleToggleFavorite, openCardSelectorForPokemon, registerSlotButtonRef, setCurrentBinderPage, setLongPressedPokemon })
-  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => orderedDisplaySlots?.length === 0 ? <div role="status" className="flex h-full items-center justify-center rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">No slots in this binder</div> : renderBinderGridPageView({ displaySlots: getDisplayPageSlots, slotInteractionKey: `${layoutScopeKey}:${layoutSession?.id ?? "browse"}`, selectedSlotId: selectedSlotId ?? browserSurface?.surface.collection?.highlight?.slotId, onSelectSlot: setSelectedSlotId, binderSlotImageSizes, binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings: binderEffectSettings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
+  const renderBinderGridPage = (pageNumber: number, side: "left" | "right") => orderedDisplaySlots?.length === 0 ? <div role="status" className="flex h-full items-center justify-center rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">No slots in this binder</div> : renderBinderGridPageView({ displaySlots: getDisplayPageSlots, slotInteractionKey: `${layoutScopeKey}:${layoutSession?.id ?? "browse"}`, selectedSlotId: selectedSlotId ?? browserSurface?.surface.collection?.highlight?.slotId,
+    onSelectSlot: editingLayout ? (id: string) => layoutTap.current?.(id) : setSelectedSlotId, layoutMarks: editingLayout ? layoutMarks : undefined,
+    onSlotMenu: layoutBoundary ? (slotId: string, point: { x: number; y: number }) => setPocketMenu({ slotId, point }) : undefined, binderSlotImageSizes, binderCardDisplay, cardFinishEffectStyle, cardFinishGlint, currentBinderPage, getBinderThemeForPage, getCollectionItem, getPageSlots, getSlotCardImage, isCollected, isDesktopViewport, isPriceMode, isSpreadLayout, longPressedPokemon, priceFormat, pricesByCardId, readOnlyMode, selectedPokemon, settings: binderEffectSettings, slotActions, slotGlareOverlayStyle, user }, pageNumber, side)
 
-  const handleShareWantedList = async () => {
+  const handleShareWantedList = async (scope: "binder" | "all" | WantedDashboardCard[] = "binder") => {
     if (!billing.premium) { requestUpgrade(); return }
-    const summary = wantedDashboard
-    const text = buildWantedListText(summary.cards, (card) => priceFormat.amount(card.effectiveGbpAmount, card.price))
+    // The signed-in want list hands over its own cards, as currently searched, filtered and sorted.
+    const cards = Array.isArray(scope) ? scope : wantedDashboard.cards
+    const text = buildWantedListText(cards, (card) => priceFormat.amount(card.effectiveGbpAmount, card.price))
     // Phones get the share sheet (Messages, WhatsApp, Notes); everywhere else the list is copied.
     const isTouch = window.matchMedia?.("(pointer: coarse)").matches
     if (isTouch && typeof navigator.share === "function") {
@@ -2830,11 +2934,14 @@ function BinderAppSurface(props: BinderAppProps) {
   )
 
   // Native storage swaps List for Inventory in both the header and the dock.
-  const inventoryNavigation = browserSurface ? { active: browserSurface.surface.state.main === "inventory" && activeMainView === "binder", open: browserSurface.surface.onInventory,
+  const inventoryNavigation = browserSurface ? { active: browserSurface.surface.state.main === "inventory" && activeMainView === "binder", open: browserSurface.surface.onInventory, binderOpen: nativeBinderOpen,
     collectionActive: browserSurface.surface.state.main === "collection" && (activeMainView === "binder" || activeMainView === "list") } : undefined
   const renderAppHeader = () => renderAppHeaderView({ inventoryNavigation, activeBinder: browserSurface ? null : activeBinder, nativeStorage: Boolean(browserSurface), canManageShare, onNationalDex: browserSurface?.surface.onDex, activeJumpLabel, activeJumpPokemonList, activeMainView, binderCardControls, binderDimension, binderDisplayControls, binders, canFilterCollection, canGoToNextVisiblePage, canGoToPreviousVisiblePage, collectionCount, collectionStats, commitPageInput, currentBinderPage, fullShareUrl, goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, handleCopyReadOnlyShareLink, handleEnableReadOnlyShare, handleInstallApp, handleJumpToNextNeeded, handleJumpToPreviousNeeded, handleSignOut: onBrowserSignOut ?? handleSignOut, installPromptEvent, isDarkMode, isDesktopActionsOpen, isInstalledApp, isMobileNavExpanded, isOnline, isSearchOpen, isShareEnabled, isShareLoading, isShowModeOn, isSpreadLayout, lastBrowseViewRef, onJoin: () => openExclusively(() => { setAuthInitialMode("sign-up"); setIsAuthOpen(true) }), openExclusively, openQuickMode, openSearch, pageInputValue, readOnlyMode: browserSurface ? legacyReadOnlyMode : readOnlyMode, setIsAuthOpen, setIsBinderSwitcherOpen, setIsDesktopActionsOpen, setIsMobileNavExpanded, setIsPartnerOpen, setIsSettingsOpen, setPageInputValue, setSelectedPokemon, setShowMode, shareCopyMessage, shareMessage, shellNavRef, showTally, switchMainView, toggleDarkMode, totalBinderPages, user, visiblePageLabel })
 
-  const renderMainContent = () => renderMainContentView({ nativeSpecies: speciesCollection, nativeWanted: nativeConsumer ? <NativeWantedEntries presentation="wanted" binding={nativeConsumer} onCheck={nativeConsumer.openCard} /> : undefined, nativeAnalytics: browserSurface ? <NativeCollectionAnalytics {...browserSurface.analytics} collectionId={browserSurface.surface.state.collectionId ?? undefined} region={pricingPreferences.region} /> : undefined, layoutToolbar: browserSurface && !editingLayout ? undefined : layoutToolbar, orderedDisplaySlots: orderedDisplayPages?.flat(), onSelectSlot: setSelectedSlotId, pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: requireAccount, activeJumpLabel, activeMainView, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, setBinderStageRef, setCurrentBinderPage, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
+  const renderMainContent = () => renderMainContentView({ listTitle: browserSurface ? "National Dex" : undefined, nativeSpecies: speciesCollection, nativeWanted: nativeConsumer ? <>
+      {wantedShareMessage && <p role="status" className="mx-auto w-full max-w-6xl px-4 pt-2 text-sm">{wantedShareMessage}</p>}
+      <NativeWantedEntries presentation="wanted" binding={nativeConsumer} onCheck={nativeConsumer.openCard}
+        pricing={pricingEnabled ? { region: pricingPreferences.region, formatAmount: priceFormat.amount } : undefined} onShare={cards => { void handleShareWantedList(cards) }} /></> : undefined, nativeAnalytics: browserSurface ? <NativeCollectionAnalytics {...browserSurface.analytics} collectionId={browserSurface.surface.state.collectionId ?? undefined} region={pricingPreferences.region} /> : undefined, layoutToolbar: browserSurface && !editingLayout ? undefined : layoutToolbar, orderedDisplaySlots: orderedDisplayPages?.flat(), onSelectSlot: setSelectedSlotId, pricingEnabled, pendingBinderPage, cancelPageNavigation, onHideBinderValue: () => { void updateSettings({ showBinderValue: false }) }, assignWantedCard: requireAccount, activeJumpLabel, activeMainView, binderAppearance, binderCardDisplay, binderDimension, binderFitSize, binderPageRef, collection, collectionByPokemonId, collectionViewFilter, currentBinderPage, dashboardBinderDesign, displayedSpreadPages, filteredPokemonList, filteredPokemonSummaryList, filteredTotalLabel, handleClearWantedCard, handleCollectSetCard, handleCollectSetCards, handleGotWantedCard, handlePagePhotoSelected, handlePokemonSelect, handleWantedSelect, handleQuickCollect, handleSelectSetSlot, handleShareWantedList, handleSlotClick, handleToggleFavorite, handleWantSetCard, handleWantSetCards, hasTrackedCards, initialBinderId, isLoadingPrices, isOnline, isPriceMode, isSpreadLayout, jumpToWantedPokemonPage, mainViewRef, openCardBrowser, openCardSelectorForPokemon, openPriceLookup, ownedTotalLabel, ownedTrackedCards, pagePhotoInputRef, prefersReducedMotion, priceFormat, pricesByCardId, pricingPreferences, readOnlyMode, renderBinderGridPage, renderSpreadBlankPage, renderSpreadInfoPage, requestOwnedRemoval, resolvedCollectionOwnerUserId, setBinderStageRef, setCurrentBinderPage, setViewRequest, settings, switchMainView, user, viewLoadError, visiblePageLabel, visiblePagePriceSummary, visiblePageTotalLabel, wantedCardEntries, wantedDashboard, wantedModeCombinedPriceSummary, wantedModeCombinedTotalLabel, wantedShareMessage, wantedTotalLabel })
 
   const renderSearchOverlay = () => renderSearchOverlayView({ nativeConsumer, history, binderCardDisplay, closeSearch, collected, currentPagePokemon: publicIndex ? publicIndex.pageSpecies(currentBinderPage) : currentPagePokemon, filteredPokemonList, getCardState: getQuickCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages })
 
@@ -2882,8 +2989,8 @@ function BinderAppSurface(props: BinderAppProps) {
 
       {/* Glass Navigation */}
       {legacyHeader}
-      {browserSurface && <div className="flex shrink-0 items-center gap-1 px-3 pb-1">
-        {browserSurface.surface.state.main === "dex" && <p className="shrink-0 px-1 text-sm font-semibold">{activeMainView === "analytics" ? "Collection analytics" : "National Dex"}</p>}
+      {/* The same row on every view: binder picker first, that view's tools after. Pages carry their own title. */}
+      {browserSurface && <div className="flex shrink-0 items-center gap-1 px-3 pb-1 sm:px-4 md:px-7">
         {browserSurface.toolbar}
         {browserSurface.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder"
           && activeMainView === "binder" && !legacyReadOnlyMode && !shareViewToken && !editingLayout && stagedSlotDisplay && stagedSlotCatalog && browserSurface.scan
@@ -3025,9 +3132,10 @@ function BinderAppSurface(props: BinderAppProps) {
       ) : null}
 
       {nativeLookup && hasNativeConsumer && <PokemonCardsBrowser
-        key={`${nativeLookup.id}:${nativeLookup.language}`} nativeConsumer={nativeConsumer} pokemon={null}
-        pricingEnabled={pricingEnabled} highlightCardId={nativeLookup.id}
-        cardDetails={{ card: nativeLookup, finish: "normal", getState: () => ({ owned: false, wanted: false }),
+        key={`${nativeLookup.card.id}:${nativeLookup.card.language}:${nativeLookup.finish ?? ""}`} nativeConsumer={nativeConsumer} pokemon={null}
+        pricingEnabled={pricingEnabled} highlightCardId={nativeLookup.card.id}
+        // A want's own finish when it came from a want; otherwise the finish this printing usually comes in.
+        cardDetails={{ card: nativeLookup.card, finish: nativeLookup.finish ?? inferCardFinish(nativeLookup.card.rarity, nativeLookup.card.variants), getState: () => ({ owned: false, wanted: false }),
           onAction: async () => {}, onRemoveOwned: () => {}, onJumpToSlot: () => {} }}
         isDesktop={isDesktopViewport} readOnly={nativeReadOnly} onClose={() => setNativeLookup(null)}
         formatPrice={priceFormat.label} pricingRegion={pricingPreferences.region} />}
@@ -3074,19 +3182,30 @@ function BinderAppSurface(props: BinderAppProps) {
           pricingEnabled={pricingEnabled}
           key={illustratorBrowser.name}
           illustrator={illustratorBrowser.name}
-          collection={collection}
+          collection={illustratorCollection}
           isDesktop={isDesktopViewport}
           pricingRegion={pricingPreferences.region}
           formatPrice={priceFormat.label}
+          onOpenCard={openIllustratorCard}
           onClose={closeIllustratorBrowser}
         />
       ) : null}
 
-      {selectedDisplaySlot && <NativeSlotFlow pricing={{ defaultCardLanguage: pricingPreferences.cardLanguage, pricingRegion: pricingPreferences.region, formatAmount: priceFormat.amount }} key={`${stagedSlotSessionId}:${user?.id}:${stagedSlotDisplay?.inventory.ownerUserId}:${stagedSlotDisplay?.binder.collectionId}:${selectedDisplaySlot.id}`} slot={selectedDisplaySlot} onClose={closeSlotDetail}
+      {selectedDisplaySlot && !editingLayout && <NativeSlotFlow pricing={{ defaultCardLanguage: pricingPreferences.cardLanguage, pricingRegion: pricingPreferences.region, formatAmount: priceFormat.amount }} key={`${stagedSlotSessionId}:${user?.id}:${stagedSlotDisplay?.inventory.ownerUserId}:${stagedSlotDisplay?.binder.collectionId}:${selectedDisplaySlot.id}`} slot={selectedDisplaySlot} onClose={closeSlotDetail}
         priceLabel={selectedDisplayPriceLookup ? priceFormat.label(pricesByCardId[getCardPriceKey(selectedDisplayPriceLookup.cardId, selectedDisplayPriceLookup.language)]) : null}
-        onDoneLayout={() => { closeSlotDetail(); setLayoutSession(null) }}
-        layout={editingLayout && layoutBoundary ? { ...layoutBoundary, scope: { ...layoutBoundary.scope, slotId: selectedDisplaySlot.id } } : undefined}
-        picker={!editingLayout && !legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent ? { snapshot: stagedSlotDisplay.inventory, scope: { ownerUserId: stagedSlotDisplay.inventory.ownerUserId, collectionId: stagedSlotDisplay.binder.collectionId, slotId: selectedDisplaySlot.id }, catalog: stagedSlotCatalog, onCommandIntent: onStagedSlotCommandIntent, localDurable: stagedSlotLocalDurable } : undefined} />}
+        picker={slotPickerBoundary(selectedDisplaySlot.id)}
+        host={{ onOpenWant: hasNativeConsumer ? openWantedCard : undefined,
+          // Saved prices for the owner's own cards; a share shows only the figure its owner opted in to.
+          pricing: !shareViewToken && !publicIndex && pricingEnabled ? { region: pricingPreferences.region, formatAmount: priceFormat.amount, formatRange: priceFormat.range } : undefined,
+          onAllCards: (pokemon, cardId) => openCardBrowser(pokemon, { highlightCardId: cardId, fromDetail: true }),
+          onIllustrator: name => openIllustratorBrowser(name, { fromDetail: true }),
+          onArrange: layoutBoundary ? () => startLayoutEditing({ ids: [selectedDisplaySlot.id], moving: false }) : undefined }} />}
+      {pocketMenuSlot && pocketMenu && <PocketMenu key={pocketMenu.slotId} slot={pocketMenuSlot} place={slotPlace(pocketMenuSlot.id) ?? ""} point={pocketMenu.point}
+        picker={editingLayout ? undefined : slotPickerBoundary(pocketMenuSlot.id)} layout={layoutBoundary} selected={editingLayout && layoutMarks.ids.has(pocketMenuSlot.id)}
+        onClose={() => setPocketMenu(null)}
+        onOpen={() => { const id = pocketMenuSlot.id; setPocketMenu(null); if (editingLayout) setLayoutSession(null); setSelectedSlotId(id) }}
+        onSelect={() => { const id = pocketMenuSlot.id; setPocketMenu(null); if (editingLayout) layoutTap.current?.(id); else startLayoutEditing({ ids: [id], moving: false }) }}
+        onMove={() => startLayoutEditing({ ids: [pocketMenuSlot.id], moving: true })} />}
 
       <footer className="hidden shrink-0 border-t border-border/20 bg-background/80 px-4 py-1 text-center text-[9px] leading-snug text-muted-foreground/60 md:block safe-area-bottom">
         <CardDataAttribution compact />

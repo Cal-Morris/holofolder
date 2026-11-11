@@ -5,6 +5,7 @@ import {
   bindersFromRows,
   isBinderId,
   normalizeBinderName,
+  parseBinderGrid,
   pickActiveBinder,
   type Binder,
 } from "../lib/binders/model"
@@ -47,4 +48,10 @@ test("binder names are trimmed and bounded", () => {
   assert.equal(normalizeBinderName(42), null)
   assert.ok(isBinderId(A))
   assert.ok(!isBinderId("1; drop table"))
+})
+
+test("the remembered page grid is rows x cols within 1 to 8, anything else is no grid", () => {
+  assert.deepEqual(parseBinderGrid("4x4"), { rows: 4, cols: 4 })
+  assert.deepEqual(parseBinderGrid("2x8"), { rows: 2, cols: 8 })
+  for (const value of ["", "0x4", "4x9", "4", "4x4x4", " 4x4", "axb", undefined, null, 44]) assert.equal(parseBinderGrid(value), null)
 })

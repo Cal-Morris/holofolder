@@ -36,6 +36,8 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   await page.route("**/app/e2e-harness/storage/inventory?*", route => fulfillInventory(route))
 })
 const entry = "/app/e2e-harness?signedIn=1&browserHost=1"
+// The app opens on the binder; tests that start from Inventory name it in the link.
+const inventoryEntry = `${entry}&view=inventory`
 const nav = (page: import("@playwright/test").Page) => page.getByRole("navigation", { name: "Main navigation", exact: true })
 
 for (const source of ["Search", "Quick mode"]) test(`actual host ${source} opens the exact set from Binder and restores it with history`, async ({ page, insets }) => {
@@ -77,11 +79,11 @@ for (const source of ["Search", "Quick mode"]) test(`actual host ${source} opens
 })
 
 test("actual BinderApp dock, fresh stable location, back and deep links", async ({ page, insets }) => {
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("base set")
   await page.locator('[data-item-id="copy-00001"]').click()
-  await page.getByRole("button", { name: "Open location", exact: true }).click()
+  await page.getByRole("button", { name: "Go to pocket", exact: true }).click()
   await expect(collectionPicker(page)).toHaveAttribute("data-value", alpha)
   await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toHaveAttribute("aria-pressed", "true")
   await page.goBack()
@@ -111,17 +113,19 @@ test("actual BinderApp dock, fresh stable location, back and deep links", async 
 })
 
 test("online startup 503 resets once and reports the second failure", async ({ page }) => {
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await page.route("**/app/e2e-harness/storage/inventory?*", route => route.fulfill({ status: 503, json: { error: "inventory_operations_staged" } }))
   await page.reload()
   await expect(page.getByRole("alert").filter({ hasText: "Could not open storage:" })).toHaveText("Could not open storage: inventory_operations_staged", { timeout: 20_000 })
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).not.toBeVisible()
   await expect(page.getByRole("button", { name: "Retry opening storage", exact: true })).toBeVisible()
-  expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v1"))).toBe("1")
+  expect(await page.evaluate(() => sessionStorage.getItem("holofolder-startup-reset-v2"))).toBe("1")
 })
 
 test("pending real IDB edits survive Edit layout teardown, view changes and failed refresh", async ({ page }) => {
+  // The command never reaches the server, so the edit stays queued on the device for the whole test.
+  await page.route("**/app/e2e-harness/storage/**", route => route.request().method() === "GET" ? route.fallback() : route.abort("failed"))
   await page.goto(`${entry}&binder=${alpha}`)
   await expect(collectionPicker(page)).toBeVisible()
   await expect(page.getByRole("button", {name:"Edit layout", exact:true})).toBeVisible()
@@ -129,8 +133,11 @@ test("pending real IDB edits survive Edit layout teardown, view changes and fail
   await expect(page.getByRole("button", { name: "Done", exact: true })).toBeVisible()
   // Existing real layout command controls, not a harness write to the queue.
   await page.locator(`[data-slot-id="${slotId(0)}"]`).click()
-  await page.getByRole("button", { name: "Insert free slot before", exact: true }).click()
-  await expect(page.getByText(/Saved on device/).first()).toBeVisible()
+  const layout = page.getByRole("region", { name: "Layout editing", exact: true })
+  await layout.getByRole("button", { name: "Add", exact: true }).click()
+  await layout.getByRole("menuitem", { name: "Before the selection" }).click()
+  await expect(layout.getByRole("alert")).toHaveCount(0)
+  await expect(page.locator("[data-sync-state]")).toBeVisible()
   await nav(page).getByRole("button", { name: "Inventory", exact: true }).click()
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await page.goBack()
@@ -138,7 +145,8 @@ test("pending real IDB edits survive Edit layout teardown, view changes and fail
   await expect(page.getByRole("button", { name: "Done", exact: true })).not.toBeVisible()
   await page.route("**/app/e2e-harness/storage/inventory?*", route => route.fulfill({ status: 503, json: { error: "inventory_operations_staged" } }))
   await page.reload()
-  await expect(page.getByText(/Pending sync/).first()).toBeVisible()
+  // A refused read at startup stops at the storage error page. The edit made before it is still on the device.
+  await expect(page.getByRole("alert").filter({ hasText: "Could not open storage:" })).toBeVisible({ timeout: 20_000 })
   const record = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     return new Promise<unknown[]>((yes, no) => { const r = db.transaction("records").objectStore("records").getAll(); r.onsuccess = () => { db.close(); yes(r.result) }; r.onerror = () => no(r.error) })
@@ -158,7 +166,8 @@ test("in-process offline view changes retain saved copies, List search and layou
   await page.getByRole("searchbox", { name: "Filter collection" }).fill("charizard")
   await context.setOffline(true)
   await nav(page).getByRole("button", { name: "Inventory", exact: true }).click()
-  await expect(page.getByRole("status").filter({ hasText: "Cached only" })).toBeVisible()
+  // Offline, Inventory says it is showing the copy saved on this device.
+  await expect(page.locator("[data-saved-state]")).toContainText("last saved on this device")
   await page.goBack()
   await expect(page.getByRole("searchbox", { name: "Filter collection" })).toHaveValue("charizard")
   await expect(page.getByRole("region", { name: "Collection slots" }).locator('[data-slot-id]')).toHaveCount(1)
@@ -166,26 +175,36 @@ test("in-process offline view changes retain saved copies, List search and layou
 })
 
 test("auth lifecycle closes private detail and rejects an old in-flight location response", async ({ page }) => {
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await page.locator('[data-item-id="copy-00001"]').click()
   let release!: () => void
   const barrier = new Promise<void>(yes => { release = yes })
   let requested!: () => void
   const started = new Promise<void>(yes => { requested = yes })
   await page.route("**/app/e2e-harness/storage/inventory?*", async route => { requested(); await barrier; await route.fallback() })
-  await page.getByRole("button", { name: "Open location", exact: true }).click()
+  await page.getByRole("button", { name: "Go to pocket", exact: true }).click()
   await started
+  await page.evaluate(() => {
+    const seen = window as unknown as { closedOnce?: boolean }
+    const note = () => { if (document.querySelector('[data-testid="binder-skeleton"]') || /Saved storage is paused/.test(document.body.innerText)) seen.closedOnce = true }
+    new MutationObserver(note).observe(document.body, { childList: true, subtree: true })
+  })
   await page.evaluate(() => {
     const channel = new BroadcastChannel("sb-127-auth-token")
     channel.postMessage({ event: "SIGNED_OUT", session: null })
     channel.close()
   })
+  // The card's details close and the open view is torn down to the loading skeleton (or the paused notice).
+  // That frame is short, so it is recorded as it happens instead of being looked for afterwards.
+  await expect.poll(() => page.evaluate(() => (window as unknown as { closedOnce?: boolean }).closedOnce)).toBe(true)
   await expect(page.getByRole("dialog")).not.toBeVisible()
-  await expect(page.getByRole("searchbox", { name: "Search inventory" })).not.toBeVisible()
   release()
-  // The private view closes to the loading skeleton, or the paused notice once the check fails.
-  await expect(page.getByTestId("binder-skeleton").or(page.getByRole("status").filter({ hasText: "Saved storage is paused" }))).toBeVisible()
-  await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
+  // While the account is checked again this device's own saved copy may show, then Inventory reopens (or
+  // stays paused). The location answer that was in flight when the session ended is dropped: it never
+  // opens the pocket it was asked for, and the details stay closed.
+  await expect(page.getByRole("searchbox", { name: "Search inventory" }).or(page.getByRole("status").filter({ hasText: "Saved storage is paused" }))).toBeVisible()
+  await expect(page.locator("button[data-slot-id]")).toHaveCount(0)
+  await expect(page.getByRole("dialog")).not.toBeVisible()
 })
 
 test("a same-owner response bound to another session never supplies private rows", async ({ page }) => {
@@ -194,8 +213,8 @@ test("a same-owner response bound to another session never supplies private rows
       requestId: new URL(route.request().url()).searchParams.get("requestId"), scope: { actorUserId: E2E_USER.id,
         ownerUserId: E2E_USER.id, authSessionId: "obsolete-auth-session", sessionId: "obsolete-device-lifecycle" }, snapshot: syntheticSnapshot() } })
   })
-  await page.goto(entry)
-  await expect(page.getByText("Inventory unavailable", { exact: true })).toBeVisible()
+  await page.goto(inventoryEntry)
+  await expect(page.getByText("Your cards couldn't be loaded", { exact: true })).toBeVisible()
   await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
   await page.getByRole("navigation", { name: "Binder navigation" }).getByRole("button", { name: "More", exact: true }).click()
   await page.getByRole("menuitem", { name: "National Dex", exact: true }).click()
@@ -203,7 +222,7 @@ test("a same-owner response bound to another session never supplies private rows
 })
 
 test("owner membership changes cannot reuse the prior owner's cached inventory", async ({ page }) => {
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("old owner search")
   await page.route("**/rest/v1/partnerships*", route => route.fulfill({ json: [{ id: "synthetic-new-membership", owner_user_id: trades,
@@ -214,12 +233,12 @@ test("owner membership changes cannot reuse the prior owner's cached inventory",
     channel.close()
   }, E2E_USER)
   await expect(page.getByRole("list", { name: "Owned copies" })).not.toBeVisible()
-  await expect(page.getByText("Inventory unavailable", { exact: true })).toBeVisible()
+  await expect(page.getByText("Your cards couldn't be loaded", { exact: true })).toBeVisible()
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).not.toBeVisible()
 })
 
 test("another account cannot restore the previous account's private view", async ({ page }) => {
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("private previous account")
   await page.evaluate(user => {
     const channel = new BroadcastChannel("sb-127-auth-token")
@@ -233,12 +252,15 @@ test("another account cannot restore the previous account's private view", async
   await expect(page.getByTestId("binder-skeleton").or(page.getByRole("status").filter({ hasText: "Saved storage is paused" }))).toBeVisible()
 })
 
-test("existing Wanted and Browse use the labelled National Dex context and survive return", async ({ page }) => {
-  await page.goto(entry)
+test("existing Wanted and Browse open under their own titles and survive return", async ({ page }) => {
+  await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await nav(page).getByRole("button", { name: "Wanted", exact: true }).click()
   await expect(nav(page).getByRole("button", { name: "Wanted", exact: true })).toHaveAttribute("aria-pressed", "true")
-  await expect(page.getByText("National Dex", { exact: true }).first()).toBeVisible()
+  // The page carries its own title; the row under the header is the binder picker only, with no second label.
+  await expect(page.getByRole("heading", { name: "Wanted", exact: true, level: 1 })).toBeVisible()
+  await expect(collectionPicker(page)).toBeVisible()
+  await expect(page.getByText("National Dex", { exact: true })).toHaveCount(0)
   await nav(page).getByRole("button", { name: "Inventory", exact: true }).click()
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   await page.goBack()
@@ -251,7 +273,7 @@ test("existing Wanted and Browse use the labelled National Dex context and survi
 
 test("malformed device preferences cannot break admission, read-only routes stay legacy", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("holofolder-slot-device-v1", "x".repeat(1000)))
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   expect(await page.evaluate(() => localStorage.getItem("holofolder-slot-device-v1"))).toMatch(/^[a-f0-9-]{36}$/)
   await page.goto(`${entry}&readOnly=1`)
@@ -289,7 +311,7 @@ test("membership signal closes actual private overlays and same-owner recheck us
     epochs.push(new URL(route.request().url()).searchParams.get("sessionId")!)
     await fulfillInventory(route)
   })
-  await page.goto(entry)
+  await page.goto(inventoryEntry)
   await expect(page.getByRole("searchbox", { name: "Search inventory" })).toBeVisible()
   const oldEpoch = epochs.at(-1)
   await page.locator('[data-item-id="copy-00001"]').click()

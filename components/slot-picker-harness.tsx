@@ -48,11 +48,13 @@ export default function SlotPickerHarness(props: ComponentProps<typeof BinderApp
     }
     // Synthetic exact wants on the empty Snorlax target, for the explicit fulfil choice.
     const addWants = (event: Event) => {
-      const wants = (event as CustomEvent<{ card_id?: string }[]>).detail
+      // Either a list of wants for the empty Snorlax pocket, or { slotId, wants } for any pocket.
+      const raw = (event as CustomEvent<{ card_id?: string }[] | { slotId: string; wants: { card_id?: string }[] }>).detail
+      const { slotId, wants } = Array.isArray(raw) ? { slotId: "slot-e", wants: raw } : raw ?? { slotId: "", wants: [] }
       if (!Array.isArray(wants) || wants.length > 4) return
       setData(previous => {
         const next = structuredClone(previous)
-        next.binder.slots.find(slot => slot.id === "slot-e")!.wantedCards = wants.map(({ card_id, ...rest }: { card_id?: string }) => ({ card_id, card_name: "Snorlax A", added_at: "2026-11-10T00:00:00.000Z", ...rest })) as typeof next.binder.slots[number]["wantedCards"]
+        next.binder.slots.find(slot => slot.id === slotId)!.wantedCards = wants.map(({ card_id, ...rest }: { card_id?: string }) => ({ card_id, card_name: "Snorlax A", added_at: "2026-11-10T00:00:00.000Z", ...rest })) as typeof next.binder.slots[number]["wantedCards"]
         next.inventory.binders = [next.binder]
         return next
       })

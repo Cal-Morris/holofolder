@@ -31,6 +31,8 @@ export interface IllustratorCardsBrowserProps {
   pricingRegion: PricingRegion
   /** Formats a headline price in the user's display currency. */
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null
+  /** Open one card's own details above this view. Closing them returns here. */
+  onOpenCard?: (card: IllustratorCard) => void
   onClose: () => void
 }
 
@@ -39,8 +41,8 @@ type LoadState =
   | { status: "ready"; cards: IllustratorCard[]; fromDevice: boolean }
   | { status: "unavailable" }
 
-/** Read-only view of every card by one illustrator, across all sets. Never enters the edit flow. */
-export default function IllustratorCardsBrowser({ pricingEnabled = true, illustrator, collection, isDesktop, pricingRegion, formatPrice, onClose }: IllustratorCardsBrowserProps) {
+/** Every card by one illustrator, across all sets. Tapping a card opens that card's own details; nothing is edited here. */
+export default function IllustratorCardsBrowser({ pricingEnabled = true, illustrator, collection, isDesktop, pricingRegion, formatPrice, onOpenCard, onClose }: IllustratorCardsBrowserProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const [state, setState] = useState<LoadState>({ status: "loading" })
   const [filter, setFilter] = useState<IllustratorCardFilter>("all")
@@ -215,10 +217,13 @@ export default function IllustratorCardsBrowser({ pricingEnabled = true, illustr
                     data-card-id={card.id}
                     aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${entry.owned ? ", owned" : ""}${entry.wanted ? ", wanted" : ""}`}
                     data-price={price ?? undefined}
-                    className={`flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-background/60 ${
+                    className={`relative flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-background/60 ${
                       entry.owned ? "border-emerald-400/45" : entry.wanted ? "border-amber-400/45" : "border-border/50"
-                    }`}
+                    } ${onOpenCard ? "transition-colors focus-within:border-primary/60 hover:border-primary/45" : ""}`}
                   >
+                    {/* One button over the whole tile, so the exact card tapped is the one that opens. */}
+                    {onOpenCard ? <button type="button" aria-label={`Open ${card.name}, ${card.set.name} ${entry.numberLabel}`} onClick={() => onOpenCard(card)}
+                      className="absolute inset-0 z-[1] rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70" /> : null}
                     <div className="trading-card relative w-full bg-muted/40">
                       {image ? (
                         // eslint-disable-next-line @next/next/no-img-element

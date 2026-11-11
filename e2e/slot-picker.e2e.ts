@@ -22,11 +22,36 @@ test.describe("explicit stable-slot picker", () => {
     await page.goto("/app/e2e-harness?signedIn=1&slots=picker&rows=2&cols=4")
     if (page.viewportSize()!.width >= 1024) await expect(page.getByRole("region", { name: "Inside cover", exact: true })).toBeVisible()
   })
-  const editSlot = async (dialog: import("@playwright/test").Locator) => {
-    const edit = dialog.locator("details").filter({ has: dialog.page().getByText("Edit slot", { exact: true }) })
-    if ((await edit.getAttribute("open")) === null) await edit.locator("summary").click()
-  }
   const details = (page: import("@playwright/test").Page) => page.getByRole("dialog", { name: /details$/ })
+  const sheet = (page: import("@playwright/test").Page, name: string) => page.getByRole("dialog", { name, exact: true })
+  const variant = (page: import("@playwright/test").Page) => sheet(page, "Which variant?")
+  const count = (page: import("@playwright/test").Page) => page.getByLabel("Synthetic draft count")
+  const selector = (page: import("@playwright/test").Page) => page.getByRole("dialog", { name: "Card selector" })
+  const draft = async (page: import("@playwright/test").Page) => JSON.parse(await page.getByLabel("Synthetic latest draft").textContent() ?? "null")
+  const pocket = (page: import("@playwright/test").Page, id: string) => page.locator(`button[data-slot-id="${id}"]`)
+  // Synthetic Snorlax printings served as the species list (normal and holo, so the finish is an explicit choice).
+  const snorlaxList = () => syntheticSlotPickerSnapshot().cards.filter(c => c.id.startsWith("synthetic-snorlax")).map(({ dexIds: _dexIds, ...card }) => card)
+  const routeSnorlax = (page: import("@playwright/test").Page, cards: object[] = snorlaxList()) => page.route("**/app/api/tcgdex-cache**", route => route.fulfill({ json: { cards, source: "mirror" } }))
+  const bar = (page: import("@playwright/test").Page) => page.getByRole("region", { name: "Layout editing", exact: true })
+  /** What a pocket is kept for is changed only in deliberate layout editing: select the pocket, then its options. */
+  const editLayout = async (page: import("@playwright/test").Page) => {
+    await bar(page).getByRole("button", { name: "Edit layout", exact: true }).click()
+    await expect(bar(page).getByRole("button", { name: "Done", exact: true })).toBeVisible()
+  }
+  const pocketOptions = async (page: import("@playwright/test").Page, id: string) => {
+    await pocket(page, id).click()
+    await expect(pocket(page, id)).toHaveAttribute("aria-pressed", "true")
+    await bar(page).getByRole("button", { name: "More pocket options", exact: true }).click()
+    return bar(page).getByRole("menu", { name: "Pocket options" })
+  }
+  /** A free pocket opens the same visual selector, searching every card. */
+  const search = async (page: import("@playwright/test").Page, slotId: string, query: string) => {
+    await pocket(page, slotId).click()
+    const dialog = selector(page)
+    await dialog.getByRole("searchbox", { name: "Search cards" }).fill(query)
+    return dialog
+  }
+  const tile = (dialog: import("@playwright/test").Locator, name: string) => dialog.getByRole("button", { name: new RegExp(`^Add card ${name} from `) })
 
   test("card-first detail keeps slot controls secondary and supports image zoom", async ({ harness }) => {
     const { page } = harness
@@ -55,92 +80,115 @@ test.describe("explicit stable-slot picker", () => {
     await harness.expectScrollUnlocked()
   })
 
-  test("selects non-dex card for only the selected slot with no write transport", async ({ harness }) => {
+  test("a free pocket pick in the visual selector saves through the variant sheet and closes, with no write transport", async ({ harness }) => {
     const { page } = harness
     const writes: string[] = []
     page.on("request", r => { if (/\/api\/(inventory|binder-slots|collection)(\?|$)/.test(r.url()) && r.method() !== "GET") writes.push(r.url()) })
-    await page.locator('button[data-slot-id="slot-g"]').click()
-    const dialog = details(page)
-    await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Trainer")
-    await dialog.getByRole("button", { name: /^Trainer ·/ }).click()
-    await dialog.getByRole("button", { name: "Normal", exact: true }).click()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
-    await expect(dialog).toContainText("Owned copy")
-    await expect(dialog).not.toContainText("Internal draft only")
-    await expect(page.locator('button[data-slot-id="slot-c"]')).toHaveAccessibleName("Trainer, Owned")
+    const dialog = await search(page, "slot-g", "Trainer")
+    // The pocket never opens a slot or draft form on the way.
+    await expect(details(page)).toHaveCount(0)
+    await expect(page.getByText(/Search slot catalog|Catalog language|Edit slot|Choose target/)).toHaveCount(0)
     await harness.expectWithinSafeViewport(dialog)
+    await harness.expectMinTapTarget(harness.closeControl(dialog), 36)
+    await tile(dialog, "Trainer").click()
+    await expect(count(page)).toHaveText("0")
+    await harness.expectWithinSafeViewport(variant(page).getByRole("button").last())
+    await variant(page).getByRole("button", { name: /^Add Normal/ }).click()
+    await expect(count(page)).toHaveText("1")
+    await expect(page.getByRole("dialog")).toHaveCount(0)
+    const [command] = (await draft(page)).intent.request.commands
+    expect(command).toMatchObject({ kind: "assign", destination: { slot: { id: "slot-g" } } })
     await harness.expectNoHorizontalOverflow()
-    const box = (await dialog.boundingBox())!, dock = (await harness.dock().boundingBox())!
-    expect(box.y + box.height).toBeLessThanOrEqual(dock.y)
-    console.log("picker geometry", test.info().project.name, JSON.stringify({ sheet: box, dockTop: dock.y }))
-    for (const action of await dialog.locator("button:visible").all()) await harness.expectMinTapTarget(action, 36)
+    await harness.expectScrollUnlocked()
     expect(writes).toEqual([])
   })
 
-  test("rejects mismatched target and cancels without emitting a draft", async ({ harness }) => {
+  test("a pocket kept for one printing shows that printing in the selector and saves it", async ({ harness }) => {
     const { page } = harness
-    await page.locator('button[data-slot-id="slot-f"]').click()
-    const dialog = details(page)
-    await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Energy")
-    await dialog.getByRole("button", { name: /^Energy ·/ }).click()
-    await dialog.getByRole("button", { name: "Normal", exact: true }).click()
-    await expect(dialog.getByRole("alert")).toContainText("does not match")
-    await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
-    await expect(page.locator('button[data-slot-id="slot-f"]')).toHaveAccessibleName("Trainer, Unfilled target")
+    await pocket(page, "slot-f").click()
+    const dialog = selector(page)
+    await expect(details(page)).toHaveCount(0)
+    await expect(dialog.getByRole("heading", { name: "Add Trainer", exact: true })).toHaveCount(1)
+    // Only the reserved printing is offered, so a card that doesn't fit can't be picked for it.
+    await expect(tile(dialog, "Trainer")).toBeVisible()
+    await expect(dialog.getByRole("button", { name: /^Add card / })).toHaveCount(1)
+    await expect(dialog.getByRole("searchbox", { name: "Search cards" })).toBeHidden()
+    await tile(dialog, "Trainer").click()
+    await variant(page).getByRole("button", { name: /^Add Normal/ }).click()
+    await expect(count(page)).toHaveText("1")
+    await expect(pocket(page, "slot-f")).toHaveAccessibleName("Trainer, Owned")
+    await expect(page.getByRole("dialog")).toHaveCount(0)
   })
 
-  test("incompatible occupied target preserves contents; remove target and clear differ", async ({ harness }) => {
+  test("a failed save keeps the exact draft and Try again resends it", async ({ harness }) => {
     const { page } = harness
-    await page.locator('button[data-slot-id="slot-a"]').click()
-    const dialog = details(page)
-    await editSlot(dialog)
-    await dialog.getByRole("button", { name: "Change target", exact: true }).click()
-    await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("pikachu")
-    await dialog.getByRole("button", { name: "Target Pokémon: pikachu", exact: true }).click()
-    await expect(dialog.getByRole("alert")).toContainText("clear contents first")
-    await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
-    await expect(dialog).not.toContainText("item-a")
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
-    await editSlot(dialog)
-    await dialog.getByRole("button", { name: "Remove target", exact: true }).click()
-    await expect(dialog).not.toContainText("item-a")
-    await expect(dialog.getByRole("button", { name: "Set target", exact: true })).toBeVisible()
-    await editSlot(dialog)
-    await dialog.getByRole("button", { name: "Move card to Unassigned", exact: true }).click()
-    await expect(dialog).toContainText("Free slot, Empty spacer")
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("2")
-    await harness.closeControl(dialog).click()
-    await page.locator('button[data-slot-id="slot-b"]').click()
-    await editSlot(details(page))
-    await details(page).getByRole("button", { name: "Move card to Unassigned", exact: true }).click()
-    await expect(details(page)).toContainText("Unfilled target")
-    await expect(details(page).getByRole("button", { name: "Remove target", exact: true })).toBeVisible()
+    await expect(pocket(page, "slot-g")).toBeVisible()
+    await page.evaluate(() => window.dispatchEvent(new Event("synthetic-layout-reject-once")))
+    const dialog = await search(page, "slot-g", "Trainer")
+    await tile(dialog, "Trainer").click()
+    await variant(page).getByRole("button", { name: /^Add Normal/ }).click()
+    const failed = sheet(page, "Couldn't add this card")
+    await expect(failed.getByRole("alert")).toBeVisible()
+    await expect(failed).not.toContainText(/storage|draft/i)
+    await harness.expectWithinSafeViewport(failed.getByRole("button").last())
+    for (const action of await failed.locator("button:visible").all()) await harness.expectMinTapTarget(action, 36)
+    const rejected = JSON.parse(await page.getByLabel("Synthetic rejected draft").textContent() ?? "null")
+    await failed.getByRole("button", { name: "Try again", exact: true }).click()
+    await expect(count(page)).toHaveText("1")
+    const saved = await draft(page)
+    expect(saved.intent.request.operationId).toBe(rejected.intent.request.operationId)
+    await expect(page.getByRole("dialog")).toHaveCount(0)
+  })
+
+  test("what a pocket is kept for is changed in layout editing: a Pokémon, any card, and taking a card out", async ({ harness }) => {
+    const { page } = harness
+    // The card's details never offer target controls.
+    await pocket(page, "slot-a").click()
+    await expect(details(page).getByRole("button", { name: /target|Unassigned/i })).toHaveCount(0)
+    await harness.closeControl(details(page)).click()
+    await editLayout(page)
+    let menu = await pocketOptions(page, "slot-e")
+    await menu.getByRole("menuitem", { name: "Change what goes here" }).click()
+    const reserve = sheet(page, "What goes in this pocket?")
+    await reserve.getByRole("button", { name: /^A Pokémon/ }).click()
+    const which = sheet(page, "Which Pokémon?")
+    await which.getByRole("searchbox", { name: "Search Pokémon" }).fill("pikachu")
+    await which.getByRole("button", { name: /^Pikachu/ }).click()
+    await expect(count(page)).toHaveText("1")
+    expect((await draft(page)).intent.request.commands[0]).toMatchObject({ kind: "update", slot: { id: "slot-e" }, target: { kind: "pokemon", pokemonId: 25 } })
+    await expect(pocket(page, "slot-e")).toHaveAccessibleName("Pikachu, Unfilled target")
+    await bar(page).getByRole("button", { name: "More pocket options", exact: true }).click()
+    await bar(page).getByRole("menuitem", { name: "Let any card go here" }).click()
+    await expect(count(page)).toHaveText("2")
+    await expect(pocket(page, "slot-e")).toHaveAccessibleName("Free slot, Empty spacer")
+    // Deselect it, then take the card out of an owned pocket: the pocket keeps what it is for.
+    await pocket(page, "slot-e").click()
+    menu = await pocketOptions(page, "slot-b")
+    await menu.getByRole("menuitem", { name: /Take the card out/ }).click()
+    await expect(count(page)).toHaveText("3")
+    expect((await draft(page)).intent.request.commands[0]).toMatchObject({ kind: "clear" })
   })
 
   test("recorded Raw and grade choices retain item IDs without leaking certificate or labels", async ({ harness }) => {
     const { page } = harness
-    await page.locator('button[data-slot-id="slot-g"]').click()
-    const dialog = details(page)
-    await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Snorlax A")
-    await dialog.getByRole("button", { name: /^Snorlax A ·/ }).click()
-    await dialog.getByRole("button", { name: "Normal", exact: true }).click()
-    await expect(dialog.getByRole("button", { name: "Select Raw", exact: true })).toBeVisible()
-    await expect(dialog).toContainText("Already placed in Synthetic binder")
-    await expect(dialog).not.toContainText("PRIVATE")
-    await dialog.getByRole("button", { name: "Select PSA 9", exact: true }).click()
+    const dialog = await search(page, "slot-g", "Snorlax A")
+    await tile(dialog, "Snorlax A").click()
+    await variant(page).getByRole("button", { name: /^Add Normal/ }).click()
+    const copy = sheet(page, "Which copy?")
+    await expect(copy.getByRole("button", { name: "Use my raw copy", exact: true })).toBeVisible()
+    await expect(copy).not.toContainText("PRIVATE")
+    await copy.getByRole("button", { name: "Use my PSA 9", exact: true }).click()
     await expect(page.getByLabel("Synthetic latest draft")).toContainText("unassigned-grade")
-    await expect(dialog).toContainText("PSA")
-    await expect(dialog).not.toContainText("PRIVATE")
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
+    await expect(count(page)).toHaveText("1")
+    await expect(page.getByText("PRIVATE")).toHaveCount(0)
   })
 
   test("cached non-dex cards cannot suppress legacy offline Pokemon corrections", async ({ harness, context }) => {
     const { page } = harness
     // Complete a real interaction before using the effect-installed keyboard shortcut.
-    await page.locator('button[data-slot-id="slot-g"]').click()
-    await harness.closeControl(details(page)).click()
-    await expect(details(page)).toHaveCount(0)
+    await pocket(page, "slot-g").click()
+    await harness.closeControl(selector(page)).click()
+    await expect(selector(page)).toHaveCount(0)
     await page.keyboard.press("Control+k")
     const quick = page.getByRole("dialog", { name: "Quick mode" })
     await expect(quick).toBeVisible()
@@ -160,48 +208,45 @@ test.describe("explicit stable-slot picker", () => {
     await context.setOffline(false)
   })
 
-  test("cached non-dex cards work offline and missing coverage is explicit", async ({ harness, context }) => {
+  test("offline, the selector finds only cards saved on this device and never guesses their language", async ({ harness, context }) => {
     const { page } = harness
     const energy = { ...syntheticSlotPickerSnapshot().cards.find(c => c.name === "Energy")!, language: undefined }
     await page.evaluate(async card => {
       const cache = await caches.open("synthetic-picker-data")
       await cache.put("/app/api/tcg-card-search?q=energy", new Response(JSON.stringify({ cards: [card] }), { headers: { "content-type": "application/json" } }))
     }, energy)
-    // Warm the existing dynamically loaded detail before disconnecting.
-    await page.locator('button[data-slot-id="slot-g"]').click()
-    await expect(details(page)).toBeVisible()
+    // Warm the dynamically loaded selector before disconnecting.
+    await pocket(page, "slot-g").click()
+    await expect(selector(page)).toBeVisible()
     await context.setOffline(true)
-    await expect(details(page)).toHaveCount(0)
-    await page.locator('button[data-slot-id="slot-g"]').click()
-    const dialog = details(page)
-    const search = dialog.getByRole("textbox", { name: "Search slot catalog" })
-    await search.fill("uncached")
-    await expect(dialog).toContainText("Uncached catalog coverage is unavailable offline")
-    await expect(dialog).toContainText("No matching cached or available catalog cards")
-    await search.fill("Energy")
-    await dialog.getByRole("button", { name: /^Energy ·/ }).click()
-    await dialog.getByRole("button", { name: "Normal", exact: true }).click()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
-    await expect(dialog).toContainText("Owned copy")
-    await expect(dialog).toContainText("Unknown language")
+    await expect(selector(page)).toHaveCount(0)
+    const dialog = await search(page, "slot-g", "uncached")
+    await expect(dialog).toContainText("You're offline")
+    await expect(dialog).toContainText("Only cards already saved on this device can be found offline")
+    await dialog.getByRole("searchbox", { name: "Search cards" }).fill("Energy")
+    await tile(dialog, "Energy").click()
+    await variant(page).getByRole("button", { name: /^Add Normal/ }).click()
+    await expect(count(page)).toHaveText("1")
+    // Unknown language stays unknown, never guessed.
+    expect((await draft(page)).intent.request.commands[0].selection.identity.language).toBeUndefined()
     await context.setOffline(false)
   })
 
-  test("every sheet dismissal cancels selection above the dock without drafts", async ({ harness }) => {
+  test("every dismissal of the what-goes-here chooser cancels above the dock without drafts", async ({ harness }) => {
     const { page } = harness
+    await editLayout(page)
+    await pocket(page, "slot-e").click()
     const open = async () => {
-      await page.locator('button[data-slot-id="slot-a"]').click()
-      const dialog = details(page)
-      await editSlot(dialog)
-      await dialog.getByRole("button", { name: "Change target", exact: true }).click()
-      await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Snorlax")
-      await harness.expectWithinSafeViewport(dialog)
-      await harness.expectMinTapTarget(harness.closeControl(dialog), 36)
-      await harness.expectHittable(harness.closeControl(dialog))
+      await bar(page).getByRole("button", { name: "More pocket options", exact: true }).click()
+      await bar(page).getByRole("menuitem", { name: "Change what goes here" }).click()
+      const dialog = sheet(page, "What goes in this pocket?")
+      await expect(dialog).toBeVisible()
+      // The sheet itself reaches the bottom edge; its choices sit above the home indicator.
+      await harness.expectWithinSafeViewport(dialog.getByRole("button").last())
       return dialog
     }
     let dialog = await open()
-    await harness.closeControl(dialog).click()
+    await dialog.getByRole("button", { name: "Back to cards", exact: true }).click()
     await expect(dialog).toHaveCount(0)
     dialog = await open()
     await page.keyboard.press("Escape")
@@ -216,41 +261,35 @@ test.describe("explicit stable-slot picker", () => {
     dialog = await open()
     await harness.swipeDown(dialog)
     await expect(dialog).toHaveCount(0)
-    dialog = await open()
-    // Desktop navigation sits behind the modal backdrop; only the mobile dock remains interactive.
-    if (page.viewportSize()!.width >= 640) {
-      await page.keyboard.press("Escape")
-      await expect(dialog).toHaveCount(0)
-    }
-    await page.getByRole("navigation", { name: /^(Main|Binder) navigation$/ }).getByRole("button", { name: "List", exact: true }).click()
-    await expect(dialog).toHaveCount(0)
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
+    await expect(count(page)).toHaveText("0")
     await harness.expectScrollUnlocked()
     await harness.expectNoHorizontalOverflow()
   })
-  test("single-finish ordinary selection hands off immediately, raw groups use the stable copy", async ({ harness }) => {
+
+  test("single-finish selection saves at once, an unplaced raw copy is reused by explicit choice", async ({ harness }) => {
     const { page } = harness
     const card = { ...syntheticSlotPickerSnapshot().cards.find(c => c.name === "Energy")!, variants: { normal: true } }
     await page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: { cards: [card] } }))
-    await page.locator('button[data-slot-id="slot-g"]').click()
-    let dialog = details(page)
-    await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Energy")
-    await dialog.getByRole("button", { name: /^Energy ·/ }).click()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
-    await editSlot(dialog)
-    await dialog.getByRole("button", { name: "Move card to Unassigned", exact: true }).click()
+    let dialog = await search(page, "slot-g", "Energy")
+    await tile(dialog, "Energy").click()
+    await expect(count(page)).toHaveText("1")
+    await expect(variant(page)).toHaveCount(0)
+    await expect(page.getByRole("dialog")).toHaveCount(0)
     await page.unroute("**/app/api/tcg-card-search**")
     const snorlax = syntheticSlotPickerSnapshot().cards[0]
     await page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: { cards: [snorlax] } }))
-    await harness.closeControl(dialog).click()
-    await page.locator('button[data-slot-id="slot-g"]').click()
-    dialog = details(page)
-    await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Snorlax")
-    await dialog.getByRole("button", { name: /^Snorlax A ·/ }).click()
-    await dialog.getByRole("button", { name: "Normal", exact: true }).click()
-    await dialog.getByRole("button", { name: "Select Raw", exact: true }).click()
+    // The owned pocket's card details can still take the card out, which frees the pocket again.
+    await pocket(page, "slot-g").click()
+    await details(page).getByRole("button", { name: "More card options" }).click()
+    await details(page).getByRole("menuitem", { name: /Take out of this pocket/ }).click()
+    await expect(count(page)).toHaveText("2")
+    await expect(page.getByRole("dialog")).toHaveCount(0)
+    dialog = await search(page, "slot-g", "Snorlax")
+    await tile(dialog, "Snorlax A").click()
+    await variant(page).getByRole("button", { name: /^Add Normal/ }).click()
+    await sheet(page, "Which copy?").getByRole("button", { name: "Use my raw copy", exact: true }).click()
     await expect(page.getByLabel("Synthetic latest draft")).toContainText("unassigned-a")
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("3")
+    await expect(count(page)).toHaveText("3")
   })
 
   test("provider-confirmed finish and requested catalog language survive selection", async ({ harness }) => {
@@ -266,106 +305,105 @@ test.describe("explicit stable-slot picker", () => {
       { cardId: card.id, language: "ja", finish: "normal", variantKey: "normal", gbpAmount: 1 },
       { cardId: card.id, language: "ja", finish: "reverse_holo", variantKey: "reverse-holofoil", gbpAmount: 2 },
     ] }] } }))
-    await page.locator('button[data-slot-id="slot-g"]').click()
-    const dialog = details(page)
-    await dialog.getByRole("combobox", { name: "Catalog language" }).selectOption("ja")
-    await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Trainer")
-    await dialog.getByRole("button", { name: /^Trainer ·/ }).click()
-    await dialog.getByRole("button", { name: "Reverse", exact: true }).click()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
-    await expect(dialog).toContainText("Japanese · reverse holo")
+    await pocket(page, "slot-g").click()
+    const dialog = selector(page)
+    await dialog.getByRole("button", { name: /Filters/ }).click()
+    const filters = sheet(page, "Filters and sort")
+    await filters.getByRole("button", { name: "Japanese", exact: true }).click()
+    await filters.getByRole("button", { name: "Close filters", exact: true }).click()
+    await dialog.getByRole("searchbox", { name: "Search cards" }).fill("Trainer")
+    await tile(dialog, "Trainer").click()
+    await variant(page).getByRole("button", { name: /^Add Reverse/ }).click()
+    await expect(count(page)).toHaveText("1")
+    expect((await draft(page)).intent.request.commands[0].selection.identity).toMatchObject({ language: "ja", finish: "reverse_holo" })
     expect(requested).toContain("ja")
   })
 
-  test("read-only staged boundaries expose no picker controls", async ({ harness }) => {
+  test("read-only pockets open details only, never a selector or any way to change them", async ({ harness }) => {
     const { page } = harness
     await page.goto("/app/e2e-harness?signedIn=1&slots=picker&readOnly=1&rows=2&cols=4")
-    await page.locator('button[data-slot-id="slot-g"]').click()
+    await pocket(page, "slot-g").click()
     await expect(details(page)).toBeVisible()
-    await expect(details(page).getByRole("button", { name: /Choose card|Set target|Clear contents|Edit slot/ })).toHaveCount(0)
-    await expect(details(page).getByRole("textbox", { name: "Search slot catalog" })).toHaveCount(0)
+    await expect(details(page).getByRole("button", { name: /Choose card|More card options|Take out|Remove|Rearrange/ })).toHaveCount(0)
+    await expect(selector(page)).toHaveCount(0)
     await harness.closeControl(details(page)).click()
-    // An empty species target is read-only too: its card-first detail opens, never the selector.
-    await page.locator('button[data-slot-id="slot-e"]').click()
-    await expect(details(page)).toContainText("Unfilled target")
-    await expect(page.getByRole("dialog", { name: "Card selector" })).toHaveCount(0)
+    // An empty species pocket is read-only too: its details open, never the selector.
+    await pocket(page, "slot-e").click()
+    await expect(details(page)).toContainText("Not collected")
+    await expect(selector(page)).toHaveCount(0)
+    await harness.closeControl(details(page)).click()
+    // No pocket menu and no layout editing either.
+    await pocket(page, "slot-a").click({ button: "right" })
+    await expect(page.getByRole("dialog", { name: /pocket options$/ })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "Edit layout", exact: true })).toHaveCount(0)
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
   })
 
   test("same-document owner and binder switches cancel unfinished selection", async ({ harness }) => {
     const { page } = harness
     for (const kind of ["owner", "binder"]) {
-      await page.locator('button[data-slot-id="slot-g"]').click()
-      const dialog = details(page)
-        await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Snorlax A")
-      await dialog.getByRole("button", { name: /^Snorlax A ·/ }).click()
-      await expect(dialog.getByRole("button", { name: "Normal", exact: true })).toBeVisible()
+      const dialog = await search(page, "slot-g", "Snorlax A")
+      await tile(dialog, "Snorlax A").click()
+      await expect(variant(page)).toBeVisible()
       await page.evaluate(kind => window.dispatchEvent(new CustomEvent("synthetic-slot-scope-change", { detail: kind })), kind)
       await expect(dialog).toHaveCount(0)
-      await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
-      await page.locator('button[data-slot-id="slot-g"]').click()
-      await expect(details(page).getByRole("textbox", { name: "Search slot catalog" })).toBeVisible()
-      await harness.closeControl(details(page)).click()
+      await expect(variant(page)).toHaveCount(0)
+      await expect(count(page)).toHaveText("0")
     }
   })
 
   test("long custom grading labels wrap without overflow and remain tappable", async ({ harness }) => {
     const { page } = harness
     const name = "CustomGrader".repeat(16)
-    await page.locator('button[data-slot-id="slot-g"]').click()
-    const dialog = details(page)
-    await page.evaluate(name => window.dispatchEvent(new CustomEvent("synthetic-slot-grading-change", { detail: name })), name)
-    await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Snorlax A")
-    await dialog.getByRole("button", { name: /^Snorlax A ·/ }).click()
-    await dialog.getByRole("button", { name: "Normal", exact: true }).click()
-    const choice = dialog.getByRole("button", { name: `Select ${name} 9`, exact: true })
-    await expect(choice).toBeVisible()
+    await expect(pocket(page, "slot-g")).toBeVisible()
+    await expect(async () => {
+      await page.evaluate(name => window.dispatchEvent(new CustomEvent("synthetic-slot-grading-change", { detail: name })), name)
+      const dialog = await search(page, "slot-g", "Snorlax A")
+      await tile(dialog, "Snorlax A").click()
+      await variant(page).getByRole("button", { name: /^Add Normal/ }).click()
+      await expect(sheet(page, "Which copy?").getByRole("button", { name: `Use my ${name} 9`, exact: true })).toBeVisible({ timeout: 2000 })
+    }).toPass()
+    const copy = sheet(page, "Which copy?")
+    const choice = copy.getByRole("button", { name: `Use my ${name} 9`, exact: true })
     await harness.expectMinTapTarget(choice, 36)
-    expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
+    expect(await copy.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
     await harness.expectNoHorizontalOverflow()
-    await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
+    await copy.getByRole("button", { name: "Back to cards", exact: true }).click()
+    await expect(copy).toHaveCount(0)
+    await expect(count(page)).toHaveText("0")
   })
 
-  test("long catalog labels wrap without overflow and remain tappable", async ({ harness }) => {
+  test("long card and set names stay inside their tile and the variant sheet", async ({ harness }) => {
     const { page } = harness
     const card = { ...syntheticSlotPickerSnapshot().cards[2], name: `Trainer${"X".repeat(180)}`, set: { id: "synthetic", name: "Set".repeat(80) } }
     await page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: { cards: [card] } }))
-    await page.locator('button[data-slot-id="slot-g"]').click()
-    const dialog = details(page)
-    await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Trainer")
-    const hit = dialog.getByRole("button", { name: new RegExp(`^${card.name}`) })
+    const dialog = await search(page, "slot-g", "Trainer")
+    const hit = dialog.getByRole("button", { name: /^Add card Trainer/ })
     await expect(hit).toBeVisible()
     await harness.expectMinTapTarget(hit, 36)
     expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
     await harness.expectNoHorizontalOverflow()
     await hit.click()
-    await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
+    expect(await variant(page).evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
+    await variant(page).getByRole("button", { name: "Back to cards", exact: true }).click()
+    await expect(count(page)).toHaveText("0")
   })
 
-  test("sets a printing target on the explicit free slot without creating ownership", async ({ harness }) => {
+  test("a pocket is kept for one exact card in layout editing, without creating ownership", async ({ harness }) => {
     const { page } = harness
-    await page.locator('button[data-slot-id="slot-g"]').click()
-    const dialog = details(page)
-    // Structural editing is one step away from the direct search, not part of it.
-    await dialog.getByRole("button", { name: "Edit slot", exact: true }).click()
-    await dialog.getByRole("button", { name: "Set target", exact: true }).click()
-    await dialog.getByRole("textbox", { name: "Search slot catalog" }).fill("Trainer")
-    await dialog.getByRole("button", { name: /^Trainer ·/ }).click()
-    await dialog.getByRole("button", { name: "Normal", exact: true }).click()
-    await dialog.getByRole("button", { name: "Set printing target", exact: true }).click()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
-    await expect(dialog).toContainText("Unfilled target")
-    await expect(dialog.getByRole("button", { name: "Change target", exact: true })).not.toBeVisible()
-    await expect(page.locator('button[data-slot-id="slot-g"]')).toHaveAccessibleName("Trainer, Unfilled target")
+    await editLayout(page)
+    const menu = await pocketOptions(page, "slot-g")
+    await menu.getByRole("menuitem", { name: "Choose what goes here" }).click()
+    await sheet(page, "What goes in this pocket?").getByRole("button", { name: /^One exact card/ }).click()
+    const dialog = selector(page)
+    await dialog.getByRole("searchbox", { name: "Search cards" }).fill("Trainer")
+    await tile(dialog, "Trainer").click()
+    await variant(page).getByRole("button", { name: /^Add Normal/ }).click()
+    await expect(count(page)).toHaveText("1")
+    const [command] = (await draft(page)).intent.request.commands
+    expect(command).toMatchObject({ kind: "update", slot: { id: "slot-g" }, target: { kind: "card", finish: "normal" } })
+    await expect(pocket(page, "slot-g")).toHaveAccessibleName("Trainer, Unfilled target")
   })
-
-  // Synthetic Snorlax printings served as the species list (normal and holo, so the finish is an explicit choice).
-  const snorlaxList = () => syntheticSlotPickerSnapshot().cards.filter(c => c.id.startsWith("synthetic-snorlax")).map(({ dexIds: _dexIds, ...card }) => card)
-  const routeSnorlax = (page: import("@playwright/test").Page, cards: object[] = snorlaxList()) => page.route("**/app/api/tcgdex-cache**", route => route.fulfill({ json: { cards, source: "mirror" } }))
-  const selector = (page: import("@playwright/test").Page) => page.getByRole("dialog", { name: "Card selector" })
-  const draft = async (page: import("@playwright/test").Page) => JSON.parse(await page.getByLabel("Synthetic latest draft").textContent() ?? "null")
 
   test("an empty species pocket opens the card selector directly, already showing that species", async ({ harness }) => {
     const { page } = harness
@@ -391,51 +429,53 @@ test.describe("explicit stable-slot picker", () => {
     expect(writes).toEqual([])
   })
 
-  test("selecting a species card hands off the same slot-scoped assign as the search path", async ({ harness }) => {
+  test("selecting a species card saves the same slot-scoped assign and closes the selector", async ({ harness }) => {
     const { page } = harness
     await routeSnorlax(page)
     await page.locator('button[data-slot-id="slot-e"]').click()
     const dialog = selector(page)
-    await dialog.getByRole("button", { name: "Add card Snorlax A from Synthetic set" }).click()
+    await dialog.getByRole("button", { name: "Add card Snorlax B from Synthetic set" }).click()
     // Normal and holo both exist, so the finish is asked and never guessed. Nothing is saved before the choice.
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
-    await page.getByRole("dialog", { name: "Which variant?" }).getByRole("button", { name: /^Add Holo/ }).click()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
+    await expect(count(page)).toHaveText("0")
+    await variant(page).getByRole("button", { name: /^Add Holo/ }).click()
+    await expect(count(page)).toHaveText("1")
     await expect(dialog).toHaveCount(0)
+    await expect(details(page)).toHaveCount(0)
     const latest = await draft(page)
     expect(latest.scope).toEqual({ ownerUserId: "synthetic-owner", collectionId: "00000000-0000-4000-8000-000000000366", slotId: "slot-e" })
     const [command] = latest.intent.request.commands
     expect(command).toMatchObject({ kind: "assign", occupied: "cancel", fulfillWant: null, destination: { slot: { id: "slot-e", version: 1, inventoryItemId: null, itemVersion: null, placementVersion: null } } })
-    expect(latest.intent.context.operationId).toMatch(/^[0-9a-f-]{36}$/)
-    // Holo is the finish picked in the selector. No recorded holo copy exists, so a new catalog copy carries that exact identity.
-    expect(command.selection).toMatchObject({ kind: "catalog", identity: { kind: "card", cardId: "synthetic-snorlax-a", language: "en", finish: "holo" } })
-    // The pocket now shows its card, with no Choose card step in between.
-    await expect(page.locator('button[data-slot-id="slot-e"]')).toHaveAccessibleName("Snorlax A, Owned")
-    await expect(details(page)).toContainText("Owned copy")
-    await expect(details(page)).toContainText(/holo/i)
-    await harness.expectWithinSafeViewport(details(page))
+    expect(command.selection).toMatchObject({ kind: "catalog", identity: { kind: "card", cardId: "synthetic-snorlax-b", language: "en", finish: "holo" } })
+    await expect(page.locator('button[data-slot-id="slot-e"]')).toHaveAccessibleName("Snorlax B, Owned")
+    await harness.expectScrollUnlocked()
   })
 
-  test("a selector pick that needs a graded or raw choice asks before saving", async ({ harness }) => {
+  test("a selector pick with a graded copy asks which copy in the picker's sheet", async ({ harness }) => {
     const { page } = harness
     await routeSnorlax(page)
     await page.locator('button[data-slot-id="slot-e"]').click()
     await selector(page).getByRole("button", { name: "Add card Snorlax A from Synthetic set" }).click()
-    await page.getByRole("dialog", { name: "Which variant?" }).getByRole("button", { name: /^Add Normal/ }).click()
+    await variant(page).getByRole("button", { name: /^Add Normal/ }).click()
     // The synthetic owner holds an unplaced raw copy and an unplaced PSA 9 copy of this printing.
-    const dialog = details(page)
-    await expect(dialog.getByRole("button", { name: "Select Raw", exact: true })).toBeVisible()
-    await expect(dialog.getByRole("button", { name: "Select PSA 9", exact: true })).toBeVisible()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
-    await dialog.getByRole("button", { name: "Back to cards", exact: true }).click()
+    const copy = sheet(page, "Which copy?")
+    await expect(copy.getByRole("button", { name: "Use my raw copy", exact: true })).toBeVisible()
+    await expect(copy.getByRole("button", { name: "Use my PSA 9", exact: true })).toBeVisible()
+    await expect(details(page)).toHaveCount(0)
+    await harness.expectWithinSafeViewport(copy.getByRole("button").last())
+    for (const action of await copy.locator("button:visible").all()) await harness.expectMinTapTarget(action, 36)
+    await expect(count(page)).toHaveText("0")
+    await harness.swipeDown(copy)
+    await expect(copy).toHaveCount(0)
     await expect(selector(page)).toBeVisible()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
+    await expect(count(page)).toHaveText("0")
     await selector(page).getByRole("button", { name: "Add card Snorlax A from Synthetic set" }).click()
-    await page.getByRole("dialog", { name: "Which variant?" }).getByRole("button", { name: /^Add Normal/ }).click()
-    await details(page).getByRole("button", { name: "Select PSA 9", exact: true }).click()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
+    await variant(page).getByRole("button", { name: /^Add Normal/ }).click()
+    await sheet(page, "Which copy?").getByRole("button", { name: "Use my PSA 9", exact: true }).click()
+    await expect(count(page)).toHaveText("1")
+    await expect(selector(page)).toHaveCount(0)
     expect((await draft(page)).intent.request.commands[0].selection).toMatchObject({ kind: "existing", inventoryItemId: "unassigned-grade" })
   })
+
 
   // Synthetic exact want on the empty Snorlax target: Snorlax A, English, normal.
   const addWant = async (page: import("@playwright/test").Page) => {
@@ -452,19 +492,19 @@ test.describe("explicit stable-slot picker", () => {
     await addWant(page)
     await page.locator('button[data-slot-id="slot-e"]').click()
     await selector(page).getByRole("button", { name: "Add card Snorlax A from Synthetic set" }).click()
-    await page.getByRole("dialog", { name: "Which variant?" }).getByRole("button", { name: /^Add Normal/ }).click()
-    const dialog = details(page)
-    const want = dialog.getByRole("button", { name: "Fulfill want 1: Snorlax A", exact: true })
-    await expect(want).toBeVisible()
+    await variant(page).getByRole("button", { name: /^Add Normal/ }).click()
+    const copy = sheet(page, "Which copy?")
+    const want = copy.getByRole("button", { name: /^Found my wanted Snorlax A/ })
     await expect(want).toHaveAttribute("aria-pressed", "false")
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
+    await expect(count(page)).toHaveText("0")
     await want.click()
-    await dialog.getByRole("button", { name: "Select Raw", exact: true }).click()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
+    await copy.getByRole("button", { name: "Use my raw copy", exact: true }).click()
+    await expect(count(page)).toHaveText("1")
     const [command] = (await draft(page)).intent.request.commands
     expect(command.fulfillWant).toMatchObject({ index: 0, expected: { card_id: "synthetic-snorlax-a", card_language: "en", card_finish: "normal" } })
     expect(command.destination.slot.id).toBe("slot-e")
   })
+
 
   test("a pick that matches no slot want saves without fulfilling anything", async ({ harness }) => {
     const { page } = harness
@@ -477,24 +517,25 @@ test.describe("explicit stable-slot picker", () => {
     expect((await draft(page)).intent.request.commands[0].fulfillWant).toBeNull()
   })
 
-  test("the selector and its structural controls stay separate", async ({ harness }) => {
+
+  test("the selector has no structural controls; they live in layout editing", async ({ harness }) => {
     const { page } = harness
     await routeSnorlax(page)
-    await page.locator('button[data-slot-id="slot-e"]').click()
+    await pocket(page, "slot-e").click()
     const dialog = selector(page)
-    await dialog.getByRole("button", { name: "More options", exact: true }).click()
-    await expect(dialog.getByRole("menuitem", { name: "Mark owned without card" })).toHaveCount(0)
-    await dialog.getByRole("menuitem", { name: "Edit slot", exact: true }).click()
-    const sheet = details(page)
-    await expect(sheet.getByRole("button", { name: "Change target", exact: true })).toBeVisible()
-    await expect(sheet.getByRole("button", { name: "Remove target", exact: true })).toBeVisible()
-    await expect(sheet.getByRole("button", { name: "Choose card", exact: true })).toHaveCount(0)
+    await expect(dialog.getByRole("button", { name: "Add card Snorlax A from Synthetic set" })).toBeVisible()
+    await expect(dialog.getByRole("button", { name: "More options", exact: true })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: /Edit slot|Change target|Remove target/ })).toHaveCount(0)
+    await harness.closeControl(dialog).click()
+    await editLayout(page)
+    // In layout editing a tap selects the pocket on the page; it opens neither the selector nor a form.
+    const menu = await pocketOptions(page, "slot-e")
     await expect(selector(page)).toHaveCount(0)
-    await sheet.getByRole("button", { name: "Remove target", exact: true }).click()
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("1")
-    await expect(page.locator('button[data-slot-id="slot-e"]')).toHaveAccessibleName("Free slot, Empty spacer")
-    await harness.closeControl(sheet).click()
-    await expect(sheet).toHaveCount(0)
+    await expect(details(page)).toHaveCount(0)
+    await menu.getByRole("menuitem", { name: "Let any card go here" }).click()
+    await expect(count(page)).toHaveText("1")
+    await expect(pocket(page, "slot-e")).toHaveAccessibleName("Free slot, Empty spacer")
+    await bar(page).getByRole("button", { name: "Done", exact: true }).click()
     await harness.expectScrollUnlocked()
   })
 
@@ -502,7 +543,7 @@ test.describe("explicit stable-slot picker", () => {
     const { page } = harness
     await routeSnorlax(page)
     const open = async () => {
-      await page.locator('button[data-slot-id="slot-e"]').click()
+      await pocket(page, "slot-e").click()
       const dialog = selector(page)
       await expect(dialog.getByRole("button", { name: "Add card Snorlax A from Synthetic set" })).toBeVisible()
       return dialog
@@ -512,7 +553,7 @@ test.describe("explicit stable-slot picker", () => {
     await test.step("back", async () => { const d = await open(); await page.evaluate(() => window.history.back()); await expect(d).toHaveCount(0); expect(page.url()).toContain("e2e-harness"); return d })
     await test.step("backdrop", async () => { const d = await open(); await harness.tapBackdrop(d); await expect(d).toHaveCount(0); return d })
     await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
-    await expect(page.locator('button[data-slot-id="slot-e"]')).toHaveAccessibleName("snorlax, Unfilled target")
+    await expect(pocket(page, "slot-e")).toHaveAccessibleName("Snorlax, Unfilled target")
     await harness.expectScrollUnlocked()
   })
 
@@ -520,7 +561,7 @@ test.describe("explicit stable-slot picker", () => {
     const { page } = harness
     await routeSnorlax(page)
     for (const kind of ["owner", "binder"]) {
-      await page.locator('button[data-slot-id="slot-e"]').click()
+      await pocket(page, "slot-e").click()
       const dialog = selector(page)
       await expect(dialog.getByRole("button", { name: "Add card Snorlax A from Synthetic set" })).toBeVisible()
       await page.evaluate(kind => window.dispatchEvent(new CustomEvent("synthetic-slot-scope-change", { detail: kind })), kind)
@@ -529,25 +570,21 @@ test.describe("explicit stable-slot picker", () => {
     }
   })
 
-  test("a free pocket lands in catalog search with one heading, and every dismissal cancels", async ({ harness }) => {
+  test("a free pocket opens the visual selector ready to search, and every dismissal cancels", async ({ harness }) => {
     const { page } = harness
     const open = async () => {
-      await page.locator('button[data-slot-id="slot-g"]').click()
-      const dialog = details(page)
-      await expect(dialog.getByRole("textbox", { name: "Search slot catalog" })).toBeVisible()
+      await pocket(page, "slot-g").click()
+      const dialog = selector(page)
+      await expect(dialog.getByRole("searchbox", { name: "Search cards" })).toBeVisible()
       return dialog
     }
     let dialog = await open()
-    await expect(dialog.getByRole("button", { name: "Choose card", exact: true })).toHaveCount(0)
-    await expect(dialog.getByRole("heading", { name: "Free slot, Empty spacer" })).toHaveCount(1)
-    await expect(dialog.getByText("Empty slot", { exact: true })).toHaveCount(0)
-    await expect(dialog.getByText("Unfilled target")).toHaveCount(0)
+    await expect(dialog.getByRole("heading", { name: "Add a card", exact: true })).toHaveCount(1)
+    await expect(dialog).toContainText("Search for a card")
+    await expect(dialog.getByText(/Empty slot|Empty spacer|Unfilled target|Edit slot|Set target/)).toHaveCount(0)
+    await expect(details(page)).toHaveCount(0)
     await harness.expectWithinSafeViewport(dialog)
-    for (const action of await dialog.locator("button:visible").all()) await harness.expectMinTapTarget(action, 36)
     await harness.expectNoHorizontalOverflow()
-    await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
-    await expect(dialog).toHaveCount(0)
-    dialog = await open()
     await harness.closeControl(dialog).click()
     await expect(dialog).toHaveCount(0)
     dialog = await open()
@@ -559,28 +596,16 @@ test.describe("explicit stable-slot picker", () => {
     dialog = await open()
     await harness.tapBackdrop(dialog)
     await expect(dialog).toHaveCount(0)
-    dialog = await open()
-    await harness.swipeDown(dialog)
-    await expect(dialog).toHaveCount(0)
-    await expect(page.getByLabel("Synthetic draft count")).toHaveText("0")
+    await expect(count(page)).toHaveText("0")
     await harness.expectScrollUnlocked()
   })
 
-  test("a card-target pocket lands in search and still enforces its target", async ({ harness }) => {
-    const { page } = harness
-    await page.locator('button[data-slot-id="slot-f"]').click()
-    const dialog = details(page)
-    await expect(dialog.getByRole("textbox", { name: "Search slot catalog" })).toBeVisible()
-    await expect(dialog.getByRole("button", { name: "Choose card", exact: true })).toHaveCount(0)
-    await expect(dialog.getByRole("heading", { name: "Trainer, Unfilled target" })).toHaveCount(1)
-  })
-
-  test("an owned pocket keeps the card-first detail and never opens the selector", async ({ harness }) => {
+  test("an owned pocket opens the card's details and never the selector", async ({ harness }) => {
     const { page } = harness
     await routeSnorlax(page)
-    await page.locator('button[data-slot-id="slot-a"]').click()
+    await pocket(page, "slot-a").click()
     await expect(details(page).getByRole("heading", { name: "Snorlax A", exact: true })).toBeVisible()
     await expect(selector(page)).toHaveCount(0)
-    await expect(details(page).getByRole("textbox", { name: "Search slot catalog" })).toHaveCount(0)
+    await expect(details(page).getByRole("searchbox")).toHaveCount(0)
   })
 })

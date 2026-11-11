@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import SlabsGallery from "@/components/slabs/slabs-gallery"
 import { slabCollectionCopies } from "@/lib/slabs/collection"
 import { SelectorMenu } from "@/components/collection-navigation/selector-menu"
-import InventoryView from "@/components/inventory/inventory-view"
+import InventoryView, { type InventorySavedState } from "@/components/inventory/inventory-view"
 import { closeAllOverlays, isOverlayHistoryCleanup, runAfterOverlayHistory } from "@/hooks/use-overlay"
 import type { InventoryLocationIntent } from "@/lib/domain/inventory-browse"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
@@ -25,6 +25,8 @@ export interface NavigationSurface {
   onInventory: () => void
   /** Binder/home: the current collection in binder presentation, keeping its remembered page. */
   onBinder: () => void
+  /** Open one pocket of the current collection in its binder: that page, with the pocket's details open. */
+  onSlot: (slotId: string, page: number) => void
   onDex: () => void
   onLegacyView: (view: "wanted" | "sets" | "pokemon" | "analytics", requestedSet?: TCGSetSummary) => void
 }
@@ -35,6 +37,10 @@ export interface CollectionNavigationHostProps {
   stagedSlabs?: boolean
   onEditGrading?: (itemId: string) => void
   renderSurface?: (surface: NavigationSurface) => ReactNode
+  /** Why the shown collection may not be the very latest (still updating, offline, or the last update failed). */
+  savedState?: InventorySavedState
+  /** Shown as "New binder" in the collection picker. Receives the opener for the collection once it exists. */
+  newCollection?: { disabled?: boolean; hint?: string; onSelect: (openCreated: NavigationSurface["openCreated"]) => void }
   fallbackCollectionId?: string | null
   /** Binder slugs for /<slug>/binder/<page> addresses. Binders missing here use ?binder=<id>. */
   binders?: readonly { id: string; slug?: string | null }[]
@@ -54,7 +60,7 @@ export default function CollectionNavigationHost(props: CollectionNavigationHost
   if (!props.scope) return <p role="status">Sign in to open your collections.</p>
   return <ScopedNavigation key={JSON.stringify([navigationStorageKey(props.scope), props.scope.sessionId])} {...props} scope={props.scope} />
 }
-function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNationalDex, renderSurface, scrollContainerId, fallbackCollectionId, binders = NO_BINDERS, stagedSlabs = false, onEditGrading, ownership }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
+function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNationalDex, renderSurface, scrollContainerId, fallbackCollectionId, binders = NO_BINDERS, stagedSlabs = false, onEditGrading, ownership, newCollection, savedState }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
   const scrollElement = useCallback(() => {
     const container = scrollContainerId ? document.getElementById(scrollContainerId) : null
     return container?.querySelector<HTMLElement>('[data-testid="view-scroller"], [data-testid="wanted-list"]') ?? container
@@ -67,8 +73,11 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     let saved: unknown
     try { saved = JSON.parse(localStorage.getItem(key) ?? "null") } catch { saved = null }
     const remembered = normalizeNavigationState(saved)
-    if (!saved && fallbackCollectionId) { remembered.main = "collection"; remembered.collectionId = fallbackCollectionId }
     const params = navigationParams(location, binders)
+    // Opening the app lands on the binder, not on Inventory because it was the last screen used.
+    // A link that names a view (?view=inventory, also what a reload of that screen carries) still opens it.
+    if (remembered.main === "inventory" && !params.has("view")) remembered.main = "collection"
+    if (!saved && fallbackCollectionId) remembered.collectionId = fallbackCollectionId
     const resolved = resolveNavigation(remembered, scope, read, params, stagedSlabs)
     // Slot and item links resolve only against a complete read. A saved copy paints first, then they resolve once.
     const deferred = read.evidence.kind !== "complete" && (params.has("slot") || params.has("item"))
@@ -184,7 +193,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     })
   }, [persist, key, scrollTop, binders])
   const inventoryChange = useCallback((browse: InventoryViewState) => update(old => ({ ...old, inventory: { ...old.inventory, ...browse } })), [update])
-  const navigate = (next: CollectionNavigationState, locationIntent: InventoryLocationIntent | null = null, latest = currentRead) => {
+  const navigate = (next: CollectionNavigationState, locationIntent: CollectionNavigationFocus | null = null, latest = currentRead) => {
     const sequence = ++request.current
     closeAllOverlays()
     setPendingNavigation({ state: next, highlight: locationIntent, read: latest, sequence })
@@ -217,7 +226,7 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       if (!alive.current || request.current !== sequence) return
       const location = navigationLocation(scope, latest, intent)
       if (location.kind !== "assigned" || location.page === null || !stateRef.current) {
-        setNotice(location.kind === "unassigned" ? "This copy is now Unassigned." : "This location is unavailable. Your inventory is still open.")
+        setNotice(location.kind === "unassigned" ? "This card isn't in a binder any more." : "That pocket couldn't be found. It may have moved.")
         return
       }
       setFresh({ base: read, value: latest })
@@ -226,18 +235,32 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
       next.collections[id] = { ...defaultCollectionView(), page: location.page }
       // navigate validates against latest, not the outgoing evidence, on the next render.
       navigate(next, location.intent, latest)
-    } catch { if (alive.current && request.current === sequence) setNotice("This location could not be refreshed. Your inventory is still open.") }
+    } catch { if (alive.current && request.current === sequence) setNotice("Couldn't open that pocket just now. Try again in a moment.") }
   }
-  if (!visible) return <p role="status">Opening saved view…</p>
+  if (!visible) return <p role="status">Opening…</p>
   const collectionId = visible.collectionId
-  const collectionState = visible.collections[collectionId ?? ""] ?? defaultCollectionView()
+  const savedCollectionState = visible.collections[collectionId ?? ""] ?? defaultCollectionView()
+  const slabCopies = stagedSlabs && collectionId ? slabCollectionCopies(scope, currentRead, collectionId) : []
+  // Slabs is a view of graded cards. A collection with none (and that isn't a slab collection) doesn't offer it,
+  // and a saved or linked Slabs choice for it falls back to the binder without changing anything saved.
+  const slabsOffered = stagedSlabs && (slabCopies.length > 0 || currentRead.evidence.kind !== "unavailable" && currentRead.evidence.snapshot.collections.find(c => c.id === collectionId)?.kind === "slab")
+  const collectionState = savedCollectionState.view === "slabs" && !slabsOffered ? { ...savedCollectionState, view: "binder" as const } : savedCollectionState
   // Compact: enclosed selectors, so the active collection name reads as a control. National Dex and Inventory live in the dock.
   const viewLabels: Record<CollectionViewState["view"], string> = { binder: "Binder", list: "List", slabs: "Slabs" }
-  const views: CollectionViewState["view"][] = stagedSlabs ? ["binder", "list", "slabs"] : ["binder", "list"]
+  const views: CollectionViewState["view"][] = slabsOffered ? ["binder", "list", "slabs"] : ["binder", "list"]
   const viewOptions = views.map(value => ({ value, label: viewLabels[value] }))
+  const creationEntry = entryId.current, creationRequest = request.current
+  const openCreated: NavigationSurface["openCreated"] = (id, latest) => {
+    if (!alive.current || entryId.current !== creationEntry || request.current !== creationRequest
+      || latest.evidence.kind !== "complete" || !latest.evidence.snapshot.collections.some(c => c.id === id)) return false
+    setFresh({ base: read, value: latest })
+    navigate({ ...visible, main: "collection", collectionId: id, collections: { ...visible.collections, [id]: defaultCollectionView(latest.evidence.snapshot.collections.find(c => c.id === id)!.defaultPresentation) } }, null, latest)
+    return true
+  }
   const header = <div className="flex min-w-0 flex-1 items-center gap-1.5">
       <SelectorMenu label="Collection" heading="Collection" menuLabel="Choose collection" width={288} className="min-w-0 max-w-[20rem] shrink" textClassName="text-sm font-semibold"
-        value={collectionId ?? ""} valueLabel={index.collections.find(c => c.id === collectionId)?.name ?? "No storage yet"} options={index.collections.map(c => ({ value: c.id, label: c.name }))}
+        value={collectionId ?? ""} valueLabel={index.collections.find(c => c.id === collectionId)?.name ?? "No binder yet"} options={index.collections.map(c => ({ value: c.id, label: c.name }))}
+        action={newCollection ? { label: "New binder", hint: newCollection.hint, disabled: newCollection.disabled, onSelect: () => newCollection.onSelect(openCreated) } : undefined}
         onSelect={id => navigate({ ...visible, main: "collection", collectionId: id })} />
       {visible.main === "collection" && <SelectorMenu label="Collection view" heading="View" menuLabel="Choose view" width={192} className="shrink-0" textClassName="text-xs font-medium"
         value={collectionState.view} valueLabel={viewLabels[collectionState.view] ?? collectionState.view} options={viewOptions}
@@ -245,29 +268,22 @@ function ScopedNavigation({ scope, read, readCurrent, renderCollection, renderNa
     </div>
   const collection = collectionId && index.kind !== "unavailable" ? { read: currentRead, collectionId, state: collectionState, highlight,
     onChange: (patch: Partial<CollectionViewState>) => update(old => ({ ...old, collections: { ...old.collections, [collectionId]: { ...collectionState, ...patch } } })) } : null
-  const slabCopies = collectionState.view === "slabs" && stagedSlabs && collectionId ? slabCollectionCopies(scope, currentRead, collectionId) : []
   const content = <>
     {(notice || safe?.notice) && <p role="status" className={styles.notice}>{notice || safe?.notice}</p>}
     {visible.main === "inventory" ? <InventoryView key={visit} scope={scope} evidence={index.kind === "unavailable" ? { kind: "unavailable" } : currentRead.evidence}
-      ownership={ownership} catalog={currentRead.catalog} layouts={currentRead.layouts} onEditGrading={onEditGrading} initialBrowseState={visible.inventory} onBrowseStateChange={inventoryChange} onOpenLocation={intent => void openLocation(intent)} />
+      ownership={ownership} savedState={savedState} catalog={currentRead.catalog} layouts={currentRead.layouts} onEditGrading={onEditGrading} initialBrowseState={visible.inventory} onBrowseStateChange={inventoryChange} onOpenLocation={intent => void openLocation(intent)} />
       : visible.main === "dex" ? <div key="dex">{renderNationalDex()}</div>
       : collectionId && index.kind !== "unavailable" && collectionState.view === "slabs" && stagedSlabs ? <SlabsGallery key={`${destinationKey}:${visit}:${index.key}`} copies={slabCopies}
         name={index.collections.find(c => c.id === collectionId)?.name ?? "Collection"} cached={index.kind === "cached"} search={collectionState.search}
         onSearch={search => collection?.onChange({ search, scroll: 0 })} />
       : collectionId && index.kind !== "unavailable" ? <div key={`${destinationKey}:${visit}`}>{renderCollection({ read: currentRead, collectionId, state: collectionState, highlight,
         onChange: patch => update(old => ({ ...old, collections: { ...old.collections, [collectionId]: { ...collectionState, ...patch } } })) })}</div>
-      : <p role="status">Collection unavailable. Open Inventory or National Dex.</p>}
+      : <p role="status">This binder couldn&apos;t be opened. Try Inventory or Browse.</p>}
   </>
-  const creationEntry = entryId.current, creationRequest = request.current
-  if (renderSurface) return renderSurface({ openCreated: (id, latest) => {
-    if (!alive.current || entryId.current !== creationEntry || request.current !== creationRequest
-      || latest.evidence.kind !== "complete" || !latest.evidence.snapshot.collections.some(c => c.id === id)) return false
-    setFresh({ base: read, value: latest })
-    navigate({ ...visible, main: "collection", collectionId: id, collections: { ...visible.collections, [id]: defaultCollectionView(latest.evidence.snapshot.collections.find(c => c.id === id)!.defaultPresentation) } }, null, latest)
-    return true
-  }, notice: notice || safe?.notice || "", visit, content, header, state: visible, collection,
+  if (renderSurface) return renderSurface({ openCreated, notice: notice || safe?.notice || "", visit, content, header, state: visible, collection,
     onInventory: () => navigate({ ...visible, main: "inventory" }),
     onBinder: () => navigate(collectionId ? { ...visible, main: "collection", collections: { ...visible.collections, [collectionId]: { ...collectionState, view: "binder" } } } : { ...visible, main: "collection" }), onDex: () => navigate({ ...visible, main: "dex", dexView: "list" }),
+    onSlot: (slotId, page) => { if (collectionId) navigate({ ...visible, main: "collection", collections: { ...visible.collections, [collectionId]: { ...collectionState, view: "binder", page, scroll: 0 } } }, { collectionId, slotId, open: true }) },
     onLegacyView: (dexView, requestedSet) => navigate({ ...visible, main: "dex", dexView, requestedSet: requestedSet ?? null }) })
   return <div className={styles.host}><header className={styles.header}>{header}</header>{content}
     <nav aria-label="Collection navigation" className={styles.dock}>

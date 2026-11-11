@@ -5,7 +5,9 @@ import { loadBinderBootstrap } from "@/lib/server/binder-bootstrap"
 import { resolveCollectionMembership } from "@/lib/server/collection-owner"
 import { getSessionUser } from "@/lib/supabase/session-user"
 import { resolveActiveBinder } from "@/lib/server/binders"
-import { ACTIVE_BINDER_COOKIE } from "@/lib/binders/model"
+import { Suspense } from "react"
+import { BinderSkeleton } from "@/components/binder-skeleton"
+import { ACTIVE_BINDER_COOKIE, BINDER_GRID_COOKIE, parseBinderGrid } from "@/lib/binders/model"
 import { getDefaultBinderSettings } from "@/lib/settings"
 import { withBinderLayout } from "@/lib/binder-layout"
 
@@ -67,8 +69,10 @@ async function loadServerBoot(searchParams: PageProps["searchParams"]): Promise<
   }
 }
 
-// Not async: the binder skeleton is in the prerendered shell and paints at once. BinderStart then shows
-// this device's saved binder, or the server's collection when it streams in.
+// Not async: the binder skeleton is in the prerendered shell and paints at once. The request then streams
+// it again with the pockets of the binder this device opened last (a cookie, so no data is read for it), and
+// BinderStart shows this device's saved binder, or the server's collection when that arrives.
 export default function Page({ searchParams }: PageProps) {
-  return <BinderStart serverBoot={loadServerBoot(searchParams)} />
+  const startGrid = cookies().then(store => parseBinderGrid(store.get(BINDER_GRID_COOKIE)?.value))
+  return <Suspense fallback={<BinderSkeleton />}><BinderStart serverBoot={loadServerBoot(searchParams)} startGrid={startGrid} /></Suspense>
 }

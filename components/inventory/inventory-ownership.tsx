@@ -1,236 +1,213 @@
 "use client"
 
-import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
 import { X } from "lucide-react"
+import CardImage from "@/components/card-image"
+import CardPickerSheet, { cardPickerSheetChoice } from "@/components/card-picker-sheet"
+import { CardSelector } from "@/components/binder/lazy-views"
 import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
-import SlotCatalogSearch from "@/components/binder/slot-catalog-search"
-import { useCardSearch } from "@/hooks/use-card-search"
-import { buildOfflineCardIndex } from "@/lib/offline-card-index"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
-import { isCardLanguage, type CardFinish, type CardLanguage } from "@/lib/domain/cards"
+import { formatCardFinishLabel } from "@/lib/card-labels"
+import { isCardLanguage, type CardFinish } from "@/lib/domain/cards"
+import type { InventoryCatalogResolver, InventoryIdentity, InventorySnapshot } from "@/lib/domain/inventory"
 import type { SlotTarget } from "@/lib/domain/binder-slots"
-import type { InventorySnapshot, InventoryCatalogResolver } from "@/lib/domain/inventory"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
-import { pickerCandidate, pickerFinishes } from "@/lib/slot-picker"
-import { inventoryActionDestinations, inventoryActionItemRef, inventoryOccupiedChoices, prepareInventoryAction, type InventoryAction, type InventoryOwnershipBinding } from "@/lib/inventory-actions"
+import { pickerCandidate } from "@/lib/slot-picker"
+import { slotDraftFailureMessage } from "@/lib/slot-draft-failure"
+import { formatGradeLabel } from "@/lib/pocket-labels"
+import { inventoryActionDestinations, inventoryOccupiedChoices, prepareInventoryAction, type InventoryAction, type InventoryOwnershipBinding } from "@/lib/inventory-actions"
 import { prepareInventoryBulkAction, type InventoryBulkAction } from "@/lib/inventory-bulk-actions"
 import styles from "./inventory.module.css"
 
-const context = () => ({ source: "app" as const, clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString() })
+/** How Inventory names things for people: a pocket by its binder, page and pocket, a card by its name and printing. */
+export interface InventoryLabels {
+  place: (collectionId: string, slotId: string) => string
+  card: (identity: InventoryIdentity | SlotTarget) => { name: string; detail: string; image?: string }
+}
 
-/** Immutable review survives local commit failure. Accepted intent belongs to the durable host. */
-function useActionReview(binding: InventoryOwnershipBinding, onAccepted: () => void) {
+const context = () => ({ source: "app" as const, clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString() })
+const unusedLegacySelect = () => {}
+const primary = "min-h-11 flex-1 rounded-2xl bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-45"
+const secondary = "min-h-11 rounded-2xl border border-border/70 px-4 text-sm font-medium disabled:opacity-45"
+
+/**
+ * One Inventory change: prepared once from the current read and handed to the durable host. A failed handoff keeps
+ * that exact prepared change, so Try again resends it and nothing is prepared twice.
+ */
+export function useInventorySave(binding: InventoryOwnershipBinding, onAccepted: () => void) {
   const [draft, setDraft] = useState<(ReturnType<typeof prepareInventoryAction> & { catalog: InventoryCatalogResolver }) | null>(null)
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
   const lock = useRef(false), alive = useRef(false)
   useLayoutEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
-  const review = (action: InventoryAction | InventoryBulkAction, catalog = binding.catalog) => {
-    if (lock.current || !binding.available || draft) return
-    try { setDraft({ ...(action.kind === "move" || "itemIds" in action ? prepareInventoryBulkAction(binding.snapshot, action, context(), catalog) : prepareInventoryAction(binding.snapshot, action, context(), catalog)), catalog }); setError("") }
-    catch { setError(action.kind === "move" || "itemIds" in action ? "The entire selection could not be reviewed. Choose distinct raw copies and compatible empty slots within the command limits, or reduce the selection. Nothing was queued." : "This copy or destination is unavailable. Refresh current Inventory before trying again.") }
-  }
-  const submit = async () => {
-    if (lock.current || !draft || !binding.available) return
+  const submit = async (prepared: NonNullable<typeof draft>) => {
+    if (lock.current || !binding.available) return
     lock.current = true; setBusy(true); setError("")
     try {
-      const receipt = await binding.receive(draft.intent, draft.catalog)
-      if (receipt.status !== "saved-on-device" || receipt.operationId !== draft.intent.request.operationId) throw new Error("invalid-local-acceptance")
+      const receipt = await binding.receive(prepared.intent, prepared.catalog)
+      if (receipt.status !== "saved-on-device" || receipt.operationId !== prepared.intent.request.operationId) throw new Error("invalid-local-acceptance")
       if (alive.current) onAccepted()
-    } catch {
-      if (alive.current) setError("Could not confirm saving on this device. Retry this same request after checking current storage. Accepted requests remain on this device even if you close this sheet.")
+    } catch (cause) {
+      if (alive.current) setError(slotDraftFailureMessage(cause))
     } finally { lock.current = false; if (alive.current) setBusy(false) }
   }
-  return { draft, error, busy, review, submit, cancel: () => { if (!lock.current) { setDraft(null); setError("") } } }
-}
-
-function Confirmation({ review, children, details }: { review: ReturnType<typeof useActionReview>; children: ReactNode; details?: ReactNode }) {
-  return <section aria-label="Review ownership change" className={styles.actionReview}>
-    {children}
-    <div className={styles.actions}><button type="button" disabled={review.busy} onClick={() => void review.submit()}>{review.busy ? "Saving on device…" : "Confirm change"}</button>
-      <button type="button" disabled={review.busy} onClick={review.cancel}>Cancel change</button></div>
-    <p>Saved on this device first. Sync and Activity history are confirmed separately.</p>
-    {details}
-  </section>
-}
-
-function targetLabel(target: SlotTarget | null): string {
-  if (!target) return "Free slot"
-  if (target.kind === "pokemon") return `Pokémon ${target.pokemonId} target`
-  return `Printing ${target.cardId}${target.language ? ` · ${target.language}` : ""}${target.finish ? ` · ${target.finish}` : ""}`
-}
-
-function CopyPlacementReview({ draft }: { draft: ReturnType<typeof prepareInventoryAction> }) {
-  const command = draft.intent.request.commands[0]
-  if (command.kind !== "move" && command.kind !== "assign") return null
-  const selectedId = command.kind === "move" ? command.item.itemId : command.selection.kind === "existing" ? command.selection.inventoryItemId : null
-  const displacedId = command.destination.slot.inventoryItemId
-  const location = (snapshot: InventorySnapshot, id: string) => {
-    const p = snapshot.placements.find(p => p.inventoryItemId === id)
-    return p ? `${snapshot.collections.find(c => c.id === p.collectionId)?.name ?? "Storage"}, slot ${p.slotId}` : "Unassigned"
+  const run = (action: InventoryAction | InventoryBulkAction, catalog = binding.catalog) => {
+    if (lock.current || !binding.available || draft) return
+    try {
+      const prepared = { ...(action.kind === "move" || "itemIds" in action ? prepareInventoryBulkAction(binding.snapshot, action, context(), catalog) : prepareInventoryAction(binding.snapshot, action, context(), catalog)), catalog }
+      setDraft(prepared)
+      void submit(prepared)
+    } catch { setError("This card or pocket changed while this was open. Close this and try again. Nothing was changed.") }
   }
-  const ids = [selectedId, displacedId].filter((id): id is string => id !== null)
-  const slots = [command.kind === "move" ? command.item.placement : null, command.destination].filter(p => p !== null)
-  return <>
-    <h3>{command.occupied === "swap" ? "Swap these exact copies?" : displacedId ? "Move the occupied copy to Unassigned?" : "Place this exact copy?"}</h3>
-    {ids.map(id => {
-      const item = draft.before.items.find(i => i.id === id)!
-      return <div key={id}>
-        <p>Copy {id} · {item.identity.kind === "card" ? item.identity.cardId : `Pokémon ${item.identity.pokemonId}`} · {item.identity.kind === "card" ? item.identity.language ?? "Language unknown" : "Language unknown"} · {item.identity.kind === "card" ? item.identity.finish ?? "Finish unknown" : "Finish unknown"}</p>
-        <p>{item.grading ? `${item.grading.provider.kind === "known" ? item.grading.provider.id : item.grading.provider.name} · ${item.grading.grade ?? "Grade unknown"}` : "Raw"}. From {location(draft.before, id)} to {location(draft.preview, id)}.</p>
-      </div>
-    })}
-    <details><summary>Review slot targets and wants</summary>{slots.map(p => {
-      const slot = draft.before.binders.find(b => b.collectionId === p.collectionId)!.slots.find(s => s.id === p.slot.id)!
-      return <div key={slot.id}><p>Slot {slot.id}: {targetLabel(slot.target)}. {slot.wantedCards.length} explicit wants retained.</p>
-        {slot.wantedCards.map((want, i) => <p key={i}>{want.card_name} · {want.card_id} · {want.card_language ?? "Language unknown"} · {want.card_finish ?? "Finish unknown"}</p>)}</div>
-    })}</details>
-    <p>Ownership stays unchanged. {command.kind === "move" && command.occupied !== "swap" ? "The former slot becomes unfilled. " : ""}Targets, wants, provenance and slot order stay unchanged. No want is fulfilled. {displacedId ? "Both copies retain their" : "The copy retains its"} identity, grading, certificate, acquisition and source metadata.</p>
-    <p>After sync and a fresh complete read, use Find acknowledged change to locate the exact Activity event. Recovery requires a supported preview and current permission and version checks; newer edits may prevent it.</p>
-  </>
+  return { busy, error, pending: draft !== null && !busy && error !== "", run, retry: () => { if (draft) void submit(draft) },
+    discard: () => { if (!lock.current) { setDraft(null); setError("") } } }
 }
 
-export function InventoryCopyActions({ binding, itemId, onAccepted }: { binding: InventoryOwnershipBinding; itemId: string; onAccepted: () => void }) {
-  const [placing, setPlacing] = useState(false)
-  const [destination, setDestination] = useState("")
-  const [occupied, setOccupied] = useState<"" | "unassign" | "swap">("")
-  const review = useActionReview(binding, onAccepted)
-  const item = binding.snapshot.items.find(i => i.id === itemId)
-  if (!item) return null
-  const ref = inventoryActionItemRef(binding.snapshot, itemId)
-  const destinations = inventoryActionDestinations(binding.snapshot, itemId, binding.catalog)
-  const selectedDestination = destinations.find(d => d.slot.id === destination)
-  const choices = selectedDestination ? inventoryOccupiedChoices(binding.snapshot, itemId, selectedDestination, binding.catalog) : []
-  const command = review.draft?.intent.request.commands[0]
-  const source = ref.placement
-  const location = source ? `${binding.snapshot.collections.find(c => c.id === source.collectionId)?.name ?? "Storage"}, slot ${source.slot.id}` : "Unassigned"
-  return <section aria-label={item.grading ? "Graded copy placement" : "Raw copy ownership"} className={styles.ownership}>
-    {review.error && <p role="alert">{review.error}</p>}
-    {command ? <Confirmation review={review} details={command.kind === "removeOwned" ? <p>After sync, open Activity to review recovery of this exact copy and its saved metadata. Recovery checks current versions; if the former slot is occupied, explicitly choose Unassigned. Recovery may be unavailable if history or current permissions cannot be verified.</p> : undefined}>
-      {(command.kind === "assign" || command.kind === "move") && review.draft ? <CopyPlacementReview draft={review.draft} /> : <>
-      <h3>{command.kind === "removeOwned" ? "Remove this owned copy?" : command.kind === "unassign" ? "Keep this copy Unassigned?" : "Place this exact copy?"}</h3>
-      <p>Copy {itemId} · {location}</p>
-      {command.kind === "removeOwned" ? <p>Ownership decreases by one. {source ? "Its placement is cleared. The former slot, target, wants and order remain." : "No storage slot changes."} Other copies stay unchanged.</p>
-        : <p>Ownership stays unchanged. The former slot becomes unfilled; its target, wants and order remain. Identity, grading, certificate, private label assets, acquisition and source metadata stay unchanged.</p>}
-      </>}
-    </Confirmation> : <fieldset disabled={!binding.available} className={styles.actions}>
-      {placing ? <>
-        <label className={styles.field}>Compatible slot<select aria-label="Compatible slot" value={destination} onChange={e => { setDestination(e.target.value); setOccupied("") }}>
-          <option value="">Choose a destination</option>{destinations.map(d => <option key={d.slot.id} value={d.slot.id}>{binding.snapshot.collections.find(c => c.id === d.collectionId)?.name} · Slot {d.slot.id}{d.slot.inventoryItemId ? " · Occupied" : " · Empty"}</option>)}
-        </select></label>
-        {!destinations.length && <p>No compatible slots are available. Unknown printing or missing metadata cannot satisfy constrained targets.</p>}
-        {selectedDestination?.slot.inventoryItemId && <>
-          <p>Occupied by copy {selectedDestination.slot.inventoryItemId}. Choose what happens to it before reviewing.</p>
-          <label className={styles.field}>Occupied destination decision<select aria-label="Occupied destination decision" value={occupied} onChange={e => setOccupied(e.target.value as typeof occupied)}>
-            <option value="">Choose explicitly</option>
-            {choices.includes("unassign") && <option value="unassign">Move occupied copy to Unassigned</option>}
-            {choices.includes("swap") && <option value="swap">Swap copies</option>}
-          </select></label>
-          {!choices.includes("swap") && <p>Swap unavailable: this copy needs a source slot, and both copies must match their resulting targets.</p>}
-          {!choices.length && <p>This destination cannot be safely reviewed. Cancel and refresh current Inventory.</p>}
-        </>}
-        <button type="button" disabled={!selectedDestination || (selectedDestination.slot.inventoryItemId !== null && (!occupied || !choices.includes(occupied)))} onClick={() => {
-          const d = selectedDestination
-          if (d) review.review({ kind: "place", itemId, collectionId: d.collectionId, slotId: d.slot.id, ...(occupied ? { occupied } : {}) })
-        }}>Review placement</button>
-        <button type="button" onClick={() => setPlacing(false)}>Cancel placement</button>
-      </> : <>
-        <button type="button" onClick={() => setPlacing(true)}>{source ? "Move copy" : "Assign copy"}</button>
-        {source && <button type="button" onClick={() => review.review({ kind: "unassign", itemId })}>Unassign copy</button>}
-        {item.grading === null ? <button type="button" onClick={() => review.review({ kind: "removeOwned", itemId })}>Remove owned copy</button> : <p>Graded removal is unavailable because recovery cannot verify private label assets. Assign, move and unassign retain every grading and private field.</p>}
-      </>}
-    </fieldset>}
-  </section>
-}
-
-export function InventoryAddOwned({ binding, onClose, onInspect }: { binding: InventoryOwnershipBinding; onClose: () => void; onInspect: (itemId: string) => void }) {
-  const ref = useRef<HTMLDivElement>(null)
-  useOverlay(true, onClose, { containerRef: ref })
-  const swipe = useSwipeToDismiss(ref, onClose)
-  const [query, setQuery] = useState("")
-  const [language, setLanguage] = useState<CardLanguage>("en")
-  const [card, setCard] = useState<SearchCardResult | null>(null)
-  const [finish, setFinish] = useState<CardFinish | undefined>()
-  const offlineCards = useCallback(() => buildOfflineCardIndex([]), [])
-  const search = useCardSearch(query, !card && binding.available, offlineCards, { language, includeNonPokemon: true })
-  const review = useActionReview(binding, onClose)
-  const finishes = card ? pickerFinishes(card) : []
-  const selectedFinish = finish ?? (finishes.length === 1 ? finishes[0].finish : undefined)
-  const candidate = card ? pickerCandidate(card) : undefined
-  const resolve: InventoryCatalogResolver = id => candidate && card && matchesCatalogCardId(card, id) ? candidate : binding.catalog(id)
-  const duplicates = card ? binding.snapshot.items.filter(i => i.identity.kind === "card" && matchesCatalogCardId(card, i.identity.cardId)) : []
-  const ready = card && (finishes.length < 2 || finish !== undefined)
-  return <div className={styles.overlay}>
-    <div data-overlay-backdrop className={styles.backdrop} onClick={onClose} />
-    <div ref={ref} role="dialog" aria-modal="true" aria-label="Add owned raw copy" className={styles.sheet} tabIndex={-1}>
-      <header {...swipe} data-sheet-grabber className={styles.sheetHeader}><h2>Add owned card</h2><button type="button" aria-label="Close add owned card" onClick={onClose}><X size={20} /></button></header>
-      <div className={styles.sheetBody}>
-        {review.error && <p role="alert">{review.error}</p>}
-        {review.draft ? <Confirmation review={review}><h3>Add a distinct raw copy as Unassigned?</h3><p>{card?.name} · {isCardLanguage(card?.language) ? card.language : "Language unknown"} · {selectedFinish ?? "Finish unknown"}</p><p>No storage slot changes. Existing raw and graded copies stay unchanged. This copy counts toward your current saved-card allowance.</p></Confirmation>
-          : <fieldset disabled={!binding.available} className={styles.actions}>
-            {!card ? <SlotCatalogSearch query={query} language={language} cards={search.cards} loading={search.loading} offline={search.offline} onQuery={setQuery} onLanguage={setLanguage} onSelect={selected => { setCard(selected); setFinish(undefined) }} /> : <>
-              <button type="button" onClick={() => setCard(null)}>Back to cards</button>
-              <h3>{card.name}</h3><p>{card.set.name} · {card.localId} · {isCardLanguage(card.language) ? card.language : "Language unknown"}</p>
-              {finishes.length > 1 && <label className={styles.field}>Card finish<select value={finish ?? ""} onChange={e => setFinish(e.target.value as CardFinish || undefined)}><option value="">Choose finish</option>{finishes.map(f => <option key={f.finish} value={f.finish}>{f.label}</option>)}</select></label>}
-              <p>{selectedFinish ?? "Finish unknown"} · Raw · Unassigned</p>
-              {duplicates.length > 0 && <><p>You already own {duplicates.length} {duplicates.length === 1 ? "copy" : "copies"} of this printing. Adding another creates a separate raw copy.</p><div className={styles.actions}>{duplicates.map(i => <button type="button" key={i.id} onClick={() => onInspect(i.id)}>Inspect copy {i.id}</button>)}</div></>}
-              <button type="button" disabled={!ready} onClick={() => review.review({ kind: "add", itemId: crypto.randomUUID(), identity: { kind: "card", cardId: card.canonicalId ?? card.id,
-                ...(isCardLanguage(card.language) ? { language: card.language } : {}), ...(selectedFinish ? { finish: selectedFinish } : {}) } }, resolve)}>{duplicates.length ? "Add another raw copy" : "Add raw copy as Unassigned"}</button>
-            </>}
-          </fieldset>}
-      </div>
+function SaveProblem({ save }: { save: ReturnType<typeof useInventorySave> }) {
+  if (!save.error) return null
+  return <div role="alert" className="rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm">
+    <p className="break-words">{save.error}</p>
+    <div className="mt-2 flex gap-2">
+      {save.pending && <button type="button" className={secondary} disabled={save.busy} onClick={save.retry}>Try again</button>}
+      <button type="button" className="min-h-11 px-3 text-sm text-muted-foreground" disabled={save.busy} onClick={save.discard}>Dismiss</button>
     </div>
   </div>
 }
 
+function itemLabel(snapshot: InventorySnapshot, labels: InventoryLabels, itemId: string) {
+  const item = snapshot.items.find(i => i.id === itemId)
+  if (!item) return { name: "Card", detail: "", image: undefined as string | undefined }
+  const card = labels.card(item.identity)
+  return { ...card, detail: [card.detail, item.grading ? formatGradeLabel(item.grading) : null].filter(Boolean).join(" · ") }
+}
 
-export function InventoryBulkReview({ binding, itemIds, onClose, onAccepted }: { binding: InventoryOwnershipBinding; itemIds: readonly string[]; onClose: () => void; onAccepted: () => void }) {
+/**
+ * Choose where one card goes: its binder, page and pocket, with what is there now. Putting a card where another
+ * already sits always asks what happens to that other card before anything is saved.
+ */
+export function InventoryMove({ binding, labels, itemId, onAccepted, onCancel }: { binding: InventoryOwnershipBinding; labels: InventoryLabels; itemId: string; onAccepted: () => void; onCancel: () => void }) {
+  const save = useInventorySave(binding, onAccepted)
+  const [collectionId, setCollectionId] = useState<string | null>(null)
+  const [slotId, setSlotId] = useState<string | null>(null)
+  const destinations = inventoryActionDestinations(binding.snapshot, itemId, binding.catalog)
+  const collections = binding.snapshot.collections.filter(c => destinations.some(d => d.collectionId === c.id))
+  const shownCollection = collectionId ?? collections[0]?.id ?? null
+  const inCollection = destinations.filter(d => d.collectionId === shownCollection)
+  const chosen = destinations.find(d => d.slot.id === slotId && d.collectionId === shownCollection)
+  const choices = chosen ? inventoryOccupiedChoices(binding.snapshot, itemId, chosen, binding.catalog) : []
+  const mine = itemLabel(binding.snapshot, labels, itemId)
+  const occupant = chosen?.slot.inventoryItemId ? itemLabel(binding.snapshot, labels, chosen.slot.inventoryItemId) : null
+  const place = (d: typeof destinations[number]) => labels.place(d.collectionId, d.slot.id).replace(/^.*? · /, "")
+  const move = (occupied?: "unassign" | "swap") => { if (chosen) save.run({ kind: "place", itemId, collectionId: chosen.collectionId, slotId: chosen.slot.id, ...(occupied ? { occupied } : {}) }) }
+  return <section aria-label="Move card" className="space-y-3">
+    <SaveProblem save={save} />
+    {!destinations.length ? <p className="text-sm text-muted-foreground">There&apos;s no pocket this card fits right now. Add a pocket for it in a binder, then move it there.</p> : chosen ? <>
+      <p className="text-sm"><span className="font-semibold">{mine.name}</span> goes to <span className="font-semibold">{labels.place(chosen.collectionId, chosen.slot.id)}</span>.</p>
+      {occupant && <div className="flex items-center gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-2.5">
+        {occupant.image && <span className="trading-card relative w-9 shrink-0 overflow-hidden rounded bg-muted"><CardImage src={occupant.image} alt="" fill sizes="36px" className="object-cover" /></span>}
+        <p className="min-w-0 text-sm"><span className="font-semibold">{occupant.name}</span> is in that pocket. What should happen to it?</p>
+      </div>}
+      {occupant ? <div className="grid gap-2">
+        {choices.includes("swap") && <button type="button" className={cardPickerSheetChoice(true)} disabled={save.busy} onClick={() => move("swap")}><span>Swap them</span><span className="text-xs font-medium text-muted-foreground">They trade pockets</span></button>}
+        {choices.includes("unassign") && <button type="button" className={cardPickerSheetChoice()} disabled={save.busy} onClick={() => move("unassign")}><span>Take {occupant.name} out</span><span className="text-xs font-medium text-muted-foreground">Stays in your collection</span></button>}
+        {!choices.length && <p className="text-sm text-muted-foreground">That pocket can&apos;t take this card right now. Pick another pocket.</p>}
+      </div> : <div className="flex gap-2"><button type="button" className={primary} disabled={save.busy} onClick={() => move()}>{save.busy ? "Moving…" : "Move here"}</button></div>}
+      <button type="button" className={secondary} disabled={save.busy} onClick={() => setSlotId(null)}>Choose another pocket</button>
+    </> : <>
+      {collections.length > 1 && <div role="group" aria-label="Binder" className="flex gap-1.5 overflow-x-auto pb-1">
+        {collections.map(c => <button key={c.id} type="button" aria-pressed={c.id === shownCollection} onClick={() => setCollectionId(c.id)}
+          className="min-h-9 shrink-0 rounded-full border border-border/60 px-3 text-xs font-semibold aria-pressed:border-primary/50 aria-pressed:bg-primary/10">{c.name}</button>)}
+      </div>}
+      <ul aria-label="Pockets this card fits" className="grid max-h-[40dvh] gap-1.5 overflow-y-auto overscroll-contain">
+        {inCollection.map(d => {
+          const there = d.slot.inventoryItemId ? itemLabel(binding.snapshot, labels, d.slot.inventoryItemId) : null
+          return <li key={d.slot.id}><button type="button" onClick={() => setSlotId(d.slot.id)} className="flex min-h-12 w-full items-center gap-3 rounded-2xl border border-border/60 px-3 py-1.5 text-left hover:bg-muted/60">
+            <span className="trading-card relative w-8 shrink-0 overflow-hidden rounded border border-dashed border-border bg-muted/40">{there?.image && <CardImage src={there.image} alt="" fill sizes="32px" className="object-cover" />}</span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{place(d)}</span><span className="block truncate text-xs text-muted-foreground">{there ? `Has ${there.name}` : "Empty"}</span></span>
+          </button></li>
+        })}
+      </ul>
+    </>}
+    <button type="button" className={secondary} disabled={save.busy} onClick={onCancel}>Cancel</button>
+  </section>
+}
+
+/** Add a card you own with the same visual selector as a binder pocket. It joins your collection, not a pocket. */
+export function InventoryAddOwned({ binding, onClose, onInspect }: { binding: InventoryOwnershipBinding; labels?: InventoryLabels; onClose: () => void; onInspect: (itemId: string) => void }) {
+  const save = useInventorySave(binding, onClose)
+  const [picked, setPicked] = useState<{ card: SearchCardResult; finish: CardFinish | undefined } | null>(null)
+  const add = ({ card, finish }: NonNullable<typeof picked>) => {
+    const candidate = pickerCandidate(card)
+    const resolve: InventoryCatalogResolver = id => matchesCatalogCardId(card, id) ? candidate : binding.catalog(id)
+    save.run({ kind: "add", itemId: crypto.randomUUID(), identity: { kind: "card", cardId: card.canonicalId ?? card.id,
+      ...(isCardLanguage(card.language) ? { language: card.language } : {}), ...(finish ? { finish } : {}) } }, resolve)
+  }
+  const duplicates = picked ? binding.snapshot.items.filter(i => i.identity.kind === "card" && matchesCatalogCardId(picked.card, i.identity.cardId)) : []
+  return <>
+    <CardSelector pokemonId={0} pokemonName="" onSelect={unusedLegacySelect} onClose={onClose} anyCard={{ title: "Add a card you own" }}
+      native={{ onPick: (card, finish) => {
+        const next = { card: { ...card, dexIds: card.dexIds ?? [] } as SearchCardResult, finish }
+        setPicked(next)
+        // A card you already have is a deliberate second copy, so that one is asked first.
+        if (!binding.snapshot.items.some(i => i.identity.kind === "card" && matchesCatalogCardId(next.card, i.identity.cardId))) add(next)
+      } }} />
+    {picked && (duplicates.length > 0 || save.error) && <CardPickerSheet title={save.error ? "Couldn't add this card" : "You already have this card"} subtitle={`${picked.card.name} · ${picked.card.set.name}`}
+      onClose={() => { save.discard(); setPicked(null) }}>
+      {save.error ? <SaveProblem save={save} /> : <>
+        <p className="mb-3 text-sm text-muted-foreground">You own {duplicates.length === 1 ? "one copy" : `${duplicates.length} copies`} of this card{picked.finish ? ` (adding ${formatCardFinishLabel(picked.finish)})` : ""}. Adding it again keeps each copy separate.</p>
+        <div className="grid gap-2">
+          <button type="button" className={cardPickerSheetChoice(true)} disabled={save.busy} onClick={() => add(picked)}>{save.busy ? "Adding…" : "Add another copy"}</button>
+          <button type="button" className={cardPickerSheetChoice()} disabled={save.busy} onClick={() => onInspect(duplicates[0].id)}>Show the one I have</button>
+        </div>
+      </>}
+    </CardPickerSheet>}
+  </>
+}
+
+/** Move several selected cards at once: each to a pocket you choose for it, or all out of their binders. */
+export function InventoryBulkReview({ binding, labels, itemIds, onClose, onAccepted }: { binding: InventoryOwnershipBinding; labels: InventoryLabels; itemIds: readonly string[]; onClose: () => void; onAccepted: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useOverlay(true, onClose, { containerRef: ref })
   const swipe = useSwipeToDismiss(ref, onClose)
   const [mapping, setMapping] = useState<Record<string, string>>({})
-  const review = useActionReview(binding, onAccepted)
-  const location = (snapshot: InventorySnapshot, id: string) => {
-    const p = snapshot.placements.find(p => p.inventoryItemId === id)
-    return p ? `${snapshot.collections.find(c => c.id === p.collectionId)?.name ?? "Storage"}, slot ${p.slotId}` : "Unassigned"
-  }
+  const save = useInventorySave(binding, onAccepted)
+  const placed = (id: string) => binding.snapshot.placements.find(p => p.inventoryItemId === id)
+  const allPlaced = itemIds.every(id => placed(id))
+  const allMapped = itemIds.every(id => mapping[id])
   return <div className={styles.overlay}>
     <div data-overlay-backdrop className={styles.backdrop} onClick={onClose} />
-    <div ref={ref} role="dialog" aria-modal="true" aria-label="Review selected raw copies" className={styles.sheet} tabIndex={-1}>
-      <header {...swipe} data-sheet-grabber className={styles.sheetHeader}><h2>{itemIds.length} selected raw copies</h2><button type="button" aria-label="Close bulk review" onClick={onClose}><X size={20} /></button></header>
-      <div className={styles.sheetBody}>
-        {review.error && <p role="alert">{review.error}</p>}
-        {review.draft ? <Confirmation review={review}>
-          <h3>Apply this entire ordered mapping?</h3>
-          <ol>{itemIds.map(id => {
-            const item = review.draft!.before.items.find(i => i.id === id)!
-            return <li key={id}><p>Copy {id} · {item.identity.kind === "card" ? item.identity.cardId : `Pokémon ${item.identity.pokemonId}`} · {item.identity.kind === "card" ? item.identity.language ?? "Language unknown" : "Language unknown"} · {item.identity.kind === "card" ? item.identity.finish ?? "Finish unknown" : "Finish unknown"} · Raw</p><p>From {location(review.draft!.before, id)} to {location(review.draft!.preview, id)}</p></li>
-          })}</ol>
-          <details><summary>Review retained slot targets and wants</summary>{[...new Set(review.draft.intent.request.commands.flatMap(c => ["item" in c ? c.item.placement?.slot.id : null, "destination" in c ? c.destination.slot.id : null]).filter((id): id is string => !!id))].map(id => {
-            const slot = review.draft!.before.binders.flatMap(b => b.slots).find(s => s.id === id)!
-            return <div key={id}><p>Slot {id}: {targetLabel(slot.target)}. {slot.wantedCards.length} explicit wants retained.</p>{slot.wantedCards.map((want, i) => <p key={i}>{want.card_name} · {want.card_id} · {want.card_language ?? "Language unknown"} · {want.card_finish ?? "Finish unknown"}</p>)}</div>
-          })}</details>
-          <p>One atomic request for all {itemIds.length} copies. Ownership, identity, grading, acquisition and source metadata stay unchanged. Former slots become unfilled; targets, explicit wants, provenance and order remain. No want is fulfilled.</p>
-          <p>After sync and a fresh complete read, use Find acknowledged change for this exact Activity event. Recovery needs a supported preview and current permission and version checks. There is no instant Undo.</p>
-        </Confirmation> : <fieldset disabled={!binding.available} className={styles.actions}>
-          <p>Only these explicitly selected copies are included, in selection order. Choose a different empty saved slot for every copy to move, or unassign all placed copies. Graded bulk actions are unavailable; place graded copies individually.</p>
-          {itemIds.map((id, index) => <label key={id} className={styles.field}>{index + 1}. Copy {id} · {location(binding.snapshot, id)}
-            <select aria-label={`Empty destination for ${id}`} value={mapping[id] ?? ""} onChange={e => setMapping(m => ({ ...m, [id]: e.target.value }))}>
-              <option value="">Choose an empty destination</option>
-              {inventoryActionDestinations(binding.snapshot, id, binding.catalog).filter(d => d.slot.inventoryItemId === null).map(d => {
-                const key = JSON.stringify([d.collectionId, d.slot.id])
-                return <option key={key} value={key} disabled={itemIds.some(other => other !== id && mapping[other] === key)}>{binding.snapshot.collections.find(c => c.id === d.collectionId)?.name} · Slot {d.slot.id} · Empty</option>
-              })}
-            </select>
-          </label>)}
-          <button type="button" disabled={!itemIds.every(id => mapping[id])} onClick={() => review.review({ kind: "move", mapping: itemIds.map(itemId => {
-            const [collectionId, slotId] = JSON.parse(mapping[itemId]) as [string, string]
-            return { itemId, collectionId, slotId }
-          }) })}>Review bulk Move</button>
-          <button type="button" disabled={!itemIds.every(id => binding.snapshot.placements.some(p => p.inventoryItemId === id))} onClick={() => review.review({ kind: "unassign", itemIds })}>Review bulk Unassign</button>
-          {!itemIds.every(id => binding.snapshot.placements.some(p => p.inventoryItemId === id)) && <p>Unassign requires every selected copy to be placed. Clear the selection and choose placed raw copies.</p>}
-        </fieldset>}
+    <div ref={ref} role="dialog" aria-modal="true" aria-label="Move selected cards" className={styles.sheet} tabIndex={-1}>
+      <header {...swipe} data-sheet-grabber className={styles.sheetHeader}><h2>Move {itemIds.length} {itemIds.length === 1 ? "card" : "cards"}</h2><button type="button" aria-label="Close" onClick={onClose}><X size={20} /></button></header>
+      <div className={`${styles.sheetBody} space-y-3`}>
+        <SaveProblem save={save} />
+        <fieldset disabled={!binding.available || save.busy} className="grid gap-2 border-0 p-0">
+          {itemIds.map(id => {
+            const card = itemLabel(binding.snapshot, labels, id), at = placed(id)
+            return <div key={id} className="flex items-center gap-3 rounded-2xl border border-border/60 p-2">
+              {card.image && <span className="trading-card relative w-9 shrink-0 overflow-hidden rounded bg-muted"><CardImage src={card.image} alt="" fill sizes="36px" className="object-cover" /></span>}
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="truncate text-sm font-semibold">{card.name}</p>
+                <p className="truncate text-xs text-muted-foreground">{at ? labels.place(at.collectionId, at.slotId) : "Not in a binder"}</p>
+                <select aria-label={`Pocket for ${card.name}`} className="min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-base md:text-sm" value={mapping[id] ?? ""} onChange={e => setMapping(m => ({ ...m, [id]: e.target.value }))}>
+                  <option value="">Choose an empty pocket</option>
+                  {inventoryActionDestinations(binding.snapshot, id, binding.catalog).filter(d => d.slot.inventoryItemId === null).map(d => {
+                    const key = JSON.stringify([d.collectionId, d.slot.id])
+                    return <option key={key} value={key} disabled={itemIds.some(other => other !== id && mapping[other] === key)}>{labels.place(d.collectionId, d.slot.id)}</option>
+                  })}
+                </select>
+              </div>
+            </div>
+          })}
+        </fieldset>
+        <p className="text-xs text-muted-foreground">Each card moves to the empty pocket you choose. The pockets they leave stay where they are, empty.</p>
       </div>
+      <footer className="flex shrink-0 flex-wrap gap-2 border-t border-border p-3">
+        <button type="button" className={primary} disabled={!allMapped || save.busy || !binding.available} onClick={() => save.run({ kind: "move", mapping: itemIds.map(itemId => {
+          const [collectionId, slotId] = JSON.parse(mapping[itemId]) as [string, string]
+          return { itemId, collectionId, slotId }
+        }) })}>{save.busy ? "Moving…" : `Move ${itemIds.length === 1 ? "card" : "cards"}`}</button>
+        {allPlaced && <button type="button" className={secondary} disabled={save.busy || !binding.available} onClick={() => save.run({ kind: "unassign", itemIds })}>Take out of binders</button>}
+      </footer>
     </div>
   </div>
 }

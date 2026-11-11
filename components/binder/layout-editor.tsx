@@ -1,19 +1,21 @@
 "use client"
 
-import { useRef, useState, type ButtonHTMLAttributes } from "react"
-import { PencilRuler } from "lucide-react"
+import { useLayoutEffect, useRef, useState, type ButtonHTMLAttributes } from "react"
+import dynamic from "next/dynamic"
+import { ArrowLeftRight, MoreHorizontal, PencilRuler, Plus, Sparkles, Trash2 } from "lucide-react"
 import type { InventoryCatalogResolver, InventorySnapshot } from "@/lib/domain/inventory"
-import { prepareLayoutIntent, type LayoutAction, type StagedSlotCommandIntent, type SlotCommandSink } from "@/lib/binder-slot-editing"
-
-import { captureBulkSelection, bulkSelectionState, prepareBulkLayoutIntent, savedPageSlotIds, type BulkSelection, type BulkLayoutAction } from "@/lib/binder-bulk-editing"
+import type { StagedSlotCommandIntent, SlotCommandSink } from "@/lib/binder-slot-editing"
+import { captureBulkSelection, bulkSelectionState, prepareBulkLayoutIntent, type BulkSelection, type BulkLayoutAction } from "@/lib/binder-bulk-editing"
 import { SLOT_LIMITS } from "@/lib/domain/slot-commands"
-
-import SlotRemovalReview from "@/components/binder/slot-removal-review"
-
-import BulkFillReview from "@/components/binder/bulk-fill-review"
-
 import { useSlotDraftAcceptance } from "@/hooks/use-slot-draft-acceptance"
+import { useNativeSlotAction } from "@/hooks/use-native-slot-pick"
+import { layoutFailureMessage } from "@/lib/slot-draft-failure"
+import type { CardNamer } from "@/lib/pocket-labels"
 import { cn } from "@/lib/utils"
+
+const SlotRemovalReview = dynamic(() => import("@/components/binder/slot-removal-review"), { ssr: false })
+const BulkFillReview = dynamic(() => import("@/components/binder/bulk-fill-review"), { ssr: false })
+const PocketReserve = dynamic(() => import("@/components/binder/pocket-reserve"), { ssr: false })
 
 export interface LayoutBoundary {
   snapshot: InventorySnapshot
@@ -23,10 +25,18 @@ export interface LayoutBoundary {
   localDurable?: boolean
   removal?: { available: boolean; receive: SlotCommandSink }
   bulkFill?: { available: boolean; receive: SlotCommandSink }
+  /** Names and artwork for the cards in this read, so reviews show cards instead of IDs. */
+  resolveCard?: CardNamer
 }
-const button = "min-h-10 rounded-xl border border-border px-3 py-2 text-sm disabled:opacity-50 hover:bg-muted"
 
-/** A pointer must begin on this mounted edit-session control, and must not become a scroll/drag. */
+/** How the binder grid talks to the bar while editing: a tapped pocket is a selection toggle or a move destination. */
+export type LayoutTap = (slotId: string) => void
+export interface LayoutEditHost { rows: number; cols: number }
+export interface LayoutSessionStart { ids: readonly string[]; moving: boolean }
+
+const button = "inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-border/70 px-2.5 text-xs font-semibold hover:bg-muted disabled:opacity-45"
+
+/** A pointer must begin on this mounted control, and must not become a scroll or drag. */
 function LayoutButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
   const press = useRef<{ x: number; y: number } | null>(null)
   return <button {...props} type="button" className={cn(button, props.className)}
@@ -40,202 +50,135 @@ function LayoutButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
     }} />
 }
 
-/** Session-only preparation. Closing or Cancel never revokes an already handed-off draft. */
-export function LayoutActions({ boundary, onCancel, appendOnly = false }: { boundary: LayoutBoundary; onCancel?: () => void; appendOnly?: boolean }) {
-  const { snapshot, scope, catalog, onCommandIntent } = boundary
-  const binder = snapshot.binders.find(b => b.collectionId === scope.collectionId)!
-  const selected = binder.slots.find(s => s.id === scope.slotId)
-  const index = binder.slots.findIndex(s => s.id === scope.slotId)
-  const [removal, setRemoval] = useState<BulkSelection | null>(null)
-  const [position, setPosition] = useState("")
-  const [anchor, setAnchor] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const { pending, busy, message, handoff } = useSlotDraftAcceptance<StagedSlotCommandIntent>(onCommandIntent, () => {
-    setError(null); setPosition(""); setAnchor("")
-  })
-  const emit = (action: LayoutAction) => {
-    if (pending || busy) return
-    try {
-      const prepared = prepareLayoutIntent(snapshot, scope, action, { source: "app", clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString() }, catalog)
-      handoff({ scope: prepared.scope, intent: prepared.intent })
-    } catch (cause) {
-      if (cause instanceof Error && cause.message === "layout-capacity") { setError("This binder is at the 4,096-slot limit."); return }
-      setError("Layout changed or destination is invalid. Choose a current saved slot or position.")
-    }
-  }
-  const blocked = pending !== null || busy
-  return <section aria-label="Layout actions" className="space-y-3">
-    {removal ? <SlotRemovalReview boundary={boundary} selection={removal} embedded onClose={() => setRemoval(null)} /> : <>
-    {!appendOnly && <>
-      <p className="text-sm font-semibold">Editing layout · Slot {index + 1} of {binder.slots.length}</p>
-      <p className="text-xs text-muted-foreground">Moves keep the target, owned copy and wants together.</p>
-      {selected && <>
-        <div className="grid grid-cols-2 gap-2">
-          <LayoutButton disabled={blocked} onClick={() => emit({ kind: "insert", anchorId: selected.id, side: "before", newSlotId: crypto.randomUUID() })}>Insert free slot before</LayoutButton>
-          <LayoutButton disabled={blocked} onClick={() => emit({ kind: "insert", anchorId: selected.id, side: "after", newSlotId: crypto.randomUUID() })}>Insert free slot after</LayoutButton>
-          <LayoutButton disabled={blocked || index === 0} onClick={() => emit({ kind: "move", destination: { kind: "position", position: index } })}>Move earlier</LayoutButton>
-          <LayoutButton disabled={blocked || index === binder.slots.length - 1} onClick={() => emit({ kind: "move", destination: { kind: "position", position: index + 2 } })}>Move later</LayoutButton>
-        </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="min-w-0 flex-1 text-sm">Saved position
-            <input aria-label="Saved position" type="number" inputMode="numeric" min={1} max={binder.slots.length} step={1} required value={position} onChange={event => setPosition(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !blocked) { event.preventDefault(); emit({ kind: "move", destination: { kind: "position", position: Number(position) } }) } }} className="mt-1 min-h-10 w-full rounded-lg border border-border bg-background px-2 text-base" />
-          </label>
-          <LayoutButton disabled={blocked || !position} onClick={() => emit({ kind: "move", destination: { kind: "position", position: Number(position) } })}>Move to position</LayoutButton>
-        </div>
-        <label className="block text-sm">Saved anchor slot
-          <select aria-label="Saved anchor slot" value={anchor} onChange={event => setAnchor(event.target.value)} className="mt-1 min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-base">
-            <option value="">Choose a slot</option>
-            {binder.slots.map((slot, i) => slot.id !== selected.id && <option key={slot.id} value={slot.id}>Slot {i + 1}</option>)}
-          </select>
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          <LayoutButton disabled={blocked || !anchor} onClick={() => emit({ kind: "move", destination: { kind: "before", slotId: anchor } })}>Move before</LayoutButton>
-          <LayoutButton disabled={blocked || !anchor} onClick={() => emit({ kind: "move", destination: { kind: "after", slotId: anchor } })}>Move after</LayoutButton>
-        </div>
-      </>}
-    </>}
-    <LayoutButton disabled={blocked} onClick={() => emit({ kind: "append", newSlotId: crypto.randomUUID() })}>Append free slot</LayoutButton>
-    {!appendOnly && selected && boundary.removal && <LayoutButton disabled={blocked || !boundary.removal.available} onClick={() => setRemoval(captureBulkSelection(snapshot, scope, [selected.id]))}>Remove selected slot</LayoutButton>}
-    </>}
-    {error && <p role="alert" className="text-sm">{error}</p>}
-    {message && <p role={pending ? "alert" : "status"} className="break-words text-sm">{message}</p>}
-    {busy && <p role="status">Saving on device…</p>}
-    {pending && <LayoutButton disabled={busy} onClick={() => handoff(pending)}>Retry same draft</LayoutButton>}
-    {onCancel && <LayoutButton onClick={onCancel}>Cancel selection</LayoutButton>}
-    {!appendOnly && <p className="text-xs text-muted-foreground">{boundary.localDurable ? "Accepted edits stay saved on this device. Sync and Undo are separate." : "Internal draft only. Saving, offline sync and Undo are not enabled."}</p>}
-  </section>
-}
+const menuItem = "flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-medium hover:bg-muted/70 disabled:opacity-45"
 
-export interface BulkLayoutHost { pageIndex: number; rows: number; cols: number; sessionKey: string; collapsible?: boolean; onPageChange?: (pageIndex: number) => void }
-
-export function LayoutToolbar({ editing, onToggle, boundary, bulk }: { editing: boolean; onToggle: () => void; boundary: LayoutBoundary; bulk?: BulkLayoutHost }) {
-  const [bulkOpen, setBulkOpen] = useState(false)
-  const showBulk = Boolean(bulk && (!bulk.collapsible || bulkOpen))
-  // Browsing is the normal state: one small control, not a panel above the binder.
-  // Hosts with an actions row place this next to scan/storage; it matches their ghost icon buttons.
+/**
+ * Layout editing lives on the binder itself. Browsing shows one small control; editing shows one compact bar with
+ * the count, the actions that apply and Done, while the pockets on the page are the selection.
+ */
+export function LayoutToolbar({ editing, onToggle, boundary, host, start, onTap, onSelection }: {
+  editing: boolean; onToggle: () => void; boundary: LayoutBoundary; host: LayoutEditHost
+  /** The bar hands the host its pocket-tap handler while it is mounted, and null when it leaves. */
+  start?: LayoutSessionStart; onTap: (tap: LayoutTap | null) => void; onSelection: (ids: readonly string[], moving: boolean) => void
+}) {
   if (!editing) return <section aria-label="Layout editing" className="flex shrink-0 justify-end"><LayoutButton aria-label="Edit layout" title="Edit layout" aria-pressed={false} onClick={onToggle}
-    className="flex h-9 min-h-9 w-9 items-center justify-center rounded-lg border-0 p-0 text-muted-foreground hover:bg-muted/60"><PencilRuler className="h-4 w-4" aria-hidden /></LayoutButton></section>
-  return <section aria-label="Layout editing" className="shrink-0 rounded-xl border border-border bg-card px-3 py-2 text-foreground">
-    <div className="flex items-center justify-between gap-2">
-      <p role="status" className="text-sm">Editing layout</p>
-      <LayoutButton aria-pressed onClick={onToggle}>Done</LayoutButton>
-    </div>
-    {editing && bulk?.collapsible && <div className="mt-2"><LayoutButton aria-expanded={bulkOpen} onClick={() => setBulkOpen(open => !open)}>{bulkOpen ? "Back to single slot" : "Select several pockets"}</LayoutButton></div>}
-    {editing && showBulk && bulk?.onPageChange && <nav aria-label="Selection pages" className="mt-2 flex flex-wrap items-center gap-2">
-      <LayoutButton disabled={bulk.pageIndex <= 0} onClick={() => bulk.onPageChange?.(bulk.pageIndex - 1)}>Previous selection page</LayoutButton>
-      <LayoutButton disabled={(bulk.pageIndex + 1) * bulk.rows * bulk.cols >= (boundary.snapshot.binders.find(b => b.collectionId === boundary.scope.collectionId)?.slots.length ?? 0)} onClick={() => bulk.onPageChange?.(bulk.pageIndex + 1)}>Next selection page</LayoutButton>
-    </nav>}
-    {editing && showBulk && bulk ? <BulkLayoutEditor key={`${boundary.scope.ownerUserId}:${boundary.scope.collectionId}:${bulk.sessionKey}:${bulk.rows}:${bulk.cols}`} boundary={boundary} host={bulk} /> : editing && <><p className="mb-2 text-xs text-muted-foreground">Select a slot to insert or move. {boundary.localDurable ? "Save on this device." : "Internal draft only."}</p><LayoutActions boundary={boundary} appendOnly /></>}
-  </section>
+    className="h-9 w-9 rounded-lg border-0 p-0 text-muted-foreground hover:bg-muted/60"><PencilRuler className="h-4 w-4" aria-hidden /></LayoutButton></section>
+  return <LayoutBar boundary={boundary} host={host} start={start} onTap={onTap} onSelection={onSelection} onDone={onToggle} />
 }
 
-
-/** Mounted only in an explicit edit session. Host removes it on view/filter/scope changes. */
-function BulkLayoutEditor({ boundary, host }: { boundary: LayoutBoundary; host: BulkLayoutHost }) {
-  const [selection, setSelection] = useState(() => captureBulkSelection(boundary.snapshot, boundary.scope, []))
-  const [attempt, setAttempt] = useState(0)
-  return <BulkLayoutControls key={attempt} boundary={boundary} host={host} selection={selection} onSelection={setSelection} onDiscard={() => setAttempt(n => n + 1)} />
+function safeCapture(boundary: LayoutBoundary, ids: readonly string[]) {
+  const binder = boundary.snapshot.binders.find(b => b.collectionId === boundary.scope.collectionId)
+  const live = new Set(binder?.slots.map(s => s.id))
+  return captureBulkSelection(boundary.snapshot, boundary.scope, [...new Set(ids)].filter(id => live.has(id)).slice(0, SLOT_LIMITS.affected))
 }
 
-function BulkLayoutControls({ boundary, host, selection, onSelection, onDiscard }: {
-  boundary: LayoutBoundary; host: BulkLayoutHost; selection: BulkSelection; onSelection: (selection: BulkSelection) => void; onDiscard: () => void
+function LayoutBar({ boundary, host, start, onTap, onSelection, onDone }: {
+  boundary: LayoutBoundary; host: LayoutEditHost; start?: LayoutSessionStart; onTap: (tap: LayoutTap | null) => void
+  onSelection: (ids: readonly string[], moving: boolean) => void; onDone: () => void
 }) {
   const { snapshot, scope, catalog } = boundary
   const binder = snapshot.binders.find(b => b.collectionId === scope.collectionId)!
-  const ids = selection.slots.map(s => s.slot.id)
-  const state = bulkSelectionState(snapshot, scope, selection)
-  const pageIds = savedPageSlotIds(snapshot, scope, host.pageIndex, host.rows, host.cols)
-  const [removal, setRemoval] = useState<BulkSelection | null>(null)
-  const [fillOpen, setFillOpen] = useState(false)
-  const [anchor, setAnchor] = useState("")
-  const [count, setCount] = useState("1")
+  const [selection, setSelection] = useState<BulkSelection>(() => safeCapture(boundary, start?.ids ?? []))
+  const [moving, setMoving] = useState(() => Boolean(start?.moving && start.ids.length))
+  const [menu, setMenu] = useState<"add" | "more" | null>(null)
+  const [sheet, setSheet] = useState<"remove" | "fill" | "reserve" | null>(null)
   const [error, setError] = useState<string | null>(null)
   const prepared = useRef<ReturnType<typeof prepareBulkLayoutIntent> | null>(null)
-  const { pending, busy, message, handoff } = useSlotDraftAcceptance<StagedSlotCommandIntent>(boundary.onCommandIntent, () => {
+  const ids = selection.slots.map(s => s.slot.id)
+  let state: ReturnType<typeof bulkSelectionState> = "selection-changed"
+  try { state = bulkSelectionState(snapshot, scope, selection) } catch { /* A changed owner or collection ends this selection. */ }
+  const { pending, busy, message, handoff, discard } = useSlotDraftAcceptance<StagedSlotCommandIntent>(boundary.onCommandIntent, () => {
     const accepted = prepared.current
-    if (accepted) onSelection(captureBulkSelection(accepted.preview, scope, ids))
-    setError(null)
+    if (accepted) setSelection(captureBulkSelection(accepted.preview, scope, ids))
+    setMoving(false); setError(null)
   })
   const blocked = busy || pending !== null
   const unavailable = blocked || state !== "current"
-  const changeSelection = (next: string[]) => {
-    if (unavailable) return
-    try { onSelection(captureBulkSelection(snapshot, scope, next)); setError(null) }
-    catch { setError("Select at most 256 slots for one atomic action. Nothing was selected from this page.") }
+  // The pocket stays selected across its own change, on the collection as it now is.
+  const keepSelection = (preview?: InventorySnapshot) => {
+    if (preview) { try { setSelection(captureBulkSelection(preview, scope, ids)) } catch { /* The next read settles it. */ } }
+    setError(null)
+  }
+  const single = ids.length === 1 ? binder.slots.find(s => s.id === ids[0]) : undefined
+  const pocket = useNativeSlotAction(single ? { snapshot, scope: { ...scope, slotId: single.id }, catalog, onCommandIntent: boundary.onCommandIntent } : undefined, preview => keepSelection(preview))
+  const select = (next: readonly string[]) => {
+    try { setSelection(captureBulkSelection(snapshot, scope, next)); setError(null) }
+    catch { setError(`You can select up to ${SLOT_LIMITS.affected} pockets at once.`) }
   }
   const emit = (action: BulkLayoutAction) => {
     if (unavailable) return
+    setMenu(null)
     try {
       prepared.current = prepareBulkLayoutIntent(snapshot, scope, selection, action, {
         source: "app", clientId: null, operationId: crypto.randomUUID(), batchId: null, clientOccurredAt: new Date().toISOString(),
       }, catalog)
       handoff({ scope: prepared.current.scope, intent: prepared.current.intent })
-    } catch (cause) {
-      setError(cause instanceof Error && cause.message === "layout-capacity" ? "This would exceed the 4,096-slot limit. Nothing was inserted."
-        : "Layout or destination changed, or the group exceeds 256 slots. Nothing was handed off. Review the complete group.")
-    }
+    } catch (cause) { setError(layoutFailureMessage(cause)) }
   }
-  const insert = (amount: number, destination: BulkLayoutAction["destination"]) => {
-    if (!Number.isSafeInteger(amount) || amount < 1 || amount > SLOT_LIMITS.inserted) { setError("Enter a whole number from 1 to 256. Nothing was inserted."); return }
-    emit({ kind: "insert", ids: Array.from({ length: amount }, () => crypto.randomUUID()), destination })
+  const insert = (amount: number, destination: BulkLayoutAction["destination"]) => emit({ kind: "insert", ids: Array.from({ length: amount }, () => crypto.randomUUID()), destination })
+  const tap = (slotId: string) => {
+    if (blocked) return
+    if (state !== "current") { setError("These pockets changed. Update the selection to carry on."); return }
+    if (!moving) { select(ids.includes(slotId) ? ids.filter(id => id !== slotId) : [...ids, slotId]); return }
+    if (ids.includes(slotId)) { setError("Tap a pocket that isn't selected."); return }
+    emit({ kind: "move", destination: { kind: "before", slotId } })
   }
-  return <section aria-label="Bulk layout actions" className="mt-3 max-h-[40dvh] space-y-3 overflow-y-auto overscroll-contain pr-1">
-    <p role="status" className="sticky top-0 z-10 bg-card py-1 text-sm font-semibold">{ids.length} selected · Page {host.pageIndex + 1}</p>
-    <p className="text-xs text-muted-foreground">Select saved slots across pages. Moves keep targets, copies and wants together, in saved order.</p>
-    <div className="flex flex-wrap gap-2">
-      <LayoutButton key={`page-${host.pageIndex}`} disabled={unavailable || !pageIds.length} onClick={() => changeSelection([...new Set([...ids, ...pageIds])])}>Select page</LayoutButton>
-      <LayoutButton disabled={blocked || !ids.length} onClick={() => { onSelection(captureBulkSelection(snapshot, scope, [])); setError(null) }}>Clear selection</LayoutButton>
+  useLayoutEffect(() => { onTap(tap); return () => onTap(null) })
+  const selectionKey = ids.join(",")
+  // The grid draws the selection; it only needs the IDs and whether a tap now picks a destination.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => { onSelection(ids, moving) }, [selectionKey, moving])
+  const ordered = binder.slots.filter(s => ids.includes(s.id))
+  const first = ordered[0]?.id, last = ordered[ordered.length - 1]?.id
+  const page = host.rows * host.cols
+  const count = ids.length === 0 ? "Tap pockets to select" : `${ids.length} selected`
+  const failure = error ?? (pending ? message : null) ?? pocket.failed
+  return <section aria-label="Layout editing" data-layout-bar className="relative shrink-0 rounded-2xl border border-border/70 bg-card/95 px-2 py-1.5 text-foreground shadow-sm">
+    <div className="flex flex-wrap items-center gap-1.5">
+      <p role="status" className="order-1 min-w-0 flex-1 truncate px-1 text-sm font-semibold">{moving ? `Tap where ${ids.length === 1 ? "it goes" : "they go"}` : count}</p>
+      {/* Phones: the count and Done on one row, the actions on the next. Wider screens: a single row. */}
+      <div className="order-3 flex w-full flex-wrap items-center gap-1.5 sm:order-2 sm:w-auto">
+        {moving ? <>
+          <LayoutButton disabled={unavailable} onClick={() => emit({ kind: "move", destination: { kind: "beginning" } })}>To the start</LayoutButton>
+          <LayoutButton disabled={unavailable} onClick={() => emit({ kind: "move", destination: { kind: "end" } })}>To the end</LayoutButton>
+        </> : <>
+          <LayoutButton disabled={unavailable || !ids.length || ids.length === binder.slots.length} onClick={() => { setMenu(null); setMoving(true); setError(null) }}><ArrowLeftRight className="h-3.5 w-3.5" aria-hidden />Move</LayoutButton>
+          <LayoutButton aria-haspopup="menu" aria-expanded={menu === "add"} disabled={unavailable} onClick={() => setMenu(menu === "add" ? null : "add")}><Plus className="h-3.5 w-3.5" aria-hidden />Add</LayoutButton>
+          {boundary.bulkFill?.available && ids.length > 0 && <LayoutButton disabled={unavailable} onClick={() => { setMenu(null); setSheet("fill") }}><Sparkles className="h-3.5 w-3.5" aria-hidden />Fill</LayoutButton>}
+          {boundary.removal && <LayoutButton disabled={unavailable || !ids.length || !boundary.removal.available} onClick={() => { setMenu(null); setSheet("remove") }}><Trash2 className="h-3.5 w-3.5" aria-hidden />Remove</LayoutButton>}
+          {single && <LayoutButton aria-label="More pocket options" aria-haspopup="menu" aria-expanded={menu === "more"} disabled={unavailable} className="w-9 px-0" onClick={() => setMenu(menu === "more" ? null : "more")}><MoreHorizontal className="h-4 w-4" aria-hidden /></LayoutButton>}
+        </>}
+      </div>
+      {moving ? <LayoutButton className="order-2 sm:order-3" onClick={() => { setMoving(false); setError(null) }}>Cancel</LayoutButton>
+        : <LayoutButton aria-pressed onClick={onDone} className="order-2 border-primary/50 bg-primary/15 text-primary sm:order-3">Done</LayoutButton>}
     </div>
-    <div aria-label="Select saved slots" className="grid grid-cols-2 gap-2">
-      {pageIds.map(id => {
-        const slot = binder.slots.find(s => s.id === id)!
-        const position = binder.slots.indexOf(slot) + 1
-        return <LayoutButton key={id} aria-label={`Select slot ${position}`} aria-pressed={ids.includes(id)} disabled={unavailable}
-          onClick={() => changeSelection(ids.includes(id) ? ids.filter(selected => selected !== id) : [...ids, id])}>
-          Slot {position} · {slot.inventoryItemId ? "Occupied" : slot.target ? "Target" : "Free"}{ids.includes(id) ? " · Selected" : ""}
-        </LayoutButton>
-      })}
-    </div>
-    {boundary.removal && <LayoutButton disabled={unavailable || !ids.length || !boundary.removal.available} onClick={() => setRemoval(structuredClone(selection))}>Remove selected slots</LayoutButton>}
-    {removal && <SlotRemovalReview boundary={boundary} selection={removal} onClose={() => setRemoval(null)} />}
-    {boundary.bulkFill?.available && <LayoutButton disabled={unavailable || !ids.length} onClick={() => setFillOpen(true)}>Fill selected pockets</LayoutButton>}
-    {fillOpen && <BulkFillReview boundary={boundary} selection={selection} onClose={() => setFillOpen(false)} />}
-    {state === "selection-changed" && <p role="alert" className="text-sm">Selected slots or copies changed. The entire group is blocked. Clear selection and choose again after reviewing the latest contents.</p>}
-    {state === "layout-changed" && <>
-      <p role="alert" className="text-sm">Layout evidence changed. Your selected copies are unchanged. Review the current order before continuing.</p>
-      <LayoutButton disabled={blocked} onClick={() => { onSelection(captureBulkSelection(snapshot, scope, ids)); setAnchor(""); setError(null) }}>Use latest layout</LayoutButton>
-    </>}
-    <label className="block text-sm">Destination slot
-      <select aria-label="Bulk destination slot" disabled={blocked} value={anchor} onChange={event => setAnchor(event.target.value)} className="mt-1 min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-base">
-        <option value="">Choose a saved slot</option>
-        {binder.slots.map((slot, i) => <option key={slot.id} value={slot.id}>Slot {i + 1}{ids.includes(slot.id) ? " · Selected" : ""}</option>)}
-      </select>
-    </label>
-    {ids.includes(anchor) && <p className="text-xs text-muted-foreground">A selected destination cannot anchor a move. Choose another slot.</p>}
-    <div className="grid grid-cols-2 gap-2">
-      <LayoutButton disabled={unavailable || !ids.length || !anchor || ids.includes(anchor)} onClick={() => emit({ kind: "move", destination: { kind: "before", slotId: anchor } })}>Move group before</LayoutButton>
-      <LayoutButton disabled={unavailable || !ids.length || !anchor || ids.includes(anchor)} onClick={() => emit({ kind: "move", destination: { kind: "after", slotId: anchor } })}>Move group after</LayoutButton>
-      <LayoutButton disabled={unavailable || !ids.length} onClick={() => emit({ kind: "move", destination: { kind: "beginning" } })}>Move group to beginning</LayoutButton>
-      <LayoutButton disabled={unavailable || !ids.length} onClick={() => emit({ kind: "move", destination: { kind: "end" } })}>Move group to end</LayoutButton>
-    </div>
-    <label className="block text-sm">Free slots to insert
-      <input aria-label="Free slots to insert" type="number" inputMode="numeric" min={1} max={256} step={1} value={count} disabled={blocked} onChange={event => setCount(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border border-border bg-background px-2 text-base" />
-    </label>
-    <p className="text-xs text-muted-foreground">Insertion shifts every following slot. A page adds {host.rows * host.cols} free slots using this grid; later grid changes repaginate them.</p>
-    <div className="grid grid-cols-2 gap-2">
-      <LayoutButton disabled={unavailable || !anchor} onClick={() => insert(Number(count), { kind: "before", slotId: anchor })}>Insert N before</LayoutButton>
-      <LayoutButton disabled={unavailable || !anchor} onClick={() => insert(Number(count), { kind: "after", slotId: anchor })}>Insert N after</LayoutButton>
-      <LayoutButton disabled={unavailable} onClick={() => insert(Number(count), { kind: "end" })}>Append N free slots</LayoutButton>
-      <LayoutButton disabled={unavailable || !anchor} onClick={() => insert(host.rows * host.cols, { kind: "before", slotId: anchor })}>Insert page before</LayoutButton>
-      <LayoutButton disabled={unavailable || !anchor} onClick={() => insert(host.rows * host.cols, { kind: "after", slotId: anchor })}>Insert page after</LayoutButton>
-    </div>
-    {error && <p role="alert" className="text-sm">{error}</p>}
-    {message && <p role={pending ? "alert" : "status"} className="break-words text-sm">{message}</p>}
-    {busy && <p role="status">Saving group on device…</p>}
-    {pending && <div className="flex flex-wrap gap-2">
-      <LayoutButton disabled={busy} onClick={() => handoff(pending)}>Retry same group</LayoutButton>
-      <LayoutButton disabled={busy} onClick={onDiscard}>Discard unaccepted draft</LayoutButton>
+    {menu === "add" && <div role="menu" aria-label="Add an empty pocket" className="mt-1.5 grid gap-0.5 rounded-xl border border-border/60 bg-background/60 p-1 sm:grid-cols-2">
+      {first && <button type="button" role="menuitem" className={menuItem} onClick={() => insert(1, { kind: "before", slotId: first })}>Before the selection</button>}
+      {last && <button type="button" role="menuitem" className={menuItem} onClick={() => insert(1, { kind: "after", slotId: last })}>After the selection</button>}
+      <button type="button" role="menuitem" className={menuItem} onClick={() => insert(1, { kind: "end" })}>At the end of the binder</button>
+      {first && <button type="button" role="menuitem" className={menuItem} onClick={() => insert(page, { kind: "before", slotId: first })}>A new page before ({page} pockets)</button>}
+      <button type="button" role="menuitem" className={menuItem} onClick={() => insert(page, { kind: "end" })}>A new page at the end ({page} pockets)</button>
     </div>}
-    <p className="text-xs text-muted-foreground">{boundary.localDurable ? "Accepted edits stay on this device, pending sync." : "Internal draft only, no durable saving."} Slot removal requires a separate consequence review. Recovery is reviewed in Activity after sync; clear contents and cross-storage moves remain separate.</p>
+    {menu === "more" && single && <div role="menu" aria-label="Pocket options" className="mt-1.5 grid gap-0.5 rounded-xl border border-border/60 bg-background/60 p-1">
+      {!single.inventoryItemId && <button type="button" role="menuitem" className={menuItem} onClick={() => { setMenu(null); setSheet("reserve") }}>{single.target ? "Change what goes here" : "Choose what goes here"}</button>}
+      {single.target && !single.inventoryItemId && <button type="button" role="menuitem" className={menuItem} disabled={pocket.busy} onClick={() => { setMenu(null); pocket.run({ kind: "target", target: null }) }}>Let any card go here</button>}
+      {single.inventoryItemId && <button type="button" role="menuitem" className={cn(menuItem, "flex-col items-start justify-center")} disabled={pocket.busy} onClick={() => { setMenu(null); pocket.run({ kind: "clear" }) }}>
+        <span>Take the card out</span><span className="text-xs font-normal text-muted-foreground">It stays in your collection.</span>
+      </button>}
+    </div>}
+    {state !== "current" && !blocked && <div role="alert" className="mt-1.5 flex flex-wrap items-center gap-2 px-1 text-xs">
+      <span className="min-w-0 flex-1">These pockets changed since you selected them.</span>
+      <LayoutButton onClick={() => { setSelection(safeCapture(boundary, ids)); setMoving(false); setError(null) }}>Update selection</LayoutButton>
+    </div>}
+    {failure && <div role="alert" className="mt-1.5 flex flex-wrap items-center gap-2 px-1 text-xs">
+      <span className="min-w-0 flex-1 break-words">{failure}</span>
+      {pending && <LayoutButton disabled={busy} onClick={() => handoff(pending)}>Try again</LayoutButton>}
+      {pending && <LayoutButton disabled={busy} onClick={() => { discard(); setError(null) }}>Discard</LayoutButton>}
+      {!pending && pocket.retry && <LayoutButton disabled={pocket.busy} onClick={pocket.retry}>Try again</LayoutButton>}
+      {!pending && pocket.failed && <LayoutButton disabled={pocket.busy} onClick={pocket.dismiss}>Dismiss</LayoutButton>}
+    </div>}
+    {sheet === "remove" && <SlotRemovalReview boundary={boundary} selection={selection} onClose={() => setSheet(null)} onRemoved={() => { setSheet(null); setSelection(captureBulkSelection(snapshot, scope, [])) }} />}
+    {sheet === "fill" && <BulkFillReview boundary={boundary} selection={selection} grid={host} onClose={() => setSheet(null)} />}
+    {sheet === "reserve" && single && <PocketReserve boundary={{ snapshot, scope: { ...scope, slotId: single.id }, catalog, onCommandIntent: boundary.onCommandIntent }} onClose={() => setSheet(null)} onSaved={keepSelection} />}
   </section>
 }

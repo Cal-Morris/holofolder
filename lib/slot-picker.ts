@@ -1,4 +1,4 @@
-import type { StagedSlotCommandIntent } from "@/lib/binder-slot-editing"
+import type { SlotCommandSink, StagedSlotCommandIntent } from "@/lib/binder-slot-editing"
 import type { OperationIntentContext } from "@/lib/domain/audit-context"
 import { isCardLanguage, type CardFinish, type TCGCard, type WantedCard } from "@/lib/domain/cards"
 import type { SlotTarget } from "@/lib/domain/binder-slots"
@@ -11,8 +11,18 @@ import { getCardPickerFinishChoices } from "@/lib/card-picker-filters"
 import { inferCardFinish } from "@/lib/pokemon-card-browse"
 import { isStandardFinishVariantKey, type CardFinishPrice } from "@/lib/card-pricing"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
+import type { InventoryCatalogEvidence } from "@/lib/domain/inventory-browse"
+import { matchesCatalogCardId } from "@/lib/card-catalog"
 
 export interface SlotPickerScope { ownerUserId: string; collectionId: string; slotId: string }
+/** What a pocket needs to save a card: the current read, its exact scope and the native durable sink. */
+export interface SlotPickerBoundary {
+  snapshot: InventorySnapshot
+  scope: SlotPickerScope
+  catalog: InventoryCatalogResolver
+  onCommandIntent: SlotCommandSink
+  localDurable?: boolean
+}
 export interface SlotPickerIntent extends StagedSlotCommandIntent { scope: SlotPickerScope }
 export type SlotPickerAction = { kind: "assign"; selection: InventorySelection; fulfillWant: SelectedWant }
   | { kind: "target"; target: SlotTarget | null } | { kind: "clear" }
@@ -90,3 +100,32 @@ export function matchingWantIndexes(wants: readonly WantedCard[], card: SearchCa
   return wants.flatMap((want, index) => matchesSlotTarget(candidate, { kind: "card", cardId: want.card_id,
     ...(want.card_language ? { language: want.card_language } : {}), ...(want.card_finish ? { finish: want.card_finish } : {}) }) ? [index] : [])
 }
+
+/**
+ * What one card pick (from the card selector or catalog search) needs before it can be saved. `immediate` is the
+ * selection to save at once; it is null only when an owned graded copy or one of the slot's own wants makes the
+ * copy or want an explicit choice. A pick never fulfils a want or picks a graded copy by itself.
+ */
+export function planNativePick(snapshot: InventorySnapshot, scope: SlotPickerScope, card: SearchCardResult, finish: CardFinish | undefined, catalog: InventoryCatalogResolver, newItemId: string) {
+  const slot = snapshot.binders.find(b => b.collectionId === scope.collectionId)?.slots.find(s => s.id === scope.slotId)
+  if (!slot || snapshot.ownerUserId !== scope.ownerUserId) throw new Error("picker-scope-changed")
+  const candidate = pickerCandidate(card)
+  const resolver: InventoryCatalogResolver = id => matchesCatalogCardId(card, id) ? candidate : catalog(id)
+  const options = pickerFinishes(card)
+  const settled = finish ?? (options.length === 1 ? options[0].finish : undefined)
+  const identity = { kind: "card" as const, cardId: card.canonicalId ?? card.id, ...(isCardLanguage(card.language) ? { language: card.language } : {}), ...(settled ? { finish: settled } : {}) }
+  const copies = pickerChoices(snapshot, identity, resolver)
+  const wants = slot.inventoryItemId ? [] : matchingWantIndexes(slot.wantedCards, card, settled)
+  const fresh: InventorySelection = { kind: "catalog", identity, newItemId }
+  const raw = copies.find(c => c.label === "Raw")?.selection
+  const base = raw ?? fresh
+  const graded = copies.some(c => c.label !== "Raw")
+  // A graded choice always offers a new copy when no unplaced raw copy exists, so a graded copy is never forced.
+  const choices = graded ? raw ? copies : [{ label: "New copy", selection: fresh }, ...copies] : []
+  // The card exactly as the picker showed it, so the pocket keeps its name and artwork until a read includes it.
+  const picked: InventoryCatalogEvidence = { card: { ...card, language: isCardLanguage(card.language) ? card.language : undefined }, speciesNames: [], pokemonIds: candidate.pokemonIds }
+  return { resolver, identity, base, choices, picked, immediate: wants.length || graded ? null : base,
+    wants: wants.map(index => ({ index, name: slot.wantedCards[index].card_name })),
+    wanted: (index: number): SelectedWant => ({ index, expected: slot.wantedCards[index] }) }
+}
+export type NativePickPlan = ReturnType<typeof planNativePick>

@@ -1,6 +1,6 @@
 import type { CardPriceSnapshot } from "@/hooks/use-card-prices"
 import type { WantedCard } from "@/lib/domain/cards"
-import { getFallingMomentum, getRisingMomentum } from "@/lib/price-momentum"
+import { getFallingMomentum, getRisingMomentum, isMomentumEligibleConfidence } from "@/lib/price-momentum"
 import { buildHuntGroups, getSetEra, getSetIdFromCardId, type HuntCard, type HuntSourceItem } from "@/lib/show-hunt"
 
 export type WantedDashboardSort = "highest" | "lowest" | "cheapest-set" | "name" | "set" | "newest" | "rising" | "dex" | "unpriced" | "pokemon"
@@ -154,6 +154,36 @@ export function buildWantedDashboardSummary(
     languageBreakdown: sortBreakdown(languageGroups),
     finishBreakdown: sortBreakdown(finishGroups),
   }
+}
+
+/** Sort and filters are remembered on this device between visits (same key for every want list). */
+export const WANTED_VIEW_STORAGE_KEY = "binderdex:wanted-view:v1"
+
+/** The remembered want-list sort and filters, or the defaults when storage is empty, unreadable or blocked. */
+export function readRememberedWantedView(): { sort: WantedDashboardSort; filters: WantedFilters } {
+  try {
+    const raw = typeof window === "undefined" ? null : window.localStorage.getItem(WANTED_VIEW_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as { sort?: unknown; filters?: unknown }
+      return { sort: normalizeWantedSort(parsed.sort), filters: normalizeWantedFilters(parsed.filters) }
+    }
+  } catch {
+    // Unreadable or blocked storage: start from the defaults.
+  }
+  return { sort: "highest", filters: EMPTY_WANTED_FILTERS }
+}
+
+/**
+ * What it would cost to finish a want list, from prices reliable enough to add up (high or medium confidence).
+ * Cards without such a price are counted, never guessed.
+ */
+export function wantedCompletionTotal(cards: readonly Pick<WantedDashboardCard, "effectiveGbpAmount" | "price">[]) {
+  let totalGbp = 0, priced = 0
+  for (const card of cards) {
+    if (card.effectiveGbpAmount == null || !isMomentumEligibleConfidence(card.price?.confidence)) continue
+    totalGbp += card.effectiveGbpAmount; priced++
+  }
+  return { totalGbp: roundMoney(totalGbp), priced, unknown: cards.length - priced }
 }
 
 export const WANTED_SORTS: Array<{ id: WantedDashboardSort; label: string; short: string }> = [

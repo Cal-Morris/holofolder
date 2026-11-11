@@ -33,12 +33,16 @@ import type { NativePageScanAdmission } from "@/components/native-page-scanner"
 import type { ScanDestinationAdmission } from "@/lib/scan-destinations"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
+import type { InventoryCatalogEvidence } from "@/lib/domain/inventory-browse"
 
 const NativeCollectionDeletion = dynamic(() => import("@/components/native-collection-deletion"), { ssr: false })
 const NativeBackup = dynamic(() => import("@/components/native-backup"), { ssr: false })
 const NativeBinderCreation = dynamic(() => import("@/components/native-binder-creation"), { ssr: false })
 
 const GradingEditor = dynamic(() => import("@/components/grading/grading-editor"), { ssr: false })
+
+/** How long a parked edit waits before another round of tries when nothing else prompts one. */
+const RETRY_ROUND_PAUSE_MS = 60_000
 
 export interface BrowserSurfaceBinding {
   nativeConsumer?: Omit<import("@/lib/collection/native-card-consumers").NativeConsumerBinding, "openCard">
@@ -116,6 +120,13 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const creation = useRef<{ intent: Extract<SlotOfflineIntent, { kind: "creation" }>; opened: boolean; open: NavigationSurface["openCreated"] } | null>(null)
 
   const [notice, setNotice] = useState("")
+  // The last update did not go through, so what is shown is what this device last saved.
+  const [updateFailed, setUpdateFailed] = useState(false)
+  // Cards picked in this session that the last read does not know yet: display only, until a read includes them.
+  const [picked, setPicked] = useState<readonly InventoryCatalogEvidence[]>([])
+  const kickSender = useRef<() => void>(() => {})
+  /** Set when the connection or the app returns, so a parked edit is retried at once instead of after its pause. */
+  const resumeNow = useRef(false)
   const completeReadAvailable = useRef(false)
   const [ready, setReady] = useState(false)
   const [online, setOnline] = useState(true)
@@ -127,9 +138,20 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const valid = () => alive.current && sameInventoryReadScope(latest.current.currentScope(), scope)
   const catalog = useMemo(() => browserHostCatalog(read.catalog), [read.catalog])
   // visibleRead always shares read.catalog, so the binder surface keeps its slot display until the catalog or snapshot changes.
-  const slotDisplay = useMemo(() => browserHostSlotDisplay(read.catalog), [read.catalog])
+  const displayCatalog = useMemo(() => {
+    const fresh = picked.filter(p => !read.catalog.some(known => known.card.id === p.card.id && known.card.language === p.card.language))
+    return fresh.length ? [...read.catalog, ...fresh] : read.catalog
+  }, [read.catalog, picked])
+  const slotDisplay = useMemo(() => browserHostSlotDisplay(displayCatalog), [displayCatalog])
   useLayoutEffect(() => { latest.current = { currentScope, queue, catalog, read } })
-  const refresh = async () => {
+  // The latest routine read, so an edit made while it is in flight waits for it instead of failing.
+  const inFlightRead = useRef<Promise<CollectionNavigationRead> | null>(null)
+  const refresh = () => {
+    const read = readFresh()
+    inFlightRead.current = read
+    return read
+  }
+  const readFresh = async () => {
     if (sending.current) throw new Error("pending-command-read")
     const request = ++sequence.current
     readTransport.current?.abort()
@@ -152,16 +174,18 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       setRead(fresh); setNotice("")
       if (!pending) await latest.current.queue.saveSnapshot(fresh.evidence.snapshot, resolver)
       if (!valid() || request !== sequence.current) throw new Error("inventory_read_scope_changed")
+      setUpdateFailed(false)
       await getOfflineStore()?.set(metadataKey, { catalog: fresh.catalog, layouts: fresh.layouts })
       if (valid() && request === sequence.current) onReady()
       return fresh
     } catch (error) {
       if (valid() && request === sequence.current) {
         completeReadAvailable.current = false
+        setUpdateFailed(true)
         setRead(previous => previous.evidence.kind === "complete" ? { ...previous, evidence: { kind: "cached", snapshot: previous.evidence.snapshot } } : previous)
         setNotice(error instanceof CollectionNavigationReadError && ["inventory_not_initialized", "legacy_inventory_incomplete"].includes(error.code)
-          ? "Your native collection is not ready. An administrator must finish converting existing collection data. Saved copies and pending edits are retained."
-          : "Could not refresh storage. Showing only saved copies; pending edits are retained. Connect and retry before editing.")
+          ? "Your collection is still being set up on our side. Nothing is lost. Please check back shortly."
+          : navigator.onLine ? "Couldn't update just now. Showing what was last saved on this device." : "")
       }
       throw error
     } finally { refreshing.current--; if (valid() && request === sequence.current) setReady(true) }
@@ -188,7 +212,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     void initial().catch(error => { if (active && valid()) { onStartupFailure(error instanceof Error ? error.message : "Saved storage could not be opened"); setReady(true) } })
     const disconnected = () => setOnline(false)
     // A read already in flight is current enough; restarting it on every focus meant a slow read never finished.
-    const reconnect = () => { setOnline(navigator.onLine); if (cachedFinished && !refreshing.current && document.visibilityState !== "hidden") void refresh().catch(() => {}) }
+    const reconnect = () => { setOnline(navigator.onLine); resumeNow.current = true; kickSender.current(); if (cachedFinished && !refreshing.current && document.visibilityState !== "hidden") void refresh().catch(() => {}) }
     queueMicrotask(() => setOnline(navigator.onLine))
     window.addEventListener("offline", disconnected); window.addEventListener("online", reconnect); window.addEventListener("focus", reconnect); document.addEventListener("visibilitychange", reconnect)
     const invalidate = () => { alive.current = false; sequence.current++; readTransport.current?.abort() }
@@ -200,12 +224,25 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     if (!ready) return
     const controller = new AbortController()
     transport.current = controller
-    let timer: ReturnType<typeof setTimeout> | undefined
+    let timer: ReturnType<typeof setTimeout> | undefined, running = false
     const active = () => !controller.signal.aborted && valid()
     const tick = async () => {
+      if (running) return
+      running = true
+      clearTimeout(timer)
       try {
         if (!active() || !completeReadAvailable.current || sending.current || refreshing.current || (await latest.current.queue.queue?.read())?.recovery?.some(recoveryUnresolved) || !navigator.onLine || document.visibilityState === "hidden") return
-        const head = (await latest.current.queue.queue?.read())?.pending[0]
+        let head = (await latest.current.queue.queue?.read())?.pending[0]
+        // After five failed tries the queue parks an edit. An edit whose outcome is simply unknown (the server could
+        // not be reached or answered with an error) is picked up again by itself: the same request and operation ID,
+        // after a pause, or straight away when the connection or the app comes back. Rejections still wait for a decision.
+        if (active() && head && head.status === "unavailable" && head.attempts >= 5 && !head.conflict?.rejected && !(head.lease && head.lease.until > Date.now())
+          && (resumeNow.current || head.nextAttemptAt + RETRY_ROUND_PAUSE_MS <= Date.now())) {
+          await latest.current.queue.queue?.resume(head.intent.request.operationId)
+          await latest.current.queue.refresh()
+          head = (await latest.current.queue.queue?.read())?.pending[0]
+        }
+        resumeNow.current = false
         if (active() && head?.status === "acknowledged") {
           // Already saved. Settle it from a read that covers its revision, refetching only when needed.
           const current = latest.current.read
@@ -225,11 +262,13 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           if (!active()) throw new Error("inventory_read_scope_changed")
           return fresh.evidence.snapshot
         }, active)
-      } catch { if (active()) setNotice("Sync unavailable. Pending edits are retained.") }
-      finally { sending.current = false; if (active()) timer = setTimeout(() => { void tick() }, 1000) }
+      } catch { if (active()) setNotice(navigator.onLine ? "Couldn't sync just now. Your changes are saved on this device and will be sent again." : "") }
+      finally { sending.current = false; running = false; if (active()) timer = setTimeout(() => { void tick() }, 1000) }
     }
+    // A new edit is sent straight away when online; the timer only retries and catches up after a wait.
+    kickSender.current = () => { void tick() }
     void tick()
-    return () => { controller.abort(); clearTimeout(timer) }
+    return () => { kickSender.current = () => {}; controller.abort(); clearTimeout(timer) }
     // One sender belongs to this session, independent of view/record refreshes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready])
@@ -245,7 +284,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           if (!valid() || fresh.evidence.kind !== 'complete') throw new Error('fresh-scoped-read-required')
           setRead(fresh); return fresh.evidence.snapshot
         }, () => valid() ? { deviceId, workspaceId: 'holofolder', accountId: scope.actorUserId, ownerUserId: scope.ownerUserId } : null, scope.authSessionId)
-        if (valid()) { await latest.current.queue.refresh(); setNotice('Rejected restore discarded. The original command and proof remain saved. Reopen Backup for an explicit new plan and new ID.') }
+        if (valid()) { await latest.current.queue.refresh(); setNotice("That restore was discarded. Open Backup to start again.") }
         return
       }
       if (head.intent.kind === "creation") {
@@ -256,7 +295,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
           setRead(fresh)
           return fresh.evidence.snapshot
         }, () => valid() ? { deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId } : null, scope.authSessionId)
-        if (valid()) { creation.current = null; setCreating(null); await latest.current.queue.refresh(); setNotice("Creation discarded. The original intent and rejection remain saved. Start New storage for a new review.") }
+        if (valid()) { creation.current = null; setCreating(null); await latest.current.queue.refresh(); setNotice("That binder wasn't created. You can start a new one any time.") }
         return
       }
       await q.refreshConflict(head.intent.request.operationId, async () => {
@@ -268,8 +307,8 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
       if (!valid()) return
       if (decision === "keep-remote") await q.reconcile(head.intent.request.operationId, { kind: "keep-remote" }, latest.current.catalog)
       if (decision === "rebase") await q.rebase(head.intent.request.operationId, crypto.randomUUID(), latest.current.catalog)
-      if (valid()) { await latest.current.queue.refresh(); setNotice(decision ? "Saved edit reviewed." : "Current storage loaded. The saved edit is still retained.") }
-    } catch { if (valid()) setNotice(head.intent.kind === "creation" ? "Could not discard this creation. A fresh read in the original session is required. The request and rejection are retained." : "Could not reconcile this edit. Structural, overlapping or dependent edits need a separately reviewed replacement. The original is retained.") }
+      if (valid()) { await latest.current.queue.refresh(); setNotice(decision ? "" : "Your collection is up to date. Your change is still waiting for you to decide.") }
+    } catch { if (valid()) setNotice(head.intent.kind === "creation" ? "Couldn't discard that just now. Check your connection and try again." : "That change can't be applied on top of the newer changes. You can keep your collection as it is, then make the change again.") }
     finally { refreshing.current-- }
   }
   const scanAllowed = useRef(false)
@@ -290,11 +329,17 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     const cards = read.catalog.map(c => ({ ...c.card, dexIds: [...(c.pokemonIds ?? [])] }))
     return [...cards, ...cached.filter(c => !cards.some(known => known.id === c.id && known.language === c.language))]
   }
-  const receive: SlotCommandSink = async (draft, selected) => {
-    if (refreshing.current || !completeReadAvailable.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
+  const pendingCount = queue.record?.pending.length ?? 0
+  useEffect(() => { if (pendingCount) kickSender.current() }, [pendingCount])
+  const receive: SlotCommandSink = async (draft, selected, pickedCard) => {
+    // A focus or visibility refresh is routine; every fence below still applies to the read it settles on.
+    const current = refreshing.current && inFlightRead.current ? await inFlightRead.current.catch(() => null) : read
+    if (!current || refreshing.current || !completeReadAvailable.current || !valid() || draft.scope.ownerUserId !== scope.ownerUserId) throw new Error("inactive-or-unavailable-session")
     const record = await latest.current.queue.queue?.read()
-    if (!valid() || read.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
-    return latest.current.queue.enqueue(draft.intent, withSelectedPrintings(catalog, read.catalog, selected), undefined, valid)
+    if (!valid() || current.evidence.kind !== "complete" || !record || record.pending.length || record.recovery?.some(recoveryUnresolved)) throw new Error("fresh-scoped-read-required")
+    const host = current === read ? catalog : browserHostCatalog(current.catalog)
+    if (pickedCard) setPicked(previous => [...previous.filter(p => p.card.id !== pickedCard.card.id || p.card.language !== pickedCard.card.language), pickedCard])
+    return latest.current.queue.enqueue(draft.intent, withSelectedPrintings(host, current.catalog, selected), undefined, valid)
   }
 
   const receiveBulkFill: SlotCommandSink = async draft => {
@@ -383,12 +428,14 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     },
   }
   // An optimistic projection is cached evidence, never a complete remote read or ACK.
+  // Display only: a just-picked card keeps its name and artwork here; identity checks still use the read's own catalog.
+  const shownRead = useMemo(() => displayCatalog === read.catalog ? read : { ...read, catalog: displayCatalog }, [read, displayCatalog])
   const visibleRead: CollectionNavigationRead = queue.record?.optimistic && queue.record.pending.length
-    ? { ...read, evidence: { kind: "cached", snapshot: queue.record.optimistic }, layouts: read.layouts.map(layout => {
+    ? { ...shownRead, evidence: { kind: "cached", snapshot: queue.record.optimistic }, layouts: read.layouts.map(layout => {
       const base = queue.record?.snapshot?.binders.find(b => b.collectionId === layout.collectionId)
       const projected = queue.record?.optimistic?.binders.find(b => b.collectionId === layout.collectionId)
       return base?.layoutRevision === layout.layoutRevision && projected ? { ...layout, layoutRevision: projected.layoutRevision } : layout
-    }) } : !online && read.evidence.kind === "complete" ? { ...read, evidence: { kind: "cached", snapshot: read.evidence.snapshot } } : read
+    }) } : !online && read.evidence.kind === "complete" ? { ...shownRead, evidence: { kind: "cached", snapshot: read.evidence.snapshot } } : shownRead
   // Acknowledged edits are saved; they stay queued only until a read covers them.
   const unsaved = queue.record?.pending.filter(p => p.status !== "acknowledged").length ?? 0
   const inventoryRecord: { pending: unknown[]; recovery?: { synchronized: boolean; resolution?: "discarded" | null }[] } | null = queue.record
@@ -430,13 +477,13 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     return latest.current.queue.enqueue(draft.intent, latest.current.catalog, fresh.evidence.snapshot, () => valid() && navigator.onLine)
   }
   const creationAvailable = bulkFillAvailable && !queue.record?.legacy.length && read.evidence.kind === "complete"
-  const create = async (draft: BinderCreationDraft, open: NavigationSurface["openCreated"]) => {
+  const create = async (draft: BinderCreationDraft, open: NavigationSurface["openCreated"], grid: { rows: number; cols: number } | null = null) => {
     if (!valid() || refreshing.current || sending.current || !navigator.onLine || read.evidence.kind !== "complete") throw new Error("fresh-scoped-read-required")
     const record = await latest.current.queue.queue?.read()
     if (!valid() || !record || record.pending.length || record.legacy.length || record.recovery?.some(recoveryUnresolved)) throw new Error("pending-reconciliation")
     if (creation.current?.intent.request.operationId !== draft.operationId) {
       creation.current = { intent: prepareBinderCreation(draft, read.evidence.snapshot, { source: "app", clientId: deviceId,
-        operationId: draft.operationId, batchId: null, clientOccurredAt: new Date().toISOString() }, crypto.randomUUID(), draft.manifest.entries.map(() => crypto.randomUUID())), open, opened: false }
+        operationId: draft.operationId, batchId: null, clientOccurredAt: new Date().toISOString() }, crypto.randomUUID(), draft.manifest.entries.map(() => crypto.randomUUID()), grid), open, opened: false }
     }
     return latest.current.queue.enqueue(creation.current.intent, latest.current.catalog, read.evidence.snapshot, valid)
   }
@@ -452,6 +499,9 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     // The exact creation is consumed at most once in this mounted session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue.record, read])
+  const startCreation = (open: NavigationSurface["openCreated"], currentGrid?: { rows: number; cols: number }) => setCreating({ binding: { actorUserId: scope.actorUserId, ownerUserId: scope.ownerUserId,
+    count: read.evidence.kind === "unavailable" ? 0 : read.evidence.snapshot.collections.length, available: creationAvailable,
+    currentGrid: currentGrid ? { rows: currentGrid.rows, cols: currentGrid.cols } : undefined, create: (draft, grid) => create(draft, open, grid) } })
   const displayable = ready || read.evidence.kind !== "unavailable"
   useLayoutEffect(() => { if (displayable) onDisplay(scope.sessionId) }, [displayable, onDisplay, scope.sessionId])
   // This device's saved copy paints at once and stays read-only (cached evidence) until the read completes.
@@ -463,8 +513,9 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     try {
       inventoryGradingReference(read.evidence.snapshot, itemId)
       setGrading({ snapshot: structuredClone(read.evidence.snapshot), itemId, intent: null })
-    } catch { setNotice("This copy needs a current complete inventory read before grading can be edited.") }
-  } : undefined} stagedSlabs scope={navigationScope} binders={binders} fallbackCollectionId={read.defaultCollectionId ?? initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length || record?.recovery?.some(recoveryUnresolved)) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
+    } catch { setNotice("Grading can't be edited until your collection has finished updating. Try again in a moment.") }
+  } : undefined} savedState={!online ? "offline" : updateFailed ? "last-saved" : "updating"} newCollection={{ disabled: !creationAvailable, hint: creationAvailable ? undefined : online ? "Available once your latest changes are saved" : "Available when you're back online",
+    onSelect: open => startCreation(open) }} stagedSlabs scope={navigationScope} binders={binders} fallbackCollectionId={read.defaultCollectionId ?? initialBinderId} read={visibleRead} readCurrent={async () => { const fresh = await refresh(); const record = await latest.current.queue.queue?.read(); if (record?.pending.length || record?.recovery?.some(recoveryUnresolved)) throw new Error("pending-layout-reconciliation"); return fresh }} scrollContainerId="collection-browser-scroll"
 
       renderNationalDex={() => null} renderCollection={() => null} renderSurface={surface => {
         const snapshot = visibleRead.evidence.kind === "unavailable" ? null : visibleRead.evidence.snapshot
@@ -472,54 +523,67 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
         // Cached slots may be displayed, but current pages require a matching saved grid.
         const layout = binder && visibleRead.layouts.find(l => l.collectionId === binder.collectionId && l.layoutRevision === binder.layoutRevision)
         const display = snapshot && binder && layout ? slotDisplay(snapshot, binder) : undefined
+        const head = queue.record?.pending[0]
+        // The first change that has not been accepted yet. Accepted ones ahead of it are already saved.
+        const waiting = queue.record?.pending.find(p => p.status !== "acknowledged")
+        // Sends that change again as the exact request it already is: same bytes, same operation ID.
+        const retryWaiting = () => {
+          const current = latest.current.queue.record?.pending.find(p => p.status !== "acknowledged")
+          if (!current || !valid()) return
+          void latest.current.queue.queue?.resume(current.intent.request.operationId).then(() => latest.current.queue.refresh()).then(() => kickSender.current()).catch(() => { if (valid()) setNotice("Still working on it. Your change is saved on this device.") })
+        }
         return <>{deleting && <NativeCollectionDeletion key={`${scope.sessionId}:${deleting}`} collectionId={deleting} binding={{ read, available: deletionAvailable, receive: receiveDeletion }} onClose={() => setDeleting(null)} />}{backupOpen && <NativeBackup key={`${scope.sessionId}:${surface.state.collectionId}:${surface.state.main}`} binding={backupBinding} restore={restoreBinding} collectionId={surface.state.collectionId} onClose={() => setBackupOpen(false)} />}{renderSurface({ nativeConsumer: { scope: navigationScope, read: visibleRead,
           collectionId: surface.state.main === "inventory" ? surface.state.inventory.query.collectionId || undefined : surface.state.collectionId ?? undefined,
           editingAvailable: bulkFillAvailable && !queue.record?.legacy.length, admit: () => consumerAdmission.current() }, analytics: { scope: navigationScope, read: visibleRead }, toolbar: surface.header,
           storageMenu: <StorageMenu attention={Boolean(queue.record?.recovery?.some(recoveryUnresolved))} actions={[
             { label: "Backup", onSelect: () => setBackupOpen(true) },
-            { label: "New storage", disabled: !creationAvailable, onSelect: () => setCreating({ binding: { actorUserId: scope.actorUserId, ownerUserId: scope.ownerUserId, count: snapshot?.collections.length ?? 0, available: creationAvailable,
-                create: draft => create(draft, surface.openCreated) } }) },
-            ...(surface.state.main === "collection" && surface.state.collectionId ? [{ label: "Delete collection", disabled: !deletionAvailable, onSelect: () => setDeleting(surface.state.collectionId) }] : []),
-            { label: "Refresh storage", disabled: !online, onSelect: () => { void refresh().catch(() => {}) } },
+            { label: "New binder", disabled: !creationAvailable, onSelect: () => startCreation(surface.openCreated, layout) },
+            ...(surface.state.main === "collection" && surface.state.collectionId ? [{ label: snapshot?.collections.find(c => c.id === surface.state.collectionId)?.kind === "binder" ? "Delete this binder" : "Delete this collection", disabled: !deletionAvailable, onSelect: () => setDeleting(surface.state.collectionId) }] : []),
+            { label: "Refresh", disabled: !online, onSelect: () => { void refresh().catch(() => {}) } },
           ]}>
             {surface.state.main === "collection" && binder?.presetManifest?.setScope && <details className="rounded-xl px-3">
-              <summary className="min-h-11 cursor-pointer py-3 font-medium">Saved checklist scope</summary>
+              <summary className="min-h-11 cursor-pointer py-3 font-medium">What this set binder covers</summary>
               <div className="max-h-48 overflow-y-auto pb-3"><SetChecklistScopePreview checklist={{ manifest: binder.presetManifest, scope: binder.presetManifest.setScope }} binder={binder} /></div>
             </details>}
             <AcknowledgedCommandActivity record={valid() ? queue.record : null} scope={{ deviceId, workspaceId: "holofolder", accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }} />
           </StorageMenu>,
           surface: { ...surface, header: <>
-          {queue.record?.recovery?.some(recoveryUnresolved) && <p role="status" className="px-4 text-sm">Recovery saved on this device. Open Activity to retry the original request or verify current storage.</p>}
-          {unsaved > 0 && <p role="status" className="px-4 text-sm">Saved on device · Pending sync.</p>}
-          {queue.record?.pending[0] && ["conflict", "blocked", "billing"].includes(queue.record.pending[0].status) && <p role="status" className="px-4 text-sm">
-            {queue.record.pending[0].status === "conflict" ? "Storage changed. The original edit is retained; confirmed rejections can be reviewed, unknown outcomes need an exact retry."
-              : queue.record.pending[0].status === "billing" ? "Sync is paused by billing. Your edit is retained; retry after restoring access."
-              : "Sync is paused. Your edit is retained; check account access before retrying."}
+          {queue.record?.recovery?.some(recoveryUnresolved) && <p role="status" className="px-4 text-sm">An undo didn&apos;t finish. Open Activity from the manage menu to check it.</p>}
+          {/* A change that is on its way needs no line. Only say something when it is waiting on something. */}
+          {/* An accepted change is saved: it stays queued only until a read covers it, and needs no line either. */}
+          {waiting && !waiting.conflict?.rejected && !["conflict", "blocked", "billing"].includes(waiting.status) && (!online
+            ? <p role="status" data-sync-state="offline" className="px-4 text-sm text-muted-foreground">Saved on this device. It&apos;ll sync when you&apos;re back online.</p>
+            : waiting.status === "unavailable" && <p role="status" data-sync-state="retrying" className="px-4 text-sm text-muted-foreground">Couldn&apos;t save your latest change yet. Trying again…
+              <button type="button" className="ml-2 min-h-9 underline" onClick={retryWaiting}>Try now</button></p>)}
+          {head && ["conflict", "blocked", "billing"].includes(head.status) && !head.conflict?.rejected && <p role="status" className="px-4 text-sm">
+            {head.status === "conflict" ? "Your collection changed somewhere else, so your latest change is on hold. Nothing is lost."
+              : head.status === "billing" ? "Syncing is paused until your plan is active again. Your change is saved on this device."
+              : "Syncing is paused. Your change is saved on this device. Check you're signed in to the right account."}
+            {/* A paused change is never sent again by itself: it waits for this, with the same request as before. */}
+            <button type="button" className="ml-2 min-h-9 underline" onClick={retryWaiting}>Try again</button>
           </p>}
-          {queue.record?.pending[0]?.intent.kind === 'raw-restore' && queue.record.pending[0].conflict?.rejected
-            && queue.record.pending[0].intent.request.planning.authSessionId === scope.authSessionId && <div className="px-4 text-sm">
-            <p>This restore did not commit. Discard requires another fresh complete read and retains its original command and authenticated proof. A replacement needs a new review, consent and operation ID.</p>
-            <button type="button" className="min-h-9 pr-4 underline" disabled={!online} onClick={() => { void reviewConflict('keep-remote') }}>Discard rejected raw restore</button>
+          {head?.intent.kind === "raw-restore" && head.conflict?.rejected
+            && head.intent.request.planning.authSessionId === scope.authSessionId && <div className="px-4 text-sm">
+            <p>That restore wasn&apos;t applied. Discard it, then open Backup to start again.</p>
+            <button type="button" className="min-h-9 pr-4 underline" disabled={!online} onClick={() => { void reviewConflict("keep-remote") }}>Discard restore</button>
           </div>}
-          {queue.record?.pending[0]?.intent.kind === "creation" && queue.record.pending[0].conflict?.rejected && queue.record.pending[0].creationAuthSessionId === scope.authSessionId && <div className="px-4 text-sm">
-            <p>This creation did not commit. Discard reads current storage and retains the original request and rejection. New storage needs a new review and confirmation.</p>
-            <button type="button" className="min-h-9 pr-4 underline" disabled={!online} onClick={() => { void reviewConflict("keep-remote") }}>Discard rejected creation</button>
+          {head?.intent.kind === "creation" && head.conflict?.rejected && head.creationAuthSessionId === scope.authSessionId && <div className="px-4 text-sm">
+            <p>That binder wasn&apos;t created. Discard it, then make a new one.</p>
+            <button type="button" className="min-h-9 pr-4 underline" disabled={!online} onClick={() => { void reviewConflict("keep-remote") }}>Discard</button>
           </div>}
-          {queue.record?.pending[0]?.intent.kind !== "creation" && queue.record?.pending[0]?.intent.kind !== "raw-restore" && queue.record?.pending[0]?.conflict?.rejected && <div className="px-4 text-sm">
-            <p>This command was not applied. Load current storage to review it. Use current storage cancels this saved edit.</p>
-            <button type="button" className="min-h-9 pr-4 underline" onClick={() => { void reviewConflict() }}>Refresh current storage</button>
-            {queue.record.pending[0].conflict.current && queue.record.pending.length === 1 && <>
-              <button type="button" className="min-h-9 pr-4 underline" onClick={() => { void reviewConflict("keep-remote") }}>Use current storage</button>
-              <button type="button" className="min-h-9 pr-4 underline" onClick={() => { void reviewConflict("rebase") }}>Rebase saved edit</button>
-            </>}
+          {head && head.intent.kind !== "creation" && head.intent.kind !== "raw-restore" && head.conflict?.rejected && <div className="px-4 text-sm">
+            <p>Your last change wasn&apos;t applied because your collection had changed. What would you like to do?</p>
+            {head.conflict.current && queue.record?.pending.length === 1 ? <>
+              <button type="button" className="min-h-9 pr-4 underline" onClick={() => { void reviewConflict("keep-remote") }}>Keep my collection as it is</button>
+              <button type="button" className="min-h-9 pr-4 underline" onClick={() => { void reviewConflict("rebase") }}>Apply my change again</button>
+            </> : <button type="button" className="min-h-9 pr-4 underline" onClick={() => { void reviewConflict() }}>Check my collection</button>}
           </div>}
-          {queue.record?.pending[0] && queue.record.pending[0].status !== "acknowledged" && !queue.record.pending[0].conflict?.rejected && <button type="button" className="min-h-9 px-4 text-sm underline" onClick={() => {
-            const head = latest.current.queue.record?.pending[0]
-            if (!head || !valid()) return
-            void latest.current.queue.queue?.resume(head.intent.request.operationId).then(() => latest.current.queue.refresh()).catch(() => { if (valid()) setNotice("This edit needs reconciliation, or a send is still in progress. The original command is retained.") })
-          }}>Retry pending sync</button>}
-          {read.evidence.kind === "complete" && !read.evidence.snapshot.collections.length && <p role="status" className="px-4 text-sm">Create your first storage from Storage, then New storage. It becomes your default collection once current storage confirms it.</p>}
-          {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || queue.error}</p>}
+          {read.evidence.kind === "complete" && !read.evidence.snapshot.collections.length && <div className="mx-4 my-2 rounded-2xl border border-border/60 bg-card/70 p-4 text-center">
+            <p className="text-sm font-semibold">Start your first binder</p>
+            <p className="mt-1 text-sm text-muted-foreground">Pick what it&apos;s for, give it a name and you&apos;re ready to add cards.</p>
+            <button type="button" disabled={!creationAvailable} onClick={() => startCreation(surface.openCreated)} className="mt-3 min-h-11 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-45">New binder</button>
+          </div>}
+          {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || (queue.error?.startsWith("Saved on device") ? "Saved. The view will catch up in a moment." : "This device can't save changes right now. Check its storage, then reload.")}</p>}
 
           {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}</> }, display, catalog, receive, recovery, editingAvailable: read.evidence.kind === "complete" && !queue.record?.recovery?.some(recoveryUnresolved) && !queue.record?.pending.some(p => p.intent.kind === "creation" || p.intent.kind === "raw-restore"), bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: unsaved,
 

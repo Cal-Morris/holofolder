@@ -28,7 +28,8 @@ export interface NativeConsumerBinding {
   /** Undefined means All storage, including Unassigned. */
   collectionId?: string
   /** Open this exact printing for lookup, never derive a species destination. */
-  openCard: (card: SearchCardResult) => void
+  /** `finish` is the exact finish to show (a want's own finish); without it the card's usual finish is shown. */
+  openCard: (card: SearchCardResult, finish?: CardFinish) => void
   editingAvailable: boolean
   /** Host rechecks live lifecycle, online state, pending intents and recovery. Null denies editing. */
   admit: () => { scope: CollectionNavigationScope; read: CollectionNavigationRead; context: OperationIntentContext; receive: SlotCommandSink } | null
@@ -58,7 +59,7 @@ export function nativeCardConsumers(binding: Pick<NativeConsumerBinding, "scope"
       wantedIndex: want.index, inventoryRevision: snapshot.inventoryRevision, collectionVersion: collection.version,
       layoutRevision: binder.layoutRevision, slotVersion: slot.version, expectedPublic: publicWant(want.card) }
     return { key: JSON.stringify([want.collectionId, want.slotId, want.index]), destination,
-      collectionName: collection.name, card: card ? { ...card, dexIds: species ? [...species] : [] } : null,
+      collectionName: collection.name, want: want.card, card: card ? { ...card, dexIds: species ? [...species] : [] } : null,
       finish: want.card.card_finish ?? null, occupied: slot.inventoryItemId !== null }
   })
   const allCopies = index.projection.owned.map(copy => {

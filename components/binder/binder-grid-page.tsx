@@ -23,6 +23,10 @@ export interface BinderGridPageContext {
   slotInteractionKey?: string
   selectedSlotId?: string | null
   onSelectSlot?: (id: string) => void
+  /** Layout editing: which pockets are selected, and whether a tap now picks a move destination. */
+  layoutMarks?: { ids: ReadonlySet<string>; moving: boolean }
+  /** Right-click, menu key or long press on a pocket. Absent where the pocket has no actions (shares, cached). */
+  onSlotMenu?: (id: string, point: { x: number; y: number }) => void
   binderSlotImageSizes: string
   binderCardDisplay: BinderCardDisplay
   cardFinishEffectStyle: CSSProperties
@@ -205,7 +209,8 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
             const rowLetter = String.fromCharCode(65 + row)
             const slotLabel = `${rowLetter}${col + 1}`
             const displayPrice = isPriceMode && displaySlot ? displaySlotPriceLookup(displaySlot) : null
-            if (displaySlot && !displaySlot.legacyPokemonId) return <OrderedSlot key={displaySlot.id} slot={displaySlot} priceLabel={displayPrice ? priceFormat.label(pricesByCardId[getCardPriceKey(displayPrice.cardId, displayPrice.language)]) : null} slotLabel={slotLabel} cardDisplay={binderCardDisplay} interactionKey={ctx.slotInteractionKey} selected={ctx.selectedSlotId === displaySlot.id} onSelect={ctx.onSelectSlot!} imageSizes={binderSlotImageSizes} glareStyle={slotGlareOverlayStyle} glare={settings.binderSlotGlareEnabled} />
+            if (displaySlot && !displaySlot.legacyPokemonId) return <OrderedSlot key={displaySlot.id} slot={displaySlot} priceLabel={displayPrice ? priceFormat.label(pricesByCardId[getCardPriceKey(displayPrice.cardId, displayPrice.language)]) : null} slotLabel={slotLabel} cardDisplay={binderCardDisplay} interactionKey={ctx.slotInteractionKey} selected={ctx.selectedSlotId === displaySlot.id} onSelect={ctx.onSelectSlot!} onMenu={ctx.onSlotMenu}
+              marked={ctx.layoutMarks ? ctx.layoutMarks.ids.has(displaySlot.id) : undefined} dimmed={Boolean(ctx.layoutMarks?.moving && ctx.layoutMarks.ids.has(displaySlot.id))} imageSizes={binderSlotImageSizes} glareStyle={slotGlareOverlayStyle} glare={settings.binderSlotGlareEnabled} />
 
             if (!pokemon) {
               return (

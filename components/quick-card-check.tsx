@@ -300,6 +300,8 @@ export default function QuickCardCheck({
         </div>
 
         <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
+        {/* In the scrolling body, so the pinned panel below keeps the scale and verdict in view while typing. */}
+        {nativeConsumer && <NativeWantedEntries binding={readOnly ? { ...nativeConsumer, editingAvailable: false } : nativeConsumer} card={card} finish={finish} />}
         {(!nativeConsumer || nativeSoldAllowed) && <CardPriceComparison readOnly={Boolean(nativeConsumer)} key={`${card.id}:${language}:${finish}`} cardId={card.id} searchCard={{ name: card.name, localId: card.localId, setName: card.set.name }} language={language} finish={finish} catalogMarketGbp={price?.gbpAmount} thresholds={thresholds} showBuyingScale={false} offerGbp={askingPrice && getGbpPerUnit(moneyCurrency, fxRates, snapshot) ? askingPrice * getGbpPerUnit(moneyCurrency, fxRates, snapshot)! : null} onSoldCheck={check => { if (!nativeConsumer || nativeSoldAllowed) setSoldEvidence({ key: comparisonKey, check }) }} />}
 
         <details className="group min-w-0 rounded-2xl border border-border/60 bg-card px-3">
@@ -333,8 +335,8 @@ export default function QuickCardCheck({
             {onRemoveOwned && <button type="button" onClick={onRemoveOwned} className="min-h-11 rounded-xl border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive">Remove owned card</button>}
           </>}
         </div>}
-        {nativeConsumer && <NativeWantedEntries binding={readOnly ? { ...nativeConsumer, editingAvailable: false } : nativeConsumer} card={card} finish={finish} />}
-        <DealPriceInput value={input} onChange={setInput} autoFocus={showTools && !nativeConsumer} />
+        {/* Show is about the asking price: the field is ready to type in as soon as the card opens. */}
+        <DealPriceInput value={input} onChange={setInput} autoFocus={showTools && !(nativeConsumer && readOnly)} />
         {(showTools || !readOnly) && (
         <div className={`grid ${readOnly || nativeConsumer ? "grid-cols-1" : "grid-cols-2"} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}>
           {showTools && !readOnly && !nativeConsumer && (

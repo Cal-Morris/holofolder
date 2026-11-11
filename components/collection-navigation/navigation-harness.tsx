@@ -32,8 +32,8 @@ function CollectionPresentation({ read, collectionId, state, highlight, onChange
   const shown = state.view === "list" ? slots : pages[page - 1] ?? []
   return <section aria-label="Collection presentation" className="mx-auto max-w-3xl space-y-3 p-4">
     <h1 className="text-xl font-bold">{snapshot.collections.find(c => c.id === collectionId)?.name}</h1>
-    <LayoutToolbar editing={editing} onToggle={() => { setEditing(v => !v); setSelected(null) }} boundary={{ snapshot,
-      scope: { ownerUserId: read.scope.ownerUserId, collectionId, slotId: selected }, catalog: catalogResolver, onCommandIntent: noop }} />
+    <LayoutToolbar editing={editing} onToggle={() => { setEditing(v => !v); setSelected(null) }} host={{ rows: layout.rows, cols: layout.cols }} onTap={noop} onSelection={noop} boundary={{ snapshot,
+      scope: { ownerUserId: read.scope.ownerUserId, collectionId, slotId: null }, catalog: catalogResolver, onCommandIntent: noop }} />
     <label>Filter collection<input aria-label="Filter collection" value={state.search} onChange={e => { setSelected(null); setEditing(false); onChange({ search: e.target.value }) }} /></label>
     <p>Page {page} of {pages.length || 1}</p>
     <div aria-label="Ordered slots" className="grid gap-2" style={{ gridTemplateColumns: `repeat(${state.view === "list" ? 1 : layout.cols}, minmax(0, 1fr))` }}>

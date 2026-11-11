@@ -20,6 +20,10 @@ const open = async (page: Page) => {
   await page.getByRole("button", { name: "Wanted", exact: true }).filter({ visible: true }).click()
   return page.getByRole("region", { name: "Wanted cards", exact: true })
 }
+// The want list has its own Sort select; a row's copy chooser is the one named for its pocket.
+const copyChoice = (scope: import("@playwright/test").Locator) => scope.getByRole("combobox", { name: /^Copy for / })
+// The list opens sorted by price, so the first row is not always one with artwork.
+const firstArt = (rows: import("@playwright/test").Locator, page: Page) => rows.filter({ has: page.getByRole("img") }).first().getByRole("img")
 // What the fixture says should be on screen, so assertions are exact rather than "some".
 function expected() {
   const slots = wantedSnapshot().binders.find(b => b.collectionId === WANT_COLLECTION)!.slots
@@ -50,7 +54,7 @@ for (const width of [1280, 1920]) test(`desktop ${width}px: bounded multi-column
   expect(section.width).toBeLessThanOrEqual(1152)
   expect(first.height, "compact rows").toBeLessThanOrEqual(240)
   expect(first.height).toBeGreaterThanOrEqual(90)
-  const art = (await rows.nth(0).getByRole("img").boundingBox())!
+  const art = (await firstArt(rows, page).boundingBox())!
   expect(art.width, "readable artwork, well above the old 44px").toBeGreaterThanOrEqual(64)
   expect(art.height).toBeGreaterThanOrEqual(88)
   // Occupied destinations are a normal state: no repeated instruction, a quiet Upgrade tag, and no add controls.
@@ -60,7 +64,7 @@ for (const width of [1280, 1920]) test(`desktop ${width}px: bounded multi-column
   await expect(rows.filter({ hasText: "Upgrade" }).getByRole("button", { name: "Add to collection" })).toHaveCount(0)
   await expect(rows.filter({ hasText: "Upgrade" }).getByRole("button", { name: "Check price" })).toHaveCount(want.occupiedWithCard)
   // Add controls exist exactly for unoccupied entries with a known printing and language.
-  await expect(wants.getByRole("combobox")).toHaveCount(want.editable)
+  await expect(copyChoice(wants)).toHaveCount(want.editable)
   await expect(wants.getByRole("button", { name: "Add to collection" })).toHaveCount(want.editable)
   await expect(wants.getByText("Unknown card", { exact: true }).first()).toBeAttached()
   await expect(wants.getByText(/^Unknown finish/).first()).toBeAttached()
@@ -76,13 +80,13 @@ test("phone: one comfortable column, no overflow, 36px targets, nothing under th
   await h.expectNoHorizontalOverflow()
   const a = (await rows.nth(0).boundingBox())!, b = (await rows.nth(1).boundingBox())!
   expect(b.y, "single column").toBeGreaterThan(a.y + a.height - 1)
-  const art = (await rows.nth(0).getByRole("img").boundingBox())!
+  const art = (await firstArt(rows, page).boundingBox())!
   expect(art.width, "phone artwork is not smaller than before").toBeGreaterThanOrEqual(44)
-  const choice = wants.getByRole("combobox").first()
+  const choice = copyChoice(wants).first()
   await choice.scrollIntoViewIfNeeded()
   await h.expectMinTapTarget(choice)
   await h.expectMinTapTarget(wants.getByRole("button", { name: "Add to collection" }).first())
-  await h.expectMinTapTarget(rows.first().getByRole("button", { name: "Check price" }))
+  await h.expectMinTapTarget(wants.getByRole("button", { name: "Check price" }).first())
   await h.expectWithinSafeViewport(choice)
   await h.expectHittable(choice)
   // Long card name wraps inside its tile; it never escapes the row.
@@ -119,7 +123,7 @@ async function records(page: Page) {
 test("Add to collection for an unoccupied known entry hands off the same want, and the saved notice stays in view", async ({ page, insets }) => {
   const wants = await open(page)
   // The second explicit want in the first pocket: a Pikachu with a known finish and language, no spare copy, so a new copy.
-  const label = "Copy for Page 1 · Pocket 1 · Wanted card 2"
+  const label = "Copy for Page 1 · Pocket 1 · want 2"
   const choice = wants.getByRole("combobox", { name: label, exact: true })
   await choice.selectOption("new")
   const row = wants.getByRole("listitem").filter({ has: page.getByRole("combobox", { name: label, exact: true }) })
@@ -140,7 +144,8 @@ test("Add to collection for an unoccupied known entry hands off the same want, a
 test("an occupied destination never offers or performs Add to collection", async ({ page }) => {
   const wants = await open(page)
   // Slot 1 is occupied (every third pocket): its only entry is the Pikachu at Page 1 · Pocket 2.
-  const owned = wants.getByRole("listitem").filter({ hasText: "Page 1 · Pocket 2 · Wanted card 1" })
+  // A pocket with one want is named by its place alone.
+  const owned = wants.getByRole("listitem").filter({ has: page.getByText(/ · Page 1 · Pocket 2$/) })
   await expect(owned).toHaveCount(1)
   await expect(owned.getByText("Upgrade", { exact: true })).toBeVisible()
   await expect(owned.getByRole("combobox")).toHaveCount(0)
@@ -170,7 +175,7 @@ test.describe("cached and unavailable reads", () => {
     const wants = page.getByRole("region", { name: "Wanted cards", exact: true })
     await expect(wants).toContainText("Saved wanted cards, read-only while offline.")
     await expect(wants.getByRole("listitem")).toHaveCount(3)
-    await expect(wants.getByRole("combobox")).toHaveCount(0)
+    await expect(copyChoice(wants)).toHaveCount(0)
     await expect(wants.getByRole("button", { name: "Add to collection" })).toHaveCount(0)
     await new Harness(page, insets, false).expectNoHorizontalOverflow()
   })

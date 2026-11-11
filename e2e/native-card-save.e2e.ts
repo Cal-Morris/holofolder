@@ -27,7 +27,10 @@ test("a species pocket pick of an unowned printing saves through the durable que
   const selector = page.getByRole("dialog", { name: "Card selector" })
   await selector.getByRole("button", { name: "Add card Synthetic Pick Snorlax from Synthetic pick set" }).click()
   await page.getByRole("dialog", { name: "Which variant?" }).getByRole("button", { name: /^Add Normal/ }).click()
-  await expect(page.getByText(/Could not save/)).toHaveCount(0)
+  await expect(page.getByRole("dialog", { name: "Couldn't add this card" })).toHaveCount(0)
+  // The existing selector closes straight onto the binder; no slot/draft form in between.
+  await expect(selector).toHaveCount(0)
+  await expect(page.getByRole("dialog")).toHaveCount(0)
   await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(1)
   const saved = (await record(page))!
   expect(saved.pending).toHaveLength(0)
@@ -36,4 +39,36 @@ test("a species pocket pick of an unowned printing saves through the durable que
   await page.reload()
   await expect(page.locator('[data-slot-id="synthetic-slot-0"]')).toContainText("Synthetic Pick Snorlax")
   await new Harness(page, insets, true).expectNoHorizontalOverflow()
+})
+
+test("a free pocket pick in the visual selector saves an unowned printing through the durable queue and syncs", async ({ page }) => {
+  await page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: { cards: [{ ...card, language: "en", dexIds: [143] }] } }))
+  await page.goto(entry)
+  await page.locator('[data-slot-id="synthetic-slot-1"]').click()
+  // A free pocket uses the same visual selector, searching every card; never a slot form.
+  const selector = page.getByRole("dialog", { name: "Card selector" })
+  await expect(page.getByRole("dialog", { name: /details$/ })).toHaveCount(0)
+  await selector.getByRole("searchbox", { name: "Search cards" }).fill("Synthetic Pick")
+  await selector.getByRole("button", { name: "Add card Synthetic Pick Snorlax from Synthetic pick set" }).click()
+  await page.getByRole("dialog", { name: "Which variant?" }).getByRole("button", { name: /^Add Holo/ }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(1)
+  expect((await record(page))!.receipts[0].outcome).toBe("acknowledged")
+  await page.reload()
+  await expect(page.locator('[data-slot-id="synthetic-slot-1"]')).toContainText("Synthetic Pick Snorlax")
+})
+
+test("dismissing the selector or the variant sheet queues nothing", async ({ page, insets }) => {
+  await page.goto(entry)
+  const h = new Harness(page, insets, true)
+  await page.locator('[data-slot-id="synthetic-slot-0"]').click()
+  const selector = page.getByRole("dialog", { name: "Card selector" })
+  await selector.getByRole("button", { name: "Add card Synthetic Pick Snorlax from Synthetic pick set" }).click()
+  await h.swipeDown(page.getByRole("dialog", { name: "Which variant?" }))
+  await expect(page.getByRole("dialog", { name: "Which variant?" })).toHaveCount(0)
+  await expect(selector).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(selector).toHaveCount(0)
+  expect((await record(page))?.pending ?? []).toHaveLength(0)
+  expect((await record(page))?.receipts ?? []).toHaveLength(0)
 })

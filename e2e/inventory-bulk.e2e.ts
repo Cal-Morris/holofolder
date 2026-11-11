@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, openStorage, openInventoryFilters } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, openStorage } from "./fixtures"
 import type { Page } from "@playwright/test"
 import type { SlotOfflineRecord } from "../lib/collection/slot-offline-queue"
 
@@ -20,21 +20,36 @@ async function inventory(page: Page) {
   await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Inventory", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Inventory", exact: true })).toBeVisible()
 }
-async function open(page: Page) { await page.goto(entry); await inventory(page); await expect(page.getByRole("button", { name: "Add owned card", exact: true })).toBeVisible() }
+// Selecting is a deliberate mode: Select turns each card into a checkbox and shows the selection bar.
+const selection = (page: Page) => page.getByLabel("Inventory selection", { exact: true })
+const review = (page: Page) => page.getByRole("dialog", { name: "Move selected cards", exact: true })
+const send = (d: ReturnType<typeof review>) => d.getByRole("button", { name: "Move cards", exact: true })
+async function selectMode(page: Page) {
+  await page.getByRole("button", { name: "Select", exact: true }).click()
+  await expect(selection(page)).toContainText("Tap cards to select")
+}
+async function open(page: Page, selecting = true) {
+  await page.goto(entry); await inventory(page); await expect(page.getByRole("button", { name: "Add owned card", exact: true })).toBeVisible()
+  if (selecting) await selectMode(page)
+}
 async function select(page: Page, ids = [first, second]) {
   for (const id of ids) await pick(page, id).check()
-  await page.getByRole("button", { name: "Move / Unassign selected", exact: true }).click()
-  return page.getByRole("dialog", { name: "Review selected raw copies" })
+  await selection(page).getByRole("button", { name: "Move", exact: true }).click()
+  await expect(review(page)).toBeVisible()
+  return review(page)
+}
+// Each card gets its own empty pocket, in the order the cards were picked. Nothing is sent until Move cards.
+async function mapBoth(d: ReturnType<typeof review>) {
+  await d.getByRole("combobox").nth(0).selectOption(JSON.stringify([collection, "synthetic-slot-1"]))
+  await d.getByRole("combobox").nth(1).selectOption(JSON.stringify(["33333333-3333-4333-8333-333333333333", "synthetic-other-slot"]))
 }
 async function moveReview(page: Page) {
   const d = await select(page)
-  await d.getByRole("combobox", { name: `Empty destination for ${first}` }).selectOption(JSON.stringify([collection, "synthetic-slot-1"]))
-  await d.getByRole("combobox", { name: `Empty destination for ${second}` }).selectOption(JSON.stringify(["33333333-3333-4333-8333-333333333333", "synthetic-other-slot"]))
-  await d.getByRole("button", { name: "Review bulk Move" }).click()
+  await mapBoth(d)
   return d
 }
-async function confirm(page: Page, count: number) {
-  await page.getByRole("button", { name: "Confirm change", exact: true }).click()
+async function confirm(page: Page, button: ReturnType<typeof send>, count: number) {
+  await button.click()
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(count)
 }
 test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
@@ -51,25 +66,35 @@ test("explicit bulk mapping cancels, moves and unassigns all copies, exact Activ
   await expect(pick(page, first)).not.toHaveAccessibleName(/synthetic-raw-copy/)
   await expect(pick(page, first)).toHaveAccessibleName(/^Select .+, .+/)
   let d = await moveReview(page)
-  await expect(d).toContainText("From Synthetic storage, slot synthetic-slot-0 to Synthetic storage, slot synthetic-slot-1")
-  await expect(d).toContainText("From Unassigned to Synthetic second storage, slot synthetic-other-slot")
+  // Each card is shown with where it is now. One of these is in a pocket and one is not in a binder,
+  // so taking both out of their binders is not offered.
+  await expect(d.getByRole("heading")).toHaveText("Move 2 cards")
+  await expect(d).toContainText("Not in a binder")
+  await expect(d.getByRole("button", { name: "Take out of binders", exact: true })).toHaveCount(0)
   const h = new Harness(page, insets, true)
   await h.expectWithinSafeViewport(d)
-  await h.expectMinTapTarget(d.getByRole("button", { name: "Confirm change", exact: true }))
-  await h.expectHittable(d.getByRole("button", { name: "Confirm change", exact: true }))
+  await h.expectMinTapTarget(send(d))
+  await h.expectHittable(send(d))
   await h.expectNoHorizontalOverflow()
   const box = await d.boundingBox()
   console.log(`bulk review geometry ${test.info().project.name}`, JSON.stringify(box))
-  await d.getByRole("button", { name: "Cancel change" }).click()
+  // Closing the sheet sends nothing and keeps the selection; the pockets are chosen again on reopening.
+  await d.getByRole("button", { name: "Close", exact: true }).click()
+  await expect(d).toBeHidden()
   expect(bodies).toHaveLength(0)
-  await d.getByRole("button", { name: "Review bulk Move" }).click()
-  await confirm(page, 1)
+  await expect(selection(page)).toContainText("2 selected")
+  await selection(page).getByRole("button", { name: "Move", exact: true }).click()
+  await expect(send(d)).toBeDisabled()
+  await mapBoth(d)
+  await confirm(page, send(d), 1)
   expect(bodies).toHaveLength(1); expect(bodies[0].commands).toHaveLength(2)
   expect((await record(page)).snapshot!.items).toEqual(before.items)
-  await expect(page.getByLabel("Inventory selection", { exact: true })).toHaveCount(0)
+  // A saved move ends the selection.
+  await expect(selection(page)).toHaveCount(0)
+  await selectMode(page)
   d = await select(page)
-  await d.getByRole("button", { name: "Review bulk Unassign" }).click()
-  await confirm(page, 2)
+  // Both cards are in pockets now, so they can be taken out together.
+  await confirm(page, d.getByRole("button", { name: "Take out of binders", exact: true }), 2)
   const after = (await record(page)).snapshot!
   expect(after.items).toEqual(before.items)
   expect(after.placements).toHaveLength(0)
@@ -82,38 +107,47 @@ test("explicit bulk mapping cancels, moves and unassigns all copies, exact Activ
     else if (!query.has("scope")) expect(query.get("operationId")).toBe(operationId)
     return route.fulfill({ json: query.has("scope") ? { scope } : { scope, data: [{ id: "103", operation_id: operationId, recorded_at: "2026-11-10T12:00:00Z", format_version: 1, actor_kind: "user", actor_user_id: E2E_USER.id, source: "app", action: "inventory.bulk", affected_entities: { inventoryItemIds: [first, second], collectionIds: [collection], slotIds: ["synthetic-slot-1"] }, changes: [{ table: "inventory_placements", id: first, before: { slot_id: "synthetic-slot-1" }, after: null }] }], nextCursor: null, syncedAt: "2026-11-10T12:01:00Z" } })
   })
-  await (await openStorage(page)).getByText("Review synchronized changes", { exact: true }).click()
+  await (await openStorage(page)).getByText("Recent changes", { exact: true }).click()
   await page.getByRole("combobox", { name: "Synchronized change" }).selectOption(operationId)
-  await page.getByRole("button", { name: "Find acknowledged change" }).click()
+  await page.getByRole("button", { name: "Show in Activity" }).click()
   const activity = page.getByRole("dialog", { name: "Collection Activity", exact: true })
   await expect(activity.getByRole("button", { name: "Undo", exact: true })).toHaveCount(0)
   await activity.getByRole("button", { name: "Open exact entry 103", exact: true }).click()
-  await activity.getByRole("button", { name: "Review recovery", exact: true }).click()
-  await expect(activity.getByRole("region", { name: "Review recovery", exact: true })).toContainText("slot_version_changed")
-  await expect(activity.getByRole("button", { name: "Confirm recovery" })).toHaveCount(0)
+  await activity.getByRole("button", { name: "See what undoing does", exact: true }).click()
+  // The pocket changed after this move, so Activity says the change can no longer be undone and offers no undo.
+  await expect(activity.getByRole("region", { name: "Review recovery", exact: true })).toContainText("This change can no longer be undone")
+  await expect(activity.getByRole("button", { name: "Undo this change" })).toHaveCount(0)
 })
 test("selection crosses explicit pages and filters, clear resets all, overlay dismissal never dispatches", async ({ page, context, baseURL }) => {
   await context.addCookies([{ name: "hf-storage-fixture", value: `raw-bulk-${crypto.randomUUID()}`, url: baseURL! }])
-  await open(page)
-  await expect(page.getByLabel("Inventory selection", { exact: true })).toHaveCount(0)
-  await openInventoryFilters(page)
-  await page.getByRole("combobox", { name: "Sort", exact: true }).selectOption("id")
-  await pick(page, "synthetic-bulk-00").check()
-  await page.getByRole("button", { name: "Next copies" }).click()
-  await pick(page, first).check()
+  await open(page, false)
+  await expect(selection(page)).toHaveCount(0)
+  await selectMode(page)
+  // One card from each of the first two windows: the selection is kept while paging and searching.
+  const boxes = page.getByRole("list", { name: "Owned copies" }).getByRole("checkbox", { disabled: false })
+  const places: string[] = []
+  places.push((await boxes.first().getAttribute("aria-label"))!)
+  await boxes.first().check()
+  await page.getByRole("navigation", { name: "Inventory pages", exact: true }).getByRole("button", { name: "Next", exact: true }).click()
+  await expect(page.getByRole("navigation", { name: "Inventory pages", exact: true })).toContainText("41–")
+  places.push((await boxes.first().getAttribute("aria-label"))!)
+  await boxes.first().check()
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("no matching synthetic card")
-  await expect(page.getByLabel("Inventory selection", { exact: true })).toContainText("2 selected")
-  await page.getByRole("button", { name: "Move / Unassign selected" }).click()
-  let d = page.getByRole("dialog", { name: "Review selected raw copies" })
-  await expect(d).toContainText("2 selected raw copies")
+  await expect(selection(page)).toContainText("2 selected")
+  await selection(page).getByRole("button", { name: "Move", exact: true }).click()
+  let d = review(page)
+  await expect(d.getByRole("heading")).toHaveText("Move 2 cards")
   await expect(d.getByRole("combobox")).toHaveCount(2)
-  await expect(d.getByRole("button", { name: "Review bulk Unassign" })).toBeDisabled()
+  // Nothing can be sent until every card has a pocket, and taking out is only offered when all are in one.
+  await expect(send(d)).toBeDisabled()
+  await expect(d.getByRole("button", { name: "Take out of binders", exact: true })).toHaveCount(places.some(label => label.includes("Not in a binder")) ? 0 : 1)
   await page.keyboard.press("Escape"); await expect(d).toBeHidden()
-  await page.getByRole("button", { name: "Move / Unassign selected" }).click()
-  d = page.getByRole("dialog", { name: "Review selected raw copies" })
-  await d.getByRole("button", { name: "Close bulk review" }).click()
+  await selection(page).getByRole("button", { name: "Move", exact: true }).click()
+  d = review(page)
+  await d.getByRole("button", { name: "Close", exact: true }).click()
   await page.getByRole("button", { name: "Clear selection" }).click()
-  await expect(page.getByLabel("Inventory selection", { exact: true })).toHaveCount(0)
+  await expect(selection(page)).toContainText("Tap cards to select")
+  await expect(page.getByRole("list", { name: "Owned copies" }).getByRole("checkbox", { checked: true })).toHaveCount(0)
   expect((await record(page)).pending).toHaveLength(0)
 })
 test("lost bulk reply retains original bytes and ID through cached reload until a fresh complete ACK", async ({ page }) => {
@@ -128,15 +162,16 @@ test("lost bulk reply retains original bytes and ID through cached reload until 
   await open(page)
   const before = (await record(page)).snapshot!
   const d = await moveReview(page)
-  await d.getByRole("button", { name: "Confirm change", exact: true }).click()
+  await send(d).click()
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("unavailable")
   const original = (await record(page)).pending[0].intent
   await page.reload(); await inventory(page)
   expect((await record(page)).pending[0].intent).toEqual(original)
-  await expect(page.getByRole("button", { name: "Move / Unassign selected" })).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "Find acknowledged change" })).toHaveCount(0)
+  // While the change is still on its way, no new selection or Activity lookup is offered.
+  await expect(page.getByRole("button", { name: "Select", exact: true })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Show in Activity" })).toHaveCount(0)
   failRead = false
-  await page.getByRole("button", { name: "Retry pending sync" }).click()
+  await page.getByRole("button", { name: "Try now" }).click()
   await expect.poll(async () => (await record(page)).receipts.length).toBe(1)
   expect(new Set(bodies).size).toBe(1)
   expect((await record(page)).snapshot!.items).toEqual(before.items)
@@ -154,9 +189,11 @@ for (const changed of ["revision", "membership", "session", "incomplete"] as con
     if (changed === "incomplete") body.snapshot.items.pop()
     await route.fulfill({ response, json: body })
   })
-  await d.getByRole("button", { name: "Confirm change", exact: true }).click()
-  if (changed === "revision") await expect(d).toBeHidden()
-  else await expect(d.getByRole("alert")).toContainText("Could not confirm saving")
+  await send(d).click()
+  // The check before sending reads the collection again. Any of these makes that read unusable for a save,
+  // so the sheet closes with nothing sent; when the read itself was refused, the page says it is showing a saved copy.
+  await expect(d).toBeHidden()
+  if (changed !== "revision") await expect(page.getByRole("status").filter({ hasText: "Couldn't update just now" })).toBeVisible()
   expect(posts).toBe(0); expect((await record(page)).pending).toHaveLength(0)
 })
 
@@ -164,11 +201,11 @@ test("bulk sheet dismisses with shared back, backdrop, swipe and dock without di
   await open(page)
   const h = new Harness(page, insets, true)
   await pick(page, first).check()
-  const opener = page.getByRole("button", { name: "Move / Unassign selected" })
-  const d = page.getByRole("dialog", { name: "Review selected raw copies" })
+  const opener = selection(page).getByRole("button", { name: "Move", exact: true })
+  const d = review(page)
   for (const method of ["back", "backdrop", "swipe"] as const) {
     await opener.click(); await expect(d).toBeVisible()
-    await h.expectMinTapTarget(d.getByRole("button", { name: "Close bulk review" }))
+    await h.expectMinTapTarget(d.getByRole("button", { name: "Close", exact: true }))
     if (method === "back") await page.goBack()
     if (method === "backdrop") await h.tapBackdrop(d)
     if (method === "swipe") await h.swipeDown(d)

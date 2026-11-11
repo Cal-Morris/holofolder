@@ -10,7 +10,10 @@ base("/app/app-shell paints a binder skeleton before JavaScript", async ({ brows
   const skeleton = page.getByTestId("binder-skeleton")
   await expect(skeleton).toBeVisible()
   await expect(skeleton).toHaveAttribute("aria-busy", "true")
-  await expect(skeleton.locator(".aspect-\\[63\\/88\\]:visible")).toHaveCount(9)
+  await expect(skeleton.locator('[data-skeleton="pocket"]:visible')).toHaveCount(9)
+  // The app's own frame is already there: brand, and the dock's destinations on a phone.
+  await expect(skeleton.getByText("Holo Folder", { exact: true })).toBeVisible()
+  await expect(skeleton.getByText("Inventory", { exact: true }).last()).toBeVisible()
   await expect(page.locator(".animate-spin")).toHaveCount(0)
   await context.close()
 })

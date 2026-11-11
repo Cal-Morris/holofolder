@@ -48,17 +48,24 @@ async function readSavedPriceGroup(batch: readonly CardPriceLookup[], signal: Ab
   return prices
 }
 
+export type SavedPriceStatus = "loading" | "ready" | "unavailable"
+
 /** No private snapshot persistence. Loaded public quotes remain usable in this mounted offline view. */
-export function useInventoryPrices(requests: readonly CardPriceLookup[]) {
+export function useInventoryPriceState(requests: readonly CardPriceLookup[]): { prices: CardPriceSnapshot[]; status: SavedPriceStatus } {
   const key = JSON.stringify(requests)
-  const [saved, setSaved] = useState<{ key: string; prices: CardPriceSnapshot[] }>({ key: "", prices: [] })
+  const [saved, setSaved] = useState<{ key: string; prices: CardPriceSnapshot[]; failed: boolean }>({ key: "", prices: [], failed: false })
   useEffect(() => {
     const controller = new AbortController()
     const parsed: CardPriceLookup[] = JSON.parse(key)
     void readSavedInventoryPrices(parsed, controller.signal).then(prices => {
-      if (!controller.signal.aborted) setSaved({ key, prices })
-    }).catch(() => { /* Unavailable saved evidence stays unknown. */ })
+      if (!controller.signal.aborted) setSaved({ key, prices, failed: false })
+    }).catch(() => { if (!controller.signal.aborted) setSaved({ key, prices: [], failed: true }) /* Unavailable saved evidence stays unknown. */ })
     return () => controller.abort()
   }, [key])
-  return saved.key === key ? saved.prices : []
+  if (!requests.length) return { prices: [], status: "ready" }
+  return saved.key === key ? { prices: saved.prices, status: saved.failed ? "unavailable" : "ready" } : { prices: [], status: "loading" }
+}
+
+export function useInventoryPrices(requests: readonly CardPriceLookup[]) {
+  return useInventoryPriceState(requests).prices
 }
