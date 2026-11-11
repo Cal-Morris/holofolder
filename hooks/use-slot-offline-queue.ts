@@ -69,7 +69,9 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, 
     async replay(send: (intent: SlotOfflineIntent) => Promise<SlotReplayResult>, catalog: InventoryCatalogResolver, readCurrent: () => Promise<unknown>, isCurrent: () => boolean = () => true) {
       if (!active() || !session.queue) return
       const token = session.token()
-      await session.queue.replay(send, () => session.isActive(token) && isCurrent() ? session.scope : null, Date.now(), catalog, readCurrent, authSessionId)
+      // The queue persists each outcome before it reads, so publish it first: an acknowledged edit shows as saved while the read runs.
+      const publishThenRead = async () => { if (session.isActive(token)) await refresh().catch(() => {}); return readCurrent() }
+      await session.queue.replay(send, () => session.isActive(token) && isCurrent() ? session.scope : null, Date.now(), catalog, publishThenRead, authSessionId)
       if (session.isActive(token)) await refresh()
     },
     async saveSnapshot(snapshot: unknown, catalog: InventoryCatalogResolver) {

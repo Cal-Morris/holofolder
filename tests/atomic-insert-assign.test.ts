@@ -70,7 +70,7 @@ test('4095 to 4096 near-start insertion is complete; capacity and repeated order
   assert.throws(() => projectSlotIntent(s, intent(s, [c, { ...c, slotId: 'overflow' }]), catalog), /capacity/)
 })
 
-test('durable insert keeps original slot/item IDs through lost reply and restart, ACK needs a separate fresh complete read', async () => {
+test('durable insert keeps original slot/item IDs through lost reply and restart, and only a separate fresh complete read settles the ACK', async () => {
   const { createMemoryStore } = await import('@/lib/offline-store/kv')
   const { createSlotOfflineQueue } = await import('@/lib/collection/slot-offline-queue')
   const { readCompleteInventorySnapshot } = await import('@/lib/collection/slot-snapshot')
@@ -86,8 +86,11 @@ test('durable insert keeps original slot/item IDs through lost reply and restart
   const reopened = createSlotOfflineQueue(store, scope), committed = projectSlotIntent(s, draft, catalog)
   const cached = await complete(committed)
   await reopened.replay(async sent => ({ status: 200, operationId: sent.request.operationId, inventoryRevision: committed.inventoryRevision }), () => scope, 400000, catalog, async () => cached)
-  assert.deepEqual((await reopened.read()).pending[0].intent, draft)
-  await reopened.replay(async sent => { assert.deepEqual(sent, draft); return { status: 200, operationId: sent.request.operationId, inventoryRevision: committed.inventoryRevision } }, () => scope, 800000, catalog, () => complete(committed))
+  // The receipt is durable acceptance; a read started before it cannot settle the edit, and the edit is never resent.
+  const acknowledged = (await reopened.read()).pending[0]
+  assert.deepEqual(acknowledged.intent, draft); assert.equal(acknowledged.status, 'acknowledged')
+  await reopened.replay(async () => assert.fail('an acknowledged edit is never resent'), () => scope, 800000, catalog, () => complete(committed))
+  await reopened.saveSnapshot(await complete(committed), catalog)
   const accepted = await reopened.read()
   assert.equal(accepted.pending.length, 0); assert.deepEqual(accepted.receipts[0].intent, draft)
   assert.deepEqual(accepted.snapshot, committed)
