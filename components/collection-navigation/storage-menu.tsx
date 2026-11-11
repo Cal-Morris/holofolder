@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { EllipsisVertical, X } from 'lucide-react';
+import { EllipsisVertical, History, X, type LucideIcon } from 'lucide-react';
 import { runAfterOverlayHistory, useOverlay } from '@/hooks/use-overlay';
 import { useActivityOpener } from '@/components/collection-activity-context';
 
 export interface StorageMenuAction {
   label: string;
+  icon?: LucideIcon;
+  /** Starts a new group: a divider is drawn above it. */
+  separated?: boolean;
+  danger?: boolean;
   disabled?: boolean;
   onSelect: () => void;
 }
@@ -40,7 +44,7 @@ export function StorageMenu({
   useOverlay(open, close, { containerRef: menuRef });
   const defer = useMenuAction(open);
   const items: StorageMenuAction[] = [
-    ...(openActivity ? [{ label: 'Activity', onSelect: () => openActivity({}) }] : []),
+    ...(openActivity ? [{ label: 'Activity', icon: History, onSelect: () => openActivity({}) }] : []),
     ...actions,
   ];
   return (
@@ -67,7 +71,7 @@ export function StorageMenu({
             className="border-border/60 bg-card fixed top-[calc(var(--top-inset)+3.5rem)] right-[max(0.5rem,var(--right-inset))] z-50 flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-4rem)] w-72 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-2xl border p-1.5 shadow-xl outline-none md:right-4"
           >
             <div className="flex shrink-0 items-center justify-between pl-3">
-              <p className="text-sm font-semibold">Storage</p>
+              <p className="text-muted-foreground text-xs font-medium">Options</p>
               <button
                 type="button"
                 onClick={close}
@@ -77,20 +81,24 @@ export function StorageMenu({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="flex min-h-0 flex-col gap-1 overflow-y-auto overscroll-contain p-1 text-sm">
-              {items.map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  disabled={item.disabled}
-                  onClick={() => {
-                    defer(item.onSelect);
-                    close();
-                  }}
-                  className="hover:bg-muted/70 flex min-h-11 w-full items-center rounded-xl px-3 text-left font-medium disabled:opacity-40"
-                >
-                  {item.label}
-                </button>
+            <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain px-1 pb-1 text-sm">
+              {items.map(({ label, icon: Icon, separated, danger, disabled, onSelect }, index) => (
+                <div key={label} className={separated && index > 0 ? 'border-border/60 mt-1 border-t pt-1' : undefined}>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      defer(onSelect);
+                      close();
+                    }}
+                    className={`flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-left disabled:opacity-40 ${danger ? 'text-destructive hover:bg-destructive/10' : 'hover:bg-muted/70'}`}
+                  >
+                    {Icon && (
+                      <Icon className={`h-4 w-4 shrink-0 ${danger ? '' : 'text-muted-foreground'}`} aria-hidden />
+                    )}
+                    {label}
+                  </button>
+                </div>
               ))}
               {children}
             </div>

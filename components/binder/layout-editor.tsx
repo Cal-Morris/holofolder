@@ -47,7 +47,7 @@ export interface LayoutSessionStart {
 }
 
 const button =
-  'inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-border/70 px-2.5 text-xs font-semibold hover:bg-muted disabled:opacity-45';
+  'inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold hover:bg-muted disabled:opacity-40 disabled:hover:bg-transparent';
 
 /** A pointer must begin on this mounted control, and must not become a scroll or drag. */
 function LayoutButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -360,7 +360,7 @@ function LayoutBar({
           <LayoutButton
             aria-pressed
             onClick={onDone}
-            className="border-primary/50 bg-primary/15 text-primary order-2 sm:order-3"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 order-2 px-3.5 sm:order-3"
           >
             Done
           </LayoutButton>
