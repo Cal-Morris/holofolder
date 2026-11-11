@@ -1,4 +1,5 @@
 import { appPath, appReturnPath } from "@/lib/app-path"
+import { parseBinderPath } from "@/lib/binders/url"
 
 const PASSWORD_RECOVERY_PATH = "/auth/login?mode=recovery"
 const PRODUCTION_SITE_URL = "https://holofolder.com"
@@ -57,7 +58,7 @@ export function getPasswordRecoveryRedirectUrl() {
  */
 export function getSignedOutRedirectPath(pathname: string, isSignedIn: boolean) {
   if (isSignedIn) return null
-  return pathname === "/" ? "/auth/login" : null
+  return pathname === "/" || parseBinderPath(pathname) ? "/auth/login" : null
 }
 
 /** Production proxy requests can reach Vercel with its origin hostname. Never trust arbitrary forwarded hosts. */

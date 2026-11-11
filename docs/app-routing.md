@@ -57,6 +57,12 @@ Framer's `Code/SessionLabel.tsx` checks `GET /app/api/auth/session` with same-or
 
 The nav, hero and pricing CTAs retain their `/app/` links and show “Go to dashboard” for a signed-in visitor. Their original labels remain the fallback during loading, offline or on errors. The label rechecks on focus, visibility and page restore so signing in or out in another tab is picked up when returning to marketing. This requires signing in on the public `holofolder.com` origin; cookies from `app.holofolder.com` or `binder.cal.gg` cannot identify a visitor on another hostname.
 
+## Binder addresses
+
+Each binder opens at `/app/<slug>`, `/app/<slug>/binder/<page>`, `/app/<slug>/list` or `/app/<slug>/slabs` (`lib/binders/url.ts`). The slug is the same one the named share link uses (`/@cal/national`): migration 106 gives every binder one, named after its preset (`national`, `kanto`, the set name) or else the binder name, with `-1`, `-2` … on clashes. Editing it in Settings → Share moves both addresses.
+
+`next.config.mjs` rewrites these paths (afterFiles, so real routes win) onto `/` with `?binderSlug=`, so the app stays one route with one static shell. The navigation host writes the slug path as you page or switch views; a binder without a known slug (a device copy from before 106, or one created since the page loaded) keeps `?binder=<id>`. Old `?binder=&view=&page=` links still open. Top-level route names are reserved in `RESERVED_BINDER_SLUGS` and `binder_slug_reserved`; add a new top-level route to both. The service worker treats binder addresses as entry pages (offline shell after 6 s), and signed-out visitors to them go to sign in.
+
 ## Named binder links
 
 An account username is saved in Settings → Account; each selected binder gets its own slug in Settings → Share. Only the binder owner can edit its slug. Partners can set their own account username, but shared binders always use the owner's username. Names are lowercase letters, numbers and hyphens, with an alphanumeric start/end (username 3–30, binder slug 1–60 characters).
