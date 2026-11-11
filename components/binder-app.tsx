@@ -2189,10 +2189,8 @@ function BinderAppSurface(props: BinderAppProps) {
         setSharePath(payload?.share?.path ?? null)
         setIsShareEnabled(Boolean(payload?.share?.is_enabled))
         setShareShowPrices(payload?.share?.show_prices === true)
-      } catch (error) {
-        if (!cancelled) {
-          toast(error instanceof Error ? error.message : "Could not load the share link.", "error")
-        }
+      } catch {
+        // A background read: stay quiet. Creating or copying the link reports its own errors.
       } finally {
         if (!cancelled) {
           setIsShareLoading(false)
