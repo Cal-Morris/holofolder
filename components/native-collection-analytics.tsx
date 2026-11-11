@@ -2,7 +2,7 @@
 
 import { formatCardFinishLabel, formatCardLanguageLabel } from '@/lib/card-labels';
 import { useMemo, useState } from 'react';
-import { buildNativeAnalytics } from '@/lib/collection/native-analytics';
+import { buildNativeAnalytics, nativeValueNote } from '@/lib/collection/native-analytics';
 import {
   navigationIndex,
   type CollectionNavigationRead,
@@ -48,6 +48,7 @@ function ScopedAnalytics({ scope, read, collectionId, region = 'UK' }: Props) {
       <span className="block text-xl font-semibold tabular-nums">Collection value: {money(summary.rawValueGbp)}</span>
       <span className="text-muted-foreground block text-sm">
         {summary.pricedCopies} of {summary.physicalCopies} cards priced
+        {nativeValueNote(summary)}
         {summary.gradedUnknownCopies > 0 ? ` · ${summary.gradedUnknownCopies} graded not valued` : ''}
       </span>
       <span className="text-muted-foreground block text-sm">
@@ -94,13 +95,11 @@ function ScopedAnalytics({ scope, read, collectionId, region = 'UK' }: Props) {
       <>
         <p className="text-muted-foreground mt-3 text-sm">
           {summary.rawValueGbp !== null && summary.pricedCopies < summary.physicalCopies ? 'A partial estimate. ' : ''}
-          From saved prices we&apos;re reasonably sure of, for the exact version of each card. Graded cards and cards
-          without such a price are left out.
+          From saved prices for the exact version of each card, the same prices the card details show. Low confidence
+          prices are included and counted above. Graded cards and cards without a price are left out.
         </p>
         <p className="text-muted-foreground text-sm">
-          {summary.oldestQuoteAt
-            ? `Oldest price used: ${summary.oldestQuoteAt.slice(0, 10)}.`
-            : 'No reliable saved prices yet.'}
+          {summary.oldestQuoteAt ? `Oldest price used: ${summary.oldestQuoteAt.slice(0, 10)}.` : 'No saved prices yet.'}
         </p>
         {summary.unknownSpeciesCopies > 0 && (
           <p className="mt-2 text-sm">{summary.unknownSpeciesCopies} cards aren&apos;t linked to a Pokémon.</p>

@@ -25,11 +25,8 @@ export function buildNativeAnalytics(
     return null;
   const projection = selectInventoryCollection(index.projection, collectionId);
   const value = valueInventoryCollection(projection, prices, region, now);
-  const copies = value.copies.map((copy) => ({
-    ...copy,
-    // A saved raw reference is still displayable, but weak evidence is not a valued copy.
-    amountGbp: copy.quote && ['high', 'medium'].includes(copy.quote.confidence) ? copy.amountGbp : null,
-  }));
+  // Every known price counts, the same amount the card sheet shows. Confidence only labels the total; signals stay gated elsewhere.
+  const copies = value.copies;
   const priced = copies.filter((c) => c.amountGbp !== null);
   const dates = priced.flatMap((c) => (c.quote?.updatedAt ? [c.quote.updatedAt] : [])).sort();
   const goals = snapshot.binders
@@ -59,13 +56,14 @@ export function buildNativeAnalytics(
     unknownTargets: goals.reduce((n, g) => n + g.unknownTargetCount, 0),
     rawValueGbp: priced.length ? Math.round(priced.reduce((n, c) => n + c.amountGbp!, 0) * 100) / 100 : null,
     pricedCopies: priced.length,
+    lowConfidenceCopies: priced.filter((c) => !['high', 'medium'].includes(c.quote?.confidence ?? 'unknown')).length,
     unpricedRawCopies: copies.filter((c) => c.basis === 'raw' && c.amountGbp === null).length,
     gradedUnknownCopies: value.gradedUnknownCopies,
     oldestQuoteAt: dates[0] ?? null,
   };
 }
 
-/** Total of the copies in `itemIds` (e.g. the pockets on the open page), from the same gated amounts. Unpriced stays unpriced. */
+/** Total of the copies in `itemIds` (e.g. the pockets on the open page), from the same amounts. Unpriced stays unpriced. */
 export function sumCopyValues(
   copies: readonly { itemId: string; amountGbp: number | null }[],
   itemIds: ReadonlySet<string>,
@@ -77,4 +75,28 @@ export function sumCopyValues(
     priced: priced.length,
     total: onPage.length,
   };
+}
+
+/** "· partial · 3 low confidence" style suffix shared by every native value line. */
+export function nativeValueNote(summary: {
+  pricedCopies: number;
+  physicalCopies: number;
+  lowConfidenceCopies: number;
+}) {
+  return [
+    summary.pricedCopies > 0 && summary.pricedCopies < summary.physicalCopies ? 'partial' : '',
+    summary.lowConfidenceCopies > 0 ? `${summary.lowConfidenceCopies} low confidence` : '',
+  ]
+    .filter(Boolean)
+    .map((part) => ` · ${part}`)
+    .join('');
+}
+
+const gbpFormat = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
+
+/** The binder value as one line ("£9.80 · 2 low confidence"), or undefined when nothing is priced. */
+export function nativeValueLabel(summary: ReturnType<typeof buildNativeAnalytics>) {
+  return summary?.rawValueGbp != null
+    ? `${gbpFormat.format(summary.rawValueGbp)}${nativeValueNote(summary)}`
+    : undefined;
 }

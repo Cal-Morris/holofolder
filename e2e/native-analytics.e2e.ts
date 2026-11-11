@@ -149,7 +149,7 @@ test('weak saved prices remain unknown and never produce a zero or graded value'
   await expect(analytics.getByText(/low confidence/)).toHaveCount(5);
   await new Harness(page, insets, true).expectNoHorizontalOverflow();
 });
-test("the binder shows its total and the open page's total from saved confident prices, and Prices labels pockets", async ({
+test("the binder shows its total and the open page's total from saved prices, and Prices labels pockets", async ({
   page,
   insets,
 }) => {
@@ -170,7 +170,7 @@ test("the binder shows its total and the open page's total from saved confident 
   await prices.click();
   await expect(prices).toHaveAttribute('aria-pressed', 'true');
 });
-test('weak saved prices leave the binder and page totals unknown, never £0', async ({ page }) => {
+test('a binder with no priced copies shows Unknown, never £0', async ({ page }) => {
   await page.route('**/api/card-prices?*', (route) => route.fulfill({ json: { prices: inventoryProjectionPrices() } }));
   await page.goto(entry);
   const value = page.getByRole('region', { name: 'Binder value', exact: true });
