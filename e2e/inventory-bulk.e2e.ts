@@ -123,15 +123,14 @@ test("selection crosses explicit pages and filters, clear resets all, overlay di
   await open(page, false)
   await expect(selection(page)).toHaveCount(0)
   await selectMode(page)
-  // One card from each of the first two windows: the selection is kept while paging and searching.
+  // One card from each of the first two windows: the selection is kept while loading more and searching.
   const boxes = page.getByRole("list", { name: "Owned copies" }).getByRole("checkbox", { disabled: false })
   const places: string[] = []
   places.push((await boxes.first().getAttribute("aria-label"))!)
   await boxes.first().check()
-  await page.getByRole("navigation", { name: "Inventory pages", exact: true }).getByRole("button", { name: "Next", exact: true }).click()
-  await expect(page.getByRole("navigation", { name: "Inventory pages", exact: true })).toContainText("41–")
-  places.push((await boxes.first().getAttribute("aria-label"))!)
-  await boxes.first().check()
+  await page.getByRole("navigation", { name: "Inventory pages", exact: true }).getByRole("button", { name: "Show more", exact: true }).click()
+  places.push((await boxes.nth(40).getAttribute("aria-label"))!)
+  await boxes.nth(40).check()
   await page.getByRole("searchbox", { name: "Search inventory" }).fill("no matching synthetic card")
   await expect(selection(page)).toContainText("2 selected")
   await selection(page).getByRole("button", { name: "Move", exact: true }).click()

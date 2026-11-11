@@ -108,13 +108,12 @@ export function queryInventory(index: InventoryBrowseIndex, query: InventoryBrow
   return { rows, total, next, invalidCursor: false }
 }
 
-/** Restore a presentation window from current evidence in one sort, never persist opaque keysets. */
-export function restoreInventoryWindow(index: InventoryBrowseIndex, query: InventoryBrowseQuery, requestedWindow: number) {
-  const { key, ordered } = orderedInventoryQuery(index, query)
+/** Every row up to and including window `requestedWindow` (40 per window) in one sort, for a list that grows as you scroll.
+ * The window is clamped to the current matching copies, so restored state survives filtering and removal. */
+export function inventoryWindowRows(index: InventoryBrowseIndex, query: InventoryBrowseQuery, requestedWindow: number) {
+  const { ordered } = orderedInventoryQuery(index, query)
   const window = Math.min(Number.isSafeInteger(requestedWindow) ? Math.max(0, requestedWindow) : 0, Math.max(0, Math.ceil(ordered.length / 40) - 1))
-  const cursors: (InventoryBrowseCursor | null)[] = [null]
-  for (let page = 1; page <= window; page++) cursors.push({ evidenceKey: index.key, query: key, after: ordered[page * 40 - 1].key })
-  return { cursor: cursors.at(-1) ?? null, previous: cursors.slice(0, -1) }
+  return { rows: ordered.slice(0, (window + 1) * 40).map(entry => entry.row), total: ordered.length, window }
 }
 
 /** Screen-reader names for selection checkboxes: card, printing and location, never internal IDs.
