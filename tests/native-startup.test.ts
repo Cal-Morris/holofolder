@@ -139,6 +139,9 @@ test('canonical baseline plus pending layout reopens as cached only with unchang
   );
   const before = await store.get(offlineScopeKey(identity.scope));
   const boot = await readCachedNativeStartup(store, identity, 'new-local-epoch');
+  assert.deepEqual(boot.planning.scope, identity.scope);
+  assert.equal(boot.planning.authSessionId, 'auth-session');
+  assert.equal(isCompleteInventorySnapshot(boot.planning.snapshot), false);
   assert.equal(boot.pending, 1);
   assert.equal(boot.read.evidence.kind, 'cached');
   assert.equal(isCompleteInventorySnapshot(boot.read.evidence.snapshot), false);
@@ -165,7 +168,7 @@ test('cold uncached and unavailable storage never fabricate an empty complete in
     readCachedNativeStartup(
       {
         ...store,
-        get: async () => {
+        updateMany: async () => {
           throw new Error('storage-failure');
         },
       },

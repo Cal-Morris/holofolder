@@ -9,7 +9,7 @@ import {
   type SlotReplayResult,
 } from '@/lib/collection/slot-offline-queue';
 import type { SlotOfflineIntent } from '@/lib/collection/slot-optimistic';
-import type { SlotLocalAcceptance } from '@/lib/binder-slot-editing';
+import type { StagedSlotCommandIntent, SlotLocalAcceptance } from '@/lib/binder-slot-editing';
 import type { InventoryCatalogResolver, InventorySnapshot } from '@/lib/domain/inventory';
 
 function sessionLifetime() {
@@ -29,7 +29,7 @@ function sessionLifetime() {
   };
 }
 
-/** Shared durable adapter. The checked authenticated browser host supplies its sender; cached startup never mounts it.
+/** Shared durable adapter. The checked authenticated browser host supplies its sender; cached startup may use local admission without a sender.
  * Remount on session changes, including unlink/relink to the same owner. */
 export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, authSessionId?: string) {
   const { deviceId, workspaceId, accountId, ownerUserId } = scope;
@@ -40,8 +40,9 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, 
       ...sessionLifetime(),
       scope: { deviceId, workspaceId, accountId, ownerUserId },
       sessionId,
+      authSessionId,
     };
-  }, [deviceId, workspaceId, accountId, ownerUserId, sessionId]);
+  }, [deviceId, workspaceId, accountId, ownerUserId, sessionId, authSessionId]);
   useLayoutEffect(() => {
     session.activate();
     return () => session.close();
@@ -91,10 +92,53 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, 
       channel?.close();
     } // No private state in cross-tab messages.
   };
+  const accepted = async (operationId: string, token: number): Promise<SlotLocalAcceptance> => {
+    // Commit is irreversible acceptance even when a later read/notification fails.
+    let refreshError: string | null = null;
+    if (active(token)) {
+      try {
+        await refresh();
+      } catch {
+        refreshError = 'Saved on device. Could not refresh the view. Reopen or retry refresh.';
+        if (active(token))
+          setLoaded((previous) => ({
+            session,
+            record: previous?.session === session ? previous.record : null,
+            error: refreshError,
+          }));
+      }
+    }
+    return { status: 'saved-on-device', operationId, refreshError } satisfies SlotLocalAcceptance;
+  };
   return {
     record: loaded?.session === session ? loaded.record : null,
     error: loaded?.session === session ? loaded.error : null,
     queue: session.queue,
+    invalidate: () => session.close(),
+    async readLocalPlanning() {
+      if (!active() || !session.queue || !session.authSessionId) throw new Error('inactive-or-unavailable-session');
+      const token = session.token(),
+        planning = await session.queue.readLocalPlanning(session.authSessionId);
+      if (!active(token)) throw new Error('inactive-or-unavailable-session');
+      return planning;
+    },
+    async enqueueLocal(draft: StagedSlotCommandIntent, isCurrent: () => boolean = () => true) {
+      if (!active() || !session.queue || !session.authSessionId) throw new Error('inactive-or-unavailable-session');
+      const token = session.token();
+      await session.queue.enqueueLocal(draft, session.authSessionId, () =>
+        active(token) && isCurrent() ? session.scope : null,
+      );
+      return accepted(draft.intent.request.operationId, token);
+    },
+    async saveSnapshotWithNavigation(snapshot: unknown, navigation: unknown, isCurrent: () => boolean = () => true) {
+      if (!active() || !session.queue) throw new Error('inactive-or-unavailable-session');
+      const token = session.token();
+      const saved = await session.queue.saveSnapshotWithNavigation(snapshot, navigation, () =>
+        active(token) && isCurrent() ? session.scope : null,
+      );
+      if (active(token)) await refresh();
+      return saved;
+    },
     async enqueue(
       intent: SlotOfflineIntent,
       catalog: InventoryCatalogResolver,
@@ -108,28 +152,9 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, 
         catalog,
         planningBase,
         () => (active(token) && isCurrent() ? session.scope : null),
-        authSessionId,
+        session.authSessionId,
       );
-      // Commit is irreversible acceptance even when a later read/notification fails.
-      let refreshError: string | null = null;
-      if (active(token)) {
-        try {
-          await refresh();
-        } catch {
-          refreshError = 'Saved on device. Could not refresh the view. Reopen or retry refresh.';
-          if (active(token))
-            setLoaded((previous) => ({
-              session,
-              record: previous?.session === session ? previous.record : null,
-              error: refreshError,
-            }));
-        }
-      }
-      return {
-        status: 'saved-on-device',
-        operationId: intent.request.operationId,
-        refreshError,
-      } satisfies SlotLocalAcceptance;
+      return accepted(intent.request.operationId, token);
     },
     async replay(
       send: (intent: SlotOfflineIntent) => Promise<SlotReplayResult>,
@@ -150,7 +175,7 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, 
         Date.now(),
         catalog,
         publishThenRead,
-        authSessionId,
+        session.authSessionId,
       );
       if (session.isActive(token)) await refresh();
     },

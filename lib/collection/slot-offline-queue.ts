@@ -1,3 +1,13 @@
+import type { StagedSlotCommandIntent } from '@/lib/binder-slot-editing';
+import type { InventoryCatalogEvidence } from '@/lib/domain/inventory-browse';
+import { parseNavigationEvidence } from '@/lib/collection/inventory-read-transport';
+import { browserHostCatalog } from '@/lib/collection/browser-host-catalog';
+import {
+  slotNavigationKey,
+  savedLocalPlanning,
+  localCatalogEvidence,
+  isBasicLocalDraft,
+} from '@/lib/collection/slot-local-planning';
 import {
   isReviewedRawRestoreCommand,
   isTrustedRawRestoreProof,
@@ -76,6 +86,8 @@ function validCreationProof(
   );
 }
 export interface PendingSlotIntent {
+  originAuthSessionId?: string;
+  localCatalog?: InventoryCatalogEvidence[];
   rawRestoreProof?: RawRestoreProof;
   creationAuthSessionId?: string;
   intent: SlotOfflineIntent;
@@ -226,6 +238,8 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
         'conflict',
         'creationAuthSessionId',
         'rawRestoreProof',
+        'originAuthSessionId',
+        'localCatalog',
       ]) ||
       !['pending', 'sending', 'acknowledged', 'unavailable', 'conflict', 'blocked', 'billing'].includes(
         p.status as string,
@@ -247,6 +261,15 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
       )
     )
       return fail('malformed-pending-intent');
+    if (p.originAuthSessionId !== undefined && !isSlotContractId(p.originAuthSessionId))
+      fail('malformed-origin-session');
+    if (
+      p.localCatalog !== undefined &&
+      (!snapshot ||
+        !Array.isArray(p.localCatalog) ||
+        !parseNavigationEvidence({ catalog: p.localCatalog, layouts: [] }, snapshot))
+    )
+      fail('malformed-local-catalog');
     const parsed = parseSlotIntent(p.intent);
     if (
       p.rawRestoreProof !== undefined &&
@@ -377,7 +400,8 @@ function reproject(record: SlotOfflineRecord, catalog: InventoryCatalogResolver)
     // Never make a fresh remote snapshot authoritative over an unresolved local edit.
     if (pending.status === 'conflict' || pending.status === 'blocked') break;
     try {
-      current = projectSlotIntent(current, pending.intent, catalog);
+      const local = browserHostCatalog(localCatalogEvidence(current, pending.localCatalog ?? []));
+      current = projectSlotIntent(current, pending.intent, (id) => local(id) ?? catalog(id));
     } catch (error) {
       pending.status = 'conflict';
       pending.conflict = {
@@ -415,6 +439,22 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       change(record);
       return parseRecord(record, scope);
     });
+  const navigationKey = slotNavigationKey(scope);
+  const pairedUpdate = (change: (record: SlotOfflineRecord) => void, navigation: unknown) =>
+    store.updateMany([key, navigationKey], (values) => {
+      const record = parseRecord(values[key], scope),
+        before = record.snapshot,
+        pendingCount = record.pending.length;
+      change(record);
+      const writes: Array<readonly [string, unknown]> = [[key, parseRecord(record, scope)]];
+      if (!sameValue(before, record.snapshot) || record.pending.length < pendingCount) {
+        const parsed = record.snapshot && parseNavigationEvidence(navigation, record.snapshot);
+        if (!parsed || parsed.layouts.length !== record.snapshot!.binders.length)
+          fail('native-startup-metadata-unavailable');
+        writes.push([navigationKey, parsed]);
+      }
+      return { writes, result: undefined };
+    });
   const read = async () => parseRecord(await store.get(key), scope);
   const refreshConflict = async (
     operationId: string,
@@ -437,7 +477,9 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
     const proof = head.conflict.rejection,
       intent = head.intent;
     const fence = captureCompleteInventoryReadFence();
-    const raw = await readCurrent();
+    const fresh = await readCurrent();
+    const raw =
+      fresh && typeof fresh === 'object' && 'snapshot' in fresh && 'navigation' in fresh ? fresh.snapshot : fresh;
     if (!active() || !isCompleteInventoryReadAfter(raw, fence)) fail('fresh-scoped-read-required');
     const current = scopedSnapshot(raw, scope);
     await update((record) => {
@@ -465,6 +507,117 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
   };
   return {
     read,
+    async readLocalPlanning(authSessionId: string) {
+      if (!scope.accountId || !scope.ownerUserId || !isSlotContractId(authSessionId)) fail('local-session-required');
+      // A readwrite transaction supplies one coherent pair even while another tab ACKs.
+      const saved = await store.updateMany([key, navigationKey], (values) => ({
+        writes: [],
+        result: {
+          record: parseRecord(values[key], scope),
+          metadata: values[navigationKey],
+        },
+      }));
+      return savedLocalPlanning(saved.record, saved.metadata, authSessionId);
+    },
+    async saveSnapshotWithNavigation(
+      raw: unknown,
+      navigation: unknown,
+      activeScope: () => SlotOfflineScope | null = () => scope,
+    ) {
+      if (!isCompleteInventorySnapshot(raw)) fail('partial-or-unverified-snapshot');
+      const snapshot = scopedSnapshot(raw, scope);
+      const parsed = parseNavigationEvidence(navigation, snapshot);
+      if (!parsed || parsed.layouts.length !== snapshot.binders.length) fail('native-startup-metadata-unavailable');
+      return store.updateMany([key, navigationKey], (values) => {
+        if (!sameValue(activeScope(), scope)) fail('inactive-queue-scope');
+        const record = parseRecord(values[key], scope);
+        // Pending projections retain their exact baseline and its grid, not a later read's metadata.
+        if (record.pending.length || record.recovery?.some(recoveryUnresolved)) return { writes: [], result: false };
+        if (record.snapshot && snapshot.inventoryRevision < record.snapshot.inventoryRevision) fail('stale-snapshot');
+        record.snapshot = snapshot;
+        record.optimistic = snapshot;
+        return {
+          writes: [
+            [key, parseRecord(record, scope)],
+            [navigationKey, parsed],
+          ],
+          result: true,
+        };
+      });
+    },
+    async enqueueLocal(
+      draft: StagedSlotCommandIntent,
+      authSessionId: string,
+      activeScope: () => SlotOfflineScope | null,
+    ) {
+      const intent = parseSlotIntent(draft.intent);
+      if (
+        !isSlotContractId(authSessionId) ||
+        !scope.accountId ||
+        !scope.ownerUserId ||
+        draft.scope.ownerUserId !== scope.ownerUserId ||
+        intent.context.clientId !== scope.deviceId ||
+        !isBasicLocalDraft({ ...draft, intent })
+      )
+        fail('basic-local-intent-required');
+      await store.updateMany([key, navigationKey], (values) => {
+        if (!sameValue(activeScope(), scope)) fail('inactive-queue-scope');
+        const record = parseRecord(values[key], scope);
+        const local = savedLocalPlanning(record, values[navigationKey], authSessionId);
+        const selected = localCatalogEvidence(local.snapshot, draft.localCatalog ?? []);
+        const catalog = localCatalogEvidence(local.snapshot, local.catalog, selected);
+        const existing = record.pending.find((p) => p.intent.request.operationId === intent.request.operationId);
+        if (existing) {
+          if (
+            !sameValue(existing.intent, intent) ||
+            existing.originAuthSessionId !== authSessionId ||
+            selected.some((entry) => !existing.localCatalog?.some((saved) => sameValue(saved, entry)))
+          )
+            fail('idempotency-conflict');
+          return { writes: [], result: undefined };
+        }
+        if (
+          record.receipts.some((r) => r.operationId === intent.request.operationId) ||
+          record.creationDiscards?.some((r) => r.intent.request.operationId === intent.request.operationId) ||
+          record.recovery?.some(recoveryUnresolved) ||
+          record.legacy.length ||
+          record.pending.some(
+            (p) =>
+              p.intent.kind === 'creation' ||
+              p.intent.kind === 'raw-restore' ||
+              (p.originAuthSessionId !== undefined && p.originAuthSessionId !== authSessionId) ||
+              (p.intent.kind === 'inventory' && p.intent.request.commands.some((c) => c.kind === 'deleteCollection')) ||
+              ['acknowledged', 'conflict', 'blocked', 'billing'].includes(p.status),
+          )
+        )
+          fail('queue-reconciliation-required');
+        if (
+          draft.scope.slotId !== null &&
+          !local.snapshot.binders
+            .find((b) => b.collectionId === draft.scope.collectionId)
+            ?.slots.some((s) => s.id === draft.scope.slotId)
+        )
+          fail('local-slot-scope-changed');
+        const next = projectSlotIntent(local.snapshot, intent, browserHostCatalog(catalog));
+        record.pending.push({
+          intent,
+          originAuthSessionId: authSessionId,
+          localCatalog: localCatalogEvidence(
+            local.snapshot,
+            ...record.pending.map((p) => p.localCatalog ?? []),
+            selected,
+          ),
+          base: local.snapshot,
+          status: 'pending',
+          attempts: 0,
+          nextAttemptAt: 0,
+          lease: null,
+          conflict: null,
+        });
+        record.optimistic = next;
+        return { writes: [[key, parseRecord(record, scope)]], result: undefined };
+      });
+    },
     /** Recovery is retained in the SAME atomic record, without an optimistic inverse
      * or status-based rebase. Unknown outcomes only permit exact retry. */
     async retainRecovery(raw: NativeRecoveryIntent, activeScope: () => SlotOfflineScope | null) {
@@ -760,6 +913,9 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       await update((record) => {
         if (record.pending.some((p) => p.intent.kind === 'creation' || p.intent.kind === 'raw-restore'))
           fail('creation-pending');
+        if (record.snapshot && snapshot.inventoryRevision < record.snapshot.inventoryRevision) fail('stale-snapshot');
+        if (record.pending.some((p) => p.originAuthSessionId !== undefined) && !sameValue(record.snapshot, snapshot))
+          fail('local-pending-baseline-retained');
         adoptSnapshot(record, snapshot, catalog);
       });
     },
@@ -885,19 +1041,33 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       const active = () => sameValue(activeScope(), scope);
       if (!scope.accountId || !scope.ownerUserId || !active()) return;
       const leaseId = crypto.randomUUID();
+      let originAuthSessionId: string | undefined;
+      let navigation: unknown;
+      const readFresh = readCurrent;
+      if (readFresh)
+        readCurrent = async () => {
+          const fresh = await readFresh();
+          if (fresh && typeof fresh === 'object' && 'snapshot' in fresh && 'navigation' in fresh) {
+            navigation = fresh.navigation;
+            return fresh.snapshot;
+          }
+          return fresh;
+        };
       let claimed: SlotOfflineIntent | null = null;
       await update((record) => {
         const p = record.pending[0];
-        if (record.recovery?.some(recoveryUnresolved)) return;
         if (
+          record.recovery?.some(recoveryUnresolved) ||
           !p ||
           !active() ||
           ['acknowledged', 'conflict', 'blocked', 'billing'].includes(p.status) ||
           p.attempts >= 5 ||
           p.nextAttemptAt > now ||
-          (p.lease && p.lease.until > now)
+          (p.lease && p.lease.until > now) ||
+          (p.originAuthSessionId !== undefined && p.originAuthSessionId !== authSessionId)
         )
           return;
+        originAuthSessionId = p.originAuthSessionId;
         p.status = 'sending';
         p.attempts++;
         p.lease = { id: leaseId, until: now + 60000 };
@@ -944,7 +1114,11 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
             fresh = await readCurrent();
           if (!active() || !isCompleteInventoryReadAfter(fresh, fence)) fail('fresh-scoped-read-required');
           const snapshot = scopedSnapshot(fresh, scope);
-          await update((record) => {
+          const commit =
+            navigation === undefined
+              ? update
+              : (change: (record: SlotOfflineRecord) => void) => pairedUpdate(change, navigation);
+          await commit((record) => {
             const p = record.pending[0];
             if (
               !active() ||
@@ -1001,6 +1175,14 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
         }
         return;
       }
+      const sending = (await read()).pending[0];
+      if (
+        !active() ||
+        sending?.lease?.id !== leaseId ||
+        sending.originAuthSessionId !== originAuthSessionId ||
+        (sending.originAuthSessionId !== undefined && sending.originAuthSessionId !== authSessionId)
+      )
+        return;
       let result: SlotReplayResult;
       try {
         result = await send(claimed);
@@ -1011,7 +1193,9 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       // An edit's matching receipt is durable acceptance: save that first, so the view never waits on a full read
       // and a failed read never resends it. Creation still needs a read to open the new collection.
       const sent = claimed as SlotOfflineIntent;
+      // Local-origin edits keep their paired snapshot/navigation commit below.
       if (
+        originAuthSessionId === undefined &&
         (sent.kind === 'inventory' || sent.kind === 'slots') &&
         result.status === 200 &&
         result.operationId === sent.request.operationId &&
@@ -1071,9 +1255,20 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
         result = { ...result, snapshot };
       }
       if (!active()) return;
-      await update((record) => {
+      const commit =
+        navigation !== undefined || originAuthSessionId !== undefined
+          ? (change: (record: SlotOfflineRecord) => void) => pairedUpdate(change, navigation)
+          : update;
+      await commit((record) => {
         const p = record.pending[0];
-        if (!active() || !p || p.lease?.id !== leaseId) return;
+        if (
+          !active() ||
+          !p ||
+          p.lease?.id !== leaseId ||
+          p.originAuthSessionId !== originAuthSessionId ||
+          (p.originAuthSessionId !== undefined && p.originAuthSessionId !== authSessionId)
+        )
+          return;
         p.lease = null;
         let current: InventorySnapshot | null = null;
         try {
@@ -1239,6 +1434,9 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           record.optimistic = optimistic;
           record.pending = [
             {
+              ...(p.originAuthSessionId
+                ? { originAuthSessionId: p.originAuthSessionId, localCatalog: p.localCatalog }
+                : {}),
               intent: next,
               base: current,
               status: 'pending',

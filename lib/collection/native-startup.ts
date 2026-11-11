@@ -2,7 +2,7 @@ import { readBinderStartMarker, writeBinderStartMarker } from '@/lib/binder-star
 import { readBillingCache } from '@/lib/billing-cache';
 import { isSlotContractId } from '@/lib/domain/binder-slots';
 import { createSlotOfflineQueue } from '@/lib/collection/slot-offline-queue';
-import { parseNavigationEvidence, type InventoryReadScope } from '@/lib/collection/inventory-read-transport';
+import type { InventoryReadScope } from '@/lib/collection/inventory-read-transport';
 import type { CollectionNavigationRead } from '@/lib/collection-navigation';
 import type { AtomicOfflineStore } from '@/lib/offline-store/kv';
 import type { Session } from '@supabase/supabase-js';
@@ -72,35 +72,29 @@ export function cachedNativeIdentity(storage: Pick<Storage, 'getItem'>, session:
   };
 }
 
-/** Read-only adapter over the one canonical queue and its existing navigation metadata.
- * Admission must be checked by the caller. No saveSnapshot/replay/ACK or completeness branding. */
+/** Cached navigation and local planning from one canonical queue/metadata transaction.
+ * This never establishes remote membership, completeness, sending or ACK authority. */
 export async function readCachedNativeStartup(
   store: AtomicOfflineStore,
   identity: NonNullable<ReturnType<typeof cachedNativeIdentity>>,
   epoch: string,
-): Promise<{ read: CollectionNavigationRead; pending: number }> {
+): Promise<{
+  read: CollectionNavigationRead;
+  pending: number;
+  planning: Awaited<ReturnType<ReturnType<typeof createSlotOfflineQueue>['readLocalPlanning']>>;
+}> {
   const { scope } = identity;
-  const record = await createSlotOfflineQueue(store, scope).read();
-  if (!record.snapshot || !record.optimistic) throw new Error('native-startup-not-saved');
-  const metadata = await store.get(
-    `slot-navigation-v1:${JSON.stringify([scope.deviceId, scope.accountId, scope.ownerUserId])}`,
-  );
-  const parsed = parseNavigationEvidence(metadata, record.snapshot);
-  if (!parsed || parsed.layouts.length !== record.snapshot.binders.length)
-    throw new Error('native-startup-metadata-unavailable');
-  const layouts = parsed.layouts.map((layout) => {
-    const projected = record.optimistic!.binders.find((b) => b.collectionId === layout.collectionId);
-    if (!projected) throw new Error('native-startup-layout-unavailable');
-    return { ...layout, layoutRevision: projected.layoutRevision };
-  });
+  const queue = createSlotOfflineQueue(store, scope);
+  const planning = await queue.readLocalPlanning(identity.marker.native!.authSessionId);
   return {
     read: {
       scope: { accountUserId: scope.accountId!, ownerUserId: scope.ownerUserId!, sessionId: epoch },
-      evidence: { kind: 'cached', snapshot: record.optimistic },
-      ...parsed,
-      layouts,
+      evidence: { kind: 'cached', snapshot: planning.snapshot },
+      catalog: planning.catalog,
+      layouts: planning.layouts,
     },
-    pending: record.pending.filter((p) => p.status !== 'acknowledged').length,
+    pending: planning.pending,
+    planning,
   };
 }
 

@@ -258,7 +258,7 @@ describe('staged durable slot intent', () => {
       () => scope,
       0,
       catalog,
-      () => complete(remote),
+      async () => ({ snapshot: await complete(remote), navigation: { catalog: [], layouts: [] } }),
     );
     const state = await q.read();
     assert.equal(state.pending[0].status, 'conflict');
@@ -860,7 +860,7 @@ test('terminal rejection survives failed fresh read/reload, needs current scope 
   );
   await reopened.refreshConflict(
     'operation-one',
-    () => complete(remote),
+    async () => ({ snapshot: await complete(remote), navigation: { catalog: [], layouts: [] } }),
     () => scope,
   );
   await reopened.reconcile('operation-one', { kind: 'keep-remote' }, catalog);
