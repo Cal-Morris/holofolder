@@ -50,7 +50,7 @@ export default function WantedRowActionsSheet(props: WantedRowActionsSheetProps)
         role="dialog"
         aria-modal="true"
         aria-label={`Actions for ${props.cardName}`}
-        className="border-border/65 bg-card absolute inset-x-0 bottom-[var(--dock-clearance)] mx-auto max-h-[calc(100dvh-env(safe-area-inset-top)-var(--dock-clearance)-1rem)] w-full max-w-md overflow-y-auto rounded-t-[1.6rem] border-t pt-3 pr-[calc(env(safe-area-inset-right)+1rem)] pb-[calc(var(--safe-bottom)+0.75rem)] pl-[calc(env(safe-area-inset-left)+1rem)] shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] outline-none sm:bottom-4 sm:rounded-[1.6rem] sm:border"
+        className="border-border/65 bg-card absolute inset-x-0 bottom-[var(--dock-clearance)] mx-auto max-h-[calc(100dvh-env(safe-area-inset-top)-var(--dock-clearance)-1rem)] w-full max-w-md overflow-y-auto rounded-t-[1.6rem] border-t pt-3 pr-[calc(env(safe-area-inset-right)+1rem)] pb-[calc(var(--safe-bottom)+0.75rem)] pl-[calc(env(safe-area-inset-left)+1rem)] shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] outline-none sm:rounded-[1.6rem] sm:border md:bottom-4"
         onClick={(event) => event.stopPropagation()}
       >
         <div data-sheet-grabber className="bg-card sticky top-0 z-10 -mx-4 -mt-3 px-4 pt-3" {...swipe}>
