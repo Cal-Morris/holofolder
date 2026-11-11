@@ -10,7 +10,7 @@ import type { GradingRecord, InventoryIdentity } from '@/lib/domain/inventory';
 import type { InventorySelection } from '@/lib/inventory-plans';
 import type { SlotPrecondition } from '@/lib/domain/slot-commands';
 import type { SlotTarget } from '@/lib/domain/binder-slots';
-import type { WantedCard } from '@/lib/domain/cards';
+import { isCardFinish, type CardFinish, type WantedCard } from '@/lib/domain/cards';
 
 export interface InventorySlotRef {
   collectionId: string;
@@ -78,6 +78,8 @@ export type InventoryCommand =
     }
   | { kind: 'patchGrading'; item: InventoryItemRef; patch: GradingPatch }
   | { kind: 'edit'; item: InventoryItemRef; grading: GradingRecord | null }
+  /** Correct a card copy's recorded finish in place (same copy, grading and history). */
+  | { kind: 'setFinish'; item: InventoryItemRef; finish: CardFinish }
   | { kind: 'removeOwned' | 'unassign'; item: InventoryItemRef }
   | {
       kind: 'assign';
@@ -211,6 +213,7 @@ export function parseInventoryCommand(value: unknown): InventoryCommandRequest {
         'slotId',
         'before',
         'target',
+        'finish',
       ])
     )
       return invalid();
@@ -268,6 +271,9 @@ export function parseInventoryCommand(value: unknown): InventoryCommandRequest {
         (c.acquiredAt !== null && (typeof c.acquiredAt !== 'string' || !Number.isFinite(Date.parse(c.acquiredAt))))
       )
         return invalid();
+    } else if (c.kind === 'setFinish') {
+      affected += 2;
+      if (!exact(c, ['kind', 'item', 'finish']) || !checkItem(c.item) || !isCardFinish(c.finish)) return invalid();
     } else if (c.kind === 'patchGrading') {
       affected += 2;
       if (!exact(c, ['kind', 'item', 'patch']) || !checkItem(c.item) || !isGradingPatch(c.patch)) return invalid();

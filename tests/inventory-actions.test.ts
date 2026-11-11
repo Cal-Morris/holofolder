@@ -490,3 +490,46 @@ test('selected graded move refuses reverse mismatch and fences both copies and p
     /raw-copy-required/,
   );
 });
+test('setFinish corrects a placed copy in place and still respects a pocket that pins a finish', () => {
+  const { inventory, resolve } = setup();
+  const itemId = 'unassigned-b';
+  const destination = inventoryActionDestinations(inventory, itemId, resolve).find(
+    (d) => d.slot.inventoryItemId === null,
+  )!;
+  const placed = prepareInventoryAction(
+    inventory,
+    { kind: 'place', itemId, collectionId: destination.collectionId, slotId: destination.slot.id },
+    context,
+    resolve,
+  ).preview;
+  const before = placed.items.find((i) => i.id === itemId)!;
+  const { intent, preview } = prepareInventoryAction(
+    placed,
+    { kind: 'setFinish', itemId, finish: 'reverse_holo' },
+    context,
+    resolve,
+  );
+  assert.equal(intent.request.commands[0].kind, 'setFinish');
+  assert.deepEqual(
+    intent.request.collections.map((c) => c.collectionId),
+    [destination.collectionId],
+  );
+  const after = preview.items.find((i) => i.id === itemId)!;
+  assert.deepEqual(after, {
+    ...before,
+    identity: { ...before.identity, finish: 'reverse_holo' },
+    version: before.version + 1,
+  });
+  assert.deepEqual(preview.placements, placed.placements);
+  assert.equal(preview.collections[0].version, placed.collections[0].version + 1);
+
+  const pinned = structuredClone(placed);
+  const slot = pinned.binders[0].slots.find((s) => s.id === destination.slot.id)!;
+  if (before.identity.kind !== 'card') throw new Error('synthetic card copy expected');
+  slot.target = { kind: 'card', cardId: before.identity.cardId, finish: 'normal' };
+  pinned.items.find((i) => i.id === itemId)!.identity = { ...before.identity, finish: 'normal' };
+  assert.throws(
+    () => prepareInventoryAction(pinned, { kind: 'setFinish', itemId, finish: 'holo' }, context, resolve),
+    /target-mismatch/,
+  );
+});

@@ -65,7 +65,7 @@ export function isNativeRecoveryEvent(event: ActivityEvent) {
         c.table,
       ),
     ) &&
-    /^(slots\.(create|move|clear|remove|update|bulk)|inventory\.(add|edit|patchGrading|removeOwned|unassign|assign|move|removeSlots|deleteCollection|bulk)|collection\.create|recovery\.apply)$/.test(
+    /^(slots\.(create|move|clear|remove|update|bulk)|inventory\.(add|edit|setFinish|patchGrading|removeOwned|unassign|assign|move|removeSlots|deleteCollection|bulk)|collection\.create|recovery\.apply)$/.test(
       event.action,
     )
   );

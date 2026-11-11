@@ -4,6 +4,7 @@ import { normalizeAuditContext, type OperationIntentContext } from '@/lib/domain
 import { parseSlotCommand, type SlotCommandRequest, type SlotPrecondition } from '@/lib/domain/slot-commands';
 import {
   parseInventoryCommand,
+  type InventoryCommand,
   type InventoryCommandRequest,
   type InventoryItemRef,
   type InventorySlotRef,
@@ -85,6 +86,30 @@ export function checkSlotRef(snapshot: InventorySnapshot, collectionId: string, 
   )
     return fail('placement-conflict');
   return slot;
+}
+
+/** The copy's finish changes in place; a pocket that pins a finish must still match (SQL 114 rechecks). */
+function projectSetFinish(
+  state: InventorySnapshot,
+  command: Extract<InventoryCommand, { kind: 'setFinish' }>,
+  catalog: InventoryCatalogResolver,
+): InventorySnapshot {
+  const item = state.items.find((i) => i.id === command.item.itemId);
+  if (!item || item.identity.kind !== 'card') return fail('invalid-command');
+  if (item.identity.finish === command.finish) return state;
+  const identity = { ...item.identity, finish: command.finish };
+  const placement = command.item.placement;
+  const slot = placement
+    ? state.binders
+        .find((b) => b.collectionId === placement.collectionId)
+        ?.slots.find((s) => s.id === placement.slot.id)
+    : undefined;
+  const candidate = inventoryItemCandidate({ ...item, identity }, catalog);
+  if (slot?.target && (!candidate || !matchesSlotTarget(candidate, slot.target))) return fail('target-mismatch');
+  return {
+    ...state,
+    items: state.items.map((i) => (i.id === item.id ? { ...i, identity, version: i.version + 1 } : i)),
+  };
 }
 
 /** Local preview only. Server predicates/ledger remain authoritative. No actor authority is persisted. */
@@ -353,6 +378,7 @@ export function projectSlotIntent(
             grading: c.grading,
           }),
         );
+      else if (c.kind === 'setFinish') state = projectSetFinish(state, c, catalog);
       else if (c.kind === 'removeOwned' || c.kind === 'unassign') {
         if (c.item.placement) apply(planUnassignInventory(state, placedInput(c.item)));
         if (c.kind === 'removeOwned') state.items = state.items.filter((i) => i.id !== c.item.itemId);

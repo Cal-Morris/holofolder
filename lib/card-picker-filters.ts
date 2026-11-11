@@ -8,7 +8,8 @@
  */
 import { isStandardFinishVariantKey, type CardFinishPrice } from '@/lib/card-pricing';
 import type { CardFilters } from '@/hooks/use-tcgdex';
-import type { CardFinish, CardLanguage } from '@/lib/domain/cards';
+import type { CardFinish, CardLanguage, TCGCard } from '@/lib/domain/cards';
+import { inferCardFinish } from '@/lib/pokemon-card-browse';
 import { CARD_PICKER_SORTS, type CardPickerSort } from '@/lib/card-selector-sort';
 
 export type CardPickerVariantChoice = 'any' | 'first_edition' | CardFinish;
@@ -140,6 +141,15 @@ export function getCardPickerFinishChoices(
   if (variants?.holo || quoted.has('holo')) finishes.push('holo');
   if (variants?.reverse || quoted.has('reverse_holo')) finishes.push('reverse_holo');
   return finishes.length > 1 ? finishes.map((finish) => ({ finish, label: STANDARD_FINISH_LABELS[finish] })) : [];
+}
+
+/** Finishes an owned copy can be corrected to: its printing's standard finishes, unless its pocket pins one. */
+export function ownedCopyFinishChoices(
+  card: Pick<TCGCard, 'rarity' | 'variants'> | undefined,
+  pocketFinish: CardFinish | undefined,
+) {
+  if (!card || pocketFinish) return [];
+  return getCardPickerFinishChoices(card.variants, inferCardFinish(card.rarity, card.variants), 'any');
 }
 
 /** Suggest the most expensive quoted finish; missing prices provide no suggestion. */

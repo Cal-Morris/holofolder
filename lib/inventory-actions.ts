@@ -1,4 +1,5 @@
 import type { OperationIntentContext } from '@/lib/domain/audit-context';
+import type { CardFinish } from '@/lib/domain/cards';
 import {
   inventoryItemCandidate,
   type InventoryCatalogResolver,
@@ -13,7 +14,8 @@ import { parseSlotIntent, projectSlotIntent, type SlotOfflineIntent } from '@/li
 export type InventoryAction =
   | { kind: 'add'; itemId: string; identity: Extract<InventoryIdentity, { kind: 'card' }> }
   | { kind: 'place'; itemId: string; collectionId: string; slotId: string; occupied?: 'unassign' | 'swap' }
-  | { kind: 'unassign' | 'removeOwned'; itemId: string };
+  | { kind: 'unassign' | 'removeOwned'; itemId: string }
+  | { kind: 'setFinish'; itemId: string; finish: CardFinish };
 export interface InventoryOwnershipBinding {
   snapshot: InventorySnapshot;
   catalog: InventoryCatalogResolver;
@@ -129,6 +131,8 @@ export function prepareInventoryAction(
             occupied: action.occupied === 'unassign' ? 'unassign' : 'cancel',
             fulfillWant: null,
           };
+    } else if (action.kind === 'setFinish') {
+      command = { kind: 'setFinish', item, finish: action.finish };
     } else {
       if (action.kind === 'unassign' && !item.placement) throw new Error('already-unassigned');
       command = { kind: action.kind, item };
