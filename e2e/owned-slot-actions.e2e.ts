@@ -147,3 +147,47 @@ test('the finish switch corrects the owned copy in place and keeps its details o
   expect(box!.height).toBeGreaterThanOrEqual(36);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+test('a second finish switch queues behind one still syncing instead of failing', async ({ page }) => {
+  await page.route('**/app/api/tcgdex-cache**', (route) =>
+    route.fulfill({
+      json: {
+        source: 'mirror',
+        cards: [
+          {
+            id: 'synthetic-owned-bulbasaur',
+            localId: '1',
+            name: 'Synthetic Owned Bulbasaur',
+            set: { id: 'synthetic', name: 'Synthetic set' },
+            rarity: 'Rare Holo',
+            variants: { holo: true, reverse: true },
+          },
+        ],
+      },
+    }),
+  );
+  // Hold the first save on the server so the second tap lands while it is still syncing.
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let first = true;
+  await page.route('**/app/e2e-harness/storage/inventory', async (route) => {
+    if (route.request().method() === 'POST' && first) {
+      first = false;
+      await held;
+    }
+    await route.fallback();
+  });
+  await page.goto(entry);
+  await page.locator('[data-slot-id="synthetic-slot-0"]').click();
+  const dialog = page.getByRole('dialog', { name: /details$/ });
+  const finish = dialog.getByRole('group', { name: 'Finish' });
+  await finish.getByRole('button', { name: 'Reverse' }).click();
+  await expect(finish.getByRole('button', { name: 'Reverse' })).toHaveAttribute('aria-pressed', 'true');
+  await finish.getByRole('button', { name: 'Holo' }).click();
+  await expect(finish.getByRole('button', { name: 'Holo' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  release();
+  await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(2);
+  expect((await record(page))!.receipts.map((r) => r.outcome)).toEqual(['acknowledged', 'acknowledged']);
+  await expect(finish.getByRole('button', { name: 'Holo' })).toHaveAttribute('aria-pressed', 'true');
+});

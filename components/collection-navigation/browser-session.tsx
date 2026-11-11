@@ -669,13 +669,8 @@ function ScopedBrowserSession({
     )
       throw new Error('inactive-or-unavailable-session');
     const record = await latest.current.queue.queue?.read();
-    if (
-      !valid() ||
-      current.evidence.kind !== 'complete' ||
-      !record ||
-      record.pending.length ||
-      record.recovery?.some(recoveryUnresolved)
-    )
+    // Edits queue behind ones still syncing: the queue projects each onto the last and sends them in order.
+    if (!valid() || current.evidence.kind !== 'complete' || !record || record.recovery?.some(recoveryUnresolved))
       throw new Error('fresh-scoped-read-required');
     const host = current === read ? catalog : browserHostCatalog(current.catalog);
     if (pickedCard)
