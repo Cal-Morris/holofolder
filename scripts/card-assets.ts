@@ -8,7 +8,7 @@
  *   bun run card-assets migrate-bucket [--apply]                copy cards/... from binderdex-card-images to
  *                                                               pokemon/tcg/cards/... in holofolder-assets
  *   bun run card-assets discover malie                          find malie.io renders for the sets in malie-sets.csv
- *   bun run card-assets publish [--set a,b] [--apply]           upload the ledger's chosen images and record them on
+ *   bun run card-assets publish [--set a,b] [--apply] [--concurrency 6]  upload the ledger's chosen images and record them on
  *                                                               the cards, so the app shows them
  *   bun run card-assets renditions [--set a,b] [--apply]        store the small copy (<key>.low.webp) beside every
  *                                                               chosen fallback-source image that lacks one
@@ -582,7 +582,7 @@ async function publish() {
     const failed: string[] = [];
     let next = 0;
     await Promise.all(
-      Array.from({ length: 6 }, async () => {
+      Array.from({ length: Number(arg('concurrency') ?? 6) }, async () => {
         while (next < toPublish.length) {
           const change = toPublish[next++];
           const url = new URL(change.image!);
