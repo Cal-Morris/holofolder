@@ -177,7 +177,7 @@ export function InventoryBulkReview({ binding, labels, itemIds, onClose, onAccep
   return <div className={styles.overlay}>
     <div data-overlay-backdrop className={styles.backdrop} onClick={onClose} />
     <div ref={ref} role="dialog" aria-modal="true" aria-label="Move selected cards" className={styles.sheet} tabIndex={-1}>
-      <header {...swipe} data-sheet-grabber className={styles.sheetHeader}><h2>Move {itemIds.length} {itemIds.length === 1 ? "card" : "cards"}</h2><button type="button" aria-label="Close" onClick={onClose}><X size={20} /></button></header>
+      <header {...swipe} data-sheet-grabber className={`${styles.sheetHeader} relative`}><span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30" /><h2>Move {itemIds.length} {itemIds.length === 1 ? "card" : "cards"}</h2><button type="button" aria-label="Close" onClick={onClose}><X size={20} /></button></header>
       <div className={`${styles.sheetBody} space-y-3`}>
         <SaveProblem save={save} />
         <fieldset disabled={!binding.available || save.busy} className="grid gap-2 border-0 p-0">

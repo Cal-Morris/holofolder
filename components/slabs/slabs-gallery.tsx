@@ -17,7 +17,7 @@ function SlabDetail({ copy, onClose }: { copy: SlabGalleryCopy; onClose: () => v
   return <div className={styles.overlay}>
     <div className={styles.backdrop} data-overlay-backdrop onClick={onClose} />
     <div className={styles.sheet} role="dialog" aria-modal="true" aria-label="Slab copy details" tabIndex={-1} ref={ref}>
-      <header className={styles.sheetHeader} data-sheet-grabber {...swipe}><h2>Copy details</h2><button aria-label="Close slab details" onClick={onClose}><X size={20} /></button></header>
+      <header className={`${styles.sheetHeader} relative`} data-sheet-grabber {...swipe}><span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30" /><h2>Copy details</h2><button aria-label="Close slab details" onClick={onClose}><X size={20} /></button></header>
       <div className={styles.sheetBody}>
         <h3>{p.name}</h3><p>{slabSummary(p)}</p>
         <p>{p.set ?? "Set unknown"}{p.number ? ` · #${p.number}` : ""}</p>

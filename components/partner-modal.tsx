@@ -2,7 +2,7 @@
 
 import { useBillingContext } from "@/hooks/use-billing"
 import { useRef, useState } from "react"
-import { useOverlay } from "@/hooks/use-overlay"
+import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { X, UserPlus, Users, Check, XIcon, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -66,6 +66,7 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
   }
 
   useOverlay(isOpen, onClose, { containerRef: dialogRef })
+  const swipe = useSwipeToDismiss(dialogRef, onClose, isOpen)
 
   if (!isOpen) return null
 
@@ -73,7 +74,8 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
     <div className="fixed inset-0 z-50">
       <div data-overlay-backdrop className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} />
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Partner Mode" className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--safe-bottom)+1rem)] mx-auto flex w-auto max-w-md flex-col holo-panel overflow-hidden rounded-[2.25rem] border border-border/50 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-up sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(80vh,42rem)] sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 shrink-0">
+        <div data-sheet-grabber {...swipe} className="relative flex items-center justify-between px-5 py-4 border-b border-border/50 shrink-0">
+          <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30 sm:hidden" />
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold">Partner Mode</h2>

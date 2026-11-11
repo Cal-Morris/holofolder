@@ -35,7 +35,7 @@ const overlays: OverlaySpec[] = [
       await opener.click()
       return { dialog: harness.page.getByRole("dialog", { name: /search pokemon/i }), opener }
     },
-    bottomSheet: false,
+    bottomSheet: true,
     backdrop: true,
   },
   {
@@ -67,7 +67,7 @@ const overlays: OverlaySpec[] = [
       await harness.page.getByRole("menuitem", { name: "Sign in", exact: true }).click()
       return { dialog: harness.page.getByRole("dialog", { name: /welcome|sign in/i }), opener }
     },
-    bottomSheet: false,
+    bottomSheet: true,
     backdrop: true,
   },
   {
@@ -92,7 +92,7 @@ const overlays: OverlaySpec[] = [
     },
     signedIn: true,
     returnsTo: /bulbasaur/i,
-    bottomSheet: false,
+    bottomSheet: true,
     backdrop: true,
   },
 ]
@@ -170,9 +170,63 @@ for (const overlay of overlays) {
         await harness.swipeDown(dialog)
         await expectClosed(harness, dialog, overlay.returnsTo)
       })
+
+      test("closes with a touch pull down on its body from the top", async ({ harness }) => {
+        const { dialog } = await overlay.open(harness)
+        await expect(dialog).toBeVisible()
+        const point = await bodyPoint(dialog)
+        await touchDrag(harness.page, point.x, point.y, 220)
+        await expectClosed(harness, dialog, overlay.returnsTo)
+      })
     }
   })
 }
+
+/** A point on the dialog's body (not its grabber or a text field), where a touch should drag the sheet. */
+function bodyPoint(dialog: Locator) {
+  return dialog.evaluate((sheet) => {
+    const rect = sheet.getBoundingClientRect()
+    const x = rect.left + rect.width / 2
+    for (let share = 0.45; share <= 0.85; share += 0.05) {
+      const y = rect.top + rect.height * share
+      const hit = document.elementFromPoint(x, y)
+      if (hit && sheet.contains(hit) && !hit.closest("[data-sheet-grabber], input, textarea, select, [data-no-swipe]")) return { x, y }
+    }
+    throw new Error("No draggable body point found")
+  })
+}
+
+/** A real (CDP) touch drag, so the browser decides between scrolling and our drag like a phone does. */
+async function touchDrag(page: Page, x: number, y: number, distance: number) {
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] })
+  for (let step = 1; step <= 10; step += 1) {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: y + (distance * step) / 10 }] })
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+  await cdp.detach()
+}
+
+test("a scrolled sheet body scrolls back up instead of closing", async ({ harness }) => {
+  // Short enough that the Settings body overflows on every project.
+  await harness.page.setViewportSize({ width: harness.viewport.width, height: 560 })
+  await header(harness.page).getByRole("button", { name: "More", exact: true }).click()
+  await harness.page.getByRole("menuitem", { name: "Settings" }).click()
+  const dialog = harness.page.getByRole("dialog", { name: /settings/i })
+  await expect(dialog).toBeVisible()
+  const before = await dialog.evaluate((sheet) => {
+    const scroller = Array.from(sheet.querySelectorAll<HTMLElement>("*")).find(node => /auto|scroll/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 120)
+    if (!scroller) throw new Error("Settings body should overflow")
+    scroller.dataset.testScroller = ""
+    scroller.scrollTop = 120
+    return scroller.scrollTop
+  })
+  const point = await bodyPoint(dialog)
+  await touchDrag(harness.page, point.x, point.y, 60)
+  await expect.poll(() => dialog.locator("[data-test-scroller]").evaluate(node => node.scrollTop)).toBeLessThan(before)
+  await expect(dialog).toBeVisible()
+  expect(await dialog.evaluate(sheet => sheet.style.translate)).toBe("")
+})
 
 const dockTabs = ["Binder", "List", "Wanted", "Browse", "Search"] as const
 const binderOverlays = overlays.filter((overlay) => ["card detail", "view options", "search", "all cards view"].includes(overlay.name))

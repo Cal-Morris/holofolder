@@ -57,6 +57,14 @@ export function shouldDismissDrag(deltaY: number, velocity: number, sheetHeight 
   return false
 }
 
+/**
+ * Decided once per touch on a sheet's body (not its grabber): a mostly-downward first move
+ * while the body is scrolled to the top drags the sheet; anything else is a normal scroll.
+ */
+export function bodyMoveDragsSheet(dx: number, dy: number, scrollTop: number): boolean {
+  return dy > 0 && dy >= Math.abs(dx) && scrollTop <= 0
+}
+
 /** Exit duration (ms) so a fast fling finishes quickly and a slow release still glides. */
 export function dismissDuration(remaining: number, velocity: number): number {
   const speed = Math.max(velocity, 1.2)
