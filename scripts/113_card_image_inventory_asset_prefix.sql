@@ -1,3 +1,5 @@
+-- Applied to the hosted project as 111_card_image_inventory_asset_prefix.sql on 2026-11-11; renumbered to 113
+-- because 111_delete_collection_remove_owned.sql has the same number. Idempotent, so rerunning it is harmless.
 -- Card images move to the holofolder-assets bucket under a brand/game prefix (pokemon/tcg/cards/...).
 -- Allow both key shapes so rows for the old bucket (cards/...) and the new one coexist during the move.
 SET lock_timeout = '3s';

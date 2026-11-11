@@ -20,7 +20,7 @@ If a backend is selected but its credentials are missing or invalid, the mirror 
 
 Production and Preview use `CARD_IMAGE_STORE=r2` with the same R2 bucket and credentials. Development uses `CARD_IMAGE_STORE=off` unless configured explicitly. Deterministic object keys let previews reuse existing mirrored images. An inherited `BLOB_READ_WRITE_TOKEN` never enables Blob on its own. Environment changes only affect new deployments; older preview URLs retain their original configuration.
 
-Every object lives under a brand/game root, `pokemon/tcg/` (`CARD_ASSET_ROOT` in `lib/tcgdex-card-image.ts`), so other games can share the bucket later. The bucket is `holofolder-assets`. Until 2026-11 images lived in `binderdex-card-images` without the root (`cards/...`); `bun run card-assets migrate-bucket` copied them, a Cloudflare URL-rewrite rule on `assets.holofolder.com` maps old `/cards/*` URLs to `/pokemon/tcg/cards/*`, and the app, service worker and developer API accept old-layout URLs and keys and answer with the current ones. `card_image_inventory` accepts both key shapes (migration 111).
+Every object lives under a brand/game root, `pokemon/tcg/` (`CARD_ASSET_ROOT` in `lib/tcgdex-card-image.ts`), so other games can share the bucket later. The bucket is `holofolder-assets`. Until 2026-11 images lived in `binderdex-card-images` without the root (`cards/...`); `bun run card-assets migrate-bucket` copied them, a Cloudflare URL-rewrite rule on `assets.holofolder.com` maps old `/cards/*` URLs to `/pokemon/tcg/cards/*`, and the app, service worker and developer API accept old-layout URLs and keys and answer with the current ones. `card_image_inventory` accepts both key shapes (migration 113).
 
 Object keys are deterministic:
 
