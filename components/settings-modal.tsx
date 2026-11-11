@@ -130,9 +130,9 @@ interface SettingsModalProps {
   onRequestMotionGlint: () => void;
 }
 
-/** Root and page panes slide; `visibility` flips after the slide out so hidden panes leave focus and the a11y tree. */
+/** Root and page panes slide and fade (panes are transparent, so they'd show through each other mid-slide); `visibility` flips after the slide out so hidden panes leave focus and the a11y tree. */
 const PANE =
-  'absolute inset-0 overflow-y-auto overscroll-contain transition-[translate,visibility] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none';
+  'absolute inset-0 overflow-y-auto overscroll-contain transition-[translate,opacity,visibility] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none';
 const PANE_STYLE = { WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' } as const;
 
 function SettingsGroup({ label, quiet = false, children }: { label: string; quiet?: boolean; children: ReactNode }) {
@@ -921,7 +921,7 @@ export default function SettingsModal({
 
         <div className="relative flex-1 overflow-hidden">
           <div
-            className={`${PANE} space-y-5 px-4 py-4 ${activePage ? 'invisible -translate-x-1/4' : 'visible translate-x-0'}`}
+            className={`${PANE} space-y-5 px-4 py-4 ${activePage ? 'invisible -translate-x-1/4 opacity-0' : 'visible translate-x-0 opacity-100'}`}
             style={PANE_STYLE}
           >
             {!user && !isAccountReadOnly && (
@@ -985,7 +985,7 @@ export default function SettingsModal({
 
           <div
             ref={pageScrollRef}
-            className={`${PANE} px-5 py-5 sm:px-6 ${activePage ? 'visible translate-x-0' : 'invisible translate-x-full'}`}
+            className={`${PANE} px-5 py-5 sm:px-6 ${activePage ? 'visible translate-x-0 opacity-100' : 'invisible translate-x-full opacity-0'}`}
             style={PANE_STYLE}
           >
             {renderedPage && <div key={renderedPage}>{renderPage(renderedPage)}</div>}
