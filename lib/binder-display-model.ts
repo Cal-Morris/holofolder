@@ -103,13 +103,13 @@ export function speciesPocket(input: Pick<SlotDisplayInput, "binder" | "inventor
 /** Legacy PokemonSlot wishlisted tone, shared so native pockets dim wants the same way. */
 export const WANTED_PREVIEW_TONE = "grayscale saturate-[0.75] brightness-[0.92] contrast-[0.95] opacity-90"
 
-/** Like legacy getBinderDisplayCard: outside "current", a want previews its printing dimmed. Owned copies without wants stay full colour. */
+/** Like legacy getBinderDisplayCard: outside "current", a want previews its printing dimmed. Owned copies without wants stay full colour, except in "wanted", which dims everything else so only wants stand out. */
 export function displaySlotPreview(slot: ReadOnlyDisplaySlot, display: BinderCardDisplay = "mixed") {
   const wanted = display !== "current" && Boolean(slot.wantedCards?.length)
   const wantImage = wanted ? slot.wantedCards![0].card_image : undefined
   const placeholder = slot.pokemon ? getOfficialArtworkUrl(slot.pokemon.id) : null
   const image = wanted ? wantImage ?? placeholder : slot.card?.image ?? placeholder
-  return { image, isCard: wanted ? Boolean(wantImage) : Boolean(slot.card?.image), tone: wanted ? WANTED_PREVIEW_TONE : slot.item ? "" : "grayscale opacity-45" }
+  return { image, isCard: wanted ? Boolean(wantImage) : Boolean(slot.card?.image), tone: wanted ? WANTED_PREVIEW_TONE : slot.item && display !== "wanted" ? "" : "grayscale opacity-45" }
 }
 
 /** The exact URL OrderedSlot's CardImage requests, so page-turn prefetch warms what the pocket shows. */
