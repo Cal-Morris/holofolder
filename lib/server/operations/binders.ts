@@ -64,13 +64,11 @@ export async function createBinder(request: NextRequest, actor: Pick<User, "id">
     if (!name) return NextResponse.json({ error: "Give the binder a name (up to 40 characters)" }, { status: 400 })
 
     const { admin, ownerUserId } = session
-    const binders = await listOwnerBinders(admin, ownerUserId)
     const headerKey = request.headers.get("idempotency-key")
-    if (!headerKey && !canCreateBinder(binders)) {
-      return NextResponse.json({ error: "You have the most binders allowed" }, { status: 409 })
-    }
+    // Idempotent creates (every developer call) leave both limits to SQL: developer_create_binder's safety limit and the enforce_binder_billing trigger.
     if (!headerKey) {
-      const access = await getBillingAccess(ownerUserId)
+      const [binders, access] = await Promise.all([listOwnerBinders(admin, ownerUserId), getBillingAccess(ownerUserId)])
+      if (!canCreateBinder(binders)) return NextResponse.json({ error: "You have the most binders allowed" }, { status: 409 })
       if (!canCreateOwnerBinder(access, binders.length)) throw new BillingAccessError('binder_limit_reached')
     }
     // One SQL path creates the binder and its native slots state together.

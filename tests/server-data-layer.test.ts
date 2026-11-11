@@ -85,6 +85,19 @@ test("strict native membership rejects denied partner billing instead of falling
   assert.equal(await resolveCollectionOwnerUserId(client, "partner"), "partner")
 })
 
+test("the partnership owner skips the billing check, which always allows them", async () => {
+  const { resolveCollectionMembership } = await import("../lib/server/collection-owner")
+  const { client } = fakeClient({ partnerships: { data: { id: "p", owner_user_id: "owner", user1_id: "owner", user2_id: "partner" }, error: null } })
+  let billingCalls = 0
+  Object.assign(client, { rpc: async () => { billingCalls++; return { data: false, error: null } } })
+  const membership = await resolveCollectionMembership(client, "owner", { strictBilling: true, ownWhenDenied: true })
+  assert.equal(membership.ownerUserId, "owner")
+  assert.equal(membership.partnerAccessDenied, false)
+  assert.equal(billingCalls, 0)
+  await resolveCollectionMembership(client, "partner", { strictBilling: true, ownWhenDenied: true })
+  assert.equal(billingCalls, 1, "a partner is still checked")
+})
+
 test("own-when-denied membership opens only the actor's collection on a definite denial", async () => {
   const { resolveCollectionMembership } = await import("../lib/server/collection-owner")
   const { client } = fakeClient({ partnerships: { data: { id: "p", owner_user_id: "shared-owner", user1_id: "shared-owner", user2_id: "partner" }, error: null } })

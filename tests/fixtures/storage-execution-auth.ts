@@ -15,12 +15,15 @@ async function main() {
   const permissions = () => readonly ? ["collection:read", "binders:read"] : ["collection:write", "binders:write"]
   mock.module("../../lib/supabase/server", () => ({ createClient: async () => ({ auth: {
     getClaims: async () => ({ data: { claims: { sub: actor, role: "authenticated", session_id: "synthetic-auth-session", ...(oauthSession ? { client_id: "synthetic-client" } : {}) } } }),
-    getUser: async () => ({ data: { user: signedIn ? { id: actor } : null } }),
-  } }) }))
-  mock.module("../../lib/server/developer-access/grants", () => ({ authenticateMcpToken: async () => {
-    if (revoked) throw new Error("revoked")
-    return { actorId: actor, credentialId, transport: "mcp", permissions: permissions() }
-  } }))
+  }, rpc: (name: string) => ({ abortSignal: async () => {
+    // Synthetic inventory_read_scope_v2: live session/user state, then partnership owner and billing.
+    assert.equal(name, "inventory_read_scope_v2")
+    if (!signedIn) return { data: null, error: { code: "42501", message: "inventory_sign_in_required" } }
+    if (billingRpcFails) return { data: null, error: { code: "57014", message: "synthetic timeout" } }
+    return { data: { actor, owner: partnerAllowed ? owner : actor, session_id: "synthetic-auth-session", partner_paused: !partnerAllowed }, error: null }
+  } }) }) }))
+  const mcpIdentity = { actorId: actor, clientId: "00820000-0000-4000-8000-000000000003", sessionId: "00820000-0000-4000-8000-000000000004", grantId: "00820000-0000-4000-8000-000000000005", expiresAt: 2000000000 }
+  mock.module("../../lib/server/developer-access/grants", () => ({ verifyMcpToken: async () => mcpIdentity }))
   const calls: Array<{ path: string; body: Record<string, unknown>; header: Record<string, unknown> | null }> = []
   globalThis.fetch = async (input, init) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input : input.url)
@@ -30,6 +33,10 @@ async function main() {
     calls.push({ path: url.pathname, body, header })
     if (url.pathname.endsWith("/authenticate_developer_request")) return Response.json(revoked ? { error: "invalid_api_key" } : {
       actor_id: actor, credential_id: credentialId, permissions: permissions(), owner_user_id: owner, member_ids: [owner, actor],
+      billing_access: { perpetual: paid }, budget: { allowed: true },
+    })
+    if (url.pathname.endsWith("/authenticate_developer_oauth_request")) return Response.json(revoked ? { error: "oauth_revoked" } : {
+      credential_id: credentialId, permissions: permissions(), redirect_origin: "https://holofolder.com", owner_user_id: owner, member_ids: [owner, actor],
       billing_access: { perpetual: paid }, budget: { allowed: true },
     })
     if (url.pathname.endsWith("/resolve_developer_access")) return Response.json({ owner_user_id: owner, member_ids: [owner, actor], billing_access: { perpetual: paid }, budget: { allowed: true } })
@@ -53,13 +60,20 @@ async function main() {
     }
     throw new Error("Unexpected request " + url.pathname)
   }
-  const { executeAppStorageRequest, executeRestStorageRequest, executeMcpStorageRequest, executeDeveloperStorageOperation } = await import("../../lib/server/operations/storage-execution")
+  const { executeAppStorageRequest, executeDeveloperStorageOperation } = await import("../../lib/server/operations/storage-execution")
+  const { requireRestContext, requireMcpContext } = await import("../../lib/server/developer-access/principal")
+  const writes = ["collection:write", "binders:write"] as const
   const command = { operationId: "synthetic-bridge-auth", inventoryRevision: 1, collections: [], commands: [{ kind: "add", itemId: "synthetic-copy", identity: { kind: "pokemon", pokemonId: 1 }, grading: null, acquiredAt: null }] }
   const key = createDeveloperKey()
   const request = (extra: Record<string, string> = {}, value: unknown = command) => new Request("https://holofolder.com/app/api/inventory", {
     method: "POST", headers: { "content-type": "application/json", "X-Binder-Owner": owner, "X-Binder-Auth-Session": "synthetic-auth-session",
       "x-holo-audit-context": '{"actor":{"kind":"user","userId":"forged"},"source":"migration"}', ...extra }, body: JSON.stringify(value),
   })
+  // The real REST/MCP boundaries: authenticate once, then the shared developer executor.
+  const rest = async (operation: "inventory" | "collection.create", value: unknown = command) =>
+    executeDeveloperStorageOperation(await requireRestContext(request({ authorization: "Bearer " + key.key }, value), writes, "write"), operation, value)
+  const mcp = async (operation: "inventory" | "collection.create", value: unknown = command) =>
+    executeDeveloperStorageOperation(await requireMcpContext(mcpIdentity, request({ authorization: "Bearer synthetic-oauth" }, value), "write"), operation, value)
   const count = () => calls.filter(c => c.path.endsWith("/storage_execute_v1")).length
   await executeAppStorageRequest(request(), "inventory")
   assert.equal(calls.at(-1)?.header?.source, "app")
@@ -75,21 +89,21 @@ async function main() {
   await assert.rejects(executeAppStorageRequest(request({ "X-Binder-Owner": actor }), "inventory"))
   await assert.rejects(executeAppStorageRequest(request({}, { ...command, source: "app" }), "inventory"))
   assert.equal(count(), before)
-  await executeRestStorageRequest(request({ authorization: "Bearer " + key.key }), "inventory")
+  await rest("inventory")
   assert.equal(calls.at(-1)?.header?.source, "rest")
   assert.equal(calls.at(-1)?.header?.clientId, credentialId)
-  await executeMcpStorageRequest(request({ authorization: "Bearer synthetic-oauth" }), "inventory", command)
+  await mcp("inventory")
   assert.equal(calls.at(-1)?.header?.source, "mcp")
   before = count()
   readonly = true
-  await assert.rejects(executeRestStorageRequest(request({ authorization: "Bearer " + key.key }), "inventory"))
-  await assert.rejects(executeMcpStorageRequest(request({ authorization: "Bearer synthetic-oauth" }), "inventory", command))
+  await assert.rejects(rest("inventory"))
+  await assert.rejects(mcp("inventory"))
   readonly = false; paid = false
-  await assert.rejects(executeRestStorageRequest(request({ authorization: "Bearer " + key.key }), "inventory"))
-  await assert.rejects(executeMcpStorageRequest(request({ authorization: "Bearer synthetic-oauth" }), "inventory", command))
+  await assert.rejects(rest("inventory"))
+  await assert.rejects(mcp("inventory"))
   paid = true; revoked = true
-  await assert.rejects(executeRestStorageRequest(request({ authorization: "Bearer " + key.key }), "inventory"))
-  await assert.rejects(executeMcpStorageRequest(request({ authorization: "Bearer synthetic-oauth" }), "inventory", command))
+  await assert.rejects(rest("inventory"))
+  await assert.rejects(mcp("inventory"))
   revoked = false
   await assert.rejects(executeDeveloperStorageOperation({ principal: { actorId: actor, credentialId, transport: "rest", permissions: ["collection:read"] }, ownerUserId: owner, memberIds: [actor], requestId: "synthetic" }, "inventory", command))
   await assert.rejects(executeDeveloperStorageOperation({ principal: { actorId: actor, credentialId, transport: "rest", permissions: ["binders:write"] }, ownerUserId: owner, memberIds: [actor], requestId: "synthetic" }, "slots", {}))
@@ -105,8 +119,8 @@ async function main() {
     manifest: { source: { id: "blank", version: "1" }, name: "Blank", entries: [] }, slotIds: [] }
   for (const source of ["app", "rest", "mcp"]) {
     const result = source === "app" ? await executeAppStorageRequest(request({}, creation), "collection.create")
-      : source === "rest" ? await executeRestStorageRequest(request({ authorization: "Bearer " + key.key }, creation), "collection.create")
-      : await executeMcpStorageRequest(request({ authorization: "Bearer synthetic-oauth" }), "collection.create", creation)
+      : source === "rest" ? await rest("collection.create", creation)
+      : await mcp("collection.create", creation)
     assert.equal(result.collectionId, creation.collectionId)
     assert.equal("evidence" in result, false)
     assert.equal(result.recoverySupported, false)

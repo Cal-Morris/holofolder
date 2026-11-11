@@ -79,7 +79,7 @@ export function fixture(size = 1031, owner = "11111111-1111-4111-8111-1111111111
     tables.inventory_placements.push({ inventory_item_id: id, owner_user_id: owner, collection_id: collection, slot_id: id, version: n })
     tables.binder_slots.push({ id, owner_user_id: owner, collection_id: collection, position: n * 2, target: null, status: "collected", wanted_cards: [], preset_origin: null, version: n })
   }
-  let actor = owner, allowed = true, oauth = false
+  let actor = owner, allowed = true, oauth = false, revoked = false
   const requests: { table: string; url: URL; method: string; headers: Headers }[] = []
   let intercept: ((table: string, url: URL, init?: RequestInit) => Response | void) | undefined
   const transport: typeof fetch = async (input, init) => {
@@ -88,9 +88,9 @@ export function fixture(size = 1031, owner = "11111111-1111-4111-8111-1111111111
     requests.push({ table, url, method, headers: new Headers(init?.headers) })
     const overridden = intercept?.(table, url, init)
     if (overridden) return overridden
-    if (table === "inventory_read_v2") {
+    if (table === "inventory_read_v2" || table === "inventory_read_scope_v2") {
       const fail = (message: string, code = "42501") => Response.json({ code, message }, { status: code === "42501" ? 403 : 400 })
-      if (oauth) return fail("inventory_sign_in_required")
+      if (oauth || revoked) return fail("inventory_sign_in_required")
       const membership = tables.partnerships.filter(p => p.user1_id === actor || p.user2_id === actor)
       if (membership.length > 1) return fail("inventory_read_unavailable", "55000")
       let owner = String(membership[0]?.owner_user_id ?? actor), partnership: Row | null = membership[0] ?? null
@@ -99,10 +99,10 @@ export function fixture(size = 1031, owner = "11111111-1111-4111-8111-1111111111
         owner = actor; partnership = null
       }
       const settings = tables.user_settings.find(s => s.user_id === owner)
-      return Response.json({ scope: { actor, owner, session_id: authSessionId, partner_paused: !allowed,
+      const scope = { actor, owner, session_id: authSessionId, partner_paused: !allowed,
         partnership: partnership && { id: partnership.id, owner_user_id: partnership.owner_user_id, user1_id: partnership.user1_id, user2_id: partnership.user2_id },
-        settings: settings ? { binder_rows: settings.binder_rows ?? null, binder_cols: settings.binder_cols ?? null, updated_at: settings.updated_at ?? null } : null },
-      snapshot: snapshotDocument(tables, owner) })
+        settings: settings ? { binder_rows: settings.binder_rows ?? null, binder_cols: settings.binder_cols ?? null, updated_at: settings.updated_at ?? null } : null }
+      return Response.json(table === "inventory_read_scope_v2" ? scope : { scope, snapshot: snapshotDocument(tables, owner) })
     }
     if (table === "billing_partner_allowed") return Response.json(allowed)
     let rows = [...(tables[table] ?? [])]
@@ -138,5 +138,5 @@ export function fixture(size = 1031, owner = "11111111-1111-4111-8111-1111111111
   const client = createClient("https://synthetic.supabase.test", "synthetic-key", { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: transport } })
   client.auth.getClaims = async () => ({ data: { claims: { sub: actor, session_id: authSessionId, role: "authenticated", ...(oauth ? { client_id: "synthetic-oauth" } : {}) } }, error: null }) as never
   client.auth.getUser = async () => ({ data: { user: { id: actor } }, error: null }) as never
-  return { client, transport, tables, requests, setActor: (id: string) => { actor = id }, deny: () => { allowed = false }, oauth: () => { oauth = true }, intercept: (fn: typeof intercept) => { intercept = fn } }
+  return { client, transport, tables, requests, setActor: (id: string) => { actor = id }, deny: () => { allowed = false }, oauth: () => { oauth = true }, revoke: (value = true) => { revoked = value }, intercept: (fn: typeof intercept) => { intercept = fn } }
 }

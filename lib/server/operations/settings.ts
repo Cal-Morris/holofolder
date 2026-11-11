@@ -99,7 +99,15 @@ export async function saveCollectionSettings(request: NextRequest, actor: Pick<U
     }
     const admin = createAdminClient()
     const settingsOwnerUserId = verifiedOwnerId ?? await resolveSettingsOwnerUserId(user.id)
-    const binderId = body.binderId ? await resolveWriteBinderId(admin, settingsOwnerUserId, body.binderId) : null
+    // The settings row and the binder's layout are independent reads.
+    const binderRead = (async () => {
+      const binderId = body.binderId ? await resolveWriteBinderId(admin, settingsOwnerUserId, body.binderId) : null
+      return { binderId, currentBinder: binderId ? await admin.from("binders").select("binder_rows,binder_cols").eq("id", binderId).eq("owner_user_id", settingsOwnerUserId).single() : null }
+    })()
+    const [existingResult, { binderId, currentBinder }] = await Promise.all([
+      admin.from("user_settings").select("*").eq("user_id", settingsOwnerUserId).maybeSingle(),
+      binderRead,
+    ])
     const nextSettings = settingsFromRow({
       binder_rows: body.binderRows,
       binder_cols: body.binderCols,
@@ -114,12 +122,6 @@ export async function saveCollectionSettings(request: NextRequest, actor: Pick<U
       preferred_card_language: typeof body.preferredCardLanguage === "string" ? body.preferredCardLanguage : null,
     })
 
-    const existingResult = await admin
-      .from("user_settings")
-      .select("*")
-      .eq("user_id", settingsOwnerUserId)
-      .maybeSingle()
-
     if (existingResult.error) {
       console.error("[holofolder] API settings existence check failed:", existingResult.error)
       return NextResponse.json(
@@ -128,11 +130,11 @@ export async function saveCollectionSettings(request: NextRequest, actor: Pick<U
       )
     }
 
-    const currentBinder = binderId ? await admin.from("binders").select("binder_rows,binder_cols").eq("id", binderId).eq("owner_user_id", settingsOwnerUserId).single() : null
     if (currentBinder?.error) throw currentBinder.error
     const previous = withBinderLayout(settingsFromRow(existingResult.data), currentBinder?.data ? { rows: currentBinder.data.binder_rows, cols: currentBinder.data.binder_cols } : null)
     const layoutChanged = nextSettings.binderRows !== previous.binderRows || nextSettings.binderCols !== previous.binderCols
-    if (needsCustomLayoutAccess({ rows: nextSettings.binderRows, cols: nextSettings.binderCols }, { rows: previous.binderRows, cols: previous.binderCols })) {
+    // A developer context (verifiedOwnerId) already required paid access for this owner in this request's authentication.
+    if (!verifiedOwnerId && needsCustomLayoutAccess({ rows: nextSettings.binderRows, cols: nextSettings.binderCols }, { rows: previous.binderRows, cols: previous.binderCols })) {
       await requirePaidAccess(settingsOwnerUserId)
     }
     if(requireAtomic) {

@@ -40,7 +40,8 @@ export async function resolveCollectionMembership(client: AnySupabaseClient, use
     throw error
   }
 
-  if (partnership?.owner_user_id && typeof client.rpc === "function") {
+  // billing_partner_allowed starts with `actor_id = owner_id OR`: the owner is always allowed, so only a partner asks.
+  if (partnership?.owner_user_id && partnership.owner_user_id !== userId && typeof client.rpc === "function") {
     const { data: allowed, error: accessError } = await client.rpc("billing_partner_allowed", { owner_id: partnership.owner_user_id, actor_id: userId })
     if (accessError && (options.strictBilling || !["PGRST202", "42883"].includes(accessError.code))) throw accessError
     if (!accessError && options.ownWhenDenied && typeof allowed !== "boolean") throw new Error("billing_access_check_unavailable")
