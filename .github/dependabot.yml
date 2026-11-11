@@ -10,13 +10,16 @@ updates:
     open-pull-requests-limit: 5
     # Avoid automatic rebases spending the Vercel deployment budget.
     rebase-strategy: disabled
+    ignore:
+      # 0.5.8 is the last MIT release; later versions change the licence terms.
+      - dependency-name: oxlint-plugin-react-doctor
+        versions: ['>0.5.8']
     groups:
       # Match coupled packages before the broader dev/runtime groups.
       next:
         patterns:
           - next
           - '@next/*'
-          - eslint-config-next
         update-types: [minor, patch]
       react:
         patterns:
