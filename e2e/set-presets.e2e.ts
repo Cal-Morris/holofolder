@@ -1,12 +1,12 @@
 import { test, expect } from "./fixtures"
-import { syntheticPresetCards, syntheticPresetSet, syntheticPresetPromo } from "../tests/fixtures/set-preset"
+import { syntheticPromoHostCards as syntheticPresetCards, syntheticPromoHostSet as syntheticPresetSet, syntheticSuggestedPromo as syntheticPresetPromo } from "../tests/fixtures/set-preset"
 
 test.describe("copied set preset draft", () => {
   test.beforeEach(async ({ harness }) => {
     const { page } = harness
     await page.route("**/app/api/binders**", route => route.fulfill({ json: { binders: [] } }))
     await page.route("**/app/api/tcg-set-slots**", route => {
-      const url = new URL(route.request().url()), promo = url.searchParams.get("setId") === "synthetic-promos"
+      const url = new URL(route.request().url()), promo = url.searchParams.get("setId") === "svp"
       const cards = promo ? [syntheticPresetPromo] : syntheticPresetCards.map(c => ({ ...c, languageConfirmed: url.searchParams.get("language") === "en" }))
       return route.fulfill({ json: { sets: [syntheticPresetSet], selectedSet: url.searchParams.has("setId") ? promo ? syntheticPresetPromo.set : syntheticPresetSet : null, cards, slots: [] } })
     })
@@ -56,7 +56,7 @@ test.describe("copied set preset draft", () => {
     await expect(page.getByLabel("Current binder progress")).toContainText("0 of 6 targets")
     await harness.expectNoHorizontalOverflow()
   })
-  test("explicit finish scope, selected promo and exclusion produce an exact preview", async ({ harness }) => {
+  test("explicit finish scope and a suggested promo produce an exact preview", async ({ harness }) => {
     const { page } = harness, sheet = page.getByRole("dialog", { name: "Binders", exact: true })
     await expect(sheet.getByRole("button", { name: /^Holo/ })).toHaveCount(0)
     await sheet.getByRole("button", { name: /^Reverse holo/ }).click()
@@ -64,29 +64,23 @@ test.describe("copied set preset draft", () => {
     await expect(sheet.getByLabel("Target preview")).toContainText("reverse_holo")
     await sheet.getByRole("button", { name: /^Normal/ }).click()
     await expect(sheet.getByLabel("Copied set scope")).toContainText("7 targets")
-    await sheet.getByLabel("Promo set ID").fill("synthetic-promos")
-    await sheet.getByRole("button", { name: "Load promos", exact: true }).click()
     await sheet.getByRole("button", { name: /^Promo / }).click()
     await expect(sheet.getByLabel("Copied set scope")).toContainText("8 targets")
-    await sheet.getByRole("button", { name: "Leave out #1 Synthetic repeated Pokémon", exact: true }).click()
-    await expect(sheet.getByLabel("Copied set scope")).toContainText("6 targets")
-    await expect(sheet.getByLabel("Copied set scope")).toContainText("1 selected promos; 1 exclusions")
+    await expect(sheet.getByLabel("Copied set scope")).toContainText("1 selected promos.")
     await harness.expectNoHorizontalOverflow()
     await sheet.getByRole("button", { name: "Prepare draft" }).click()
-    await expect(page.getByLabel("Prepared creation draft")).toContainText('"excludedCardIds":["synthetic-set-1"]')
+    await expect(page.getByLabel("Prepared creation draft")).toContainText('"excludedCardIds":[]')
   })
   test("rejected promo alias leaves the selected scope and prepared draft consistent", async ({ harness }) => {
     const { page } = harness, sheet = page.getByRole("dialog", { name: "Binders", exact: true })
     await page.route("**/app/api/tcg-set-slots**", route => {
-      const url = new URL(route.request().url()), promo = url.searchParams.get("setId") === "synthetic-promos"
+      const url = new URL(route.request().url()), promo = url.searchParams.get("setId") === "svp"
       const cards = promo ? [{ ...syntheticPresetPromo, aliasIds: ["synthetic-shared-alias"] }]
         : syntheticPresetCards.map((card, index) => ({ ...card, ...(index === 0 ? { aliasIds: ["synthetic-shared-alias"] } : {}) }))
       return route.fulfill({ json: { sets: [syntheticPresetSet], selectedSet: promo ? syntheticPresetPromo.set : syntheticPresetSet, cards, slots: [] } })
     })
     await sheet.getByRole("button", { name: "Find set", exact: true }).click()
     await sheet.getByRole("button", { name: /Synthetic International/ }).click()
-    await sheet.getByLabel("Promo set ID").fill("synthetic-promos")
-    await sheet.getByRole("button", { name: "Load promos", exact: true }).click()
     await sheet.getByRole("button", { name: /^Promo / }).click()
     await expect(sheet.getByRole("status").filter({ hasText: /That selection can.t be used/ })).toBeVisible()
     await expect(sheet.getByRole("button", { name: /^Promo /, pressed: true })).toHaveCount(0)
