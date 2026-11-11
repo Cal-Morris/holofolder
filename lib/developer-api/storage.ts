@@ -131,6 +131,7 @@ const inventoryCommand = z.discriminatedUnion('kind', [
     .strict(),
   z.object({ kind: z.literal('add'), itemId: id, identity, grading, acquiredAt: z.string().nullable() }).strict(),
   z.object({ kind: z.literal('edit'), item, grading }).strict(),
+  z.strictObject({ kind: z.literal('setFinish'), item, finish: z.enum(CARD_FINISHES) }),
   z.object({ kind: z.literal('patchGrading'), item, patch: gradingPatch }).strict(),
   z.object({ kind: z.enum(['removeOwned', 'unassign']), item }).strict(),
   z
@@ -241,12 +242,13 @@ export const nativeInventorySchema = z
           command.kind === 'insertAssign' ||
           command.kind === 'add' ||
           command.kind === 'patchGrading' ||
+          command.kind === 'setFinish' ||
           command.kind === 'unassign' ||
           command.kind === 'removeOwned' ||
           ((command.kind === 'assign' || command.kind === 'move') &&
             (command.fulfillWant === null || 'expectedPublic' in command.fulfillWant)),
       ),
-    'Private-preserving mode supports insertAssign, add, explicit removeOwned, unassign, patchGrading and placement with null or expectedPublic fulfillment. Full grading/wants replacements remain excluded.',
+    'Private-preserving mode supports insertAssign, add, explicit removeOwned, unassign, patchGrading, setFinish and placement with null or expectedPublic fulfillment. Full grading/wants replacements remain excluded.',
   )
   .refine(
     (input) => input.privateFields !== 'preserve' || input.expectedOwnerUserId !== undefined,
@@ -633,7 +635,7 @@ const operations: readonly DeveloperOperation[] = [
     path: '/storage/inventory/commands',
     description:
       terminalDescription +
-      ' Atomic insertAssign, owned-copy add/edit/remove/unassign/assign/move or collection deletion through the trusted executor. insertAssign creates one stable slot before an exact existing slot reference or appends with before:null, retaining explicit target:null/free or target intent. selection:null creates no ownership; existing requires an exact Unassigned item/version, new explicitly creates that stable item. It never auto-selects a grade or moves an assigned copy. Maximum 4096 slots and 8192 insertion work rows per request, 100 commands, 256 affected selected entities, 256 KiB ordinary request, 1 MiB ordinary receipt and unchanged 16 MiB/16384 audit bounds and 10s deadline; oversized evidence rejects atomically. Full selected-copy/destination and revision preconditions are mandatory. Only explicit removeOwned deletes ownership; idempotent receipts require a fresh complete read before reconciliation. Set privateFields=preserve for add, explicit removeOwned, unassign or placement with fulfillWant:null; patchGrading updates only declared public fields on existing grading; selected-want expectedPublic compares the exact locked slot/index public projection. Hidden certificates/assets/provenance and unrelated wants are retained by migration 090 after original-intent replay lookup. Omitted or replace retains full-replacement semantics.',
+      ' Atomic insertAssign, owned-copy add/edit/remove/unassign/assign/move or collection deletion through the trusted executor. insertAssign creates one stable slot before an exact existing slot reference or appends with before:null, retaining explicit target:null/free or target intent. selection:null creates no ownership; existing requires an exact Unassigned item/version, new explicitly creates that stable item. It never auto-selects a grade or moves an assigned copy. Maximum 4096 slots and 8192 insertion work rows per request, 100 commands, 256 affected selected entities, 256 KiB ordinary request, 1 MiB ordinary receipt and unchanged 16 MiB/16384 audit bounds and 10s deadline; oversized evidence rejects atomically. Full selected-copy/destination and revision preconditions are mandatory. Only explicit removeOwned deletes ownership; idempotent receipts require a fresh complete read before reconciliation. Set privateFields=preserve for add, explicit removeOwned, unassign or placement with fulfillWant:null; patchGrading updates only declared public fields on existing grading; setFinish corrects the recorded finish of a card copy in place (migration 114) and must still match the target of its pocket; selected-want expectedPublic compares the exact locked slot/index public projection. Hidden certificates/assets/provenance and unrelated wants are retained by migration 090 after original-intent replay lookup. Omitted or replace retains full-replacement semantics.',
     permissions,
     write: true,
     schema: nativeInventorySchema,

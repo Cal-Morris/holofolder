@@ -12,6 +12,10 @@ import CardImageZoom from '@/components/card-image-zoom';
 import NativeCardPrice, { type NativeCardPricing } from '@/components/binder/native-card-price';
 import { useNativeSlotAction } from '@/hooks/use-native-slot-pick';
 import { formatCardFinishLabel, formatCardLanguageLabel } from '@/lib/card-labels';
+import { ownedCopyFinishChoices } from '@/lib/card-picker-filters';
+import { matchesCatalogCardId } from '@/lib/card-catalog';
+import { loadCardsForPokemon } from '@/hooks/use-tcgdex';
+import type { TCGCard } from '@/lib/domain/cards';
 import { isCardLanguage } from '@/lib/domain/cards';
 import { displaySlotName, formatGradeLabel } from '@/lib/pocket-labels';
 import { formatDexNumber, getOfficialArtworkUrl } from '@/lib/pokemon-catalog';
@@ -54,7 +58,16 @@ export default function SlotDetail({
   const swipe = useSwipeToDismiss(ref, onClose);
   const [menu, setMenu] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const action = useNativeSlotAction(picker, onClose);
+  // A finish change keeps the details open on the corrected card; every other action closes them.
+  const keepOpen = useRef(false);
+  const action = useNativeSlotAction(picker, () => {
+    if (keepOpen.current) keepOpen.current = false;
+    else onClose();
+  });
+  const run: typeof action.run = (next, selected) => {
+    keepOpen.current = next.kind === 'setFinish';
+    action.run(next, selected);
+  };
   const editable = Boolean(picker);
   useEffect(() => {
     if (!editable) return;
@@ -64,6 +77,24 @@ export default function SlotDetail({
   // The copy's own recorded printing, never a catalog guess: prices and All cards follow exactly this card.
   const copy = slot.item?.identity.kind === 'card' ? slot.item.identity : null;
   const identity = copy ?? (slot.target?.kind === 'card' ? slot.target : null);
+  const [catalogCard, setCatalogCard] = useState<TCGCard>();
+  const copyCardId = copy?.cardId;
+  const copyLanguage = copy?.language ?? 'en';
+  const pokemonId = slot.pokemon?.id;
+  useEffect(() => {
+    if (!editable || !copyCardId || !pokemonId) return;
+    let live = true;
+    loadCardsForPokemon(pokemonId, copyLanguage).then(
+      (cards) => live && setCatalogCard(cards.find((card) => matchesCatalogCardId(card, copyCardId))),
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [editable, copyCardId, copyLanguage, pokemonId]);
+  const finishChoices = copy
+    ? ownedCopyFinishChoices(catalogCard, slot.target?.kind === 'card' ? slot.target.finish : undefined)
+    : [];
   const name = displaySlotName(slot);
   const grade = slot.item?.grading;
   const image = slot.card?.image ?? (slot.pokemon ? getOfficialArtworkUrl(slot.pokemon.id) : null);
@@ -167,7 +198,27 @@ export default function SlotDetail({
                   {status.label}
                 </span>
                 {identity?.language && <span className={chip}>{formatCardLanguageLabel(identity.language)}</span>}
-                {identity?.finish && <span className={chip}>{formatCardFinishLabel(identity.finish)}</span>}
+                {finishChoices.length > 1 ? (
+                  <div role="group" aria-label="Finish" className="flex flex-wrap gap-1">
+                    {finishChoices.map((choice) => (
+                      <button
+                        key={choice.finish}
+                        type="button"
+                        aria-pressed={copy?.finish === choice.finish}
+                        disabled={action.busy}
+                        onClick={() => {
+                          if (copy?.finish === choice.finish) return;
+                          run({ kind: 'setFinish', finish: choice.finish });
+                        }}
+                        className="border-border/60 text-muted-foreground aria-pressed:border-primary/50 aria-pressed:bg-primary/15 aria-pressed:text-foreground min-h-9 rounded-full border px-3 text-[11px] font-medium disabled:opacity-50 dark:border-white/10"
+                      >
+                        {choice.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  identity?.finish && <span className={chip}>{formatCardFinishLabel(identity.finish)}</span>
+                )}
                 {grade && <span className={chip}>{formatGradeLabel(grade)}</span>}
               </div>
             </div>
@@ -185,7 +236,7 @@ export default function SlotDetail({
                   disabled={action.busy}
                   onClick={() => {
                     setMenu(false);
-                    action.run({ kind: 'clear' });
+                    run({ kind: 'clear' });
                   }}
                   className="hover:bg-muted/70 flex min-h-11 flex-col items-start justify-center rounded-xl px-3 text-left text-sm disabled:opacity-50"
                 >
@@ -249,7 +300,7 @@ export default function SlotDetail({
                 <button
                   type="button"
                   disabled={action.busy}
-                  onClick={() => action.run({ kind: 'removeOwned' })}
+                  onClick={() => run({ kind: 'removeOwned' })}
                   className="bg-destructive min-h-11 flex-1 rounded-2xl px-3 text-sm font-semibold text-white disabled:opacity-45"
                 >
                   {action.busy ? 'Removing…' : 'Remove card'}

@@ -113,3 +113,37 @@ test('an owned-pocket action during a routine focus refresh waits for it and sav
   // (Next keeps one empty route announcer alert at the top of the page; only the app's own alerts count.)
   await expect(page.locator('main [role="alert"], [role="dialog"] [role="alert"]')).toHaveCount(0);
 });
+
+test('the finish switch corrects the owned copy in place and keeps its details open', async ({ page }) => {
+  // Synthetic catalog row for the harness copy: printed in Holo and Reverse.
+  await page.route('**/app/api/tcgdex-cache**', (route) =>
+    route.fulfill({
+      json: {
+        source: 'mirror',
+        cards: [
+          {
+            id: 'synthetic-owned-bulbasaur',
+            localId: '1',
+            name: 'Synthetic Owned Bulbasaur',
+            set: { id: 'synthetic', name: 'Synthetic set' },
+            rarity: 'Rare Holo',
+            variants: { holo: true, reverse: true },
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto(entry);
+  await page.locator('[data-slot-id="synthetic-slot-0"]').click();
+  const dialog = page.getByRole('dialog', { name: /details$/ });
+  const finish = dialog.getByRole('group', { name: 'Finish' });
+  await expect(finish.getByRole('button', { name: 'Holo' })).toHaveAttribute('aria-pressed', 'true');
+  await finish.getByRole('button', { name: 'Reverse' }).click();
+  await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(1);
+  expect((await record(page))!.receipts[0].outcome).toBe('acknowledged');
+  await expect(dialog).toBeVisible();
+  await expect(finish.getByRole('button', { name: 'Reverse' })).toHaveAttribute('aria-pressed', 'true');
+  const box = await finish.getByRole('button', { name: 'Reverse' }).boundingBox();
+  expect(box!.height).toBeGreaterThanOrEqual(36);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});

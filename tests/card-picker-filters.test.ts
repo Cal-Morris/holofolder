@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   getActiveFilterChips,
   getCardPickerFinishChoices,
+  ownedCopyFinishChoices,
   getRecordedFinish,
   getVariantFilter,
 } from '../lib/card-picker-filters';
@@ -152,5 +153,18 @@ describe('card picker priced variants', () => {
       getCardPickerSuggestedFinish([], () => 100),
       null,
     );
+  });
+});
+
+describe('owned copy finish choices', () => {
+  test('lists the printing finishes unless the pocket pins one', () => {
+    const card = { rarity: 'Common', variants: { normal: true, reverse: true } };
+    assert.deepEqual(
+      ownedCopyFinishChoices(card, undefined).map((c) => c.finish),
+      ['normal', 'reverse_holo'],
+    );
+    assert.deepEqual(ownedCopyFinishChoices(card, 'normal'), []);
+    assert.deepEqual(ownedCopyFinishChoices(undefined, undefined), []);
+    assert.deepEqual(ownedCopyFinishChoices({ rarity: 'Common', variants: { normal: true } }, undefined), []);
   });
 });

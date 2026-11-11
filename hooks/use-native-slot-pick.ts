@@ -111,7 +111,10 @@ export function useNativeSlotAction(
   );
   const [failure, setFailure] = useState<string | null>(null);
   const run = (
-    action: Exclude<SlotPickerAction, { kind: 'assign' }> | { kind: 'removeOwned' },
+    action:
+      | Exclude<SlotPickerAction, { kind: 'assign' }>
+      | { kind: 'removeOwned' }
+      | { kind: 'setFinish'; finish: CardFinish },
     selected?: InventoryCatalogResolver,
   ) => {
     if (!boundary || acceptance.pending || acceptance.busy) return;
@@ -124,7 +127,7 @@ export function useNativeSlotAction(
         batchId: null,
         clientOccurredAt: new Date().toISOString(),
       };
-      if (action.kind === 'removeOwned') {
+      if (action.kind === 'removeOwned' || action.kind === 'setFinish') {
         // The exact copy in this pocket, by its own ID and version: the existing owned-copy removal, never a lookup by card.
         const itemId = boundary.snapshot.binders
           .find((b) => b.collectionId === boundary.scope.collectionId)
@@ -132,7 +135,9 @@ export function useNativeSlotAction(
         if (!itemId) throw new Error('picker-scope-changed');
         const prepared = prepareInventoryAction(
           boundary.snapshot,
-          { kind: 'removeOwned', itemId },
+          action.kind === 'setFinish'
+            ? { kind: 'setFinish', itemId, finish: action.finish }
+            : { kind: 'removeOwned', itemId },
           context,
           boundary.catalog,
         );

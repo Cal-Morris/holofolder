@@ -31,7 +31,7 @@ Only explicit `removeOwned` deletes ownership. Clearing or removing a slot, remo
 
 Developer reads omit certificates, private label assets and immutable source evidence. Use `privateFields:"preserve"` and `expectedOwnerUserId` for supported mutations of that redacted state. The expected owner is checked against the authenticated current scope before execution. The SQL executor preserves hidden data after the original-intent replay lookup; the client never reconstructs private JSON from a redacted read.
 
-Supported operations include slot insertion, reorder and target-only updates; explicit inventory add, removeOwned, unassign and placement; `patchGrading` on declared public grading fields; and selected-want consumption using exact `expectedPublic` evidence. Private certificates/assets/provenance and unrelated wants remain intact. Selected wants require the exact locked slot/index public projection.
+Supported operations include slot insertion, reorder and target-only updates; explicit inventory add, removeOwned, unassign and placement; `patchGrading` on declared public grading fields; `setFinish`, which corrects the recorded finish of a card copy in place (same copy, grading and placement, and still matching any finish its pocket pins); and selected-want consumption using exact `expectedPublic` evidence. Private certificates/assets/provenance and unrelated wants remain intact. Selected wants require the exact locked slot/index public projection.
 
 Whole grading/wants replacement and destructive slot clearing are unsupported in preserve mode. Omitting the field or selecting `replace` keeps full-replacement semantics. Use that only with deliberately complete values, never by filling hidden fields with nulls.
 
