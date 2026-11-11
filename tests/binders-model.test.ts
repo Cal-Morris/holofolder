@@ -27,7 +27,7 @@ test("binder rows are validated and sorted for the switcher", () => {
   ]
   const binders = bindersFromRows(rows)
   assert.deepEqual(binders.map((item) => item.id), [A, B])
-  assert.equal(binders[0].name, "My binder")
+  assert.equal(binders[0].name, "National Dex")
   assert.equal(binders[0].rows, 3)
   assert.equal(binders[1].isDefault, false)
 })
