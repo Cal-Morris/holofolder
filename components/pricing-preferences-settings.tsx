@@ -16,6 +16,7 @@ import {
   normalizePricingRegion,
   resolvePricingPreferences,
 } from "@/lib/pricing-region"
+import { Select } from "@/components/ui/select"
 
 type PricingSettings = Pick<BinderSettings, "pricingRegion" | "preferredCurrency" | "preferredCardLanguage">
 
@@ -27,8 +28,7 @@ interface PricingPreferencesSettingsProps {
 }
 
 const AUTO = "auto"
-const selectClassName =
-  "h-12 w-full appearance-none rounded-2xl border border-border/60 bg-background/70 px-3 text-base font-medium outline-none focus:border-primary/60 sm:h-11 sm:text-sm"
+const selectClassName = "w-full"
 
 export function PricingPreferencesSettings({ settings, onUpdateSettings, locales }: PricingPreferencesSettingsProps) {
   const baseId = useId()
@@ -51,7 +51,7 @@ export function PricingPreferencesSettings({ settings, onUpdateSettings, locales
       <div className="grid gap-3">
         <div className="grid gap-1.5">
           <label htmlFor={`${baseId}-region`} className="text-sm font-medium">Region</label>
-          <select
+          <Select
             id={`${baseId}-region`}
             className={selectClassName}
             value={settings.pricingRegion ?? AUTO}
@@ -61,12 +61,12 @@ export function PricingPreferencesSettings({ settings, onUpdateSettings, locales
             {PRICING_REGIONS.map((region) => (
               <option key={region} value={region}>{PRICING_REGION_LABELS[region]}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className="grid gap-1.5">
           <label htmlFor={`${baseId}-currency`} className="text-sm font-medium">Currency</label>
-          <select
+          <Select
             id={`${baseId}-currency`}
             className={selectClassName}
             value={settings.preferredCurrency ?? AUTO}
@@ -76,12 +76,12 @@ export function PricingPreferencesSettings({ settings, onUpdateSettings, locales
             {DISPLAY_CURRENCIES.map((currency) => (
               <option key={currency} value={currency}>{currency}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className="grid gap-1.5">
           <label htmlFor={`${baseId}-language`} className="text-sm font-medium">Card language</label>
-          <select
+          <Select
             id={`${baseId}-language`}
             className={selectClassName}
             value={settings.preferredCardLanguage ?? AUTO}
@@ -91,7 +91,7 @@ export function PricingPreferencesSettings({ settings, onUpdateSettings, locales
             {PREFERRED_CARD_LANGUAGES.map((language: CardLanguage) => (
               <option key={language} value={language}>{CARD_LANGUAGE_LABELS[language]}</option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 

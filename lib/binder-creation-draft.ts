@@ -39,8 +39,10 @@ export function speciesPreset(name: string, ids: readonly number[], sourceId = "
   return { source: { id: sourceId, version: "1" }, name,
     entries: ids.map(pokemonId => ({ id: `pokemon-${pokemonId}`, target: { kind: "pokemon", pokemonId } })) }
 }
-export function blankPreset(): PresetDefinition {
-  return { source: { id: "blank", version: "1" }, name: "Blank", entries: [] }
+/** `pockets` empty, free pockets (no target), so a blank binder can start with the pages asked for. */
+export function blankPreset(pockets = 0): PresetDefinition {
+  if (!Number.isSafeInteger(pockets) || pockets < 0 || pockets > SLOT_LIMITS.capacity) throw new Error("Choose a page count the binder can hold")
+  return { source: { id: "blank", version: "1" }, name: "Blank", entries: Array.from({ length: pockets }, (_, index) => ({ id: `pocket-${index + 1}`, target: null })) }
 }
 /** Require catalog evidence; unknown language is not silently inferred as English. */
 export function printingTarget(card: SearchCardResult): Extract<SlotTarget, { kind: "card" }> | undefined {

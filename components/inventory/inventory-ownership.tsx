@@ -18,6 +18,7 @@ import { formatGradeLabel } from "@/lib/pocket-labels"
 import { inventoryActionDestinations, inventoryOccupiedChoices, prepareInventoryAction, type InventoryAction, type InventoryOwnershipBinding } from "@/lib/inventory-actions"
 import { prepareInventoryBulkAction, type InventoryBulkAction } from "@/lib/inventory-bulk-actions"
 import styles from "./inventory.module.css"
+import { Select } from "@/components/ui/select"
 
 /** How Inventory names things for people: a pocket by its binder, page and pocket, a card by its name and printing. */
 export interface InventoryLabels {
@@ -188,13 +189,13 @@ export function InventoryBulkReview({ binding, labels, itemIds, onClose, onAccep
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="truncate text-sm font-semibold">{card.name}</p>
                 <p className="truncate text-xs text-muted-foreground">{at ? labels.place(at.collectionId, at.slotId) : "Not in a binder"}</p>
-                <select aria-label={`Pocket for ${card.name}`} className="min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-base md:text-sm" value={mapping[id] ?? ""} onChange={e => setMapping(m => ({ ...m, [id]: e.target.value }))}>
+                <Select aria-label={`Pocket for ${card.name}`} className="w-full" value={mapping[id] ?? ""} onChange={e => setMapping(m => ({ ...m, [id]: e.target.value }))}>
                   <option value="">Choose an empty pocket</option>
                   {inventoryActionDestinations(binding.snapshot, id, binding.catalog).filter(d => d.slot.inventoryItemId === null).map(d => {
                     const key = JSON.stringify([d.collectionId, d.slot.id])
                     return <option key={key} value={key} disabled={itemIds.some(other => other !== id && mapping[other] === key)}>{labels.place(d.collectionId, d.slot.id)}</option>
                   })}
-                </select>
+                </Select>
               </div>
             </div>
           })}

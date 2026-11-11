@@ -4,6 +4,8 @@ import { SetPresetPicker, SetChecklistScopePreview } from "@/components/set-pres
 import type { SetChecklist } from "@/lib/domain/binder-presets"
 import type { TCGSetSummary } from "@/lib/tcg-set-slots"
 import { useState } from "react"
+import { OptionRow } from "@/components/ui/option-row"
+import { Select } from "@/components/ui/select"
 import { blankPreset, speciesPreset, printingPreset, printingTarget, parseBinderCreationDraft, type BinderCreationDraft } from "@/lib/binder-creation-draft"
 import { COLLECTION_CREATION_LIMITS } from "@/lib/domain/storage-creation"
 import { BINDER_NAME_MAX_LENGTH } from "@/lib/binders/model"
@@ -12,6 +14,7 @@ import { POKEMON_CATALOG, formatPokemonDisplayName } from "@/lib/pokemon-catalog
 import { GENERATIONS } from "@/components/binder/binder-app-model"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import { useCardSearch } from "@/hooks/use-card-search"
+import CardImage from "@/components/card-image"
 import { buildOfflineCardIndex } from "@/lib/offline-card-index"
 
 const speciesLabel = (id: number) => formatPokemonDisplayName(POKEMON_CATALOG.find(p => p.id === id)?.name ?? `Pokémon ${id}`)
@@ -65,9 +68,9 @@ export function BinderCreationPresets({ ownerUserId, onDraft, isOnline, disabled
     } catch (error) { setMessage(error instanceof Error ? error.message : "Could not prepare draft") }
   }}>
     {nativeCreation && <>
-      <label className="block text-xs">Storage kind<select aria-label="Storage kind" value={kind} onChange={e => setKind(e.target.value as BinderCreationDraft["kind"])} className={`${control} mt-1 w-full`}>
+      <label className="block text-xs">Storage kind<Select aria-label="Storage kind" value={kind} onChange={e => setKind(e.target.value as BinderCreationDraft["kind"])} className="mt-1 w-full">
         <option value="binder">Binder</option><option value="custom">Custom storage</option>
-      </select></label>
+      </Select></label>
       <p className="text-xs text-muted-foreground">{kind === "custom" ? "Starts in List." : "Starts in Binder."} You can change the view later. Both use the same collection allowance.</p>
     </>}
     <p className="text-sm font-semibold">Starting arrangement</p>
@@ -77,30 +80,30 @@ export function BinderCreationPresets({ ownerUserId, onDraft, isOnline, disabled
       <span className="mt-1 block text-xs text-muted-foreground">Up to {COLLECTION_CREATION_LIMITS.location} characters. Shared with your linked partner, never included in public sharing by this flow.</span>
     </label>}
     <button type="submit" disabled={disabled || !isOnline || !name.trim() || (mode !== "blank" && manifest.entries.length === 0)} className="min-h-11 w-full rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-40">{nativeCreation ? "Review storage" : "Prepare draft"}</button>
-    <label className="block text-xs">Preset<select aria-label="Starting arrangement" value={mode} onChange={e => { setMode(e.target.value); setSetChecklist(null); setPreviewPage(0); setQuery(""); setMessage("") }} className={`${control} mt-1 w-full`}>
+    <label className="block text-xs">Preset<Select aria-label="Starting arrangement" value={mode} onChange={e => { setMode(e.target.value); setSetChecklist(null); setPreviewPage(0); setQuery(""); setMessage("") }} className="mt-1 w-full">
       <option value="set">Set / variant checklist</option><option value="blank">Blank</option><option value="national">National Dex</option><option value="generation">Generation</option><option value="species">Selected species</option><option value="printings">Selected printings</option>
-    </select></label>
+    </Select></label>
     {mode === "set" && <SetPresetPicker isOnline={isOnline} initialSet={initialSet} onChange={value => { setSetChecklist(value); setPreviewPage(0); setMessage("") }} />}
     {mode === "set" && setChecklist && <SetChecklistScopePreview checklist={setChecklist} />}
-    {mode === "generation" && <select aria-label="Generation" className={`${control} w-full`} value={generation} onChange={e => { setGeneration(Number(e.target.value)); setPreviewPage(0) }}>{GENERATIONS.filter(g => g.id > 0).map(g => <option key={g.id} value={g.id}>{g.region} · {g.name}</option>)}</select>}
+    {mode === "generation" && <Select aria-label="Generation" className="w-full" value={generation} onChange={e => { setGeneration(Number(e.target.value)); setPreviewPage(0) }}>{GENERATIONS.filter(g => g.id > 0).map(g => <option key={g.id} value={g.id}>{g.region} · {g.name}</option>)}</Select>}
     {(mode === "species" || mode === "printings") && <>
       {species.length > 0 && <div aria-label="Selected species" className="flex flex-wrap gap-1">{species.map(id => <button type="button" key={id} className={`${control} text-sm`} onClick={() => toggleSpecies(id)} aria-label={`Remove species ${speciesLabel(id)}`}>{speciesLabel(id)} ×</button>)}</div>}
       <input aria-label={mode === "species" ? "Find species" : "Find catalog printings"} placeholder={mode === "species" ? "Pokémon name or number" : "Name, set, number or illustrator"} value={query} onChange={e => setQuery(e.target.value)} className={`${control} w-full`} />
-      {mode === "species" && <div aria-label="Species results" className="grid grid-cols-2 gap-1">{matching.map(p => <button type="button" key={p.id} aria-pressed={species.includes(p.id)} onClick={() => toggleSpecies(p.id)} className={`${control} min-w-0 break-words text-left text-sm aria-pressed:bg-primary/15`}>{formatPokemonDisplayName(p.name)}</button>)}</div>}
+      {mode === "species" && <div aria-label="Species results" className="grid grid-cols-2 gap-1.5">{matching.map(p => <OptionRow key={p.id} selected={species.includes(p.id)} onClick={() => toggleSpecies(p.id)} title={formatPokemonDisplayName(p.name)} />)}</div>}
     </>}
     {mode === "printings" && <>
       <p className="text-xs text-muted-foreground">Select individual catalog results in your preferred order. Search is a partial list, never an automatic “all cards” preset.</p>
       {species.length > 0 && <p className="text-xs">Filtered to your selected species.</p>}
-      <div className="flex gap-2"><select aria-label="Printing language" className={`${control} min-w-0 flex-1`} value={language} onChange={e => setLanguage(e.target.value as CardLanguage)}>{CARD_LANGUAGES.map(l => <option key={l}>{l}</option>)}</select>
+      <div className="flex gap-2"><Select aria-label="Printing language" className="flex-1" value={language} onChange={e => setLanguage(e.target.value as CardLanguage)}>{CARD_LANGUAGES.map(l => <option key={l}>{l}</option>)}</Select>
       <input aria-label="Filter printing set" placeholder="Filter set" value={setFilter} onChange={e => setSetFilter(e.target.value)} className={`${control} min-w-0 flex-1`} /></div>
       {(!isOnline || search.offline) && <p role="status" className="text-xs text-muted-foreground">Only cached catalog evidence is available. Connect to find uncached printings. Creation needs a connection.</p>}
       {search.loading && <p role="status" className="text-xs">Searching catalog…</p>}
       {!search.loading && query.length >= 2 && !cards.length && <p className="text-xs">No matching catalog printings. Try another search or connect to load more.</p>}
-      <div aria-label="Printing results" className="space-y-1">{cards.map(c => {
+      <div aria-label="Printing results" className="space-y-1.5">{cards.map(c => {
         const target = printingTarget(c)
-        return <button type="button" key={`${c.id}:${c.language}`} disabled={!target} className={`${control} w-full break-words py-2 text-left text-sm disabled:opacity-50`} onClick={() => { setPrintings(previous => [...previous, structuredClone(c)]); setPreviewPage(0) }}>
-          {c.name} · {c.set.name} #{c.localId} · {c.language ?? "Unknown language"}{!target && " · Catalog evidence missing"}
-        </button>
+        return <OptionRow key={`${c.id}:${c.language}`} disabled={!target} onClick={() => { setPrintings(previous => [...previous, structuredClone(c)]); setPreviewPage(0) }}
+          title={c.name} detail={`${c.set.name} #${c.localId} · ${c.language ?? "Unknown language"}${target ? "" : " · Catalog evidence missing"}`}
+          media={<span className="trading-card relative block w-8 overflow-hidden rounded-[4px] bg-muted">{c.image && <CardImage src={c.image} alt="" fill sizes="32px" className="object-cover" />}</span>} />
       })}</div>
       {printings.length > 0 && <button type="button" className={`${control} text-sm`} onClick={() => setPrintings(previous => previous.slice(0, -1))}>Remove last printing</button>}
     </>}

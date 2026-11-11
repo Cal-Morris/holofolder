@@ -7,6 +7,8 @@ import type { NativeRawRestoreBinding } from '@/lib/native-raw-restore'
 import type { NativeBackupBinding } from "@/lib/native-backup"
 import { prepareBinderCreation, type BinderCreationDraft } from "@/lib/binder-creation-draft"
 import type { NativeBinderCreationBinding } from "@/components/native-binder-creation"
+import { shouldOfferBinderOnboarding } from "@/lib/binder-creation-wizard"
+import { useBinderOnboarding } from "@/hooks/use-binder-onboarding"
 
 import { recoveryUnresolved } from "@/lib/collection/recovery-rejection"
 
@@ -66,6 +68,13 @@ export interface BrowserSurfaceBinding {
   scan?: { detectPage?: NativePageScanAdmission["detectPage"]; available: boolean; online: boolean; rows?: number; cols?: number; sessionId: string; getOfflineCards: () => Promise<SearchCardResult[]>; receive: ScanDestinationAdmission["onCommandIntent"] }
 
 }
+/** Runs `run` once when it mounts. It lives in the surface, where the screen's own open action is in hand. */
+function StartOnce({ run }: { run: () => void }) {
+  const latest = useRef(run)
+  useEffect(() => { latest.current() }, [])
+  return null
+}
+
 export default function BrowserCollectionSession({ scope, currentScope, renderSurface, renderFallback, initialBinderId, binders, localHarness = false, displayed, onReady, onDisplay, onStartupFailure }: {
   /** The host shows this session; until then it renders nothing and the host's placeholder stays. */
   displayed: boolean
@@ -118,6 +127,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
   const [deleting, setDeleting] = useState<string | null>(null)
   const [creating, setCreating] = useState<{ binding: NativeBinderCreationBinding } | null>(null)
   const creation = useRef<{ intent: Extract<SlotOfflineIntent, { kind: "creation" }>; opened: boolean; open: NavigationSurface["openCreated"] } | null>(null)
+  const onboarding = useBinderOnboarding(scope.actorUserId)
 
   const [notice, setNotice] = useState("")
   // The last update did not go through, so what is shown is what this device last saved.
@@ -499,9 +509,11 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
     // The exact creation is consumed at most once in this mounted session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue.record, read])
-  const startCreation = (open: NavigationSurface["openCreated"], currentGrid?: { rows: number; cols: number }) => setCreating({ binding: { actorUserId: scope.actorUserId, ownerUserId: scope.ownerUserId,
-    count: read.evidence.kind === "unavailable" ? 0 : read.evidence.snapshot.collections.length, available: creationAvailable,
+  const startCreation = (open: NavigationSurface["openCreated"], currentGrid?: { rows: number; cols: number }, firstRun = false) => setCreating({ binding: { actorUserId: scope.actorUserId, ownerUserId: scope.ownerUserId,
+    count: read.evidence.kind === "unavailable" ? 0 : read.evidence.snapshot.collections.length, available: creationAvailable, onboarding: firstRun,
     currentGrid: currentGrid ? { rows: currentGrid.rows, cols: currentGrid.cols } : undefined, create: (draft, grid) => create(draft, open, grid) } })
+  // First run: a new account with nothing set up gets the wizard once, as soon as it can create. Shown counts as seen.
+  const offerOnboarding = onboarding.due && !creating && creationAvailable && read.evidence.kind === "complete" && shouldOfferBinderOnboarding(read.evidence.snapshot, scope.actorUserId)
   const displayable = ready || read.evidence.kind !== "unavailable"
   useLayoutEffect(() => { if (displayable) onDisplay(scope.sessionId) }, [displayable, onDisplay, scope.sessionId])
   // This device's saved copy paints at once and stays read-only (cached evidence) until the read completes.
@@ -583,6 +595,7 @@ function ScopedBrowserSession({ scope, currentScope, renderSurface, deviceId, in
             <p className="mt-1 text-sm text-muted-foreground">Pick what it&apos;s for, give it a name and you&apos;re ready to add cards.</p>
             <button type="button" disabled={!creationAvailable} onClick={() => startCreation(surface.openCreated)} className="mt-3 min-h-11 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-45">New binder</button>
           </div>}
+          {offerOnboarding && <StartOnce run={() => { onboarding.finish(); startCreation(surface.openCreated, layout, true) }} />}
           {(notice || queue.error) && <p role="status" className="px-4 text-sm">{notice || (queue.error?.startsWith("Saved on device") ? "Saved. The view will catch up in a moment." : "This device can't save changes right now. Check its storage, then reload.")}</p>}
 
           {surface.state.main !== "inventory" && surface.notice && <p role="status" className="px-4 text-sm">{surface.notice}</p>}</> }, display, catalog, receive, recovery, editingAvailable: read.evidence.kind === "complete" && !queue.record?.recovery?.some(recoveryUnresolved) && !queue.record?.pending.some(p => p.intent.kind === "creation" || p.intent.kind === "raw-restore"), bulkFill: { available: bulkFillAvailable, receive: receiveBulkFill }, pending: unsaved,

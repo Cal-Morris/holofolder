@@ -11,6 +11,7 @@ import { automaticBulkFillChoices, isFillSpacer, previewBulkFill, prepareBulkFil
 import { sameValue } from "@/lib/collection/slot-optimistic"
 import { describeIdentity, formatGradeLabel, pocketPlace } from "@/lib/pocket-labels"
 import { slotDraftFailureMessage } from "@/lib/slot-draft-failure"
+import { Select } from "@/components/ui/select"
 
 /** Why a chosen spare card can't go in a pocket, in the person's terms. */
 function fillProblem(reason: string | null) {
@@ -89,11 +90,11 @@ export default function BulkFillReview({ boundary, selection, grid, onClose }: {
               <span className="trading-card relative w-10 shrink-0 overflow-hidden rounded bg-muted">{chosen?.image && <CardImage src={chosen.image} alt="" fill sizes="40px" className="object-cover" />}</span>
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="truncate text-xs text-muted-foreground">{place}{wants ? ` · for ${wants.name}` : " · any card"}</p>
-                <select aria-label={`Card for ${place}`} className="min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-base md:text-sm" disabled={locked}
+                <Select aria-label={`Card for ${place}`} className="w-full" disabled={locked}
                   value={choices[slot.id] ?? ""} onChange={event => setChoices(current => ({ ...current, [slot.id]: event.target.value || null }))}>
                   <option value="">Leave empty</option>
                   {spare.map(item => { const card = label(item.id)!; return <option key={item.id} value={item.id}>{card.name} · {card.detail}</option> })}
-                </select>
+                </Select>
                 {problem && <p role="status" className="text-xs text-amber-700 dark:text-amber-300">{problem}</p>}
               </div>
             </section>

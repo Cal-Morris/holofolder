@@ -24,6 +24,7 @@ import { toCardImageSrc } from "@/lib/card-image-url"
 import { formatCardFinishLabel, formatCardLanguageLabel } from "@/lib/card-labels"
 import type { SearchCardResult } from "@/lib/pokemon-card-browse"
 import type { CardFinish } from "@/lib/domain/cards"
+import { Select } from "@/components/ui/select"
 
 /** Explicit wanted entries, not species groups or a second inventory store. Used by Wanted, Hunting and card details. */
 export default function NativeWantedEntries({ binding, card, finish, onCheck, presentation = "lookup", pricing, onShare }: {
@@ -132,10 +133,10 @@ export default function NativeWantedEntries({ binding, card, finish, onCheck, pr
         {entry.card && onCheck && <button type="button" className="min-h-9 rounded-xl border px-3 text-sm" onClick={() => onCheck(entry.card!, entry.finish ?? undefined)}>Check price</button>}
         {entry.occupied && !isWanted && <p className="text-xs text-muted-foreground">This pocket is occupied. Choose another pocket in your collection.</p>}
         {known && !entry.occupied && model?.kind === "complete" && binding.editingAvailable && <>
-          <select aria-label={`Copy for ${destinationLabel}`} className="min-h-9 min-w-36 flex-1 rounded-xl border bg-card px-2 text-sm md:max-w-xs" value={value} disabled={busy} onChange={e => setSelected(s => ({ ...s, [key]: e.target.value }))}>
+          <Select aria-label={`Copy for ${destinationLabel}`} className="min-w-36 flex-1 md:max-w-xs" value={value} disabled={busy} onChange={e => setSelected(s => ({ ...s, [key]: e.target.value }))}>
             <option value="">Choose a copy</option>
             {choices.length ? choices.map((c, index) => <option key={c.selection.inventoryItemId} value={c.selection.inventoryItemId}>Unassigned copy {index + 1}</option>) : <option value="new">New copy</option>}
-          </select>
+          </Select>
           <button type="button" disabled={!value || busy} className="min-h-9 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50" onClick={async () => {
             if (!entry.card || !entry.finish || !entry.card.language || busy) return
             setBusy(true); setNotice("")

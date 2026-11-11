@@ -8,6 +8,7 @@ import { sendNativeRecovery, type NativeRecoveryPreview } from '@/lib/collection
 import type { createSlotOfflineQueue, SlotOfflineScope } from '@/lib/collection/slot-offline-queue'
 import type { InventoryReadScope } from '@/lib/collection/inventory-read-transport'
 import type { InventorySnapshot } from '@/lib/domain/inventory'
+import { Select } from "@/components/ui/select"
 
 export interface NativeRecoveryBinding {
   scope: InventoryReadScope
@@ -114,7 +115,7 @@ export function NativeActivityRecovery({event,binding,disabled}: {event:Activity
       {saved.receipt && <details><summary className="min-h-9 cursor-pointer py-2 text-muted-foreground">Technical details</summary><p className="text-muted-foreground">Undo entry {saved.receipt.eventId}, original entry {saved.receipt.recoveredEventId}.</p></details>}
     </> : <>
       {removed.length>0 && <fieldset disabled={busy||disabled||!!preview} className="space-y-1"><legend>Cards that were removed</legend><p className="text-muted-foreground">Tick the cards to bring back. They return to your collection, not to a pocket.</p>{removed.map(c=><label key={c.id} className="flex min-h-10 items-center gap-2"><input type="checkbox" checked={choices.includes(c.id)} onChange={e=>setChoices(v=>e.target.checked?[...v,c.id]:v.filter(id=>id!==c.id))}/>Bring back {removed.length === 1 ? 'this card' : `card ${removed.indexOf(c) + 1} of ${removed.length}`}</label>)}</fieldset>}
-      {defaultCreation && <label className="block">Which binder should open first instead?<select className="mt-1 min-h-10 w-full rounded-lg border border-border bg-background px-2 text-sm" value={replacement} disabled={busy||!!preview} onChange={e=>{setReplacement(e.target.value);setChoices([])}}><option value="">Choose a binder</option>{binding.snapshot?.collections.filter(c=>!event.affected_entities.collectionIds?.includes(c.id) && binding.snapshot?.binders.some(b=>b.collectionId===c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+      {defaultCreation && <label className="block">Which binder should open first instead?<Select className="mt-1 w-full" value={replacement} disabled={busy||!!preview} onChange={e=>{setReplacement(e.target.value);setChoices([])}}><option value="">Choose a binder</option>{binding.snapshot?.collections.filter(c=>!event.affected_entities.collectionIds?.includes(c.id) && binding.snapshot?.binders.some(b=>b.collectionId===c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Select></label>}
       {!preview && <button type="button" className={button} disabled={disabled||busy||!binding.queue||defaultCreation&&!replacement} onClick={()=>void run()}>{busy ? 'Checking…' : 'See what undoing does'}</button>}
       {preview && <section role="region" aria-label="Review recovery" className="space-y-2 rounded-xl border border-border p-3">
         <p className="font-medium">{preview.planToken ? 'Undoing will do this' : 'This change can no longer be undone'}</p>

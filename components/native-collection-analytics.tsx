@@ -6,6 +6,7 @@ import { buildNativeAnalytics } from "@/lib/collection/native-analytics"
 import { navigationIndex, type CollectionNavigationRead, type CollectionNavigationScope } from "@/lib/collection-navigation"
 import { useInventoryPrices } from "@/hooks/use-inventory-prices"
 import type { PricingRegion } from "@/lib/pricing-region"
+import { Select } from "@/components/ui/select"
 
 type Props = { scope: CollectionNavigationScope; read: CollectionNavigationRead; collectionId?: string; region?: PricingRegion }
 const money = (n: number | null) => n === null ? "Unknown" : new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n)
@@ -32,9 +33,9 @@ function ScopedAnalytics({ scope, read, collectionId, region = "UK" }: Props) {
     <span className="block text-sm text-muted-foreground">{summary.targetCount ? `${summary.completedTargets} of ${summary.targetCount} collected` : "Nothing to collect yet"} · {summary.explicitWants} wanted</span>
   </>
   return <section aria-label="Collection analytics" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-[max(0.75rem,calc((100%-72rem)/2+1rem))] pb-[var(--dock-clearance)] pt-3 sm:pt-4">
-    <><h1 className="text-xl font-bold tracking-tight">Collection analytics</h1><label className="my-3 block text-sm">Show<select aria-label="Analytics storage scope" className="ml-2 min-h-9 max-w-full rounded-lg border bg-background p-2 text-base" value={all ? "all" : "selected"} onChange={e => { setAll(e.target.value === "all"); setPage(0) }}>
+    <><h1 className="text-xl font-bold tracking-tight">Collection analytics</h1><label className="my-3 block text-sm">Show<Select aria-label="Analytics storage scope" className="ml-2" value={all ? "all" : "selected"} onChange={e => { setAll(e.target.value === "all"); setPage(0) }}>
       {collectionId && <option value="selected">This collection</option>}<option value="all">Everything, including cards not in a binder</option>
-    </select></label></>
+    </Select></label></>
     {saved && <p role="status" className="mb-2 text-sm text-muted-foreground">Showing what was last saved on this device.</p>}
     {value}
     <>

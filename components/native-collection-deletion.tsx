@@ -8,6 +8,7 @@ import { useSlotDraftAcceptance } from '@/hooks/use-slot-draft-acceptance'
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay'
 import { browserHostDisplayCatalog } from '@/lib/collection/browser-host-catalog'
 import { describeIdentity } from '@/lib/pocket-labels'
+import { Select } from "@/components/ui/select"
 
 export interface CollectionDeletionBinding {
   read: CollectionNavigationRead
@@ -55,10 +56,10 @@ export default function NativeCollectionDeletion({ binding, collectionId, onClos
         {!review && <>
           <p>Deleting a binder removes its pockets and anything wanted in them. <span className="font-semibold">Your cards are kept.</span> They stay in your collection, out of a binder, until you place them again.</p>
           {needsReplacement && <label className="block">This is the binder that opens first. Choose which one should open first instead
-            <select aria-label="Replacement default collection" className="mt-1 min-h-11 w-full min-w-0 rounded-xl border border-border bg-background px-2 text-base md:text-sm" value={replacement} onChange={e => setReplacement(e.target.value)}>
+            <Select aria-label="Replacement default collection" className="mt-1 w-full" value={replacement} onChange={e => setReplacement(e.target.value)}>
               <option value="">Choose a binder</option>
               {snapshot?.collections.filter(c => c.id !== collectionId).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            </Select>
           </label>}
         </>}
         {review && <>

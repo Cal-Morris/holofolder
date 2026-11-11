@@ -37,6 +37,7 @@ import {
   type HuntSort,
   type HuntSourceItem,
 } from "@/lib/show-hunt"
+import { Select } from "@/components/ui/select"
 
 type Money = { amount: number; currency: Parameters<typeof formatMoney>[1] }
 
@@ -182,7 +183,7 @@ const GoodPickups = memo(function GoodPickups({
 })
 
 
-const selectClass = "h-11 w-full min-w-0 rounded-xl border border-border/70 bg-card px-3 text-sm font-medium"
+const selectClass = "w-full"
 
 export interface ShowHuntProps {
   recentCards?: ReactNode
@@ -296,29 +297,29 @@ function ShowHunt({ recentCards, items, currency, fxRates, pricingRegion, isOnli
             </h3>
           </div>
           <div className="grid grid-cols-2 gap-2 @min-[48rem]:grid-cols-4">
-            <select aria-label="Sort" value={sort} onChange={(event) => setSort(event.target.value as HuntSort)} className={selectClass}>
+            <Select aria-label="Sort" value={sort} onChange={(event) => setSort(event.target.value as HuntSort)} className={selectClass}>
               <option value="wanted">Most wanted</option>
               <option value="value">Top value</option>
               <option value="falling">Biggest price drop</option>
               <option value="rising">Biggest price rise</option>
-            </select>
-            <select aria-label="Era" value={era ?? ""} onChange={(event) => { setEra(event.target.value || null); setSetId(null) }} className={selectClass}>
+            </Select>
+            <Select aria-label="Era" value={era ?? ""} onChange={(event) => { setEra(event.target.value || null); setSetId(null) }} className={selectClass}>
               <option value="">All eras</option>
               {options.eras.map(({ era: entry, count }) => <option key={entry.id} value={entry.id}>{entry.label} ({count})</option>)}
-            </select>
+            </Select>
             <label className="min-w-0">
               <span className="sr-only">Set</span>
-              <select aria-label="Set" value={setId ?? ""} onChange={(event) => setSetId(event.target.value || null)} className={selectClass}>
+              <Select aria-label="Set" value={setId ?? ""} onChange={(event) => setSetId(event.target.value || null)} className={selectClass}>
                 <option value="">Any set</option>
                 {visibleSets.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} ({entry.count})</option>)}
-              </select>
+              </Select>
             </label>
             <label className="relative min-w-0">
               <span className="sr-only">Illustrator</span>
-              <select aria-label="Illustrator" value={illustrator} onChange={(event) => setIllustrator(event.target.value)} className={selectClass}>
+              <Select aria-label="Illustrator" value={illustrator} onChange={(event) => setIllustrator(event.target.value)} className={selectClass}>
                 <option value="">Any illustrator</option>
                 {illustratorNames.map((name) => <option key={name} value={name}>{name}</option>)}
-              </select>
+              </Select>
             </label>
           </div>
         </div>

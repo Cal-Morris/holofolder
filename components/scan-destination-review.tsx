@@ -17,6 +17,7 @@ import type { StagedSlotCommandIntent } from "@/lib/binder-slot-editing"
 import { formatCardFinishLabel } from "@/lib/card-labels"
 import { describeIdentity, pocketPlace } from "@/lib/pocket-labels"
 import { slotDraftFailureMessage } from "@/lib/slot-draft-failure"
+import { Select } from "@/components/ui/select"
 
 /** One thing the scan found: a filled pocket on the page (with its photo crop), or a single scanned card. */
 export interface ScanReviewCell { index: number; slotId: string | null; occupied: boolean; candidates: SearchCardResult[]; crop?: string }
@@ -169,12 +170,12 @@ export default function ScanDestinationReview({ admission, capture, cells, onClo
                 {destination && (cell.slotId ? destination === `slot:${cell.slotId}` : pockets.length <= 1 && destination !== "append")
                   ? <p className="text-xs">Goes in <span className="font-semibold">{destination === "append" ? "a new pocket at the end" : place(destination.slice(5))}</span></p>
                   : <label className="block text-xs">{cell.slotId && !pockets.some(p => p.id === cell.slotId) ? "This card doesn't fit that pocket. Put it in" : "Put it in"}
-                    <select aria-label={`Pocket for ${card.name}`} disabled={locked} value={destination ?? ""} onChange={event => update(cell.index, { destination: event.target.value || undefined })}
-                      className="mt-1 min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-base md:text-sm">
+                    <Select aria-label={`Pocket for ${card.name}`} disabled={locked} value={destination ?? ""} onChange={event => update(cell.index, { destination: event.target.value || undefined })}
+                      className="mt-1 w-full">
                       <option value="">Choose a pocket</option>
                       {pockets.map(pocket => <option key={pocket.id} value={`slot:${pocket.id}`}>{place(pocket.id)}{pocket.target ? "" : " · empty pocket"}</option>)}
                       <option value="append">A new pocket at the end</option>
-                    </select></label>}
+                    </Select></label>}
                 <div className="flex flex-wrap gap-1.5">
                   <button type="button" className={small} disabled={locked} onClick={() => setChoosing(cell.index)}>Change card</button>
                   <button type="button" className={small} disabled={locked} onClick={() => update(cell.index, { skip: true })}>Skip</button>
