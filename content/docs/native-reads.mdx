@@ -25,14 +25,12 @@ Use `limit` from 1 to 100. Keep filters, limit and credential unchanged when fol
 
 Every result declares `projection:"developer-native-v1"`, `completeSnapshot:false`, `inventoryRevision` and `readRevision`. Pages are not complete owner snapshots or fresh-read browser queue acknowledgements. Private complete browser reads use cookie/RLS authority through their separate first-party transport, never a service-role snapshot sent to the browser.
 
-Current credential revocation, owner/membership change and entitlement loss fail closed. Uninitialized inventories, malformed rows and unavailable schema return honest errors. Missing records return `404`.
+Current credential revocation, owner/membership change and entitlement loss fail closed. Uninitialized inventories and malformed rows return explicit errors rather than empty results. Missing records return `404`.
 
 ## Other supported and unsupported scopes
 
 [Copied preset discovery and previews](/docs/preset-previews) have a separate read-only contract. [Native commands and recovery](/docs/native-storage) retain explicit permissions, CAS preconditions and exact replay requirements.
 
-App host integration, offline relaunch, conversion and hosted production proof are separate release work. This API reference does not claim those acceptance checks have passed.
-
-Saved collection metadata now includes `presetManifest`, the independent copied initial list. With migration 101 its optional `setScope` preserves reviewed language, verified finish families, promo/exclusion selections and captured coverage evidence. It is historical disclosure, not enforced membership; current targets are in slot reads. No private source/certificate/asset evidence is added. See [Set checklists](/docs/set-checklist-drafts).
+Saved collection metadata now includes `presetManifest`, the independent copied initial list. Its optional `setScope` preserves reviewed language, verified finish families, promo/exclusion selections and captured coverage evidence. It is historical disclosure, not enforced membership; current targets are in slot reads. No private source/certificate/asset evidence is added. See [Set checklists](/docs/set-checklist-drafts).
 
 Collection metadata pages include the saved initial manifest. Their response budget matches the 2 MiB creation limit plus 16 KiB of framing; use a smaller page if several large manifests exceed it. Other native reads retain the 1 MiB response limit.

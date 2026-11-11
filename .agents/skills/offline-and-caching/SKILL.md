@@ -40,7 +40,7 @@ description: Change holofolder offline behaviour, including the service worker (
 
 1. Keep the logic pure and in `lib/` where possible, and unit-test it (`tests/offline-*.test.ts`, `tests/binder-slots-offline.test.ts`).
 2. For worker changes, test in a production build (`bun run build && bunx next start -p <your port>`). Service workers don't behave like this in `next dev`.
-3. Add or extend e2e with the real worker. Follow `e2e/offline.e2e.ts`, `e2e/offline-store.e2e.ts` and `e2e/offline-writes.e2e.ts`:
+3. Add or extend e2e with the real worker. Follow `e2e/offline.e2e.ts`, `e2e/offline-store.e2e.ts` and, for queued edits, `e2e/slot-durable-session.e2e.ts`:
    - `serviceWorkers: "allow"`, with context-level mocks
    - wait for the worker to control the page and the shell to be cached, then go offline
    - cover reload, a stalled server and a slow first visit

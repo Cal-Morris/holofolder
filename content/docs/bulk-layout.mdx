@@ -1,73 +1,30 @@
 ---
-title: Bulk layout preparation
-description: Private preparation for selecting and moving whole groups of binder slots.
+title: Bulk layout
+description: Select, move, fill and remove several binder pockets at once.
 ---
 
-Bulk layout editing is being prepared behind a private boundary. It is not enabled for ordinary binders or the public API.
+Choose **Edit layout** above the binder and tap pockets to select them, across pages if you like. The bar shows the count, and tapping a selected pocket deselects it. Up to 256 pockets can change in one edit. Every action works with buttons and the keyboard, without dragging across pages.
 
-The prepared controls require choosing **Edit layout**. Select saved slots across pages, or **Select page** to select the stored slots on the current page. Empty padding is excluded. The count shows the complete selection; **Clear selection** resets it.
+## Move and add
 
-Move the selection before or after another saved slot, or to the beginning or end. Slots keep their targets, copies and wants, in their saved relative order. Choose a destination outside the selection. Every action also works with buttons and keyboard, without dragging across pages.
+**Move**, then tap a pocket outside the selection to move the whole group before it, or choose **To the start** or **To the end**. Pockets keep their targets, cards and wants, in their saved relative order.
 
-Insert a number of free slots or a whole current-grid page at an exact saved anchor. Following slots shift automatically, including across pages. Changing the grid later repaginates them.
+**Add** inserts one empty pocket before or after the selection or at the end of the binder, or a whole page of empty pockets (the current grid size) before the selection or at the end. Following pockets shift automatically, including across pages, and changing the grid later repaginates them. A binder holds at most 4,096 pockets.
 
-The private durable session says **Saved on device · Pending sync** only after a local storage transaction accepts the complete group. That does not mean a server has saved it. A changed layout needs review. Changed selected copies block the whole group until you clear selection and choose again. Failed local saves retain the original group for retry. **Done** exits editing without discarding accepted device edits.
+## Fill from spare cards
 
-Creating new copies from ordered catalog selections, bulk clear contents, cross-storage moves, public sync and rollout remain unavailable in this slice. Slot removal has a separate private consequence review below.
+Select pockets and choose **Fill**. **Fill pockets from spare cards** lists each pocket with a **Choose a card** picker. Spare cards are ones you own that aren't in a pocket yet. **Match my spare cards** proposes compatible spares for empty targets; it creates no cards or grades. Choose a card or **Leave empty** for each pocket, then confirm **Add N cards**. Occupied pockets are kept. Target mismatches, copies already in a pocket and the same copy chosen twice can't be confirmed.
 
-The local-only test host now exercises server command delivery as well as device saving. **Retry pending sync** preserves the original operation ID and request after a lost connection. A server receipt alone does not clear Pending sync: the session must read the complete current inventory after that reply. Billing and access failures pause the edit; conflicts retain it for review. An unknown outcome cannot be discarded or replaced to force a save.
+## Remove pockets
 
-This test path is not production admission. Public inventory/slot routes and native REST/MCP mutations remain unavailable. Native edits do not use the currently supported legacy Activity Undo command; native recovery, startup/offline relaunch, public API parity and the remaining rollout checks must pass before enablement.
+Select pockets and choose **Remove**. The review lists the pockets that will go, their targets and explicit wants, and the owned cards that become spare. Every owned card keeps its identity, grading and source details. The pockets after them close up and everything else keeps its order. This does not delete the binder or any owned card, and it can't be undone with one tap: add pockets back and place the cards again, or use [Activity](/docs/collection-history) recovery where it's supported.
 
-### Staged native edit review
+## Saving, conflicts and limits
 
-Native collection commands are still disabled in production. In the local test flow,
-only a committed terminal rejection enables review. **Refresh current storage** loads
-a complete private current read; **Use current storage** explicitly cancels that saved
-edit. **Rebase saved edit** supports only nonoverlapping content or metadata changes.
-Structural, overlapping and dependent edits stay retained for separate review.
-A timeout, lost reply or unclassified conflict preserves the original command for an
-exact retry, including after reload. No new command ID is chosen automatically.
+Each action is one atomic request, never several partial saves. A request that is too large is refused whole, so select fewer pockets. If the pockets change while selected, choose **Update selection**. Fill and Remove need a connection, a complete current read and no unsynced edits.
 
-### Recorded-copy bulk fill, private preview
+Edits save on the device first and sync when online, keeping the original operation ID through retries. A lost reply is retried with the same request, and an unknown outcome can't be silently replaced. Device-save failures show **Try again** and **Discard**. **Done** exits editing without discarding accepted edits.
 
-In the local browser-host flow, choose **Edit layout**, then **Select several pockets**. Select saved pockets, then
-**Fill selected pockets**. Review the actual copy ID and ordered destination ID
-for every assignment. Choose a recorded Unassigned copy for each pocket, or
-explicitly **Skip** it. Occupied pockets are preserved. Mismatched targets,
-already-assigned copies, duplicate copy choices and unknown matching evidence
-cannot be confirmed. Copied preset spacers and page padding cannot be filled.
+## API
 
-**Preview automatic matches** proposes already recorded compatible Unassigned
-copies for empty targets. It creates no cards or grades. Free pockets still need
-an explicit choice or Skip. Review every proposal before **Confirm bulk fill**.
-A single confirmation is one bounded atomic request, never several partial saves.
-Choose a smaller selection if the request exceeds the existing limits.
-
-Cancel saves nothing. If device saving fails, **Retry same fill** keeps the same
-confirmed IDs and versions. Once accepted on device, closing the review does not
-cancel pending sync. A server reply must be followed by a fresh complete read
-before the saved request is acknowledged. There is no bulk Undo promise here.
-This is still private preparation, not an enabled production or public API feature.
-
-### Slot removal, private review
-
-In **Edit layout**, select one saved slot and choose **Remove selected slot**,
-or explicitly select several pockets and choose **Remove selected slots**.
-Review the exact slots, targets and explicit wants that will disappear, and the
-owned copies that will become **Unassigned**, then choose **Confirm slot removal**.
-Every owned copy keeps its identity, grading and source metadata in Inventory.
-Remaining pockets keep their order and current goals; the original preset stays
-recorded independently. This does not delete a whole collection or remove ownership.
-
-A removal is one bounded atomic request. Each selected slot and each assigned
-copy uses one of the existing 256 work units. An unsupported group is rejected
-whole, never split or silently shortened. Cancel saves nothing. **Retry same removal**
-keeps the exact reviewed request after a device-storage failure. Device saving is
-separate from sync and the fresh complete read that acknowledges it.
-
-After synchronization, open **Activity** and inspect the recorded edit. Use
-**Review recovery** when supported, review the current consequences, then confirm.
-Newer edits, current permissions or unavailable history may block recovery.
-This flow does not promise instant Undo or automatically identify a matching
-Activity entry. Slot removal remains private preparation with production admission disabled.
+Moves, inserts and removals use `execute_slot_commands` (`POST /app/api/v1/storage/slots/commands`); fill uses `execute_inventory_commands`. Both are available over REST and MCP with `collection:write` and `binders:write`. See [native storage](/docs/native-storage).

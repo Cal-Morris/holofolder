@@ -2,7 +2,7 @@
 
 Pokémon card collections at [holofolder.com](https://holofolder.com). The public app lives at [holofolder.com/app](https://holofolder.com/app). See [routing](docs/app-routing.md) for the Framer/Vercel boundary.
 
-Mobile-first Pokémon binder tracker: National Dex binder pages, collection and wanted lists, card matching and scanning, partner (shared) collections, read-only share links and card price tracking. Built with Next.js (App Router), Supabase and Bun, and deployed on Vercel from `main`.
+Mobile-first Pokémon binder tracker: binder pages from National Dex, regional and set presets or custom layouts, collection and wanted lists, card matching and scanning, partner (shared) collections, read-only share links and card price tracking. Built with Next.js (App Router), Supabase and Bun, and deployed on Vercel from `main`.
 
 Working on this repo with an AI coding agent? Start with [AGENTS.md](AGENTS.md) and the playbooks in [`.agents/skills/`](.agents/skills/).
 

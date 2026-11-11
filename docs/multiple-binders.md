@@ -27,7 +27,7 @@ Verification: row count, owned and wanted counts, and an md5 over (pokemon_id, c
 ## Owned and wanted across binders
 - Per binder: slots, status and wanted printings belong to a binder. Editing and the binder view always use the open
   binder; nothing about a binder's own status changes when other binders exist.
-- All-binders lookup: the legacy cross-binder read (`hooks/use-all-binders.ts`, from `pokemon_collection` rows) was
+- All-binders lookup: the legacy cross-binder read from `pokemon_collection` rows was
   removed with the legacy client model. The All binders scope toggles in Wanted and Analytics only appear when a host passes
   cross-binder data, which no host does today.
 - Search and the Pokémon views show "Owned in <binder>" when another binder holds the Pokémon; the card browser shows

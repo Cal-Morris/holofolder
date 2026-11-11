@@ -39,34 +39,28 @@ The initial budget is 60 reads and 20 writes per minute per account, shared acro
 
 Errors include a stable code, a message and a request ID. Private responses are not cacheable.
 
+Starting a sold-comps comparison job, or refreshing price checks from a source other than eBay, is app-only and returns `403` with code `ui_only`. Saved comparisons and price checks stay readable through the API.
+
 ## Images and prices
 
 Image fields refer only to verified R2 objects. Missing images remain missing; the API does not fall back to another image host. Public CDN image links can still be accessed by someone who already has the URL.
 
 Prices include available source, currency, confidence and freshness evidence. Missing amounts and uncertain prices are not invented. Price signals require medium or high confidence.
 
-Tracked background refreshes use each collection's current storage authority. Native inventory includes Unassigned physical copies and explicit wanted cards, including Trainers and Energy. Empty targets and frozen legacy copies are excluded. Repeated copies share a card/language request; missing native language stays unknown and no finish is guessed. Incomplete reads stop selection before provider requests. This internal selection does not enable staged native editing or add REST/MCP permissions; existing manual and scheduled refresh rules still apply.
+Tracked background refreshes cover owned physical copies, including Unassigned ones, and explicit wanted cards, including Trainers and Energy. Empty targets are excluded. Repeated copies share a card/language request; a missing language stays unknown and no finish is guessed. An incomplete read stops selection before any provider request. Manual and scheduled refresh rules are unchanged, and the selection adds no REST/MCP permission.
 
 Private uploaded binder artwork lives in a separate private R2 bucket. Upload preparation returns a five-minute signed PUT URL, required headers and an `artworkRef` for the appearance design. Upload the exact declared bytes, then save the appearance revision. Downloads use five-minute signed GET URLs.
 
 ## Safe writes
 
-Collection updates must protect against overwriting a newer edit. Duplicate retries of creation, purchase and job operations must not create duplicate effects. See the API reference for each request schema. Binder creation and comparison jobs require an `Idempotency-Key`; settings replacement requires a `baseFingerprint` from the previous read. Retry keys are retained for 24 hours. Cursors do not freeze the dataset while other clients make changes.
-
-## Converted binders and saved legacy edits
-
-A legacy collection write to a converted binder returns `409` with code `binder_converted_requires_slot_commands`. This compatibility rejection does not include a current legacy `item`. Do not interpret it as an absent row, a successful delete, or a row conflict to merge. Keep the original queued intent and pause replay until a compatible client can handle it.
-
-The app shows “Saved on this device. Sync needs a compatible client.” These changes have not synced. Keep this device's app data; clearing it can remove saved edits. Reloading this client does not translate the saved edits or enable native writes. Ordinary row-conflict `409` responses still follow their existing merge policy; temporary `503` and network failures still retry.
-
-This protection does not recover missing historical recipient bindings or provide guest-import acceptance or multi-tab durability. Native server routes now use the authenticated bridges; app integration and offline acceptance need separate proof.
+Collection and storage commands must protect against overwriting a newer edit. Duplicate retries of creation, purchase and job operations must not create duplicate effects. See the API reference for each request schema. Binder creation requires an `Idempotency-Key`, sent as a header or in the body; when both are present they must match. Settings replacement requires a `baseFingerprint` from the previous read. Native storage commands use revisions and a retry-stable `operationId` instead (see [native storage](/docs/native-storage)). Retry keys are retained for 24 hours. Cursors do not freeze the dataset while other clients make changes.
 
 ## Native storage
 
-[Native storage contracts](/docs/native-storage) use authenticated execution with exact revision/operation-ID semantics and supported backend bounds. They do not inherit the legacy 24-hour retry policy. Native developer reads expose a separate redacted projection. Legacy Activity Undo remains available under its existing contract. Public legacy species-row CRUD is retired.
+[Native storage contracts](/docs/native-storage) use authenticated execution with exact revision and operation-ID semantics and their own bounds. They do not use the 24-hour `Idempotency-Key` retention. Native developer reads expose a separate redacted projection. Undo over REST and MCP uses the native storage recovery operations.
 
 ## Native reads
 
-[Native developer reads](/docs/native-reads) declare a private redacted copy/storage/slot projection with signed scope/filter/revision-bound cursors. A response page is never a complete planning snapshot or a fresh-read queue ACK. Legacy Activity/Undo remains separate from native recovery.
+[Native developer reads](/docs/native-reads) declare a private redacted copy/storage/slot projection with signed scope/filter/revision-bound cursors. A response page is never a complete planning snapshot or a fresh-read queue acknowledgement.
 
 [Copied preset previews](/docs/preset-previews) provide authenticated discovery and bounded read-only manifests through the same registry/dispatcher. Preset entry IDs are provenance, not slot/collection/operation identities. No private planning state, ownership, autosync or durable set/master-set scope is implied.

@@ -1,14 +1,30 @@
 ---
-title: Scan destination drafts
-description: Internal staged card and page scan review, with native storage still gated.
+title: Scanning into your binder
+description: Scan a binder page or a single card, choose where each card goes, and add them in one save.
 ---
 
-Native scan destination review is **not enabled in the app**. Existing scanning continues to use its legacy flow. The actual BinderApp now has staged Scan page and Scan card entries through BrowserCollectionSession, admitted only by the existing non-hosted loopback harness. This is not a supported REST or MCP operation.
+Open the binder's **Storage** menu and choose **Scan page** or **Scan card**. Both need a connection, a complete current read of your collection, no unsynced edits and a saved page grid that matches the binder. Until then the entries stay disabled.
 
-In the staged page scanner, capture a page or choose a photo. Occupied pockets are mapped to the slot IDs and grid captured with the image. Occupancy alone does not identify or own a card. Choose a cached catalog identity and a compatible target or free slot for each included cell, or explicitly skip it. Repeated Pokémon require a destination choice. Supporter and Energy identities do not need Pokémon IDs.
+## Scan a page
 
-The staged card scanner keeps its existing OCR and cached lookup. Type instead offers catalog identities already read or cached on this device. Review the actual catalog candidate, Raw or a recorded copy, finish and exact destination before confirming. Unknown content stays unresolved. OCR does not provide grades, certificates or label artwork.
+Choose **Take photo**, or **Or choose a photo** when the camera isn't available. Each detected pocket is matched to the pocket at that position on the page you scanned. A card being present in a pocket does not identify it or prove you own it, so for each card choose **Choose card** and pick the catalog card from **Possible matches**, or **Skip** it. Cards already recorded in that pocket show **Already in your binder. Nothing to add.** Trainers and Energy work the same way as Pokémon.
 
-If owner, session, collection, arrangement or grid changes, cancel and capture again. Canceling an unconfirmed scan saves nothing. Local-save failure retains the exact draft for retry. Successful device acceptance means pending sync, not a server-confirmed save.
+## Scan a card
 
-Staged review offers explicit append of a new free slot or exact card target with the chosen copy, including an empty binder with a verified saved grid. Existing assignments and appends form one atomic inventory request through the existing app HTTP sender and trusted bridge, sharing the `execute_inventory_commands` contract and migration 091 `insertAssign`, in the displayed review order. New slot and copy IDs stay unchanged through durable retry and reload. Uncreated pockets never add padding or implicit ownership. Oversized batches are refused whole with smaller-page guidance. Creating Raw beside graded-only eligible copies is also unavailable; choose a recorded copy instead. Cached native startup remains read-only: reconnect and refresh complete scoped storage before scanning, and let pending edits finish syncing. An already open scanner retains cached lookup if the network drops, but confirmation requires a valid complete online planning base; it cannot identify uncached cards or promise a cold offline OCR download. Public native APIs, production host admission, recovery, rollout and release publication remain separate gates.
+**Scan card** keeps the existing on-device text reading and cached lookup. **Type instead** searches card identities already read or cached on this device. Unknown cards stay unresolved. Scanning never reads grades, certificates or label artwork.
+
+## Review and add
+
+For each card, answer **Which card is this?**, **Which version?** and **Which copy?** where they apply. You can use one of your recorded spare copies or add **An ungraded copy**. Under **Put it in**, pick a matching pocket or **A new pocket at the end**. Two cards cannot go into the same pocket, and a card that doesn't fit a pocket's target is refused. When everything is chosen, confirm **Add N cards**.
+
+All the cards from one review are saved as a single atomic inventory request, in the order shown. A batch that exceeds the request limits is refused whole, so scan a smaller page. Nothing is padded into pockets you didn't create, and no ownership is implied for skipped cells. Adding an ungraded copy is unavailable when only graded matching spare copies exist; choose one of those copies instead.
+
+If the binder, its arrangement or its grid changes while you review, you'll see **This page changed after the scan. Close this and scan again. Nothing was added.** Cancelling saves nothing. Accepted changes save on the device first and sync when online, keeping the same pocket and copy IDs through retries and reloads.
+
+## Offline
+
+Cached startup is read-only, so reconnect and let pending edits finish before scanning. A scanner that is already open keeps its cached lookup if the network drops, but adding cards needs a complete online read. It can't identify uncached cards or download the text reader for the first time offline.
+
+## API
+
+There is no scan endpoint. The review submits the same `execute_inventory_commands` contract available at `POST /app/api/v1/storage/inventory/commands` and over MCP, using `insertAssign` for new pockets.
