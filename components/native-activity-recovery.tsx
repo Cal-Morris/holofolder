@@ -101,7 +101,7 @@ export function NativeActivityRecovery({event,binding,disabled}: {event:Activity
   const button = 'min-h-10 rounded-lg border border-border px-3 text-xs disabled:opacity-50'
   const removed = event.changes.filter(c=>c.table==='inventory_items' && c.before && !c.after)
   const defaultCreation = event.action==='collection.create' && event.changes.some(c=>c.table==='binders' && !c.before && c.after?.is_default===true)
-  const description = preview ? activityChanges({...event,changes:preview.changes,before_state:null,after_state:null}) : []
+  const description = preview ? activityChanges({changes:preview.changes}) : []
   return <div className="col-span-2 mt-2 min-w-0 space-y-2 text-xs wrap-anywhere" aria-label="Recovery">
     {saved ? <>
       <p role="status">{saved.resolution === 'discarded' ? 'Recovery did not commit. Saved request discarded, original request and proof retained.' : saved.rejection ? 'Recovery did not commit. Review current storage before discarding this saved request.' : saved.synchronized ? 'Recovery verified against current storage.' : saved.receipt ? 'Recovery accepted. Current storage still needs verification.' : 'Recovery saved on this device. The shared result is not yet verified.'}</p>

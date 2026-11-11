@@ -5,10 +5,7 @@ import {
   normalizeCollectionItems,
   normalizeWantedCards,
   numberArraysEqual,
-  removeCollectionItem,
-  upsertCollectionItem,
 } from "../lib/collection/normalize"
-import type { CollectedPokemon } from "../lib/domain/cards"
 
 test("normalizeWantedCards drops invalid entries and de-duplicates by id, language and finish", () => {
   const cards = normalizeWantedCards([
@@ -73,18 +70,6 @@ test("normalizeCollectionItems tolerates null and non-arrays", () => {
   assert.deepEqual(normalizeCollectionItems(null), [])
   assert.deepEqual(normalizeCollectionItems(undefined), [])
   assert.equal(normalizeCollectionItems([{ pokemon_id: 1 }, { pokemon_id: 2 }]).length, 2)
-})
-
-test("upsertCollectionItem replaces by pokemon_id and keeps the list sorted", () => {
-  const make = (pokemon_id: number, pokemon_name = `#${pokemon_id}`): CollectedPokemon =>
-    normalizeCollectionItem({ id: String(pokemon_id), pokemon_id, pokemon_name })
-  const list = [make(1), make(4)]
-
-  assert.deepEqual(upsertCollectionItem(list, make(2)).map((item) => item.pokemon_id), [1, 2, 4])
-  const replaced = upsertCollectionItem(list, make(4, "Charmander"))
-  assert.deepEqual(replaced.map((item) => item.pokemon_name), ["#1", "Charmander"])
-  assert.equal(list[1].pokemon_name, "#4", "does not mutate the input")
-  assert.deepEqual(removeCollectionItem(list, 1).map((item) => item.pokemon_id), [4])
 })
 
 test("numberArraysEqual compares order and length", () => {

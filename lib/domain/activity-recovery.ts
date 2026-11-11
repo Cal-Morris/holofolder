@@ -1,12 +1,3 @@
-import { z } from 'zod'
-import type { ActivityChange } from './collection-activity'
-
-const eventId = z.string().regex(/^[1-9]\d{0,18}$/).refine(v=>BigInt(v)<=BigInt('9223372036854775807'))
-export const recoveryPreviewSchema=z.object({eventId,restoreUnassignedItemIds:z.array(z.string().min(1).max(200)).max(16384).default([])}).strict()
-export const recoveryApplySchema=recoveryPreviewSchema.extend({operationId:z.string().min(8).max(100).regex(/^[a-zA-Z0-9_:/.-]+$/),planVersion:z.literal(1),planToken:z.string().regex(/^[a-f0-9]{64}$/),confirmed:z.literal(true)}).strict()
-export type RecoveryPreview = {planVersion:1;eventId:string;supported:boolean;unsupported:string[];conflicts:{reason:string;entity?:string}[];planToken:string|null;restoreUnassignedItemIds:string[];changes:ActivityChange[]}
-export type RecoveryRequest = z.infer<typeof recoveryApplySchema>
-export type RecoveryReceipt = {eventId:string;recoveredEventId:string}
 export function recoveryExplanation(reason:string) {
   if(/card_changed|version|row_changed|dependencies_changed/.test(reason)) return 'This card changed afterwards. Undo would overwrite a newer edit.'
   if(/collection_removed|missing_collection/.test(reason)) return 'The original collection no longer exists.'

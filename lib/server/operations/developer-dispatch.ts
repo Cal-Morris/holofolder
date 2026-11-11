@@ -5,7 +5,6 @@ import { executeNativeDeveloperRead } from "./native-developer-read"
 import {readCollectionAudit} from "./audit"
 import {executeNativeDeveloperOperation} from './native-developer'
 import {NATIVE_DEVELOPER_OPERATIONS} from '@/lib/developer-api/storage'
-import {developerActivityRecovery} from './activity-recovery'
 import {withAuditActor} from "@/lib/server/audit-context"
 import {requiresPriceCheckUi} from '@/lib/developer-api/price-check-policy'
 import {readDeveloperIdentity,updateDeveloperIdentity,developerBinderIdentity,developerSharing,developerAppearance,developerArtwork} from './management'
@@ -113,8 +112,6 @@ async function dispatchDeveloperOperation(context:OperationContext,name:string,i
   case 'get_price_history':return readDeveloperPriceHistory(input)
   case 'list_collection_audit':return sanitizeImages(await readCollectionAudit(context,input))
   case 'get_collection_audit':return sanitizeImages(await readCollectionAudit(context,input,true))
-  case 'preview_collection_recovery':return developerActivityRecovery(context,'preview',input)
-  case 'apply_collection_recovery':return developerActivityRecovery(context,'apply',input)
   case 'check_deal': {
    const [[stored],fxRates]=await Promise.all([loadSavedCardPrices(normalizeCardPriceLookups([{cardId:input.cardId,language:input.language}])),loadDisplayFxRates()])
    const region=(input.region??'UK') as PricingRegion,currency=input.currency as DisplayCurrency

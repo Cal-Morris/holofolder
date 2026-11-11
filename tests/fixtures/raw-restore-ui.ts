@@ -61,17 +61,6 @@ async function main() {
     await q.saveSnapshot(p.base)
     return { ...p, store, q, intent: rawRestoreIntent(p.command, queueScope.deviceId) }
   }
-  // A persisted v1 original and its unversioned proof still use the same queue and sender.
-  const legacy = await setup(false)
-  const { manifest: _manifest, ...legacyBody } = legacy.command as Extract<typeof legacy.command, { version: 2 }>
-  const { readReviewedRawRestoreCommand } = await import('@/lib/collection/raw-restore-delivery')
-  const legacyCommand = readReviewedRawRestoreCommand({ ...legacyBody, version: 1 })
-  const legacyIntent = rawRestoreIntent(legacyCommand, queueScope.deviceId)
-  await legacy.q.enqueue(legacyIntent, () => undefined, legacy.base, () => queueScope, scope.authSessionId)
-  await replay(createSlotOfflineQueue(legacy.store, queueScope))
-  const oldReceipt = (await legacy.q.read()).receipts[0]
-  assert.deepEqual(oldReceipt.intent, legacyIntent)
-  assert.equal(oldReceipt.rawRestoreProof?.receipt?.version, undefined)
   fixture = nextFixture()
   // Future command versions fail closed in both reads and atomic updates, without resetting bytes.
   const unknown = await setup()

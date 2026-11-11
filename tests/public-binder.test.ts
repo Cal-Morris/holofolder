@@ -74,13 +74,10 @@ test('the share carries only the owner price switch, never price data or price r
   }
 })
 
-test('a binder that is not on slot storage fails closed', async () => {
-  for (const state of [{ authority: 'legacy', conversion_version: null }, null]) {
-    const db = syntheticPublicDatabase()
-    if (state) Object.assign(db.tables.storage_collection_state[0], state)
-    else db.tables.storage_collection_state = []
-    await assert.rejects(loadPublicBinder({ token: 'synthetic-token' }, db.client))
-  }
+test('a binder without collection state fails closed', async () => {
+  const db = syntheticPublicDatabase()
+  db.tables.storage_collection_state = []
+  await assert.rejects(loadPublicBinder({ token: 'synthetic-token' }, db.client))
 })
 
 test('over 1000 distinct catalog cards and associations use bounded batched reads', async () => {

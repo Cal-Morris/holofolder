@@ -67,5 +67,7 @@ test("default recovery v2 is explicit, canonical and separate from strict versio
     restoreUnassignedItemIds: [], changes: [{ table: "binders", id, before: { is_default: false }, after: { is_default: true } }], rootRevisionsAdvance: true }
   assert.deepEqual(normalizeStorageResult("recovery.preview.v2", result), result)
   assert.throws(() => normalizeStorageResult("recovery.preview", result))
-  assert.throws(() => normalizeStorageResult("recovery.preview.v2", { ...result, changes: [{ certificate: "private" }] }))
+  // Whole stored rows come back from SQL; only the shown fields leave the server.
+  const certified = { ...result, changes: [{ table: "inventory_items", id, before: null, after: { card_id: "synthetic-card", grading: { grade: "10", certificate: "private", label: { assetIds: ["private"] } } } }] }
+  assert.deepEqual(normalizeStorageResult("recovery.preview.v2", certified).changes, [{ table: "inventory_items", id, before: null, after: { card_id: "synthetic-card", grading: { grade: "10" } } }])
 })

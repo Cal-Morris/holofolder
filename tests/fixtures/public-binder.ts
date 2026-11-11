@@ -6,7 +6,7 @@ export function syntheticPublicDatabase(options: { disabled?: boolean; large?: b
   const owner = options.scenario ? `PRIVATE-owner-${options.scenario}` : 'PRIVATE-owner', collection = 'binder-allowed'
   const share = { owner_user_id: owner, binder_id: collection, token: options.scenario ? `synthetic-${options.scenario}` : 'synthetic-token', is_enabled: !options.disabled, show_prices: options.prices === true }
   const binder = { id: collection, owner_user_id: owner, name: 'Synthetic mixed binder', is_default: true, binder_rows: 2, binder_cols: 3, updated_at: 'synthetic-1' }
-  const state = { owner_user_id: owner, collection_id: collection, authority: 'slots', conversion_version: null, version: 1, layout_revision: 1 }
+  const state = { owner_user_id: owner, collection_id: collection, version: 1, layout_revision: 1 }
   const scopes = { owner_user_id: owner, collection_id: collection }
   const slots = Array.from({ length: options.large ? 1007 : 7 }, (_, i) => ({ id: `PRIVATE-slot-${i}`, ...scopes, position: i,
     target: i === 0 || i === 1 || i === 6 ? { kind: 'pokemon', pokemonId: 143 } : null,

@@ -83,21 +83,6 @@ export function normalizeCollectionItems(items: Partial<CollectedPokemon>[] | nu
   return Array.isArray(items) ? items.map((item) => normalizeCollectionItem(item)) : []
 }
 
-export function upsertCollectionItem(items: CollectedPokemon[], item: CollectedPokemon) {
-  const existing = items.findIndex((currentItem) => currentItem.pokemon_id === item.pokemon_id)
-  if (existing >= 0) {
-    const updated = [...items]
-    updated[existing] = item
-    return updated.sort((a, b) => a.pokemon_id - b.pokemon_id)
-  }
-
-  return [...items, item].sort((a, b) => a.pokemon_id - b.pokemon_id)
-}
-
-export function removeCollectionItem(items: CollectedPokemon[], pokemonId: number) {
-  return items.filter((item) => item.pokemon_id !== pokemonId)
-}
-
 export function numberArraysEqual(a: number[], b: number[]) {
   if (a.length !== b.length) return false
 

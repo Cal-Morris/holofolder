@@ -58,9 +58,7 @@ export function planRawContentRestore(input: {
   if (backupContentKey([...input.choices.releaseItemIds].sort()) !== backupContentKey(releases)) return fail()
   if (rawRestoreSavedEntries(desired.binders[0].slots) - rawRestoreSavedEntries(binder.slots) > input.savedEntryRemaining) return fail()
   const slotOrder = { before: binder.slots.map(s => s.id), after: sourceBinder.slots.map(s => s.id) }
-  const converted = binder.presetManifest?.source.version === 'legacy-v1'
-  const reordered = backupContentKey(slotOrder.before) !== backupContentKey(slotOrder.after)
-  const request = parseRawRestoreCommand({ version: converted ? 4 : reordered ? 3 : 2, ...((converted || reordered) ? { slotOrder } : {}), manifest: binder.presetManifest, operationId: input.operationId, inventoryRevision: current.inventoryRevision,
+  const request = parseRawRestoreCommand({ version: 4, slotOrder, manifest: binder.presetManifest, operationId: input.operationId, inventoryRevision: current.inventoryRevision,
     configuration: { name: collection.name, kind: collection.kind, defaultPresentation: collection.defaultPresentation, location: collection.location ?? null,
       rows: input.layouts.find(l => l.collectionId === collectionId)!.rows, cols: input.layouts.find(l => l.collectionId === collectionId)!.cols },
     planning: input.evidence, collection: { collectionId, version: collection.version, layoutRevision: binder.layoutRevision },

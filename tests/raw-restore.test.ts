@@ -67,7 +67,7 @@ test('v2 copied1025 manifests and edited targets preserve exact per-slot origins
   const { instantiatePreset } = await import('@/lib/domain/binder-presets')
   const { speciesPreset } = await import('@/lib/binder-creation-draft')
   const { createBinderBackupV2 } = await import('@/lib/binder-backup-v2')
-  const { rawRestoreSchema, rawRestoreV1Schema, rawRestoreV2Schema } = await import('@/lib/developer-api/storage')
+  const { rawRestoreSchema } = await import('@/lib/developer-api/storage')
   const f = await rawRestoreFixture(), collectionId = f.snapshot.collections[0].id
   const manifest = speciesPreset('Synthetic copied Dex', Array.from({ length: 1025 }, (_, n) => n+1), 'synthetic-dex')
   const binder = instantiatePreset(manifest, { ownerUserId: f.snapshot.ownerUserId, collectionId }, manifest.entries.map((_,n)=>'synthetic-slot-'+n))!
@@ -79,19 +79,17 @@ test('v2 copied1025 manifests and edited targets preserve exact per-slot origins
   const backup = createBinderBackupV2({snapshot,completeness:'complete-owner',scope:'collection',collectionId,layouts:[{...f.input.layouts[0],layoutRevision:0}]})
   input.layouts = [{...f.input.layouts[0],layoutRevision:0}]
   const request = planRawContentRestore({...input,text:JSON.stringify(backup)}).request
-  assert.equal(request.version,2); assert.equal(request.slots.length,1025)
+  assert.equal(request.version,4); assert.equal(request.slots.length,1025)
   assert.equal(rawRestoreSchema.safeParse(request).success,true)
-  assert.equal(rawRestoreV2Schema.safeParse(request).success,true)
-  assert.equal(rawRestoreV1Schema.safeParse(request).success,false)
   assert.deepEqual(request.slots[0].after.presetOrigin,binder.slots[0].presetOrigin)
   assert.equal(request.slots[1024].after.presetOrigin,null)
   for (const mutate of [
     (r: typeof request) => {r.slots[0].after.presetOrigin=binder.slots[1].presetOrigin},
-    (r: typeof request) => {if(r.version===2)r.manifest!.name='Changed'},
+    (r: typeof request) => {r.manifest!.name='Changed'},
   ]) {
     const changed=structuredClone(backup)
     const r=structuredClone(request);mutate(r)
-    if(r.version===2)changed.binders[0].presetManifest=r.manifest
+    changed.binders[0].presetManifest=r.manifest
     changed.binders[0].slots[0].presetOrigin=r.slots[0].after.presetOrigin
     assert.throws(()=>planRawContentRestore({...input,text:JSON.stringify(changed)}))
   }
@@ -99,17 +97,11 @@ test('v2 copied1025 manifests and edited targets preserve exact per-slot origins
     {...request,slots:[...request.slots,request.slots[0]]}, {...request,version:1}]) {
     assert.throws(()=>parseRawRestoreCommand(value)); assert.equal(rawRestoreSchema.safeParse(value).success,false)
   }
-  const small=planRawContentRestore(f.input).request
-  const {manifest:_m,...v1}=small as Extract<typeof small,{version:2}>
-  const original={...v1,version:1 as const}
-  assert.deepEqual(parseRawRestoreCommand(original),original)
-  assert.equal(rawRestoreSchema.safeParse(original).success,true)
-  assert.equal(rawRestoreV1Schema.safeParse(original).success,true)
 })
 
 test('v2 byte admission budgets UTF-8/JSONB separators and refuses the old 4-MiB envelope', async () => {
   const { RAW_RESTORE_V2_LIMITS: limits, rawRestoreV2JsonbBytes } = await import('@/lib/domain/raw-restore')
-  const { rawRestoreV2Schema } = await import('@/lib/developer-api/storage')
+  const { rawRestoreSchema } = await import('@/lib/developer-api/storage')
   const r = structuredClone(planRawContentRestore((await rawRestoreFixture()).input).request)
   r.slots[1].after.wantedCards = [{ card_id: 'synthetic-raw-trainer', card_name: '', added_at: '2020-01-01' }]
   const pad = limits.bytes - rawRestoreV2JsonbBytes(r)
@@ -117,10 +109,10 @@ test('v2 byte admission budgets UTF-8/JSONB separators and refuses the old 4-MiB
   assert.equal(rawRestoreV2JsonbBytes(r), limits.bytes)
   assert.ok(Buffer.byteLength(JSON.stringify(r)) < limits.bytes)
   assert.deepEqual(parseRawRestoreCommand(r), r)
-  assert.equal(rawRestoreV2Schema.safeParse(r).success, true)
+  assert.equal(rawRestoreSchema.safeParse(r).success, true)
   r.slots[1].after.wantedCards[0].card_name += 'a'
   assert.throws(() => parseRawRestoreCommand(r), /1.75 MiB/)
-  assert.equal(rawRestoreV2Schema.safeParse(r).success, false)
+  assert.equal(rawRestoreSchema.safeParse(r).success, false)
 })
 
 test('trusted planning refuses complete old-wants recovery graphs', async () => {

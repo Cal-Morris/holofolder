@@ -5,18 +5,10 @@ import { isSlotContractId } from "@/lib/domain/binder-slots"
 import type { OperationContext } from "@/lib/developer-api/types"
 
 // Context is established after authentication, never from request headers/body or queued actor fields.
-const attribution = new AsyncLocalStorage<{ actor: {kind:"user";userId:string} | {kind:"system";job:string}; source: "app" | "rest" | "mcp" | "system"; clientId: string | null; batchId: string; operationId?: string; operationIds?:Set<string>; legacyQueueGeneration?: 2; purpose?: "legacy.queue" }>()
+const attribution = new AsyncLocalStorage<{ actor: {kind:"user";userId:string} | {kind:"system";job:string}; source: "app" | "rest" | "mcp" | "system"; clientId: string | null; batchId: string; operationId?: string; operationIds?:Set<string> }>()
 export function withAuditActor<T>(actorId: string, run: () => T, context?: OperationContext): T {
   return attribution.run({ actor: {kind:"user",userId:actorId}, source: context?.principal.transport ?? "app", clientId: context?.principal.credentialId ?? null,
     batchId: context?.requestId ?? randomUUID() }, run)
-}
-
-/** First-party route only, after authentication, recipient and exact queue protocol validation. */
-export function withLegacyQueueAudit<T>(run: () => T): T {
-  const context = attribution.getStore()
-  if (!context || context.actor.kind !== "user" || context.source !== "app" || context.clientId !== null)
-    throw new Error("First-party audit actor is required")
-  return attribution.run({ ...context, legacyQueueGeneration: 2, purpose: "legacy.queue" }, run)
 }
 
 /** Each PostgREST request is one database transaction. Preserve the enclosing intent as batchId.
@@ -27,8 +19,7 @@ export function auditContextHeader(): string | undefined {
   const operationId=context.operationId ?? randomUUID()
   context.operationIds?.add(operationId)
   return JSON.stringify({ actor: context.actor, source: context.source, clientId: context.clientId,
-    operationId, batchId: context.batchId, clientOccurredAt: null,
-    ...(context.legacyQueueGeneration === 2 ? { legacyQueueGeneration: 2, purpose: context.purpose } : {}) })
+    operationId, batchId: context.batchId, clientOccurredAt: null })
 }
 
 /** Collect transaction IDs for the response without making separate writes share an ID. */

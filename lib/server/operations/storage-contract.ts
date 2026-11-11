@@ -1,5 +1,6 @@
 import { RawRestoreEnvelopeError, parseRawRestoreCommand, isRawRestoreReceipt } from '@/lib/domain/raw-restore'
 import { parseNativeRecoveryRequest } from "@/lib/domain/native-recovery"
+import { projectActivityChanges } from "@/lib/collection-activity"
 import { parseBackupArrangementCommand, BACKUP_IMPORT_LIMITS } from "@/lib/domain/backup-import-command"
 import { DeveloperAccessError } from "@/lib/developer-api/permissions"
 import { isContractRecord, isSlotContractId, isSlotRevision } from "@/lib/domain/binder-slots"
@@ -56,15 +57,17 @@ export function normalizeStorageResult(operation: StorageOperation, value: unkno
       || !ids(row.restoreUnassignedItemIds) || !Array.isArray(row.unsupported) || row.unsupported.length > 16384
       || !row.unsupported.every(v => typeof v === "string" && v.length <= 200)
       || !Array.isArray(row.conflicts) || row.conflicts.length > 16384 || !Array.isArray(row.changes) || row.changes.length > 16384) return unavailable()
-    // SQL's maintained redactor is authoritative. Reject private keys if a mismatched deployment leaks them.
+    // SQL returns whole rows; project the changes to the fields Activity shows, so private
+    // certificates, labels and artwork never leave the server.
     const safe = (v: unknown, depth = 0): boolean => {
       if (depth > 24) return false
       if (Array.isArray(v)) return v.length <= 16384 && v.every(x => safe(x, depth + 1))
       if (v && typeof v === "object") return Object.entries(v).every(([k, x]) => !["certificate", "assetIds", "legacy_source", "source_row", "token", "access_token", "refresh_token", "jwt", "secret", "credentials", "artworkRef", "label"].includes(k) && safe(x, depth + 1))
       return v === null || typeof v === "string" || typeof v === "boolean" || typeof v === "number" && Number.isFinite(v)
     }
-    if (!safe(row.changes) || !safe(row.conflicts)) return unavailable()
-    return Object.fromEntries(["planVersion", "eventId", "supported", "unsupported", "conflicts", "planToken", "restoreUnassignedItemIds", "changes", "rootRevisionsAdvance"].map(k => [k, row[k]]))
+    if (!safe(row.conflicts)) return unavailable()
+    return Object.fromEntries(["planVersion", "eventId", "supported", "unsupported", "conflicts", "planToken", "restoreUnassignedItemIds", "changes", "rootRevisionsAdvance"]
+      .map(k => [k, k === "changes" ? projectActivityChanges(row.changes) : row[k]]))
   }
   const result: Record<string, unknown> = { inventoryRevision: revision("inventoryRevision") }
   if (operation === "backup.restore.raw") {

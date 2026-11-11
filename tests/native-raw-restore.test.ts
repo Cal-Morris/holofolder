@@ -37,8 +37,8 @@ test('unsupported files and stale scope cannot enter raw review', async () => {
 })
 test('strict raw delivery binds original family/delivery/recipient/command/receipt and dedicated error', async () => {
   const f = await setup(), command = planRawContentRestore(f.input).request, delivery = 'synthetic-delivery'
-  const receipt = { version: 2 as const, changed: true as const, inventoryRevision: 9, collectionId: command.collection.collectionId, collectionVersion: 3,
-    layoutRevision: 3, slotIds: ['slot-a', 'slot-b'], releasedItemIds: ['copy-b'] }
+  const receipt = { version: 4 as const, changed: true as const, inventoryRevision: 9, collectionId: command.collection.collectionId, collectionVersion: 3,
+    layoutRevision: 3, slotOrder: command.slotOrder, slotIds: command.slotOrder.after, releasedItemIds: ['copy-b'] }
   const headers = { 'cache-control': 'private, no-store', 'content-type': 'application/json', 'X-Storage-Delivery': delivery,
     'X-Storage-Family': 'backup.restore.raw', 'X-Storage-Operation': command.operationId, 'X-Request-Id': 'synthetic-request' }
   const body = { version: 1, operationId: command.operationId, receipt }
@@ -57,7 +57,7 @@ test('strict raw delivery binds original family/delivery/recipient/command/recei
     { ...body, receipt: { ...receipt, layoutRevision: 4 } }, { ...body, receipt: { ...receipt, version: 1 } }, { ...body, receipt: { ...receipt, version: undefined } }]) assert.equal(await readRawRestoreDelivery(response(), bad, command, f.scope, delivery), null)
   assert.equal(await readRawRestoreDelivery(response(), body, command, { ...f.scope, authSessionId: 'changed-session' }, delivery), null)
   const error = { error: { code: 'storage_restore_rejected', message: 'synthetic', requestId: 'synthetic-request',
-    rejection: { version: 2, outcome: 'rejected', operationId: command.operationId, code: 'raw_restore_content_conflict', inventoryRevision: 9 } } }
+    rejection: { version: 4, outcome: 'rejected', operationId: command.operationId, code: 'raw_restore_content_conflict', inventoryRevision: 9 } } }
   assert.ok((await readRawRestoreDelivery(response({}, 409), error, command, f.scope, delivery))?.rejection)
   for (const version of [undefined, 1, 3]) assert.equal(await readRawRestoreDelivery(response({}, 409), { error: { ...error.error, rejection: { ...error.error.rejection, version } } }, command, f.scope, delivery), null)
   assert.equal(await readRawRestoreDelivery(response({}, 503), error, command, f.scope, delivery), null)

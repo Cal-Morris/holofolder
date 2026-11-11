@@ -45,8 +45,8 @@ These come from profiling production with `pg_stat_statements`, the Supabase per
   - `VACUUM` also can't run in a transaction.
 - **Verify with a plan, safely.** Run `begin; explain (analyze, buffers) <statement>;` and leave the transaction open; it rolls back, so even writes and triggers can be measured without changing data. To check RLS, do it as a user: `begin; select set_config('request.jwt.claims', '{"sub":"<uuid>","role":"authenticated"}', true); set local role authenticated; …`. Compare owner, partner, stranger and anon visibility before and after policy changes.
 - **PostgREST returns at most 1000 rows.** It drops the rest silently. Any read that can exceed that (collections, all-users scans) must page with `fetchAllRows` (`lib/supabase/fetch-all-rows.ts`) and a stable, unique `order()`.
-- **Binders.** Collection rows belong to a binder (`039`/`040`): upsert on `binder_id,pokemon_id`, filter by `user_id` and `binder_id`, and never add a per-owner unique on `pokemon_collection` or `binder_shares` again.
-- **Fetch what changed.** `pokemon_collection.updated_at` (`035`) is set by a trigger. Client refreshes use `syncCollectionRows` (`lib/collection/load.ts`): changed rows plus a HEAD count, with a full read when the count shows a delete. Tables that clients poll should get the same treatment rather than a bigger `select *`.
+- **Binders.** Storage rows belong to a binder (`collection_id`); never add a per-owner unique on `binder_shares` again.
+- **Audit.** A new writer of the collection tables records its own `collection_activity` row with `collection_audit_private.record_v1` (collect each statement's before/after with `RETURNING` and `collection_audit_private.delta`, see 108). Don't add row-level audit triggers.
 - **Connections.**
   - App code talks to Postgres through PostgREST (`@supabase/supabase-js`), which pools for us.
   - Only the bulk catalog sync (`lib/card-db-sync.ts`) opens a direct connection, through `POSTGRES_URL_NON_POOLING` (or `DATABASE_URL`). It needs long transactions, which the pooler's transaction mode (port 6543: no session state, no prepared statements) doesn't suit.
