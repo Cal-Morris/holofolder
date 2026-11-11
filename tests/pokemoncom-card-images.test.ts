@@ -43,9 +43,10 @@ describe("pokemoncom image source", () => {
 describe("pickCardImageUrl", () => {
   const official = `${BASE}/BW10/BW10_EN_8.png`
 
-  test("prefers the official scan over TCGdex in English, but keeps TCGdex for other languages", () => {
-    assert.equal(pickCardImageUrl({ pokemoncom: { image: official } }, "en", "tcgdex:en"), official)
-    assert.equal(pickCardImageUrl({ pokemoncom: { image: official } }, "ja", "tcgdex:ja"), "tcgdex:ja")
+  test("the official scan (245 px) comes after TCGdex's English print but before a foreign one", () => {
+    assert.equal(pickCardImageUrl({ pokemoncom: { image: official } }, "en", "tcgdex:en"), "tcgdex:en")
+    assert.equal(pickCardImageUrl({ pokemoncom: { image: official } }, "ja", "tcgdex:ja"), official, "English requested, TCGdex only has Japanese")
+    assert.equal(pickCardImageUrl({ pokemoncom: { image: official } }, "ja", "tcgdex:ja", "ja"), "tcgdex:ja", "Japanese requested")
     assert.equal(pickCardImageUrl({ pokemoncom: { image: official } }, null, null), official)
   })
 
