@@ -1,7 +1,7 @@
 "use client"
 
 import { nativeCardConsumers, nativeCardState, nativeCardLabel, type NativeConsumerBinding } from "@/lib/collection/native-card-consumers"
-import { toCardImageSrc } from "@/lib/card-image-url"
+import CardImage from "@/components/card-image"
 import type React from "react"
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react"
@@ -76,12 +76,9 @@ interface PokemonSearchProps {
   getCardState?: (card: SearchCardResult, pokemon: { id: number; name: string }) => { owned: boolean; wanted: boolean }
 }
 
-function cardThumbnail(image?: string) {
-  if (!image) return null
-  return toCardImageSrc(image.replace(/\/high\.webp$/, "/low.webp"))
-}
+/** Card tiles are wide enough to tell printings apart; CardImage picks a sharp width and falls back to the proxy (also offline). */
+const CARD_TILE_SIZES = "104px"
 
-/** Offline, a thumbnail that was never loaded falls back to its saved copy (via the image proxy). */
 const SEARCH_FILTERS: Array<{
   id: SearchStateFilter
   label: string
@@ -382,7 +379,6 @@ export default function PokemonSearch({
                 </div>
                 <div className="flex gap-2 overflow-x-auto px-3 pb-1">
                   {recentCards.map((card) => {
-                    const thumb = cardThumbnail(card.image)
                     return (
                       <button
                         key={card.id}
@@ -392,12 +388,11 @@ export default function PokemonSearch({
                           onBrowseCards?.({ id: card.dexId, name: card.pokemonName }, card.id)
                         }}
                         aria-label={`${card.name} ${card.number} ${card.setName}`}
-                        className="w-[4.6rem] shrink-0 text-left"
+                        className="w-[6.5rem] shrink-0 text-left"
                       >
-                        <div className="trading-card w-full border border-border/50 bg-muted/40">
-                          {thumb ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                        <div className="trading-card relative w-full overflow-hidden border border-border/50 bg-muted/40">
+                          {card.image ? (
+                            <CardImage src={card.image} alt="" fill sizes={CARD_TILE_SIZES} className="object-cover" />
                           ) : null}
                         </div>
                         <p className="mt-1 truncate text-[10px] font-semibold">{card.name}</p>
@@ -595,6 +590,7 @@ export default function PokemonSearch({
                   const state = nativeCardState(nativeModel, card)
                   const label = nativeCardLabel(state)
                   return <button key={`${card.id}:${card.language}`} type="button" onClick={() => nativeConsumer.openCard(card)} aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}, ${label}`} className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left active:bg-muted">
+                    <span className="trading-card relative w-14 shrink-0 overflow-hidden rounded-md border border-border/50 bg-muted/40">{card.image && <CardImage src={card.image} alt="" fill sizes="56px" className="object-cover" />}</span>
                     <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{card.name}</span><span className="block truncate text-xs text-muted-foreground">{card.set.name} · {formatCardNumber(card)}</span></span>
                     <span className="max-w-[45%] text-right text-xs font-semibold">{label}</span>
                   </button>
@@ -617,7 +613,6 @@ export default function PokemonSearch({
                       </button>
                       <div className="mt-1.5 flex gap-2 overflow-x-auto pb-1">
                         {group.cards.map((card) => {
-                          const thumb = cardThumbnail(card.image)
                           const price = formatPrice?.(cardPrices[getCardPriceKey(card.id, card.language ?? "en")])?.split(" (")[0] ?? null
                           const standing = getCardState ? getCardStanding(getCardState(card, { id: group.dexId, name: group.name })) : null
                           const badge = standing && standing !== "missing" ? CARD_STANDING_BADGES[standing] : null
@@ -631,12 +626,11 @@ export default function PokemonSearch({
                               }}
                               aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}${badge ? `, ${badge.label}` : ""}`}
                               data-standing={standing ?? undefined}
-                              className="w-[4.6rem] shrink-0 text-left"
+                              className="w-[6.5rem] shrink-0 text-left"
                             >
                               <div className={`trading-card relative w-full border bg-muted/40 ${standing === "owned" ? "border-emerald-500/60" : standing === "wanted" ? "border-rose-500/60" : "border-border/50"}`}>
-                                {thumb ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                                {card.image ? (
+                                  <CardImage src={card.image} alt="" fill sizes={CARD_TILE_SIZES} className="object-cover" />
                                 ) : null}
                                 {badge ? (
                                   <span aria-hidden className={`absolute inset-x-1 bottom-1 truncate rounded-full px-1 py-0.5 text-center text-[9px] font-bold leading-none text-white shadow-sm ${standing === "owned" ? "bg-emerald-600" : "bg-rose-600"}`}>
