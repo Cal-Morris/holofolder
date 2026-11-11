@@ -4,7 +4,7 @@ Keep changes focused on one problem. For larger changes, open an issue to agree 
 
 ## Local development
 
-Use Bun 1.3.14 (the CI version) and your own Supabase project. Follow [README.md](README.md) and [scripts/MIGRATIONS.md](scripts/MIGRATIONS.md), including the reconstructed `user_settings` table. Never use the hosted Holo Folder database, Stripe account, storage bucket or provider credentials for development.
+Use Bun 1.4.4 (the CI version) and your own Supabase project. Follow [README.md](README.md) and [scripts/MIGRATIONS.md](scripts/MIGRATIONS.md), including the reconstructed `user_settings` table. Never use the hosted Holo Folder database, Stripe account, storage bucket or provider credentials for development.
 
 ```sh
 bun install --frozen-lockfile

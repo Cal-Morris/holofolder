@@ -100,9 +100,9 @@ bun run dev                  # http://localhost:3000/app
 | Command | Notes |
 |---|---|
 | `bun run dev` | Dev server |
-| `bun run test` | Unit tests in `tests/` (`bun test tests/`) |
+| `bun run test` | Unit tests in `tests/` (`bun test --parallel tests/`) |
 | `bun run test:coverage` | Unit tests with coverage |
-| `bun run typecheck` | `next typegen && tsrs --noEmit`; checks the full repo with the pinned Rust checker. `bun run typecheck:tsc` compares reference diagnostics. Local builds also type-check; Vercel relies on Typecheck CI. |
+| `bun run typecheck` | `next typegen && bun check`; checks the full repo with Bun's built-in type checker. `bun run typecheck:tsc` compares reference diagnostics. Local builds also type-check; Vercel relies on Typecheck CI. |
 | `bun run lint` | ESLint with **`--max-warnings=47`**. This is a ratchet: never add warnings. If you remove some, lower the cap in `package.json`. Prefix intentionally unused vars with `_`. |
 | `bun run build` | Production build |
 | `bun run test:e2e` | Playwright at 390×844 in browser and standalone mode: builds and serves on port 3210 (`E2E_PORT` to change it, `E2E_BASE_URL` to test a running server) with `HOLOFOLDER_E2E=1` |

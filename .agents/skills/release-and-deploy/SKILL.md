@@ -5,7 +5,7 @@ description: Use when opening, verifying, merging or deploying a Holo Folder PR 
 
 # Release and deploy
 
-Vercel only builds `main`, as a production deploy (the public app is https://holofolder.com/app; binder.cal.gg is a legacy hostname). PR branches get no preview deployment (`git.deploymentEnabled` in `vercel.json`) to save build minutes. GitHub Actions runs **Typecheck** on every PR: it generates Next route types, checks the full repository with the pinned `tsrs` checker, runs the unit suite, enforces the lint warning ratchet and runs `bun run build`. It is the merge gate. Vercel skips its duplicate type check. The Hobby plan has a daily deployment limit, so every merge spends budget.
+Vercel only builds `main`, as a production deploy (the public app is https://holofolder.com/app; binder.cal.gg is a legacy hostname). PR branches get no preview deployment (`git.deploymentEnabled` in `vercel.json`) to save build minutes. GitHub Actions runs **Typecheck** on every PR: it generates Next route types, checks the full repository with `bun check`, runs the unit suite, enforces the lint warning ratchet and runs `bun run build`. It is the merge gate. Vercel skips its duplicate type check. The Hobby plan has a daily deployment limit, so every merge spends budget.
 
 Use [task-progress](../task-progress/SKILL.md) to update the issue/project when work starts, a PR enters review, a merge awaits deployment/publication, and all delivery gates pass. Keep incomplete issues open, and verify project/parent state after closing.
 
