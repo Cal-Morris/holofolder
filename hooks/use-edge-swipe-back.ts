@@ -17,6 +17,7 @@ function isStandalone() {
  * from the left edge closes the top overlay (through history, like the back button) or
  * returns to the previously visited main view, which then animates with the usual view
  * transition. In a browser tab the system gesture already does this, so the hook stays off.
+ * Cmd+[ and Cmd+] step back and forward through the same views everywhere.
  */
 export function useEdgeSwipeBack<View extends string>(view: View, goToView: (view: View) => void, homeView: View, enabled = true) {
   const stackRef = useRef(new ViewBackStack<View>())
@@ -31,6 +32,34 @@ export function useEdgeSwipeBack<View extends string>(view: View, goToView: (vie
     stackRef.current.visit(previousViewRef.current, view)
     previousViewRef.current = view
   }, [view])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.repeat) return
+      if (event.key !== "[" && event.key !== "]") return
+      const { view: current, goToView: go, enabled: on } = latest.current
+      if (!on) return
+      if (event.key === "[") {
+        if (hasOpenOverlays()) {
+          event.preventDefault()
+          window.history.back()
+          return
+        }
+        // Nothing in-app to go back to: leave Cmd+[ to the browser.
+        if (stackRef.current.peek() === undefined) return
+        event.preventDefault()
+        go(stackRef.current.back(current)!)
+        return
+      }
+      if (hasOpenOverlays()) return
+      const next = stackRef.current.forward(current)
+      if (next === undefined) return
+      event.preventDefault()
+      go(next)
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [])
 
   useEffect(() => {
     if (!isStandalone()) return
@@ -96,7 +125,7 @@ export function useEdgeSwipeBack<View extends string>(view: View, goToView: (vie
         window.history.back()
         return
       }
-      const previous = stackRef.current.back()
+      const previous = stackRef.current.back(latest.current.view)
       if (previous) latest.current.goToView(previous)
     }
     const onCancel = (event: PointerEvent) => {

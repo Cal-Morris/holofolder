@@ -30,15 +30,32 @@ describe("edge swipe back", () => {
     const stack = new ViewBackStack<string>(3)
     stack.visit("binder", "list")
     stack.visit("list", "sets")
-    assert.equal(stack.back(), "list")
+    assert.equal(stack.back("sets"), "list")
     stack.visit("sets", "list") // the back navigation itself
     assert.equal(stack.peek(), "binder")
-    assert.equal(stack.back(), "binder")
+    assert.equal(stack.back("list"), "binder")
     stack.visit("list", "binder")
     assert.equal(stack.peek(), undefined)
     for (const view of ["a", "b", "c", "d", "e"]) stack.visit("x", view)
     let count = 0
-    while (stack.back()) count += 1
+    while (stack.back("x")) count += 1
     assert.equal(count, 3)
+  })
+
+  it("goes forward after back, and a fresh visit clears forward", () => {
+    const stack = new ViewBackStack<string>()
+    stack.visit("binder", "list")
+    stack.visit("list", "sets")
+    assert.equal(stack.back("sets"), "list")
+    stack.visit("sets", "list")
+    assert.equal(stack.forward("list"), "sets")
+    stack.visit("list", "sets") // the forward navigation itself
+    assert.equal(stack.peek(), "list")
+    assert.equal(stack.forward("sets"), undefined)
+    assert.equal(stack.back("sets"), "list")
+    stack.visit("sets", "list")
+    stack.visit("list", "wanted") // new branch drops forward history
+    assert.equal(stack.forward("wanted"), undefined)
+    assert.equal(stack.back("wanted"), "list")
   })
 })
