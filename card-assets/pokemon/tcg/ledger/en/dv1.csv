@@ -1,0 +1,22 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+dv1-1,1,Dratini,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_1.png,tcgdex:en pokemontcg tcgplayer
+dv1-2,2,Dratini,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_2.png,tcgdex:en pokemontcg tcgplayer
+dv1-3,3,Dragonair,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_3.png,tcgdex:en pokemontcg tcgplayer
+dv1-4,4,Dragonair,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_4.png,tcgdex:en pokemontcg tcgplayer
+dv1-5,5,Dragonite,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_5.png,tcgdex:en pokemontcg tcgplayer
+dv1-6,6,Bagon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_6.png,tcgdex:en pokemontcg tcgplayer
+dv1-7,7,Shelgon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_7.png,tcgdex:en pokemontcg tcgplayer
+dv1-8,8,Salamence,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_8.png,tcgdex:en pokemontcg tcgplayer
+dv1-9,9,Latias,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_9.png,tcgdex:en pokemontcg tcgplayer
+dv1-10,10,Latios,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_10.png,tcgdex:en pokemontcg tcgplayer
+dv1-11,11,Rayquaza,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_11.png,tcgdex:en pokemontcg tcgplayer
+dv1-12,12,Axew,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_12.png,tcgdex:en pokemontcg tcgplayer
+dv1-13,13,Axew,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_13.png,tcgdex:en pokemontcg tcgplayer
+dv1-14,14,Fraxure,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_14.png,tcgdex:en pokemontcg tcgplayer
+dv1-15,15,Fraxure,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_15.png,tcgdex:en pokemontcg tcgplayer
+dv1-16,16,Haxorus,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_16.png,tcgdex:en pokemontcg tcgplayer
+dv1-17,17,Druddigon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_17.png,tcgdex:en pokemontcg tcgplayer
+dv1-18,18,Exp. Share,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_18.png,tcgdex:en pokemontcg tcgplayer
+dv1-19,19,First Ticket,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_19.png,tcgdex:en pokemontcg tcgplayer
+dv1-20,20,Super Rod,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_20.png,tcgdex:en pokemontcg tcgplayer
+dv1-21,21,Kyurem,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DV1/DV1_EN_21.png,tcgdex:en pokemontcg tcgplayer

@@ -1,0 +1,19 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+det1-1,1,Bulbasaur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/1/high.webp,tcgplayer
+det1-2,2,Ludicolo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/2/high.webp,tcgplayer
+det1-3,3,Morelull,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/3/high.webp,tcgplayer
+det1-4,4,Charmander,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/4/high.webp,tcgplayer
+det1-5,5,Charizard,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/5/high.webp,tcgplayer
+det1-6,6,Arcanine,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/6/high.webp,tcgplayer
+det1-7,7,Psyduck,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/7/high.webp,tcgplayer
+det1-8,8,Magikarp,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/8/high.webp,tcgplayer
+det1-9,9,Greninja,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/9/high.webp,tcgplayer
+det1-10,10,Detective Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/10/high.webp,tcgplayer
+det1-11,11,Mr. Mime,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/11/high.webp,tcgplayer
+det1-12,12,Mewtwo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/12/high.webp,tcgplayer
+det1-13,13,Machamp,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/13/high.webp,tcgplayer
+det1-14,14,Jigglypuff,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/14/high.webp,tcgplayer
+det1-15,15,Snubbull,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/15/high.webp,tcgplayer
+det1-16,16,Lickitung,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/16/high.webp,tcgplayer
+det1-17,17,Ditto,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/17/high.webp,tcgplayer
+det1-18,18,Slaking,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sm/det1/18/high.webp,tcgplayer

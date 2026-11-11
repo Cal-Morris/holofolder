@@ -1,0 +1,142 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+me06-001,001,Heracross,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727563.jpg,pokemoncom
+me06-002,002,Surskit,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727564.jpg,pokemoncom
+me06-003,003,Masquerain,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726510.jpg,pokemoncom
+me06-004,004,Cacnea,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727565.jpg,pokemoncom
+me06-005,005,Cacturne,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727566.jpg,pokemoncom
+me06-006,006,Combee,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727567.jpg,pokemoncom
+me06-007,007,Vespiquen,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727568.jpg,pokemoncom
+me06-008,008,Shaymin,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727569.jpg,pokemoncom
+me06-009,009,Virizion,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726511.jpg,pokemoncom
+me06-010,010,Wimpod,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727570.jpg,pokemoncom
+me06-011,011,Mega Golisopod ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726512.jpg,pokemoncom
+me06-012,012,Sprigatito,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726513.jpg,pokemoncom
+me06-013,013,Floragato,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726514.jpg,pokemoncom
+me06-014,014,Meowscarada ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726515.jpg,pokemoncom
+me06-015,015,Smoliv,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727571.jpg,pokemoncom
+me06-016,016,Dolliv,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727572.jpg,pokemoncom
+me06-017,017,Arboliva,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727573.jpg,pokemoncom
+me06-018,018,Growlithe,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726516.jpg,pokemoncom
+me06-019,019,Arcanine,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726517.jpg,pokemoncom
+me06-020,020,Magmar,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727574.jpg,pokemoncom
+me06-021,021,Magmortar,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727575.jpg,pokemoncom
+me06-022,022,Torkoal,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727576.jpg,pokemoncom
+me06-023,023,Heat Rotom ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726518.jpg,pokemoncom
+me06-024,024,Heatmor,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727577.jpg,pokemoncom
+me06-025,025,Mantine,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727578.jpg,pokemoncom
+me06-026,026,Kyogre,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726519.jpg,pokemoncom
+me06-027,027,Frillish,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727579.jpg,pokemoncom
+me06-028,028,Jellicent,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727580.jpg,pokemoncom
+me06-029,029,Wishiwashi ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726520.jpg,pokemoncom
+me06-030,030,Electabuzz,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727581.jpg,pokemoncom
+me06-031,031,Electivire,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726521.jpg,pokemoncom
+me06-032,032,Jolteon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726522.jpg,pokemoncom
+me06-033,033,Raikou ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726523.jpg,pokemoncom
+me06-034,034,Rotom,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727582.jpg,pokemoncom
+me06-035,035,Thundurus,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726524.jpg,pokemoncom
+me06-036,036,Pincurchin,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726525.jpg,pokemoncom
+me06-037,037,Pawmi,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727583.jpg,pokemoncom
+me06-038,038,Pawmo,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727584.jpg,pokemoncom
+me06-039,039,Pawmot,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727585.jpg,pokemoncom
+me06-040,040,Wattrel,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727586.jpg,pokemoncom
+me06-041,041,Kilowattrel,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728021.jpg,pokemoncom
+me06-042,042,Miraidon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728022.jpg,pokemoncom
+me06-043,043,Drowzee,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728023.jpg,pokemoncom
+me06-044,044,Hypno,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726526.jpg,pokemoncom
+me06-045,045,Giratina,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726527.jpg,pokemoncom
+me06-046,046,Golett,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728024.jpg,pokemoncom
+me06-047,047,Mega Golurk ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726528.jpg,pokemoncom
+me06-048,048,Enamorus,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728025.jpg,pokemoncom
+me06-049,049,Sandshrew,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728026.jpg,pokemoncom
+me06-050,050,Sandslash,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728027.jpg,pokemoncom
+me06-051,051,Onix,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728028.jpg,pokemoncom
+me06-052,052,Steelix,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728029.jpg,pokemoncom
+me06-053,053,Groudon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726529.jpg,pokemoncom
+me06-054,054,Landorus,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726530.jpg,pokemoncom
+me06-055,055,Nidoran F,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726531.jpg,pokemoncom
+me06-056,056,Nidorina,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728031.jpg,pokemoncom
+me06-057,057,Nidoqueen,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728032.jpg,pokemoncom
+me06-058,058,Spinarak,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726532.jpg,pokemoncom
+me06-059,059,Ariados,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728033.jpg,pokemoncom
+me06-060,060,Sableye,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726533.jpg,pokemoncom
+me06-061,061,Carvanha,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728034.jpg,pokemoncom
+me06-062,062,Sharpedo,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728035.jpg,pokemoncom
+me06-063,063,Darkrai,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728036.jpg,pokemoncom
+me06-064,064,Purrloin,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728037.jpg,pokemoncom
+me06-065,065,Liepard,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728038.jpg,pokemoncom
+me06-066,066,Zorua,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728039.jpg,pokemoncom
+me06-067,067,Zoroark ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728040.jpg,pokemoncom
+me06-068,068,Inkay,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728041.jpg,pokemoncom
+me06-069,069,Mega Malamar ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726534.jpg,pokemoncom
+me06-070,070,Morpeko,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726535.jpg,pokemoncom
+me06-071,071,Zarude,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726536.jpg,pokemoncom
+me06-072,072,Druddigon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726537.jpg,pokemoncom
+me06-073,073,Jangmo-o,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728042.jpg,pokemoncom
+me06-074,074,Hakamo-o,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728043.jpg,pokemoncom
+me06-075,075,Kommo-o,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726538.jpg,pokemoncom
+me06-076,076,Cyclizar,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728044.jpg,pokemoncom
+me06-077,077,Tauros,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728045.jpg,pokemoncom
+me06-078,078,Eevee,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726539.jpg,pokemoncom
+me06-079,079,Delibird,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726540.jpg,pokemoncom
+me06-080,080,Azurill,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726541.jpg,pokemoncom
+me06-081,081,Swablu,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728046.jpg,pokemoncom
+me06-082,082,Altaria,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728047.jpg,pokemoncom
+me06-083,083,Kecleon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726542.jpg,pokemoncom
+me06-084,084,Mega Rayquaza ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726543.jpg,pokemoncom
+me06-085,085,Tornadus,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726544.jpg,pokemoncom
+me06-086,086,Fletchling,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728048.jpg,pokemoncom
+me06-087,087,Fletchinder,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728049.jpg,pokemoncom
+me06-088,088,Talonflame ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728050.jpg,pokemoncom
+me06-089,089,Aarune,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726545.jpg,pokemoncom
+me06-090,090,Adventure Lantern,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726546.jpg,pokemoncom
+me06-091,091,Custom Vest,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726547.jpg,pokemoncom
+me06-092,092,Emcee's Hype,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726548.jpg,pokemoncom
+me06-093,093,Grisham,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726549.jpg,pokemoncom
+me06-094,094,Legendary Pyroduct (Left),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726550.jpg,pokemoncom
+me06-095,095,Legendary Pyroduct (Right),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726722.jpg,pokemoncom
+me06-096,096,Legendary Summit (Left),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726551.jpg,pokemoncom
+me06-097,097,Legendary Summit (Right),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726721.jpg,pokemoncom
+me06-098,098,Legendary Trench (Left),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726786.jpg,pokemoncom
+me06-099,099,Legendary Trench (Right),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726552.jpg,pokemoncom
+me06-100,100,Mega Rayquaza Cap,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726553.jpg,pokemoncom
+me06-101,101,Tasty Rice Ball,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726554.jpg,pokemoncom
+me06-102,102,Tate & Liza's Training,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726555.jpg,pokemoncom
+me06-103,103,Zinnia's Trust,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726556.jpg,pokemoncom
+me06-104,104,Masquerain,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726557.jpg,pokemoncom
+me06-105,105,Sprigatito,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726558.jpg,pokemoncom
+me06-106,106,Growlithe,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726559.jpg,pokemoncom
+me06-107,107,Magmortar,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726560.jpg,pokemoncom
+me06-108,108,Electivire,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727587.jpg,pokemoncom
+me06-109,109,Pincurchin,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726561.jpg,pokemoncom
+me06-110,110,Enamorus,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726562.jpg,pokemoncom
+me06-111,111,Groudon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726563.jpg,pokemoncom
+me06-112,112,Zorua,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726564.jpg,pokemoncom
+me06-113,113,Inkay,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728051.jpg,pokemoncom
+me06-114,114,Eevee,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726565.jpg,pokemoncom
+me06-115,115,Azurill,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726566.jpg,pokemoncom
+me06-116,116,Altaria,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728052.jpg,pokemoncom
+me06-117,117,Kecleon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726567.jpg,pokemoncom
+me06-118,118,Mega Golisopod ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727588.jpg,pokemoncom
+me06-119,119,Heat Rotom ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727589.jpg,pokemoncom
+me06-120,120,Wishiwashi ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727590.jpg,pokemoncom
+me06-121,121,Raikou ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727591.jpg,pokemoncom
+me06-122,122,Mega Golurk ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728053.jpg,pokemoncom
+me06-123,123,Mega Malamar ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728054.jpg,pokemoncom
+me06-124,124,Talonflame ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728055.jpg,pokemoncom
+me06-125,125,Aarune,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726568.jpg,pokemoncom
+me06-126,126,Adventure Lantern,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726569.jpg,pokemoncom
+me06-127,127,Custom Vest,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726570.jpg,pokemoncom
+me06-128,128,Emcee's Hype,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726571.jpg,pokemoncom
+me06-129,129,Pokemon Catcher,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728056.jpg,pokemoncom
+me06-130,130,Tate & Liza's Training,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726572.jpg,pokemoncom
+me06-131,131,Zinnia's Trust,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726573.jpg,pokemoncom
+me06-132,132,Bubbly W Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728057.jpg,pokemoncom
+me06-133,133,Growing G Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728058.jpg,pokemoncom
+me06-134,134,Nitro R Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728059.jpg,pokemoncom
+me06-135,135,Mega Golisopod ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/727592.jpg,pokemoncom
+me06-136,136,Raikou ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726574.jpg,pokemoncom
+me06-137,137,Mega Golurk ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728060.jpg,pokemoncom
+me06-138,138,Mega Rayquaza ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728061.jpg,pokemoncom
+me06-139,139,Aarune,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726575.jpg,pokemoncom
+me06-140,140,Zinnia's Trust,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/726576.jpg,pokemoncom
+me06-141,141,Mega Rayquaza ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/728062.jpg,pokemoncom

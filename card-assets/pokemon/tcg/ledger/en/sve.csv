@@ -1,0 +1,25 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+sve-001,001,Grass Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SVE/SVE_EN_1.png,tcgplayer
+sve-002,002,Fire Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SVE/SVE_EN_2.png,tcgplayer
+sve-003,003,Water Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SVE/SVE_EN_3.png,tcgplayer
+sve-004,004,Lightning Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SVE/SVE_EN_4.png,tcgplayer
+sve-005,005,Psychic Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SVE/SVE_EN_5.png,tcgplayer
+sve-006,006,Fighting Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SVE/SVE_EN_6.png,tcgplayer
+sve-007,007,Darkness Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SVE/SVE_EN_7.png,tcgplayer
+sve-008,008,Metal Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SVE/SVE_EN_8.png,tcgplayer
+sve-009,009,Grass Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/578864.jpg,
+sve-010,010,Fire Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/578863.jpg,
+sve-011,011,Water Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/578862.jpg,
+sve-012,012,Lightning Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/578866.jpg,
+sve-013,013,Psychic Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/578865.jpg,
+sve-014,014,Fighting Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/578867.jpg,
+sve-015,015,Darkness Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/578868.jpg,
+sve-016,016,Metal Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/578869.jpg,
+sve-017,017,Grass Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/645286.jpg,
+sve-018,018,Fire Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/645287.jpg,
+sve-019,019,Water Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/645288.jpg,
+sve-020,020,Lightning Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/645289.jpg,
+sve-021,021,Psychic Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/645301.jpg,
+sve-022,022,Fighting Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/645302.jpg,
+sve-023,023,Darkness Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/645303.jpg,
+sve-024,024,Metal Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/645304.jpg,

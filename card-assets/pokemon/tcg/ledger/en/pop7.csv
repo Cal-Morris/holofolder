@@ -1,0 +1,18 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+pop7-1,1,Ampharos,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/1/high.webp,pokemontcg tcgplayer
+pop7-2,2,Gallade,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/2/high.webp,pokemontcg tcgplayer
+pop7-3,3,Latias,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/3/high.webp,pokemontcg tcgplayer
+pop7-4,4,Latios,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/4/high.webp,pokemontcg tcgplayer
+pop7-5,5,Mothim,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/5/high.webp,pokemontcg tcgplayer
+pop7-6,6,Delibird,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/6/high.webp,pokemontcg tcgplayer
+pop7-7,7,Flaaffy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/7/high.webp,pokemontcg tcgplayer
+pop7-8,8,Kirlia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/8/high.webp,pokemontcg tcgplayer
+pop7-9,9,Stantler,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/9/high.webp,pokemontcg tcgplayer
+pop7-10,10,Wormadam Sandy Cloak,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/10/high.webp,pokemontcg tcgplayer
+pop7-11,11,Burmy Plant Cloak,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/11/high.webp,pokemontcg tcgplayer
+pop7-12,12,Burmy Sandy Cloak,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/12/high.webp,pokemontcg tcgplayer
+pop7-13,13,Corsola,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/13/high.webp,pokemontcg tcgplayer
+pop7-14,14,Mareep,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/14/high.webp,pokemontcg tcgplayer
+pop7-15,15,Ralts,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/15/high.webp,pokemontcg tcgplayer
+pop7-16,16,Sentret,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/16/high.webp,pokemontcg tcgplayer
+pop7-17,17,Spinda,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop7/17/high.webp,pokemontcg tcgplayer

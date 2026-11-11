@@ -1,0 +1,18 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+pop6-1,1,Bastiodon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/1/high.webp,pokemontcg tcgplayer
+pop6-2,2,Lucario,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/2/high.webp,pokemontcg tcgplayer
+pop6-3,3,Manaphy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/3/high.webp,pokemontcg tcgplayer
+pop6-4,4,Pachirisu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/4/high.webp,pokemontcg tcgplayer
+pop6-5,5,Rampardos,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/5/high.webp,pokemontcg tcgplayer
+pop6-6,6,Drifloon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/6/high.webp,pokemontcg tcgplayer
+pop6-7,7,Gible,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/7/high.webp,pokemontcg tcgplayer
+pop6-8,8,Riolu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/8/high.webp,pokemontcg tcgplayer
+pop6-9,9,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/9/high.webp,pokemontcg tcgplayer
+pop6-10,10,Staravia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/10/high.webp,pokemontcg tcgplayer
+pop6-11,11,Bidoof,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/11/high.webp,pokemontcg tcgplayer
+pop6-12,12,Buneary,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/12/high.webp,pokemontcg tcgplayer
+pop6-13,13,Cherubi,*,tcgdex,official-render,fr,https://assets.tcgdex.net/fr/pop/pop6/13/high.webp,pokemontcg tcgplayer
+pop6-14,14,Chimchar,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/14/high.webp,pokemontcg tcgplayer
+pop6-15,15,Piplup,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/15/high.webp,pokemontcg tcgplayer
+pop6-16,16,Starly,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop6/16/high.webp,pokemontcg tcgplayer
+pop6-17,17,Turtwig,*,tcgdex,official-render,fr,https://assets.tcgdex.net/fr/pop/pop6/17/high.webp,pokemontcg tcgplayer

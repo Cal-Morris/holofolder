@@ -1,0 +1,18 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+pop4-1,1,Chimecho δ,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/1/high.webp,pokemontcg
+pop4-2,2,Deoxys δ,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/2/high.webp,pokemontcg
+pop4-3,3,Flygon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/3/high.webp,pokemontcg tcgplayer
+pop4-4,4,Mew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/4/high.webp,pokemontcg tcgplayer
+pop4-5,5,Sceptile,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/5/high.webp,pokemontcg tcgplayer
+pop4-6,6,Combusken,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/6/high.webp,pokemontcg tcgplayer
+pop4-7,7,Grovyle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/7/high.webp,pokemontcg tcgplayer
+pop4-8,8,Heal Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/8/high.webp,pokemontcg tcgplayer
+pop4-9,9,Pokémon Fan Club,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/9/high.webp,pokemontcg
+pop4-10,10,Scramble Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/10/high.webp,pokemontcg tcgplayer
+pop4-11,11,Mudkip,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/11/high.webp,pokemontcg tcgplayer
+pop4-12,12,Pidgey,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/12/high.webp,pokemontcg tcgplayer
+pop4-13,13,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/13/high.webp,pokemontcg tcgplayer
+pop4-14,14,Squirtle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/14/high.webp,pokemontcg tcgplayer
+pop4-15,15,Treecko δ,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/15/high.webp,pokemontcg
+pop4-16,16,Wobbuffet,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/16/high.webp,pokemontcg tcgplayer
+pop4-17,17,Deoxys ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop4/17/high.webp,pokemontcg tcgplayer

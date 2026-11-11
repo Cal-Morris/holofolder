@@ -1,0 +1,18 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+pop8-1,1,Heatran,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/1/high.webp,pokemontcg tcgplayer
+pop8-2,2,Lucario,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/2/high.webp,pokemontcg tcgplayer
+pop8-3,3,Luxray,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/3/high.webp,pokemontcg tcgplayer
+pop8-4,4,Probopass,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/4/high.webp,pokemontcg tcgplayer
+pop8-5,5,Yanmega,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/5/high.webp,pokemontcg tcgplayer
+pop8-6,6,Cherrim,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/6/high.webp,pokemontcg tcgplayer
+pop8-7,7,Carnivine,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/7/high.webp,pokemontcg tcgplayer
+pop8-8,8,Luxio,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/8/high.webp,pokemontcg tcgplayer
+pop8-9,9,Night Maintenance,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/9/high.webp,pokemontcg tcgplayer
+pop8-10,10,Rare Candy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/10/high.webp,pokemontcg tcgplayer
+pop8-11,11,Roseanne’s Research,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/11/high.webp,pokemontcg
+pop8-12,12,Chimchar,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/12/high.webp,pokemontcg tcgplayer
+pop8-13,13,Croagunk,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/13/high.webp,pokemontcg tcgplayer
+pop8-14,14,Happiny,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/14/high.webp,pokemontcg tcgplayer
+pop8-15,15,Piplup,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/15/high.webp,pokemontcg tcgplayer
+pop8-16,16,Riolu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/16/high.webp,pokemontcg tcgplayer
+pop8-17,17,Turtwig,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop8/17/high.webp,pokemontcg tcgplayer

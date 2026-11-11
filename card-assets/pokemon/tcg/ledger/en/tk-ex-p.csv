@@ -1,0 +1,13 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+tk-ex-p-1,1,Beldum,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/83786.jpg,pokemontcg
+tk-ex-p-2,2,Electrike,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85136.jpg,pokemontcg
+tk-ex-p-3,3,Grumpig,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85968.jpg,pokemontcg
+tk-ex-p-4,4,Meowth,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/87319.jpg,pokemontcg
+tk-ex-p-5,5,Metang,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/87376.jpg,pokemontcg
+tk-ex-p-6,6,Plusle,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88166.jpg,pokemontcg
+tk-ex-p-7,7,Spoink,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/89475.jpg,pokemontcg
+tk-ex-p-8,8,Energy Search,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2a/8_hires.png,tcgplayer
+tk-ex-p-9,9,Potion,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2a/9_hires.png,tcgplayer
+tk-ex-p-10,10,Professor Cozmo's Discovery,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88385.jpg,pokemontcg
+tk-ex-p-11,11,Lightning Energy,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2a/11_hires.png,tcgplayer
+tk-ex-p-12,12,Psychic Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88420.jpg,pokemontcg

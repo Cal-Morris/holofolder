@@ -1,0 +1,16 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+2024sv-1,1,Charizard,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614370.jpg,
+2024sv-2,2,Pikachu,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614371.jpg,
+2024sv-3,3,Miraidon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614372.jpg,
+2024sv-4,4,Jigglypuff,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614373.jpg,
+2024sv-5,5,Hatenna,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614374.jpg,
+2024sv-6,6,Dragapult,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614375.jpg,
+2024sv-7,7,Quagsire,*,scrydex,rehost,,https://images.scrydex.com/pokemon/mcd24-7/large,tcgplayer
+2024sv-8,8,Koraidon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614377.jpg,
+2024sv-9,9,Umbreon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614378.jpg,
+2024sv-10,10,Hydreigon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614379.jpg,
+2024sv-11,11,Roaring Moon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614380.jpg,
+2024sv-12,12,Dragonite,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614381.jpg,
+2024sv-13,13,Eevee,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614382.jpg,
+2024sv-14,14,Rayquaza,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614383.jpg,
+2024sv-15,15,Drampa,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/614384.jpg,

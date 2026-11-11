@@ -1,0 +1,31 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+swsh9tg-TG01,TG01,Flareon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG01.png,pokemontcg
+swsh9tg-TG02,TG02,Vaporeon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG02.png,pokemontcg
+swsh9tg-TG03,TG03,Octillery,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG03.png,pokemontcg
+swsh9tg-TG04,TG04,Jolteon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG04.png,pokemontcg
+swsh9tg-TG05,TG05,Zekrom,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG05.png,pokemontcg
+swsh9tg-TG06,TG06,Dusknoir,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG06.png,pokemontcg
+swsh9tg-TG07,TG07,Dedenne,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG07.png,pokemontcg
+swsh9tg-TG08,TG08,Alcremie,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG08.png,pokemontcg
+swsh9tg-TG09,TG09,Ariados,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG09.png,pokemontcg
+swsh9tg-TG10,TG10,Houndoom,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG10.png,pokemontcg
+swsh9tg-TG11,TG11,Eevee,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG11.png,pokemontcg
+swsh9tg-TG12,TG12,Oranguru,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG12.png,pokemontcg
+swsh9tg-TG13,TG13,Boltund V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG13.png,pokemontcg
+swsh9tg-TG14,TG14,Sylveon V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG14.png,pokemontcg
+swsh9tg-TG15,TG15,Sylveon VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG15.png,pokemontcg
+swsh9tg-TG16,TG16,Mimikyu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG16.png,pokemontcg
+swsh9tg-TG17,TG17,Mimikyu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG17.png,pokemontcg
+swsh9tg-TG18,TG18,Single Strike Urshifu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG18.png,pokemontcg
+swsh9tg-TG19,TG19,Single Strike Urshifu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG19.png,pokemontcg
+swsh9tg-TG20,TG20,Rapid Strike Urshifu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG20.png,pokemontcg
+swsh9tg-TG21,TG21,Rapid Strike Urshifu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG21.png,pokemontcg
+swsh9tg-TG22,TG22,Umbreon V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG22.png,pokemontcg
+swsh9tg-TG23,TG23,Umbreon VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG23.png,pokemontcg
+swsh9tg-TG24,TG24,Acerola's Premonition,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG24.png,pokemontcg
+swsh9tg-TG25,TG25,Café Master,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG25.png,pokemontcg
+swsh9tg-TG26,TG26,Gloria,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG26.png,pokemontcg
+swsh9tg-TG27,TG27,Rapid Strike Style Mustard,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG27.png,pokemontcg
+swsh9tg-TG28,TG28,Single Strike Style Mustard,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG28.png,pokemontcg
+swsh9tg-TG29,TG29,Single Strike Urshifu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG29.png,pokemontcg
+swsh9tg-TG30,TG30,Rapid Strike Urshifu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG30.png,pokemontcg

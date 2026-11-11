@@ -1,0 +1,133 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+gym1-1,1,Blaine's Moltres,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/1/high.webp,pokemontcg tcgplayer
+gym1-2,2,Brock's Rhydon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/2/high.webp,pokemontcg tcgplayer
+gym1-3,3,Erika's Clefable,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/3/high.webp,pokemontcg tcgplayer
+gym1-4,4,Erika's Dragonair,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/4/high.webp,pokemontcg tcgplayer
+gym1-5,5,Erika's Vileplume,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/5/high.webp,pokemontcg tcgplayer
+gym1-6,6,Lt. Surge's Electabuzz,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/6/high.webp,pokemontcg tcgplayer
+gym1-7,7,Lt. Surge's Fearow,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/7/high.webp,pokemontcg tcgplayer
+gym1-8,8,Lt. Surge's Magneton,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/8/high.webp,pokemontcg tcgplayer
+gym1-9,9,Misty's Seadra,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/9/high.webp,pokemontcg tcgplayer
+gym1-10,10,Misty's Tentacruel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/10/high.webp,pokemontcg tcgplayer
+gym1-11,11,Rocket's Hitmonchan,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/11/high.webp,pokemontcg tcgplayer
+gym1-12,12,Rocket's Moltres,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/12/high.webp,pokemontcg tcgplayer
+gym1-13,13,Rocket's Scyther,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/13/high.webp,pokemontcg tcgplayer
+gym1-14,14,Sabrina's Gengar,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/14/high.webp,pokemontcg tcgplayer
+gym1-15,15,Brock,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/15/high.webp,pokemontcg tcgplayer
+gym1-16,16,Erika,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/16/high.webp,pokemontcg tcgplayer
+gym1-17,17,Lt. Surge,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/17/high.webp,pokemontcg tcgplayer
+gym1-18,18,Misty,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/18/high.webp,pokemontcg tcgplayer
+gym1-19,19,The Rocket's Trap,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/19/high.webp,pokemontcg tcgplayer
+gym1-20,20,Brock's Golem,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/20/high.webp,pokemontcg tcgplayer
+gym1-21,21,Brock's Onix,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/21/high.webp,pokemontcg tcgplayer
+gym1-22,22,Brock's Rhyhorn,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/22/high.webp,pokemontcg tcgplayer
+gym1-23,23,Brock's Sandslash,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/23/high.webp,pokemontcg tcgplayer
+gym1-24,24,Brock's Zubat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/24/high.webp,pokemontcg tcgplayer
+gym1-25,25,Erika's Clefairy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/25/high.webp,pokemontcg tcgplayer
+gym1-26,26,Erika's Victreebel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/26/high.webp,pokemontcg tcgplayer
+gym1-27,27,Lt. Surge's Electabuzz,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/27/high.webp,pokemontcg tcgplayer
+gym1-28,28,Lt. Surge's Raichu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/28/high.webp,pokemontcg tcgplayer
+gym1-29,29,Misty's Cloyster,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/29/high.webp,pokemontcg tcgplayer
+gym1-30,30,Misty's Goldeen,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/30/high.webp,pokemontcg tcgplayer
+gym1-31,31,Misty's Poliwrath,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/31/high.webp,pokemontcg tcgplayer
+gym1-32,32,Misty's Tentacool,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/32/high.webp,pokemontcg tcgplayer
+gym1-33,33,Rocket's Snorlax,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/33/high.webp,pokemontcg tcgplayer
+gym1-34,34,Sabrina's Venomoth,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/34/high.webp,pokemontcg tcgplayer
+gym1-35,35,Blaine's Growlithe,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/35/high.webp,pokemontcg tcgplayer
+gym1-36,36,Blaine's Kangaskhan,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/36/high.webp,pokemontcg tcgplayer
+gym1-37,37,Blaine's Magmar,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/37/high.webp,pokemontcg tcgplayer
+gym1-38,38,Brock's Geodude,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/38/high.webp,pokemontcg tcgplayer
+gym1-39,39,Brock's Golbat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/39/high.webp,pokemontcg tcgplayer
+gym1-40,40,Brock's Graveler,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/40/high.webp,pokemontcg tcgplayer
+gym1-41,41,Brock's Lickitung,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/41/high.webp,pokemontcg tcgplayer
+gym1-42,42,Erika's Dratini,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/42/high.webp,pokemontcg tcgplayer
+gym1-43,43,Erika's Exeggcute,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/43/high.webp,pokemontcg tcgplayer
+gym1-44,44,Erika's Exeggutor,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/44/high.webp,pokemontcg tcgplayer
+gym1-45,45,Erika's Gloom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/45/high.webp,pokemontcg tcgplayer
+gym1-46,46,Erika's Gloom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/46/high.webp,pokemontcg tcgplayer
+gym1-47,47,Erika's Oddish,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/47/high.webp,pokemontcg tcgplayer
+gym1-48,48,Erika's Weepinbell,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/48/high.webp,pokemontcg tcgplayer
+gym1-49,49,Erika's Weepinbell,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/49/high.webp,pokemontcg tcgplayer
+gym1-50,50,Lt. Surge's Magnemite,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/50/high.webp,pokemontcg tcgplayer
+gym1-51,51,Lt. Surge's Raticate,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/51/high.webp,pokemontcg tcgplayer
+gym1-52,52,Lt. Surge's Spearow,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/52/high.webp,pokemontcg tcgplayer
+gym1-53,53,Misty's Poliwhirl,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/53/high.webp,pokemontcg tcgplayer
+gym1-54,54,Misty's Psyduck,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/54/high.webp,pokemontcg tcgplayer
+gym1-55,55,Misty's Seaking,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/55/high.webp,pokemontcg tcgplayer
+gym1-56,56,Misty's Starmie,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/56/high.webp,pokemontcg tcgplayer
+gym1-57,57,Misty's Tentacool,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/57/high.webp,pokemontcg tcgplayer
+gym1-58,58,Sabrina's Haunter,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/58/high.webp,pokemontcg tcgplayer
+gym1-59,59,Sabrina's Jynx,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/59/high.webp,pokemontcg tcgplayer
+gym1-60,60,Sabrina's Slowbro,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/60/high.webp,pokemontcg tcgplayer
+gym1-61,61,Blaine's Charmander,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/61/high.webp,pokemontcg tcgplayer
+gym1-62,62,Blaine's Growlithe,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/62/high.webp,pokemontcg tcgplayer
+gym1-63,63,Blaine's Ponyta,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/63/high.webp,pokemontcg tcgplayer
+gym1-64,64,Blaine's Tauros,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/64/high.webp,pokemontcg tcgplayer
+gym1-65,65,Blaine's Vulpix,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/65/high.webp,pokemontcg tcgplayer
+gym1-66,66,Brock's Geodude,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/66/high.webp,pokemontcg tcgplayer
+gym1-67,67,Brock's Mankey,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/67/high.webp,pokemontcg tcgplayer
+gym1-68,68,Brock's Mankey,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/68/high.webp,pokemontcg tcgplayer
+gym1-69,69,Brock's Onix,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/69/high.webp,pokemontcg tcgplayer
+gym1-70,70,Brock's Rhyhorn,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/70/high.webp,pokemontcg tcgplayer
+gym1-71,71,Brock's Sandshrew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/71/high.webp,pokemontcg tcgplayer
+gym1-72,72,Brock's Sandshrew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/72/high.webp,pokemontcg tcgplayer
+gym1-73,73,Brock's Vulpix,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/73/high.webp,pokemontcg tcgplayer
+gym1-74,74,Brock's Zubat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/74/high.webp,pokemontcg tcgplayer
+gym1-75,75,Erika's Bellsprout,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/75/high.webp,pokemontcg tcgplayer
+gym1-76,76,Erika's Bellsprout,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/76/high.webp,pokemontcg tcgplayer
+gym1-77,77,Erika's Exeggcute,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/77/high.webp,pokemontcg tcgplayer
+gym1-78,78,Erika's Oddish,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/78/high.webp,pokemontcg tcgplayer
+gym1-79,79,Erika's Tangela,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/79/high.webp,pokemontcg tcgplayer
+gym1-80,80,Lt. Surge's Magnemite,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/80/high.webp,pokemontcg tcgplayer
+gym1-81,81,Lt. Surge's Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/81/high.webp,pokemontcg tcgplayer
+gym1-82,82,Lt. Surge's Rattata,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/82/high.webp,pokemontcg tcgplayer
+gym1-83,83,Lt. Surge's Spearow,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/83/high.webp,pokemontcg tcgplayer
+gym1-84,84,Lt. Surge's Voltorb,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/84/high.webp,pokemontcg tcgplayer
+gym1-85,85,Misty's Goldeen,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/85/high.webp,pokemontcg tcgplayer
+gym1-86,86,Misty's Horsea,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/86/high.webp,pokemontcg tcgplayer
+gym1-87,87,Misty's Poliwag,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/87/high.webp,pokemontcg tcgplayer
+gym1-88,88,Misty's Seel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/88/high.webp,pokemontcg tcgplayer
+gym1-89,89,Misty's Shellder,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/89/high.webp,pokemontcg tcgplayer
+gym1-90,90,Misty's Staryu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/90/high.webp,pokemontcg tcgplayer
+gym1-91,91,Sabrina's Abra,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/91/high.webp,pokemontcg tcgplayer
+gym1-92,92,Sabrina's Drowzee,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/92/high.webp,pokemontcg tcgplayer
+gym1-93,93,Sabrina's Gastly,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/93/high.webp,pokemontcg tcgplayer
+gym1-94,94,Sabrina's Mr. Mime,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/94/high.webp,pokemontcg tcgplayer
+gym1-95,95,Sabrina's Slowpoke,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/95/high.webp,pokemontcg tcgplayer
+gym1-96,96,Sabrina's Venonat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/96/high.webp,pokemontcg tcgplayer
+gym1-97,97,Blaine's Quiz #1,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/97/high.webp,pokemontcg tcgplayer
+gym1-98,98,Brock,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/98/high.webp,pokemontcg tcgplayer
+gym1-99,99,Charity,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/99/high.webp,pokemontcg tcgplayer
+gym1-100,100,Erika,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/100/high.webp,pokemontcg tcgplayer
+gym1-101,101,Lt. Surge,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/101/high.webp,pokemontcg tcgplayer
+gym1-102,102,Misty,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/102/high.webp,pokemontcg tcgplayer
+gym1-103,103,No Removal Gym,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/103/high.webp,pokemontcg tcgplayer
+gym1-104,104,The Rocket's Training Gym,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/104/high.webp,pokemontcg tcgplayer
+gym1-105,105,Blaine's Last Resort,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/105/high.webp,pokemontcg tcgplayer
+gym1-106,106,Brock's Training Method,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/106/high.webp,pokemontcg tcgplayer
+gym1-107,107,Celadon City Gym,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/107/high.webp,pokemontcg tcgplayer
+gym1-108,108,Cerulean City Gym,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/108/high.webp,pokemontcg tcgplayer
+gym1-109,109,Erika's Maids,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/109/high.webp,pokemontcg tcgplayer
+gym1-110,110,Erika's Perfume,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/110/high.webp,pokemontcg tcgplayer
+gym1-111,111,Good Manners,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/111/high.webp,pokemontcg tcgplayer
+gym1-112,112,Lt. Surge's Treaty,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/112/high.webp,pokemontcg tcgplayer
+gym1-113,113,Minion of Team Rocket,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/113/high.webp,pokemontcg tcgplayer
+gym1-114,114,Misty's Wrath,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/114/high.webp,pokemontcg tcgplayer
+gym1-115,115,Pewter City Gym,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/115/high.webp,pokemontcg tcgplayer
+gym1-116,116,Recall,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/116/high.webp,pokemontcg tcgplayer
+gym1-117,117,Sabrina's ESP,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/117/high.webp,pokemontcg tcgplayer
+gym1-118,118,Secret Mission,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/118/high.webp,pokemontcg tcgplayer
+gym1-119,119,Tickling Machine,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/119/high.webp,pokemontcg tcgplayer
+gym1-120,120,Vermilion City Gym,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/120/high.webp,pokemontcg tcgplayer
+gym1-121,121,Blaine's Gamble,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/121/high.webp,pokemontcg tcgplayer
+gym1-122,122,Energy Flow,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/122/high.webp,pokemontcg tcgplayer
+gym1-123,123,Misty's Duel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/123/high.webp,pokemontcg tcgplayer
+gym1-124,124,Narrow Gym,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/124/high.webp,pokemontcg tcgplayer
+gym1-125,125,Sabrina's Gaze,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/125/high.webp,pokemontcg tcgplayer
+gym1-126,126,Trash Exchange,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/126/high.webp,pokemontcg tcgplayer
+gym1-127,127,Fighting Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/127/high.webp,pokemontcg tcgplayer
+gym1-128,128,Fire Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/128/high.webp,pokemontcg tcgplayer
+gym1-129,129,Grass Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/129/high.webp,pokemontcg tcgplayer
+gym1-130,130,Lightning Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/130/high.webp,pokemontcg tcgplayer
+gym1-131,131,Psychic Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/131/high.webp,pokemontcg tcgplayer
+gym1-132,132,Water Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/gym/gym1/132/high.webp,pokemontcg tcgplayer

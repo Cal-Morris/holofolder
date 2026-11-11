@@ -1,0 +1,13 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+2015xy-1,1,Treecko,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/110429.jpg,pokemontcg
+2015xy-2,2,Lotad,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/110422.jpg,pokemontcg
+2015xy-3,3,Torchic,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/110433.jpg,pokemontcg
+2015xy-4,4,Staryu,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/110431.jpg,pokemontcg
+2015xy-5,5,Mudkip,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/110427.jpg,pokemontcg
+2015xy-6,6,Pikachu,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/110424.jpg,pokemontcg
+2015xy-7,7,Electrike,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/110428.jpg,pokemontcg
+2015xy-8,8,Rhyhorn,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/110426.jpg,pokemontcg
+2015xy-9,9,Meditite,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/110425.jpg,pokemontcg
+2015xy-10,10,Marill,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/110430.jpg,pokemontcg
+2015xy-11,11,Zigzagoon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/110423.jpg,pokemontcg
+2015xy-12,12,Skitty,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/110432.jpg,pokemontcg

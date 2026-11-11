@@ -1,0 +1,17 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+mee-001,001,Grass Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_1.png,tcgplayer
+mee-002,002,Fire Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_2.png,tcgplayer
+mee-003,003,Water Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_3.png,tcgplayer
+mee-004,004,Lightning Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_4.png,tcgplayer
+mee-005,005,Psychic Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_5.png,tcgplayer
+mee-006,006,Fighting Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_6.png,tcgplayer
+mee-007,007,Darkness Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_7.png,tcgplayer
+mee-008,008,Metal Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_8.png,tcgplayer
+mee-009,009,Basic Grass Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_9.png,tcgplayer
+mee-010,010,Basic Fire Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_10.png,tcgplayer
+mee-011,011,Basic Water Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_11.png,tcgplayer
+mee-012,012,Basic Lightning Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_12.png,tcgplayer
+mee-013,013,Basic Psychic Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_13.png,tcgplayer
+mee-014,014,Basic Fighting Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_14.png,tcgplayer
+mee-015,015,Basic Darkness Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_15.png,tcgplayer
+mee-016,016,Basic Metal Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEE/MEE_EN_16.png,tcgplayer

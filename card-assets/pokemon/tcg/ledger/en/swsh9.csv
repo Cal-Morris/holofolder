@@ -1,0 +1,217 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+swsh9-001,001,Exeggcute,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_1.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG01,TG01,Flareon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG01.png,tcgdex:en
+swsh9-002,002,Exeggutor,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_2.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG02,TG02,Vaporeon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG02.png,tcgdex:en
+swsh9-003,003,Shroomish,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_3.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG03,TG03,Octillery,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG03.png,tcgdex:en
+swsh9-004,004,Breloom,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_4.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG04,TG04,Jolteon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG04.png,tcgdex:en
+swsh9-005,005,Tropius,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_5.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG05,TG05,Zekrom,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG05.png,tcgdex:en
+swsh9-006,006,Turtwig,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_6.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG06,TG06,Dusknoir,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG06.png,tcgdex:en
+swsh9-007,007,Grotle,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_7.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG07,TG07,Dedenne,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG07.png,tcgdex:en
+swsh9-008,008,Torterra,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_8.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG08,TG08,Alcremie,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG08.png,tcgdex:en
+swsh9-009,009,Burmy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_9.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG09,TG09,Ariados,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG09.png,tcgdex:en
+swsh9-010,010,Wormadam,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_10.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG10,TG10,Houndoom,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG10.png,tcgdex:en
+swsh9-011,011,Mothim,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_11.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG11,TG11,Eevee,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG11.png,tcgdex:en
+swsh9-012,012,Cherubi,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_12.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG12,TG12,Oranguru,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG12.png,tcgdex:en
+swsh9-013,013,Shaymin V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_13.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG13,TG13,Boltund V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG13.png,tcgdex:en
+swsh9-014,014,Shaymin VSTAR,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_14.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG14,TG14,Sylveon V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG14.png,tcgdex:en
+swsh9-015,015,Karrablast,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_15.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG15,TG15,Sylveon VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG15.png,tcgdex:en
+swsh9-016,016,Zarude V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_16.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG16,TG16,Mimikyu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG16.png,tcgdex:en
+swsh9-017,017,Charizard V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_17.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG17,TG17,Mimikyu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG17.png,tcgdex:en
+swsh9-018,018,Charizard VSTAR,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_18.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG18,TG18,Single Strike Urshifu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG18.png,tcgdex:en
+swsh9-019,019,Magmar,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_19.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG19,TG19,Single Strike Urshifu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG19.png,tcgdex:en
+swsh9-020,020,Magmortar,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_20.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG20,TG20,Rapid Strike Urshifu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG20.png,tcgdex:en
+swsh9-021,021,Moltres,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_21.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG21,TG21,Rapid Strike Urshifu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG21.png,tcgdex:en
+swsh9-022,022,Entei V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_22.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG22,TG22,Umbreon V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG22.png,tcgdex:en
+swsh9-023,023,Torkoal,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_23.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG23,TG23,Umbreon VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG23.png,tcgdex:en
+swsh9-024,024,Chimchar,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_24.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG24,TG24,Acerola's Premonition,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG24.png,tcgdex:en
+swsh9-025,025,Monferno,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_25.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG25,TG25,Café Master,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG25.png,tcgdex:en
+swsh9-026,026,Infernape,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_26.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG26,TG26,Gloria,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG26.png,tcgdex:en
+swsh9-027,027,Simisear V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_27.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG27,TG27,Rapid Strike Style Mustard,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG27.png,tcgdex:en
+swsh9-028,028,Kingler V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_28.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG28,TG28,Single Strike Style Mustard,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG28.png,tcgdex:en
+swsh9-029,029,Kingler VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_29.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG29,TG29,Single Strike Urshifu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG29.png,tcgdex:en
+swsh9-030,030,Staryu,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_30.png,tcgdex:en pokemontcg tcgplayer
+swsh9-TG30,TG30,Rapid Strike Urshifu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_TG30.png,tcgdex:en
+swsh9-031,031,Lapras,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_31.png,tcgdex:en pokemontcg tcgplayer
+swsh9-032,032,Corphish,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_32.png,tcgdex:en pokemontcg tcgplayer
+swsh9-033,033,Crawdaunt,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_33.png,tcgdex:en pokemontcg tcgplayer
+swsh9-034,034,Snorunt,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_34.png,tcgdex:en pokemontcg tcgplayer
+swsh9-035,035,Piplup,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_35.png,tcgdex:en pokemontcg tcgplayer
+swsh9-036,036,Prinplup,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_36.png,tcgdex:en pokemontcg tcgplayer
+swsh9-037,037,Empoleon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_37.png,tcgdex:en pokemontcg tcgplayer
+swsh9-038,038,Buizel,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_38.png,tcgdex:en pokemontcg tcgplayer
+swsh9-039,039,Floatzel,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_39.png,tcgdex:en pokemontcg tcgplayer
+swsh9-040,040,Lumineon V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_40.png,tcgdex:en pokemontcg tcgplayer
+swsh9-041,041,Manaphy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_41.png,tcgdex:en pokemontcg tcgplayer
+swsh9-042,042,Cubchoo,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_42.png,tcgdex:en pokemontcg tcgplayer
+swsh9-043,043,Beartic,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_43.png,tcgdex:en pokemontcg tcgplayer
+swsh9-044,044,Eiscue,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_44.png,tcgdex:en pokemontcg tcgplayer
+swsh9-045,045,Raichu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_45.png,tcgdex:en pokemontcg tcgplayer
+swsh9-046,046,Electabuzz,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_46.png,tcgdex:en pokemontcg tcgplayer
+swsh9-047,047,Electivire,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_47.png,tcgdex:en pokemontcg tcgplayer
+swsh9-048,048,Raikou V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_48.png,tcgdex:en pokemontcg tcgplayer
+swsh9-049,049,Shinx,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_49.png,tcgdex:en pokemontcg tcgplayer
+swsh9-050,050,Luxio,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_50.png,tcgdex:en pokemontcg tcgplayer
+swsh9-051,051,Luxray,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_51.png,tcgdex:en pokemontcg tcgplayer
+swsh9-052,052,Pachirisu,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_52.png,tcgdex:en pokemontcg tcgplayer
+swsh9-053,053,Clefairy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_53.png,tcgdex:en pokemontcg tcgplayer
+swsh9-054,054,Clefable,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_54.png,tcgdex:en pokemontcg tcgplayer
+swsh9-055,055,Starmie,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_55.png,tcgdex:en pokemontcg tcgplayer
+swsh9-056,056,Mewtwo,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_56.png,tcgdex:en pokemontcg tcgplayer
+swsh9-057,057,Granbull V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_57.png,tcgdex:en pokemontcg tcgplayer
+swsh9-058,058,Baltoy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_58.png,tcgdex:en pokemontcg tcgplayer
+swsh9-059,059,Claydol,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_59.png,tcgdex:en pokemontcg tcgplayer
+swsh9-060,060,Duskull,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_60.png,tcgdex:en pokemontcg tcgplayer
+swsh9-061,061,Dusclops,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_61.png,tcgdex:en pokemontcg tcgplayer
+swsh9-062,062,Dusknoir,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_62.png,tcgdex:en pokemontcg tcgplayer
+swsh9-063,063,Chimecho,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_63.png,tcgdex:en pokemontcg tcgplayer
+swsh9-064,064,Whimsicott V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_64.png,tcgdex:en pokemontcg tcgplayer
+swsh9-065,065,Whimsicott VSTAR,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_65.png,tcgdex:en pokemontcg tcgplayer
+swsh9-066,066,Sigilyph,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_66.png,tcgdex:en pokemontcg tcgplayer
+swsh9-067,067,Dedenne,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_67.png,tcgdex:en pokemontcg tcgplayer
+swsh9-068,068,Mimikyu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_68.png,tcgdex:en pokemontcg tcgplayer
+swsh9-069,069,Mimikyu VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_69.png,tcgdex:en pokemontcg tcgplayer
+swsh9-070,070,Milcery,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_70.png,tcgdex:en pokemontcg tcgplayer
+swsh9-071,071,Alcremie,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_71.png,tcgdex:en pokemontcg tcgplayer
+swsh9-072,072,Hitmontop,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_72.png,tcgdex:en pokemontcg tcgplayer
+swsh9-073,073,Nosepass,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_73.png,tcgdex:en pokemontcg tcgplayer
+swsh9-074,074,Trapinch,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_74.png,tcgdex:en pokemontcg tcgplayer
+swsh9-075,075,Vibrava,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_75.png,tcgdex:en pokemontcg tcgplayer
+swsh9-076,076,Flygon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_76.png,tcgdex:en pokemontcg tcgplayer
+swsh9-077,077,Wormadam,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_77.png,tcgdex:en pokemontcg tcgplayer
+swsh9-078,078,Riolu,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_78.png,tcgdex:en pokemontcg tcgplayer
+swsh9-079,079,Lucario,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_79.png,tcgdex:en pokemontcg tcgplayer
+swsh9-080,080,Throh,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_80.png,tcgdex:en pokemontcg tcgplayer
+swsh9-081,081,Sawk,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_81.png,tcgdex:en pokemontcg tcgplayer
+swsh9-082,082,Golett,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_82.png,tcgdex:en pokemontcg tcgplayer
+swsh9-083,083,Golurk,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_83.png,tcgdex:en pokemontcg tcgplayer
+swsh9-084,084,Grimer,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_84.png,tcgdex:en pokemontcg tcgplayer
+swsh9-085,085,Muk,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_85.png,tcgdex:en pokemontcg tcgplayer
+swsh9-086,086,Sneasel,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_86.png,tcgdex:en pokemontcg tcgplayer
+swsh9-087,087,Weavile,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_87.png,tcgdex:en pokemontcg tcgplayer
+swsh9-088,088,Honchkrow V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_88.png,tcgdex:en pokemontcg tcgplayer
+swsh9-089,089,Spiritomb,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_89.png,tcgdex:en pokemontcg tcgplayer
+swsh9-090,090,Purrloin,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_90.png,tcgdex:en pokemontcg tcgplayer
+swsh9-091,091,Liepard,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_91.png,tcgdex:en pokemontcg tcgplayer
+swsh9-092,092,Impidimp,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_92.png,tcgdex:en pokemontcg tcgplayer
+swsh9-093,093,Morgrem,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_93.png,tcgdex:en pokemontcg tcgplayer
+swsh9-094,094,Grimmsnarl,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_94.png,tcgdex:en pokemontcg tcgplayer
+swsh9-095,095,Morpeko V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_95.png,tcgdex:en pokemontcg tcgplayer
+swsh9-096,096,Aggron V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_96.png,tcgdex:en pokemontcg tcgplayer
+swsh9-097,097,Aggron VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_97.png,tcgdex:en pokemontcg tcgplayer
+swsh9-098,098,Wormadam,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_98.png,tcgdex:en pokemontcg tcgplayer
+swsh9-099,099,Probopass,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_99.png,tcgdex:en pokemontcg tcgplayer
+swsh9-100,100,Heatran,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_100.png,tcgdex:en pokemontcg tcgplayer
+swsh9-101,101,Escavalier,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_101.png,tcgdex:en pokemontcg tcgplayer
+swsh9-102,102,Klink,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_102.png,tcgdex:en pokemontcg tcgplayer
+swsh9-103,103,Klang,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_103.png,tcgdex:en pokemontcg tcgplayer
+swsh9-104,104,Klinklang,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_104.png,tcgdex:en pokemontcg tcgplayer
+swsh9-105,105,Zamazenta V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_105.png,tcgdex:en pokemontcg tcgplayer
+swsh9-106,106,Flygon V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_106.png,tcgdex:en pokemontcg tcgplayer
+swsh9-107,107,Gible,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_107.png,tcgdex:en pokemontcg tcgplayer
+swsh9-108,108,Gabite,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_108.png,tcgdex:en pokemontcg tcgplayer
+swsh9-109,109,Garchomp,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_109.png,tcgdex:en pokemontcg tcgplayer
+swsh9-110,110,Axew,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_110.png,tcgdex:en pokemontcg tcgplayer
+swsh9-111,111,Fraxure,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_111.png,tcgdex:en pokemontcg tcgplayer
+swsh9-112,112,Haxorus,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_112.png,tcgdex:en pokemontcg tcgplayer
+swsh9-113,113,Druddigon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_113.png,tcgdex:en pokemontcg tcgplayer
+swsh9-114,114,Dracovish V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_114.png,tcgdex:en pokemontcg tcgplayer
+swsh9-115,115,Farfetch'd,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_115.png,tcgdex:en pokemontcg tcgplayer
+swsh9-116,116,Castform,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_116.png,tcgdex:en pokemontcg tcgplayer
+swsh9-117,117,Starly,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_117.png,tcgdex:en pokemontcg tcgplayer
+swsh9-118,118,Staravia,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_118.png,tcgdex:en pokemontcg tcgplayer
+swsh9-119,119,Staraptor,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_119.png,tcgdex:en pokemontcg tcgplayer
+swsh9-120,120,Bidoof,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_120.png,tcgdex:en pokemontcg tcgplayer
+swsh9-121,121,Bibarel,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_121.png,tcgdex:en pokemontcg tcgplayer
+swsh9-122,122,Arceus V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_122.png,tcgdex:en pokemontcg tcgplayer
+swsh9-123,123,Arceus VSTAR,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_123.png,tcgdex:en pokemontcg tcgplayer
+swsh9-124,124,Minccino,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_124.png,tcgdex:en pokemontcg tcgplayer
+swsh9-125,125,Cinccino,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_125.png,tcgdex:en pokemontcg tcgplayer
+swsh9-126,126,Tornadus,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_126.png,tcgdex:en pokemontcg tcgplayer
+swsh9-127,127,Hawlucha,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_127.png,tcgdex:en pokemontcg tcgplayer
+swsh9-128,128,Drampa V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_128.png,tcgdex:en pokemontcg tcgplayer
+swsh9-129,129,Acerola's Premonition,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_129.png,tcgdex:en pokemontcg tcgplayer
+swsh9-130,130,Barry,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_130.png,tcgdex:en pokemontcg tcgplayer
+swsh9-131,131,Blunder Policy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_131.png,tcgdex:en pokemontcg tcgplayer
+swsh9-132,132,Boss's Orders,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_132.png,tcgdex:en pokemontcg tcgplayer
+swsh9-133,133,Café Master,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_133.png,tcgdex:en pokemontcg
+swsh9-134,134,Cheren's Care,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_134.png,tcgdex:en pokemontcg tcgplayer
+swsh9-135,135,Choice Belt,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_135.png,tcgdex:en pokemontcg tcgplayer
+swsh9-136,136,Cleansing Gloves,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_136.png,tcgdex:en pokemontcg tcgplayer
+swsh9-137,137,Collapsed Stadium,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_137.png,tcgdex:en pokemontcg tcgplayer
+swsh9-138,138,Cynthia's Ambition,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_138.png,tcgdex:en pokemontcg tcgplayer
+swsh9-139,139,Fresh Water Set,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_139.png,tcgdex:en pokemontcg tcgplayer
+swsh9-140,140,Friends in Galar,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_140.png,tcgdex:en pokemontcg tcgplayer
+swsh9-141,141,Gloria,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_141.png,tcgdex:en pokemontcg tcgplayer
+swsh9-142,142,Hunting Gloves,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_142.png,tcgdex:en pokemontcg tcgplayer
+swsh9-143,143,Kindler,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_143.png,tcgdex:en pokemontcg tcgplayer
+swsh9-144,144,Magma Basin,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_144.png,tcgdex:en pokemontcg tcgplayer
+swsh9-145,145,Marnie's Pride,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_145.png,tcgdex:en pokemontcg tcgplayer
+swsh9-146,146,Pot Helmet,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_146.png,tcgdex:en pokemontcg tcgplayer
+swsh9-147,147,Professor's Research,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_147.png,tcgdex:en pokemontcg tcgplayer
+swsh9-148,148,Roseanne's Backup,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_148.png,tcgdex:en pokemontcg tcgplayer
+swsh9-149,149,Team Yell's Cheer,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_149.png,tcgdex:en pokemontcg tcgplayer
+swsh9-150,150,Ultra Ball,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_150.png,tcgdex:en pokemontcg tcgplayer
+swsh9-151,151,Double Turbo Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_151.png,tcgdex:en pokemontcg tcgplayer
+swsh9-152,152,Shaymin V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_152.png,tcgdex:en pokemontcg tcgplayer
+swsh9-153,153,Charizard V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_153.png,tcgdex:en pokemontcg tcgplayer
+swsh9-154,154,Charizard V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_154.png,tcgdex:en pokemontcg tcgplayer
+swsh9-155,155,Lumineon V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_155.png,tcgdex:en pokemontcg tcgplayer
+swsh9-156,156,Lumineon V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_156.png,tcgdex:en pokemontcg tcgplayer
+swsh9-157,157,Pikachu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_157.png,tcgdex:en pokemontcg tcgplayer
+swsh9-158,158,Raichu V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_158.png,tcgdex:en pokemontcg tcgplayer
+swsh9-159,159,Granbull V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_159.png,tcgdex:en pokemontcg tcgplayer
+swsh9-160,160,Whimsicott V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_160.png,tcgdex:en pokemontcg tcgplayer
+swsh9-161,161,Honchkrow V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_161.png,tcgdex:en pokemontcg tcgplayer
+swsh9-162,162,Honchkrow V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_162.png,tcgdex:en pokemontcg tcgplayer
+swsh9-163,163,Zamazenta V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_163.png,tcgdex:en pokemontcg tcgplayer
+swsh9-164,164,Flygon V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_164.png,tcgdex:en pokemontcg tcgplayer
+swsh9-165,165,Arceus V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_165.png,tcgdex:en pokemontcg tcgplayer
+swsh9-166,166,Arceus V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_166.png,tcgdex:en pokemontcg tcgplayer
+swsh9-167,167,Barry,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_167.png,tcgdex:en pokemontcg tcgplayer
+swsh9-168,168,Cheren's Care,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_168.png,tcgdex:en pokemontcg tcgplayer
+swsh9-169,169,Cynthia's Ambition,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_169.png,tcgdex:en pokemontcg tcgplayer
+swsh9-170,170,Kindler,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_170.png,tcgdex:en pokemontcg tcgplayer
+swsh9-171,171,Marnie's Pride,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_171.png,tcgdex:en pokemontcg tcgplayer
+swsh9-172,172,Roseanne's Backup,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_172.png,tcgdex:en pokemontcg tcgplayer
+swsh9-173,173,Shaymin VSTAR,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_173.png,tcgdex:en pokemontcg tcgplayer
+swsh9-174,174,Charizard VSTAR,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_174.png,tcgdex:en pokemontcg tcgplayer
+swsh9-175,175,Whimsicott VSTAR,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_175.png,tcgdex:en pokemontcg tcgplayer
+swsh9-176,176,Arceus VSTAR,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_176.png,tcgdex:en pokemontcg tcgplayer
+swsh9-177,177,Cheren's Care,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_177.png,tcgdex:en pokemontcg tcgplayer
+swsh9-178,178,Cynthia's Ambition,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_178.png,tcgdex:en pokemontcg tcgplayer
+swsh9-179,179,Kindler,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_179.png,tcgdex:en pokemontcg tcgplayer
+swsh9-180,180,Roseanne's Backup,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_180.png,tcgdex:en pokemontcg tcgplayer
+swsh9-181,181,Galarian Articuno V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_181.png,tcgdex:en pokemontcg tcgplayer
+swsh9-182,182,Galarian Zapdos V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_182.png,tcgdex:en pokemontcg tcgplayer
+swsh9-183,183,Galarian Moltres V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_183.png,tcgdex:en pokemontcg tcgplayer
+swsh9-184,184,Arceus VSTAR,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_184.png,tcgdex:en pokemontcg tcgplayer
+swsh9-185,185,Magma Basin,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_185.png,tcgdex:en pokemontcg tcgplayer
+swsh9-186,186,Ultra Ball,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH9/SWSH9_EN_186.png,tcgdex:en pokemontcg tcgplayer

@@ -44,6 +44,7 @@ See [docs/architecture.md](docs/architecture.md) for ownership, startup, synchro
 | `lib/card-pricing.ts` | Price provider pipeline and the **single source** of pricing types and normalizers (the client hook re-exports them). Related: `price-intelligence`, `price-freshness`, `price-momentum` (Rising), `breakout-cards`, `price-refresh-interval`. |
 | `lib/offline-store/` | IndexedDB store `binderdex-offline` (`kv`, `records`, `collection-mirror`): a collection and wantlist mirror, last-known prices and opened set lookups. |
 | `lib/card-image-store.ts` and friends | Image mirror backend selection (`CARD_IMAGE_STORE=r2\|blob\|off`): `card-image-r2.ts` (S3 API via aws4fetch), `card-image-blob.ts` (Vercel Blob), and `card-image-backfill.ts`. See [`docs/card-image-store.md`](docs/card-image-store.md). |
+| `card-assets/` | Card image sourcing: which source each card's image comes from and why (`sources.csv`, `rules.csv`, a generated per-set ledger), keyed to Luna's [PTCG Image Atlas](https://github.com/nstrelow/ptcg-image-atlas). CLI `scripts/card-assets.ts`, logic in `lib/card-assets/`. Read [`card-assets/AGENTS.md`](card-assets/AGENTS.md) before adding an image source or changing which source a set uses. |
 | `lib/card-db-sync*.ts`, `lib/tcg-mirror.ts`, `lib/tcgdex-shared.ts` | TCGdex → Postgres sync (CLI and incremental API), plus cached mirror reads (`"use cache: remote"`, tag `tcg-mirror`). |
 | `lib/card-scan-*`, `lib/binder-page-scan*` | Camera card and page scanning (OCR via tesseract.js, image matching). |
 | `lib/supabase/` | `client`, `server`, `admin` (service role; server only, never import it statically into client code) and `middleware`. |
@@ -108,6 +109,7 @@ bun run dev                  # http://localhost:3000/app
 | `bun run test:e2e:matrix <spec>` | Affected specs across all six phone projects (375, 390 and 430 px, browser and standalone). Required for UI changes |
 | `bun run test:e2e:install` | Installs Chromium for Playwright (or set `CHROME_PATH`) |
 | `bun run sync-card-db [--dry-run]` | Full TCGdex → Postgres sync (needs `POSTGRES_URL_NON_POOLING` or `DATABASE_URL`) |
+| `bun run card-assets <plan\|verify\|atlas>` | Card image sourcing ledger (read-only on the database). See [`card-assets/AGENTS.md`](card-assets/AGENTS.md) |
 | `bun run mirror-card-images` | Local, resumable R2 image backfill. Flags: `--set`, `--from`, `--lang`, `--quality`, `--concurrency`, `--max-class-a`, `--max-gb` |
 
 Admin API routes are `POST` only. Authenticate with `Authorization: Bearer <secret>`, where the secret is any of `CARD_DB_SYNC_SECRET`, `SYNC_SECRET` or `CRON_SECRET` (the legacy `x-card-db-sync-secret` header also works). They return 503 when no secret is configured.

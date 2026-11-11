@@ -1,0 +1,18 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+pop5-1,1,Ho-Oh,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/1/high.webp,pokemontcg tcgplayer
+pop5-2,2,Lugia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/2/high.webp,pokemontcg tcgplayer
+pop5-3,3,Mew δ,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/3/high.webp,pokemontcg
+pop5-4,4,Double Rainbow Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/4/high.webp,pokemontcg tcgplayer
+pop5-5,5,Charmeleon δ,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/5/high.webp,pokemontcg
+pop5-6,6,Bill’s Maintenance,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/6/high.webp,pokemontcg
+pop5-7,7,Rare Candy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/7/high.webp,pokemontcg tcgplayer
+pop5-8,8,Boost Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/8/high.webp,pokemontcg tcgplayer
+pop5-9,9,δ Rainbow Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/9/high.webp,pokemontcg
+pop5-10,10,Charmander δ,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/10/high.webp,pokemontcg
+pop5-11,11,Meowth δ,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/11/high.webp,pokemontcg
+pop5-12,12,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/12/high.webp,pokemontcg tcgplayer
+pop5-13,13,Pikachu δ,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/13/high.webp,pokemontcg
+pop5-14,14,Pelipper δ,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/14/high.webp,pokemontcg
+pop5-15,15,Zangoose δ,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/15/high.webp,pokemontcg
+pop5-16,16,Espeon ☆,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/16/high.webp,pokemontcg
+pop5-17,17,Umbreon ☆,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop5/17/high.webp,pokemontcg

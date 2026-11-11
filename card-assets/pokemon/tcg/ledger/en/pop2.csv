@@ -1,0 +1,18 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+pop2-1,1,Entei,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/1/high.webp,pokemontcg tcgplayer
+pop2-2,2,Pidgeot,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/2/high.webp,pokemontcg tcgplayer
+pop2-3,3,Raikou,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/3/high.webp,pokemontcg tcgplayer
+pop2-4,4,Suicune,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/4/high.webp,pokemontcg tcgplayer
+pop2-5,5,Tauros,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/5/high.webp,pokemontcg tcgplayer
+pop2-6,6,Venusaur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/6/high.webp,pokemontcg tcgplayer
+pop2-7,7,Ivysaur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/7/high.webp,pokemontcg tcgplayer
+pop2-8,8,Mr. Briney’s Compassion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/8/high.webp,pokemontcg
+pop2-9,9,Multi Technical Machine 01,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/9/high.webp,pokemontcg tcgplayer
+pop2-10,10,Pokémon Park,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/10/high.webp,pokemontcg
+pop2-11,11,TV Reporter,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/11/high.webp,pokemontcg tcgplayer
+pop2-12,12,Bulbasaur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/12/high.webp,pokemontcg tcgplayer
+pop2-13,13,Cacnea,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/13/high.webp,pokemontcg tcgplayer
+pop2-14,14,Luvdisc,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/14/high.webp,pokemontcg tcgplayer
+pop2-15,15,Phanpy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/15/high.webp,pokemontcg tcgplayer
+pop2-16,16,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/16/high.webp,pokemontcg tcgplayer
+pop2-17,17,Celebi ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop2/17/high.webp,pokemontcg tcgplayer

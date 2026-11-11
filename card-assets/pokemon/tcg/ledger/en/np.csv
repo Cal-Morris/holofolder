@@ -1,0 +1,41 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+np-1,1,Kyogre ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/1/high.webp,pokemontcg
+np-2,2,Groudon ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/2/high.webp,pokemontcg
+np-3,3,Treecko,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/3/high.webp,pokemontcg
+np-4,4,Grovyle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/4/high.webp,pokemontcg
+np-5,5,Mudkip,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/5/high.webp,pokemontcg
+np-6,6,Torchic,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/6/high.webp,pokemontcg
+np-7,7,Treecko,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/7/high.webp,pokemontcg
+np-8,8,Torchic,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/8/high.webp,pokemontcg
+np-9,9,Combusken,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/9/high.webp,pokemontcg
+np-10,10,Mudkip,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/10/high.webp,pokemontcg
+np-11,11,Marshtomp,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/11/high.webp,pokemontcg
+np-12,12,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/12/high.webp,pokemontcg
+np-13,13,Meowth,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/13/high.webp,pokemontcg
+np-14,14,Latias,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/14/high.webp,pokemontcg
+np-15,15,Latios,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/15/high.webp,pokemontcg
+np-16,16,Treecko,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/16/high.webp,pokemontcg
+np-17,17,Torchic,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/17/high.webp,pokemontcg
+np-18,18,Mudkip,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/18/high.webp,pokemontcg
+np-19,19,Whismur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/19/high.webp,pokemontcg
+np-20,20,Ludicolo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/20/high.webp,pokemontcg
+np-21,21,Jirachi,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/21/high.webp,pokemontcg
+np-22,22,Beldum,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/22/high.webp,pokemontcg
+np-23,23,Metang,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/23/high.webp,pokemontcg
+np-24,24,Chimecho,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/24/high.webp,pokemontcg
+np-25,25,Flygon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/25/high.webp,pokemontcg
+np-26,26,Tropical Wind,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/26/high.webp,pokemontcg
+np-27,27,Tropical Tidal Wave,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/27/high.webp,pokemontcg
+np-28,28,Championship Arena,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/28/high.webp,pokemontcg
+np-29,29,Celebi,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/29/high.webp,pokemontcg
+np-30,30,Suicune,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/30/high.webp,pokemontcg
+np-31,31,Moltres ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/31/high.webp,pokemontcg
+np-32,32,Articuno ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/32/high.webp,pokemontcg
+np-33,33,Zapdos ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/33/high.webp,pokemontcg
+np-34,34,Typhlosion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/34/high.webp,pokemontcg
+np-35,35,Pikachu δ,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/35/high.webp,pokemontcg
+np-36,36,Tropical Tidal Wave,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/36/high.webp,pokemontcg
+np-37,37,Kyogre ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/37/high.webp,pokemontcg
+np-38,38,Groudon ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/38/high.webp,pokemontcg
+np-39,39,Rayquaza ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/39/high.webp,pokemontcg
+np-40,40,Mew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/np/40/high.webp,pokemontcg

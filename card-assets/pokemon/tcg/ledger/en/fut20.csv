@@ -1,0 +1,6 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+fut20-1,1,Pikachu on the Ball,*,pokemontcg,rehost,,https://images.pokemontcg.io/fut20/1_hires.png,
+fut20-2,2,Eevee on the Ball,*,pokemontcg,rehost,,https://images.pokemontcg.io/fut20/2_hires.png,
+fut20-3,3,Grookey on the Ball,*,pokemontcg,rehost,,https://images.pokemontcg.io/fut20/3_hires.png,
+fut20-4,4,Scorbunny on the Ball,*,pokemontcg,rehost,,https://images.pokemontcg.io/fut20/4_hires.png,
+fut20-5,5,Sobble on the Ball,*,pokemontcg,rehost,,https://images.pokemontcg.io/fut20/5_hires.png,

@@ -1,0 +1,18 @@
+id,name,kind,permission,permission_note,hosts,max_size,credit,credit_url,atlas_id
+tcgdex,TCGdex,official-render,none,"Data is MIT, images are © The Pokémon Company. HGSS onwards are pixel-identical to the TCG Live renders malie publishes (atlas).",assets.tcgdex.net,600x825,TCGdex,https://tcgdex.dev,tcgdex
+pokemoncom,pokemon.com card database,official-scan,none,,assets.pokemon.com (/static-assets/content-assets/cms2/img/cards/web/ only),,The Pokémon Company International,https://www.pokemon.com/us/pokemon-tcg/pokemon-cards,pcom
+malie,malie.io,official-render,none,"Renders from the Pokémon TCG Live and TCG Online clients. Asks for a credit on a credits page, explicitly not a licence condition. Not fetched yet (phase 3).",cdn.malie.io,734x1024,malie.io,https://malie.io/static/,malie
+asia,asia.pokemon-card.com,official-render,none,Official Singapore and Hong Kong English print. Not fetched yet.,asia.pokemon-card.com,744x1040,The Pokémon Company (Asia),https://asia.pokemon-card.com/,asia
+pokemontcg,pokemontcg.io,rehost,none,"In use before this ledger. Modern files are malie's renders; trainer kits, McDonald's and e-card holos are scans of unknown origin, which the atlas files under ask the scanner. Review before preferring it for those sets.",images.pokemontcg.io,734x1024,Pokémon TCG API,https://pokemontcg.io,pokemontcgio
+scrydex,Scrydex,rehost,none,Same files as pokemontcg.io (atlas). In use for trainer kits and promos.,images.scrydex.com,,Scrydex,https://scrydex.com,scrydex
+limitless,Limitless TCG,rehost,none,In use for black star promos.,limitlesstcg.nyc3.cdn.digitaloceanspaces.com (/tpci/ only),736x1024,Limitless TCG,https://limitlesstcg.com,limitless
+playshop,playshop.fr,retail-photo,none,French McDonald's 2013/2018/2019 only: no card database has scans of these. Single-card shop scans.,cdn.shopify.com (playshop store path only),,Playshop,https://playshop.fr,
+tcgplayer,TCGplayer,retail-photo,none,Product photos. Last resort.,product-images.tcgplayer.com,,TCGplayer,https://www.tcgplayer.com,tcgplayer
+paradijs,Pokémon Paradijs scans (Martin),fan-scan,needed,"Martin's own scans, on the Wayback Machine. Ask Martin before using them.",web.archive.org,600x825,Martin of Pokémon Paradijs,https://pkmncards.com/about/,paradijs
+pcgsearch,pcg-search.com,fan-scan,needed,Japanese 1996–2006 scans by one fan. Ask via X @pcg_dfc60.,pcg-search.com,593x834,pcg-search.com,https://pcg-search.com/,pcgsearch
+bisafans,bisafans.de,fan-scan,needed,All rights reserved; scans can be protected in their own right under German law (§72 UrhG).,www.bisafans.de,862x1200,bisafans.de,https://www.bisafans.de/,bisafans
+pokewiki,PokéWiki,fan-scan,needed,Image reuse has to be asked of each uploader.,www.pokewiki.de,,PokéWiki,https://www.pokewiki.de/,pokewiki
+tcgcollector,TCG Collector,rehost,forbidden,"Terms: one copy for personal, transitory use; no mirroring.",www.tcgcollector.com,1280x1788,TCG Collector,https://www.tcgcollector.com/,tcgcollector
+pokellector,Pokellector,rehost,forbidden,Terms forbid automated image retrieval.,www.pokellector.com,570x800,Pokellector,https://www.pokellector.com/,pokellector
+yuyutei,yuyu-tei.jp,retail-photo,forbidden,The shop forbids reposting without permission.,yuyu-tei.jp,500x700,yuyu-tei,https://yuyu-tei.jp/,yuyutei
+duanxr,duanxr/PTCG-CHS-Datasets,official-render,forbidden,No redistribution without Pokémon Shanghai's written consent.,github.com/duanxr/PTCG-CHS-Datasets,300x419,duanxr,https://github.com/duanxr/PTCG-CHS-Datasets,duanxr

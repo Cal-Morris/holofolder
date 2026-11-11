@@ -10,6 +10,7 @@
     "sync-card-prices": "bun scripts/sync-card-prices.ts",
     "sync-card-supplements": "bun scripts/sync-card-supplements.ts",
     "mirror-card-images": "bun scripts/mirror-card-images.ts",
+    "card-assets": "bun scripts/card-assets.ts",
     "start": "next start",
     "test": "bun test tests/",
     "test:api:smoke": "bun scripts/api-smoke.ts",

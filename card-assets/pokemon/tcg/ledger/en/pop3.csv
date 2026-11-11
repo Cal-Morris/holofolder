@@ -1,0 +1,18 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+pop3-1,1,Blastoise,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/1/high.webp,pokemontcg tcgplayer
+pop3-2,2,Flareon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/2/high.webp,pokemontcg tcgplayer
+pop3-3,3,Jolteon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/3/high.webp,pokemontcg tcgplayer
+pop3-4,4,Minun,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/4/high.webp,pokemontcg tcgplayer
+pop3-5,5,Plusle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/5/high.webp,pokemontcg tcgplayer
+pop3-6,6,Vaporeon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/6/high.webp,pokemontcg tcgplayer
+pop3-7,7,Combusken,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/7/high.webp,pokemontcg tcgplayer
+pop3-8,8,Donphan,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/8/high.webp,pokemontcg tcgplayer
+pop3-9,9,Forretress,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/9/high.webp,pokemontcg tcgplayer
+pop3-10,10,High Pressure System,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/10/high.webp,pokemontcg tcgplayer
+pop3-11,11,Low Pressure System,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/11/high.webp,pokemontcg tcgplayer
+pop3-12,12,Ditto,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/12/high.webp,pokemontcg tcgplayer
+pop3-13,13,Eevee,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/13/high.webp,pokemontcg tcgplayer
+pop3-14,14,Ivysaur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/14/high.webp,pokemontcg tcgplayer
+pop3-15,15,Marshtomp,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/15/high.webp,pokemontcg tcgplayer
+pop3-16,16,Pichu Bros.,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/16/high.webp,pokemontcg tcgplayer
+pop3-17,17,Ho-Oh ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pop/pop3/17/high.webp,pokemontcg tcgplayer

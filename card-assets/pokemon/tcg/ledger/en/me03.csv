@@ -1,0 +1,125 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+me03-001,001,Spinarak,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_1.png,tcgdex:en scrydex tcgplayer
+me03-002,002,Ariados,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_2.png,tcgdex:en scrydex tcgplayer
+me03-003,003,Shaymin,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_3.png,tcgdex:en scrydex tcgplayer
+me03-004,004,Snivy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_4.png,tcgdex:en scrydex tcgplayer
+me03-005,005,Servine,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_5.png,tcgdex:en scrydex tcgplayer
+me03-006,006,Serperior,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_6.png,tcgdex:en scrydex tcgplayer
+me03-007,007,Scatterbug,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_7.png,tcgdex:en scrydex tcgplayer
+me03-008,008,Spewpa,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_8.png,tcgdex:en scrydex tcgplayer
+me03-009,009,Vivillon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_9.png,tcgdex:en scrydex tcgplayer
+me03-010,010,Rowlet,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_10.png,tcgdex:en scrydex tcgplayer
+me03-011,011,Dartrix,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_11.png,tcgdex:en scrydex tcgplayer
+me03-012,012,Decidueye ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_12.png,tcgdex:en scrydex tcgplayer
+me03-013,013,Fletchinder,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_13.png,tcgdex:en scrydex tcgplayer
+me03-014,014,Talonflame,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_14.png,tcgdex:en scrydex tcgplayer
+me03-015,015,Salandit,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_15.png,tcgdex:en scrydex tcgplayer
+me03-016,016,Salazzle ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_16.png,tcgdex:en scrydex tcgplayer
+me03-017,017,Turtonator,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_17.png,tcgdex:en scrydex tcgplayer
+me03-018,018,Seel,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_18.png,tcgdex:en scrydex tcgplayer
+me03-019,019,Dewgong,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_19.png,tcgdex:en scrydex tcgplayer
+me03-020,020,Staryu,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_20.png,tcgdex:en scrydex tcgplayer
+me03-021,021,Mega Starmie ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_21.png,tcgdex:en scrydex tcgplayer
+me03-022,022,Lapras ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_22.png,tcgdex:en scrydex tcgplayer
+me03-023,023,Amaura,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_23.png,tcgdex:en scrydex tcgplayer
+me03-024,024,Aurorus,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_24.png,tcgdex:en scrydex tcgplayer
+me03-025,025,Volcanion,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_25.png,tcgdex:en scrydex tcgplayer
+me03-026,026,Shinx,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_26.png,tcgdex:en scrydex tcgplayer
+me03-027,027,Luxio,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_27.png,tcgdex:en scrydex tcgplayer
+me03-028,028,Luxray,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_28.png,tcgdex:en scrydex tcgplayer
+me03-029,029,Dedenne,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_29.png,tcgdex:en scrydex tcgplayer
+me03-030,030,Clefairy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_30.png,tcgdex:en scrydex tcgplayer
+me03-031,031,Mega Clefable ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_31.png,tcgdex:en scrydex tcgplayer
+me03-032,032,Mawile,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_32.png,tcgdex:en scrydex tcgplayer
+me03-033,033,Espurr,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_33.png,tcgdex:en scrydex tcgplayer
+me03-034,034,Meowstic,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_34.png,tcgdex:en scrydex tcgplayer
+me03-035,035,Spritzee,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_35.png,tcgdex:en scrydex tcgplayer
+me03-036,036,Aromatisse,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_36.png,tcgdex:en scrydex tcgplayer
+me03-037,037,Nosepass,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_37.png,tcgdex:en scrydex tcgplayer
+me03-038,038,Probopass,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_38.png,tcgdex:en scrydex tcgplayer
+me03-039,039,Hippopotas,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_39.png,tcgdex:en scrydex tcgplayer
+me03-040,040,Hippowdon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_40.png,tcgdex:en scrydex tcgplayer
+me03-041,041,Landorus,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_41.png,tcgdex:en scrydex tcgplayer
+me03-042,042,Binacle,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_42.png,tcgdex:en scrydex tcgplayer
+me03-043,043,Barbaracle,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_43.png,tcgdex:en scrydex tcgplayer
+me03-044,044,Tyrunt,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_44.png,tcgdex:en scrydex tcgplayer
+me03-045,045,Tyrantrum,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_45.png,tcgdex:en scrydex tcgplayer
+me03-046,046,Hawlucha,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_46.png,tcgdex:en scrydex tcgplayer
+me03-047,047,Mega Zygarde ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_47.png,tcgdex:en scrydex tcgplayer
+me03-048,048,Gastly,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_48.png,tcgdex:en scrydex tcgplayer
+me03-049,049,Haunter,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_49.png,tcgdex:en scrydex tcgplayer
+me03-050,050,Gengar,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_50.png,tcgdex:en scrydex tcgplayer
+me03-051,051,Skorupi,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_51.png,tcgdex:en scrydex tcgplayer
+me03-052,052,Drapion,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_52.png,tcgdex:en scrydex tcgplayer
+me03-053,053,Yveltal ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_53.png,tcgdex:en scrydex tcgplayer
+me03-054,054,Chien-Pao,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_54.png,tcgdex:en scrydex tcgplayer
+me03-055,055,Mega Skarmory ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_55.png,tcgdex:en scrydex tcgplayer
+me03-056,056,Honedge,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_56.png,tcgdex:en scrydex tcgplayer
+me03-057,057,Doublade,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_57.png,tcgdex:en scrydex tcgplayer
+me03-058,058,Aegislash,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_58.png,tcgdex:en scrydex tcgplayer
+me03-059,059,Klefki,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_59.png,tcgdex:en scrydex tcgplayer
+me03-060,060,Rattata,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_60.png,tcgdex:en scrydex tcgplayer
+me03-061,061,Raticate,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_61.png,tcgdex:en scrydex tcgplayer
+me03-062,062,Meowth ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_62.png,tcgdex:en scrydex tcgplayer
+me03-063,063,Snorlax,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_63.png,tcgdex:en scrydex tcgplayer
+me03-064,064,Bunnelby,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_64.png,tcgdex:en scrydex tcgplayer
+me03-065,065,Diggersby,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_65.png,tcgdex:en scrydex tcgplayer
+me03-066,066,Fletchling,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_66.png,tcgdex:en scrydex tcgplayer
+me03-067,067,Furfrou,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_67.png,tcgdex:en scrydex tcgplayer
+me03-068,068,Antique Jaw Fossil,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_68.png,tcgdex:en scrydex tcgplayer
+me03-069,069,Antique Sail Fossil,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_69.png,tcgdex:en scrydex tcgplayer
+me03-070,070,Core Memory,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_70.png,tcgdex:en scrydex tcgplayer
+me03-071,071,Crushing Hammer,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_71.png,tcgdex:en scrydex tcgplayer
+me03-072,072,Energy Search,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_72.png,tcgdex:en scrydex tcgplayer
+me03-073,073,Energy Swatter,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_73.png,tcgdex:en scrydex tcgplayer
+me03-074,074,Hole-Digging Shovel,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_74.png,tcgdex:en scrydex tcgplayer
+me03-075,075,Jacinthe,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_75.png,tcgdex:en scrydex tcgplayer
+me03-076,076,Judge,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_76.png,tcgdex:en scrydex tcgplayer
+me03-077,077,Lumiose City,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_77.png,tcgdex:en scrydex tcgplayer
+me03-078,078,Lumiose Galette,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_78.png,tcgdex:en scrydex tcgplayer
+me03-079,079,Naveen,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_79.png,tcgdex:en scrydex tcgplayer
+me03-080,080,Poké Ball,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_80.png,tcgdex:en scrydex tcgplayer
+me03-081,081,Poké Pad,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_81.png,tcgdex:en scrydex tcgplayer
+me03-082,082,Pokémon Catcher,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_82.png,tcgdex:en scrydex tcgplayer
+me03-083,083,Potion,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_83.png,tcgdex:en scrydex tcgplayer
+me03-084,084,Rosa's Encouragement,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_84.png,tcgdex:en scrydex tcgplayer
+me03-085,085,Tarragon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_85.png,tcgdex:en scrydex tcgplayer
+me03-086,086,Growing Grass Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_86.png,tcgdex:en scrydex tcgplayer
+me03-087,087,Rocky Fighting Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_87.png,tcgdex:en scrydex tcgplayer
+me03-088,088,Telepathic Psychic Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_88.png,tcgdex:en scrydex tcgplayer
+me03-089,089,Spewpa,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_89.png,tcgdex:en scrydex tcgplayer
+me03-090,090,Rowlet,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_90.png,tcgdex:en scrydex tcgplayer
+me03-091,091,Talonflame,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_91.png,tcgdex:en scrydex tcgplayer
+me03-092,092,Aurorus,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_92.png,tcgdex:en scrydex tcgplayer
+me03-093,093,Dedenne,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_93.png,tcgdex:en scrydex tcgplayer
+me03-094,094,Clefairy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_94.png,tcgdex:en scrydex tcgplayer
+me03-095,095,Espurr,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_95.png,tcgdex:en scrydex tcgplayer
+me03-096,096,Probopass,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_96.png,tcgdex:en scrydex tcgplayer
+me03-097,097,Drapion,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_97.png,tcgdex:en scrydex tcgplayer
+me03-098,098,Doublade,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_98.png,tcgdex:en scrydex tcgplayer
+me03-099,099,Raticate,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_99.png,tcgdex:en scrydex tcgplayer
+me03-100,100,Decidueye ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_100.png,tcgdex:en scrydex tcgplayer
+me03-101,101,Salazzle ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_101.png,tcgdex:en scrydex tcgplayer
+me03-102,102,Mega Starmie ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_102.png,tcgdex:en scrydex tcgplayer
+me03-103,103,Mega Clefable ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_103.png,tcgdex:en scrydex tcgplayer
+me03-104,104,Mega Zygarde ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_104.png,tcgdex:en scrydex tcgplayer
+me03-105,105,Yveltal ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_105.png,tcgdex:en scrydex tcgplayer
+me03-106,106,Mega Skarmory ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_106.png,tcgdex:en scrydex tcgplayer
+me03-107,107,Meowth ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_107.png,tcgdex:en scrydex tcgplayer
+me03-108,108,Energy Recycler,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_108.png,tcgdex:en scrydex tcgplayer
+me03-109,109,Forest of Vitality,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_109.png,tcgdex:en scrydex tcgplayer
+me03-110,110,Jacinthe,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_110.png,tcgdex:en scrydex tcgplayer
+me03-111,111,Lumiose City,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_111.png,tcgdex:en scrydex tcgplayer
+me03-112,112,Naveen,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_112.png,tcgdex:en scrydex tcgplayer
+me03-113,113,Poké Pad,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_113.png,tcgdex:en scrydex tcgplayer
+me03-114,114,Rosa's Encouragement,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_114.png,tcgdex:en scrydex tcgplayer
+me03-115,115,Sacred Ash,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_115.png,tcgdex:en scrydex tcgplayer
+me03-116,116,Tarragon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_116.png,tcgdex:en scrydex tcgplayer
+me03-117,117,Wondrous Patch,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_117.png,tcgdex:en scrydex tcgplayer
+me03-118,118,Mega Starmie ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_118.png,tcgdex:en scrydex tcgplayer
+me03-119,119,Mega Clefable ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_119.png,tcgdex:en scrydex tcgplayer
+me03-120,120,Mega Zygarde ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_120.png,tcgdex:en scrydex tcgplayer
+me03-121,121,Meowth ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_121.png,tcgdex:en scrydex tcgplayer
+me03-122,122,Jacinthe,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_122.png,tcgdex:en scrydex tcgplayer
+me03-123,123,Rosa's Encouragement,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_123.png,tcgdex:en scrydex tcgplayer
+me03-124,124,Mega Zygarde ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/ME03/ME03_EN_124.png,tcgdex:en scrydex tcgplayer

@@ -1,0 +1,35 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+dc1-1,1,Team Magma's Numel,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_1.png,tcgdex:en pokemontcg tcgplayer
+dc1-2,2,Team Magma's Camerupt,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_2.png,tcgdex:en pokemontcg tcgplayer
+dc1-3,3,Team Aqua's Spheal,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_3.png,tcgdex:en pokemontcg tcgplayer
+dc1-4,4,Team Aqua's Sealeo,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_4.png,tcgdex:en pokemontcg tcgplayer
+dc1-5,5,Team Aqua's Walrein,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_5.png,tcgdex:en pokemontcg tcgplayer
+dc1-6,6,Team Aqua's Kyogre EX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_6.png,tcgdex:en pokemontcg tcgplayer
+dc1-7,7,Team Aqua's Grimer,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_7.png,tcgdex:en pokemontcg tcgplayer
+dc1-8,8,Team Aqua's Muk,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_8.png,tcgdex:en pokemontcg tcgplayer
+dc1-9,9,Team Aqua's Seviper,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_9.png,tcgdex:en pokemontcg tcgplayer
+dc1-10,10,Team Magma's Baltoy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_10.png,tcgdex:en pokemontcg tcgplayer
+dc1-11,11,Team Magma's Claydol,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_11.png,tcgdex:en pokemontcg tcgplayer
+dc1-12,12,Team Magma's Aron,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_12.png,tcgdex:en pokemontcg tcgplayer
+dc1-13,13,Team Magma's Lairon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_13.png,tcgdex:en pokemontcg tcgplayer
+dc1-14,14,Team Magma's Aggron,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_14.png,tcgdex:en pokemontcg tcgplayer
+dc1-15,15,Team Magma's Groudon EX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_15.png,tcgdex:en pokemontcg tcgplayer
+dc1-16,16,Team Aqua's Poochyena,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_16.png,tcgdex:en pokemontcg tcgplayer
+dc1-17,17,Team Magma's Poochyena,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_17.png,tcgdex:en pokemontcg tcgplayer
+dc1-18,18,Team Aqua's Mightyena,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_18.png,tcgdex:en pokemontcg tcgplayer
+dc1-19,19,Team Magma's Mightyena,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_19.png,tcgdex:en pokemontcg tcgplayer
+dc1-20,20,Team Aqua's Carvanha,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_20.png,tcgdex:en pokemontcg tcgplayer
+dc1-21,21,Team Aqua's Sharpedo,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_21.png,tcgdex:en pokemontcg tcgplayer
+dc1-22,22,Team Magma's Zangoose,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_22.png,tcgdex:en pokemontcg tcgplayer
+dc1-23,23,Aqua Diffuser,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_23.png,tcgdex:en pokemontcg tcgplayer
+dc1-24,24,Magma Pointer,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_24.png,tcgdex:en pokemontcg tcgplayer
+dc1-25,25,Team Aqua Admin,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_25.png,tcgdex:en pokemontcg tcgplayer
+dc1-26,26,Team Aqua Grunt,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_26.png,tcgdex:en pokemontcg tcgplayer
+dc1-27,27,Team Aqua's Great Ball,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_27.png,tcgdex:en pokemontcg tcgplayer
+dc1-28,28,Team Aqua's Secret Base,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_28.png,tcgdex:en pokemontcg tcgplayer
+dc1-29,29,Team Magma Admin,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_29.png,tcgdex:en pokemontcg tcgplayer
+dc1-30,30,Team Magma Grunt,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_30.png,tcgdex:en pokemontcg tcgplayer
+dc1-31,31,Team Magma's Great Ball,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_31.png,tcgdex:en pokemontcg tcgplayer
+dc1-32,32,Team Magma's Secret Base,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_32.png,tcgdex:en pokemontcg tcgplayer
+dc1-33,33,Double Aqua Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_33.png,tcgdex:en pokemontcg tcgplayer
+dc1-34,34,Double Magma Energy,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/DC1/DC1_EN_34.png,tcgdex:en pokemontcg tcgplayer

@@ -1,0 +1,31 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+tk-sm-r-1,1,Lightning Energy,*,scrydex,rehost,,https://images.scrydex.com/pokemon/tk10b-1/large,tcgplayer
+tk-sm-r-2,2,Lightning Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/2/high.webp,tcgplayer
+tk-sm-r-3,3,Lightning Energy,*,scrydex,rehost,,https://images.scrydex.com/pokemon/tk10b-3/large,tcgplayer
+tk-sm-r-4,4,Stufful,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/4/high.webp,tcgplayer
+tk-sm-r-5,5,Lightning Energy,*,scrydex,rehost,,https://images.scrydex.com/pokemon/tk10b-5/large,tcgplayer
+tk-sm-r-6,6,Golbat,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/6/high.webp,tcgplayer
+tk-sm-r-7,7,Lightning Energy,*,scrydex,rehost,,https://images.scrydex.com/pokemon/tk10b-7/large,tcgplayer
+tk-sm-r-8,8,Lightning Energy,*,scrydex,rehost,,https://images.scrydex.com/pokemon/tk10b-8/large,tcgplayer
+tk-sm-r-9,9,Lightning Energy,*,scrydex,rehost,,https://images.scrydex.com/pokemon/tk10b-9/large,tcgplayer
+tk-sm-r-10,10,Lightning Energy,*,scrydex,rehost,,https://images.scrydex.com/pokemon/tk10b-10/large,tcgplayer
+tk-sm-r-11,11,Zubat,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/11/high.webp,tcgplayer
+tk-sm-r-12,12,Lightning Energy,*,scrydex,rehost,,https://images.scrydex.com/pokemon/tk10b-12/large,tcgplayer
+tk-sm-r-13,13,Spearow,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/13/high.webp,tcgplayer
+tk-sm-r-14,14,Pikachu,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/14/high.webp,tcgplayer
+tk-sm-r-15,15,Potion,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/15/high.webp,tcgplayer
+tk-sm-r-16,16,Grubbin,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/16/high.webp,tcgplayer
+tk-sm-r-17,17,Alolan Raichu,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/17/high.webp,tcgplayer
+tk-sm-r-18,18,Bewear,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/18/high.webp,tcgplayer
+tk-sm-r-19,19,Hau,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/19/high.webp,tcgplayer
+tk-sm-r-20,20,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/20/high.webp,tcgplayer
+tk-sm-r-21,21,Great Ball,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/21/high.webp,tcgplayer
+tk-sm-r-22,22,Drowzee,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/22/high.webp,tcgplayer
+tk-sm-r-23,23,Hau,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/23/high.webp,tcgplayer
+tk-sm-r-24,24,Psychic Energy,*,scrydex,rehost,,https://images.scrydex.com/pokemon/tk10b-24/large,tcgplayer
+tk-sm-r-25,25,Great Ball,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/25/high.webp,tcgplayer
+tk-sm-r-26,26,Togedemaru,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/26/high.webp,tcgplayer
+tk-sm-r-27,27,Psychic Energy,*,scrydex,rehost,,https://images.scrydex.com/pokemon/tk10b-27/large,tcgplayer
+tk-sm-r-28,28,Psychic Energy,*,scrydex,rehost,,https://images.scrydex.com/pokemon/tk10b-28/large,tcgplayer
+tk-sm-r-29,29,Pikachu,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/29/high.webp,tcgplayer
+tk-sm-r-30,30,Alolan Raichu,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-sm-r/30/high.webp,tcgplayer

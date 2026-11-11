@@ -1,0 +1,103 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+base1-1,1,Alakazam,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/1/high.webp,tcgplayer
+base1-2,2,Blastoise,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/2/high.webp,tcgplayer
+base1-3,3,Chansey,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/3/high.webp,tcgplayer
+base1-4,4,Charizard,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/4/high.webp,tcgplayer
+base1-5,5,Clefairy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/5/high.webp,tcgplayer
+base1-6,6,Gyarados,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/6/high.webp,tcgplayer
+base1-7,7,Hitmonchan,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/7/high.webp,tcgplayer
+base1-8,8,Machamp,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/8/high.webp,
+base1-9,9,Magneton,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/9/high.webp,tcgplayer
+base1-10,10,Mewtwo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/10/high.webp,tcgplayer
+base1-11,11,Nidoking,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/11/high.webp,tcgplayer
+base1-12,12,Ninetales,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/12/high.webp,tcgplayer
+base1-13,13,Poliwrath,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/13/high.webp,tcgplayer
+base1-14,14,Raichu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/14/high.webp,tcgplayer
+base1-15,15,Venusaur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/15/high.webp,tcgplayer
+base1-16,16,Zapdos,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/16/high.webp,tcgplayer
+base1-17,17,Beedrill,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/17/high.webp,tcgplayer
+base1-18,18,Dragonair,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/18/high.webp,tcgplayer
+base1-19,19,Dugtrio,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/19/high.webp,tcgplayer
+base1-20,20,Electabuzz,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/20/high.webp,tcgplayer
+base1-21,21,Electrode,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/21/high.webp,tcgplayer
+base1-22,22,Pidgeotto,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/22/high.webp,tcgplayer
+base1-23,23,Arcanine,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/23/high.webp,tcgplayer
+base1-24,24,Charmeleon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/24/high.webp,tcgplayer
+base1-25,25,Dewgong,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/25/high.webp,tcgplayer
+base1-26,26,Dratini,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/26/high.webp,tcgplayer
+base1-27,27,Farfetch'd,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/27/high.webp,tcgplayer
+base1-28,28,Growlithe,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/28/high.webp,tcgplayer
+base1-29,29,Haunter,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/29/high.webp,tcgplayer
+base1-30,30,Ivysaur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/30/high.webp,tcgplayer
+base1-31,31,Jynx,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/31/high.webp,tcgplayer
+base1-32,32,Kadabra,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/32/high.webp,tcgplayer
+base1-33,33,Kakuna,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/33/high.webp,tcgplayer
+base1-34,34,Machoke,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/34/high.webp,tcgplayer
+base1-35,35,Magikarp,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/35/high.webp,tcgplayer
+base1-36,36,Magmar,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/36/high.webp,tcgplayer
+base1-37,37,Nidorino,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/37/high.webp,tcgplayer
+base1-38,38,Poliwhirl,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/38/high.webp,tcgplayer
+base1-39,39,Porygon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/39/high.webp,tcgplayer
+base1-40,40,Raticate,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/40/high.webp,tcgplayer
+base1-41,41,Seel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/41/high.webp,tcgplayer
+base1-42,42,Wartortle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/42/high.webp,tcgplayer
+base1-43,43,Abra,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/43/high.webp,tcgplayer
+base1-44,44,Bulbasaur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/44/high.webp,tcgplayer
+base1-45,45,Caterpie,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/45/high.webp,tcgplayer
+base1-46,46,Charmander,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/46/high.webp,tcgplayer
+base1-47,47,Diglett,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/47/high.webp,tcgplayer
+base1-48,48,Doduo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/48/high.webp,tcgplayer
+base1-49,49,Drowzee,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/49/high.webp,tcgplayer
+base1-50,50,Gastly,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/50/high.webp,tcgplayer
+base1-51,51,Koffing,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/51/high.webp,tcgplayer
+base1-52,52,Machop,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/52/high.webp,tcgplayer
+base1-53,53,Magnemite,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/53/high.webp,tcgplayer
+base1-54,54,Metapod,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/54/high.webp,tcgplayer
+base1-55,55,Nidoran♂,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/55/high.webp,
+base1-56,56,Onix,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/56/high.webp,tcgplayer
+base1-57,57,Pidgey,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/57/high.webp,tcgplayer
+base1-58,58,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/58/high.webp,tcgplayer
+base1-59,59,Poliwag,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/59/high.webp,tcgplayer
+base1-60,60,Ponyta,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/60/high.webp,tcgplayer
+base1-61,61,Rattata,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/61/high.webp,tcgplayer
+base1-62,62,Sandshrew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/62/high.webp,tcgplayer
+base1-63,63,Squirtle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/63/high.webp,tcgplayer
+base1-64,64,Starmie,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/64/high.webp,tcgplayer
+base1-65,65,Staryu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/65/high.webp,tcgplayer
+base1-66,66,Tangela,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/66/high.webp,tcgplayer
+base1-67,67,Voltorb,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/67/high.webp,tcgplayer
+base1-68,68,Vulpix,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/68/high.webp,tcgplayer
+base1-69,69,Weedle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/69/high.webp,tcgplayer
+base1-70,70,Clefairy Doll,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/70/high.webp,tcgplayer
+base1-71,71,Computer Search,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/71/high.webp,tcgplayer
+base1-72,72,Devolution Spray,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/72/high.webp,tcgplayer
+base1-73,73,Impostor Professor Oak,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/73/high.webp,
+base1-74,74,Item Finder,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/74/high.webp,tcgplayer
+base1-75,75,Lass,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/75/high.webp,tcgplayer
+base1-76,76,Pokémon Breeder,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/76/high.webp,
+base1-77,77,Pokémon Trader,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/77/high.webp,
+base1-78,78,Scoop Up,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/78/high.webp,tcgplayer
+base1-79,79,Super Energy Removal,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/79/high.webp,tcgplayer
+base1-80,80,Defender,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/80/high.webp,tcgplayer
+base1-81,81,Energy Retrieval,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/81/high.webp,tcgplayer
+base1-82,82,Full Heal,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/82/high.webp,tcgplayer
+base1-83,83,Maintenance,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/83/high.webp,tcgplayer
+base1-84,84,PlusPower,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/84/high.webp,tcgplayer
+base1-85,85,Pokémon Center,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/85/high.webp,
+base1-86,86,Pokémon Flute,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/86/high.webp,
+base1-87,87,Pokédex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/87/high.webp,
+base1-88,88,Professor Oak,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/88/high.webp,tcgplayer
+base1-89,89,Revive,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/89/high.webp,tcgplayer
+base1-90,90,Super Potion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/90/high.webp,tcgplayer
+base1-91,91,Bill,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/91/high.webp,tcgplayer
+base1-92,92,Energy Removal,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/92/high.webp,tcgplayer
+base1-93,93,Gust of Wind,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/93/high.webp,tcgplayer
+base1-94,94,Potion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/94/high.webp,tcgplayer
+base1-95,95,Switch,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/95/high.webp,tcgplayer
+base1-96,96,Double Colorless Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/96/high.webp,tcgplayer
+base1-97,97,Fighting Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/97/high.webp,tcgplayer
+base1-98,98,Fire Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/98/high.webp,tcgplayer
+base1-99,99,Grass Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/99/high.webp,tcgplayer
+base1-100,100,Lightning Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/100/high.webp,tcgplayer
+base1-101,101,Psychic Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/101/high.webp,tcgplayer
+base1-102,102,Water Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/base/base1/102/high.webp,tcgplayer

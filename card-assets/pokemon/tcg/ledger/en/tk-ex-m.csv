@@ -1,0 +1,13 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+tk-ex-m-1,1,Arcanine,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2b/1_hires.png,
+tk-ex-m-2,2,Charmander,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2b/2_hires.png,
+tk-ex-m-3,3,Charmeleon,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2b/3_hires.png,
+tk-ex-m-4,4,Growlithe,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2b/4_hires.png,
+tk-ex-m-5,5,Mareep,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2b/5_hires.png,
+tk-ex-m-6,6,Minun,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2b/6_hires.png,
+tk-ex-m-7,7,Vulpix,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2b/7_hires.png,
+tk-ex-m-8,8,Celio's Network,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2b/8_hires.png,
+tk-ex-m-9,9,Energy Search,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2b/9_hires.png,
+tk-ex-m-10,10,Potion,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2b/10_hires.png,
+tk-ex-m-11,11,Fire Energy,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2b/11_hires.png,
+tk-ex-m-12,12,Lightning Energy,*,pokemontcg,rehost,,https://images.pokemontcg.io/tk2b/12_hires.png,

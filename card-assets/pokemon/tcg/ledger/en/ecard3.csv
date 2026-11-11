@@ -1,0 +1,183 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+ecard3-1,1,Aerodactyl,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/1/high.webp,pokemontcg tcgplayer
+ecard3-H01,H01,Alakazam,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/83498.jpg,
+ecard3-2,2,Alakazam,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/2/high.webp,pokemontcg tcgplayer
+ecard3-H02,H02,Arcanine,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/83574.jpg,
+ecard3-3,3,Arcanine,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/3/high.webp,pokemontcg tcgplayer
+ecard3-H03,H03,Articuno,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/83644.jpg,
+ecard3-4,4,Articuno,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/4/high.webp,pokemontcg tcgplayer
+ecard3-H04,H04,Beedrill,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/83764.jpg,
+ecard3-5,5,Beedrill,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/5/high.webp,pokemontcg tcgplayer
+ecard3-H05,H05,Crobat,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/84483.jpg,
+ecard3-6,6,Crobat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/6/high.webp,pokemontcg tcgplayer
+ecard3-H06,H06,Dewgong,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/84785.jpg,
+ecard3-7,7,Dewgong,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/7/high.webp,pokemontcg tcgplayer
+ecard3-H07,H07,Flareon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85490.jpg,
+ecard3-8,8,Flareon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/8/high.webp,pokemontcg tcgplayer
+ecard3-H08,H08,Forretress,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85543.jpg,
+ecard3-9,9,Forretress,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/9/high.webp,pokemontcg tcgplayer
+ecard3-H09,H09,Gengar,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85668.jpg,
+ecard3-10,10,Gengar,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/10/high.webp,pokemontcg tcgplayer
+ecard3-H10,H10,Gyarados,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H10_hires.png,tcgplayer
+ecard3-11,11,Gyarados,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/11/high.webp,pokemontcg tcgplayer
+ecard3-H11,H11,Houndoom,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H11_hires.png,tcgplayer
+ecard3-12,12,Houndoom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/12/high.webp,pokemontcg tcgplayer
+ecard3-H12,H12,Jolteon,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H12_hires.png,tcgplayer
+ecard3-13,13,Jolteon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/13/high.webp,pokemontcg tcgplayer
+ecard3-H13,H13,Kabutops,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H13_hires.png,tcgplayer
+ecard3-14,14,Kabutops,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/14/high.webp,pokemontcg tcgplayer
+ecard3-H14,H14,Ledian,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H14_hires.png,tcgplayer
+ecard3-15,15,Ledian,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/15/high.webp,pokemontcg tcgplayer
+ecard3-H15,H15,Machamp,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H15_hires.png,tcgplayer
+ecard3-16,16,Machamp,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/16/high.webp,pokemontcg tcgplayer
+ecard3-H16,H16,Magcargo,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H16_hires.png,tcgplayer
+ecard3-17,17,Magcargo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/17/high.webp,pokemontcg tcgplayer
+ecard3-H17,H17,Magcargo,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H17_hires.png,tcgplayer
+ecard3-18,18,Magcargo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/18/high.webp,pokemontcg tcgplayer
+ecard3-H18,H18,Magneton,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H18_hires.png,tcgplayer
+ecard3-19,19,Magneton,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/19/high.webp,pokemontcg tcgplayer
+ecard3-H19,H19,Magneton,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H19_hires.png,tcgplayer
+ecard3-20,20,Magneton,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/20/high.webp,pokemontcg tcgplayer
+ecard3-H20,H20,Moltres,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H20_hires.png,tcgplayer
+ecard3-21,21,Moltres,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/21/high.webp,pokemontcg tcgplayer
+ecard3-H21,H21,Nidoqueen,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H21_hires.png,tcgplayer
+ecard3-22,22,Nidoqueen,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/22/high.webp,pokemontcg tcgplayer
+ecard3-H22,H22,Piloswine,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H22_hires.png,tcgplayer
+ecard3-23,23,Omastar,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/23/high.webp,pokemontcg tcgplayer
+ecard3-H23,H23,Politoed,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H23_hires.png,tcgplayer
+ecard3-24,24,Piloswine,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/24/high.webp,pokemontcg tcgplayer
+ecard3-H24,H24,Poliwrath,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H24_hires.png,tcgplayer
+ecard3-25,25,Politoed,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/25/high.webp,pokemontcg tcgplayer
+ecard3-H25,H25,Raichu,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H25_hires.png,tcgplayer
+ecard3-26,26,Poliwrath,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/26/high.webp,pokemontcg tcgplayer
+ecard3-H26,H26,Raikou,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H26_hires.png,tcgplayer
+ecard3-27,27,Raichu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/27/high.webp,pokemontcg tcgplayer
+ecard3-H27,H27,Rhydon,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H27_hires.png,tcgplayer
+ecard3-28,28,Raikou,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/28/high.webp,pokemontcg tcgplayer
+ecard3-H28,H28,Starmie,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H28_hires.png,tcgplayer
+ecard3-29,29,Rhydon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/29/high.webp,pokemontcg tcgplayer
+ecard3-H29,H29,Steelix,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H29_hires.png,tcgplayer
+ecard3-30,30,Starmie,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/30/high.webp,pokemontcg tcgplayer
+ecard3-H30,H30,Umbreon,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H30_hires.png,tcgplayer
+ecard3-31,31,Steelix,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/31/high.webp,pokemontcg tcgplayer
+ecard3-H31,H31,Vaporeon,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H31_hires.png,tcgplayer
+ecard3-32,32,Umbreon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/32/high.webp,pokemontcg tcgplayer
+ecard3-H32,H32,Xatu,*,pokemontcg,rehost,,https://images.pokemontcg.io/ecard3/H32_hires.png,tcgplayer
+ecard3-33,33,Vaporeon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/33/high.webp,pokemontcg tcgplayer
+ecard3-34,34,Wigglytuff,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/34/high.webp,pokemontcg tcgplayer
+ecard3-35,35,Xatu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/35/high.webp,pokemontcg tcgplayer
+ecard3-36,36,Electrode,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/36/high.webp,pokemontcg tcgplayer
+ecard3-37,37,Kabuto,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/37/high.webp,pokemontcg tcgplayer
+ecard3-38,38,Machoke,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/38/high.webp,pokemontcg tcgplayer
+ecard3-39,39,Misdreavus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/39/high.webp,pokemontcg tcgplayer
+ecard3-40,40,Noctowl,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/40/high.webp,pokemontcg tcgplayer
+ecard3-41,41,Omanyte,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/41/high.webp,pokemontcg tcgplayer
+ecard3-42,42,Persian,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/42/high.webp,pokemontcg tcgplayer
+ecard3-43,43,Piloswine,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/43/high.webp,pokemontcg tcgplayer
+ecard3-44,44,Starmie,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/44/high.webp,pokemontcg tcgplayer
+ecard3-45,45,Wobbuffet,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/45/high.webp,pokemontcg tcgplayer
+ecard3-46,46,Abra,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/46/high.webp,pokemontcg tcgplayer
+ecard3-47,47,Buried Fossil,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/47/high.webp,pokemontcg tcgplayer
+ecard3-48,48,Cleffa,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/48/high.webp,pokemontcg tcgplayer
+ecard3-49,49,Delibird,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/49/high.webp,pokemontcg tcgplayer
+ecard3-50,50,Diglett,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/50/high.webp,pokemontcg tcgplayer
+ecard3-51,51,Ditto,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/51/high.webp,pokemontcg tcgplayer
+ecard3-52,52,Dugtrio,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/52/high.webp,pokemontcg tcgplayer
+ecard3-53,53,Dunsparce,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/53/high.webp,pokemontcg tcgplayer
+ecard3-54,54,Eevee,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/54/high.webp,pokemontcg tcgplayer
+ecard3-55,55,Farfetch'd,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/55/high.webp,pokemontcg tcgplayer
+ecard3-56,56,Forretress,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/56/high.webp,pokemontcg tcgplayer
+ecard3-57,57,Gastly,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/57/high.webp,pokemontcg tcgplayer
+ecard3-58,58,Girafarig,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/58/high.webp,pokemontcg tcgplayer
+ecard3-59,59,Gligar,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/59/high.webp,pokemontcg tcgplayer
+ecard3-60,60,Golbat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/60/high.webp,pokemontcg tcgplayer
+ecard3-61,61,Granbull,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/61/high.webp,pokemontcg tcgplayer
+ecard3-62,62,Growlithe,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/62/high.webp,pokemontcg tcgplayer
+ecard3-63,63,Haunter,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/63/high.webp,pokemontcg tcgplayer
+ecard3-64,64,Heracross,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/64/high.webp,pokemontcg tcgplayer
+ecard3-65,65,Hoothoot,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/65/high.webp,pokemontcg tcgplayer
+ecard3-66,66,Houndour,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/66/high.webp,pokemontcg tcgplayer
+ecard3-67,67,Igglybuff,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/67/high.webp,pokemontcg tcgplayer
+ecard3-68,68,Jigglypuff,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/68/high.webp,pokemontcg tcgplayer
+ecard3-69,69,Kadabra,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/69/high.webp,pokemontcg tcgplayer
+ecard3-70,70,Kakuna,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/70/high.webp,pokemontcg tcgplayer
+ecard3-71,71,Lapras,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/71/high.webp,pokemontcg tcgplayer
+ecard3-72,72,Ledyba,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/72/high.webp,pokemontcg tcgplayer
+ecard3-73,73,Ledyba,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/73/high.webp,pokemontcg tcgplayer
+ecard3-74,74,Machop,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/74/high.webp,pokemontcg tcgplayer
+ecard3-75,75,Magikarp,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/75/high.webp,pokemontcg tcgplayer
+ecard3-76,76,Magnemite,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/76/high.webp,pokemontcg tcgplayer
+ecard3-77,77,Mantine,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/77/high.webp,pokemontcg tcgplayer
+ecard3-78,78,Meowth,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/78/high.webp,pokemontcg tcgplayer
+ecard3-79,79,Murkrow,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/79/high.webp,pokemontcg tcgplayer
+ecard3-80,80,Natu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/80/high.webp,pokemontcg tcgplayer
+ecard3-81,81,Nidoran♀,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/81/high.webp,pokemontcg
+ecard3-82,82,Nidoran♀,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/82/high.webp,pokemontcg
+ecard3-83,83,Nidorina,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/83/high.webp,pokemontcg tcgplayer
+ecard3-84,84,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/84/high.webp,pokemontcg tcgplayer
+ecard3-85,85,Pineco,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/85/high.webp,pokemontcg tcgplayer
+ecard3-86,86,Pineco,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/86/high.webp,pokemontcg tcgplayer
+ecard3-87,87,Poliwag,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/87/high.webp,pokemontcg tcgplayer
+ecard3-88,88,Poliwhirl,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/88/high.webp,pokemontcg tcgplayer
+ecard3-89,89,Raticate,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/89/high.webp,pokemontcg tcgplayer
+ecard3-90,90,Rattata,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/90/high.webp,pokemontcg tcgplayer
+ecard3-91,91,Rhyhorn,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/91/high.webp,pokemontcg tcgplayer
+ecard3-92,92,Sandshrew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/92/high.webp,pokemontcg tcgplayer
+ecard3-93,93,Sandslash,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/93/high.webp,pokemontcg tcgplayer
+ecard3-94,94,Seel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/94/high.webp,pokemontcg tcgplayer
+ecard3-95,95,Seel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/95/high.webp,pokemontcg tcgplayer
+ecard3-96,96,Shuckle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/96/high.webp,pokemontcg tcgplayer
+ecard3-97,97,Skarmory,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/97/high.webp,pokemontcg tcgplayer
+ecard3-98,98,Slugma,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/98/high.webp,pokemontcg tcgplayer
+ecard3-99,99,Slugma,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/99/high.webp,pokemontcg tcgplayer
+ecard3-100,100,Snorlax,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/100/high.webp,pokemontcg tcgplayer
+ecard3-101,101,Snubbull,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/101/high.webp,pokemontcg tcgplayer
+ecard3-102,102,Stantler,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/102/high.webp,pokemontcg tcgplayer
+ecard3-103,103,Staryu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/103/high.webp,pokemontcg tcgplayer
+ecard3-104,104,Staryu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/104/high.webp,pokemontcg tcgplayer
+ecard3-105,105,Sunflora,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/105/high.webp,pokemontcg tcgplayer
+ecard3-106,106,Sunkern,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/106/high.webp,pokemontcg tcgplayer
+ecard3-107,107,Swinub,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/107/high.webp,pokemontcg tcgplayer
+ecard3-108,108,Swinub,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/108/high.webp,pokemontcg tcgplayer
+ecard3-109,109,Teddiursa,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/109/high.webp,pokemontcg tcgplayer
+ecard3-110,110,Ursaring,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/110/high.webp,pokemontcg tcgplayer
+ecard3-111,111,Venomoth,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/111/high.webp,pokemontcg tcgplayer
+ecard3-112,112,Venonat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/112/high.webp,pokemontcg tcgplayer
+ecard3-113,113,Voltorb,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/113/high.webp,pokemontcg tcgplayer
+ecard3-114,114,Weedle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/114/high.webp,pokemontcg tcgplayer
+ecard3-115,115,Weedle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/115/high.webp,pokemontcg tcgplayer
+ecard3-116,116,Yanma,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/116/high.webp,pokemontcg tcgplayer
+ecard3-117,117,Zubat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/117/high.webp,pokemontcg tcgplayer
+ecard3-118,118,Zubat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/118/high.webp,pokemontcg tcgplayer
+ecard3-119,119,Ancient Ruins,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/119/high.webp,pokemontcg tcgplayer
+ecard3-120,120,Relic Hunter,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/120/high.webp,pokemontcg tcgplayer
+ecard3-121,121,Apricorn Maker,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/121/high.webp,pokemontcg tcgplayer
+ecard3-122,122,Crystal Shard,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/122/high.webp,pokemontcg tcgplayer
+ecard3-123,123,Desert Shaman,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/123/high.webp,pokemontcg tcgplayer
+ecard3-124,124,Fast Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/124/high.webp,pokemontcg tcgplayer
+ecard3-125,125,Fisherman,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/125/high.webp,pokemontcg tcgplayer
+ecard3-126,126,Friend Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/126/high.webp,pokemontcg tcgplayer
+ecard3-127,127,Hyper Potion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/127/high.webp,pokemontcg tcgplayer
+ecard3-128,128,Lure Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/128/high.webp,pokemontcg tcgplayer
+ecard3-129,129,Miracle Sphere Alpha,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/129/high.webp,pokemontcg tcgplayer
+ecard3-130,130,Miracle Sphere Beta,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/130/high.webp,pokemontcg tcgplayer
+ecard3-131,131,Miracle Sphere Gamma,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/131/high.webp,pokemontcg tcgplayer
+ecard3-132,132,Mirage Stadium,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/132/high.webp,pokemontcg tcgplayer
+ecard3-133,133,Mystery Plate Alpha,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/133/high.webp,pokemontcg tcgplayer
+ecard3-134,134,Mystery Plate Beta,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/134/high.webp,pokemontcg tcgplayer
+ecard3-135,135,Mystery Plate Gamma,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/135/high.webp,pokemontcg tcgplayer
+ecard3-136,136,Mystery Plate Delta,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/136/high.webp,pokemontcg tcgplayer
+ecard3-137,137,Mystery Zone,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/137/high.webp,pokemontcg tcgplayer
+ecard3-138,138,Oracle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/138/high.webp,pokemontcg tcgplayer
+ecard3-139,139,Star Piece,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/139/high.webp,pokemontcg tcgplayer
+ecard3-140,140,Underground Expedition,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/140/high.webp,pokemontcg tcgplayer
+ecard3-141,141,Underground Lake,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/141/high.webp,pokemontcg tcgplayer
+ecard3-142,142,Bounce Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/142/high.webp,pokemontcg tcgplayer
+ecard3-143,143,Cyclone Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/143/high.webp,pokemontcg tcgplayer
+ecard3-144,144,Retro Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/144/high.webp,pokemontcg tcgplayer
+ecard3-145,145,Celebi,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/145/high.webp,pokemontcg tcgplayer
+ecard3-146,146,Charizard,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/146/high.webp,pokemontcg tcgplayer
+ecard3-147,147,Crobat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/147/high.webp,pokemontcg tcgplayer
+ecard3-148,148,Golem,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/148/high.webp,pokemontcg tcgplayer
+ecard3-149,149,Ho-oh,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/149/high.webp,pokemontcg tcgplayer
+ecard3-150,150,Kabutops,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/ecard/ecard3/150/high.webp,pokemontcg tcgplayer

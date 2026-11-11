@@ -1,0 +1,13 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+tk-dp-m-1,1,Buizel,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/84017.jpg,
+tk-dp-m-2,2,Floatzel,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85512.jpg,
+tk-dp-m-3,3,Goldeen,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85808.jpg,
+tk-dp-m-4,4,Manaphy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/87145.jpg,
+tk-dp-m-5,5,Piplup,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88144.jpg,
+tk-dp-m-6,6,Prinplup,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88369.jpg,
+tk-dp-m-7,7,Seaking,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/89027.jpg,
+tk-dp-m-8,8,Totodile,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/89999.jpg,
+tk-dp-m-9,9,Dusk Ball,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85034.jpg,
+tk-dp-m-10,10,Energy Search,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85246.jpg,
+tk-dp-m-11,11,Potion,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88344.jpg,
+tk-dp-m-12,12,Water Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/90511.jpg,

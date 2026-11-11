@@ -1,0 +1,31 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+swsh10tg-TG01,TG01,Abomasnow,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG01.png,pokemontcg
+swsh10tg-TG02,TG02,Flapple,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG02.png,pokemontcg
+swsh10tg-TG03,TG03,Kingdra,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG03.png,pokemontcg
+swsh10tg-TG04,TG04,Frosmoth,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG04.png,pokemontcg
+swsh10tg-TG05,TG05,Gardevoir,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG05.png,pokemontcg
+swsh10tg-TG06,TG06,Wyrdeer,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG06.png,pokemontcg
+swsh10tg-TG07,TG07,Falinks,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG07.png,pokemontcg
+swsh10tg-TG08,TG08,Kleavor,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG08.png,pokemontcg
+swsh10tg-TG09,TG09,Mightyena,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG09.png,pokemontcg
+swsh10tg-TG10,TG10,Galarian Obstagoon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG10.png,pokemontcg
+swsh10tg-TG11,TG11,Bronzong,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG11.png,pokemontcg
+swsh10tg-TG12,TG12,Hoothoot,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG12.png,pokemontcg
+swsh10tg-TG13,TG13,Starmie V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG13.png,pokemontcg
+swsh10tg-TG14,TG14,Ice Rider Calyrex V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG14.png,pokemontcg
+swsh10tg-TG15,TG15,Ice Rider Calyrex VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG15.png,pokemontcg
+swsh10tg-TG16,TG16,Galarian Articuno V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG16.png,pokemontcg
+swsh10tg-TG17,TG17,Shadow Rider Calyrex V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG17.png,pokemontcg
+swsh10tg-TG18,TG18,Shadow Rider Calyrex VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG18.png,pokemontcg
+swsh10tg-TG19,TG19,Galarian Zapdos V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG19.png,pokemontcg
+swsh10tg-TG20,TG20,Galarian Moltres V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG20.png,pokemontcg
+swsh10tg-TG21,TG21,Zacian V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG21.png,pokemontcg
+swsh10tg-TG22,TG22,Zamazenta V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG22.png,pokemontcg
+swsh10tg-TG23,TG23,Garchomp V,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG23.png,pokemontcg
+swsh10tg-TG24,TG24,Allister,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG24.png,pokemontcg
+swsh10tg-TG25,TG25,Bea,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG25.png,pokemontcg
+swsh10tg-TG26,TG26,Melony,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG26.png,pokemontcg
+swsh10tg-TG27,TG27,Milo,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG27.png,pokemontcg
+swsh10tg-TG28,TG28,Piers,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG28.png,pokemontcg
+swsh10tg-TG29,TG29,Ice Rider Calyrex VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG29.png,pokemontcg
+swsh10tg-TG30,TG30,Shadow Rider Calyrex VMAX,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/SWSH10/SWSH10_EN_TG30.png,pokemontcg
