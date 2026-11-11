@@ -1,0 +1,67 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+neo3-1,1,Ampharos,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/1/high.webp,pokemontcg tcgplayer
+neo3-2,2,Blissey,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/2/high.webp,pokemontcg tcgplayer
+neo3-3,3,Celebi,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/3/high.webp,pokemontcg tcgplayer
+neo3-4,4,Crobat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/4/high.webp,pokemontcg tcgplayer
+neo3-5,5,Delibird,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/5/high.webp,pokemontcg tcgplayer
+neo3-6,6,Entei,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/6/high.webp,pokemontcg tcgplayer
+neo3-7,7,Ho-oh,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/7/high.webp,pokemontcg tcgplayer
+neo3-8,8,Houndoom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/8/high.webp,pokemontcg tcgplayer
+neo3-9,9,Jumpluff,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/9/high.webp,pokemontcg tcgplayer
+neo3-10,10,Magneton,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/10/high.webp,pokemontcg tcgplayer
+neo3-11,11,Misdreavus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/11/high.webp,pokemontcg tcgplayer
+neo3-12,12,Porygon2,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/12/high.webp,pokemontcg tcgplayer
+neo3-13,13,Raikou,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/13/high.webp,pokemontcg tcgplayer
+neo3-14,14,Suicune,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/14/high.webp,pokemontcg tcgplayer
+neo3-15,15,Aerodactyl,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/15/high.webp,pokemontcg tcgplayer
+neo3-16,16,Celebi,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/16/high.webp,pokemontcg tcgplayer
+neo3-17,17,Entei,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/17/high.webp,pokemontcg tcgplayer
+neo3-18,18,Ho-oh,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/18/high.webp,pokemontcg tcgplayer
+neo3-19,19,Kingdra,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/19/high.webp,pokemontcg tcgplayer
+neo3-20,20,Lugia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/20/high.webp,pokemontcg tcgplayer
+neo3-21,21,Raichu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/21/high.webp,pokemontcg tcgplayer
+neo3-22,22,Raikou,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/22/high.webp,pokemontcg tcgplayer
+neo3-23,23,Skarmory,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/23/high.webp,pokemontcg tcgplayer
+neo3-24,24,Sneasel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/24/high.webp,pokemontcg tcgplayer
+neo3-25,25,Starmie,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/25/high.webp,pokemontcg tcgplayer
+neo3-26,26,Sudowoodo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/26/high.webp,pokemontcg tcgplayer
+neo3-27,27,Suicune,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/27/high.webp,pokemontcg tcgplayer
+neo3-28,28,Flaaffy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/28/high.webp,pokemontcg tcgplayer
+neo3-29,29,Golbat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/29/high.webp,pokemontcg tcgplayer
+neo3-30,30,Graveler,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/30/high.webp,pokemontcg tcgplayer
+neo3-31,31,Jynx,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/31/high.webp,pokemontcg tcgplayer
+neo3-32,32,Lanturn,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/32/high.webp,pokemontcg tcgplayer
+neo3-33,33,Magcargo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/33/high.webp,pokemontcg tcgplayer
+neo3-34,34,Octillery,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/34/high.webp,pokemontcg tcgplayer
+neo3-35,35,Parasect,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/35/high.webp,pokemontcg tcgplayer
+neo3-36,36,Piloswine,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/36/high.webp,pokemontcg tcgplayer
+neo3-37,37,Seaking,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/37/high.webp,pokemontcg tcgplayer
+neo3-38,38,Stantler,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/38/high.webp,pokemontcg tcgplayer
+neo3-39,39,Unown [B],*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/39/high.webp,pokemontcg tcgplayer
+neo3-40,40,Unown [Y],*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/40/high.webp,pokemontcg tcgplayer
+neo3-41,41,Aipom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/41/high.webp,pokemontcg tcgplayer
+neo3-42,42,Chinchou,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/42/high.webp,pokemontcg tcgplayer
+neo3-43,43,Farfetch'd,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/43/high.webp,pokemontcg tcgplayer
+neo3-44,44,Geodude,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/44/high.webp,pokemontcg tcgplayer
+neo3-45,45,Goldeen,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/45/high.webp,pokemontcg tcgplayer
+neo3-46,46,Murkrow,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/46/high.webp,pokemontcg tcgplayer
+neo3-47,47,Paras,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/47/high.webp,pokemontcg tcgplayer
+neo3-48,48,Quagsire,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/48/high.webp,pokemontcg tcgplayer
+neo3-49,49,Qwilfish,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/49/high.webp,pokemontcg tcgplayer
+neo3-50,50,Remoraid,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/50/high.webp,pokemontcg tcgplayer
+neo3-51,51,Shuckle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/51/high.webp,pokemontcg tcgplayer
+neo3-52,52,Skiploom,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/52/high.webp,pokemontcg tcgplayer
+neo3-53,53,Slugma,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/53/high.webp,pokemontcg tcgplayer
+neo3-54,54,Smoochum,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/54/high.webp,pokemontcg tcgplayer
+neo3-55,55,Snubbull,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/55/high.webp,pokemontcg tcgplayer
+neo3-56,56,Staryu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/56/high.webp,pokemontcg tcgplayer
+neo3-57,57,Swinub,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/57/high.webp,pokemontcg tcgplayer
+neo3-58,58,Unown [K],*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/58/high.webp,pokemontcg tcgplayer
+neo3-59,59,Zubat,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/59/high.webp,pokemontcg tcgplayer
+neo3-60,60,Balloon Berry,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/60/high.webp,pokemontcg tcgplayer
+neo3-61,61,Healing Field,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/61/high.webp,pokemontcg tcgplayer
+neo3-62,62,Pokémon Breeder Fields,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/62/high.webp,pokemontcg
+neo3-63,63,Rocket's Hideout,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/63/high.webp,pokemontcg tcgplayer
+neo3-64,64,Old Rod,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/64/high.webp,pokemontcg tcgplayer
+neo3-65,65,Shining Gyarados,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/65/high.webp,pokemontcg tcgplayer
+neo3-66,66,Shining Magikarp,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/neo3/66/high.webp,pokemontcg tcgplayer

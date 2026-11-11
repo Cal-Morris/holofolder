@@ -1,0 +1,57 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+dpp-DP01,DP01,Turtwig,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP01/high.webp,pokemontcg
+dpp-DP02,DP02,Chimchar,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP02/high.webp,pokemontcg
+dpp-DP03,DP03,Piplup,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP03/high.webp,pokemontcg
+dpp-DP04,DP04,Pachirisu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP04/high.webp,pokemontcg
+dpp-DP05,DP05,Tropical Wind,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP05/high.webp,pokemontcg
+dpp-DP06,DP06,Buneary,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP06/high.webp,pokemontcg
+dpp-DP07,DP07,Cranidos,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP07/high.webp,pokemontcg
+dpp-DP08,DP08,Shieldon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP08/high.webp,pokemontcg
+dpp-DP09,DP09,Torterra,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP09/high.webp,pokemontcg
+dpp-DP10,DP10,Infernape,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP10/high.webp,pokemontcg
+dpp-DP11,DP11,Empoleon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP11/high.webp,pokemontcg
+dpp-DP12,DP12,Lucario,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP12/high.webp,pokemontcg
+dpp-DP13,DP13,Buizel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP13/high.webp,pokemontcg
+dpp-DP14,DP14,Chatot,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP14/high.webp,pokemontcg
+dpp-DP15,DP15,Shinx,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP15/high.webp,pokemontcg
+dpp-DP16,DP16,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP16/high.webp,pokemontcg
+dpp-DP17,DP17,Dialga,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP17/high.webp,pokemontcg
+dpp-DP18,DP18,Palkia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP18/high.webp,pokemontcg
+dpp-DP19,DP19,Darkrai,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP19/high.webp,pokemontcg
+dpp-DP20,DP20,Magmortar,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP20/high.webp,pokemontcg tcgplayer
+dpp-DP21,DP21,Raichu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP21/high.webp,pokemontcg
+dpp-DP22,DP22,Mime Jr.,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP22/high.webp,pokemontcg
+dpp-DP23,DP23,Glameow,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP23/high.webp,pokemontcg
+dpp-DP24,DP24,Darkrai,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP24/high.webp,pokemontcg
+dpp-DP25,DP25,Tropical Wind,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP25/high.webp,pokemontcg
+dpp-DP26,DP26,Dialga,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP26/high.webp,pokemontcg
+dpp-DP27,DP27,Palkia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP27/high.webp,pokemontcg
+dpp-DP28,DP28,Mewtwo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP28/high.webp,pokemontcg
+dpp-DP29,DP29,Rhyperior,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP29/high.webp,pokemontcg
+dpp-DP30,DP30,Regigigas,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP30/high.webp,pokemontcg
+dpp-DP31,DP31,Heatran,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP31/high.webp,pokemontcg
+dpp-DP32,DP32,Magnezone,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP32/high.webp,pokemontcg
+dpp-DP33,DP33,Dusknoir,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP33/high.webp,pokemontcg
+dpp-DP34,DP34,Drifblim,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP34/high.webp,pokemontcg
+dpp-DP35,DP35,Porygon-Z,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP35/high.webp,pokemontcg
+dpp-DP36,DP36,Gliscor,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP36/high.webp,pokemontcg
+dpp-DP37,DP37,Dialga,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP37/high.webp,pokemontcg
+dpp-DP38,DP38,Giratina,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP38/high.webp,pokemontcg
+dpp-DP39,DP39,Shaymin,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP39/high.webp,pokemontcg
+dpp-DP40,DP40,Regigigas,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP40/high.webp,pokemontcg
+dpp-DP41,DP41,Toxicroak G,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP41/high.webp,pokemontcg
+dpp-DP42,DP42,Carnivine G,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP42/high.webp,pokemontcg
+dpp-DP43,DP43,Probopass G,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP43/high.webp,pokemontcg
+dpp-DP44,DP44,Magnezone,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP44/high.webp,pokemontcg
+dpp-DP45,DP45,Charizard G,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP45/high.webp,pokemontcg
+dpp-DP46,DP46,Garchomp C,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP46/high.webp,pokemontcg
+dpp-DP47,DP47,Rayquaza C,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP47/high.webp,pokemontcg
+dpp-DP48,DP48,Tropical Wind,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP48/high.webp,pokemontcg
+dpp-DP49,DP49,Dialga,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP49/high.webp,pokemontcg
+dpp-DP50,DP50,Arceus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP50/high.webp,pokemontcg
+dpp-DP51,DP51,Cresselia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP51/high.webp,pokemontcg
+dpp-DP52,DP52,Darkrai,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP52/high.webp,pokemontcg
+dpp-DP53,DP53,Arceus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP53/high.webp,pokemontcg
+dpp-DP54,DP54,Beginning Door,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP54/high.webp,pokemontcg
+dpp-DP55,DP55,Ultimate Zone,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP55/high.webp,pokemontcg
+dpp-DP56,DP56,Arceus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/dp/dpp/DP56/high.webp,pokemontcg

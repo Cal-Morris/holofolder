@@ -1,0 +1,17 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+ru1-1,1,Venusaur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/1/high.webp,pokemontcg
+ru1-2,2,Cherrim,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/2/high.webp,pokemontcg
+ru1-3,3,Ninetales,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/3/high.webp,pokemontcg
+ru1-4,4,Heatran,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/4/high.webp,pokemontcg
+ru1-5,5,Starmie,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/5/high.webp,pokemontcg
+ru1-6,6,Gyarados,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/6/high.webp,pokemontcg
+ru1-7,7,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/7/high.webp,pokemontcg
+ru1-8,8,Zapdos,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/8/high.webp,pokemontcg
+ru1-9,9,Mewtwo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/9/high.webp,pokemontcg
+ru1-10,10,Mew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/10/high.webp,pokemontcg
+ru1-11,11,Diglett,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/11/high.webp,pokemontcg
+ru1-12,12,Lucario,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/12/high.webp,pokemontcg
+ru1-13,13,Skuntank,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/13/high.webp,pokemontcg
+ru1-14,14,Bastiodon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/14/high.webp,pokemontcg
+ru1-15,15,Rattata,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/15/high.webp,pokemontcg
+ru1-16,16,Bibarel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/pl/ru1/16/high.webp,pokemontcg

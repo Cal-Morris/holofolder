@@ -1,0 +1,11 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+tk-ex-latio-1,1,Electrike,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85131.jpg,
+tk-ex-latio-2,2,Latios,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/86664.jpg,
+tk-ex-latio-3,3,Linoone,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/86805.jpg,
+tk-ex-latio-4,4,Magnemite,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/87076.jpg,
+tk-ex-latio-5,5,Magneton,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/87103.jpg,
+tk-ex-latio-6,6,Pikachu,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88079.jpg,
+tk-ex-latio-7,7,Zigzagoon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/90746.jpg,
+tk-ex-latio-8,8,Potion,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88335.jpg,
+tk-ex-latio-9,9,Energy Search,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85239.jpg,
+tk-ex-latio-10,10,Lightning Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/86760.jpg,

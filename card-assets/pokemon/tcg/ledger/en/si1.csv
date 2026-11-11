@@ -1,0 +1,19 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+si1-1,1,Mew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/1/high.webp,pokemontcg tcgplayer
+si1-2,2,Pidgeot,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/2/high.webp,pokemontcg tcgplayer
+si1-3,3,Onix,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/3/high.webp,pokemontcg tcgplayer
+si1-4,4,Togepi,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/4/high.webp,pokemontcg tcgplayer
+si1-5,5,Ivysaur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/5/high.webp,pokemontcg tcgplayer
+si1-6,6,Raticate,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/6/high.webp,pokemontcg tcgplayer
+si1-7,7,Ledyba,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/7/high.webp,pokemontcg tcgplayer
+si1-8,8,Jigglypuff,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/8/high.webp,pokemontcg tcgplayer
+si1-9,9,Butterfree,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/9/high.webp,pokemontcg tcgplayer
+si1-10,10,Tentacruel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/10/high.webp,pokemontcg tcgplayer
+si1-11,11,Marill,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/11/high.webp,pokemontcg tcgplayer
+si1-12,12,Lapras,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/12/high.webp,pokemontcg tcgplayer
+si1-13,13,Exeggutor,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/13/high.webp,pokemontcg tcgplayer
+si1-14,14,Slowking,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/14/high.webp,pokemontcg tcgplayer
+si1-15,15,Wartortle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/15/high.webp,pokemontcg tcgplayer
+si1-16,16,Lickitung,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/16/high.webp,pokemontcg tcgplayer
+si1-17,17,Vileplume,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/17/high.webp,pokemontcg tcgplayer
+si1-18,18,Primeape,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/neo/si1/18/high.webp,pokemontcg tcgplayer

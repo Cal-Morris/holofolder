@@ -1,0 +1,13 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+2012bw-1,1,Servine,*,pokemontcg,rehost,,https://images.pokemontcg.io/mcd12/1_hires.png,tcgplayer
+2012bw-2,2,Pansage,*,pokemontcg,rehost,,https://images.pokemontcg.io/mcd12/2_hires.png,tcgplayer
+2012bw-3,3,Dwebble,*,pokemontcg,rehost,,https://images.pokemontcg.io/mcd12/3_hires.png,tcgplayer
+2012bw-4,4,Pignite,*,pokemontcg,rehost,,https://images.pokemontcg.io/mcd12/4_hires.png,tcgplayer
+2012bw-5,5,Dewott,*,pokemontcg,rehost,,https://images.pokemontcg.io/mcd12/5_hires.png,tcgplayer
+2012bw-6,6,Emolga,*,pokemontcg,rehost,,https://images.pokemontcg.io/mcd12/6_hires.png,tcgplayer
+2012bw-7,7,Woobat,*,pokemontcg,rehost,,https://images.pokemontcg.io/mcd12/7_hires.png,tcgplayer
+2012bw-8,8,Drilbur,*,pokemontcg,rehost,,https://images.pokemontcg.io/mcd12/8_hires.png,tcgplayer
+2012bw-9,9,Purrloin,*,pokemontcg,rehost,,https://images.pokemontcg.io/mcd12/9_hires.png,tcgplayer
+2012bw-10,10,Scraggy,*,pokemontcg,rehost,,https://images.pokemontcg.io/mcd12/10_hires.png,tcgplayer
+2012bw-11,11,Klang,*,pokemontcg,rehost,,https://images.pokemontcg.io/mcd12/11_hires.png,tcgplayer
+2012bw-12,12,Axew,*,pokemontcg,rehost,,https://images.pokemontcg.io/mcd12/12_hires.png,tcgplayer

@@ -1,0 +1,11 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+tk-ex-latia-1,1,Bagon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/83694.jpg,
+tk-ex-latia-2,2,Combusken,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/84403.jpg,
+tk-ex-latia-3,3,Delcatty,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/84737.jpg,
+tk-ex-latia-4,4,Latias,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/86650.jpg,
+tk-ex-latia-5,5,Numel,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/87808.jpg,
+tk-ex-latia-6,6,Skitty,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/89263.jpg,
+tk-ex-latia-7,7,Torchic,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/89954.jpg,
+tk-ex-latia-8,8,Potion,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88335.jpg,
+tk-ex-latia-9,9,Energy Search,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85239.jpg,
+tk-ex-latia-10,10,Fire Energy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85457.jpg,

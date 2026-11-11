@@ -1,0 +1,26 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+hgssp-HGSS01,HGSS01,Ho-Oh,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS01/high.webp,tcgplayer
+hgssp-HGSS02,HGSS02,Lugia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS02/high.webp,tcgplayer
+hgssp-HGSS03,HGSS03,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS03/high.webp,tcgplayer
+hgssp-HGSS04,HGSS04,Wobbuffet,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS04/high.webp,tcgplayer
+hgssp-HGSS05,HGSS05,Hoothoot,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS05/high.webp,tcgplayer
+hgssp-HGSS06,HGSS06,Noctowl,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS06/high.webp,tcgplayer
+hgssp-HGSS07,HGSS07,Feraligatr,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS07/high.webp,tcgplayer
+hgssp-HGSS08,HGSS08,Meganium,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS08/high.webp,tcgplayer
+hgssp-HGSS09,HGSS09,Typhlosion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS09/high.webp,tcgplayer
+hgssp-HGSS10,HGSS10,Latias,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS10/high.webp,tcgplayer
+hgssp-HGSS11,HGSS11,Latios,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS11/high.webp,tcgplayer
+hgssp-HGSS12,HGSS12,Cleffa,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS12/high.webp,tcgplayer
+hgssp-HGSS13,HGSS13,Smoochum,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS13/high.webp,tcgplayer
+hgssp-HGSS14,HGSS14,Lapras,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS14/high.webp,tcgplayer
+hgssp-HGSS15,HGSS15,Shuckle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS15/high.webp,tcgplayer
+hgssp-HGSS16,HGSS16,Plusle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS16/high.webp,tcgplayer
+hgssp-HGSS17,HGSS17,Minun,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/87492.jpg,
+hgssp-HGSS18,HGSS18,Tropical Tidal Wave,*,limitless,rehost,,https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/HSP/HSP_018_R_EN_LG.png,tcgplayer
+hgssp-HGSS19,HGSS19,Raikou,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88535.jpg,
+hgssp-HGSS20,HGSS20,Entei,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85273.jpg,
+hgssp-HGSS21,HGSS21,Suicune,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/89605.jpg,
+hgssp-HGSS22,HGSS22,Porygon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88313.jpg,
+hgssp-HGSS23,HGSS23,Porygon2,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88328.jpg,
+hgssp-HGSS24,HGSS24,Hitmonchan,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/86097.jpg,
+hgssp-HGSS25,HGSS25,Hitmonlee,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/86109.jpg,

@@ -53,6 +53,8 @@ Provider access and hosted infrastructure are not included with the source. Self
 | Pokémon official artwork | [PokeAPI sprites](https://github.com/PokeAPI/sprites), `sprites/pokemon/other/official-artwork/` | `lib/pokemon-artwork.ts` |
 | Supplemental card scans | [TCGplayer](https://www.tcgplayer.com), [Pokémon TCG API](https://pokemontcg.io), [Scrydex](https://scrydex.com), [Limitless TCG](https://limitlesstcg.com), [Playshop](https://playshop.fr) | Host allowlist and deterministic source mapping in `lib/card-image-sources.ts` |
 
+Which source each card's image comes from is recorded in [`card-assets/`](card-assets/AGENTS.md). Its source classification (kind of image, size, permission) follows the [PTCG Image Atlas](https://github.com/nstrelow/ptcg-image-atlas) by Luna, whose `data.json` is copied in `card-assets/pokemon/tcg/atlas/` under the MIT licence (`card-assets/pokemon/tcg/atlas/LICENSE`).
+
 These images are not covered by AGPL, the TCGdex database MIT license or the PokeAPI software license. Credit to a hosting provider does not transfer the underlying Pokémon artwork rights. Review provider terms before enabling mirroring or distributing image bundles.
 
 ## Historical starter assets

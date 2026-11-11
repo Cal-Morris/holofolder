@@ -1,0 +1,6 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+ex5.5-1,1,Treecko,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/162268.jpg,
+ex5.5-2,2,Wurmple,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/162269.jpg,
+ex5.5-3,3,Torchic,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/162270.jpg,
+ex5.5-4,4,Mudkip,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/162271.jpg,
+ex5.5-5,5,Pikachu,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/162272.jpg,

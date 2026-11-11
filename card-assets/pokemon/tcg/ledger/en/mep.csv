@@ -1,0 +1,122 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+mep-001,001,Meganium,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_1.png,tcgplayer
+mep-002,002,Inteleon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_2.png,tcgplayer
+mep-003,003,Alakazam,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_3.png,tcgplayer
+mep-004,004,Lunatone,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_4.png,tcgplayer
+mep-005,005,Drifloon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_5.png,tcgplayer
+mep-006,006,Drifblim,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_6.png,tcgplayer
+mep-007,007,Psyduck,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/656257.jpg,pokemoncom
+mep-008,008,Golduck,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/656258.jpg,pokemoncom
+mep-009,009,Alakazam,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/656259.jpg,pokemoncom
+mep-009~656261,009~656261,Alakazam (Pokémon Center),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/656261.jpg,
+mep-010,010,Riolu,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/656260.jpg,pokemoncom
+mep-010~656262,010~656262,Riolu (Pokémon Center),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/656262.jpg,
+mep-011,011,Mega Latias ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/657846.jpg,pokemoncom
+mep-012,012,Mega Lucario ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/663177.jpg,pokemoncom
+mep-013,013,Mega Venusaur ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/666905.jpg,pokemoncom
+mep-014,014,Ceruledge,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_14.png,tcgplayer
+mep-015,015,Zacian,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_15.png,tcgplayer
+mep-016,016,Flygon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_16.png,tcgplayer
+mep-017,017,Toxtricity,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_17.png,tcgplayer
+mep-018,018,Cottonee,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_18.png,tcgplayer
+mep-019,019,Whimsicott,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_19.png,tcgplayer
+mep-020,020,Sneasel,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_20.png,tcgplayer
+mep-021,021,Weavile,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_21.png,tcgplayer
+mep-022,022,Charcadet,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/666538.jpg,pokemoncom
+mep-022~665053,022~665053,Charcadet (Pokémon Center),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/665053.jpg,
+mep-023,023,Mega Charizard X ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/659612.jpg,pokemoncom
+mep-024,024,Oricorio ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/664010.jpg,pokemoncom
+mep-025,025,Mega Kangaskhan ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/668509.jpg,pokemoncom
+mep-026,026,Meloetta,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/659231.jpg,pokemoncom
+mep-027,027,Haunter,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/659232.jpg,pokemoncom
+mep-028,028,Celebratory Fanfare,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_28.png,tcgplayer
+mep-029,029,Mega Charizard X ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/680639.jpg,pokemoncom
+mep-030,030,Mega Charizard Y ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/680640.jpg,pokemoncom
+mep-031,031,N's Zekrom,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/680480.jpg,pokemoncom
+mep-031~680481,031~680481,N's Zekrom (Pokémon Center),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/680481.jpg,
+mep-032,032,Mega Gardevoir ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/685510.jpg,
+mep-033,033,Mega Lucario ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/685511.jpg,pokemoncom
+mep-034,034,Mega Meganium ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/692120.jpg,pokemoncom
+mep-035,035,Mega Emboar ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/692119.jpg,pokemoncom
+mep-036,036,Mega Feraligatr ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/692118.jpg,pokemoncom
+mep-037,037,Bulbasaur,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/684461.jpg,pokemoncom
+mep-038,038,Charmander,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/684462.jpg,pokemoncom
+mep-039,039,Squirtle,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/684463.jpg,pokemoncom
+mep-040,040,Turtwig,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/684464.jpg,pokemoncom
+mep-041,041,Chimchar,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/684465.jpg,pokemoncom
+mep-042,042,Piplup,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/684466.jpg,pokemoncom
+mep-043,043,Rowlet,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/684467.jpg,pokemoncom
+mep-044,044,Litten,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/684468.jpg,pokemoncom
+mep-045,045,Popplio,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/684469.jpg,pokemoncom
+mep-046,046,Chikorita,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/699870.jpg,pokemoncom
+mep-047,047,Cyndaquil,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/699871.jpg,pokemoncom
+mep-048,048,Totodile,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/699872.jpg,pokemoncom
+mep-049,049,Snivy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/699873.jpg,pokemoncom
+mep-050,050,Tepig,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/699874.jpg,pokemoncom
+mep-051,051,Oshawott,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/699875.jpg,pokemoncom
+mep-052,052,Grookey,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/699876.jpg,pokemoncom
+mep-053,053,Scorbunny,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/699877.jpg,pokemoncom
+mep-054,054,Sobble,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/699878.jpg,pokemoncom
+mep-055,055,Treecko,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/709969.jpg,pokemoncom
+mep-056,056,Torchic,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/709970.jpg,pokemoncom
+mep-057,057,Mudkip,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/709971.jpg,pokemoncom
+mep-058,058,Chespin,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/709972.jpg,pokemoncom
+mep-059,059,Fennekin,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/709973.jpg,pokemoncom
+mep-060,060,Froakie,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/709974.jpg,pokemoncom
+mep-061,061,Sprigatito,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/709975.jpg,pokemoncom
+mep-062,062,Fuecoco,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/709976.jpg,pokemoncom
+mep-063,063,Quaxly,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/709977.jpg,pokemoncom
+mep-064,064,Serperior,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/685494.jpg,pokemoncom
+mep-065,065,Barbaracle,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_65.png,tcgplayer
+mep-066,066,Tyrantrum,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_66.png,tcgplayer
+mep-067,067,Doublade,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_67.png,tcgplayer
+mep-068,068,Makuhita,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/686275.jpg,pokemoncom
+mep-069,069,Chikorita,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_69.png,tcgplayer
+mep-070,070,Tyrunt,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/685562.jpg,pokemoncom
+mep-070~685563,070~685563,Tyrunt (Pokémon Center),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/685563.jpg,
+mep-071,071,Mega Zygarde ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/695311.jpg,pokemoncom
+mep-072,072,Mega Clefable ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/696607.jpg,pokemoncom
+mep-073,073,Mega Gengar ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/696608.jpg,pokemoncom
+mep-074,074,Delphox,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_74.png,tcgplayer
+mep-075,075,Ampharos,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_75.png,tcgplayer
+mep-076,076,Crobat,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_76.png,tcgplayer
+mep-077,077,Goodra,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_77.png,tcgplayer
+mep-078,078,Toxel,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/694692.jpg,
+mep-079,079,Charmeleon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/694693.jpg,
+mep-080,080,Fennekin,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/694694.jpg,pokemoncom
+mep-080~694695,080~694695,Fennekin (Pokémon Center),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/694695.jpg,
+mep-081,081,Mega Greninja ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/704879.jpg,pokemoncom
+mep-082,082,Miraidon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_82.png,tcgplayer
+mep-083,083,Slowbro,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_83.png,tcgplayer
+mep-084,084,Dhelmise,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_84.png,tcgplayer
+mep-085,085,Bastiodon,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_85.png,tcgplayer
+mep-086,086,Slowpoke,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_86.png,tcgplayer
+mep-087,087,Binacle,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_87.png,tcgplayer
+mep-088,088,Zarude,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/706193.jpg,pokemoncom
+mep-088~706199,088~706199,Zarude (Pokémon Center),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/706199.jpg,
+mep-089,089,Mega Zeraora ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/710754.jpg,
+mep-090,090,Mega Darkrai ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/710756.jpg,
+mep-091,091,Mega Dragonite ex,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/710757.jpg,pokemoncom
+mep-092,092,Paradise Resort,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_92.png,tcgplayer
+mep-093,093,Pikachu,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/712963.jpg,
+mep-093~716740,093~716740,Pikachu (winner),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/716740.jpg,
+mep-094,094,Alolan Exeggutor,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_94.png,tcgplayer
+mep-095,095,Lucario,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_95.png,tcgplayer
+mep-096,096,Moltres,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_96.png,tcgplayer
+mep-097,097,Articuno,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_97.png,tcgplayer
+mep-098,098,Zapdos,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_98.png,tcgplayer
+mep-099,099,Greninja ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_99.png,tcgplayer
+mep-100,100,Sylveon ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_100.png,tcgplayer
+mep-101,101,Nidorina,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_101.png,tcgplayer
+mep-101~713261,101~713261,Nidorina (Pokémon Center),*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/713261.jpg,
+mep-102,102,Victini,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_102.png,tcgplayer
+mep-103,103,Zeraora,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_103.png,tcgplayer
+mep-104,104,Mewtwo,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/713289.jpg,
+mep-105,105,Mew,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/713288.jpg,
+mep-106,106,Ditto,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/713287.jpg,
+mep-107,107,Pikachu ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_107.png,tcgplayer
+mep-108,108,Espeon ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_108.png,tcgplayer
+mep-109,109,Pikachu ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_109.png,tcgplayer
+mep-110,110,Umbreon ex,*,pokemoncom,official-scan,,https://assets.pokemon.com/static-assets/content-assets/cms2/img/cards/web/MEP/MEP_EN_110.png,tcgplayer
+mep-120,120,Celebratory Fanfare,*,scrydex,rehost,,https://images.scrydex.com/pokemon/mep-120/large,
+mep-Museum,Museum,Pikachu at the Museum,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/678659.jpg,

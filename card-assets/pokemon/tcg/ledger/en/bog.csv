@@ -1,0 +1,10 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+bog-1,1,Electabuzz,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85106.jpg,pokemontcg
+bog-2,2,Hitmonchan,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/86098.jpg,pokemontcg
+bog-3,3,Professor Elm,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88387.jpg,pokemontcg
+bog-4,4,Rocket’s Scizor,*,pokemontcg,rehost,,https://images.pokemontcg.io/bp/4_hires.png,
+bog-5,5,Rocket’s Sneasel,*,pokemontcg,rehost,,https://images.pokemontcg.io/bp/5_hires.png,
+bog-6,6,Dark Ivysaur,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/84616.jpg,pokemontcg
+bog-7,7,Dark Venusaur,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/84666.jpg,pokemontcg
+bog-8,8,Rocket’s Mewtwo,*,pokemontcg,rehost,,https://images.pokemontcg.io/bp/8_hires.png,
+bog-9,9,Rocket’s Hitmonchan,*,pokemontcg,rehost,,https://images.pokemontcg.io/bp/9_hires.png,

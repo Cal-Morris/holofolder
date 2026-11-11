@@ -1,0 +1,13 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+2011bw-1,1,Snivy,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/89378.jpg,pokemontcg
+2011bw-2,2,Maractus,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/87189.jpg,pokemontcg
+2011bw-3,3,Tepig,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/89882.jpg,pokemontcg
+2011bw-4,4,Oshawott,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/87893.jpg,pokemontcg
+2011bw-5,5,Alomomola,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/83507.jpg,pokemontcg
+2011bw-6,6,Blitzle,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/83929.jpg,pokemontcg
+2011bw-7,7,Munna,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/87642.jpg,pokemontcg
+2011bw-8,8,Sandile,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88913.jpg,pokemontcg
+2011bw-9,9,Zorua,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/90758.jpg,pokemontcg
+2011bw-10,10,Klink,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/86480.jpg,pokemontcg
+2011bw-11,11,Pidove,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88055.jpg,pokemontcg
+2011bw-12,12,Audino,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/83660.jpg,pokemontcg

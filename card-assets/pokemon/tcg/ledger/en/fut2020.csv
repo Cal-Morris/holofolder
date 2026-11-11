@@ -1,0 +1,6 @@
+card_id,local_id,name,rule,source,kind,image_language,url,alternatives
+fut2020-1,1,Pikachu on the Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/fut2020/1/high.webp,tcgplayer
+fut2020-2,2,Eevee on the Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/fut2020/2/high.webp,tcgplayer
+fut2020-3,3,Grookey on the Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/fut2020/3/high.webp,tcgplayer
+fut2020-4,4,Scorbunny on the Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/fut2020/4/high.webp,tcgplayer
+fut2020-5,5,Sobble on the Ball,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/swsh/fut2020/5/high.webp,tcgplayer
