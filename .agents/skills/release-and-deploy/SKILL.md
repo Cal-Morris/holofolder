@@ -5,7 +5,7 @@ description: Use when opening, verifying, merging or deploying a Holo Folder PR 
 
 # Release and deploy
 
-Vercel builds every PR push as a preview, and every merge to `main` as a production deploy (the public app is https://holofolder.com/app; binder.cal.gg is a legacy hostname). GitHub Actions runs **Typecheck** in parallel: it generates Next route types, checks the full repository with the pinned `tsrs` checker, runs the unit suite and enforces the lint warning ratchet. Vercel skips its duplicate type check. Both checks must pass before merging; the current GitHub plan cannot enforce required checks on this private repo, so agents enforce this release policy. The Hobby plan has a daily deployment limit, so every push, rebase and merge spends budget.
+Vercel only builds `main`, as a production deploy (the public app is https://holofolder.com/app; binder.cal.gg is a legacy hostname). PR branches get no preview deployment (`git.deploymentEnabled` in `vercel.json`) to save build minutes. GitHub Actions runs **Typecheck** on every PR: it generates Next route types, checks the full repository with the pinned `tsrs` checker, runs the unit suite, enforces the lint warning ratchet and runs `bun run build`. It is the merge gate. Vercel skips its duplicate type check. The Hobby plan has a daily deployment limit, so every merge spends budget.
 
 Use [task-progress](../task-progress/SKILL.md) to update the issue/project when work starts, a PR enters review, a merge awaits deployment/publication, and all delivery gates pass. Keep incomplete issues open, and verify project/parent state after closing.
 
@@ -16,11 +16,11 @@ Use [task-progress](../task-progress/SKILL.md) to update the issue/project when 
 3. **Run focused local checks when useful for the change.** Commit, push, and use CI as the default merge gate. A full local test, build or e2e run is not required by default; run the full e2e suite only when Cal explicitly asks.
    - if the PR includes a migration, the steps in `adding-a-db-migration`
 4. **Push once** and open the PR. The description covers what and why, the rules or numbers, how it was verified (with counts), deploy notes (migrations, env vars) and follow-ups.
-5. **Inspect Typecheck and Vercel on the current PR head.**
-   - Both green: merge with a merge commit (`gh pr merge <n> --merge`). Merge one PR at a time.
-   - "Deployment rate limited" or an exhausted account build/deployment quota: confirm the check details explicitly identify a quota failure. `bun run test`, `bun run typecheck`, `bun run lint` and `bun run build` must pass on the current PR head (no full e2e required), and every other required check and review must pass. Record the quota evidence and local validation in the PR, then merge without waiting for the reset or pushing retry commits. Pin the merge to the verified head with `--match-head-commit <sha>`.
-   - A real build failure: reproduce it with `bun run build` locally, fix it, and push once.
-6. **Keep every other gate.** Real build failures, failed local checks and unmet checks or reviews still block merging. Use `--admin` only if needed to bypass the verified quota-only Vercel check after every other requirement passes. Never use `--no-verify`.
+5. **Inspect Typecheck on the current PR head.**
+   - Green: merge with a merge commit (`gh pr merge <n> --merge --match-head-commit <sha>`). Merge one PR at a time.
+   - A real failure: reproduce it locally (`bun run build`, `bun run test` and so on), fix it, and push once.
+   - Need a preview URL anyway? `vercel deploy` by hand; it costs a build.
+6. **Keep every other gate.** Failed checks and unmet reviews block merging. Never use `--no-verify`.
 7. **Rebase only when GitHub reports** the PR as out of date or conflicting. Repeat any relevant focused checks after rebasing, then push once.
 8. **After merging:**
    - For a quota-blocked merge, report **merged, deployment pending**. After the limit resets, deploy the latest `main`, covering all accumulated merges rather than an older PR head, and verify that exact commit's production deployment.

@@ -137,16 +137,15 @@ See the skill [`adding-a-db-migration`](.agents/skills/adding-a-db-migration/SKI
 
 ## Deployment
 
-- **Ship small, scoped changes by default.** Unless Cal explicitly asks for local-only work, completing a small change includes committing it on its own branch, pushing the branch, opening a PR, and merging once CI and all required reviews pass. Run focused local checks when useful for the change; a full local test, build or e2e run is not required by default. Run the full e2e suite only when Cal explicitly asks for it. Continue through production deployment verification using the `release-and-deploy` skill. This is standing authorization for those steps; don't stop at "fixed locally" or ask for separate permission to commit, push, open the PR or merge. If a gate fails, fix failures within the task's scope or report the concrete blocker. The verified quota exception below still applies.
-- Vercel deploys `main` to production. Every PR push gets a preview deployment. Both **Typecheck** (GitHub Actions) and **Vercel** must pass before merging. The current GitHub plan does not enforce required checks on this private repo; agents must enforce this release-policy gate.
-- The project is on the **Hobby plan**, which has a daily deployment limit. Every push, rebase and merge costs a deploy. So:
+- **Ship small, scoped changes by default.** Unless Cal explicitly asks for local-only work, completing a small change includes committing it on its own branch, pushing the branch, opening a PR, and merging once CI and all required reviews pass. Run focused local checks when useful for the change; a full local test, build or e2e run is not required by default. Run the full e2e suite only when Cal explicitly asks for it. Continue through production deployment verification using the `release-and-deploy` skill. This is standing authorization for those steps; don't stop at "fixed locally" or ask for separate permission to commit, push, open the PR or merge. If a gate fails, fix failures within the task's scope or report the concrete blocker.
+- Vercel deploys `main` to production only. PR branches get **no preview deployment** (`git.deploymentEnabled` in `vercel.json`) to save build minutes; the **Typecheck** GitHub Actions check (typecheck, tests, lint and `bun run build`) is the merge gate. Run `vercel deploy` by hand if you need a preview URL.
+- The project is on the **Hobby plan**, which has a daily deployment limit. Every merge costs a deploy. So:
   - **push once per PR after any focused checks the change needs**
   - don't push "retry" commits
   - only rebase when GitHub says the branch is out of date or conflicting
   - merge one PR at a time
-- **Keep merging when Vercel explicitly reports "Deployment rate limited" or an exhausted account build/deployment quota.** Verify the check details, run `bun run test`, `bun run typecheck`, `bun run lint` and `bun run build` on the current PR head (no full e2e required), and require every other required check and review to pass. Record the quota failure and local validation in the PR, then merge without waiting for the reset or pushing retry commits.
-- A quota-blocked merge is **merged, deployment pending**. After the limit resets, deploy the latest `main` and verify its production deployment; don't redeploy an older PR head.
-- GitHub Actions runs unit tests, the lint warning ratchet and full-repo typechecking in the existing **Typecheck** workflow, in parallel with Vercel, which skips duplicate type-checking. Don't add other workflows unless the owner asks.
+- If the production deploy of `main` hits "Deployment rate limited" or an exhausted build/deployment quota, the merge is **merged, deployment pending**. After the limit resets, deploy the latest `main` and verify its production deployment; don't redeploy an older head.
+- GitHub Actions runs full-repo typechecking, unit tests, the lint warning ratchet and a production build in the existing **Typecheck** workflow. Vercel skips its duplicate type check on production builds. Don't add other workflows unless the owner asks.
 
 See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md).
 
@@ -155,7 +154,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 - Product branding is **Holo Folder** (`holofolder.com`), package and tooling names use `holofolder` / `HOLOFOLDER`. Existing `binderdex` storage keys and service-worker protocols are compatibility identifiers, keep them stable (see `docs/holo-folder-rebrand.md`). Repository, local folder and Vercel project renames are managed separately by Cal.
 
 - **Small, focused PRs and commits, one concern each.** Use a separate short-lived branch off the latest `main` for each independent feature or fix wherever possible. Split unrelated work before committing; keep dependent changes together when needed for a working PR. No drive-by refactors. Say what was verified and what wasn't.
-- **Merge on green Typecheck and Vercel checks, or green Typecheck plus the verified Vercel quota exception above.** Real build failures and other unmet checks or reviews still block merging. Admin merge is allowed only when needed to bypass the quota-only Vercel check after every other requirement passes. Never skip hooks.
+- **Merge on a green Typecheck check.** Real build failures and other unmet checks or reviews block merging. Never skip hooks.
 - **Mobile-first.** Verify at **375×667, 390×844 and 430×932**, in both a normal browser tab and **standalone PWA** mode with safe-area insets (59 px top, 34 px bottom in the e2e harness).
   - Tap targets are at least 36 px. No horizontal overflow.
   - Nothing goes under the dock: position against `--dock-inset`, `--dock-bar` and `--dock-clearance` in `globals.css`.
@@ -206,7 +205,7 @@ Use [task-progress](.agents/skills/task-progress/SKILL.md) at start, review, mer
 ## Definition of done
 
 - [ ] One concern per PR and commit, on a short-lived branch off the latest `main`; independent features use separate branches wherever possible
-- [ ] Commit and push, open a PR, and merge once Typecheck, Vercel and required reviews pass
+- [ ] Commit and push, open a PR, and merge once Typecheck and required reviews pass
 - [ ] API/docs ship with each feature; matching Framer feature pages and CMS release/changelog updates are published and verified after each user-facing feature block, with live evidence on its issue/project
 - [ ] Run focused local checks as needed; no full local test, build or e2e run required by default
 - [ ] New logic has unit coverage in `tests/`; no new lint warnings, and the cap is lowered if warnings were removed
@@ -215,7 +214,7 @@ Use [task-progress](.agents/skills/task-progress/SKILL.md) at start, review, mer
 - [ ] No invented data. Price signals are confidence-gated.
 - [ ] Migrations are numbered, idempotent and listed in `scripts/MIGRATIONS.md`, applied to the target Supabase project and verified. The PR records what was applied.
 - [ ] No secrets in the diff, and new env vars are added to `.env.example`
-- [ ] The PR description says what changed, why, how it was verified and any follow-ups. It was pushed once, and merged after Vercel was green or the quota exception was verified and deployment was reported as pending.
+- [ ] The PR description says what changed, why, how it was verified and any follow-ups. It was pushed once, merged after Typecheck was green, and a quota-blocked production deploy was reported as pending.
 
 ## Skills
 
