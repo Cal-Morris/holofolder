@@ -22,8 +22,8 @@ test("PokePulse evidence is labelled as PokePulse, not Cardmarket", () => {
 
 test("server provider union matches the client provider list", () => {
   const source = readFileSync(new URL("../lib/price-intelligence.ts", import.meta.url), "utf8")
-  const union = source.match(/export type PriceProvider = ([^\n]+)/)?.[1] ?? ""
-  const serverProviders = [...union.matchAll(/"([^"]+)"/g)].map((match) => match[1]).sort()
+  const union = source.match(/export type PriceProvider =((?:\s*\|?\s*["'][^"']+["'])+)/)?.[1] ?? ""
+  const serverProviders = [...union.matchAll(/["']([^"']+)["']/g)].map((match) => match[1]).sort()
   assert.deepEqual(serverProviders, [...SERVER_PROVIDERS].sort())
 })
 

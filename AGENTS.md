@@ -103,6 +103,7 @@ bun run dev                  # http://localhost:3000/app
 | `bun run test` | Unit tests in `tests/` (`bun test --parallel tests/`) |
 | `bun run test:coverage` | Unit tests with coverage |
 | `bun run typecheck` | `next typegen && bun check`; checks the full repo with Bun's built-in type checker. `bun run typecheck:tsc` compares reference diagnostics. Local builds also type-check; Vercel relies on Typecheck CI. |
+| `bun run format` | `bun fmt` with `bunfig.toml`: single quotes, semicolons, trailing commas, 120 columns. CI runs `bun run format:check`, so format before committing. |
 | `bun run lint` | ESLint with **`--max-warnings=47`**. This is a ratchet: never add warnings. If you remove some, lower the cap in `package.json`. Prefix intentionally unused vars with `_`. |
 | `bun run build` | Production build |
 | `bun run test:e2e` | Playwright at 390×844 in browser and standalone mode: builds and serves on port 3210 (`E2E_PORT` to change it, `E2E_BASE_URL` to test a running server) with `HOLOFOLDER_E2E=1` |
@@ -180,6 +181,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 
 ## Code conventions
 
+- Formatting belongs to `bun fmt`; don't hand-format or argue style in review. Put `eslint-disable-next-line` directly above the reported line (in wrapped JSX, as a `//` comment right above the element).
 - TypeScript strict. Use `@/` path imports. Use `import type` for type-only imports.
 - Keep pure logic in `lib/` (unit-testable, no React), and keep components and hooks thin.
 - Client components start with `"use client"`. The service-role admin client is server-only (load it with `await import()` from shared modules).

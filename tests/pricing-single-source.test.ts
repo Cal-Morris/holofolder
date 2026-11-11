@@ -35,8 +35,8 @@ test("hooks/use-card-prices declares no pricing types or normalizers of its own"
 
 test("lib/card-pricing never statically imports the service-role Supabase client", () => {
   const source = readFileSync(new URL("../lib/card-pricing.ts", import.meta.url), "utf8")
-  assert.doesNotMatch(source, /^import \{[^}]*\} from "@\/lib\/supabase\/admin"/m)
-  assert.match(source, /^import type \{ createAdminClient \} from "@\/lib\/supabase\/admin"/m)
+  assert.doesNotMatch(source, /^import \{[^}]*\} from ["']@\/lib\/supabase\/admin["']/m)
+  assert.match(source, /^import type \{ createAdminClient \} from ["']@\/lib\/supabase\/admin["']/m)
 })
 
 test("shared normalizers keep the client cache behaviour", () => {

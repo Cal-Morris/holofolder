@@ -24,6 +24,7 @@ The database schema lives in `scripts/NNN_*.sql`. Follow [scripts/MIGRATIONS.md]
 |---|---|
 | `bun run dev` | Next.js dev server |
 | `bun run build` / `bun run start` | Production build / serve |
+| `bun run format` | Format with `bun fmt` (settings in `bunfig.toml`; CI checks it) |
 | `bun run lint` | ESLint |
 | `bun run typecheck` | Generate Next.js route types, then check the full repository with `bun check` |
 | `bun run typecheck:tsc` | Run the TypeScript reference checker for diagnostic comparison |
