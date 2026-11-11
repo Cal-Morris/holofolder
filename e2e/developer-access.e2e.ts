@@ -28,12 +28,9 @@ test('OAuth consent shows verified client details and keeps writes off by defaul
   );
   await page.goto('/app/oauth/consent?authorization_id=synthetic');
   await expect(page.getByRole('heading', { name: /Synthetic client/ })).toBeVisible();
-  await expect(page.getByText('Redirects to client.example.invalid')).toBeVisible();
-  const checkboxes = page.getByRole('checkbox');
-  await expect(checkboxes).toHaveCount(11);
-  expect(
-    await checkboxes.evaluateAll((inputs) => inputs.filter((input) => (input as HTMLInputElement).checked).length),
-  ).toBe(5);
+  await expect(page.getByText('client.example.invalid', { exact: true })).toBeVisible();
+  await expect(page.getByRole('switch')).toHaveCount(11);
+  await expect(page.getByRole('switch', { checked: true })).toHaveCount(5);
   await expect(page.getByRole('button', { name: 'Approve access' })).toBeEnabled();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.route('**/app/api/oauth/decision', async (route) => {
