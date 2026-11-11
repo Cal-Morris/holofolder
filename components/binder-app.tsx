@@ -80,7 +80,7 @@ import { renderMobileSlotActionBarView } from "@/components/binder/mobile-slot-a
 import { renderSpreadInfoPageView } from "@/components/binder/spread-info-page"
 import { renderSpreadBlankPageView } from "@/components/binder/spread-blank-page"
 import { renderBinderGridPageView, useBinderSlotActions } from "@/components/binder/binder-grid-page"
-import { AuthModal, BinderSwitcherSheet, IllustratorCardsBrowser, PartnerModal, PokemonCardsBrowser, QuickMode, scheduleIdleViewPreload, SettingsModal } from "@/components/binder/lazy-views"
+import { AuthModal, BinderSwitcherSheet, IllustratorCardsBrowser, NativeSlotFlow, PartnerModal, PokemonCardsBrowser, QuickMode, scheduleIdleViewPreload, SettingsModal } from "@/components/binder/lazy-views"
 import { renderAppHeaderView } from "@/components/binder/app-header"
 import { renderMainContentView } from "@/components/binder/main-content"
 import { renderSearchOverlayView } from "@/components/binder/search-overlay"
@@ -111,7 +111,6 @@ const NativeCollectionAnalytics = dynamic(() => import("@/components/native-coll
 const CollectionSlotList = dynamic(() => import("@/components/collection-navigation/slot-list"), { ssr: false })
 
 const LayoutToolbar = dynamic(() => import("@/components/binder/layout-editor").then(module => module.LayoutToolbar), { ssr: false })
-const NativeSlotFlow = dynamic(() => import("@/components/binder/native-slot-flow"), { ssr: false })
 const PocketMenu = dynamic(() => import("@/components/binder/pocket-menu"), { ssr: false })
 
 interface BinderAppProps {

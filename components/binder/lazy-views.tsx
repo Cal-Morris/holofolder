@@ -7,6 +7,7 @@ import dynamic from "next/dynamic"
 // import() elsewhere wouldn't warm it. Sharing one loader means a preload is the same fetch
 // the view makes on first render.
 const loadCardSelector = () => import("@/components/card-selector")
+const loadNativeSlotFlow = () => import("@/components/binder/native-slot-flow")
 const loadDexListView = () => import("@/components/dex-list-view")
 const loadCollectionAnalyticsView = () => import("@/components/collection-analytics-view")
 const loadSetPopulationView = () => import("@/components/set-population-view")
@@ -24,6 +25,8 @@ export const AuthModal = dynamic(() => import("@/components/auth-modal"), { ssr:
 export const PartnerModal = dynamic(() => import("@/components/partner-modal"), { ssr: false })
 export const BinderSwitcherSheet = dynamic(() => import("@/components/binder-switcher-sheet"), { ssr: false })
 export const CardSelector = dynamic(loadCardSelector, { ssr: false })
+// What a pocket tap opens (card details or the selector). Preloaded first below so the first tap doesn't wait on it.
+export const NativeSlotFlow = dynamic(loadNativeSlotFlow, { ssr: false })
 export const PokemonCardsBrowser = dynamic(() => import("@/components/pokemon-cards-browser"), { ssr: false })
 export const IllustratorCardsBrowser = dynamic(() => import("@/components/illustrator-cards-browser"), { ssr: false })
 // `loading` gives these their own Suspense boundary. Without it, next/dynamic (with SSR) has
@@ -66,11 +69,12 @@ export function preloadCardSelector() {
   preloadOnce("card-selector", loadCardSelector)
 }
 
-// Fetch the dock-tab chunks (and the card selector, which the first slot tap opens) once the
+// Fetch the pocket detail, the dock-tab chunks and the card selector (what the first slot taps open) once the
 // browser is idle after the binder has painted. Returns a cancel function for effect cleanup.
 export function scheduleIdleViewPreload(): () => void {
   if (typeof window === "undefined") return () => undefined
   const queue: Array<() => void> = [
+    () => preloadOnce("native-slot-flow", loadNativeSlotFlow),
     () => preloadTabView("list"),
     () => preloadTabView("sets"),
     () => preloadTabView("wanted"),

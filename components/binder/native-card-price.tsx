@@ -20,6 +20,8 @@ export interface NativeCardPricing {
   formatRange: (low: number | null | undefined, high: number | null | undefined, price?: CardPriceSnapshot) => string | null
 }
 
+const valueSkeleton = <><span className="sr-only">Loading</span><span aria-hidden="true" className="holo-loading inline-block h-3.5 w-14 rounded align-middle" /></>
+
 /**
  * The card detail's price block for one exact owned printing: saved prices only, read through the existing saved-price
  * lookup (no new pipeline and no refresh-capable request), region-weighted, for the copy's own finish. Unknown stays
@@ -35,13 +37,13 @@ export default function NativeCardPrice({ cardId, language, finish, name, setNam
   const snapshot = regionalizeCardPrices(pricesByCardId, pricing.region)[getCardPriceKey(cardId, language)]
   // A finish without its own quote shows no price; only the standard normal/holo fall back to the card's headline price.
   const price = finish ? getRegionalFinishPrices(snapshot, pricing.region)[finish as PricedCardFinish] ?? (finish === "reverse_holo" ? undefined : snapshot) : snapshot
-  const missing = isLoading ? "Loading" : saved.status === "unavailable" ? "Unavailable" : "No price"
+  const missing = isLoading ? valueSkeleton : saved.status === "unavailable" ? "Unavailable" : "No price"
   const low = pricing.formatAmount(price?.goodGbpAmount, snapshot)
   const market = pricing.formatAmount(price?.marketGbpAmount ?? price?.gbpAmount, snapshot)
   const range = pricing.formatRange(price?.lowGbpAmount, price?.highGbpAmount, snapshot)
   const confidence = formatPriceConfidenceLabel(snapshot)
   const source = formatPriceSourceLabel(snapshot)
-  return <section aria-label="Prices" className="rounded-2xl border border-border/60 bg-background/25 p-2.5 dark:border-white/10 dark:bg-white/[0.03]">
+  return <section aria-label="Prices" aria-busy={isLoading || undefined} className="rounded-2xl border border-border/60 bg-background/25 p-2.5 dark:border-white/10 dark:bg-white/[0.03]">
     <div className="grid grid-cols-2 gap-2">
       <div className="rounded-xl border border-border/50 bg-background/45 px-3 py-2 dark:border-white/10 dark:bg-white/[0.04]">
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Low</p>
@@ -57,6 +59,11 @@ export default function NativeCardPrice({ cardId, language, finish, name, setNam
       {confidence && <span className="rounded-full border border-border/50 bg-background/35 px-2 py-0.5 dark:border-white/10 dark:bg-white/[0.04]">{confidence}</span>}
     </div>}
     {source && <p className="mt-2 break-words px-1 text-xs text-muted-foreground">{source}</p>}
+    {/* Reserves the confidence pill and source line a saved price brings, so the bottom-anchored sheet doesn't jump. */}
+    {isLoading && <div aria-hidden="true">
+      <div className="mt-2 flex px-1 text-[10px] text-transparent"><span className="holo-loading rounded-full px-2 py-0.5">Medium confidence</span></div>
+      <p className="mt-2 px-1 text-xs"><span className="holo-loading inline-block h-3 w-44 max-w-full rounded align-middle" /></p>
+    </div>}
     <details className="group mt-2">
       <summary className="flex min-h-9 cursor-pointer items-center justify-between text-xs font-semibold">
         Price details
