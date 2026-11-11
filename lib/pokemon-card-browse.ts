@@ -2,7 +2,6 @@
  * Pure helpers for the read-only "all cards for this Pokémon" view and the global card search.
  * Shared by the client UI, the search API and unit tests.
  */
-import { resolveSetSearchAlias } from "@/lib/set-search-aliases"
 import { matchesCatalogCardId } from "@/lib/card-catalog"
 import type { CardCatalogIdentity, CardFinish } from "@/lib/domain/cards"
 
@@ -162,7 +161,8 @@ export function parseCardSearchQuery(raw: string): ParsedCardSearchQuery {
     }
   }
 
-  return { text: resolveSetSearchAlias(rest.join(" ")), number, cardId }
+  // Literal text: "mew" is both a Pokémon and a printed set code, so callers try both via resolveSetSearchAlias.
+  return { text: rest.join(" "), number, cardId }
 }
 
 /** Normalised local id for comparison ("004" → "4"). */

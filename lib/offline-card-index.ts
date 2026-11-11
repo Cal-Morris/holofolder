@@ -160,6 +160,7 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
       const matchesText = card.name.toLowerCase().includes(text) || (!parsed.setIds.length && (
         card.set.name.toLowerCase().includes(text) ||
         card.set.id.toLowerCase() === text ||
+        card.set.id.toLowerCase() === resolveSetSearchAlias(text) ||
         (text.length >= 3 && Boolean(card.illustrator?.toLowerCase().includes(text)))))
       if (!matchesText) continue
     }
@@ -172,11 +173,12 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
 
 /** Sets whose name or id matches, for the Sets view while offline. */
 export function searchOfflineSets(sets: TCGSetSummary[], query: string) {
-  const text = resolveSetSearchAlias(query)
+  const text = query.trim().replace(/\s+/g, " ").toLowerCase()
+  const code = resolveSetSearchAlias(query)
   if (text.length < 2) return []
   const byId = new Map<string, TCGSetSummary>()
   for (const set of sets) {
-    if (set.name.toLowerCase().includes(text) || set.id.toLowerCase().includes(text)) byId.set(set.id, set)
+    if (set.id.toLowerCase() === code || set.name.toLowerCase().includes(text) || set.id.toLowerCase().includes(text)) byId.set(set.id, set)
   }
   return [...byId.values()]
 }

@@ -190,7 +190,8 @@ export async function searchMirroredSets(query: string, limit = 8): Promise<TCGS
   cacheLife(MIRROR_CACHE_LIFE)
 
   const admin = createAdminClient()
-  const trimmedQuery = resolveSetSearchAlias(query.replace(/[,%()]/g, " "))
+  const trimmedQuery = query.replace(/[,%()]/g, " ").trim().replace(/\s+/g, " ").toLowerCase()
+  const setCode = resolveSetSearchAlias(trimmedQuery)
   cacheTag("tcg-mirror", MIRROR_CACHE_VERSION, "tcg-sets", cacheSafeTag("set-query", trimmedQuery), cacheSafeTag("limit", limit))
 
   if (trimmedQuery.length < 2) {
@@ -211,7 +212,7 @@ export async function searchMirroredSets(query: string, limit = 8): Promise<TCGS
         name_en
       )
     `)
-    .or(`id.ilike.%${trimmedQuery}%,name_en.ilike.%${trimmedQuery}%`)
+    .or(`id.ilike.%${trimmedQuery}%,name_en.ilike.%${trimmedQuery}%${setCode === trimmedQuery ? "" : `,id.eq.${setCode}`}`)
     .order("release_date", { ascending: false, nullsFirst: false })
     .limit(limit)
 
@@ -612,7 +613,7 @@ export async function searchMirroredCards(query: string, language: MirrorLanguag
       const setMatches = await admin
         .from("tcg_sets")
         .select("id")
-        .or(`id.ilike.${parsed.text},name_en.ilike.%${parsed.text}%`)
+        .or(`id.ilike.${parsed.text},id.ilike.${resolveSetSearchAlias(parsed.text)},name_en.ilike.%${parsed.text}%`)
         .order("release_date", { ascending: false, nullsFirst: false })
         .limit(4)
       if (setMatches.error) return { data: null, error: setMatches.error }

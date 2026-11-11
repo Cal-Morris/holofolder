@@ -29,13 +29,15 @@ function matchScore(set: TCGSetSummary, needle: string) {
  * are dropped; sets that don't match at all (e.g. a stale offline list) are left out.
  */
 export function rankSetMatches(sets: readonly TCGSetSummary[], query: string, limit = SEARCH_SET_RESULT_LIMIT): TCGSetSummary[] {
-  const needle = normalize(resolveSetSearchAlias(query))
+  const needle = normalize(query)
+  const code = normalize(resolveSetSearchAlias(query))
   if (needle.length < 2) return []
   const seen = new Set<string>()
   const scored: Array<{ set: TCGSetSummary; score: number; index: number }> = []
   sets.forEach((set, index) => {
     if (!set?.id || !set.name || seen.has(set.id)) return
-    const score = matchScore(set, needle)
+    // A printed code ("MEW") ranks its set first without hiding sets whose names start with the same letters.
+    const score = Math.max(matchScore(set, needle), code === needle ? 0 : matchScore(set, code))
     if (!score) return
     seen.add(set.id)
     scored.push({ set, score, index })
