@@ -42,6 +42,10 @@
   ],
   "rewrites": [
     {
+      "source": "/.well-known/oauth-protected-resource/:path*",
+      "destination": "/app/.well-known/oauth-protected-resource"
+    },
+    {
       "source": "/.well-known/workflow/:path*",
       "destination": "/app/.well-known/workflow/:path*"
     },
