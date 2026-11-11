@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   currentFallbackImageUrl,
+  GAP_NEW_SETS,
   normalizeGapName,
   normalizeGapNumber,
   planCardGapFill,
@@ -209,6 +210,25 @@ describe('card gap fill', () => {
         ['tcgplayer-283818', 'tcgcsv', '3179'],
         ['tcgplayer-283831', 'tcgcsv', '3179'],
       ],
+    );
+  });
+
+  test('files a promo set with its own series under that series, not the supplemental one', () => {
+    const plan = planCardGapFill({
+      ...base,
+      existingSetIds: new Set(GAP_NEW_SETS.filter((s) => s.id !== 'mcdonalds-2026').map((s) => s.id)),
+      existingSeriesIds: new Set(),
+      cards: [],
+      tcgcsv: { 24938: [product(730419, 24938, 'Pikachu', { Number: '004/015', HP: '70' })] },
+    });
+    assert.deepEqual(plan.series, []);
+    assert.deepEqual(
+      plan.sets.map((s) => [s.id, s.series_id]),
+      [['mcdonalds-2026', 'mc']],
+    );
+    assert.deepEqual(
+      plan.cards.map((c) => [c.id, c.series_id, c.local_id]),
+      [['tcgplayer-730419', 'mc', '004/015']],
     );
   });
 

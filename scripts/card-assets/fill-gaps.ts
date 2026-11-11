@@ -136,7 +136,9 @@ export async function run() {
   const scrydexPlaceholder = await scrydexPlaceholderEtag()
   if (!scrydexPlaceholder) console.warn("[gap-fill] Scrydex placeholder check failed; Scrydex images are skipped this run.")
   const check = (urls: string[]) => checkImages(urls, scrydexPlaceholder)
+  // playshop.fr rate-limits its sitemaps; without it only the French-only sets go unfilled this run.
   const playshop = await playshopProducts(Object.values(GAP_IMAGE_SOURCES).flat().flatMap(s => "playshop" in s ? [s.playshop] : []))
+    .catch((error: unknown) => { console.warn(`Skipping playshop.fr: ${error instanceof Error ? error.message : error}`); return {} })
   const productChecks = await check([...groups].flatMap(g => tcgcsv[g].map(p => `https://product-images.tcgplayer.com/${p.productId}.jpg`)))
   // Cards that render a fallback image which no longer exists are filled like cards without an image.
   const current = cards.flatMap(card => { const url = currentFallbackImageUrl(card); return url ? [[card.id, url] as const] : [] })
