@@ -25,7 +25,7 @@ The database schema lives in `scripts/NNN_*.sql`. Follow [scripts/MIGRATIONS.md]
 | `bun run dev` | Next.js dev server |
 | `bun run build` / `bun run start` | Production build / serve |
 | `bun run lint` | ESLint |
-| `bun run typecheck` | Generate Next.js route types, then check the full repository with the pinned Rust `tsrs` checker |
+| `bun run typecheck` | Generate Next.js route types, then check the full repository with `bun check` |
 | `bun run typecheck:tsc` | Run the TypeScript reference checker for diagnostic comparison |
 | `bun run test` | Unit tests (`tests/*.test.ts`, `node:test` style, run by Bun) |
 | `bun run test:e2e` | Playwright scenarios (`e2e/*.e2e.ts`) at 390×844, in browser and installed-app (standalone) mode. Builds and serves the app on port 3210 with `HOLOFOLDER_E2E=1` and a mocked Supabase |
@@ -38,7 +38,7 @@ E2E tips: set `E2E_PORT` to use another port, or `E2E_BASE_URL` to test an alrea
 
 GitHub Actions runs full-repository typechecking, unit tests, the lint warning ratchet and a production build within the existing **Typecheck** check on pull requests and `main`. It is the merge gate. Vercel only deploys `main` (no PR previews, see `git.deploymentEnabled` in `vercel.json`) and skips its duplicate TypeScript pass; local builds still check types.
 
-`tsrs` is pinned to `0.23.0-ts7.1.0-beta` and uses its default checker settings. It is experimental; compare unexpected diagnostics with `bun run typecheck:tsc`. TypeScript 6 remains installed for the editor, ESLint and other compiler-API integrations.
+`bun check` is Bun's built-in type checker (Bun 1.4.4, the CI version) and reports the same errors as `tsc`; compare unexpected diagnostics with `bun run typecheck:tsc`. TypeScript 6 remains installed for the editor, ESLint and other compiler-API integrations.
 
 For persistent local test servers, synthetic credentials and focused Playwright runs, see [the testing guide](docs/testing.md). Test placeholders are separate from real service configuration in `.env.local`.
 
