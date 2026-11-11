@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/rules-of-hooks -- Playwright fixture `use` is not a React hook. */
-import { test as base, expect, MOCK_CARDS, Harness, mockBackends, emulateStandalone } from "./fixtures"
+import { test as base, expect, MOCK_CARDS, Harness, mockBackends, emulateStandalone, openSettingsPage } from "./fixtures"
 import { mockCardPrices } from "./price-fixtures"
 import { seedWantList } from "./wanted-fixtures"
 import type { Locator, Page } from "@playwright/test"
@@ -312,7 +312,7 @@ for (const theme of ["light", "dark"] as const) {
       const dialog = page.getByRole("dialog", { name: "Settings", exact: true })
       await expect(dialog).toBeVisible()
       const before = await background(page)
-      await dialog.getByRole("button", { name: "Display", exact: true }).click()
+      await openSettingsPage(dialog, "Appearance")
       await ends(page, dialog)
       if (hasTouch) {
         await touch(page, scrollBody(dialog), -150)

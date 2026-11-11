@@ -1,4 +1,4 @@
-import { test, expect, placeholderSvg } from "./fixtures"
+import { test, expect, openSettingsPage, placeholderSvg } from "./fixtures"
 
 // Synthetic sets, not real TCG data: one with a logo, one with only a symbol, one with neither.
 const SETS = [
@@ -53,7 +53,7 @@ test.describe("Sets browse", () => {
     await page.locator("nav").first().getByRole("button", { name: "More", exact: true }).click()
     await page.getByRole("menuitem", { name: "Settings", exact: true }).click()
     const settings = page.getByRole("dialog", { name: /settings/i })
-    await settings.getByRole("button", { name: "Display", exact: true }).click()
+    await openSettingsPage(settings, "Offline & app")
     const offline = settings.getByRole("region", { name: "Offline sets" })
     await offline.getByRole("searchbox", { name: "Find sets to save" }).fill("fixture")
     await offline.getByRole("button", { name: "Find", exact: true }).click()

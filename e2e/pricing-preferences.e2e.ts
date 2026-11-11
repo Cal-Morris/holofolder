@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures"
+import { test, expect, openSettingsPage } from "./fixtures"
 
 test.use({ locale: "en-GB" })
 
@@ -7,7 +7,7 @@ test("settings defaults region and currency from the browser locale and allows o
   await page.locator("nav").first().getByRole("button", { name: "More", exact: true }).click()
   await page.getByRole("menuitem", { name: "Settings" }).click()
   const dialog = page.getByRole("dialog", { name: /settings/i })
-  await dialog.getByRole("button", { name: "Account", exact: true }).click()
+  await openSettingsPage(dialog, "Prices")
 
   const region = dialog.getByLabel("Region", { exact: true })
   const currency = dialog.getByLabel("Currency", { exact: true })

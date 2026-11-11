@@ -1,5 +1,5 @@
 import type { Page, Route } from "@playwright/test"
-import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness, collectionPicker, chooseCollection } from "./fixtures"
+import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness, openSettingsPage, settingsRow, collectionPicker, chooseCollection } from "./fixtures"
 import { inventoryBrowseFixture, inventoryBrowseCatalog, inventoryBrowseLayouts } from "../tests/fixtures/inventory-browse"
 
 // Synthetic ids, owner and share server. No hosted share or identity writes.
@@ -111,7 +111,7 @@ async function ownerShareFlow(page: Page, insets: { top: number; bottom: number;
   await more(page).click()
   await menuItem(page, "Settings").click()
   const settings = page.getByRole("dialog", { name: "Settings" })
-  await settings.getByRole("button", { name: "Share", exact: true }).click()
+  await openSettingsPage(settings, "Sharing")
   await expect(settings.getByText(/\/app\/share\/synthetic2222$/)).toBeVisible()
   const slug = settings.getByLabel("Binder slug")
   await expect(slug).toBeEnabled()
@@ -189,7 +189,8 @@ test("share controls need a selected collection and surface server permission de
   await expect(menuItem(page, "Settings")).toBeVisible()
   await expect(menuItem(page, "Create share link")).toHaveCount(0)
   await menuItem(page, "Settings").click()
-  await expect(page.getByRole("dialog", { name: "Settings" }).getByRole("button", { name: "Share", exact: true })).toHaveCount(0)
+  await expect(settingsRow(page.getByRole("dialog", { name: "Settings" }), "Layout")).toBeVisible()
+  await expect(settingsRow(page.getByRole("dialog", { name: "Settings" }), "Sharing")).toHaveCount(0)
   expect(server.requests).toEqual([])
   await page.keyboard.press("Escape")
 

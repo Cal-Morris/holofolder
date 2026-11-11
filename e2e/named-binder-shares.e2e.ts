@@ -1,4 +1,4 @@
-import { test, expect, type Harness } from "./fixtures"
+import { test, expect, openSettingsPage, type Harness } from "./fixtures"
 
 test.use({ signedIn: true })
 
@@ -23,7 +23,7 @@ test("owner explicitly saves account username and binder slug, then gets the sav
   await page.route("**/app/api/binder-share**", route => route.fulfill({ json: { share: { token: "synthetic-token", is_enabled: true, path: slug ? `/@${username}/${slug}` : "/app/share/synthetic-token" } } }))
   await page.goto("/app/e2e-harness?signedIn=1&binders=1")
   const dialog = await settings(harness)
-  await dialog.getByRole("button", { name: "Account", exact: true }).click()
+  await openSettingsPage(dialog, "Profile")
   const account = dialog.getByRole("region", { name: "Your profile" })
   await expect(account.getByLabel("Username", { exact: true })).toHaveValue(username)
   await account.getByLabel("Username", { exact: true }).fill("Synthetic-New")
@@ -31,7 +31,7 @@ test("owner explicitly saves account username and binder slug, then gets the sav
   await account.getByRole("button", { name: "Save username", exact: true }).click()
   await expect(account.getByRole("status")).toHaveText("Username saved.")
   expect(username).toBe("synthetic-new")
-  await dialog.getByRole("button", { name: "Share", exact: true }).click()
+  await openSettingsPage(dialog, "Sharing")
   const binder = dialog.getByRole("region", { name: "Binder address" })
   await expect(binder.getByLabel("Binder slug")).toBeEnabled()
   await binder.getByLabel("Binder slug").fill("National")
@@ -47,14 +47,14 @@ test("partner sees owner address but cannot rename it, unavailable schema preser
   await page.route("**/app/api/account-identity", route => route.fulfill({ status: 503, json: { error: "Usernames are not available yet" } }))
   await page.goto("/app/e2e-harness?signedIn=1&binders=1&partner=1")
   const dialog = await settings(harness)
-  await dialog.getByRole("button", { name: "Share", exact: true }).click()
+  await openSettingsPage(dialog, "Sharing")
   const binder = dialog.getByRole("region", { name: "Binder address" })
   await expect(binder.getByLabel("Binder slug")).toHaveValue("national")
   await expect(binder.getByLabel("Binder slug")).toBeDisabled()
   await expect(binder).toContainText("Only the binder owner")
-  await dialog.getByRole("button", { name: "Account", exact: true }).click()
+  await openSettingsPage(dialog, "Profile")
   await expect(dialog.getByRole("region", { name: "Your profile" })).toContainText("Usernames are not available yet")
-  await dialog.getByRole("button", { name: "Share", exact: true }).click()
+  await openSettingsPage(dialog, "Sharing")
   await expect(dialog.getByRole("button", { name: "Copy link", exact: true })).toBeEnabled()
 })
 
@@ -67,7 +67,7 @@ test("share pricing defaults off and owner can enable and disable it", async ({ 
   })
   await page.goto("/app/e2e-harness?signedIn=1&binders=1")
   const dialog = await settings(harness)
-  await dialog.getByRole("button", { name: "Share", exact: true }).click()
+  await openSettingsPage(dialog, "Sharing")
   const toggle = dialog.getByRole("switch", { name: "Show prices on shared binder" })
   await expect(toggle).not.toBeChecked()
   await harness.expectMinTapTarget(toggle, 36)

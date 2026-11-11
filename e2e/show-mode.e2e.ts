@@ -1,4 +1,4 @@
-import { test, expect, E2E_USER, SUPABASE_URL, type Harness } from "./fixtures"
+import { test, expect, E2E_USER, openSettingsPage, SUPABASE_URL, type Harness } from "./fixtures"
 
 const SCREENS = process.env.E2E_SCREENSHOT_DIR
 
@@ -125,7 +125,7 @@ test.describe("show mode", () => {
     await page.getByRole("button", { name: "More", exact: true }).click()
     await page.getByRole("menuitem", { name: "Settings" }).click()
     const settings = page.getByRole("dialog", { name: /settings/i })
-    await settings.getByRole("button", { name: "Display", exact: true }).click()
+    await openSettingsPage(settings, "Show mode")
     const toggle = settings.getByRole("switch", { name: "Show mode" })
     await expect(toggle).not.toBeChecked()
     await toggle.click()

@@ -3045,7 +3045,7 @@ function BinderAppSurface(props: BinderAppProps) {
         binderId={shareBinderId}
         binderName={browserSurface ? shareTarget?.name : activeBinder?.name}
         onPublicIdentityChange={handlePublicIdentityChange}
-        initialTab={pushSettingsRequested ? "account" : undefined}
+        initialPage={pushSettingsRequested ? "notifications" : undefined}
         backupReady={!readOnlyMode && !binderAppearance.loading}
         onDownloadBackup={async () => {
           if (readOnlyMode) throw new Error("Backups are only available in your own binder.")
