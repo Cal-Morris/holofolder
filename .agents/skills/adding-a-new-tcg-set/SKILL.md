@@ -47,4 +47,6 @@ Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are 
 - **A set never reaches `done`** because TCGdex lists fewer cards than its total: see `isSetUpToDateWithListedCards` in `lib/card-db-sync-targets.ts`.
 - **Adding a column to `tcg_*`**: follow `adding-a-db-migration`, and remember that `scripts/004_create_tcg_mirror_tables.sql` is read at runtime.
 
+For missing Asian sets or language coverage, use `bun run card-assets import-tcgdex --repo <clean tcgdex/cards-database checkout> --lang all --missing` to dry-run an additive import from both source trees, then repeat with `--apply`. For a specific set, use `--set S8b --lang ja`; this also checks assets omitted from the manifest. Follow with `mirror-tcgdex --lang <languages>` or the hosted image-backfill endpoint. This does not run the destructive full rebuild.
+
 Never hand-insert card rows or invent card data. If TCGdex lacks a card image, an alias or a promo set, fill it from public sources with `bun run card-assets fill-gaps` (rules and source mapping in `lib/card-gap-fill.ts`; extend `GAP_IMAGE_SOURCES`, `GAP_CARD_ALIASES` or `GAP_NEW_SETS` with a test), then run the image backfill for the touched sets so the images are copied into the image store. What no source has stays missing.

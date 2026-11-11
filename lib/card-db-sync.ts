@@ -112,7 +112,7 @@ type TCGSet = {
   releaseDate?: string | Record<string, string>;
 };
 
-type TCGCard = {
+export type TCGCard = {
   id?: string;
   localId?: string;
   set: TCGSet;
@@ -397,7 +397,7 @@ function normalizeLocalizedMap(value: string | Record<string, string> | undefine
   return value;
 }
 
-function normalizeVariants(cardVariants: TCGCard['variants']) {
+export function normalizeVariants(cardVariants: TCGCard['variants']) {
   if (!cardVariants) {
     return {};
   }
@@ -603,7 +603,11 @@ function normalizeTcgDexImageUrl(value: unknown) {
   return `${value.replace(/\/$/, '')}/high.webp`;
 }
 
-function buildExternalIds(card: TCGCard, pokemonTcgCard?: PokemonTcgCard, pokemonTcgSetId?: string | null): JsonObject {
+export function buildExternalIds(
+  card: TCGCard,
+  pokemonTcgCard?: PokemonTcgCard,
+  pokemonTcgSetId?: string | null,
+): JsonObject {
   const externalIds: JsonObject = {};
   const cardThirdParty = normalizeJsonObject(card.thirdParty);
   const tcgdexImage = normalizeTcgDexImageUrl(card.image);

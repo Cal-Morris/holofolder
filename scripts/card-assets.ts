@@ -58,6 +58,7 @@ import {
   type MirrorCardRow,
 } from '../lib/card-assets/ledger';
 import { getMirrorDatabaseUrl } from '../lib/card-db-sync';
+import { run as importTcgdex } from './card-assets/import-tcgdex';
 import { run as fillGaps } from './card-assets/fill-gaps';
 import { run as rebuildInventory } from './card-assets/inventory';
 import { run as mirrorPokemonCom } from './card-assets/mirror-pokemoncom';
@@ -771,6 +772,7 @@ const commands: Record<string, () => Promise<void>> = {
   'mirror-sets': mirrorSets,
   'mirror-pokemoncom': mirrorPokemonCom,
   'fill-gaps': fillGaps,
+  'import-tcgdex': importTcgdex,
   inventory: rebuildInventory,
 };
 const command = commands[process.argv[2] ?? ''];
