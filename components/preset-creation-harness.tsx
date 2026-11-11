@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import SetPopulationView from "@/components/set-population-view"
-import { syntheticPresetSet } from "@/tests/fixtures/set-preset"
+import { syntheticPromoHostSet } from "@/tests/fixtures/set-preset"
 import { SetChecklistScopePreview } from "@/components/set-preset-picker"
 import { parseSetChecklist } from "@/lib/set-preset"
 import BinderSwitcherSheet from "@/components/binder-switcher-sheet"
@@ -39,7 +39,7 @@ export default function PresetCreationHarness() {
     <p className="text-sm">Internal draft demo. Nothing here is saved.</p>
     <button className="min-h-11 rounded-xl border px-3" onClick={() => setWorstCase(v => !v)}>{worstCase ? "Demo data" : "Worst case"}</button>
     <button className="min-h-11 rounded-xl border px-3" onClick={() => setBrowseSet(v => !v)}>Browse synthetic set</button>
-    {browseSet && <SetPopulationView pricingEnabled={false} initialSet={syntheticPresetSet} collectionByPokemonId={new Map()} formatPrice={() => null} onSelectSlot={() => {}} onBrowseCard={() => {}} onCollectCard={() => {}} onWantCard={() => {}} readOnly={false} stagedCreation={{ ownerUserId, onDraft: receive, isOnline: online }} />}
+    {browseSet && <SetPopulationView pricingEnabled={false} initialSet={syntheticPromoHostSet} collectionByPokemonId={new Map()} formatPrice={() => null} onSelectSlot={() => {}} onBrowseCard={() => {}} onCollectCard={() => {}} onWantCard={() => {}} readOnly={false} stagedCreation={{ ownerUserId, onDraft: receive, isOnline: online }} />}
     <BinderGoalProgress inventory={data.inventory} binder={data.binder} catalog={id => { const card = data.cards.find(c => c.id === id); return card ? pickerCandidate(card) : undefined }} />
     {draft?.setChecklist && <SetChecklistScopePreview binder={data.binder} checklist={parseSetChecklist(JSON.parse(JSON.stringify(draft.setChecklist)))} />}
     <output aria-label="Prepared creation draft" className="block break-words text-xs">{draft ? JSON.stringify(draft) : "No draft"}</output>

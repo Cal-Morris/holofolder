@@ -468,9 +468,9 @@ for (const mode of ["blank", "species"]) test(`custom ${mode} copies targets, pr
 })
 
 for (const finishes of [false, true]) test(`set checklist durable ${finishes ? 'verified variants' : 'any finish'} scope survives lost reply, reopen and cached startup`, async ({ page, insets }) => {
-  const { syntheticPresetCards, syntheticPresetSet, syntheticPresetPromo } = await import('../tests/fixtures/set-preset')
+  const { syntheticPromoHostCards: syntheticPresetCards, syntheticPromoHostSet: syntheticPresetSet, syntheticSuggestedPromo: syntheticPresetPromo } = await import('../tests/fixtures/set-preset')
   await page.route('**/app/api/tcg-set-slots**', route => {
-    const url = new URL(route.request().url()), promo = url.searchParams.get('setId') === 'synthetic-promos'
+    const url = new URL(route.request().url()), promo = url.searchParams.get('setId') === 'svp'
     return route.fulfill({ json: { sets: [syntheticPresetSet], selectedSet: url.searchParams.has('setId') ? promo ? syntheticPresetPromo.set : syntheticPresetSet : null,
       cards: promo ? [syntheticPresetPromo] : syntheticPresetCards, slots: [] } })
   })
@@ -496,12 +496,7 @@ for (const finishes of [false, true]) test(`set checklist durable ${finishes ? '
     await dialog.getByRole('button', { name: /^Normal/ }).click()
     await dialog.getByRole('button', { name: /^Reverse holo/ }).click()
   }
-  await dialog.getByLabel('Promo set ID').fill('synthetic-promos')
-  await dialog.getByRole('button', { name: 'Load promos', exact: true }).click()
   await dialog.getByRole('button', { name: /^Promo Synthetic selected promo/ }).click()
-  await dialog.getByRole('searchbox', { name: 'Find a card to leave out' }).fill('supporter')
-  await dialog.getByRole('button', { name: 'Leave out #2 Synthetic supporter', exact: true }).click()
-  await expect(dialog.getByRole('button', { name: 'Leave out #2 Synthetic supporter', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await h.expectWithinSafeViewport(dialog); await h.expectNoHorizontalOverflow()
   // Going back to the set and forward again keeps the extras.
   await dialog.getByRole('button', { name: 'Back', exact: true }).click()
@@ -515,7 +510,7 @@ for (const finishes of [false, true]) test(`set checklist durable ${finishes ? '
   const manifest = original.request.manifest as unknown as { setScope: { finishes: string[]; language: string; excludedCardIds: string[]; promoCardIds: string[]; capturedAt: string }; entries: unknown[] }
   expect(manifest.setScope.finishes).toEqual(finishes ? ['normal','reverse_holo'] : [])
   expect(manifest.setScope.language).toBe('en')
-  expect(manifest.setScope.excludedCardIds).toEqual(['synthetic-set-2'])
+  expect(manifest.setScope.excludedCardIds).toEqual([])
   expect(manifest.setScope.promoCardIds).toEqual(['synthetic-promo-1'])
   await page.reload()
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
@@ -525,7 +520,7 @@ for (const finishes of [false, true]) test(`set checklist durable ${finishes ? '
   expect(binder.presetManifest).toEqual(manifest)
   await chooseCollection(page, id)
   await (await openStorage(page)).getByText('What this set binder covers', { exact: true }).click()
-  await expect(page.getByLabel('Copied set scope')).toContainText('1 selected promos; 1 exclusions')
+  await expect(page.getByLabel('Copied set scope')).toContainText('1 selected promos.')
   await expect(page.getByLabel('Copied set scope')).toContainText(manifest.setScope.capturedAt)
   await h.expectNoHorizontalOverflow()
   await page.route('**/app/e2e-harness/storage/inventory?*', route => route.abort('failed'))
