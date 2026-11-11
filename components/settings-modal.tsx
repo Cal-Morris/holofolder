@@ -678,7 +678,6 @@ export default function SettingsModal({
                     Show prices on shared binder
                     <Switch
                       id="share-show-prices"
-                      className="min-h-9 min-w-9"
                       checked={shareShowPrices}
                       onCheckedChange={onShareShowPricesChange}
                       disabled={isShareLoading || !isOnline}
