@@ -13,7 +13,7 @@ import { useBillingContext } from '@/hooks/use-billing';
 import { checkCompsTargets } from '@/lib/check-comps';
 import ShowCheckComps from '@/components/show-check-comps';
 import { useDisplayCardPrices } from '@/hooks/use-display-card-prices';
-import { toCardImageSrc } from '@/lib/card-image-url';
+import { CardThumbnail } from '@/components/card-thumbnail';
 import type { CheckCompsTarget } from '@/lib/check-comps';
 import { formatCardFinishLabel } from '@/lib/card-labels';
 import { readDealThresholds, type DealThresholds } from '@/lib/deal-check';
@@ -40,11 +40,6 @@ import {
 import { Select } from '@/components/ui/select';
 
 type Money = { amount: number; currency: Parameters<typeof formatMoney>[1] };
-
-export function cardThumb(image?: string | null) {
-  if (!image) return null;
-  return toCardImageSrc(image.replace(/\/high\.webp$/, '/low.webp'));
-}
 
 export function payUpTo(market: number, thresholds: DealThresholds) {
   return Math.round(market * (1 + thresholds.fairPct / 100) * 100) / 100;
@@ -89,7 +84,6 @@ export function HuntCardRow({
   showStanding?: boolean;
   onPick: () => void;
 }) {
-  const thumb = cardThumb(card.image);
   const limit = market ? formatMoney(payUpTo(market.amount, thresholds), market.currency) : null;
   const tone = standing === 'owned' ? 'border-border/40 opacity-55' : 'border-border/60 bg-card';
   const finishLabel = finish && finish !== 'normal' ? formatCardFinishLabel(finish) : null;
@@ -102,8 +96,7 @@ export function HuntCardRow({
       className={`holo-tile active:bg-muted flex min-h-[5.5rem] w-full items-center gap-3 rounded-2xl border px-2.5 py-2 text-left ${tone}`}
     >
       <span className="trading-card bg-muted/50 relative w-14 shrink-0 overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element -- proxied card thumbnails, cached by the service worker */}
-        {thumb && <img src={thumb} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
+        <CardThumbnail image={card.image} lazy />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-base leading-tight font-bold">{card.name}</span>
@@ -178,7 +171,6 @@ const GoodPickups = memo(function GoodPickups({
             const { wanted } = pickup.card;
             const market = marketOf(wanted);
             const limit = market ? formatMoney(payUpTo(market.amount, thresholds), market.currency) : null;
-            const thumb = cardThumb(wanted.card_image);
             const drop = formatMomentumChange(pickup.momentum.change).replace('-', '');
             return (
               <button
@@ -190,10 +182,7 @@ const GoodPickups = memo(function GoodPickups({
                 className="border-border/60 bg-card active:bg-muted flex min-h-18 w-full min-w-0 items-center gap-2 rounded-2xl border px-2 py-2 text-left"
               >
                 <span className="trading-card bg-muted/50 relative w-9 shrink-0 overflow-hidden">
-                  {thumb && (
-                    // eslint-disable-next-line @next/next/no-img-element -- proxied card thumbnails, cached by the service worker
-                    <img src={thumb} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-                  )}
+                  <CardThumbnail image={wanted.card_image} lazy />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm leading-tight font-bold">{wanted.card_name}</span>

@@ -1,7 +1,7 @@
 'use client';
 
 import type { QuickCardCheckOptions } from '@/components/quick-mode';
-import { cardThumb } from '@/components/show-hunt';
+import { CardThumbnail } from '@/components/card-thumbnail';
 import { formatCardFinishLabel } from '@/lib/card-labels';
 import type { CardFinish } from '@/lib/domain/cards';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
@@ -44,7 +44,6 @@ export default function ShowRecentCards({
           const pokemon = { id: recent.dexId, name: recent.pokemonName };
           const standing = getCardStanding(getCardState(card, pokemon));
           const badge = CARD_STANDING_BADGES[standing];
-          const thumb = cardThumb(recent.image);
           const finish = recent.finish ? formatCardFinishLabel(recent.finish) : null;
           return (
             <button
@@ -56,10 +55,7 @@ export default function ShowRecentCards({
               className="holo-tile border-border/60 bg-card active:bg-muted flex w-40 shrink-0 items-center gap-2 rounded-xl border p-2 text-left"
             >
               <span className="trading-card bg-muted/50 relative w-10 shrink-0 overflow-hidden">
-                {thumb && (
-                  // eslint-disable-next-line @next/next/no-img-element -- same-origin cached card thumbnail
-                  <img src={thumb} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-                )}
+                <CardThumbnail image={recent.image} lazy />
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold">{recent.name}</span>

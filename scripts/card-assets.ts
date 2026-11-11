@@ -8,8 +8,10 @@
  *   bun run card-assets migrate-bucket [--apply]                copy cards/... from binderdex-card-images to
  *                                                               pokemon/tcg/cards/... in holofolder-assets
  *   bun run card-assets discover malie                          find malie.io renders for the sets in malie-sets.csv
- *   bun run card-assets publish [--set a,b] [--apply]           upload the ledger's chosen images and record them on
+ *   bun run card-assets publish [--set a,b] [--apply] [--concurrency 6]  upload the ledger's chosen images and record them on
  *                                                               the cards, so the app shows them
+ *   bun run card-assets renditions [--set a,b] [--apply]        store the small copy (<key>.low.webp) beside every
+ *                                                               chosen fallback-source image that lacks one
  *
  * plan, verify and atlas read Postgres (POSTGRES_URL_NON_POOLING or DATABASE_URL) in a read-only transaction and
  * write only files under card-assets/. migrate-bucket copies R2 objects server side and records them in
@@ -23,10 +25,10 @@ import { AwsClient } from 'aws4fetch';
 import { Client } from 'pg';
 import { parseListedObjects, planBucketCopy, type ListedObject } from '../lib/card-assets/bucket-migration';
 import { createCardImageMirror } from '../lib/card-image-blob';
-import { parseSourceCardImageUrl, pickCardImageUrl } from '../lib/card-image-sources';
+import { getSourceImageLowPathname, parseSourceCardImageUrl, pickCardImageUrl } from '../lib/card-image-sources';
 import { createR2Deps, getR2Config } from '../lib/card-image-r2';
 import { getCardImageStoreKind } from '../lib/card-image-store';
-import { convertSourceImageToWebp } from '../lib/card-image-transform';
+import { convertSourceImageToWebp, renderLowRendition } from '../lib/card-image-transform';
 import {
   matchMalieEntries,
   MALIE_EXPORT_BASE,
@@ -487,6 +489,37 @@ async function discover() {
   );
 }
 
+type R2Deps = ReturnType<typeof createR2Deps>;
+
+/**
+ * Stores `<key>.low.webp` (SOURCE_IMAGE_LOW_WIDTH wide) beside a stored fallback-source image. Returns the new key.
+ * Pass `body` when the image is already in hand: right after an upload, the public URL can still answer with a 404
+ * that Cloudflare cached from the pre-upload existence check.
+ */
+async function storeLowRendition(deps: R2Deps, key: string, body?: ArrayBuffer) {
+  const low = getSourceImageLowPathname(key);
+  if (!low) return null;
+  if (await deps.head(low)) return low;
+  let source = body;
+  if (!source) {
+    const response = await deps.fetch(`${deps.baseUrl}${key}`);
+    if (!response.ok) throw new Error(`reading ${key}: HTTP ${response.status}`);
+    source = await response.arrayBuffer();
+  }
+  await deps.put(low, await renderLowRendition(source), 'image/webp');
+  return low;
+}
+
+async function recordInventory(db: Client, bucket: string, keys: readonly string[]) {
+  if (!keys.length) return;
+  await db.query(
+    `insert into public.card_image_inventory (bucket, object_key, observed_at)
+     select $1, key, now() from unnest($2::text[]) as key
+     on conflict (bucket, object_key) do update set observed_at = excluded.observed_at`,
+    [bucket, keys],
+  );
+}
+
 /**
  * Makes the app show the ledger's choices. For every card whose chosen image differs from what the app would pick on
  * its own, the image is uploaded to R2 (if it isn't there yet) and recorded as external_ids_json.assets.<lang>;
@@ -549,7 +582,7 @@ async function publish() {
     const failed: string[] = [];
     let next = 0;
     await Promise.all(
-      Array.from({ length: 6 }, async () => {
+      Array.from({ length: Number(arg('concurrency') ?? 6) }, async () => {
         while (next < toPublish.length) {
           const change = toPublish[next++];
           const url = new URL(change.image!);
@@ -560,19 +593,29 @@ async function publish() {
             failed.push(`${change.card.id}: not a storable image URL`);
             continue;
           }
+          let original: ArrayBuffer | undefined;
           if (!stored.has(key)) {
             try {
               const image = tcgdex ? await mirror.loadImage(tcgdex) : await mirror.loadSourceImage(source!);
+              original = image.body;
               await image.pendingUpload?.();
               if (!(await deps.head(key))) throw new Error('not in the bucket after upload');
               stored.add(key);
-              await db.query(
-                'insert into public.card_image_inventory (bucket, object_key) values ($1, $2) on conflict (bucket, object_key) do update set observed_at = now()',
-                [r2.bucket, key],
-              );
+              await recordInventory(db, r2.bucket, [key]);
             } catch (error) {
               failed.push(`${change.card.id}: ${error instanceof Error ? error.message : String(error)}`);
               continue;
+            }
+          }
+          // Lists and thumbnails load the small copy; a missing one only costs a fallback to the full image.
+          const low = source && getSourceImageLowPathname(key);
+          if (low && !stored.has(low)) {
+            try {
+              await storeLowRendition(deps, key, original);
+              stored.add(low);
+              await recordInventory(db, r2.bucket, [low]);
+            } catch (error) {
+              console.warn(`[publish] small copy of ${key}: ${error instanceof Error ? error.message : String(error)}`);
             }
           }
           ready.push(change);
@@ -630,6 +673,79 @@ async function publish() {
   console.log(`revalidated the mirror cache via a sync of ${setId}: HTTP ${response.status}`);
 }
 
+/** Backfills the small copy beside every chosen fallback-source image that is stored but has none. */
+async function renditions() {
+  await loadProjectEnvFiles();
+  const apply = process.argv.includes('--apply');
+  const sets =
+    arg('set')
+      ?.split(',')
+      .map((id) => id.trim())
+      .filter(Boolean) ?? null;
+  const config = await loadConfig();
+  const cards = await withDb((db) => loadCards(db, sets));
+  const rows = [...buildLedgers(cards, config).values()].flat();
+  const r2 = getCardImageStoreKind() === 'r2' ? getR2Config() : null;
+  if (!r2) throw new Error("Set CARD_IMAGE_STORE=r2 and the R2_* variables for the app's bucket");
+  const db = new Client({ connectionString: getMirrorDatabaseUrl() });
+  await db.connect();
+  try {
+    const stored = new Set(
+      (
+        await db.query<{ object_key: string }>('select object_key from public.card_image_inventory where bucket = $1', [
+          r2.bucket,
+        ])
+      ).rows.map((row) => row.object_key),
+    );
+    const keys = [
+      ...new Set(
+        rows.flatMap((row) => {
+          const key = row.url ? parseSourceCardImageUrl(row.url)?.pathname : undefined;
+          return key ? [key] : [];
+        }),
+      ),
+    ];
+    const todo = keys.filter((key) => stored.has(key) && !stored.has(getSourceImageLowPathname(key)!));
+    console.log(
+      JSON.stringify(
+        {
+          apply,
+          sourceImages: keys.length,
+          notStoredYet: keys.filter((key) => !stored.has(key)).length,
+          missingSmallCopy: todo.length,
+        },
+        null,
+        2,
+      ),
+    );
+    if (!apply) return;
+    const deps = createR2Deps(r2);
+    const done: string[] = [];
+    const failed: string[] = [];
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: 8 }, async () => {
+        while (next < todo.length) {
+          const key = todo[next++];
+          try {
+            const low = await storeLowRendition(deps, key);
+            if (low) done.push(low);
+          } catch (error) {
+            failed.push(`${key}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+          if ((done.length + failed.length) % 1000 === 0)
+            console.log(`stored ${done.length}, failed ${failed.length} of ${todo.length}`);
+        }
+      }),
+    );
+    for (let i = 0; i < done.length; i += 1000) await recordInventory(db, r2.bucket, done.slice(i, i + 1000));
+    console.log(JSON.stringify({ stored: done.length, failed: failed.length, failures: failed.slice(0, 20) }, null, 2));
+    if (failed.length) process.exitCode = 1;
+  } finally {
+    await db.end();
+  }
+}
+
 const commands: Record<string, () => Promise<void>> = {
   plan,
   verify,
@@ -637,6 +753,7 @@ const commands: Record<string, () => Promise<void>> = {
   'migrate-bucket': migrateBucket,
   discover,
   publish,
+  renditions,
 };
 const command = commands[process.argv[2] ?? ''];
 if (!command) {

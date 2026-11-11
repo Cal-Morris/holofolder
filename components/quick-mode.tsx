@@ -34,7 +34,7 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { useCardSearch, useIllustratorSearch, useSetSearch } from '@/hooks/use-card-search';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { getCardPriceKey, useStableCardPriceLookups, type CardPriceSnapshot } from '@/hooks/use-card-prices';
-import { toCardImageSrc } from '@/lib/card-image-url';
+import { CardThumbnail } from '@/components/card-thumbnail';
 import {
   POKEMON_CATALOG,
   formatPokemonDisplayName,
@@ -193,11 +193,6 @@ export interface QuickModeProps {
     /** The collection on this device: its wanted printings always match, even offline. */
     items?: readonly HuntSourceItem[];
   };
-}
-
-function cardThumbnail(image?: string) {
-  if (!image) return null;
-  return toCardImageSrc(image.replace(/\/high\.webp$/, '/low.webp'));
 }
 
 const STANDING_BADGES: Record<PokemonCardStanding, QuickModePokemonState> = CARD_STANDING_BADGES;
@@ -901,7 +896,6 @@ function QuickMode({
                           <MomentumSortChips value={moveSort} onChange={setMoveSort} className="mb-1.5" />
                         )}
                         {sortedCardResults.map(({ card, pokemon, standing }) => {
-                          const thumb = cardThumbnail(card.image);
                           const priceSnapshot =
                             nativeConsumer && !isCardLanguage(card.language)
                               ? undefined
@@ -929,15 +923,7 @@ function QuickMode({
                               onClick={() => pickCard(card, pokemon)}
                             >
                               <span className="trading-card bg-muted/50 relative w-10 shrink-0 overflow-hidden">
-                                {thumb && (
-                                  // eslint-disable-next-line @next/next/no-img-element -- proxied card thumbnails, cached by the service worker
-                                  <img
-                                    src={thumb}
-                                    alt=""
-                                    loading="lazy"
-                                    className="absolute inset-0 h-full w-full object-cover"
-                                  />
-                                )}
+                                <CardThumbnail image={card.image} lazy />
                               </span>
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate text-[15px] font-semibold">{card.name}</span>

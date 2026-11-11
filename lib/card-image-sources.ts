@@ -89,6 +89,15 @@ const PATH_RULES: Record<CardImageSource, { pattern: RegExp; key: (match: RegExp
   },
 };
 
+/** Store key of the small rendition beside a fallback-source image: `….webp` → `….low.webp`. */
+export function getSourceImageLowPathname(pathname: string) {
+  return pathname.startsWith(`${CARD_IMAGE_SOURCE_PREFIX}/`) &&
+    pathname.endsWith('.webp') &&
+    !pathname.endsWith('.low.webp')
+    ? `${pathname.slice(0, -5)}.low.webp`
+    : null;
+}
+
 export function getCardImageSourceForHost(hostname: string): CardImageSource | null {
   return Object.hasOwn(CARD_IMAGE_SOURCE_HOSTS, hostname) ? CARD_IMAGE_SOURCE_HOSTS[hostname] : null;
 }

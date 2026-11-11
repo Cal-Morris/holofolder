@@ -3,6 +3,18 @@ import { TRIMMED_CARD_IMAGE_SOURCES, type CardImageSource } from './card-image-s
 /** Longest edge kept for mirrored fallback-source images (TCGdex `high` images are about 600 x 825). */
 export const SOURCE_IMAGE_MAX_WIDTH = 734;
 const SOURCE_IMAGE_WEBP_QUALITY = 85;
+/** Width of the small copy stored beside each fallback-source image (`<key>.low.webp`), for lists and thumbnails. */
+export const SOURCE_IMAGE_LOW_WIDTH = 320;
+
+/** The small rendition of a stored fallback-source image. */
+export async function renderLowRendition(body: ArrayBuffer) {
+  const { default: sharp } = await import('sharp');
+  const output = await sharp(Buffer.from(body))
+    .resize({ width: SOURCE_IMAGE_LOW_WIDTH, withoutEnlargement: true })
+    .webp({ quality: 80 })
+    .toBuffer();
+  return output.buffer.slice(output.byteOffset, output.byteOffset + output.byteLength) as ArrayBuffer;
+}
 
 /**
  * Stored form of a fallback-source card image: WebP, at most SOURCE_IMAGE_MAX_WIDTH wide (never enlarged).

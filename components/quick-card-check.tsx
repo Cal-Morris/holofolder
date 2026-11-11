@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { getCardPriceKey } from '@/hooks/use-card-prices';
-import { toCardImageSrc } from '@/lib/card-image-url';
+import { CardThumbnail } from '@/components/card-thumbnail';
 import { formatCardNumber, inferCardFinish, type SearchCardResult } from '@/lib/pokemon-card-browse';
 import { getCardPickerFinishChoices } from '@/lib/card-picker-filters';
 import {
@@ -278,7 +278,6 @@ export default function QuickCardCheck({
       : "This card's price isn't saved on this device, and prices can't be fetched offline. Check again when you have signal.";
   const soldMedian = usesSoldGuide ? null : toDisplay(soldGuide?.median);
   const inBundle = isInBundle(key);
-  const thumb = card.image ? toCardImageSrc(card.image.replace(/\/high\.webp$/, '/low.webp')) : null;
   const statusLabel = nativeConsumer
     ? nativeCardLabel(nativeCardState(nativeModel, card, finish))
     : state.owned
@@ -311,8 +310,7 @@ export default function QuickCardCheck({
             <ArrowLeft className="h-5 w-5" />
           </button>
           <span className="trading-card bg-muted/50 relative w-14 shrink-0 overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element -- proxied card thumbnails, cached by the service worker */}
-            {thumb && <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+            <CardThumbnail image={card.image} />
           </span>
           <div className="min-w-0 flex-1">
             <h3 className="text-lg leading-tight font-bold">{card.name}</h3>

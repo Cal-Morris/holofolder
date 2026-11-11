@@ -1,6 +1,6 @@
 import { appPath } from '@/lib/app-path';
 import { parseTcgdexCardImageUrl, getCardImageBlobPathname, currentCardImageKey } from '@/lib/tcgdex-card-image';
-import { parseSourceCardImageUrl, isCardImageSourceUrl } from '@/lib/card-image-sources';
+import { parseSourceCardImageUrl, isCardImageSourceUrl, getSourceImageLowPathname } from '@/lib/card-image-sources';
 
 export const PUBLIC_CARD_IMAGE_BASE = 'https://assets.holofolder.com/';
 
@@ -47,4 +47,22 @@ export function toCardImageSrc(value: unknown): string | null {
       return PUBLIC_CARD_IMAGE_BASE + currentCardImageKey(url.pathname.slice(1));
   } catch {}
   return proxy;
+}
+
+/** The small stored rendition of a public card object (TCGdex `low`, `<key>.low.webp` for other sources), if it has one. */
+export function toSmallCardAssetSrc(src: string): string | null {
+  if (!src.startsWith(PUBLIC_CARD_IMAGE_BASE)) return null;
+  if (/\/high\.(webp|png|jpg)$/.test(src)) return src.replace(/\/high\.(webp|png|jpg)$/, '/low.$1');
+  const low = getSourceImageLowPathname(src.slice(PUBLIC_CARD_IMAGE_BASE.length));
+  return low ? PUBLIC_CARD_IMAGE_BASE + low : null;
+}
+
+/**
+ * Thumbnail for plain `<img>` lists (Quick mode, Show mode): the small rendition, with the full image to switch to if
+ * the small one isn't stored yet.
+ */
+export function toCardThumbnailSrc(value: unknown): { src: string; full: string } | null {
+  const full = toCardImageSrc(value);
+  if (!full) return null;
+  return { src: toSmallCardAssetSrc(full) ?? full, full };
 }

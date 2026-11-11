@@ -1,4 +1,4 @@
-import { PUBLIC_CARD_IMAGE_BASE } from './card-image-url';
+import { toSmallCardAssetSrc } from './card-image-url';
 import { getImageProps, type ImageLoaderProps } from 'next/image';
 
 const PROXY_PATH = '/app/api/card-image-proxy';
@@ -19,8 +19,9 @@ export function cardImageLoader({ src, width }: Pick<ImageLoaderProps, 'src' | '
 
 /** Prefetch and render must let the browser select exactly the same variant. */
 export function getCardImageAttributes(src: string, sizes: string) {
-  if (src.startsWith(PUBLIC_CARD_IMAGE_BASE) && /\/high\.(webp|png|jpg)$/.test(src))
-    return { src, srcSet: `${src.replace(/\/high\.(webp|png|jpg)$/, '/low.$1')} 320w, ${src} 600w`, sizes };
+  const small = toSmallCardAssetSrc(src);
+  // TCGdex `high` is 600 wide; other sources are stored up to 734 wide.
+  if (small) return { src, srcSet: `${small} 320w, ${src} ${/\/high\.(webp|png|jpg)$/.test(src) ? 600 : 734}w`, sizes };
   const { props } = getImageProps({
     src,
     alt: '',
