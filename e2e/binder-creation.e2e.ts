@@ -21,7 +21,7 @@ async function open(page: Page, mode: Mode = "blank", name = "Synthetic copied b
   await (await storageAction(page, "New binder")).click()
   const dialog = wizard(page)
   await dialog.getByRole("group", { name: "What is this binder for?" }).getByRole("button", { name: new RegExp(`^${PRESETS[mode]}`) }).click()
-  await expect(dialog.getByText(/^Step 2 of \d+$/)).toBeVisible()
+  await expect(dialog.getByRole("progressbar", { name: "Progress" })).toHaveAttribute("aria-valuenow", "2")
   names.set(page, name)
   return dialog
 }
@@ -29,9 +29,9 @@ async function open(page: Page, mode: Mode = "blank", name = "Synthetic copied b
 async function toLayout(page: Page, list?: { location: string }) {
   const dialog = wizard(page), field = dialog.getByRole("textbox", { name: "Binder name" })
   for (let i = 0; i < 4 && !await field.isVisible(); i++) {
-    const step = await dialog.getByText(/^Step \d+ of \d+$/).textContent()
+    const progress = dialog.getByRole("progressbar", { name: "Progress" }), step = await progress.getAttribute("aria-valuenow")
     await dialog.getByRole("button", { name: "Next", exact: true }).click()
-    await expect(dialog.getByText(/^Step \d+ of \d+$/)).not.toHaveText(step!)
+    await expect(progress).not.toHaveAttribute("aria-valuenow", step!)
   }
   await field.fill(names.get(page) ?? "Synthetic copied binder")
   if (list) {
