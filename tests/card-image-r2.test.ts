@@ -201,7 +201,7 @@ describe("R2 backend", () => {
     const page = parseListObjectsV2(
       "<ListBucketResult><Contents><Key>cards/en/a&amp;b/1/high.webp</Key></Contents><IsTruncated>true</IsTruncated><NextContinuationToken>t+1</NextContinuationToken></ListBucketResult>",
     )
-    assert.deepEqual(page, { keys: ["pokemon/tcg/cards/en/a&b/1/high.webp"], nextContinuationToken: "t+1" })
+    assert.deepEqual(page, { keys: ["cards/en/a&b/1/high.webp"], nextContinuationToken: "t+1" })
     assert.deepEqual(parseListObjectsV2("<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>"), { keys: [], nextContinuationToken: null })
   })
 
