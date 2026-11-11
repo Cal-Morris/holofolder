@@ -16,7 +16,6 @@ describe("API session checks", () => {
   test("read-only GET handlers use the local session check", () => {
     assert.match(handler(read("app/api/settings/route.ts"), "GET"), /getSessionUser\(client\)/)
     assert.match(handler(read("app/api/binder-share/route.ts"), "GET"), /requireSessionUser\(\)/)
-    assert.match(handler(read("app/api/collection-analytics/route.ts"), "GET"), /getSessionUser\(client\)/)
     assert.match(handler(read("app/api/binder-appearance/route.ts"), "GET"), /readOnly: true/)
     assert.match(handler(read("app/api/binder-appearance/artwork/route.ts"), "GET"), /readOnly: true/)
   })

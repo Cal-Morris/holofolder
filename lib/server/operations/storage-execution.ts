@@ -87,7 +87,7 @@ async function executeStorageRpc(operation: StorageOperation, ownerId: string, i
     if (error) throw storageExecutionError(error)
     if ((operation === "slots" || operation === "inventory") && isStorageCommandRejection(data, operationId)) return { ...data }
     if ((operation === "recovery.apply" || operation === "recovery.apply.v2") && isRecoveryRejection(data, operationId)) return { ...data }
-    if (operation === "backup.restore.raw" && isRawRestoreRejection(data, operationId, (input as RawRestoreCommand).version)) return { ...data }
+    if (operation === "backup.restore.raw" && isRawRestoreRejection(data, operationId)) return { ...data }
     if (operation === "collection.create" && isCreationRejection(data, operationId)) return { ...data }
     if (operation === "backup.arrangement" && isImportRejection(data, operationId)) return { ...data }
     // A malformed terminal row must never fall through to an accepted receipt projection.

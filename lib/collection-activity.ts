@@ -1,12 +1,17 @@
 /** Safe presentation model for committed history, separate from the local undo queue. */
-import type { ActivityState, ActivityEvent, ActivityPage, ActivityScope } from "@/lib/domain/collection-activity"
+import type { ActivityState, ActivityChange, ActivityEvent, ActivityPage, ActivityScope } from "@/lib/domain/collection-activity"
 export type { ActivityState, ActivityChange, ActivityEvent, ActivityPage, ActivityScope } from "@/lib/domain/collection-activity"
-const stateFields = new Set(['id','pokemon_id','pokemon_name','card_id','card_name','card_set','card_language','card_finish','status','grade','grading_company','grade_value','condition','name','binder_id','collection_id','inventory_item_id','slot_id','target','target_kind','target_id','sort_order','position','page','row','column','slot_index','wanted_cards','wanted_by','is_default','rows','cols','storage_version','layout_version','version','quantity','favorite','collected_at','removed_at','language','finish','kind','identity','grading','cardId','pokemonId','catalogId','company','value','scale','is_enabled','show_prices','storage_authority','layout','inventory_revision','provider','designation','subgrades','holder'])
+// The only row fields Activity shows. Everything else (certificates, labels, artwork) is dropped.
+const stateFields = new Set(['id','card_id','card_name','card_set','card_language','card_finish','status','grade','grading_company','grade_value','condition','name','binder_id','collection_id','inventory_item_id','slot_id','target','target_kind','target_id','sort_order','position','page','row','column','slot_index','wanted_cards','wanted_by','is_default','rows','cols','storage_version','layout_version','version','quantity','favorite','collected_at','removed_at','language','finish','kind','identity','grading','cardId','pokemonId','catalogId','company','value','scale','is_enabled','show_prices','storage_authority','layout','inventory_revision','provider','designation','subgrades','holder'])
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 function safeState(v: unknown, depth = 0): ActivityState | null {
   if (!record(v) || depth > 3) return null
   return Object.fromEntries(Object.entries(v).filter(([k]) => stateFields.has(k)).map(([k,value]) => [k,
     Array.isArray(value) ? value.map(x => record(x) ? safeState(x, depth + 1) : typeof x === 'string' || typeof x === 'number' ? x : null) : record(value) ? safeState(value, depth + 1) : value === null || ['string','number','boolean'].includes(typeof value) ? value : null]))
+}
+/** Stored audit changes, reduced to the fields Activity shows. */
+export function projectActivityChanges(value: unknown): ActivityChange[] {
+  return Array.isArray(value) ? value.filter(record).map(c => ({table: typeof c.table === 'string' ? c.table : 'unknown', id: typeof c.id === 'string' ? c.id : '', before: safeState(c.before), after: safeState(c.after)})) : []
 }
 export function parseActivityPage(value: unknown): ActivityPage | null {
   if (!record(value) || !Array.isArray(value.data) || !(value.nextCursor === null || typeof value.nextCursor === 'string')) return null
@@ -21,10 +26,8 @@ export function parseActivityPage(value: unknown): ActivityPage | null {
     }
     data.push({ id: row.id, recorded_at: row.recorded_at, format_version: typeof row.format_version === 'number' ? row.format_version : 0,
       actor_kind: text('actor_kind') ?? 'unknown', actor_user_id: text('actor_user_id'), actor_job: text('actor_job'), source: text('source') ?? 'unknown', client_id: text('client_id'),
-      action: text('action') ?? 'legacy', operation_id: text('operation_id'), batch_id: text('batch_id'), client_occurred_at: text('client_occurred_at'), recovery_of_event_id: text('recovery_of_event_id'),
-      pokemon_id: typeof row.pokemon_id === 'number' ? row.pokemon_id : null, pokemon_name: text('pokemon_name'),
-      before_state: safeState(row.before_state), after_state: safeState(row.after_state), affected_entities: affected,
-      changes: Array.isArray(row.changes) ? row.changes.filter(record).map(c => ({table: typeof c.table === 'string' ? c.table : 'unknown', id: typeof c.id === 'string' ? c.id : '', before: safeState(c.before), after: safeState(c.after)})) : [] })
+      action: text('action') ?? 'collection_change', operation_id: text('operation_id'), batch_id: text('batch_id'), client_occurred_at: text('client_occurred_at'), recovery_of_event_id: text('recovery_of_event_id'),
+      affected_entities: affected, changes: projectActivityChanges(row.changes) })
   }
   return { data, nextCursor: value.nextCursor }
 }
@@ -44,13 +47,13 @@ export function activityTime(value: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? 'Unknown server time' : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'medium' })
 }
-export function activityEntityName(event: Pick<ActivityEvent,'pokemon_name'|'changes'>) {
+export function activityEntityName(event: Pick<ActivityEvent,'changes'>) {
   const state = event.changes[0]?.after ?? event.changes[0]?.before
   const identity = record(state?.identity) ? state.identity : record(state?.target) ? state.target : null
-  return event.pokemon_name ?? state?.card_name ?? state?.pokemon_name ?? state?.name ?? state?.card_id ?? identity?.cardId ?? null
+  return state?.card_name ?? state?.name ?? state?.card_id ?? identity?.cardId ?? null
 }
 export function activityEntityKind(table:string) {
-  return ({inventory_items:'Owned item',inventory_placements:'Placement',binder_slots:'Slot',binders:'Collection',pokemon_collection:'Legacy collection row',user_settings:'Settings',binder_appearances:'Appearance',binder_shares:'Sharing'} as Record<string,string>)[table] ?? 'Recorded entity'
+  return ({inventory_items:'Owned item',inventory_placements:'Placement',binder_slots:'Slot',binders:'Collection',user_settings:'Settings',binder_appearances:'Appearance',binder_shares:'Sharing'} as Record<string,string>)[table] ?? 'Recorded entity'
 }
 const labels: Record<string,string> = {is_default:'Default collection',card_id:'Card printing',card_name:'Card name',card_set:'Set',card_finish:'Finish',card_language:'Language',status:'Ownership / wanted status',wanted_cards:'Wanted cards',grade:'Grade',grading_company:'Grading company',slot_id:'Slot',binder_id:'Collection',collection_id:'Collection',inventory_item_id:'Owned item',target:'Target',sort_order:'Order',position:'Position',slot_index:'Slot order'}
 function display(value: unknown): string {
@@ -59,18 +62,18 @@ function display(value: unknown): string {
   if (record(value)) return Object.entries(value).map(([k,v]) => `${labels[k] ?? k.replaceAll('_',' ')}: ${display(v)}`).join(', ')
   return String(value)
 }
-export function activityChanges(event: Pick<ActivityEvent,'changes'|'format_version'|'before_state'|'after_state'|'pokemon_name'>) {
-  const changes = event.changes.length ? event.changes : [{table:'pokemon_collection',id:'',before:event.before_state ?? null,after:event.after_state ?? null}]
+export function activityChanges(event: Pick<ActivityEvent,'changes'>) {
+  const changes = event.changes
   const removedItems = new Set(changes.filter(c=>c.table==='inventory_items' && !c.after).map(c=>c.id))
   return changes.map(change => {
     const state = change.after ?? change.before
-    const name = String(state?.card_name ?? state?.pokemon_name ?? state?.name ?? event.pokemon_name ?? state?.card_id ?? (record(state?.identity) ? state.identity.cardId : undefined) ?? change.id ?? 'Recorded change')
+    const name = String(state?.card_name ?? state?.name ?? state?.card_id ?? (record(state?.identity) ? state.identity.cardId : undefined) ?? change.id ?? 'Recorded change')
     const verb = change.table === 'inventory_items' ? !change.after ? 'Ownership removed' : !change.before ? 'Ownership added' : 'Owned item edited'
       : change.table === 'inventory_placements' ? !change.after ? removedItems.has(String(change.before?.inventory_item_id ?? change.id)) ? 'Placement removed with ownership' : 'Unassigned, ownership retained' : !change.before ? 'Assigned' : 'Moved'
       : change.table === 'binder_slots' ? !change.after ? 'Slot removed' : !change.before ? 'Slot added' : 'Slot / target changed'
       : change.table === 'binders' ? !change.after ? 'Collection deleted' : !change.before ? 'Collection created' : 'Collection changed'
-      : change.table === 'pokemon_collection' ? 'Recorded collection change' : 'Metadata changed'
-    const keys = [...new Set([...Object.keys(change.before ?? {}), ...Object.keys(change.after ?? {})])].filter(key => !['id','pokemon_id','pokemon_name'].includes(key))
+      : 'Metadata changed'
+    const keys = [...new Set([...Object.keys(change.before ?? {}), ...Object.keys(change.after ?? {})])].filter(key => key !== 'id')
     return { ...change, title: `${verb} · ${name}`, fields: keys.filter(key => JSON.stringify(change.before?.[key]) !== JSON.stringify(change.after?.[key])).map(key => ({ label: labels[key] ?? key.replaceAll('_',' '), before: display(change.before?.[key]), after: display(change.after?.[key]) })) }
   })
 }

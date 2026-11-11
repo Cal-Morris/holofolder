@@ -20,7 +20,6 @@ test("ownership removal, unassignment, legacy wants and bulk changes are distinc
   assert.match(changes[0].title, /Ownership removed/)
   assert.match(changes[1].title, /Unassigned/)
   assert.match(JSON.stringify(changes[2]), /Wanted cards/)
-  assert.equal(activityChanges({ ...event, format_version: 0, pokemon_name: "Synthetic", before_state: { status: "collected" }, after_state: { status: "uncollected" } }).length, 1)
 })
 test("cache rejects account/owner/membership changes and stale async writers", () => {
   const values = new Map<string,string>()

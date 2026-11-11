@@ -30,7 +30,7 @@ for(const reordered of [false,true])test(`v4 preserves stable IDs with ${reorder
  assert.equal(isRawRestoreReceipt(receipt,r),true)
  assert.equal(isRawRestoreReceipt({...receipt,version:3},r),false)
  assert.equal(isRawRestoreReceipt({...receipt,layoutRevision:receipt.layoutRevision+1},r),false)
- assert.equal(isRawRestoreRejection({version:4,outcome:'rejected',operationId:r.operationId,code:'raw_restore_content_conflict',inventoryRevision:r.inventoryRevision},r.operationId,4),true)
+ assert.equal(isRawRestoreRejection({version:4,outcome:'rejected',operationId:r.operationId,code:'raw_restore_content_conflict',inventoryRevision:r.inventoryRevision},r.operationId),true)
  assert.ok(rawRestoreV2GraphBytes(f.snapshot,f.snapshot.binders[0])<RAW_RESTORE_V2_LIMITS.graphBytes)
 })
 test('converted review refuses grades and changed metadata',async()=>{

@@ -1,7 +1,7 @@
 import { readAuditHeader } from "../lib/supabase/audit-header"
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { auditContextHeader, withAuditActor, withAuditSystem, captureAuditOperations, withAuditOperation, withLegacyQueueAudit } from "../lib/server/audit-context"
+import { auditContextHeader, withAuditActor, withAuditSystem, captureAuditOperations } from "../lib/server/audit-context"
 
 test("trusted server attribution survives async work without crossing requests; database transactions have unique IDs", async () => {
   assert.equal(auditContextHeader(),undefined)
@@ -35,34 +35,3 @@ test('capturing committed edit identifiers preserves distinct transaction operat
  assert.equal(auditContextHeader(),undefined)
 })
 
-test("first-party queue scope preserves operation capture and cannot bleed into app, REST, MCP or system contexts", async () => {
-  assert.throws(() => withLegacyQueueAudit(() => undefined))
-  withAuditSystem("synthetic-job", () => assert.throws(() => withLegacyQueueAudit(() => undefined)))
-  const ids = new Set<string>()
-  await withAuditActor("synthetic-actor", () => captureAuditOperations(ids, async () => {
-    const batch = JSON.parse(auditContextHeader()!).batchId
-    const [tagged, ordinary] = await Promise.all([
-      withLegacyQueueAudit(async () => { await Promise.resolve(); return JSON.parse(auditContextHeader()!) }),
-      Promise.resolve().then(() => JSON.parse(auditContextHeader()!)),
-    ])
-    assert.equal(tagged.legacyQueueGeneration, 2); assert.equal(tagged.purpose, "legacy.queue")
-    assert.equal(tagged.batchId, batch); assert.ok(ids.has(tagged.operationId))
-    assert.notEqual(tagged.operationId, ordinary.operationId)
-    assert.equal(Object.hasOwn(ordinary, "purpose"), false)
-    withLegacyQueueAudit(() => withAuditOperation("synthetic-operation", () => {
-      const context = JSON.parse(auditContextHeader()!)
-      assert.equal(context.operationId, "synthetic-operation"); assert.equal(context.batchId, "synthetic-operation")
-      assert.equal(context.legacyQueueGeneration, 2); assert.ok(ids.has(context.operationId))
-    }))
-    for (const transport of ["rest", "mcp"] as const) {
-      withLegacyQueueAudit(() => withAuditActor("synthetic-actor", () => {
-        const context = JSON.parse(auditContextHeader()!)
-        assert.equal(context.source, transport); assert.equal(Object.hasOwn(context, "purpose"), false)
-        assert.equal(Object.hasOwn(context, "legacyQueueGeneration"), false)
-        assert.throws(() => withLegacyQueueAudit(() => undefined))
-      }, { principal: { actorId: "synthetic-actor", transport, credentialId: "synthetic-key", permissions: [] }, ownerUserId: "synthetic-owner", memberIds: [], requestId: "synthetic-request" }))
-    }
-    assert.equal(Object.hasOwn(JSON.parse(auditContextHeader()!), "purpose"), false)
-  }))
-  assert.equal(auditContextHeader(), undefined)
-})

@@ -20,7 +20,7 @@ test('wants, owned cards, rename and bulk changes have meaningful verbs',()=>{
   assert.match(activitySummary(make({...row,status:'wishlisted'},row)).title,/Collected Bulbasaur/)
   assert.match(activitySummary(make(row,{...row,wanted_cards:[{card_name:'Bulbasaur',card_id:'other'}]})).title,/want list/)
   assert.equal(activitySummary(make({name:'Old'},{name:'New'},'binders')).title,'Renamed Old to New')
-  assert.equal(activitySummary({...base,changes:Array.from({length:12},(_,i)=>({table:'pokemon_collection',id:String(i),before:null,after:row}))}).title,'Added 12 cards')
+  assert.equal(activitySummary({...base,changes:Array.from({length:12},(_,i)=>({table:'inventory_items',id:String(i),before:null,after:row}))}).title,'Added 12 cards')
   assert.match(activitySummary({...base,action:'recovery.apply',recovery_of_event_id:'5'}).title,/Undid/)
 })
 test('details suppress identifiers, format values and keep unknowns honest',()=>{
@@ -31,14 +31,10 @@ test('details suppress identifiers, format values and keep unknowns honest',()=>
   assert.deepEqual(readableActivityChanges(printing)[0].fields,[{label:'Printing',before:'MEP Black Star Promos · #037',after:'MEP Black Star Promos · #038'}])
 })
 
-test('receipts expand only useful deltas or bulk changes and offer supported Undo',()=>{
+test('receipts expand only useful deltas or bulk changes',()=>{
   const make = (before: Record<string,unknown>|null,after:Record<string,unknown>|null,table='pokemon_collection')=>({...base,changes:[{table,id:'row',before,after}]})
   assert.equal(activityReceipt(make(null,row)).hasDetails,false)
   assert.equal(activityReceipt(make(row,null)).hasDetails,false)
   assert.equal(activityReceipt(make(row,{...row,card_id:'mep-038'})).hasDetails,true)
   assert.equal(activityReceipt({...base,changes:[...make(null,row).changes,...make(null,row).changes]}).hasDetails,true)
-  assert.equal(activityReceipt(make(null,row)).canUndo,true)
-  assert.equal(activityReceipt(make(null,{name:'Binder'},'binders')).canUndo,false)
-  assert.equal(activityReceipt({...make(null,row),format_version:0}).canUndo,false)
-  assert.equal(activityReceipt({...make(null,row),action:'recovery.apply'}).canUndo,false)
 })

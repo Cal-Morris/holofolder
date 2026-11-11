@@ -1,15 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import type { CollectedPokemon, WantedCard } from "../lib/domain/cards"
-import {
-  ABSENT_ROW_FINGERPRINT,
-  SYNC_RETRY_MAX_MS,
-  applyPendingEdits,
-  classifyWriteFailure,
-  collectionFingerprint,
-  nextSyncRetryDelay,
-  resolveConflict,
-} from "../lib/collection/sync"
+import { ABSENT_ROW_FINGERPRINT, collectionFingerprint } from "../lib/collection/sync"
 
 const want = (card_id: string): WantedCard => ({ card_id, card_name: card_id, added_at: "2026-10-01T00:00:00.000Z" })
 
@@ -27,19 +19,6 @@ const row = (overrides: Partial<CollectedPokemon> = {}): CollectedPokemon => ({
   ...overrides,
 })
 
-test("imports preserve concurrent owned selections and only append wants", () => {
-  const base = row({ card_id: undefined, status: "wishlisted", wanted_cards: [want("old")] })
-  const local = row({ wanted_cards: [want("new")] })
-  const remote = row({ card_id: "remote-printing", status: "finalized", wanted_cards: [want("old"), want("remote")] })
-  const resolution = resolveConflict({ type: "upsert", pokemonId: 25, base, item: local, importOnly: true }, remote)
-  assert.equal(resolution.action, "write")
-  if (resolution.action !== "write") return
-  assert.equal(resolution.item.card_id, "remote-printing")
-  assert.equal(resolution.item.status, "finalized")
-  assert.deepEqual(resolution.item.wanted_cards.map(c => c.card_id), ["old", "remote", "new"])
-  assert.deepEqual(resolveConflict({ type: "upsert", pokemonId: 25, base, item: local, importOnly: true }, null), { action: "drop", serverItem: null })
-})
-
 test("fingerprints ignore ids, names and timestamps but see status, printing and wanted cards", () => {
   assert.equal(collectionFingerprint(null), ABSENT_ROW_FINGERPRINT)
   assert.equal(collectionFingerprint(row()), collectionFingerprint(row({ id: "other", card_name: "x", collected_at: "2020-01-01" })))
@@ -49,76 +28,4 @@ test("fingerprints ignore ids, names and timestamps but see status, printing and
     collectionFingerprint(row({ wanted_cards: [want("a"), want("b")] })),
     collectionFingerprint(row({ wanted_cards: [want("b"), want("a")] })),
   )
-})
-
-test("queued edits are re-applied over a freshly loaded collection", () => {
-  const server = [row(), row({ id: "row-1", pokemon_id: 1, pokemon_name: "bulbasaur" })]
-  const result = applyPendingEdits(server, [
-    { type: "upsert", pokemonId: 25, item: row({ id: "local", status: "finalized" }) },
-    { type: "delete", pokemonId: 1 },
-    { type: "upsert", pokemonId: 4, item: row({ id: "row-4", pokemon_id: 4, pokemon_name: "charmander" }) },
-  ])
-  assert.deepEqual(result.map((item) => [item.pokemon_id, item.status, item.id]), [[4, "collected", "row-4"], [25, "finalized", "row-25"]])
-})
-
-test("conflict: local and server changed different things, both survive", () => {
-  const base = row({ wanted_cards: [want("a")] })
-  const local = row({ status: "finalized", wanted_cards: [want("a"), want("local")] })
-  const server = row({ card_finish: "holo", wanted_cards: [want("a"), want("server")] })
-  const resolution = resolveConflict({ type: "upsert", pokemonId: 25, item: local, base }, server)
-  assert.equal(resolution.action, "write")
-  if (resolution.action !== "write") return
-  assert.equal(resolution.item.status, "finalized", "local status change wins")
-  assert.equal(resolution.item.card_finish, "holo", "server printing change kept")
-  assert.deepEqual(resolution.item.wanted_cards.map((card) => card.card_id).sort(), ["a", "local", "server"])
-  assert.equal(resolution.base, server)
-})
-
-test("conflict: both changed the same field, the local (newer) edit wins", () => {
-  const base = row()
-  const resolution = resolveConflict(
-    { type: "upsert", pokemonId: 25, item: row({ status: "finalized" }), base },
-    row({ status: "considering" }),
-  )
-  assert.equal(resolution.action === "write" && resolution.item.status, "finalized")
-})
-
-test("conflict: removing a wanted card locally removes it from the server's list too", () => {
-  const base = row({ wanted_cards: [want("a"), want("b")] })
-  const resolution = resolveConflict(
-    { type: "upsert", pokemonId: 25, item: row({ wanted_cards: [want("b")] }), base },
-    row({ wanted_cards: [want("a"), want("b"), want("c")] }),
-  )
-  assert.deepEqual(resolution.action === "write" && resolution.item.wanted_cards.map((card) => card.card_id), ["b", "c"])
-})
-
-test("an edit the server already has is dropped (safe retry after a lost response)", () => {
-  const resolution = resolveConflict({ type: "upsert", pokemonId: 25, item: row({ status: "finalized" }), base: row() }, row({ status: "finalized", id: "x" }))
-  assert.equal(resolution.action, "drop")
-})
-
-test("a queued delete never removes a row someone changed after it was queued", () => {
-  const base = row()
-  assert.deepEqual(resolveConflict({ type: "delete", pokemonId: 25, base }, row({ status: "finalized" })), { action: "drop", serverItem: row({ status: "finalized" }) })
-  assert.deepEqual(resolveConflict({ type: "delete", pokemonId: 25, base }, null), { action: "drop", serverItem: null })
-  assert.equal(resolveConflict({ type: "delete", pokemonId: 25, base }, row({ id: "same-content" })).action, "delete")
-})
-
-test("an edit to a row deleted elsewhere re-creates it", () => {
-  const resolution = resolveConflict({ type: "upsert", pokemonId: 25, item: row({ status: "finalized" }), base: row() }, null)
-  assert.equal(resolution.action, "write")
-  assert.equal(resolution.action === "write" && resolution.base, null)
-})
-
-test("backoff doubles with jitter and is capped", () => {
-  assert.equal(nextSyncRetryDelay(0, () => 0.5), 2_000)
-  assert.equal(nextSyncRetryDelay(1, () => 0.5), 4_000)
-  assert.equal(nextSyncRetryDelay(3, () => 0.5), 16_000)
-  assert.equal(nextSyncRetryDelay(30, () => 0.5), SYNC_RETRY_MAX_MS)
-  assert.ok(nextSyncRetryDelay(1, () => 0) >= 3_000 && nextSyncRetryDelay(1, () => 0.999) <= 6_000)
-})
-
-
-test('billing rejections pause edits rather than treating them as permanent errors', () => {
-  assert.equal(classifyWriteFailure({ status: 402 }), 'paused')
 })

@@ -42,8 +42,8 @@ async function main() {
  assert.equal((await readCollectionAudit(context,{id:"1105"},true) as {id:string}).id,"1105")
  await assert.rejects(readCollectionAudit(context,{id:"99999"},true),/not found/)
  await readCollectionAudit(context,{pokemonId:1,cardId:"base1-4"})
- assert.ok(lastUrl!.searchParams.getAll("or").join().includes("pokemon_id"))
- assert.ok(lastUrl!.searchParams.getAll("or").join().includes("card_id"))
+ assert.ok(lastUrl!.searchParams.getAll("or").join().includes("pokemonId"))
+ assert.ok(lastUrl!.searchParams.getAll("or").join().includes("cardId"))
  assert.equal(lastUrl!.searchParams.getAll("or").length,1)
  assert.ok(lastUrl!.searchParams.get("or")!.startsWith("(and(or("))
  await readCollectionAudit(context,{collectionId:"deleted-collection",inventoryItemId:"duplicate-copy-b",slotId:"deleted-slot",actorId:"synthetic-actor",action:"collection_change",since:"2026-01-01T00:00:00Z",until:"2026-11-09T23:59:59Z"})
@@ -65,7 +65,7 @@ async function main() {
  assert.equal(lastUrl!.searchParams.get('operation_id'),'eq.'+opaque)
  const malicious='card,changes.neq.null)' // Synthetic reserved grammar characters, treated as a value.
  await readCollectionAudit(context,{cardId:malicious})
- assert.ok(lastUrl!.searchParams.get("or")!.includes('\\"card_id\\":\\"'+malicious+'\\"'))
+ assert.ok(lastUrl!.searchParams.get("or")!.includes('\\"cardId\\":\\"'+malicious+'\\"'))
  missing=true
  await assert.rejects(readCollectionAudit(context,{}),/temporarily unavailable/)
  for(const id of ["0","-1","1 or true","9223372036854775808"])assert.equal(isAuditId(id),false)

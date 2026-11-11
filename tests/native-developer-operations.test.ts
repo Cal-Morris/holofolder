@@ -20,7 +20,6 @@ test('native slot contract is registered once and rejects missing revisions and 
     { commands: [{ kind: 'create', ids: ['same', 'same'], beforeSlotId: null }] }, { cursor: 'partial' }]) {
     assert.equal(operation.schema.safeParse({ ...command, ...change }).success, false)
   }
-  assert.equal(DEVELOPER_OPERATIONS.find(op => op.name === 'apply_collection_recovery')?.path, '/collection/recovery/apply')
 })
 test('native registry executes real REST/MCP transports and the trusted bridge with synthetic dependencies', () => {
   execFileSync(process.execPath, [new URL('./fixtures/native-developer-round-trips.ts', import.meta.url).pathname], { stdio: 'pipe' })

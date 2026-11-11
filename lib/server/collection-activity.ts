@@ -5,7 +5,7 @@ import { readCollectionAudit } from "@/lib/server/operations/audit"
 import { DEVELOPER_OPERATIONS } from "@/lib/developer-api/operations"
 import { DeveloperAccessError } from "@/lib/developer-api/permissions"
 
-/** First-party adapter, authenticated RLS reads. Developer grants/billing are unchanged. */
+/** First-party adapter. Developer grants/billing are unchanged. */
 export async function firstPartyActivity(request: Request) {
   const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" }
   try {
@@ -24,8 +24,9 @@ export async function firstPartyActivity(request: Request) {
     const operation = DEVELOPER_OPERATIONS.find(op=>op.name===(detail ? "get_collection_audit" : "list_collection_audit"))!
     const parsed = operation.schema.safeParse(input)
     if (!parsed.success) return Response.json({error:"Choose valid Activity filters."},{status:400,headers})
-    // The existing projection/keysets are reused with the session client, so SQL RLS still applies.
-    const result = await readCollectionAudit({ownerUserId:membership.ownerUserId},parsed.data,detail,client)
+    // Owner, partner and billing are resolved above with the session client. Stored rows are whole, so
+    // they are read server-side and projected to the shown fields; signed-in users have no direct read.
+    const result = await readCollectionAudit({ownerUserId:membership.ownerUserId},parsed.data,detail)
     return Response.json({scope,...(detail ? {data:[result],nextCursor:null} : result),syncedAt:new Date().toISOString()},{headers})
   } catch (error) {
     const status = error instanceof DeveloperAccessError ? error.status : 503

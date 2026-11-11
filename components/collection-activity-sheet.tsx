@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { createPortal } from "react-dom"
 import { X } from "lucide-react"
-import { useOverlay, useSwipeToDismiss, runAfterOverlayHistory } from "@/hooks/use-overlay"
+import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { activityChanges, activityActor, activityCacheKey, activityTime, parseActivityPage, readActivityCache, sameActivityScope, writeActivityCache, type ActivityEvent, type ActivityScope } from "@/lib/collection-activity"
 import { activitySummary, activityReceipt, activityDay } from "@/lib/activity-presentation"
 import { NativeActivityRecovery, type NativeRecoveryBinding } from "@/components/native-activity-recovery"
@@ -132,24 +132,19 @@ function ActivityPageView({scope,pageQuery,isOnline,onInvalidScope,onNext,...pro
   </>
 }
 
-function ActivityEntry({event,day,binders,collection,binderId,isOnline,pendingCount,onClose,onOpenPokemon,scope,nativeRecovery,onSelectEvent,inspectOnly}:Props & {event:ActivityEvent;day?:string;undone:boolean;inspectOnly?:boolean}) {
+function ActivityEntry({event,day,binders,isOnline,pendingCount,scope,nativeRecovery,onSelectEvent,inspectOnly}:Props & {event:ActivityEvent;day?:string;undone:boolean;inspectOnly?:boolean}) {
   const [expanded,setExpanded] = useState(false)
   const [count,setCount] = useState(10)
   const summary=activitySummary(event,binders)
   const receipt=activityReceipt(event)
   const changes=nativeRecovery ? activityChanges(event).map(c=>({...c,subtitle:''})) : receipt.changes
   const hasDetails=nativeRecovery ? changes.length>0 : receipt.hasDetails
-  const first=event.changes[0]
-  const state=first?.after ?? first?.before
-  const pokemonId=event.pokemon_id ?? (typeof state?.pokemon_id==='number' ? state.pokemon_id : null)
-  const liveItem=summary.count===1 && first?.table==='pokemon_collection' && event.affected_entities.collectionIds?.includes(binderId ?? '')
-    ? collection.find(item=>item.pokemon_id===pokemonId && item.id===first.id) : undefined
   const person=activityActor(event,scope?.accountId,scope?.memberIds)
   return <li>
     {day && <h3 className="pt-3 pb-2 text-xs font-medium text-muted-foreground">{day}</h3>}
     <article className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 rounded-xl border border-border/70 bg-background/50 p-3">
       <div className="min-w-0 wrap-anywhere">
-        {liveItem ? <button type="button" className="min-h-10 text-left text-sm font-medium leading-snug text-primary hover:underline" onClick={()=>{onClose();runAfterOverlayHistory(()=>onOpenPokemon(liveItem.pokemon_id))}}>{summary.title}</button> : <p className="text-sm font-medium leading-snug">{summary.title}</p>}
+        <p className="text-sm font-medium leading-snug">{summary.title}</p>
         {summary.subtitle && <p className="mt-1 text-xs text-muted-foreground">{summary.subtitle}</p>}
         <p className="mt-1 text-xs text-muted-foreground">{person.startsWith('Account ') ? 'Previous member' : person} · <time dateTime={event.recorded_at}>{new Date(event.recorded_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}</time></p>
       </div>

@@ -50,8 +50,6 @@ export const API_SMOKE_ASSERTIONS:Record<string,Check>={
  get_price_history:page,
  list_collection_audit:page,
  get_collection_audit:value=>{assert.equal(typeof value.id,'string');assert.ok(['unknown','user','system'].includes(String(value.actor_kind)));assert.ok(!('recovery_state' in value));assert.ok(!('command_evidence' in value))},
- preview_collection_recovery:(value,input)=>{assert.equal(value.eventId,input.eventId);assert.equal(value.planVersion,1);assert.equal(typeof value.supported,'boolean');assert.ok(Array.isArray(value.conflicts));assert.ok(Array.isArray(value.unsupported));assert.ok(Array.isArray(value.changes));assert.ok(value.planToken===null||typeof value.planToken==='string'&&/^[a-f0-9]{64}$/.test(value.planToken))},
- apply_collection_recovery:(value,input)=>{assert.equal(value.recoveredEventId,input.eventId);assert.equal(typeof value.eventId,'string');assert.notEqual(value.eventId,value.recoveredEventId)},
  check_deal:value=>{assert.equal(value.currency,'GBP');assert.ok(value.verdict===null||typeof value.verdict==='object')},
  get_pokemon_set_slots:(value,input)=>{page(value,input);assert.equal(object(value.selectedSet).id,input.id)},
  get_listings:value=>{object(value.summary);array(value.listings);string(value.checkedAt)},

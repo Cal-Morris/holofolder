@@ -28,9 +28,9 @@ async function main() {
     calls.push(body)
     if (unknown) throw new DOMException('Synthetic lost COMMIT reply', 'AbortError')
     if (errorCode) return Response.json({ code: errorCode, message: 'synthetic private SQL' }, { status: 400 })
-    if (terminal) return Response.json({ version: 2, outcome: 'rejected', operationId: f.input.operationId, inventoryRevision: 10, code: 'inventory_revision_conflict' })
-    return Response.json({ version: 2, changed: true, inventoryRevision: 9, collectionId: f.input.choices.collectionId, collectionVersion: 3, layoutRevision: 3,
-      slotIds: f.input.choices.slotIds, releasedItemIds: ['copy-b'] })
+    if (terminal) return Response.json({ version: 4, outcome: 'rejected', operationId: f.input.operationId, inventoryRevision: 10, code: 'inventory_revision_conflict' })
+    return Response.json({ version: 4, changed: true, inventoryRevision: 9, collectionId: f.input.choices.collectionId, collectionVersion: 3, layoutRevision: 3,
+      slotOrder: { before: f.input.choices.slotIds, after: f.input.choices.slotIds }, slotIds: f.input.choices.slotIds, releasedItemIds: ['copy-b'] })
   }
   const { prepareAppRawContentRestore, confirmAppRawContentRestore, deliverAppRawContentRestore } = await import('../../lib/server/operations/raw-restore')
   const request = (authSession = scope.authSessionId!) => new Request('https://holofolder.com/app/api/internal-not-admitted', {

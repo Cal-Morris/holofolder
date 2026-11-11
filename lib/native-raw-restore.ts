@@ -71,7 +71,7 @@ export async function requestNativeRawRestorePlan(binding: NativeBackupBinding, 
     || command.planning.actorUserId !== binding.scope.actorUserId || command.planning.ownerUserId !== binding.scope.ownerUserId
     || command.planning.authSessionId !== binding.scope.authSessionId || command.planning.source !== 'app'
     || backupContentKey(command.slots.map(s => s.after.id)) !== backupContentKey(input.choices.slotIds)
-    || backupContentKey((command.version === 3 || command.version === 4) ? command.slotOrder.after : command.slots.map(s => s.after.id)) !== backupContentKey(parseBinderBackupV2(input.text).binders[0].slots.map(s => s.id))
+    || backupContentKey(command.slotOrder.after) !== backupContentKey(parseBinderBackupV2(input.text).binders[0].slots.map(s => s.id))
     || backupContentKey(command.releaseItemIds) !== backupContentKey(input.choices.releaseItemIds)) throw new Error('Restore review changed. Nothing has been queued.')
   await binding.assertReady()
   if (!valid()) throw new Error('Restore session changed.')

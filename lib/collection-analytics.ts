@@ -219,18 +219,3 @@ export function buildAnalyticsBreakdown(summary: ReturnType<typeof buildCollecti
     uncertainPrices: owned.filter(card => card.amount !== null && card.price?.confidence !== "high" && card.price?.confidence !== "medium").length,
   }
 }
-
-/** Preserve the original analytics projection without treating structural audit entries as acquisitions. */
-export function legacyAnalyticsEntries(value: Record<string, unknown>): Record<string, unknown>[] {
-  if (typeof value.pokemon_id === "number" && value.pokemon_id > 0) return [value]
-  if (!Array.isArray(value.changes)) return []
-  return value.changes.flatMap(raw => {
-    const delta = record(raw)
-    if (delta?.table !== "pokemon_collection") return []
-    const before = record(delta.before), after = record(delta.after), row = after ?? before
-    if (!row || typeof row.pokemon_id !== "number") return []
-    const state = (item: Record<string, unknown> | null) => item === null ? null : Object.fromEntries(
-      ["status","card_id","card_name","card_image","card_set","card_language","card_finish","collected_at","wanted_cards"].map(key=>[key,item[key]??null]))
-    return [{id:String(value.id),pokemon_id:row.pokemon_id,pokemon_name:row.pokemon_name,recorded_at:value.recorded_at,before_state:state(before),after_state:state(after)}]
-  })
-}

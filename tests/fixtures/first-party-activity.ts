@@ -7,10 +7,11 @@ async function main() {
   const {mock}=await import('bun:test')
   const actor='00000000-0000-4000-8000-000000000001', owner='00000000-0000-4000-8000-000000000002'
   let signedIn=true,oauth=false,partner=false,partnerAllowed=true,missing=false
-  let auditReads=0
+  let auditReads=0,viaServer=false
   let operation:unknown=null
   let affected:unknown=null
   const rls = {from(table:string) {
+    if(table==='collection_activity'&&!viaServer)throw new Error('Signed-in clients must not read stored history')
     const filters: Record<string,unknown> = {}
     const query = {select(columns:string) {if(table==='collection_activity') {assert.ok(!columns.includes('recovery_state'));assert.ok(!columns.includes('command_evidence'))}return query},
       eq(k:string,v:unknown){filters[k]=v;return query},or(){return query},limit(){return query},order(){return query},lt(){return query},contains(_key:string,value:unknown){affected=value;return query},gte(){return query},lte(){return query},
@@ -19,8 +20,8 @@ async function main() {
     return query
   },rpc:async()=>({data:partnerAllowed,error:null}), auth:{getClaims:async()=>({data:{claims:signedIn?{sub:actor,...(oauth?{client_id:'synthetic-oauth'}:{})}:null},error:null})}}
   mock.module('../../lib/supabase/server',()=>({createClient:async()=>rls}))
-  // Any accidental developer/admin path must fail. Owner standard history uses session RLS.
-  mock.module('../../lib/supabase/admin',()=>({createAdminClient:()=>{throw new Error('Must not read first-party history as admin')}}))
+  // Membership and billing come from the session client; stored history (whole rows) is read server-side only.
+  mock.module('../../lib/supabase/admin',()=>({createAdminClient:()=>({from:(table:string)=>{assert.equal(table,'collection_activity');viaServer=true;try{return rls.from(table)}finally{viaServer=false}}})}))
   const {firstPartyActivity}=await import('../../lib/server/collection-activity')
   const request=(query='')=>firstPartyActivity(new Request('https://synthetic.test/app/api/collection-activity'+query))
   let response=await request()

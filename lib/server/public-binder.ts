@@ -18,7 +18,7 @@ const PAGE = 500
 const SHARE = 'owner_user_id,binder_id,token,is_enabled,show_prices'
 const BINDER = 'id,owner_user_id,name,binder_rows,binder_cols,updated_at'
 const ITEM = 'id,owner_user_id,identity,public_grade:grading->grade,public_provider:grading->provider,private_certificate:grading->certificate,version'
-const STATE = 'collection_id,owner_user_id,authority,conversion_version,version,layout_revision'
+const STATE = 'collection_id,owner_user_id,version,layout_revision'
 const SLOTS = 'id,owner_user_id,collection_id,position,target,status,wanted_cards,version'
 type PublicWant = NonNullable<PublicDisplaySlot['wantedCards']>[number]
 const label = (v: unknown) => typeof v === 'string' && v.trim() && v.length <= 200 && !/https?:|www\.|[<>]/i.test(v) ? v.trim() : undefined
@@ -87,7 +87,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
     async function state() {
       // Every binder is native slot storage; anything else fails closed.
       const row = object((await run(scoped('storage_collection_state', STATE).maybeSingle())).data)
-      if (row.owner_user_id !== owner || row.collection_id !== collection || row.authority !== 'slots' || !isSlotRevision(row.version) || !isSlotRevision(row.layout_revision)) return fail()
+      if (row.owner_user_id !== owner || row.collection_id !== collection || !isSlotRevision(row.version) || !isSlotRevision(row.layout_revision)) return fail()
       return row
     }
     async function revision() {

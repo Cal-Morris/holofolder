@@ -7,10 +7,9 @@ const text = (v:unknown) => typeof v==='string' && v.trim() ? v : null
 const human = (v:unknown):string => v==null ? 'Not set' : typeof v==='boolean' ? v ? 'Yes' : 'No' : typeof v==='string' ? languages[v] ?? statuses[v] ?? (v.replaceAll('_',' ').replace(/^./,s=>s.toUpperCase())) : typeof v==='number' ? String(v) : 'Changed'
 const number = (s:ActivityState|null) => typeof s?.card_id==='string' ? s.card_id.match(/-([\d]+[a-z]?)$/i)?.[1] : null
 const printing = (s:ActivityState|null) => [text(s?.card_set),number(s) ? `#${number(s)}` : null].filter(Boolean).join(' · ') || 'Another printing'
-const deltas = (e:ActivityEvent):ActivityChange[] => e.changes.length ? e.changes : e.before_state || e.after_state ? [{table:'pokemon_collection',id:'',before:e.before_state ?? null,after:e.after_state ?? null}] : []
-function name(s:ActivityState|null,e:ActivityEvent) {
+function name(s:ActivityState|null) {
   const identity = record(s?.identity) ? s.identity : record(s?.target) ? s.target : null
-  return text(s?.card_name) ?? text(s?.pokemon_name) ?? text(s?.name) ?? text(e.pokemon_name) ?? (text(s?.card_id) || text(identity?.cardId) ? 'a card' : 'an item')
+  return text(s?.card_name) ?? text(s?.name) ?? (text(s?.card_id) || text(identity?.cardId) ? 'a card' : 'an item')
 }
 function verb(c:ActivityChange) {
   const {before:b,after:a,table:t}=c
@@ -27,9 +26,9 @@ function verb(c:ActivityChange) {
 }
 export function readableActivityChanges(event:ActivityEvent) {
   const labels: Record<string,string> = {status:'Status',card_name:'Card',card_set:'Set',card_finish:'Finish',card_language:'Language',name:'Name',condition:'Condition',grade:'Grade',grading_company:'Grading company',quantity:'Quantity',favorite:'Favourite',rows:'Rows',cols:'Columns',show_prices:'Show prices',is_enabled:'Sharing',position:'Position'}
-  return deltas(event).filter(c=>!['inventory_owner_state','storage_collection_state','binder_legacy_rows'].includes(c.table)).map(c=>{
+  return event.changes.filter(c=>!['inventory_owner_state','storage_collection_state'].includes(c.table)).map(c=>{
     const s=c.after??c.before
-    const title=c.table==='binders' && c.before && c.after && c.before.name!==c.after.name ? `Renamed ${name(c.before,event)} to ${name(c.after,event)}` : `${verb(c)} ${name(s,event)}`
+    const title=c.table==='binders' && c.before && c.after && c.before.name!==c.after.name ? `Renamed ${name(c.before)} to ${name(c.after)}` : `${verb(c)} ${name(s)}`
     const subtitle=[text(s?.card_set),number(s) ? `#${number(s)}` : null,s?.card_finish ? human(s.card_finish) : null,s?.card_language ? human(s.card_language) : null].filter(Boolean).join(' · ')
     const fields=c.before && c.after ? Object.entries(labels).filter(([key])=>JSON.stringify(c.before?.[key])!==JSON.stringify(c.after?.[key])).map(([key,label])=>({label,before:human(c.before?.[key]),after:human(c.after?.[key])})) : []
     if(c.before && c.after && c.before.card_id!==c.after.card_id)fields.unshift({label:'Printing',before:printing(c.before),after:printing(c.after)})
@@ -41,10 +40,10 @@ export function readableActivityChanges(event:ActivityEvent) {
   })
 }
 export function activitySummary(event:ActivityEvent,binders:readonly {id:string;name:string}[]=[]) {
-  const changes=deltas(event)
+  const changes=event.changes
   const visible=readableActivityChanges(event)
   const collections=binders.filter(b=>event.affected_entities.collectionIds?.includes(b.id))
-  const primary=changes.filter(c=>['pokemon_collection','inventory_items','binders'].includes(c.table))
+  const primary=changes.filter(c=>['inventory_items','binders'].includes(c.table))
   let title=visible[0]?.title ?? 'Updated collection'
   if(primary.length>1) {
     const verbs=new Set(primary.map(verb))
@@ -67,6 +66,5 @@ export function activityReceipt(event:ActivityEvent) {
   return {
     changes,
     hasDetails:changes.length>1 || changes.some(change=>change.fields.length>0),
-    canUndo:event.format_version===1 && event.action!=='recovery.apply' && event.changes.length>0 && event.changes.every(change=>change.table==='pokemon_collection'),
   }
 }

@@ -24,11 +24,11 @@ export async function rawRestoreDigest(command: RawRestoreCommand) {
   return Array.from(new Uint8Array(bytes), n => n.toString(16).padStart(2, '0')).join('')
 }
 export function isRawRestoreReceipt(value: unknown, command: RawRestoreCommand): value is RawRestoreReceipt {
-  return isRawReceiptShape(value) && (command.version === 1 ? value.version === undefined : value.version === command.version) && value.inventoryRevision > command.inventoryRevision
+  return isRawReceiptShape(value) && value.version === command.version && value.inventoryRevision > command.inventoryRevision
     && value.collectionId === command.collection.collectionId && value.collectionVersion > command.collection.version
-    && value.layoutRevision === command.collection.layoutRevision + (command.version === 3 || command.version === 4 && backupContentKey(command.slotOrder.before) !== backupContentKey(command.slotOrder.after) ? 1 : 0)
-    && backupContentKey(value.slotIds) === backupContentKey((command.version === 3 || command.version === 4) ? command.slotOrder.after : command.slots.map(s => s.after.id))
-    && ((command.version !== 3 && command.version !== 4) || value.inventoryRevision === command.inventoryRevision + 1 && value.collectionVersion === command.collection.version + 1
+    && value.layoutRevision === command.collection.layoutRevision + (backupContentKey(command.slotOrder.before) !== backupContentKey(command.slotOrder.after) ? 1 : 0)
+    && backupContentKey(value.slotIds) === backupContentKey(command.slotOrder.after)
+    && (value.inventoryRevision === command.inventoryRevision + 1 && value.collectionVersion === command.collection.version + 1
       && backupContentKey(value.slotOrder) === backupContentKey(command.slotOrder))
     && backupContentKey(value.releasedItemIds) === backupContentKey(command.releaseItemIds)
 }
@@ -39,7 +39,7 @@ export function validRawRestoreProof(value: unknown, command: RawRestoreCommand)
     || !isContractRecord(value.scope, ['actorUserId', 'ownerUserId', 'authSessionId']) || Object.keys(value.scope).length !== 3
     || value.scope.actorUserId !== command.planning.actorUserId || value.scope.ownerUserId !== command.planning.ownerUserId
     || value.scope.authSessionId !== command.planning.authSessionId) return false
-  return value.receipt === null ? isRawRestoreRejection(value.rejection, command.operationId, command.version)
+  return value.receipt === null ? isRawRestoreRejection(value.rejection, command.operationId)
     : value.rejection === null && isRawRestoreReceipt(value.receipt, command)
 }
 /** Called only on the response of the same-origin original-request transport, never on file/cache data. */
@@ -55,7 +55,7 @@ export async function readRawRestoreDelivery(response: Response, body: unknown, 
     && isContractRecord(body.error, ['code', 'message', 'requestId', 'rejection']) && Object.keys(body.error).length === 4
     && body.error.code === 'storage_restore_rejected' && typeof body.error.message === 'string'
     && isSlotContractId(body.error.requestId) && body.error.requestId === response.headers.get('X-Request-Id')
-    && isRawRestoreRejection(body.error.rejection, command.operationId, command.version)) rejection = body.error.rejection
+    && isRawRestoreRejection(body.error.rejection, command.operationId)) rejection = body.error.rejection
   if (!receipt && !rejection) return null
   const proof: RawRestoreProof = { family: 'backup.restore.raw', deliveryId, operationId: command.operationId,
     commandDigest: await rawRestoreDigest(command), scope: { actorUserId: scope.actorUserId, ownerUserId: scope.ownerUserId, authSessionId: scope.authSessionId }, receipt, rejection }
