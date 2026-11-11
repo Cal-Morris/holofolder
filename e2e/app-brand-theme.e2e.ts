@@ -1,7 +1,6 @@
 import { test, expect } from "./fixtures"
 
 test.describe("Holo Folder visual language", () => {
-  test.use({ signedIn: true })
 
   test("uses the marketing palette and locally loaded typography", async ({ harness }) => {
     const { page } = harness

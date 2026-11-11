@@ -34,7 +34,6 @@ async function screenshot(harness: Harness, name: string) {
 }
 
 test.describe("illustrator on the card detail", () => {
-  test.use({ signedIn: true })
 
   test("keeps its space while it loads, so nothing in the sheet moves when the name arrives", async ({ harness }) => {
     const release = await holdBulbasaurCards(harness)

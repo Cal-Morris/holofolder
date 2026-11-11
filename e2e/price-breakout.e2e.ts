@@ -2,7 +2,6 @@ import { test, expect } from "./fixtures"
 import { mockCardPrices } from "./price-fixtures"
 
 test.describe("breakout cards in the all-cards view", () => {
-  test.use({ signedIn: true })
 
   test("ranks confidently rising printings with % change and timeframe", async ({ harness }) => {
     await mockCardPrices(harness.page, {

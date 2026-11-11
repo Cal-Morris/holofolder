@@ -40,7 +40,7 @@ async function prepare(page: Page) {
 }
 async function queueRecords(page: Page) {
   return page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     return new Promise<unknown[]>((yes, no) => { const r = db.transaction("records").objectStore("records").getAll(); r.onsuccess = () => { db.close(); yes(r.result.filter(v => v?.version === 1 && Array.isArray(v.pending))) }; r.onerror = () => no(r.error) })
   })
 }
@@ -157,7 +157,7 @@ test("missing grid metadata retains canonical pending bytes and refuses cached n
     && (row as { pending: { status: string }[] }).pending.some(p => p.status === "unavailable"))).toBe(true)
   const before = await queueRecords(page)
   await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>(yes => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result) })
+    const db = await new Promise<IDBDatabase>(yes => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result) })
     await new Promise<void>(yes => { const tx = db.transaction("records", "readwrite"), store = tx.objectStore("records"), keys = store.getAllKeys(); keys.onsuccess = () => { for (const key of keys.result) if (String(key).startsWith("slot-navigation-v1:")) store.delete(key) }; tx.oncomplete = () => { db.close(); yes() } })
   })
   const reopened = await relaunch(page, Boolean(info.project.metadata?.standalone))

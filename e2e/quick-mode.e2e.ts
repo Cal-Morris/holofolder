@@ -36,7 +36,6 @@ async function screenshot(harness: Harness, name: string) {
 }
 
 test.describe("quick mode", () => {
-  test.use({ signedIn: true })
 
   test("hold Search to open it, jump to a destination, and it stays a single overlay", { tag: "@smoke" }, async ({ harness }) => {
     const dialog = await longPressSearch(harness)

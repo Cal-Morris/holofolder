@@ -4,7 +4,7 @@ import { expect, test } from "./fixtures"
 // Read a record from the app's IndexedDB offline store (lib/offline-store/kv.ts).
 function readRecord<T = unknown>(page: Page, key: string) {
   return page.evaluate((recordKey) => new Promise<unknown>((resolve) => {
-    const open = indexedDB.open("binderdex-offline")
+    const open = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1))
     open.onerror = () => resolve(null)
     open.onsuccess = () => {
       const db = open.result
@@ -41,7 +41,6 @@ const BASE_SET_SLOTS = [
 ]
 
 test.describe("IndexedDB offline store", () => {
-  test.use({ signedIn: true })
 
   test("a set opened online opens again offline from IndexedDB", async ({ harness, context }) => {
     const { page } = harness

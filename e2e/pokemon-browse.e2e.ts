@@ -1,7 +1,6 @@
 import { test, expect } from "./fixtures"
 
 test.describe("Pokémon perspective", () => {
-  test.use({ signedIn: true })
 
   test("opens a dedicated species catalogue, filters and remembers the browse destination", async ({ harness }) => {
     const page = harness.page

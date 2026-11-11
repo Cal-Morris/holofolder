@@ -6,7 +6,7 @@ const entry = "/app/e2e-harness?signedIn=1&browserHost=1&view=inventory"
 const dialog = (page: Page) => page.getByRole("dialog", { name: "Edit copy grading" })
 async function record(page: Page) {
   return page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     const rows = await new Promise<unknown[]>((yes, no) => { const r = db.transaction("records").objectStore("records").getAll(); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     db.close()
     return rows.find(v => !!v && typeof v === "object" && "pending" in v) ?? null
@@ -263,7 +263,7 @@ test("retained Activity recovery blocks a new grading editor in the shared host"
   await expect(page.getByRole("list", { name: "Owned copies" })).toBeVisible()
   // Synthetic retained recovery in the canonical record, not a second queue or a remote receipt.
   await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((yes, no) => { const r = indexedDB.open("binderdex-offline"); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
+    const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     await new Promise<void>((yes, no) => {
       const tx = db.transaction("records", "readwrite"), store = tx.objectStore("records"), keys = store.getAllKeys()
       tx.oncomplete = () => yes(); tx.onabort = tx.onerror = () => no(tx.error)
