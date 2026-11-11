@@ -34,14 +34,15 @@ export function edgeSwipeProgress(dx: number) {
   return Math.max(0, Math.min(1, dx / EDGE_SWIPE_DISTANCE))
 }
 
-/** Remembers the views visited so a back swipe returns to the previous one. */
+/** Remembers the views visited so back (swipe or Cmd+[) and forward (Cmd+]) can move between them. */
 export class ViewBackStack<View extends string> {
   private stack: View[] = []
+  private forwardStack: View[] = []
   private returning: View | null = null
 
   constructor(private limit = 10) {}
 
-  /** Record a view change; changes made by `back()` do not grow the stack. */
+  /** Record a view change; changes made by `back()` or `forward()` do not grow the stack. */
   visit(previous: View, next: View) {
     if (previous === next) return
     if (this.returning === next) {
@@ -49,6 +50,7 @@ export class ViewBackStack<View extends string> {
       return
     }
     this.returning = null
+    this.forwardStack = []
     this.stack.push(previous)
     if (this.stack.length > this.limit) this.stack.shift()
   }
@@ -57,9 +59,18 @@ export class ViewBackStack<View extends string> {
     return this.stack.at(-1)
   }
 
-  /** Pop the previous view and mark the coming change as a return. */
-  back(): View | undefined {
+  /** Pop the previous view, remember `current` for forward, and mark the coming change as a return. */
+  back(current: View): View | undefined {
     const view = this.stack.pop()
+    if (view !== undefined) this.forwardStack.push(current)
+    this.returning = view ?? null
+    return view
+  }
+
+  /** Undo the last `back()`. */
+  forward(current: View): View | undefined {
+    const view = this.forwardStack.pop()
+    if (view !== undefined) this.stack.push(current)
     this.returning = view ?? null
     return view
   }
