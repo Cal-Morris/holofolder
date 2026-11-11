@@ -9,12 +9,14 @@ import { isBinderGridSize } from '@/lib/binder-layout'
 import { normalizeBinderName } from '@/lib/binders/model'
 import { getPokemonSummary } from '@/lib/pokemon-catalog'
 import { mapWithConcurrency } from '@/lib/card-db-sync-concurrency'
-import { buildTcgdexAssetImageUrl } from '@/lib/tcgdex-shared'
-import { isCardImageSourceUrl } from '@/lib/card-image-sources'
+import { buildTcgdexAssetImageUrl, pickImageLanguage } from '@/lib/tcgdex-shared'
+import { isCardImageSourceUrl, pickCardImageUrl } from '@/lib/card-image-sources'
 import { isCardLanguage, type CardLanguage } from '@/lib/domain/cards'
 
 type Row = Record<string, unknown>
 const PAGE = 500
+// Batched reads run in one wave for typical binders instead of queueing behind 4 at a time.
+const PARALLEL = 16
 const SHARE = 'owner_user_id,binder_id,token,is_enabled,show_prices'
 const BINDER = 'id,owner_user_id,name,binder_rows,binder_cols,updated_at'
 const ITEM = 'id,owner_user_id,identity,public_grade:grading->grade,public_provider:grading->provider,private_certificate:grading->certificate,version'
@@ -129,7 +131,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
     async function preloadCatalog(ids: string[]) {
       const unique = [...new Set(ids)]
       const projection = 'id,name_en,series_id,set_id,local_id,image_languages_json,external_ids_json'
-      await mapWithConcurrency(chunks(unique, 100), 4, async batch => {
+      await mapWithConcurrency(chunks(unique, 100), PARALLEL, async batch => {
         const direct = rows((await run(db.from('tcg_cards').select(projection).in('id', batch).abortSignal(controller.signal))).data)
         for (const row of direct) {
           const key = id(row.id)
@@ -143,7 +145,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
         if (result.data) catalogRows.set(key, object(result.data))
       })
       const canonical = [...new Set([...catalogRows.values()].map(row => id(row.id)))]
-      await mapWithConcurrency(chunks(canonical, 100), 4, async batch => {
+      await mapWithConcurrency(chunks(canonical, 100), PARALLEL, async batch => {
         for (let start = 0; ; start += PAGE) {
           const page = rows((await run(db.from('tcg_card_dex_ids').select('card_id,dex_id').in('card_id', batch)
             .order('card_id').order('dex_id').range(start, start + PAGE - 1).abortSignal(controller.signal))).data)
@@ -166,11 +168,13 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
       if (!row) return undefined
       const canonical = id(row.id)
       const pokemonIds = catalogLinks.get(canonical) ?? []
-      const languages = Array.isArray(row.image_languages_json) ? row.image_languages_json : []
-      const lang = /^[a-z]{2}(?:-[a-z]{2})?$/.test(language) && languages.includes(language) ? language : undefined
+      const validLanguage = /^[a-z]{2}(?:-[a-z]{2})?$/.test(language)
+      const imageLanguage = validLanguage ? pickImageLanguage(row.image_languages_json, language) : null
       const segment = (v: unknown): v is string => typeof v === 'string' && /^[a-zA-Z0-9._-]{1,64}$/.test(v) && !v.includes('..')
-      const image = lang && segment(row.series_id) && segment(row.set_id) && segment(row.local_id)
-        ? buildTcgdexAssetImageUrl(String(lang), row.series_id, row.set_id, row.local_id, 'high', 'webp') : undefined
+      const tcgdex = imageLanguage && segment(row.series_id) && segment(row.set_id) && segment(row.local_id)
+        ? buildTcgdexAssetImageUrl(imageLanguage, row.series_id, row.set_id, row.local_id, 'high', 'webp') : null
+      // The same picker as every other surface (ledger, catalog, pokemon.com, other-language TCGdex, fallback sources).
+      const image = validLanguage ? wantImage(pickCardImageUrl(row.external_ids_json, tcgdex ? imageLanguage : null, tcgdex, language)) : undefined
       const value = { name: typeof row.name_en === 'string' && row.name_en.trim() ? row.name_en : 'Unknown card', ...(image ? { image } : {}),
         // Public catalog reference: the canonical printing and the requested language, never the stored alias.
         ref: { id: canonical, ...(isCardLanguage(language) ? { language } : {}), ...(pokemonIds.length ? { pokemonIds: [...pokemonIds] } : {}) } }
@@ -194,15 +198,14 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
     }
     const withWants = (list: PublicWant[]) => list.length ? { wantedCards: list } : {}
     const slots: PublicDisplaySlot[] = []
-    const stored = await paged('binder_slots', SLOTS, 'position')
-    const placements = await paged('inventory_placements', 'inventory_item_id,owner_user_id,collection_id,slot_id,version', 'slot_id')
+    const [stored, placements] = await Promise.all([paged('binder_slots', SLOTS, 'position'), paged('inventory_placements', 'inventory_item_id,owner_user_id,collection_id,slot_id,version', 'slot_id')])
     if (new Set(stored.map(s => s.id)).size !== stored.length || new Set(placements.map(p => p.slot_id)).size !== placements.length
       || new Set(placements.map(p => p.inventory_item_id)).size !== placements.length) return fail()
     if (stored.some((s, i) => s.owner_user_id !== owner || s.collection_id !== collection || !isSlotRevision(s.position) || !isSlotRevision(s.version) || i > 0 && Number(s.position) <= Number(stored[i - 1].position))) return fail()
     if (placements.some(p => p.owner_user_id !== owner || p.collection_id !== collection || !isSlotRevision(p.version) || !stored.some(s => s.id === p.slot_id))) return fail()
     const items = new Map<string, InventoryIdentity>()
     const itemPages: Row[][] = []
-    await mapWithConcurrency(chunks(placements.map(p => id(p.inventory_item_id)), 100), 4, async ids => {
+    await mapWithConcurrency(chunks(placements.map(p => id(p.inventory_item_id)), 100), PARALLEL, async ids => {
       const result = rows((await run(db.from('inventory_items').select(ITEM).eq('owner_user_id', owner).in('id', ids).abortSignal(controller.signal))).data)
       itemPages.push(result)
       if (result.length !== ids.length) return fail()

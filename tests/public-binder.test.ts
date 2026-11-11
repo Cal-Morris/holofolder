@@ -145,9 +145,19 @@ for (const identity of [{ token: 'synthetic-token' }, { username: 'synthetic-own
     assert.match(result.slots[0].card!.image!, /\/ja\/synthetic\//)
     assert.match(result.slots[1].card!.image!, /\/en\/synthetic\//)
     assert.match(result.slots[4].card!.image!, /\/ja\/synthetic\//)
-    assert.equal(result.slots[5].card?.image, undefined)
+    // No French print: the nearest TCGdex language, as every other surface picks (pickCardImageUrl).
+    assert.match(result.slots[5].card!.image!, /\/en\/synthetic\//)
   })
 }
+
+test('cards without a TCGdex image use the shared fallback source, never an unknown host', async () => {
+  const db = syntheticPublicDatabase()
+  db.tables.tcg_cards[0].image_languages_json = []
+  db.tables.tcg_cards[0].external_ids_json = { pokemon_tcg: { imageLarge: 'https://images.pokemontcg.io/synthetic/1_hires.png' } }
+  assert.equal((await loadPublicBinder({ token: 'synthetic-token' }, db.client)).slots[0].card!.image, 'https://images.pokemontcg.io/synthetic/1_hires.png')
+  db.tables.tcg_cards[0].external_ids_json = { pokemon_tcg: { imageLarge: 'https://PRIVATE.example/1.png' } }
+  assert.equal((await loadPublicBinder({ token: 'synthetic-token' }, db.client)).slots[0].card!.image, undefined)
+})
 
 // Synthetic wants. Private fields carry PRIVATE sentinels that must never reach the projection.
 const syntheticWant = (cardId: string, extra: Record<string, unknown> = {}) => ({ card_id: cardId, card_name: 'PRIVATE-stored-name', added_at: '2026-01-01T00:00:00.000Z',
