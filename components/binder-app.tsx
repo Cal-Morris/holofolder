@@ -89,7 +89,7 @@ import { renderBottomNavView } from "@/components/binder/bottom-nav"
 
 import type { SlotCommandSink } from "@/lib/binder-slot-editing"
 import type { InventoryCatalogResolver } from "@/lib/domain/inventory"
-import { buildSlotDisplay, displaySlotImageUrl, nativeBinderCoverStats, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
+import { buildSlotDisplay, displaySlotImageUrl, displaySlotPriceLookup, nativeBinderCoverStats, paginateDisplaySlots, resolveDisplaySelection, type SlotDisplayInput } from "@/lib/binder-display-model"
 
 import { useBrowserCollectionScope } from "@/hooks/use-browser-collection-scope"
 import CachedNativeStartup from "@/components/cached-native-startup"
@@ -1211,6 +1211,9 @@ function BinderAppSurface(props: BinderAppProps) {
         .filter((item): item is CardPriceLookup => item !== null),
     [filteredTrackedCards],
   )
+  // Ordered pockets (native binders and shares) price each owned copy by its exact printing.
+  const displayPriceLookups = useMemo(() => (orderedDisplaySlots ?? []).flatMap(slot => displaySlotPriceLookup(slot) ?? []), [orderedDisplaySlots])
+  const selectedDisplayPriceLookup = useMemo(() => selectedDisplaySlot ? displaySlotPriceLookup(selectedDisplaySlot) : null, [selectedDisplaySlot])
   const wantedCardEntries = useMemo(
     () => publicIndex ? publicIndex.wantEntries : collection.flatMap((item) =>
       (item.wanted_cards ?? []).map((card) => ({
@@ -1253,9 +1256,13 @@ function BinderAppSurface(props: BinderAppProps) {
       }
 
       if (shouldLoadCollectionPriceLookups) {
-        for (const lookup of trackedPriceLookups) {
+        for (const lookup of [...trackedPriceLookups, ...(isPriceMode ? displayPriceLookups : [])]) {
           byKey.set(getCardPriceKey(lookup.cardId, lookup.language), lookup)
         }
+      }
+
+      if (selectedDisplayPriceLookup) {
+        byKey.set(getCardPriceKey(selectedDisplayPriceLookup.cardId, selectedDisplayPriceLookup.language), selectedDisplayPriceLookup)
       }
 
       if (selectedTrackedPriceLookup) {
@@ -1268,10 +1275,10 @@ function BinderAppSurface(props: BinderAppProps) {
 
       return [...byKey.values()]
     },
-    [ownedPriceLookups, selectedTrackedPriceLookup, selectedWantedPriceLookups, shouldLoadCollectionPriceLookups, trackedPriceLookups, wantedPriceLookups],
+    [displayPriceLookups, isPriceMode, ownedPriceLookups, selectedDisplayPriceLookup, selectedTrackedPriceLookup, selectedWantedPriceLookups, shouldLoadCollectionPriceLookups, trackedPriceLookups, wantedPriceLookups],
   )
-  const hasTrackedCards = trackedPriceLookups.length > 0 || wantedPriceLookups.length > 0
-  const shouldLoadCardPrices = ownedPriceLookups.length > 0 || wantedPriceLookups.length > 0 || shouldLoadCollectionPriceLookups || Boolean(selectedTrackedPriceLookup) || selectedWantedPriceLookups.length > 0
+  const hasTrackedCards = trackedPriceLookups.length > 0 || wantedPriceLookups.length > 0 || displayPriceLookups.length > 0
+  const shouldLoadCardPrices = ownedPriceLookups.length > 0 || wantedPriceLookups.length > 0 || shouldLoadCollectionPriceLookups || Boolean(selectedTrackedPriceLookup) || Boolean(selectedDisplayPriceLookup) || selectedWantedPriceLookups.length > 0
   const { pricesByCardId: rawPricesByCardId, isLoading: isLoadingPrices, fxRates } = useCardPrices(priceLookupCards, pricingEnabled && shouldLoadCardPrices)
   const pricingPreferences = usePricingPreferences(settings)
   // Region-grounded prices: re-weight each card's source evidence for the user's market.
@@ -3076,6 +3083,7 @@ function BinderAppSurface(props: BinderAppProps) {
       ) : null}
 
       {selectedDisplaySlot && <NativeSlotFlow pricing={{ defaultCardLanguage: pricingPreferences.cardLanguage, pricingRegion: pricingPreferences.region, formatAmount: priceFormat.amount }} key={`${stagedSlotSessionId}:${user?.id}:${stagedSlotDisplay?.inventory.ownerUserId}:${stagedSlotDisplay?.binder.collectionId}:${selectedDisplaySlot.id}`} slot={selectedDisplaySlot} onClose={closeSlotDetail}
+        priceLabel={selectedDisplayPriceLookup ? priceFormat.label(pricesByCardId[getCardPriceKey(selectedDisplayPriceLookup.cardId, selectedDisplayPriceLookup.language)]) : null}
         onDoneLayout={() => { closeSlotDetail(); setLayoutSession(null) }}
         layout={editingLayout && layoutBoundary ? { ...layoutBoundary, scope: { ...layoutBoundary.scope, slotId: selectedDisplaySlot.id } } : undefined}
         picker={!editingLayout && !legacyReadOnlyMode && !shareViewToken && user && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent ? { snapshot: stagedSlotDisplay.inventory, scope: { ownerUserId: stagedSlotDisplay.inventory.ownerUserId, collectionId: stagedSlotDisplay.binder.collectionId, slotId: selectedDisplaySlot.id }, catalog: stagedSlotCatalog, onCommandIntent: onStagedSlotCommandIntent, localDurable: stagedSlotLocalDurable } : undefined} />}

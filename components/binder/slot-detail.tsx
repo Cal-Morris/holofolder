@@ -9,7 +9,7 @@ import CardImage from "@/components/card-image"
 import CardImageZoom from "@/components/card-image-zoom"
 import { CARD_PICKER_LANGUAGES } from "@/lib/card-picker-filters"
 
-export default function SlotDetail({ slot, onClose, picker, flow, layout, onDoneLayout }: { slot: BinderDisplaySlot; onClose: () => void; picker?: SlotPickerBoundary; flow?: SlotPickerFlow; layout?: LayoutBoundary; onDoneLayout?: () => void }) {
+export default function SlotDetail({ slot, onClose, picker, flow, layout, onDoneLayout, priceLabel }: { slot: BinderDisplaySlot; priceLabel?: string | null; onClose: () => void; picker?: SlotPickerBoundary; flow?: SlotPickerFlow; layout?: LayoutBoundary; onDoneLayout?: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useOverlay(true, onClose, { containerRef: ref })
   const swipe = useSwipeToDismiss(ref, onClose)
@@ -42,8 +42,7 @@ export default function SlotDetail({ slot, onClose, picker, flow, layout, onDone
             {slot.card && <p className="text-muted-foreground">{slot.card.set?.name ?? "Set unknown"}{slot.card.localId ? ` · #${slot.card.localId}` : ""}</p>}
             {identity && <p className="text-xs text-muted-foreground">{language ?? "Unknown language"} · {identity.finish?.replaceAll("_", " ") ?? "Unknown finish"}</p>}
             <p className="text-xs font-medium">{slot.item ? "Owned copy" : slot.target ? "Unfilled target" : "Empty slot"}</p>
-            {/* Only a share's opted-in saved figure; no live price lookup. */}
-            {slot.item && slot.card?.savedMarketGBP !== undefined && <p className="text-xs tabular-nums">Saved market estimate: {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(slot.card.savedMarketGBP)}</p>}
+            {slot.item && priceLabel && <p className="text-xs font-medium tabular-nums">Market price: {priceLabel}</p>}
             {slot.card?.rarity && <p className="text-xs text-muted-foreground">{slot.card.rarity}</p>}
             {slot.card?.illustrator && <p className="text-xs text-muted-foreground">Illustrated by {slot.card.illustrator}</p>}
           </div>

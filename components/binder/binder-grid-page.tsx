@@ -1,7 +1,8 @@
 "use client"
 
 import { OrderedSlot } from "@/components/binder/ordered-slot"
-import { adaptLegacyDisplaySlots, type BinderDisplaySlot } from "@/lib/binder-display-model"
+import { adaptLegacyDisplaySlots, displaySlotPriceLookup, type BinderDisplaySlot } from "@/lib/binder-display-model"
+import { getCardPriceKey } from "@/lib/card-pricing"
 import { getCollectionItemPriceKey } from "@/components/binder/binder-app-model"
 import { BinderSlotGlare, PokemonSlot, TRADING_CARD_CORNER_RADIUS, TRADING_CARD_INNER_CORNER_RADIUS } from "@/components/binder/pokemon-slot"
 import { getPokemonSummary } from "@/lib/pokemon-catalog"
@@ -203,7 +204,8 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
             const col = index % settings.binderCols
             const rowLetter = String.fromCharCode(65 + row)
             const slotLabel = `${rowLetter}${col + 1}`
-            if (displaySlot && !displaySlot.legacyPokemonId) return <OrderedSlot key={displaySlot.id} slot={displaySlot} slotLabel={slotLabel} cardDisplay={binderCardDisplay} interactionKey={ctx.slotInteractionKey} selected={ctx.selectedSlotId === displaySlot.id} onSelect={ctx.onSelectSlot!} imageSizes={binderSlotImageSizes} glareStyle={slotGlareOverlayStyle} glare={settings.binderSlotGlareEnabled} />
+            const displayPrice = isPriceMode && displaySlot ? displaySlotPriceLookup(displaySlot) : null
+            if (displaySlot && !displaySlot.legacyPokemonId) return <OrderedSlot key={displaySlot.id} slot={displaySlot} priceLabel={displayPrice ? priceFormat.label(pricesByCardId[getCardPriceKey(displayPrice.cardId, displayPrice.language)]) : null} slotLabel={slotLabel} cardDisplay={binderCardDisplay} interactionKey={ctx.slotInteractionKey} selected={ctx.selectedSlotId === displaySlot.id} onSelect={ctx.onSelectSlot!} imageSizes={binderSlotImageSizes} glareStyle={slotGlareOverlayStyle} glare={settings.binderSlotGlareEnabled} />
 
             if (!pokemon) {
               return (

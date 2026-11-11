@@ -54,19 +54,28 @@ export default defineConfig({
       metadata: { standalone: true },
     },
   ]),
-  webServer: process.env.E2E_BASE_URL
-    ? undefined
-    : {
-        command: `bun run build && bunx next start -p ${PORT}`,
-        url: `${baseURL}/app/e2e-harness`,
-        timeout: 300_000,
-        reuseExistingServer: !process.env.CI,
-        env: {
-          HOLOFOLDER_E2E: "1",
-          NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54399",
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "e2e-anon-key",
-          // Synthetic key, subscriptions are mocked in notification tests.
-          NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || `BA${"A".repeat(85)}`,
-        },
+  webServer: [
+    // Synthetic PostgREST at the e2e Supabase URL, so the real share routes render server-side (e2e/public-binder-compat.e2e.ts).
+    // Answers only its fixture tables under /rest/v1/; every other Supabase path is a 404, as an unreachable backend was before.
+    {
+      command: "bun scripts/verify-public-share-backend.ts",
+      url: "http://127.0.0.1:54399/rest/v1/binder_shares",
+      reuseExistingServer: !process.env.CI,
+    },
+    ...(process.env.E2E_BASE_URL ? [] : [{
+      command: `bun run build && bunx next start -p ${PORT}`,
+      url: `${baseURL}/app/e2e-harness`,
+      timeout: 300_000,
+      reuseExistingServer: !process.env.CI,
+      env: {
+        HOLOFOLDER_E2E: "1",
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54399",
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "e2e-anon-key",
+        // Synthetic key for the share loader's server reads against the synthetic backend above.
+        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || "e2e-service-role-key",
+        // Synthetic key, subscriptions are mocked in notification tests.
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || `BA${"A".repeat(85)}`,
       },
+    }]),
+  ],
 })

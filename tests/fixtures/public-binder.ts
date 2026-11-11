@@ -1,11 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /** Synthetic PostgREST-shaped backend. No real user/card/certificate data or hosted writes. */
-export function syntheticPublicDatabase(options: { disabled?: boolean; large?: boolean; unknown?: boolean; change?: 'revoke' | 'identity' | 'order' | 'copy' | 'metadata'; legacy?: boolean; prices?: boolean } = {}) {
-  const owner = 'PRIVATE-owner', collection = 'binder-allowed'
-  const share = { owner_user_id: owner, binder_id: collection, token: 'synthetic-token', is_enabled: !options.disabled, show_prices: options.prices === true }
+/** `scenario` gives the owner and token their own suffix, so several synthetic shares can be served side by side. */
+export function syntheticPublicDatabase(options: { disabled?: boolean; large?: boolean; unknown?: boolean; change?: 'revoke' | 'identity' | 'order' | 'copy' | 'metadata'; prices?: boolean; scenario?: string } = {}) {
+  const owner = options.scenario ? `PRIVATE-owner-${options.scenario}` : 'PRIVATE-owner', collection = 'binder-allowed'
+  const share = { owner_user_id: owner, binder_id: collection, token: options.scenario ? `synthetic-${options.scenario}` : 'synthetic-token', is_enabled: !options.disabled, show_prices: options.prices === true }
   const binder = { id: collection, owner_user_id: owner, name: 'Synthetic mixed binder', is_default: true, binder_rows: 2, binder_cols: 3, updated_at: 'synthetic-1' }
-  const state = { owner_user_id: owner, collection_id: collection, authority: options.legacy ? 'legacy' : 'slots', conversion_version: null, version: 1, layout_revision: 1 }
+  const state = { owner_user_id: owner, collection_id: collection, authority: 'slots', conversion_version: null, version: 1, layout_revision: 1 }
   const scopes = { owner_user_id: owner, collection_id: collection }
   const slots = Array.from({ length: options.large ? 1007 : 7 }, (_, i) => ({ id: `PRIVATE-slot-${i}`, ...scopes, position: i,
     target: i === 0 || i === 1 || i === 6 ? { kind: 'pokemon', pokemonId: 143 } : null,
@@ -19,8 +20,8 @@ export function syntheticPublicDatabase(options: { disabled?: boolean; large?: b
     binder_shares: [share], resolve_named_binder_share: [share], binders: [binder], storage_collection_state: [state], inventory_owner_state: [{ owner_user_id: owner, inventory_revision: 1 }],
     binder_slots: slots, inventory_placements: placements, inventory_items: items, tcg_cards: options.unknown ? [] : cards,
     tcg_card_dex_ids: [{ card_id: 'synthetic-mon', dex_id: 143 }],
+    account_identities: [],
     user_settings: [{ user_id: owner, binder_rows: 4, binder_cols: 4, dark_mode: true, binder_color_id: 'ocean', binder_page_colors: { '1': 'ruby', 'PRIVATE-key': 'PRIVATE-value' }, binder_slot_glare_enabled: false }],
-    pokemon_collection: [], card_prices: [{ card_id: 'synthetic-mon', language: 'en', gbp_amount: 12.34, purchase_cost: 'PRIVATE-cost' }],
   }
   const calls: { table: string; projection: string; filters: Record<string, unknown> }[] = []
   const counts: Record<string, number> = {}
