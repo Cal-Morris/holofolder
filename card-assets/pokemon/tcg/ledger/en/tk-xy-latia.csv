@@ -1,31 +1,31 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-tk-xy-latia-1,1,Grass Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/1/high.webp,tcgplayer
-tk-xy-latia-2,2,Grass Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/2/high.webp,tcgplayer
-tk-xy-latia-3,3,Grass Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/3/high.webp,tcgplayer
-tk-xy-latia-4,4,Fletchling,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/4/high.webp,tcgplayer
-tk-xy-latia-5,5,Grass Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/5/high.webp,tcgplayer
-tk-xy-latia-6,6,Lombre,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/6/high.webp,tcgplayer
-tk-xy-latia-7,7,Treecko,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/7/high.webp,tcgplayer
-tk-xy-latia-8,8,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/8/high.webp,tcgplayer
-tk-xy-latia-9,9,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/9/high.webp,tcgplayer
-tk-xy-latia-10,10,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/10/high.webp,tcgplayer
-tk-xy-latia-11,11,Lotad,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/11/high.webp,tcgplayer
-tk-xy-latia-12,12,Tangrowth,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/12/high.webp,tcgplayer
-tk-xy-latia-13,13,Tangela,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/13/high.webp,tcgplayer
-tk-xy-latia-14,14,Latias,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/14/high.webp,tcgplayer
-tk-xy-latia-15,15,Potion,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/15/high.webp,tcgplayer
-tk-xy-latia-16,16,Surskit,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/16/high.webp,tcgplayer
-tk-xy-latia-17,17,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/17/high.webp,tcgplayer
-tk-xy-latia-18,18,Grovyle,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/18/high.webp,tcgplayer
-tk-xy-latia-19,19,Grass Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/19/high.webp,tcgplayer
-tk-xy-latia-20,20,Acro Bike,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/20/high.webp,tcgplayer
-tk-xy-latia-21,21,Lombre,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/21/high.webp,tcgplayer
-tk-xy-latia-22,22,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/22/high.webp,tcgplayer
-tk-xy-latia-23,23,Lotad,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/23/high.webp,tcgplayer
-tk-xy-latia-24,24,Treecko,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/24/high.webp,tcgplayer
-tk-xy-latia-25,25,Tangrowth,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/25/high.webp,tcgplayer
-tk-xy-latia-26,26,Tangela,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/26/high.webp,tcgplayer
-tk-xy-latia-27,27,Grovyle,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/27/high.webp,tcgplayer
-tk-xy-latia-28,28,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/28/high.webp,tcgplayer
-tk-xy-latia-29,29,Acro Bike,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/29/high.webp,tcgplayer
-tk-xy-latia-30,30,Latias,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-latia/30/high.webp,tcgplayer
+tk-xy-latia-1,1,Grass Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-001-grass_energy.png,tcgdex:de tcgplayer
+tk-xy-latia-2,2,Grass Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-002-grass_energy.png,tcgdex:de tcgplayer
+tk-xy-latia-3,3,Grass Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-003-grass_energy.png,tcgdex:de tcgplayer
+tk-xy-latia-4,4,Fletchling,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-004-fletchling.png,tcgdex:de tcgplayer
+tk-xy-latia-5,5,Grass Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-005-grass_energy.png,tcgdex:de tcgplayer
+tk-xy-latia-6,6,Lombre,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-006-lombre.png,tcgdex:de tcgplayer
+tk-xy-latia-7,7,Treecko,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-007-treecko.png,tcgdex:de tcgplayer
+tk-xy-latia-8,8,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-008-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-latia-9,9,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-009-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-latia-10,10,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-010-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-latia-11,11,Lotad,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-011-lotad.png,tcgdex:de tcgplayer
+tk-xy-latia-12,12,Tangrowth,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-012-tangrowth.png,tcgdex:de tcgplayer
+tk-xy-latia-13,13,Tangela,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-013-tangela.png,tcgdex:de tcgplayer
+tk-xy-latia-14,14,Latias,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-014-latias.png,tcgdex:de tcgplayer
+tk-xy-latia-15,15,Potion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-015-potion.png,tcgdex:de tcgplayer
+tk-xy-latia-16,16,Surskit,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-016-surskit.png,tcgdex:de tcgplayer
+tk-xy-latia-17,17,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-017-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-latia-18,18,Grovyle,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-018-grovyle.png,tcgdex:de tcgplayer
+tk-xy-latia-19,19,Grass Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-019-grass_energy.png,tcgdex:de tcgplayer
+tk-xy-latia-20,20,Acro Bike,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-020-acro_bike.png,tcgdex:de tcgplayer
+tk-xy-latia-21,21,Lombre,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-021-lombre.png,tcgdex:de tcgplayer
+tk-xy-latia-22,22,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-022-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-latia-23,23,Lotad,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-023-lotad.png,tcgdex:de tcgplayer
+tk-xy-latia-24,24,Treecko,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-024-treecko.png,tcgdex:de tcgplayer
+tk-xy-latia-25,25,Tangrowth,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-025-tangrowth.png,tcgdex:de tcgplayer
+tk-xy-latia-26,26,Tangela,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-026-tangela.png,tcgdex:de tcgplayer
+tk-xy-latia-27,27,Grovyle,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-027-grovyle.png,tcgdex:de tcgplayer
+tk-xy-latia-28,28,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-028-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-latia-29,29,Acro Bike,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-029-acro_bike.png,tcgdex:de tcgplayer
+tk-xy-latia-30,30,Latias,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK8B-TK_Latias/en_US-TK8B-030-latias.png,tcgdex:de tcgplayer

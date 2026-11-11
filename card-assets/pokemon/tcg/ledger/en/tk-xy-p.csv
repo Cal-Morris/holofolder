@@ -1,31 +1,31 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-tk-xy-p-1,1,Glameow,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/1/high.webp,tcgplayer
-tk-xy-p-2,2,Lightning Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/2/high.webp,tcgplayer
-tk-xy-p-3,3,Lightning Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/3/high.webp,tcgplayer
-tk-xy-p-4,4,Electivire,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/4/high.webp,tcgplayer
-tk-xy-p-5,5,Lightning Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/5/high.webp,tcgplayer
-tk-xy-p-6,6,Lightning Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/6/high.webp,tcgplayer
-tk-xy-p-7,7,Taillow,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/7/high.webp,tcgplayer
-tk-xy-p-8,8,Lightning Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/8/high.webp,tcgplayer
-tk-xy-p-9,9,Lightning Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/9/high.webp,tcgplayer
-tk-xy-p-10,10,Lightning Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/10/high.webp,tcgplayer
-tk-xy-p-11,11,Electrike,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/11/high.webp,tcgplayer
-tk-xy-p-12,12,Blitzle,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/12/high.webp,tcgplayer
-tk-xy-p-13,13,Manectric,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/13/high.webp,tcgplayer
-tk-xy-p-14,14,Pikachu Libre,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/14/high.webp,tcgplayer
-tk-xy-p-15,15,Electabuzz,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/15/high.webp,tcgplayer
-tk-xy-p-16,16,Fletchling,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/16/high.webp,tcgplayer
-tk-xy-p-17,17,Lightning Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/17/high.webp,tcgplayer
-tk-xy-p-18,18,Lightning Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/18/high.webp,tcgplayer
-tk-xy-p-19,19,Purugly,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/19/high.webp,tcgplayer
-tk-xy-p-20,20,Tierno,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/20/high.webp,tcgplayer
-tk-xy-p-21,21,Potion,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/21/high.webp,tcgplayer
-tk-xy-p-22,22,Manectric,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/22/high.webp,tcgplayer
-tk-xy-p-23,23,Electabuzz,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/23/high.webp,tcgplayer
-tk-xy-p-24,24,Purugly,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/24/high.webp,tcgplayer
-tk-xy-p-25,25,Electivire,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/25/high.webp,tcgplayer
-tk-xy-p-26,26,Blitzle,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/26/high.webp,tcgplayer
-tk-xy-p-27,27,Glameow,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/27/high.webp,tcgplayer
-tk-xy-p-28,28,Electrike,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/28/high.webp,tcgplayer
-tk-xy-p-29,29,Lightning Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/29/high.webp,tcgplayer
-tk-xy-p-30,30,Pikachu Libre,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-p/30/high.webp,tcgplayer
+tk-xy-p-1,1,Glameow,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-001-glameow.png,tcgdex:de tcgplayer
+tk-xy-p-2,2,Lightning Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-002-lightning_energy.png,tcgdex:de tcgplayer
+tk-xy-p-3,3,Lightning Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-003-lightning_energy.png,tcgdex:de tcgplayer
+tk-xy-p-4,4,Electivire,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-004-electivire.png,tcgdex:de tcgplayer
+tk-xy-p-5,5,Lightning Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-005-lightning_energy.png,tcgdex:de tcgplayer
+tk-xy-p-6,6,Lightning Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-006-lightning_energy.png,tcgdex:de tcgplayer
+tk-xy-p-7,7,Taillow,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-007-taillow.png,tcgdex:de tcgplayer
+tk-xy-p-8,8,Lightning Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-008-lightning_energy.png,tcgdex:de tcgplayer
+tk-xy-p-9,9,Lightning Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-009-lightning_energy.png,tcgdex:de tcgplayer
+tk-xy-p-10,10,Lightning Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-010-lightning_energy.png,tcgdex:de tcgplayer
+tk-xy-p-11,11,Electrike,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-011-electrike.png,tcgdex:de tcgplayer
+tk-xy-p-12,12,Blitzle,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-012-blitzle.png,tcgdex:de tcgplayer
+tk-xy-p-13,13,Manectric,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-013-manectric.png,tcgdex:de tcgplayer
+tk-xy-p-14,14,Pikachu Libre,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-014-pikachu_libre.png,tcgdex:de tcgplayer
+tk-xy-p-15,15,Electabuzz,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-015-electabuzz.png,tcgdex:de tcgplayer
+tk-xy-p-16,16,Fletchling,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-016-fletchling.png,tcgdex:de tcgplayer
+tk-xy-p-17,17,Lightning Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-017-lightning_energy.png,tcgdex:de tcgplayer
+tk-xy-p-18,18,Lightning Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-018-lightning_energy.png,tcgdex:de tcgplayer
+tk-xy-p-19,19,Purugly,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-019-purugly.png,tcgdex:de tcgplayer
+tk-xy-p-20,20,Tierno,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-020-tierno.png,tcgdex:de tcgplayer
+tk-xy-p-21,21,Potion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-021-potion.png,tcgdex:de tcgplayer
+tk-xy-p-22,22,Manectric,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-022-manectric.png,tcgdex:de tcgplayer
+tk-xy-p-23,23,Electabuzz,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-023-electabuzz.png,tcgdex:de tcgplayer
+tk-xy-p-24,24,Purugly,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-024-purugly.png,tcgdex:de tcgplayer
+tk-xy-p-25,25,Electivire,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-025-electivire.png,tcgdex:de tcgplayer
+tk-xy-p-26,26,Blitzle,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-026-blitzle.png,tcgdex:de tcgplayer
+tk-xy-p-27,27,Glameow,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-027-glameow.png,tcgdex:de tcgplayer
+tk-xy-p-28,28,Electrike,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-028-electrike.png,tcgdex:de tcgplayer
+tk-xy-p-29,29,Lightning Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-029-lightning_energy.png,tcgdex:de tcgplayer
+tk-xy-p-30,30,Pikachu Libre,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK9A-TK_PikachuLibre/en_US-TK9A-030-pikachu_libre.png,tcgdex:de tcgplayer

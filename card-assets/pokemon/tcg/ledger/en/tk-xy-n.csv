@@ -1,31 +1,31 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-tk-xy-n-1,1,Spoink,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/1/high.webp,tcgplayer
-tk-xy-n-2,2,Gourgeist,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/2/high.webp,tcgplayer
-tk-xy-n-3,3,Arbok,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/3/high.webp,tcgplayer
-tk-xy-n-4,4,Bunnelby,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/4/high.webp,tcgplayer
-tk-xy-n-5,5,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/5/high.webp,tcgplayer
-tk-xy-n-6,6,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/6/high.webp,tcgplayer
-tk-xy-n-7,7,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/7/high.webp,tcgplayer
-tk-xy-n-8,8,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/8/high.webp,tcgplayer
-tk-xy-n-9,9,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/9/high.webp,tcgplayer
-tk-xy-n-10,10,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/10/high.webp,tcgplayer
-tk-xy-n-11,11,Pumpkaboo,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/11/high.webp,tcgplayer
-tk-xy-n-12,12,Noibat,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/12/high.webp,tcgplayer
-tk-xy-n-13,13,Noivern,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/13/high.webp,tcgplayer
-tk-xy-n-14,14,Pokémon Catcher,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/14/high.webp,
-tk-xy-n-15,15,Potion,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/15/high.webp,tcgplayer
-tk-xy-n-16,16,Ekans,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/16/high.webp,tcgplayer
-tk-xy-n-17,17,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/17/high.webp,tcgplayer
-tk-xy-n-18,18,Pumpkaboo,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/18/high.webp,tcgplayer
-tk-xy-n-19,19,Darkness Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/19/high.webp,tcgplayer
-tk-xy-n-20,20,Furfrou,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/20/high.webp,tcgplayer
-tk-xy-n-21,21,Poké Ball,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/21/high.webp,
-tk-xy-n-22,22,Darkness Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/22/high.webp,tcgplayer
-tk-xy-n-23,23,Noibat,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/23/high.webp,
-tk-xy-n-24,24,Professor’s Letter,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/24/high.webp,
-tk-xy-n-25,25,Psychic Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/25/high.webp,tcgplayer
-tk-xy-n-26,26,Darkness Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/26/high.webp,tcgplayer
-tk-xy-n-27,27,Potion,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/27/high.webp,tcgplayer
-tk-xy-n-28,28,Darkness Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/28/high.webp,tcgplayer
-tk-xy-n-29,29,Switch,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/29/high.webp,
-tk-xy-n-30,30,Noivern,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-n/30/high.webp,tcgplayer
+tk-xy-n-1,1,Spoink,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-001-spoink.png,tcgdex:de tcgplayer
+tk-xy-n-2,2,Gourgeist,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-002-gourgeist.png,tcgdex:de tcgplayer
+tk-xy-n-3,3,Arbok,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-003-arbok.png,tcgdex:de tcgplayer
+tk-xy-n-4,4,Bunnelby,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-004-bunnelby.png,tcgdex:de tcgplayer
+tk-xy-n-5,5,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-005-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-n-6,6,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-006-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-n-7,7,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-007-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-n-8,8,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-008-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-n-9,9,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-009-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-n-10,10,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-010-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-n-11,11,Pumpkaboo,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-011-pumpkaboo.png,tcgdex:de tcgplayer
+tk-xy-n-12,12,Noibat,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-012-noibat.png,tcgdex:de tcgplayer
+tk-xy-n-13,13,Noivern,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-013-noivern.png,tcgdex:de tcgplayer
+tk-xy-n-14,14,Pokémon Catcher,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-014-pokemon_catcher.png,tcgdex:de
+tk-xy-n-15,15,Potion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-015-potion.png,tcgdex:de tcgplayer
+tk-xy-n-16,16,Ekans,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-016-ekans.png,tcgdex:de tcgplayer
+tk-xy-n-17,17,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-017-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-n-18,18,Pumpkaboo,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-018-pumpkaboo.png,tcgdex:de tcgplayer
+tk-xy-n-19,19,Darkness Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-019-darkness_energy.png,tcgdex:de tcgplayer
+tk-xy-n-20,20,Furfrou,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-020-furfrou.png,tcgdex:de tcgplayer
+tk-xy-n-21,21,Poké Ball,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-021-poke_ball.png,tcgdex:de
+tk-xy-n-22,22,Darkness Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-022-darkness_energy.png,tcgdex:de tcgplayer
+tk-xy-n-23,23,Noibat,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-023-noibat.png,tcgdex:de
+tk-xy-n-24,24,Professor’s Letter,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-024-professors_letter.png,tcgdex:de
+tk-xy-n-25,25,Psychic Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-025-psychic_energy.png,tcgdex:de tcgplayer
+tk-xy-n-26,26,Darkness Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-026-darkness_energy.png,tcgdex:de tcgplayer
+tk-xy-n-27,27,Potion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-027-potion.png,tcgdex:de tcgplayer
+tk-xy-n-28,28,Darkness Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-028-darkness_energy.png,tcgdex:de tcgplayer
+tk-xy-n-29,29,Switch,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-029-switch.png,tcgdex:de
+tk-xy-n-30,30,Noivern,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK6A-TK_Noivern/en_US-TK6A-030-noivern.png,tcgdex:de tcgplayer

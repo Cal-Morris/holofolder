@@ -1,0 +1,118 @@
+set_id,format,code,note
+sv01,tcgl,sv1,
+sv02,tcgl,sv2,
+sv03,tcgl,sv3,
+sv03.5,tcgl,sv3-5,
+sv04,tcgl,sv4,
+sv04.5,tcgl,sv4-5,
+sv05,tcgl,sv5,
+sv06,tcgl,sv6,
+sv06.5,tcgl,sv6-5,
+sv07,tcgl,sv7,
+sv08,tcgl,sv8,
+sv08.5,tcgl,sv8-5,
+sv09,tcgl,sv9,
+sv10,tcgl,sv10,
+sv10.5b,tcgl,zsv10-5,Black Bolt
+sv10.5w,tcgl,rsv10-5,White Flare
+svp,tcgl,svbsp,
+sve,tcgl,sve,
+me01,tcgl,me1,
+me02,tcgl,me2,
+me02.5,tcgl,me2-5,
+me03,tcgl,me3,
+me04,tcgl,me4,
+me05,tcgl,me5,
+me06,tcgl,me6,
+30th,tcgl,me5-5,
+mep,tcgl,mebsp,
+mee,tcgl,mee,
+swsh1,tcgo,SWSH1,
+swsh2,tcgo,SWSH2,
+swsh3,tcgo,SWSH3,
+swsh3.5,tcgo,CP,Champion's Path
+swsh4,tcgo,SWSH4,
+swsh4.5,tcgo,SF,Shining Fates
+swsh4.5sv,tcgo,SF,Shiny Vault numbers (SV001…) are in the Shining Fates listing
+swsh5,tcgo,SWSH5,
+swsh6,tcgo,SWSH6,
+swsh7,tcgo,SWSH7,
+cel25,tcgo,Ann25th,Celebrations
+cel25cc,tcgo,Ann25thR,Celebrations Classic Collection
+swsh8,tcgo,SWSH8,
+swsh9,tcgo,SWSH9,
+swsh9tg,tcgo,SWSH9,Trainer Gallery numbers (TG01…) are in the main listing
+swsh10,tcgo,SWSH10,
+swsh10tg,tcgo,SWSH10,
+swsh10.5,tcgo,PGO,Pokémon GO
+swsh11,tcgo,SWSH11,
+swsh11tg,tcgo,SWSH11,
+swsh12,tcgo,SWSH12,
+swsh12tg,tcgo,SWSH12,
+swsh12.5,tcgo,CZ,Crown Zenith
+swsh12.5gg,tcgo,CZ,Galarian Gallery numbers (GG01…) are in the Crown Zenith listing
+swshp,tcgo,Promo_SWSH,
+sm1,tcgo,SM1,
+sm2,tcgo,SM2,
+sm3,tcgo,SM3,
+sm3.5,tcgo,SL,Shining Legends
+sm4,tcgo,SM4,
+sm5,tcgo,SM5,
+sm6,tcgo,SM6,
+sm7,tcgo,SM7,
+sm7.5,tcgo,DM,Dragon Majesty
+sm8,tcgo,SM8,
+sm9,tcgo,SM9,
+sm10,tcgo,SM10,
+sm11,tcgo,SM11,
+sm115,tcgo,HF,Hidden Fates
+sma,tcgo,HF,Hidden Fates Shiny Vault
+sm12,tcgo,SM12,
+smp,tcgo,Promo_SM,
+tk-sm-l,tcgo,TK10A,Lycanroc kit
+tk-sm-r,tcgo,TK10B,Alolan Raichu kit
+xy0,tcgo,XY0,
+xy1,tcgo,XY1,
+xy2,tcgo,XY2,
+xy3,tcgo,XY3,
+xy4,tcgo,XY4,
+xy5,tcgo,XY5,
+dc1,tcgo,TATM,Double Crisis (Team Aqua vs Team Magma)
+xy6,tcgo,XY6,
+xy7,tcgo,XY7,
+xy8,tcgo,XY8,
+xy9,tcgo,XY9,
+g1,tcgo,TwentiethAnn,Generations
+xy10,tcgo,XY10,
+xy11,tcgo,XY11,
+xy12,tcgo,XY12,
+xyp,tcgo,Promo_XY,
+tk-xy-n,tcgo,TK6A,Noivern kit
+tk-xy-sy,tcgo,TK6B,Sylveon kit
+tk-xy-b,tcgo,TK7A,Bisharp kit
+tk-xy-w,tcgo,TK7B,Wigglytuff kit
+tk-xy-latio,tcgo,TK8A,Latios kit
+tk-xy-latia,tcgo,TK8B,Latias kit
+tk-xy-p,tcgo,TK9A,Pikachu Libre kit
+tk-xy-su,tcgo,TK9B,Suicune kit
+bw1,tcgo,BW1,
+bw2,tcgo,BW2,
+bw3,tcgo,BW3,
+bw4,tcgo,BW4,
+bw5,tcgo,BW5,
+bw6,tcgo,BW6,
+dv1,tcgo,DV,Dragon Vault
+bw7,tcgo,BW7,
+bw8,tcgo,BW8,
+bw9,tcgo,BW9,
+bw10,tcgo,BW10,
+bw11,tcgo,BW11,
+bwp,tcgo,Promo_BW,
+tk-bw-z,tcgo,TK5A,Zoroark kit
+tk-bw-e,tcgo,TK5B,Excadrill kit
+hgss1,tcgo,HGSS1,
+hgss2,tcgo,HGSS2,
+hgss3,tcgo,HGSS3,
+hgss4,tcgo,HGSS4,
+hgssp,tcgo,Promo_HGSS,
+col1,tcgo,COL,Call of Legends

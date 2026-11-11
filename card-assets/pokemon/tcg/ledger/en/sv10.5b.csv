@@ -1,173 +1,173 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-sv10.5b-001,001,Snivy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/001/high.webp,tcgplayer
-sv10.5b-002,002,Servine,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/002/high.webp,tcgplayer
-sv10.5b-003,003,Serperior ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/003/high.webp,tcgplayer
-sv10.5b-004,004,Pansage,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/004/high.webp,tcgplayer
-sv10.5b-005,005,Simisage,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/005/high.webp,tcgplayer
-sv10.5b-006,006,Petilil,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/006/high.webp,tcgplayer
-sv10.5b-007,007,Lilligant,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/007/high.webp,tcgplayer
-sv10.5b-008,008,Maractus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/008/high.webp,tcgplayer
-sv10.5b-009,009,Karrablast,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/009/high.webp,tcgplayer
-sv10.5b-010,010,Foongus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/010/high.webp,tcgplayer
-sv10.5b-011,011,Amoonguss,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/011/high.webp,tcgplayer
-sv10.5b-012,012,Victini,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/012/high.webp,tcgplayer
-sv10.5b-013,013,Darumaka,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/013/high.webp,tcgplayer
-sv10.5b-014,014,Darmanitan,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/014/high.webp,tcgplayer
-sv10.5b-015,015,Larvesta,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/015/high.webp,tcgplayer
-sv10.5b-016,016,Volcarona,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/016/high.webp,tcgplayer
-sv10.5b-017,017,Panpour,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/017/high.webp,tcgplayer
-sv10.5b-018,018,Simipour,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/018/high.webp,tcgplayer
-sv10.5b-019,019,Tympole,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/019/high.webp,tcgplayer
-sv10.5b-020,020,Palpitoad,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/020/high.webp,tcgplayer
-sv10.5b-021,021,Seismitoad,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/021/high.webp,tcgplayer
-sv10.5b-022,022,Tirtouga,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/022/high.webp,tcgplayer
-sv10.5b-023,023,Carracosta,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/023/high.webp,tcgplayer
-sv10.5b-024,024,Alomomola,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/024/high.webp,tcgplayer
-sv10.5b-025,025,Cubchoo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/025/high.webp,tcgplayer
-sv10.5b-026,026,Beartic,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/026/high.webp,tcgplayer
-sv10.5b-027,027,Cryogonal,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/027/high.webp,tcgplayer
-sv10.5b-028,028,Kyurem ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/028/high.webp,tcgplayer
-sv10.5b-029,029,Emolga,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/029/high.webp,tcgplayer
-sv10.5b-030,030,Tynamo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/030/high.webp,tcgplayer
-sv10.5b-031,031,Eelektrik,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/031/high.webp,tcgplayer
-sv10.5b-032,032,Eelektross,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/032/high.webp,tcgplayer
-sv10.5b-033,033,Thundurus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/033/high.webp,tcgplayer
-sv10.5b-034,034,Zekrom ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/034/high.webp,tcgplayer
-sv10.5b-035,035,Munna,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/035/high.webp,tcgplayer
-sv10.5b-036,036,Musharna,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/036/high.webp,tcgplayer
-sv10.5b-037,037,Solosis,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/037/high.webp,tcgplayer
-sv10.5b-038,038,Duosion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/038/high.webp,tcgplayer
-sv10.5b-039,039,Reuniclus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/039/high.webp,tcgplayer
-sv10.5b-040,040,Elgyem,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/040/high.webp,tcgplayer
-sv10.5b-041,041,Beheeyem,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/041/high.webp,tcgplayer
-sv10.5b-042,042,Golett,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/042/high.webp,tcgplayer
-sv10.5b-043,043,Golurk,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/043/high.webp,tcgplayer
-sv10.5b-044,044,Meloetta ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/044/high.webp,tcgplayer
-sv10.5b-045,045,Drilbur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/045/high.webp,tcgplayer
-sv10.5b-046,046,Excadrill ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/046/high.webp,tcgplayer
-sv10.5b-047,047,Timburr,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/047/high.webp,tcgplayer
-sv10.5b-048,048,Gurdurr,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/048/high.webp,tcgplayer
-sv10.5b-049,049,Conkeldurr,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/049/high.webp,tcgplayer
-sv10.5b-050,050,Throh,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/050/high.webp,tcgplayer
-sv10.5b-051,051,Dwebble,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/051/high.webp,tcgplayer
-sv10.5b-052,052,Crustle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/052/high.webp,tcgplayer
-sv10.5b-053,053,Landorus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/053/high.webp,tcgplayer
-sv10.5b-054,054,Venipede,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/054/high.webp,tcgplayer
-sv10.5b-055,055,Whirlipede,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/055/high.webp,tcgplayer
-sv10.5b-056,056,Scolipede,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/056/high.webp,tcgplayer
-sv10.5b-057,057,Sandile,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/057/high.webp,tcgplayer
-sv10.5b-058,058,Krokorok,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/058/high.webp,tcgplayer
-sv10.5b-059,059,Krookodile,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/059/high.webp,tcgplayer
-sv10.5b-060,060,Escavalier,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/060/high.webp,tcgplayer
-sv10.5b-061,061,Klink,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/061/high.webp,tcgplayer
-sv10.5b-062,062,Klang,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/062/high.webp,tcgplayer
-sv10.5b-063,063,Klinklang,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/063/high.webp,tcgplayer
-sv10.5b-064,064,Pawniard,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/064/high.webp,tcgplayer
-sv10.5b-065,065,Bisharp,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/065/high.webp,tcgplayer
-sv10.5b-066,066,Cobalion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/066/high.webp,tcgplayer
-sv10.5b-067,067,Genesect ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/067/high.webp,tcgplayer
-sv10.5b-068,068,Axew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/068/high.webp,tcgplayer
-sv10.5b-069,069,Fraxure,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/069/high.webp,tcgplayer
-sv10.5b-070,070,Haxorus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/070/high.webp,tcgplayer
-sv10.5b-071,071,Pidove,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/071/high.webp,tcgplayer
-sv10.5b-072,072,Tranquill,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/072/high.webp,tcgplayer
-sv10.5b-073,073,Unfezant,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/073/high.webp,tcgplayer
-sv10.5b-074,074,Audino,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/074/high.webp,tcgplayer
-sv10.5b-075,075,Minccino,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/075/high.webp,tcgplayer
-sv10.5b-076,076,Cinccino,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/076/high.webp,tcgplayer
-sv10.5b-077,077,Rufflet,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/077/high.webp,tcgplayer
-sv10.5b-078,078,Braviary,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/078/high.webp,tcgplayer
-sv10.5b-079,079,Air Balloon,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/079/high.webp,tcgplayer
-sv10.5b-080,080,Antique Cover Fossil,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/080/high.webp,tcgplayer
-sv10.5b-081,081,Energy Coin,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/081/high.webp,tcgplayer
-sv10.5b-082,082,Fennel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/082/high.webp,tcgplayer
-sv10.5b-083,083,N's Plan,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/083/high.webp,tcgplayer
-sv10.5b-084,084,Pokégear 3.0,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/084/high.webp,tcgplayer
-sv10.5b-085,085,Professor's Research,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/085/high.webp,tcgplayer
-sv10.5b-086,086,Prism Energy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/086/high.webp,tcgplayer
-sv10.5b-087,087,Snivy,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/087/high.webp,tcgplayer
-sv10.5b-088,088,Servine,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/088/high.webp,tcgplayer
-sv10.5b-089,089,Pansage,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/089/high.webp,tcgplayer
-sv10.5b-090,090,Simisage,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/090/high.webp,tcgplayer
-sv10.5b-091,091,Petilil,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/091/high.webp,tcgplayer
-sv10.5b-092,092,Lilligant,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/092/high.webp,tcgplayer
-sv10.5b-093,093,Maractus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/093/high.webp,tcgplayer
-sv10.5b-094,094,Karrablast,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/094/high.webp,tcgplayer
-sv10.5b-095,095,Foongus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/095/high.webp,tcgplayer
-sv10.5b-096,096,Amoonguss,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/096/high.webp,tcgplayer
-sv10.5b-097,097,Darumaka,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/097/high.webp,tcgplayer
-sv10.5b-098,098,Darmanitan,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/098/high.webp,tcgplayer
-sv10.5b-099,099,Larvesta,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/099/high.webp,tcgplayer
-sv10.5b-100,100,Volcarona,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/100/high.webp,tcgplayer
-sv10.5b-101,101,Panpour,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/101/high.webp,tcgplayer
-sv10.5b-102,102,Simipour,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/102/high.webp,tcgplayer
-sv10.5b-103,103,Tympole,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/103/high.webp,tcgplayer
-sv10.5b-104,104,Palpitoad,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/104/high.webp,tcgplayer
-sv10.5b-105,105,Seismitoad,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/105/high.webp,tcgplayer
-sv10.5b-106,106,Tirtouga,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/106/high.webp,tcgplayer
-sv10.5b-107,107,Carracosta,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/107/high.webp,tcgplayer
-sv10.5b-108,108,Alomomola,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/108/high.webp,tcgplayer
-sv10.5b-109,109,Cubchoo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/109/high.webp,tcgplayer
-sv10.5b-110,110,Beartic,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/110/high.webp,tcgplayer
-sv10.5b-111,111,Cryogonal,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/111/high.webp,tcgplayer
-sv10.5b-112,112,Emolga,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/112/high.webp,tcgplayer
-sv10.5b-113,113,Tynamo,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/113/high.webp,tcgplayer
-sv10.5b-114,114,Eelektrik,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/114/high.webp,tcgplayer
-sv10.5b-115,115,Eelektross,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/115/high.webp,tcgplayer
-sv10.5b-116,116,Munna,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/116/high.webp,tcgplayer
-sv10.5b-117,117,Musharna,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/117/high.webp,tcgplayer
-sv10.5b-118,118,Solosis,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/118/high.webp,tcgplayer
-sv10.5b-119,119,Duosion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/119/high.webp,tcgplayer
-sv10.5b-120,120,Elgyem,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/120/high.webp,tcgplayer
-sv10.5b-121,121,Beheeyem,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/121/high.webp,tcgplayer
-sv10.5b-122,122,Golett,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/122/high.webp,tcgplayer
-sv10.5b-123,123,Golurk,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/123/high.webp,tcgplayer
-sv10.5b-124,124,Drilbur,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/124/high.webp,tcgplayer
-sv10.5b-125,125,Timburr,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/125/high.webp,tcgplayer
-sv10.5b-126,126,Gurdurr,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/126/high.webp,tcgplayer
-sv10.5b-127,127,Conkeldurr,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/127/high.webp,tcgplayer
-sv10.5b-128,128,Throh,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/128/high.webp,tcgplayer
-sv10.5b-129,129,Dwebble,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/129/high.webp,tcgplayer
-sv10.5b-130,130,Crustle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/130/high.webp,tcgplayer
-sv10.5b-131,131,Landorus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/131/high.webp,tcgplayer
-sv10.5b-132,132,Venipede,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/132/high.webp,tcgplayer
-sv10.5b-133,133,Whirlipede,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/133/high.webp,tcgplayer
-sv10.5b-134,134,Scolipede,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/134/high.webp,tcgplayer
-sv10.5b-135,135,Sandile,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/135/high.webp,tcgplayer
-sv10.5b-136,136,Krokorok,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/136/high.webp,tcgplayer
-sv10.5b-137,137,Krookodile,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/137/high.webp,tcgplayer
-sv10.5b-138,138,Escavalier,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/138/high.webp,tcgplayer
-sv10.5b-139,139,Klink,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/139/high.webp,tcgplayer
-sv10.5b-140,140,Klang,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/140/high.webp,tcgplayer
-sv10.5b-141,141,Klinklang,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/141/high.webp,tcgplayer
-sv10.5b-142,142,Pawniard,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/142/high.webp,tcgplayer
-sv10.5b-143,143,Bisharp,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/143/high.webp,tcgplayer
-sv10.5b-144,144,Cobalion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/144/high.webp,tcgplayer
-sv10.5b-145,145,Axew,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/145/high.webp,tcgplayer
-sv10.5b-146,146,Fraxure,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/146/high.webp,tcgplayer
-sv10.5b-147,147,Haxorus,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/147/high.webp,tcgplayer
-sv10.5b-148,148,Pidove,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/148/high.webp,tcgplayer
-sv10.5b-149,149,Tranquill,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/149/high.webp,tcgplayer
-sv10.5b-150,150,Unfezant,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/150/high.webp,tcgplayer
-sv10.5b-151,151,Audino,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/151/high.webp,tcgplayer
-sv10.5b-152,152,Minccino,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/152/high.webp,tcgplayer
-sv10.5b-153,153,Cinccino,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/153/high.webp,tcgplayer
-sv10.5b-154,154,Rufflet,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/154/high.webp,tcgplayer
-sv10.5b-155,155,Braviary,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/155/high.webp,tcgplayer
-sv10.5b-156,156,Serperior ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/156/high.webp,tcgplayer
-sv10.5b-157,157,Kyurem ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/157/high.webp,tcgplayer
-sv10.5b-158,158,Zekrom ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/158/high.webp,tcgplayer
-sv10.5b-159,159,Meloetta ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/159/high.webp,tcgplayer
-sv10.5b-160,160,Excadrill ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/160/high.webp,tcgplayer
-sv10.5b-161,161,Genesect ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/161/high.webp,tcgplayer
-sv10.5b-162,162,Fennel,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/162/high.webp,tcgplayer
-sv10.5b-163,163,N's Plan,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/163/high.webp,tcgplayer
-sv10.5b-164,164,Serperior ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/164/high.webp,tcgplayer
-sv10.5b-165,165,Kyurem ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/165/high.webp,tcgplayer
-sv10.5b-166,166,Zekrom ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/166/high.webp,tcgplayer
-sv10.5b-167,167,Meloetta ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/167/high.webp,tcgplayer
-sv10.5b-168,168,Excadrill ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/168/high.webp,tcgplayer
-sv10.5b-169,169,Genesect ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/169/high.webp,tcgplayer
-sv10.5b-170,170,N's Plan,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/170/high.webp,tcgplayer
-sv10.5b-171,171,Victini,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/171/high.webp,tcgplayer
-sv10.5b-172,172,Zekrom ex,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/sv/sv10.5b/172/high.webp,tcgplayer
+sv10.5b-001,001,Snivy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_001_std.png,tcgdex:en tcgplayer
+sv10.5b-002,002,Servine,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_002_std.png,tcgdex:en tcgplayer
+sv10.5b-003,003,Serperior ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_003_std.png,tcgdex:en tcgplayer
+sv10.5b-004,004,Pansage,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_004_std.png,tcgdex:en tcgplayer
+sv10.5b-005,005,Simisage,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_005_std.png,tcgdex:en tcgplayer
+sv10.5b-006,006,Petilil,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_006_std.png,tcgdex:en tcgplayer
+sv10.5b-007,007,Lilligant,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_007_std.png,tcgdex:en tcgplayer
+sv10.5b-008,008,Maractus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_008_std.png,tcgdex:en tcgplayer
+sv10.5b-009,009,Karrablast,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_009_std.png,tcgdex:en tcgplayer
+sv10.5b-010,010,Foongus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_010_std.png,tcgdex:en tcgplayer
+sv10.5b-011,011,Amoonguss,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_011_std.png,tcgdex:en tcgplayer
+sv10.5b-012,012,Victini,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_012_std.png,tcgdex:en tcgplayer
+sv10.5b-013,013,Darumaka,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_013_std.png,tcgdex:en tcgplayer
+sv10.5b-014,014,Darmanitan,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_014_std.png,tcgdex:en tcgplayer
+sv10.5b-015,015,Larvesta,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_015_std.png,tcgdex:en tcgplayer
+sv10.5b-016,016,Volcarona,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_016_std.png,tcgdex:en tcgplayer
+sv10.5b-017,017,Panpour,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_017_std.png,tcgdex:en tcgplayer
+sv10.5b-018,018,Simipour,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_018_std.png,tcgdex:en tcgplayer
+sv10.5b-019,019,Tympole,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_019_std.png,tcgdex:en tcgplayer
+sv10.5b-020,020,Palpitoad,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_020_std.png,tcgdex:en tcgplayer
+sv10.5b-021,021,Seismitoad,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_021_std.png,tcgdex:en tcgplayer
+sv10.5b-022,022,Tirtouga,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_022_std.png,tcgdex:en tcgplayer
+sv10.5b-023,023,Carracosta,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_023_std.png,tcgdex:en tcgplayer
+sv10.5b-024,024,Alomomola,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_024_std.png,tcgdex:en tcgplayer
+sv10.5b-025,025,Cubchoo,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_025_std.png,tcgdex:en tcgplayer
+sv10.5b-026,026,Beartic,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_026_std.png,tcgdex:en tcgplayer
+sv10.5b-027,027,Cryogonal,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_027_std.png,tcgdex:en tcgplayer
+sv10.5b-028,028,Kyurem ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_028_std.png,tcgdex:en tcgplayer
+sv10.5b-029,029,Emolga,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_029_std.png,tcgdex:en tcgplayer
+sv10.5b-030,030,Tynamo,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_030_std.png,tcgdex:en tcgplayer
+sv10.5b-031,031,Eelektrik,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_031_std.png,tcgdex:en tcgplayer
+sv10.5b-032,032,Eelektross,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_032_std.png,tcgdex:en tcgplayer
+sv10.5b-033,033,Thundurus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_033_std.png,tcgdex:en tcgplayer
+sv10.5b-034,034,Zekrom ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_034_std.png,tcgdex:en tcgplayer
+sv10.5b-035,035,Munna,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_035_std.png,tcgdex:en tcgplayer
+sv10.5b-036,036,Musharna,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_036_std.png,tcgdex:en tcgplayer
+sv10.5b-037,037,Solosis,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_037_std.png,tcgdex:en tcgplayer
+sv10.5b-038,038,Duosion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_038_std.png,tcgdex:en tcgplayer
+sv10.5b-039,039,Reuniclus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_039_std.png,tcgdex:en tcgplayer
+sv10.5b-040,040,Elgyem,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_040_std.png,tcgdex:en tcgplayer
+sv10.5b-041,041,Beheeyem,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_041_std.png,tcgdex:en tcgplayer
+sv10.5b-042,042,Golett,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_042_std.png,tcgdex:en tcgplayer
+sv10.5b-043,043,Golurk,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_043_std.png,tcgdex:en tcgplayer
+sv10.5b-044,044,Meloetta ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_044_std.png,tcgdex:en tcgplayer
+sv10.5b-045,045,Drilbur,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_045_std.png,tcgdex:en tcgplayer
+sv10.5b-046,046,Excadrill ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_046_std.png,tcgdex:en tcgplayer
+sv10.5b-047,047,Timburr,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_047_std.png,tcgdex:en tcgplayer
+sv10.5b-048,048,Gurdurr,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_048_std.png,tcgdex:en tcgplayer
+sv10.5b-049,049,Conkeldurr,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_049_std.png,tcgdex:en tcgplayer
+sv10.5b-050,050,Throh,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_050_std.png,tcgdex:en tcgplayer
+sv10.5b-051,051,Dwebble,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_051_std.png,tcgdex:en tcgplayer
+sv10.5b-052,052,Crustle,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_052_std.png,tcgdex:en tcgplayer
+sv10.5b-053,053,Landorus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_053_std.png,tcgdex:en tcgplayer
+sv10.5b-054,054,Venipede,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_054_std.png,tcgdex:en tcgplayer
+sv10.5b-055,055,Whirlipede,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_055_std.png,tcgdex:en tcgplayer
+sv10.5b-056,056,Scolipede,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_056_std.png,tcgdex:en tcgplayer
+sv10.5b-057,057,Sandile,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_057_std.png,tcgdex:en tcgplayer
+sv10.5b-058,058,Krokorok,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_058_std.png,tcgdex:en tcgplayer
+sv10.5b-059,059,Krookodile,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_059_std.png,tcgdex:en tcgplayer
+sv10.5b-060,060,Escavalier,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_060_std.png,tcgdex:en tcgplayer
+sv10.5b-061,061,Klink,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_061_std.png,tcgdex:en tcgplayer
+sv10.5b-062,062,Klang,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_062_std.png,tcgdex:en tcgplayer
+sv10.5b-063,063,Klinklang,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_063_std.png,tcgdex:en tcgplayer
+sv10.5b-064,064,Pawniard,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_064_std.png,tcgdex:en tcgplayer
+sv10.5b-065,065,Bisharp,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_065_std.png,tcgdex:en tcgplayer
+sv10.5b-066,066,Cobalion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_066_std.png,tcgdex:en tcgplayer
+sv10.5b-067,067,Genesect ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_067_std.png,tcgdex:en tcgplayer
+sv10.5b-068,068,Axew,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_068_std.png,tcgdex:en tcgplayer
+sv10.5b-069,069,Fraxure,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_069_std.png,tcgdex:en tcgplayer
+sv10.5b-070,070,Haxorus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_070_std.png,tcgdex:en tcgplayer
+sv10.5b-071,071,Pidove,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_071_std.png,tcgdex:en tcgplayer
+sv10.5b-072,072,Tranquill,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_072_std.png,tcgdex:en tcgplayer
+sv10.5b-073,073,Unfezant,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_073_std.png,tcgdex:en tcgplayer
+sv10.5b-074,074,Audino,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_074_std.png,tcgdex:en tcgplayer
+sv10.5b-075,075,Minccino,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_075_std.png,tcgdex:en tcgplayer
+sv10.5b-076,076,Cinccino,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_076_std.png,tcgdex:en tcgplayer
+sv10.5b-077,077,Rufflet,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_077_std.png,tcgdex:en tcgplayer
+sv10.5b-078,078,Braviary,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_078_std.png,tcgdex:en tcgplayer
+sv10.5b-079,079,Air Balloon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_079_std.png,tcgdex:en tcgplayer
+sv10.5b-080,080,Antique Cover Fossil,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_080_std.png,tcgdex:en tcgplayer
+sv10.5b-081,081,Energy Coin,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_081_std.png,tcgdex:en tcgplayer
+sv10.5b-082,082,Fennel,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_082_std.png,tcgdex:en tcgplayer
+sv10.5b-083,083,N's Plan,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_083_std.png,tcgdex:en tcgplayer
+sv10.5b-084,084,Pokégear 3.0,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_084_std.png,tcgdex:en tcgplayer
+sv10.5b-085,085,Professor's Research,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_085_std.png,tcgdex:en tcgplayer
+sv10.5b-086,086,Prism Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_086_std.png,tcgdex:en tcgplayer
+sv10.5b-087,087,Snivy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_087_std.png,tcgdex:en tcgplayer
+sv10.5b-088,088,Servine,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_088_std.png,tcgdex:en tcgplayer
+sv10.5b-089,089,Pansage,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_089_std.png,tcgdex:en tcgplayer
+sv10.5b-090,090,Simisage,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_090_std.png,tcgdex:en tcgplayer
+sv10.5b-091,091,Petilil,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_091_std.png,tcgdex:en tcgplayer
+sv10.5b-092,092,Lilligant,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_092_std.png,tcgdex:en tcgplayer
+sv10.5b-093,093,Maractus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_093_std.png,tcgdex:en tcgplayer
+sv10.5b-094,094,Karrablast,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_094_std.png,tcgdex:en tcgplayer
+sv10.5b-095,095,Foongus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_095_std.png,tcgdex:en tcgplayer
+sv10.5b-096,096,Amoonguss,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_096_std.png,tcgdex:en tcgplayer
+sv10.5b-097,097,Darumaka,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_097_std.png,tcgdex:en tcgplayer
+sv10.5b-098,098,Darmanitan,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_098_std.png,tcgdex:en tcgplayer
+sv10.5b-099,099,Larvesta,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_099_std.png,tcgdex:en tcgplayer
+sv10.5b-100,100,Volcarona,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_100_std.png,tcgdex:en tcgplayer
+sv10.5b-101,101,Panpour,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_101_std.png,tcgdex:en tcgplayer
+sv10.5b-102,102,Simipour,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_102_std.png,tcgdex:en tcgplayer
+sv10.5b-103,103,Tympole,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_103_std.png,tcgdex:en tcgplayer
+sv10.5b-104,104,Palpitoad,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_104_std.png,tcgdex:en tcgplayer
+sv10.5b-105,105,Seismitoad,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_105_std.png,tcgdex:en tcgplayer
+sv10.5b-106,106,Tirtouga,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_106_std.png,tcgdex:en tcgplayer
+sv10.5b-107,107,Carracosta,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_107_std.png,tcgdex:en tcgplayer
+sv10.5b-108,108,Alomomola,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_108_std.png,tcgdex:en tcgplayer
+sv10.5b-109,109,Cubchoo,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_109_std.png,tcgdex:en tcgplayer
+sv10.5b-110,110,Beartic,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_110_std.png,tcgdex:en tcgplayer
+sv10.5b-111,111,Cryogonal,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_111_std.png,tcgdex:en tcgplayer
+sv10.5b-112,112,Emolga,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_112_std.png,tcgdex:en tcgplayer
+sv10.5b-113,113,Tynamo,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_113_std.png,tcgdex:en tcgplayer
+sv10.5b-114,114,Eelektrik,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_114_std.png,tcgdex:en tcgplayer
+sv10.5b-115,115,Eelektross,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_115_std.png,tcgdex:en tcgplayer
+sv10.5b-116,116,Munna,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_116_std.png,tcgdex:en tcgplayer
+sv10.5b-117,117,Musharna,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_117_std.png,tcgdex:en tcgplayer
+sv10.5b-118,118,Solosis,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_118_std.png,tcgdex:en tcgplayer
+sv10.5b-119,119,Duosion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_119_std.png,tcgdex:en tcgplayer
+sv10.5b-120,120,Elgyem,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_120_std.png,tcgdex:en tcgplayer
+sv10.5b-121,121,Beheeyem,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_121_std.png,tcgdex:en tcgplayer
+sv10.5b-122,122,Golett,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_122_std.png,tcgdex:en tcgplayer
+sv10.5b-123,123,Golurk,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_123_std.png,tcgdex:en tcgplayer
+sv10.5b-124,124,Drilbur,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_124_std.png,tcgdex:en tcgplayer
+sv10.5b-125,125,Timburr,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_125_std.png,tcgdex:en tcgplayer
+sv10.5b-126,126,Gurdurr,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_126_std.png,tcgdex:en tcgplayer
+sv10.5b-127,127,Conkeldurr,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_127_std.png,tcgdex:en tcgplayer
+sv10.5b-128,128,Throh,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_128_std.png,tcgdex:en tcgplayer
+sv10.5b-129,129,Dwebble,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_129_std.png,tcgdex:en tcgplayer
+sv10.5b-130,130,Crustle,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_130_std.png,tcgdex:en tcgplayer
+sv10.5b-131,131,Landorus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_131_std.png,tcgdex:en tcgplayer
+sv10.5b-132,132,Venipede,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_132_std.png,tcgdex:en tcgplayer
+sv10.5b-133,133,Whirlipede,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_133_std.png,tcgdex:en tcgplayer
+sv10.5b-134,134,Scolipede,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_134_std.png,tcgdex:en tcgplayer
+sv10.5b-135,135,Sandile,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_135_std.png,tcgdex:en tcgplayer
+sv10.5b-136,136,Krokorok,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_136_std.png,tcgdex:en tcgplayer
+sv10.5b-137,137,Krookodile,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_137_std.png,tcgdex:en tcgplayer
+sv10.5b-138,138,Escavalier,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_138_std.png,tcgdex:en tcgplayer
+sv10.5b-139,139,Klink,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_139_std.png,tcgdex:en tcgplayer
+sv10.5b-140,140,Klang,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_140_std.png,tcgdex:en tcgplayer
+sv10.5b-141,141,Klinklang,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_141_std.png,tcgdex:en tcgplayer
+sv10.5b-142,142,Pawniard,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_142_std.png,tcgdex:en tcgplayer
+sv10.5b-143,143,Bisharp,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_143_std.png,tcgdex:en tcgplayer
+sv10.5b-144,144,Cobalion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_144_std.png,tcgdex:en tcgplayer
+sv10.5b-145,145,Axew,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_145_std.png,tcgdex:en tcgplayer
+sv10.5b-146,146,Fraxure,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_146_std.png,tcgdex:en tcgplayer
+sv10.5b-147,147,Haxorus,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_147_std.png,tcgdex:en tcgplayer
+sv10.5b-148,148,Pidove,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_148_std.png,tcgdex:en tcgplayer
+sv10.5b-149,149,Tranquill,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_149_std.png,tcgdex:en tcgplayer
+sv10.5b-150,150,Unfezant,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_150_std.png,tcgdex:en tcgplayer
+sv10.5b-151,151,Audino,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_151_std.png,tcgdex:en tcgplayer
+sv10.5b-152,152,Minccino,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_152_std.png,tcgdex:en tcgplayer
+sv10.5b-153,153,Cinccino,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_153_std.png,tcgdex:en tcgplayer
+sv10.5b-154,154,Rufflet,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_154_std.png,tcgdex:en tcgplayer
+sv10.5b-155,155,Braviary,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_155_std.png,tcgdex:en tcgplayer
+sv10.5b-156,156,Serperior ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_156_std.png,tcgdex:en tcgplayer
+sv10.5b-157,157,Kyurem ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_157_std.png,tcgdex:en tcgplayer
+sv10.5b-158,158,Zekrom ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_158_std.png,tcgdex:en tcgplayer
+sv10.5b-159,159,Meloetta ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_159_std.png,tcgdex:en tcgplayer
+sv10.5b-160,160,Excadrill ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_160_std.png,tcgdex:en tcgplayer
+sv10.5b-161,161,Genesect ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_161_std.png,tcgdex:en tcgplayer
+sv10.5b-162,162,Fennel,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_162_std.png,tcgdex:en tcgplayer
+sv10.5b-163,163,N's Plan,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_163_std.png,tcgdex:en tcgplayer
+sv10.5b-164,164,Serperior ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_164_std.png,tcgdex:en tcgplayer
+sv10.5b-165,165,Kyurem ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_165_std.png,tcgdex:en tcgplayer
+sv10.5b-166,166,Zekrom ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_166_std.png,tcgdex:en tcgplayer
+sv10.5b-167,167,Meloetta ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_167_std.png,tcgdex:en tcgplayer
+sv10.5b-168,168,Excadrill ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_168_std.png,tcgdex:en tcgplayer
+sv10.5b-169,169,Genesect ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_169_std.png,tcgdex:en tcgplayer
+sv10.5b-170,170,N's Plan,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_170_std.png,tcgdex:en tcgplayer
+sv10.5b-171,171,Victini,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_171_std.png,tcgdex:en tcgplayer
+sv10.5b-172,172,Zekrom ex,*,malie,official-render,,https://cdn.malie.io/file/malie-io/tcgl/cards/png/en/zsv10-5/zsv10-5_en_172_std.png,tcgdex:en tcgplayer

@@ -1,26 +1,26 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-hgssp-HGSS01,HGSS01,Ho-Oh,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS01/high.webp,tcgplayer
-hgssp-HGSS02,HGSS02,Lugia,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS02/high.webp,tcgplayer
-hgssp-HGSS03,HGSS03,Pikachu,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS03/high.webp,tcgplayer
-hgssp-HGSS04,HGSS04,Wobbuffet,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS04/high.webp,tcgplayer
-hgssp-HGSS05,HGSS05,Hoothoot,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS05/high.webp,tcgplayer
-hgssp-HGSS06,HGSS06,Noctowl,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS06/high.webp,tcgplayer
-hgssp-HGSS07,HGSS07,Feraligatr,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS07/high.webp,tcgplayer
-hgssp-HGSS08,HGSS08,Meganium,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS08/high.webp,tcgplayer
-hgssp-HGSS09,HGSS09,Typhlosion,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS09/high.webp,tcgplayer
-hgssp-HGSS10,HGSS10,Latias,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS10/high.webp,tcgplayer
-hgssp-HGSS11,HGSS11,Latios,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS11/high.webp,tcgplayer
-hgssp-HGSS12,HGSS12,Cleffa,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS12/high.webp,tcgplayer
-hgssp-HGSS13,HGSS13,Smoochum,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS13/high.webp,tcgplayer
-hgssp-HGSS14,HGSS14,Lapras,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS14/high.webp,tcgplayer
-hgssp-HGSS15,HGSS15,Shuckle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS15/high.webp,tcgplayer
-hgssp-HGSS16,HGSS16,Plusle,*,tcgdex,official-render,en,https://assets.tcgdex.net/en/hgss/hgssp/HGSS16/high.webp,tcgplayer
-hgssp-HGSS17,HGSS17,Minun,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/87492.jpg,
+hgssp-HGSS01,HGSS01,Ho-Oh,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS001-ho_oh.png,tcgdex:en tcgplayer
+hgssp-HGSS02,HGSS02,Lugia,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS002-lugia.png,tcgdex:en tcgplayer
+hgssp-HGSS03,HGSS03,Pikachu,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS003-pikachu.png,tcgdex:en tcgplayer
+hgssp-HGSS04,HGSS04,Wobbuffet,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS004-wobbuffet.png,tcgdex:en tcgplayer
+hgssp-HGSS05,HGSS05,Hoothoot,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS005-hoothoot.png,tcgdex:en tcgplayer
+hgssp-HGSS06,HGSS06,Noctowl,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS006-noctowl.png,tcgdex:en tcgplayer
+hgssp-HGSS07,HGSS07,Feraligatr,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS007-feraligatr.png,tcgdex:en tcgplayer
+hgssp-HGSS08,HGSS08,Meganium,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS008-meganium.png,tcgdex:en tcgplayer
+hgssp-HGSS09,HGSS09,Typhlosion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS009-typhlosion.png,tcgdex:en tcgplayer
+hgssp-HGSS10,HGSS10,Latias,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS010-latias.png,tcgdex:en tcgplayer
+hgssp-HGSS11,HGSS11,Latios,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS011-latios.png,tcgdex:en tcgplayer
+hgssp-HGSS12,HGSS12,Cleffa,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS012-cleffa.png,tcgdex:en tcgplayer
+hgssp-HGSS13,HGSS13,Smoochum,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS013-smoochum.png,tcgdex:en tcgplayer
+hgssp-HGSS14,HGSS14,Lapras,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS014-lapras.png,tcgdex:en tcgplayer
+hgssp-HGSS15,HGSS15,Shuckle,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS015-shuckle.png,tcgdex:en tcgplayer
+hgssp-HGSS16,HGSS16,Plusle,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS016-plusle.png,tcgdex:en tcgplayer
+hgssp-HGSS17,HGSS17,Minun,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS017-minun.png,tcgplayer
 hgssp-HGSS18,HGSS18,Tropical Tidal Wave,*,limitless,rehost,,https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/HSP/HSP_018_R_EN_LG.png,tcgplayer
-hgssp-HGSS19,HGSS19,Raikou,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88535.jpg,
-hgssp-HGSS20,HGSS20,Entei,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/85273.jpg,
-hgssp-HGSS21,HGSS21,Suicune,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/89605.jpg,
-hgssp-HGSS22,HGSS22,Porygon,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88313.jpg,
-hgssp-HGSS23,HGSS23,Porygon2,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/88328.jpg,
-hgssp-HGSS24,HGSS24,Hitmonchan,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/86097.jpg,
-hgssp-HGSS25,HGSS25,Hitmonlee,*,tcgplayer,retail-photo,,https://product-images.tcgplayer.com/86109.jpg,
+hgssp-HGSS19,HGSS19,Raikou,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS019-raikou.png,tcgplayer
+hgssp-HGSS20,HGSS20,Entei,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS020-entei.png,tcgplayer
+hgssp-HGSS21,HGSS21,Suicune,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS021-suicune.png,tcgplayer
+hgssp-HGSS22,HGSS22,Porygon,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS022-porygon.png,tcgplayer
+hgssp-HGSS23,HGSS23,Porygon2,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS023-porygon2.png,tcgplayer
+hgssp-HGSS24,HGSS24,Hitmonchan,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS024-hitmonchan.png,tcgplayer
+hgssp-HGSS25,HGSS25,Hitmonlee,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/HGSS/Promo_HGSS-PR_HS/en_US-Promo_HGSS-HGSS025-hitmonlee.png,tcgplayer

@@ -1,31 +1,31 @@
 card_id,local_id,name,rule,source,kind,image_language,url,alternatives
-tk-xy-w-1,1,Swirlix,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/1/high.webp,tcgplayer
-tk-xy-w-2,2,Pidgeotto,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/2/high.webp,tcgplayer
-tk-xy-w-3,3,Fairy Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/3/high.webp,tcgplayer
-tk-xy-w-4,4,Sentret,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/4/high.webp,tcgplayer
-tk-xy-w-5,5,Fairy Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/5/high.webp,tcgplayer
-tk-xy-w-6,6,Fairy Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/6/high.webp,tcgplayer
-tk-xy-w-7,7,Fairy Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/7/high.webp,tcgplayer
-tk-xy-w-8,8,Fairy Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/8/high.webp,tcgplayer
-tk-xy-w-9,9,Fairy Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/9/high.webp,tcgplayer
-tk-xy-w-10,10,Fairy Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/10/high.webp,tcgplayer
-tk-xy-w-11,11,Pidgey,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/11/high.webp,tcgplayer
-tk-xy-w-12,12,Jigglypuff,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/12/high.webp,tcgplayer
-tk-xy-w-13,13,Clefairy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/13/high.webp,tcgplayer
-tk-xy-w-14,14,Wigglytuff,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/14/high.webp,tcgplayer
-tk-xy-w-15,15,Potion,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/15/high.webp,tcgplayer
-tk-xy-w-16,16,Clefable,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/16/high.webp,tcgplayer
-tk-xy-w-17,17,Fairy Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/17/high.webp,tcgplayer
-tk-xy-w-18,18,Swirlix,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/18/high.webp,tcgplayer
-tk-xy-w-19,19,Clefairy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/19/high.webp,tcgplayer
-tk-xy-w-20,20,Potion,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/20/high.webp,tcgplayer
-tk-xy-w-21,21,Fairy Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/21/high.webp,tcgplayer
-tk-xy-w-22,22,Fairy Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/22/high.webp,tcgplayer
-tk-xy-w-23,23,Pidgeotto,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/23/high.webp,tcgplayer
-tk-xy-w-24,24,Trevor,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/24/high.webp,tcgplayer
-tk-xy-w-25,25,Jigglypuff,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/25/high.webp,tcgplayer
-tk-xy-w-26,26,Tierno,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/26/high.webp,tcgplayer
-tk-xy-w-27,27,Fairy Energy,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/27/high.webp,tcgplayer
-tk-xy-w-28,28,Clefable,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/28/high.webp,tcgplayer
-tk-xy-w-29,29,Pidgey,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/29/high.webp,tcgplayer
-tk-xy-w-30,30,Wigglytuff,*,tcgdex,official-render,de,https://assets.tcgdex.net/de/tk/tk-xy-w/30/high.webp,tcgplayer
+tk-xy-w-1,1,Swirlix,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-001-swirlix.png,tcgdex:de tcgplayer
+tk-xy-w-2,2,Pidgeotto,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-002-pidgeotto.png,tcgdex:de tcgplayer
+tk-xy-w-3,3,Fairy Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-003-fairy_energy.png,tcgdex:de tcgplayer
+tk-xy-w-4,4,Sentret,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-004-sentret.png,tcgdex:de tcgplayer
+tk-xy-w-5,5,Fairy Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-005-fairy_energy.png,tcgdex:de tcgplayer
+tk-xy-w-6,6,Fairy Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-006-fairy_energy.png,tcgdex:de tcgplayer
+tk-xy-w-7,7,Fairy Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-007-fairy_energy.png,tcgdex:de tcgplayer
+tk-xy-w-8,8,Fairy Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-008-fairy_energy.png,tcgdex:de tcgplayer
+tk-xy-w-9,9,Fairy Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-009-fairy_energy.png,tcgdex:de tcgplayer
+tk-xy-w-10,10,Fairy Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-010-fairy_energy.png,tcgdex:de tcgplayer
+tk-xy-w-11,11,Pidgey,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-011-pidgey.png,tcgdex:de tcgplayer
+tk-xy-w-12,12,Jigglypuff,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-012-jigglypuff.png,tcgdex:de tcgplayer
+tk-xy-w-13,13,Clefairy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-013-clefairy.png,tcgdex:de tcgplayer
+tk-xy-w-14,14,Wigglytuff,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-014-wigglytuff.png,tcgdex:de tcgplayer
+tk-xy-w-15,15,Potion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-015-potion.png,tcgdex:de tcgplayer
+tk-xy-w-16,16,Clefable,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-016-clefable.png,tcgdex:de tcgplayer
+tk-xy-w-17,17,Fairy Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-017-fairy_energy.png,tcgdex:de tcgplayer
+tk-xy-w-18,18,Swirlix,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-018-swirlix.png,tcgdex:de tcgplayer
+tk-xy-w-19,19,Clefairy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-019-clefairy.png,tcgdex:de tcgplayer
+tk-xy-w-20,20,Potion,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-020-potion.png,tcgdex:de tcgplayer
+tk-xy-w-21,21,Fairy Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-021-fairy_energy.png,tcgdex:de tcgplayer
+tk-xy-w-22,22,Fairy Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-022-fairy_energy.png,tcgdex:de tcgplayer
+tk-xy-w-23,23,Pidgeotto,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-023-pidgeotto.png,tcgdex:de tcgplayer
+tk-xy-w-24,24,Trevor,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-024-trevor.png,tcgdex:de tcgplayer
+tk-xy-w-25,25,Jigglypuff,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-025-jigglypuff.png,tcgdex:de tcgplayer
+tk-xy-w-26,26,Tierno,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-026-tierno.png,tcgdex:de tcgplayer
+tk-xy-w-27,27,Fairy Energy,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-027-fairy_energy.png,tcgdex:de tcgplayer
+tk-xy-w-28,28,Clefable,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-028-clefable.png,tcgdex:de tcgplayer
+tk-xy-w-29,29,Pidgey,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-029-pidgey.png,tcgdex:de tcgplayer
+tk-xy-w-30,30,Wigglytuff,*,malie,official-render,,https://cdn.malie.io/file/malie-io/art/cards/png/en_US/XY/TK7B-TK_Wigglytuff/en_US-TK7B-030-wigglytuff.png,tcgdex:de tcgplayer
