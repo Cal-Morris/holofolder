@@ -4,7 +4,7 @@ Only the current `main` branch receives security fixes.
 
 ## Reporting a vulnerability
 
-Use [GitHub private vulnerability reporting](https://github.com/Cal-Morris/binderdex/security/advisories/new). If private reporting is unavailable, contact the maintainer through the contact information on their [GitHub profile](https://github.com/Cal-Morris). Do not open a public issue containing vulnerability details or secrets.
+Use [GitHub private vulnerability reporting](https://github.com/Cal-Morris/holofolder/security/advisories/new). If private reporting is unavailable, contact the maintainer through the contact information on their [GitHub profile](https://github.com/Cal-Morris). Do not open a public issue containing vulnerability details or secrets.
 
 Include the affected revision, reproduction steps using synthetic data, expected impact and any proposed fix. Never include real account data, session cookies, API keys, payment information or database connection strings. Do not test against the hosted service or other people's accounts without explicit permission.
 
