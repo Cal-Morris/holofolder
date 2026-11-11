@@ -116,6 +116,7 @@ import { usePressFeedback } from '@/hooks/use-press-feedback';
 import { useFreezeBlurOnScroll } from '@/hooks/use-freeze-blur-on-scroll';
 import { QUICK_LONG_PRESS_MS, type QuickDestinationId } from '@/lib/quick-mode';
 import { useShowMode } from '@/hooks/use-show-mode';
+import { useSlotLabels } from '@/hooks/use-slot-labels';
 import { useShowSession } from '@/hooks/use-show-session';
 import { useBinderHistory } from '@/hooks/use-binder-history';
 import { useShowPurchaseSync } from '@/hooks/use-show-purchase-sync';
@@ -544,6 +545,7 @@ function BinderAppSurface(props: BinderAppProps) {
   // The want list's "Check price of any card": Quick mode as a price lookup (deal checker) outside Show mode.
   const [quickLookup, setQuickLookup] = useState<{ query: string } | null>(null);
   const { isShowModeOn, setShowMode } = useShowMode();
+  const [slotLabelsOn] = useSlotLabels();
   const showSession = useShowSession();
   const quickPressTimerRef = useRef<number | null>(null);
   const quickPressFiredRef = useRef(false);
@@ -4010,6 +4012,7 @@ function BinderAppSurface(props: BinderAppProps) {
           readOnlyMode,
           selectedPokemon,
           settings: binderEffectSettings,
+          showSlotLabels: !readOnlyMode && slotLabelsOn,
           slotActions,
           slotGlareOverlayStyle,
           user,

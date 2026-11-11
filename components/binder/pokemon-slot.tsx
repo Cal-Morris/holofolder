@@ -186,6 +186,7 @@ export const PokemonSlot = memo(function PokemonSlot({
   isSelected,
   isLongPressed,
   slotLabel,
+  showSlotLabel = true,
   status,
   cardImage,
   imageSizes = '25vw',
@@ -216,6 +217,8 @@ export const PokemonSlot = memo(function PokemonSlot({
   isSelected: boolean;
   isLongPressed: boolean;
   slotLabel: string;
+  /** The visible A1/B4 badge; slotLabel stays in the accessible name either way. */
+  showSlotLabel?: boolean;
   status?: SlotStatus;
   imageSizes?: string;
   cardImage?: string | null;
@@ -426,9 +429,11 @@ export const PokemonSlot = memo(function PokemonSlot({
           />
         )}
 
-        <div className="absolute top-0.5 left-0.5 z-10 hidden rounded bg-white/74 px-1 py-0.5 text-[7px] font-bold text-slate-600 tabular-nums sm:top-1 sm:left-1 sm:block sm:text-[8px] dark:bg-black/50 dark:text-white/70">
-          {slotLabel}
-        </div>
+        {showSlotLabel && (
+          <div className="absolute top-0.5 left-0.5 z-10 hidden rounded bg-white/74 px-1 py-0.5 text-[7px] font-bold text-slate-600 tabular-nums sm:top-1 sm:left-1 sm:block sm:text-[8px] dark:bg-black/50 dark:text-white/70">
+            {slotLabel}
+          </div>
+        )}
 
         {!hasCardPreview && <div className="absolute inset-x-[7px] top-[7px] h-px bg-white/65 dark:bg-white/10" />}
 
