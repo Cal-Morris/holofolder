@@ -124,7 +124,7 @@ describe("R2 backend", () => {
     const second = await mirror.loadImage(ref)
     assert.equal(second.source, "blob")
     const reads = r2.requests.slice(before)
-    assert.deepEqual(reads.map((r) => `${r.method} ${r.url}`), [`GET ${PUBLIC}cards/en/me05/001/high.webp`])
+    assert.deepEqual(reads.map((r) => `${r.method} ${r.url}`), [`GET ${PUBLIC}pokemon/tcg/cards/en/me05/001/high.webp`])
     assert.equal(reads[0].headers.get("authorization"), null, "public reads are unsigned")
   })
 
@@ -134,7 +134,7 @@ describe("R2 backend", () => {
     await (await mirror.loadImage(ref)).pendingUpload?.()
     const image = await mirror.loadImage(ref)
     assert.equal(image.source, "blob")
-    assert.equal(r2.requests.at(-1)?.url, `${ENDPOINT}cards/en/me05/001/high.webp`)
+    assert.equal(r2.requests.at(-1)?.url, `${ENDPOINT}pokemon/tcg/cards/en/me05/001/high.webp`)
   })
 
   test("a deliberate overwrite replaces the object and HEAD returns its origin tags", async () => {
@@ -153,7 +153,7 @@ describe("R2 backend", () => {
     await deps.put("pokemon/tcg/cards/en/me05/001/high.webp", new Uint8Array([1]).buffer, "image/webp")
     const mirror = createCardImageMirror(deps)
     const result = await mirror.ensureMirrored(ref, { assumeMissing: true })
-    assert.equal(result.url, `${PUBLIC}cards/en/me05/001/high.webp`)
+    assert.equal(result.url, `${PUBLIC}pokemon/tcg/cards/en/me05/001/high.webp`)
     assert.deepEqual([...new Uint8Array(r2.objects.get("pokemon/tcg/cards/en/me05/001/high.webp")!.body)], [1])
   })
 
@@ -225,7 +225,7 @@ describe("R2 backend", () => {
     const body = new Uint8Array([1, 2, 3]).buffer
     await deps.put("pokemon/tcg/cards/en/me05/001/high.webp", body, "image/webp")
     assert.equal(typeof seen[0].input, "string")
-    assert.equal(seen[0].input, `${ENDPOINT}cards/en/me05/001/high.webp`)
+    assert.equal(seen[0].input, `${ENDPOINT}pokemon/tcg/cards/en/me05/001/high.webp`)
     assert.equal(seen[0].body, body)
     assert.match(seen[0].auth ?? "", /^AWS4-HMAC-SHA256 /)
   })
