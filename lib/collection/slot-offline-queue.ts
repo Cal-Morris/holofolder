@@ -33,7 +33,9 @@ export interface PendingSlotIntent {
   creationAuthSessionId?: string
   intent: SlotOfflineIntent
   base: InventorySnapshot | null
-  status: "pending" | "sending" | "unavailable" | "conflict" | "blocked" | "billing"
+  /** "acknowledged": the server accepted this exact operation (durable, never re-sent); it settles once a read reaches acknowledgedRevision. */
+  status: "pending" | "sending" | "acknowledged" | "unavailable" | "conflict" | "blocked" | "billing"
+  acknowledgedRevision?: number
   attempts: number
   nextAttemptAt: number
   /** A sending record survives crashes; its request is immutable until a known rejection. */
@@ -89,8 +91,9 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
   const snapshot = raw.snapshot === null ? null : scopedSnapshot(raw.snapshot, scope)
   const optimistic = raw.optimistic === null ? null : scopedSnapshot(raw.optimistic, scope)
   const pending = raw.pending.map(p => {
-    if (!isContractRecord(p, ["intent", "base", "status", "attempts", "nextAttemptAt", "lease", "conflict", "creationAuthSessionId", "rawRestoreProof"])
-      || !["pending", "sending", "unavailable", "conflict", "blocked", "billing"].includes(p.status as string)
+    if (!isContractRecord(p, ["intent", "base", "status", "acknowledgedRevision", "attempts", "nextAttemptAt", "lease", "conflict", "creationAuthSessionId", "rawRestoreProof"])
+      || !["pending", "sending", "acknowledged", "unavailable", "conflict", "blocked", "billing"].includes(p.status as string)
+      || (p.status === "acknowledged") !== isSlotRevision(p.acknowledgedRevision) || (p.status !== "acknowledged" && p.acknowledgedRevision !== undefined)
       || !isSlotRevision(p.attempts) || p.attempts > 5 || !isSlotRevision(p.nextAttemptAt)
       || !(p.lease === null || (isContractRecord(p.lease, ["id", "until"]) && isSlotContractId(p.lease.id) && isSlotRevision(p.lease.until)))
       || !(p.conflict === null || (isContractRecord(p.conflict, ["reason", "current", "rejected", "rejection", "creationProof"]) && typeof p.conflict.reason === "string" && typeof p.conflict.rejected === "boolean"))) return fail("malformed-pending-intent")
@@ -156,6 +159,18 @@ function reproject(record: SlotOfflineRecord, catalog: InventoryCatalogResolver)
     }
   }
   record.optimistic = current
+}
+/** Adopts a complete read and settles every leading acknowledged edit it covers. A read older than an
+ * acknowledged revision would roll back a saved edit on screen, so it is refused. */
+function adoptSnapshot(record: SlotOfflineRecord, snapshot: InventorySnapshot, catalog: InventoryCatalogResolver) {
+  if (record.snapshot && snapshot.inventoryRevision < record.snapshot.inventoryRevision) fail("stale-snapshot")
+  if (record.pending.some(p => p.status === "acknowledged" && snapshot.inventoryRevision < p.acknowledgedRevision!)) fail("stale-snapshot")
+  while (record.pending[0]?.status === "acknowledged") {
+    const p = record.pending.shift()!
+    record.receipts.push({ operationId: p.intent.request.operationId, intent: p.intent, outcome: "acknowledged" })
+  }
+  record.snapshot = snapshot
+  reproject(record, catalog)
 }
 
 /** One authoritative staged queue/snapshot record in binderdex-offline, no localStorage shadow queue.
@@ -342,9 +357,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       const snapshot = scopedSnapshot(raw, scope)
       await update(record => {
         if (record.pending.some(p => p.intent.kind === "creation" || p.intent.kind === "raw-restore")) fail("creation-pending")
-        if (record.snapshot && snapshot.inventoryRevision < record.snapshot.inventoryRevision) fail("stale-snapshot")
-        record.snapshot = snapshot
-        reproject(record, catalog)
+        adoptSnapshot(record, snapshot, catalog)
       })
     },
     async enqueue(raw: SlotOfflineIntent, catalog: InventoryCatalogResolver, planningBase?: InventorySnapshot, activeScope: () => SlotOfflineScope | null = () => scope, creationAuthSessionId?: string) {
@@ -387,7 +400,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
     async resume(operationId: string, now = Date.now()) {
       await update(record => {
         const p = record.pending.find(p => p.intent.request.operationId === operationId)
-        if (!p || (p.lease && p.lease.until > now) || p.status === "conflict" && p.conflict?.rejected) fail("reconciliation-required")
+        if (!p || (p.lease && p.lease.until > now) || p.status === "acknowledged" || p.status === "conflict" && p.conflict?.rejected) fail("reconciliation-required")
         p.status = "pending"; p.attempts = 0; p.nextAttemptAt = 0; p.lease = null
       })
     },
@@ -399,7 +412,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       await update(record => {
         const p = record.pending[0]
         if (record.recovery?.some(recoveryUnresolved)) return
-        if (!p || !active() || ["conflict", "blocked", "billing"].includes(p.status) || p.attempts >= 5 || p.nextAttemptAt > now || (p.lease && p.lease.until > now)) return
+        if (!p || !active() || ["acknowledged", "conflict", "blocked", "billing"].includes(p.status) || p.attempts >= 5 || p.nextAttemptAt > now || (p.lease && p.lease.until > now)) return
         p.status = "sending"; p.attempts++; p.lease = { id: leaseId, until: now + 60000 }; claimed = structuredClone(p.intent)
       })
       if (!claimed || !active()) return
@@ -463,6 +476,29 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       let result: SlotReplayResult
       try { result = await send(claimed) } catch { result = { status: 0 } }
       if (!active()) return // Leave original lease/intent durable; a later session can replay the same ID.
+      // An edit's matching receipt is durable acceptance: save that first, so the view never waits on a full read
+      // and a failed read never resends it. Creation still needs a read to open the new collection.
+      const sent = claimed as SlotOfflineIntent
+      if ((sent.kind === "inventory" || sent.kind === "slots") && result.status === 200 && result.operationId === sent.request.operationId
+        && isSlotRevision(result.inventoryRevision) && result.inventoryRevision >= sent.request.inventoryRevision) {
+        const revision = result.inventoryRevision
+        let acknowledged = false, settled = false
+        await update(record => {
+          const p = record.pending[0]
+          if (!active() || !p || p.lease?.id !== leaseId) return
+          p.status = "acknowledged"; p.acknowledgedRevision = revision; p.lease = null; p.conflict = null; acknowledged = true
+          // A read saved meanwhile (another tab) may already cover it: skip the refetch.
+          if (record.snapshot!.inventoryRevision >= revision) { adoptSnapshot(record, record.snapshot!, catalog); settled = true }
+        })
+        if (!acknowledged || settled || !readCurrent || !active()) return
+        try {
+          const fence = captureCompleteInventoryReadFence(), fresh = await readCurrent()
+          if (!active() || !isCompleteInventoryReadAfter(fresh, fence)) return
+          const snapshot = scopedSnapshot(fresh, scope)
+          await update(record => { if (active() && !record.pending.some(p => p.intent.kind === "creation" || p.intent.kind === "raw-restore")) adoptSnapshot(record, snapshot, catalog) })
+        } catch { /* Saved either way; the session settles it with a later read. */ }
+        return
+      }
       // Ledger snapshots are historical. Only a separate read started after this matching reply
       // can supply the current base. The transaction below still fences the claimed lease.
       if (result.status === 200) {

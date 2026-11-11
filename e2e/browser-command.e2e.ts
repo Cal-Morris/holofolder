@@ -53,7 +53,20 @@ test("committed but lost reply survives reload and exact retry without duplicate
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
   expect(ids).toEqual([original, original])
 })
-test("matching receipt cannot ACK a stale complete snapshot; explicit retry retains ID", async ({ page, insets }) => {
+test("a matching receipt shows as saved before the background read finishes", async ({ page }) => {
+  let replied = false, release!: () => void
+  const held = new Promise<void>(yes => { release = yes })
+  await page.route("**/app/e2e-harness/storage/slots", async route => { const response = await route.fetch(); replied = true; await route.fulfill({ response }) })
+  await page.route("**/app/e2e-harness/storage/inventory?*", async route => { if (replied) await held; await route.continue() })
+  await page.goto(entry); await edit(page)
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("acknowledged")
+  await expect(page.getByText("Saved on device · Pending sync.")).toBeHidden()
+  expect((await record(page))?.receipts).toHaveLength(0)
+  release()
+  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
+  expect((await record(page))?.pending).toHaveLength(0)
+})
+test("a stale complete read cannot settle or roll back an acknowledged save; a later fresh read settles it", async ({ page }) => {
   let original: unknown, commands = 0, stale = true
   await page.route("**/app/e2e-harness/storage/inventory?*", async route => {
     const response = await route.fetch(), body = await response.json()
@@ -65,15 +78,14 @@ test("matching receipt cannot ACK a stale complete snapshot; explicit retry reta
   })
   await page.route("**/app/e2e-harness/storage/slots", async route => { commands++; await route.continue() })
   await page.goto(entry); await edit(page)
-  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("unavailable")
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("acknowledged")
   expect((await record(page))?.receipts).toHaveLength(0)
   await page.getByRole("dialog").getByRole("button", { name: "Done", exact: true }).click()
-  const retry = page.getByRole("button", { name: "Retry pending sync" })
-  const h = new Harness(page, insets, true)
-  await h.expectMinTapTarget(retry); await h.expectHittable(retry); await h.expectNoHorizontalOverflow()
+  await expect(page.getByRole("button", { name: "Retry pending sync" })).toHaveCount(0)
+  await expect(page.getByText("Saved on device · Pending sync.")).toHaveCount(0)
   stale = false
-  await retry.click()
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
+  expect(commands).toBe(1)
 })
 for (const change of ["signout", "account", "owner"] as const) test(`${change} teardown during in-flight command retains lease and rejects late response`, async ({ page }) => {
   let release!: () => void, started!: () => void

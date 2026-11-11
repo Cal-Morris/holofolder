@@ -82,14 +82,17 @@ describe("staged durable slot intent", () => {
     assert.equal((await reopened.read()).pending.length, 0)
     assert.equal((await reopened.read()).receipts[0].operationId, "operation-one")
   })
-  test("a fresh complete snapshot older than the commit receipt cannot acknowledge", async () => {
+  test("a fresh complete snapshot older than the commit receipt cannot settle or roll back the saved edit", async () => {
     const q = createSlotOfflineQueue(createMemoryStore(), scope)
     await q.saveSnapshot(await complete(snapshot())); await q.enqueue(intent(), catalog)
     const projected = projectSlotIntent(snapshot(), intent(), catalog)
     await q.replay(async () => ({ status: 200, operationId: "operation-one", inventoryRevision: projected.inventoryRevision + 1 }),
       () => scope, 1000, catalog, () => complete(projected))
-    assert.equal((await q.read()).pending[0].status, "unavailable")
-    assert.equal((await q.read()).receipts.length, 0)
+    const state = await q.read()
+    assert.equal(state.pending[0].status, "acknowledged")
+    assert.equal(state.receipts.length, 0)
+    assert.deepEqual(state.optimistic, projected)
+    await assert.rejects(q.saveSnapshot(await complete(projected), catalog), /stale-snapshot/)
   })
   test("permanent media and body-limit errors block without removing intent", async () => {
     for (const status of [405, 413, 415, 422]) {

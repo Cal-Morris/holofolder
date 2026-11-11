@@ -55,7 +55,7 @@ export async function readCachedNativeStartup(store: AtomicOfflineStore, identit
     return { ...layout, layoutRevision: projected.layoutRevision }
   })
   return { read: { scope: { accountUserId: scope.accountId!, ownerUserId: scope.ownerUserId!, sessionId: epoch },
-    evidence: { kind: "cached", snapshot: record.optimistic }, ...parsed, layouts }, pending: record.pending.length }
+    evidence: { kind: "cached", snapshot: record.optimistic }, ...parsed, layouts }, pending: record.pending.filter(p => p.status !== "acknowledged").length }
 }
 
 /** getSession may try to refresh an expired token on dead Wi-Fi. Bound startup only;
