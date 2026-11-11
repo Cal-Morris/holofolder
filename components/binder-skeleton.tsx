@@ -59,7 +59,7 @@ export function BinderSkeleton({
 }) {
   const page = (second: boolean) => (
     <div
-      className={`${second ? 'hidden xl:grid' : 'grid'} border-border/60 bg-card h-full w-full gap-1.5 rounded-2xl border p-2 sm:p-4`}
+      className={`${second ? 'hidden xl:grid' : 'grid'} border-border/60 bg-card h-full w-full gap-1.5 rounded-2xl border p-2 pb-6 sm:p-4 sm:pb-6`}
       style={{
         gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
         gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,

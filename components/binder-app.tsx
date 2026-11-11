@@ -2109,7 +2109,8 @@ function BinderAppSurface(props: BinderAppProps) {
     const pages = isSpreadLayout ? 2 : 1;
     const spreadGap = isSpreadLayout ? (isWideBinderSpread ? 16 : 12) : 0;
     const horizontalChrome = padding * 2 + gap * (settings.binderCols - 1);
-    const verticalChrome = padding * 2 + gap * (settings.binderRows - 1);
+    // The page label sits in a 24px bottom gutter (pb-6 in binder-grid-page.tsx) instead of the bottom padding.
+    const verticalChrome = padding + 24 + gap * (settings.binderRows - 1);
     const slotHeight = Math.min(
       (binderStageSize.height - outlineClearance - verticalChrome) / settings.binderRows,
       ((binderStageSize.width - outlineClearance - spreadGap) / pages - horizontalChrome) /
@@ -2132,7 +2133,7 @@ function BinderAppSurface(props: BinderAppProps) {
   ]);
 
   const binderSlotImageSizes = binderFitSize
-    ? `${Math.max(settings.binderRows > 4 || settings.binderCols > 4 ? 64 : 0, Math.ceil(((binderFitSize.height - (isDesktopViewport ? 32 : 16) - 6 * (settings.binderRows - 1)) / settings.binderRows) * TRADING_CARD_ASPECT_RATIO))}px`
+    ? `${Math.max(settings.binderRows > 4 || settings.binderCols > 4 ? 64 : 0, Math.ceil(((binderFitSize.height - (isDesktopViewport ? 40 : 32) - 6 * (settings.binderRows - 1)) / settings.binderRows) * TRADING_CARD_ASPECT_RATIO))}px`
     : `${100 / (settings.binderCols * (isSpreadLayout ? 2 : 1))}vw`;
 
   // Resolve the same printing for the grid and adjacent-page image prefetch.
