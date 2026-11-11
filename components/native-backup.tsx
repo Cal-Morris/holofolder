@@ -8,6 +8,7 @@ import { inspectNativeBackup, prepareNativeBackup, readNativeBackup, readNativeB
 import { inspectRawRestore, type NativeRawRestoreBinding } from '@/lib/native-raw-restore'
 import type { RawRestoreCommand } from '@/lib/domain/raw-restore'
 import type { BinderBackupV2 } from "@/lib/binder-backup-v2"
+import { Select } from "@/components/ui/select"
 
 export default function NativeBackup({ binding, restore, collectionId, onClose }: { binding: NativeBackupBinding; restore?: NativeRawRestoreBinding; collectionId: string | null; onClose: () => void }) {
   const panel = useRef<HTMLDivElement>(null), alive = useRef(false), generation = useRef(0), running = useRef(false)
@@ -61,10 +62,10 @@ export default function NativeBackup({ binding, restore, collectionId, onClose }
       </header>
       <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-4 pb-4 text-sm">
         <p>Download a private file of your collection to keep somewhere safe. It includes your grades and certificate numbers, so keep it to yourself. Nothing is shared or published.</p>
-        <label className="block space-y-1">What to include<select aria-label="Export scope" className="block min-h-10 w-full rounded-lg border bg-background px-2" value={scope} disabled={busy} onChange={e => { generation.current++; setPreview(null); setMessage(""); setScope(e.target.value as typeof scope) }}>
+        <label className="block space-y-1">What to include<Select aria-label="Export scope" className="w-full" value={scope} disabled={busy} onChange={e => { generation.current++; setPreview(null); setMessage(""); setScope(e.target.value as typeof scope) }}>
           <option value="all-inventory">Everything: all binders and cards not in a binder</option>
           {collectionId && <option value="collection">Just this binder and the cards in it</option>}
-        </select></label>
+        </Select></label>
         <button className={buttonClass} disabled={busy || !binding.available} onClick={() => void run(async active => {
           const result = await prepareNativeBackup(latest.current, scope, collectionId ?? undefined, active)
           result.assertCurrent()

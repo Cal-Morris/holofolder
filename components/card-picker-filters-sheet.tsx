@@ -7,6 +7,7 @@ import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import type { CardLanguage } from "@/lib/domain/cards"
 import { CARD_PICKER_SORTS, normalizeCardPickerSort, type CardPickerSort } from "@/lib/card-selector-sort"
 import { CARD_PICKER_LANGUAGES, CARD_PICKER_VARIANTS, type CardPickerVariantChoice } from "@/lib/card-picker-filters"
+import { Select } from "@/components/ui/select"
 
 interface CardPickerFiltersSheetProps {
   sort: CardPickerSort
@@ -26,7 +27,7 @@ interface CardPickerFiltersSheetProps {
   onClose: () => void
 }
 
-const selectClass = "h-11 w-full rounded-2xl border border-border/60 bg-background/85 px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+const selectClass = "w-full"
 
 function chipClass(selected: boolean) {
   return `flex h-9 shrink-0 items-center rounded-full border px-3 text-xs font-semibold transition-colors ${
@@ -77,14 +78,14 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-2">
           <label className="block space-y-1.5">
             <span className="text-xs font-semibold text-muted-foreground">Sort</span>
-            <select
+            <Select
               aria-label="Sort cards"
               className={selectClass}
               value={props.sort}
               onChange={(event) => props.onSortChange(normalizeCardPickerSort(event.target.value))}
             >
               {CARD_PICKER_SORTS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-            </select>
+            </Select>
           </label>
 
           <fieldset className="space-y-1.5">
@@ -126,17 +127,17 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
           <div className="grid grid-cols-2 gap-2">
             <label className="block min-w-0 space-y-1.5">
               <span className="text-xs font-semibold text-muted-foreground">Set</span>
-              <select aria-label="Set" className={selectClass} value={props.set ?? ""} onChange={(event) => props.onSetChange(event.target.value || undefined)}>
+              <Select aria-label="Set" className={selectClass} value={props.set ?? ""} onChange={(event) => props.onSetChange(event.target.value || undefined)}>
                 <option value="">All sets</option>
                 {props.sets.map((set) => <option key={set.id} value={set.id}>{set.name}</option>)}
-              </select>
+              </Select>
             </label>
             <label className="block min-w-0 space-y-1.5">
               <span className="text-xs font-semibold text-muted-foreground">Rarity</span>
-              <select aria-label="Rarity" className={selectClass} value={props.rarity ?? ""} onChange={(event) => props.onRarityChange(event.target.value || undefined)}>
+              <Select aria-label="Rarity" className={selectClass} value={props.rarity ?? ""} onChange={(event) => props.onRarityChange(event.target.value || undefined)}>
                 <option value="">All rarities</option>
                 {props.rarities.map((rarity) => <option key={rarity} value={rarity}>{rarity}</option>)}
-              </select>
+              </Select>
             </label>
           </div>
         </div>

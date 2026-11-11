@@ -12,44 +12,75 @@ async function record(page: Page) {
     return rows.find(v => !!v && typeof v === "object" && "pending" in v) as { pending: { status: string; intent: Intent }[]; receipts: { operationId: string; intent: Intent }[]; snapshot: { collections: { id: string; name: string }[]; binders: { collectionId: string; slots: { target: unknown; inventoryItemId: string | null; wantedCards: unknown[] }[] }[]; items: unknown[] } } | undefined
   })
 }
-async function open(page: Page, mode = "blank", name = "Synthetic copied binder") {
-  await (await storageAction(page, "New storage")).click()
-  const dialog = page.getByRole("dialog", { name: "New storage", exact: true })
-  await dialog.getByRole("textbox", { name: "Storage name" }).fill(name)
-  await dialog.getByRole("combobox", { name: "Starting arrangement" }).selectOption(mode)
+const PRESETS = { blank: "Blank", national: "National Dex", generation: "A generation", species: "Pick Pokémon", printings: "Pick cards", set: "A set" } as const
+type Mode = keyof typeof PRESETS
+const wizard = (page: Page) => page.getByRole("dialog", { name: "New binder", exact: true })
+const names = new WeakMap<Page, string>()
+/** Opens the wizard from the manage menu and picks a preset: it lands on that preset's next step. */
+async function open(page: Page, mode: Mode = "blank", name = "Synthetic copied binder") {
+  await (await storageAction(page, "New binder")).click()
+  const dialog = wizard(page)
+  await dialog.getByRole("group", { name: "What is this binder for?" }).getByRole("button", { name: new RegExp(`^${PRESETS[mode]}`) }).click()
+  await expect(dialog.getByText(/^Step 2 of \d+$/)).toBeVisible()
+  names.set(page, name)
+  return dialog
+}
+/** Steps on to Name and pages and fills the name (plus a list and its location when asked). */
+async function toLayout(page: Page, list?: { location: string }) {
+  const dialog = wizard(page), field = dialog.getByRole("textbox", { name: "Binder name" })
+  for (let i = 0; i < 4 && !await field.isVisible(); i++) {
+    const step = await dialog.getByText(/^Step \d+ of \d+$/).textContent()
+    await dialog.getByRole("button", { name: "Next", exact: true }).click()
+    await expect(dialog.getByText(/^Step \d+ of \d+$/)).not.toHaveText(step!)
+  }
+  await field.fill(names.get(page) ?? "Synthetic copied binder")
+  if (list) {
+    await dialog.getByRole("button", { name: "A simple list", exact: true }).click()
+    await dialog.getByRole("textbox", { name: "Where it is kept" }).fill(list.location)
+  }
   return dialog
 }
 async function confirm(page: Page) {
-  await page.getByRole("button", { name: "Review storage", exact: true }).click()
-  await page.getByRole("button", { name: "Confirm create storage", exact: true }).click()
+  const dialog = wizard(page)
+  if (!await dialog.getByRole("button", { name: "Create binder", exact: true }).isVisible()) {
+    const field = dialog.getByRole("textbox", { name: "Binder name" })
+    if (!await field.isVisible() || !await field.inputValue()) await toLayout(page)
+    await dialog.getByRole("button", { name: "Preview", exact: true }).click()
+  }
+  await dialog.getByRole("button", { name: "Create binder", exact: true }).click()
+}
+async function pickSpecies(dialog: import("@playwright/test").Locator, species: string) {
+  await dialog.getByRole("searchbox", { name: "Find Pokémon" }).fill(species)
+  await dialog.getByLabel("Pokémon results").getByRole("button", { name: new RegExp(`^${species}`) }).click()
 }
 test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   if (standalone) await emulateStandalone(page, insets)
   await mockBackends(page, context, { signedIn: true, baseURL })
   await context.addCookies([{ name: "hf-storage-fixture", value: `creation-${crypto.randomUUID()}`, url: baseURL! }])
 })
-for (const [mode, count] of [["blank", 0], ["national", 1025], ["generation", 151], ["species", 2]] as const) test(`actual host creates ${mode} with ${count} exact copied targets and no ownership`, async ({ page, insets }) => {
+for (const [mode, count] of [["blank", 18], ["national", 1025], ["generation", 151], ["species", 2]] as const) test(`actual host creates ${mode} with ${count} exact copied targets and no ownership`, async ({ page, insets }) => {
   let legacy = 0
   await page.route("**/app/api/binders", async route => { if (route.request().method() !== "GET") legacy++; await route.continue() })
   await page.goto(entry)
   const dialog = await open(page, mode)
-  if (mode === "species") {
-    await dialog.getByRole("textbox", { name: "Find species" }).fill("Snorlax")
-    await dialog.getByRole("button", { name: "Snorlax", exact: true }).click()
-    await dialog.getByRole("textbox", { name: "Find species" }).fill("Pikachu")
-    await dialog.getByRole("button", { name: "Pikachu", exact: true }).click()
-  }
-  await expect(dialog.getByLabel("Target preview")).toContainText(`${count} targets`)
-  const h = new Harness(page, insets, true)
-  await h.expectMinTapTarget(dialog.getByRole("button", { name: "Review storage", exact: true }))
-  await h.expectWithinSafeViewport(dialog); await h.expectNoHorizontalOverflow()
-  if (mode === "blank") await test.info().attach("creation-layout.json", { contentType: "application/json", body: JSON.stringify({ viewport: page.viewportSize(), insets, sheet: await dialog.boundingBox(), opener: await page.getByRole("button", { name: "Storage", exact: true }).boundingBox(), dock: await h.dock().boundingBox() }) })
-  expect(await dialog.getByRole("combobox", { name: "Starting arrangement" }).locator('option[value="set"]').isDisabled()).toBe(false)
+  if (mode === "species") { await pickSpecies(dialog, "Snorlax"); await pickSpecies(dialog, "Pikachu") }
+  await toLayout(page)
+  await dialog.getByRole("button", { name: "9 pockets, 3 by 3", exact: true }).click()
   if (mode === "blank") {
-    await dialog.getByRole("textbox", { name: "Storage name" }).focus(); await page.keyboard.press("Enter")
-    expect((await record(page))?.pending).toHaveLength(0)
-    await page.getByRole("button", { name: "Confirm create storage", exact: true }).click()
-  } else await confirm(page)
+    // A blank binder asks how many pages it starts with: 2 pages of 9 free pockets.
+    await dialog.getByRole("spinbutton", { name: "How many pages?" }).fill("2")
+    await dialog.getByRole("spinbutton", { name: "How many pages?" }).blur()
+    await expect(dialog).toContainText("18 empty pockets")
+  }
+  const h = new Harness(page, insets, true)
+  await h.expectMinTapTarget(dialog.getByRole("button", { name: "Preview", exact: true }))
+  await h.expectWithinSafeViewport(dialog); await h.expectNoHorizontalOverflow()
+  if (mode === "blank") await test.info().attach("creation-layout.json", { contentType: "application/json", body: JSON.stringify({ viewport: page.viewportSize(), insets, sheet: await dialog.boundingBox(), dock: await h.dock().boundingBox() }) })
+  await dialog.getByRole("button", { name: "Preview", exact: true }).click()
+  await expect(dialog.getByLabel("Page 1 preview")).toBeVisible()
+  expect((await record(page))?.pending).toHaveLength(0)
+  await h.expectMinTapTarget(dialog.getByRole("button", { name: "Create binder", exact: true })); await h.expectNoHorizontalOverflow()
+  await confirm(page)
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
   const r = (await record(page))!, id = r.receipts[0].intent.request.collectionId
   expect(r.snapshot.collections.find(c => c.id === id)?.name).toBe("Synthetic copied binder")
@@ -67,13 +98,12 @@ test("creation device acceptance is pending, lost reply/reload exactly replays a
     bodies.push(route.request().postData()!); const response = await route.fetch()
     if (lost) { lost = false; await route.abort("failed") } else { fresh = true; await route.fulfill({ response }) }
   })
-  await page.goto(entry); const draft = await open(page)
-  await draft.getByRole("combobox", { name: "Storage kind" }).selectOption("custom")
-  await draft.getByRole("textbox", { name: "Location (optional)" }).fill("Synthetic private shelf")
+  await page.goto(entry); await open(page)
+  await toLayout(page, { location: "Synthetic private shelf" })
   await confirm(page)
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("unavailable")
   expect((await record(page))?.snapshot.collections).toHaveLength(1)
-  await expect(page.getByRole("dialog", { name: "New storage", exact: true })).toContainText("Creation pending sync")
+  await expect(wizard(page)).toContainText("is on its way")
   await page.reload()
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
   expect(bodies).toHaveLength(2); expect(bodies[0]).toBe(bodies[1]); expect(fresh).toBe(true)
@@ -84,8 +114,8 @@ for (const status of [402, 403, 409]) test(`creation ${status} retains intent an
   await page.route("**/app/e2e-harness/storage/creation", route => route.fulfill({ status, json: { error: { code: "synthetic-denial", message: "Synthetic", requestId: "synthetic" } } }))
   await page.goto(entry); await open(page); await confirm(page)
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe(status === 402 ? "billing" : status === 403 ? "blocked" : "unavailable")
-  await page.getByRole("button", { name: "Close new storage", exact: true }).click()
-  await expect(await storageAction(page, "New storage")).toBeDisabled(); await closeStorage(page)
+  await page.getByRole("button", { name: "Close new binder", exact: true }).click()
+  await expect(await storageAction(page, "New binder")).toBeDisabled(); await closeStorage(page)
   await expect(page.getByRole("button", { name: "Use current storage", exact: true })).toHaveCount(0)
   expect((await record(page))?.receipts).toHaveLength(0)
 })
@@ -93,7 +123,7 @@ test("cached startup is read-only, overlay dismissals keep dock and keyboard usa
   await page.goto(entry)
   const dialog = await open(page)
   const h = new Harness(page, insets, true)
-  await h.expectHittable(dialog.getByRole("button", { name: "Close new storage", exact: true }))
+  await h.expectHittable(dialog.getByRole("button", { name: "Close new binder", exact: true }))
   await page.keyboard.press("Escape")
   await expect(dialog).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Storage", exact: true })).toBeFocused()
@@ -103,7 +133,8 @@ test("cached startup is read-only, overlay dismissals keep dock and keyboard usa
   await open(page); await page.getByRole("button", { name: "Inventory", exact: true }).click(); await expect(dialog).toHaveCount(0)
   await page.route("**/app/e2e-harness/storage/inventory?*", route => route.abort("failed"))
   await page.reload()
-  await expect(await storageAction(page, "New storage")).toBeDisabled(); await closeStorage(page)
+  // Cached startup is read-only: the manage menu, and so New binder, is not offered until a complete read.
+  await expect(page.getByRole("button", { name: "Storage", exact: true })).toHaveCount(0)
   await h.expectNoHorizontalOverflow()
 })
 
@@ -113,11 +144,11 @@ test("selected catalog printings persist in order, repeat targets are independen
   await page.route("**/app/api/tcg-card-search**", route => route.fulfill({ json: { cards: [cards[1], cards[0], { ...cards[0], id: "synthetic-no-language", name: "Synthetic unknown language", language: undefined }] } }))
   await page.goto(entry)
   const dialog = await open(page, "printings")
-  await dialog.getByRole("textbox", { name: "Find catalog printings" }).fill("Synthetic")
-  await expect(dialog.getByRole("button", { name: /^Synthetic unknown language/ })).toBeDisabled()
-  const buttons = dialog.getByLabel("Printing results").getByRole("button")
+  await dialog.getByRole("searchbox", { name: "Find cards" }).fill("Synthetic")
+  await expect(dialog.getByRole("button", { name: /^Add Synthetic unknown language/ })).toBeDisabled()
+  const buttons = dialog.getByLabel("Card results").getByRole("button")
   await buttons.nth(0).click(); await buttons.nth(1).click(); await buttons.nth(1).click()
-  await expect(dialog.getByLabel("Target preview")).toContainText("3 targets")
+  await expect(dialog.getByLabel("Chosen cards").getByRole("button")).toHaveCount(3)
   await confirm(page)
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
   const r = (await record(page))!, request = r.receipts[0].intent.request
@@ -125,10 +156,9 @@ test("selected catalog printings persist in order, repeat targets are independen
   expect(new Set(request.slotIds).size).toBe(3); expect(r.snapshot.items).toHaveLength(0)
 })
 test("IDB transaction abort retries original IDs/time before first durable handoff", async ({ page }) => {
-  await page.goto(entry); const draft = await open(page, "generation")
-  await draft.getByRole("combobox", { name: "Storage kind" }).selectOption("custom")
-  await draft.getByRole("textbox", { name: "Location (optional)" }).fill("Synthetic private shelf")
-  await page.getByRole("button", { name: "Review storage", exact: true }).click()
+  await page.goto(entry); await open(page, "generation")
+  await toLayout(page, { location: "Synthetic private shelf" })
+  await wizard(page).getByRole("button", { name: "Preview", exact: true }).click()
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     const attempts: unknown[] = []
@@ -141,10 +171,10 @@ test("IDB transaction abort retries original IDs/time before first durable hando
       return put.call(this, value, key)
     }
   })
-  await page.getByRole("button", { name: "Confirm create storage", exact: true }).click()
-  await expect(page.getByRole("dialog", { name: "New storage", exact: true })).toContainText("Retry this same creation")
+  await wizard(page).getByRole("button", { name: "Create binder", exact: true }).click()
+  await expect(wizard(page)).toContainText("Your choices are kept")
   expect((await record(page))?.pending).toHaveLength(0)
-  await page.getByRole("button", { name: "Retry saving creation", exact: true }).click()
+  await wizard(page).getByRole("button", { name: "Try again", exact: true }).click()
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
   const attempts = await page.evaluate(() => (window as unknown as { syntheticCreationAttempts: Intent[] }).syntheticCreationAttempts)
   expect(attempts.length).toBeGreaterThanOrEqual(2); expect(attempts[0]).toEqual(attempts[1])
@@ -156,7 +186,7 @@ test("later user navigation wins while accepted creation waits for fresh complet
     const response = await route.fetch(); replied(); await barrier; await route.fulfill({ response })
   })
   await page.goto(entry); await open(page); await confirm(page); await sent
-  await page.getByRole("button", { name: "Close new storage", exact: true }).click()
+  await page.getByRole("button", { name: "Close new binder", exact: true }).click()
   await page.getByRole("navigation", { name: "Binder navigation" }).getByRole("button", { name: "More", exact: true }).click()
   await page.getByRole("menuitem", { name: "National Dex", exact: true }).click()
   release()
@@ -179,8 +209,8 @@ test("matching historical receipt cannot ACK an old complete read", async ({ pag
   expect((await record(page))?.receipts).toHaveLength(0)
   expect((await record(page))?.snapshot.collections).toHaveLength(1)
   stale = false
-  await page.getByRole("button", { name: "Close new storage", exact: true }).click()
-  await page.getByRole("button", { name: "Retry pending sync", exact: true }).click()
+  await page.getByRole("button", { name: "Close new binder", exact: true }).click()
+  await page.getByRole("button", { name: "Try now", exact: true }).click()
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
 })
 test("auth teardown during creation retains sending lease and rejects the late response", async ({ page }) => {
@@ -203,18 +233,17 @@ test("auth teardown during creation retains sending lease and rejects the late r
 for (const kind of ["binder", "custom"]) test(`${kind} current free allowance blocks confirmation without a legacy request`, async ({ page }) => {
   await page.route("**/app/api/billing", route => route.fulfill({ json: { access: { ownerUserId: "00000000-0000-4000-8000-0000000000e2", tier: "free", source: "free", paidThrough: null, savedCardCount: 0, freeCardLimit: 100, freeBinderLimit: 1, enforced: true }, canManage: true } }))
   await page.goto(entry)
-  await (await storageAction(page, "New storage")).click()
-  const dialog = page.getByRole("dialog", { name: "New storage", exact: true })
-  await dialog.getByRole("combobox", { name: "Storage kind" }).selectOption(kind)
-  await expect(dialog).toContainText("Your collection allowance is full")
-  await dialog.getByRole("textbox", { name: "Storage name" }).fill("No bypass")
-  await expect(dialog.getByRole("button", { name: "Review storage", exact: true })).toBeDisabled()
+  const dialog = await open(page, "blank", "No bypass")
+  await expect(dialog).toContainText("reached the number of binders your plan allows")
+  await toLayout(page, kind === "custom" ? { location: "Synthetic shelf" } : undefined)
+  await dialog.getByRole("button", { name: "Preview", exact: true }).click()
+  await expect(dialog.getByRole("button", { name: "Create binder", exact: true })).toBeDisabled()
   expect((await record(page))?.pending).toHaveLength(0)
 })
 
 for (const discarded of [false, true]) test(`native creation respects ${discarded ? "explicit discarded" : "unresolved"} recovery in actual IDB`, async ({ page }) => {
   await page.goto(entry)
-  await expect(await storageAction(page, "New storage")).toBeEnabled(); await closeStorage(page)
+  await expect(await storageAction(page, "New binder")).toBeEnabled(); await closeStorage(page)
   await page.evaluate(async discarded => {
     const db = await new Promise<IDBDatabase>((yes, no) => { const r = ((q) => (q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains("records")) q.result.createObjectStore("records") }, q))(indexedDB.open("binderdex-offline", 1)); r.onsuccess = () => yes(r.result); r.onerror = () => no(r.error) })
     await new Promise<void>((yes, no) => {
@@ -236,7 +265,7 @@ for (const discarded of [false, true]) test(`native creation respects ${discarde
     db.close()
     const channel = new BroadcastChannel("binderdex-slot-intent-v1"); channel.postMessage("changed"); channel.close()
   }, discarded)
-  const button = await storageAction(page, "New storage")
+  const button = await storageAction(page, "New binder")
   if (discarded) {
     await expect(button).toBeEnabled()
     await open(page); await confirm(page)
@@ -252,8 +281,7 @@ test("two binders from the same preset source retain independent copied species 
   const ids: string[] = []
   for (const [index, species] of ["Snorlax", "Pikachu"].entries()) {
     const dialog = await open(page, "species", `Synthetic copy ${index + 1}`)
-    await dialog.getByRole("textbox", { name: "Find species" }).fill(species)
-    await dialog.getByRole("button", { name: species, exact: true }).click()
+    await pickSpecies(dialog, species)
     await confirm(page)
     await expect.poll(async () => (await record(page))?.receipts.length).toBe(index + 1)
     const receipt = (await record(page))!.receipts[index]
@@ -291,7 +319,7 @@ test("093 proof survives historical replay/reload, explicit discard preserves la
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("unavailable")
   const original = (await record(page))!.pending[0].intent
   await page.reload()
-  const discard = page.getByRole("button", { name: "Discard rejected creation", exact: true })
+  const discard = page.getByRole("button", { name: "Discard", exact: true })
   await expect(discard).toBeVisible()
   const savedProof = (await terminal(page)).pending[0].conflict.creationProof
   expect(bodies[0]).toBe(bodies[1]); expect(proofs[0]).toEqual(proofs[1])
@@ -306,9 +334,9 @@ test("093 proof survives historical replay/reload, explicit discard preserves la
   expect(discarded.pending).toHaveLength(0); expect(discarded.receipts).toHaveLength(0)
   expect(discarded.creationDiscards![0]).toEqual({ intent: original, proof: savedProof, resolution: "discarded" })
   expect(discarded.snapshot.collections[0].name).toBe("Synthetic later edit")
-  await open(page); await page.getByRole("button", { name: "Review storage", exact: true }).click()
+  await open(page); await toLayout(page); await wizard(page).getByRole("button", { name: "Preview", exact: true }).click()
   expect((await record(page))?.pending).toHaveLength(0)
-  await page.getByRole("button", { name: "Confirm create storage", exact: true }).click()
+  await wizard(page).getByRole("button", { name: "Create binder", exact: true }).click()
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
   const next = (await record(page))!.receipts[0].intent
   expect(next.request.operationId).not.toBe(original.request.operationId)
@@ -333,7 +361,7 @@ for (const mutation of ["family", "delivery", "operation", "proof", "auth", "gen
   await page.goto(entry); await open(page); await confirm(page)
   if (mutation === "auth") await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("sending")
   else await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe("unavailable")
-  await expect(page.getByRole("button", { name: "Discard rejected creation", exact: true })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Discard", exact: true })).toHaveCount(0)
   expect((await terminal(page)).pending[0].conflict?.creationProof).toBeUndefined()
   expect((await record(page))?.receipts).toHaveLength(0)
 })
@@ -343,12 +371,12 @@ test("creation proof is durable before failed fresh read; IDB discard abort keep
   await page.route("**/app/e2e-harness/storage/creation", async route => { const response = await route.fetch(); rejected = true; await route.fulfill({ response }) })
   await page.route("**/app/e2e-harness/storage/inventory?*", async route => { if (rejected && failRead) await route.abort("failed"); else await route.continue() })
   await page.goto(entry); await open(page); await confirm(page)
-  await page.getByRole("button", { name: "Close new storage", exact: true }).click()
-  const discard = page.getByRole("button", { name: "Discard rejected creation", exact: true })
+  await page.getByRole("button", { name: "Close new binder", exact: true }).click()
+  const discard = page.getByRole("button", { name: "Discard", exact: true })
   await expect(discard).toBeVisible()
   const retained = (await terminal(page)).pending[0]
   await discard.click()
-  await expect(page.getByRole("status").filter({ hasText: "Could not discard" })).toBeVisible()
+  await expect(page.getByRole("status").filter({ hasText: "Couldn't discard" })).toBeVisible()
   expect((await terminal(page)).pending[0].conflict.creationProof).toEqual(retained.conflict.creationProof)
   failRead = false
   await page.reload(); await expect(discard).toBeVisible()
@@ -360,7 +388,7 @@ test("creation proof is durable before failed fresh read; IDB discard abort keep
     }
   })
   await discard.click()
-  await expect(page.getByRole("status").filter({ hasText: "Could not discard" })).toBeVisible()
+  await expect(page.getByRole("status").filter({ hasText: "Couldn't discard" })).toBeVisible()
   expect((await terminal(page)).pending[0].intent).toEqual(retained.intent)
   expect((await terminal(page)).creationDiscards).toBeUndefined()
   await discard.click()
@@ -389,13 +417,13 @@ for (const race of ["scope", "stale", "lease"] as const) test(`creation discard 
     await route.fulfill({ response, json: body })
   })
   await page.goto(entry); await open(page); await confirm(page)
-  await page.getByRole("button", { name: "Close new storage", exact: true }).click()
-  const discard = page.getByRole("button", { name: "Discard rejected creation", exact: true })
+  await page.getByRole("button", { name: "Close new binder", exact: true }).click()
+  const discard = page.getByRole("button", { name: "Discard", exact: true })
   await expect(discard).toBeVisible()
   await expect.poll(async () => !!(await terminal(page)).pending[0].conflict.current).toBe(true)
   const retained = (await terminal(page)).pending[0]
   inject = true; await discard.click()
-  await expect(page.getByRole("status").filter({ hasText: "Could not discard" })).toBeVisible()
+  await expect(page.getByRole("status").filter({ hasText: "Couldn't discard" })).toBeVisible()
   expect((await terminal(page)).pending[0].intent).toEqual(retained.intent)
   expect((await terminal(page)).pending[0].conflict.creationProof).toEqual(retained.conflict.creationProof)
   expect((await terminal(page)).creationDiscards).toBeUndefined()
@@ -406,27 +434,21 @@ for (const race of ["scope", "stale", "lease"] as const) test(`creation discard 
 for (const mode of ["blank", "species"]) test(`custom ${mode} copies targets, private location and List default while presentation stays editable`, async ({ page, insets }) => {
   await page.goto(entry)
   const name = "X".repeat(40), location = "L".repeat(200)
-  const dialog = await open(page, mode, name)
-  const kind = dialog.getByRole("combobox", { name: "Storage kind" })
-  expect(await kind.locator("option").allTextContents()).toEqual(["Binder", "Custom storage"])
-  await kind.selectOption("custom")
-  await dialog.getByRole("textbox", { name: "Location (optional)" }).fill(location)
-  if (mode === "species") {
-    await dialog.getByRole("textbox", { name: "Find species" }).fill("Snorlax")
-    await dialog.getByRole("button", { name: "Snorlax", exact: true }).click()
-  }
-  const h = new Harness(page, insets, true), review = dialog.getByRole("button", { name: "Review storage", exact: true })
+  const dialog = await open(page, mode as Mode, name)
+  if (mode === "species") await pickSpecies(dialog, "Snorlax")
+  await toLayout(page, { location })
+  const h = new Harness(page, insets, true), review = dialog.getByRole("button", { name: "Preview", exact: true })
   await h.expectWithinSafeViewport(dialog); await h.expectNoHorizontalOverflow(); await h.expectMinTapTarget(review)
   await review.scrollIntoViewIfNeeded(); await h.expectHittable(review)
   await review.click()
-  await expect(dialog).toContainText("Custom storage · Starts in List")
-  await expect(dialog).toContainText(location)
-  await dialog.getByRole("button", { name: "Back to preview" }).click()
-  await expect(kind).toHaveValue("custom")
-  await expect(dialog.getByRole("textbox", { name: "Location (optional)" })).toHaveValue(location)
-  await expect(dialog.getByRole("textbox", { name: "Storage name" })).toHaveValue(name)
+  await expect(dialog).toContainText(mode === "blank" ? "Blank · list" : "1 Pokémon · list")
+  // Back keeps every choice.
+  await dialog.getByRole("button", { name: "Back", exact: true }).click()
+  await expect(dialog.getByRole("button", { name: "A simple list", exact: true })).toHaveAttribute("aria-pressed", "true")
+  await expect(dialog.getByRole("textbox", { name: "Where it is kept" })).toHaveValue(location)
+  await expect(dialog.getByRole("textbox", { name: "Binder name" })).toHaveValue(name)
   await review.click()
-  const submit = dialog.getByRole("button", { name: "Confirm create storage", exact: true })
+  const submit = wizard(page).getByRole("button", { name: "Create binder", exact: true })
   await h.expectWithinSafeViewport(submit); await h.expectMinTapTarget(submit); await h.expectHittable(submit)
   await h.expectNoHorizontalOverflow()
   await test.info().attach("custom-creation-layout.json", { contentType: "application/json", body: JSON.stringify({ viewport: page.viewportSize(), insets, sheet: await dialog.boundingBox(), confirm: await submit.boundingBox(), dock: await h.dock().boundingBox() }) })
@@ -464,20 +486,29 @@ for (const finishes of [false, true]) test(`set checklist durable ${finishes ? '
   await dialog.getByLabel('Find set preset').fill('synthetic')
   await dialog.getByRole('button', { name: 'Find set', exact: true }).click()
   await dialog.getByRole('button', { name: /Synthetic International/ }).click()
+  const h = new Harness(page, insets, true)
+  await h.expectNoHorizontalOverflow()
+  await dialog.getByRole('button', { name: 'Next', exact: true }).click()
+  // Extras only lists versions the set has: no holo or jumbo rows.
+  await expect(dialog.getByRole('button', { name: /^Holo/ })).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: /^Jumbo/ })).toHaveCount(0)
   if (finishes) {
-    await dialog.getByRole('button', { name: /^Normal ·/ }).click()
-    await dialog.getByRole('button', { name: /^Reverse holo ·/ }).click()
+    await dialog.getByRole('button', { name: /^Normal/ }).click()
+    await dialog.getByRole('button', { name: /^Reverse holo/ }).click()
   }
-  await dialog.getByText('Optional promos and exclusions', { exact: true }).click()
   await dialog.getByLabel('Promo set ID').fill('synthetic-promos')
   await dialog.getByRole('button', { name: 'Load promos', exact: true }).click()
-  await dialog.getByRole('button', { name: /^Add promo/ }).click()
-  await dialog.getByRole('button', { name: 'Exclude #2 Synthetic supporter', exact: true }).click()
-  const preview = dialog.getByLabel('Copied set scope')
-  await expect(preview).toContainText('1 selected promos; 1 exclusions')
-  const h = new Harness(page, insets, true)
+  await dialog.getByRole('button', { name: /^Promo Synthetic selected promo/ }).click()
+  await dialog.getByRole('searchbox', { name: 'Find a card to leave out' }).fill('supporter')
+  await dialog.getByRole('button', { name: 'Leave out #2 Synthetic supporter', exact: true }).click()
+  await expect(dialog.getByRole('button', { name: 'Leave out #2 Synthetic supporter', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await h.expectWithinSafeViewport(dialog); await h.expectNoHorizontalOverflow()
-  await h.expectMinTapTarget(dialog.getByRole('button', { name: 'Review storage', exact: true }))
+  // Going back to the set and forward again keeps the extras.
+  await dialog.getByRole('button', { name: 'Back', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(dialog.getByRole('button', { name: /^Promo Synthetic selected promo/ })).toHaveAttribute('aria-pressed', 'true')
+  await toLayout(page)
+  await h.expectMinTapTarget(dialog.getByRole('button', { name: 'Preview', exact: true }))
   await confirm(page)
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('unavailable')
   const original = (await record(page))!.pending[0].intent
@@ -493,16 +524,54 @@ for (const finishes of [false, true]) test(`set checklist durable ${finishes ? '
   const binder = saved.snapshot.binders.find(b => b.collectionId === id) as unknown as { presetManifest: unknown }
   expect(binder.presetManifest).toEqual(manifest)
   await chooseCollection(page, id)
-  await (await openStorage(page)).getByText('Saved checklist scope', { exact: true }).click()
+  await (await openStorage(page)).getByText('What this set binder covers', { exact: true }).click()
   await expect(page.getByLabel('Copied set scope')).toContainText('1 selected promos; 1 exclusions')
   await expect(page.getByLabel('Copied set scope')).toContainText(manifest.setScope.capturedAt)
   await h.expectNoHorizontalOverflow()
   await page.route('**/app/e2e-harness/storage/inventory?*', route => route.abort('failed'))
   await page.reload()
-  await expect(await storageAction(page, 'New storage')).toBeDisabled()
-  await (await openStorage(page)).getByText('Saved checklist scope', { exact: true }).click()
-  await expect(page.getByLabel('Copied set scope')).toContainText('1 selected promos; 1 exclusions')
-  await expect(page.getByLabel('Copied set scope')).toContainText(manifest.setScope.capturedAt)
+  await expect(page.getByRole('button', { name: 'Storage', exact: true })).toHaveCount(0)
   expect((await record(page))!.snapshot.items).toHaveLength(0)
   await h.expectNoHorizontalOverflow()
+})
+
+test("a new account gets the wizard once as onboarding, and Skip keeps it away", async ({ page, insets }) => {
+  await page.goto(`${entry}&onboarding=1`)
+  const dialog = wizard(page), skip = dialog.getByRole("button", { name: "Skip for now", exact: true })
+  await expect(dialog).toContainText("Set up your first binder")
+  await expect(dialog.getByRole("progressbar", { name: "Progress" })).toBeVisible()
+  const h = new Harness(page, insets, true)
+  await h.expectWithinSafeViewport(dialog); await h.expectNoHorizontalOverflow(); await h.expectMinTapTarget(skip)
+  await skip.click()
+  await expect(dialog).toHaveCount(0)
+  await page.reload()
+  await expect(collectionPicker(page)).toBeVisible()
+  await expect.poll(async () => (await record(page))?.snapshot.collections.length).toBe(1)
+  await expect(dialog).toHaveCount(0)
+})
+
+for (const plan of ["free", "premium"] as const) test(`custom page size is ${plan === "free" ? "locked behind Premium" : "created for Premium"}`, async ({ page, insets }) => {
+  if (plan === "free") await page.route("**/app/api/billing", route => route.fulfill({ json: { access: { ownerUserId: "00000000-0000-4000-8000-0000000000e2", tier: "free", source: "free", paidThrough: null, savedCardCount: 0, freeCardLimit: 100, freeBinderLimit: 3, enforced: true }, canManage: true } }))
+  await page.goto(entry)
+  const dialog = await open(page, "blank", "Synthetic custom grid")
+  await toLayout(page)
+  const h = new Harness(page, insets, true)
+  if (plan === "free") {
+    await dialog.getByRole("button", { name: "Custom page size, Premium", exact: true }).click()
+    await expect(dialog.getByRole("button", { name: "Upgrade for custom layouts", exact: true })).toBeVisible()
+    await expect(dialog.getByRole("button", { name: "Preview", exact: true })).toBeDisabled()
+    await h.expectNoHorizontalOverflow()
+    return
+  }
+  await dialog.getByRole("button", { name: "Custom page size", exact: true }).click()
+  await dialog.getByRole("spinbutton", { name: "Rows" }).fill("5")
+  await dialog.getByRole("spinbutton", { name: "Columns" }).fill("6")
+  await dialog.getByRole("spinbutton", { name: "How many pages?" }).fill("1")
+  await expect(dialog).toContainText("30 empty pockets")
+  await h.expectNoHorizontalOverflow()
+  await confirm(page)
+  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1)
+  const request = (await record(page))!.receipts[0].intent.request as Intent["request"] & { grid: unknown }
+  expect(request.grid).toEqual({ rows: 5, cols: 6 })
+  expect(request.slotIds).toHaveLength(30)
 })

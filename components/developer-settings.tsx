@@ -5,6 +5,7 @@ import { appPath } from '@/lib/app-path'
 import { Button } from '@/components/ui/button'
 import { DEVELOPER_PERMISSION_LABELS, DEVELOPER_PERMISSIONS, DEFAULT_DEVELOPER_PERMISSIONS, normalizePermissions, type DeveloperPermission } from '@/lib/developer-api/permissions'
 import type { DeveloperKeyMetadata } from '@/lib/developer-api/types'
+import { Select } from "@/components/ui/select"
 class DeveloperKeyRequestError extends Error {
  constructor(message:string,readonly status:number){super(message)}
 }
@@ -47,8 +48,8 @@ export function DeveloperApiKeys({isOnline,onSignIn}:{isOnline:boolean;onSignIn?
    {!canCreate&&!error&&<p className="text-sm text-muted-foreground">Premium or lifetime access is required to create keys. You can still revoke existing keys.</p>}
    {secret&&<div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3"><p className="text-sm font-medium">API key created, copy it now. You won’t be able to view it again.</p><textarea aria-label="New API key" readOnly value={secret} rows={3} spellCheck={false} onFocus={event=>event.currentTarget.select()} onClick={event=>{const field=event.currentTarget;requestAnimationFrame(()=>field.select())}} className="block w-full resize-none select-text break-all rounded-lg border border-border bg-background p-2 font-mono text-base" /><div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="min-h-9" onClick={()=>{navigator.clipboard.writeText(secret).catch(()=>setError('Could not copy. Select the key and copy it manually.'))}}>Copy key</Button><Button type="button" variant="outline" size="sm" className="min-h-9" onClick={()=>setSecret('')}>Hide key</Button></div></div>}
    {canCreate&&<form className="space-y-3" onSubmit={event=>{event.preventDefault();void change('POST',{name,expiryDays:expiry,permissions})}}>
-    <label className="block text-sm">Key name<input value={name} maxLength={60} required onChange={event=>setName(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border border-border bg-background px-3 text-base" placeholder="My collection script" autoComplete="off" /></label>
-    <label className="block text-sm">Expires after<select value={expiry} onChange={event=>setExpiry(Number(event.target.value))} className="mt-1 min-h-10 w-full rounded-lg border border-border bg-background px-3 text-base">{[30,90,365].map(days=><option key={days} value={days}>{days} days</option>)}</select></label>
+    <label className="block text-sm">Key name<input value={name} maxLength={60} required onChange={event=>setName(event.target.value)} className="mt-1 w-full" placeholder="My collection script" autoComplete="off" /></label>
+    <label className="block text-sm">Expires after<Select value={expiry} onChange={event=>setExpiry(Number(event.target.value))} className="mt-1 w-full">{[30,90,365].map(days=><option key={days} value={days}>{days} days</option>)}</Select></label>
     <details><summary className="flex min-h-9 cursor-pointer items-center text-sm">Permissions</summary><fieldset className="mt-2 space-y-1"><legend className="sr-only">API key permissions</legend>{DEVELOPER_PERMISSIONS.map(permission=><label key={permission} className="flex min-h-9 items-center gap-3 text-sm"><input type="checkbox" checked={permissions.includes(permission)} onChange={event=>setPermissions(current=>event.target.checked?[...current,permission]:current.filter(p=>p!==permission))} className="size-4"/><span className="break-all">{DEVELOPER_PERMISSION_LABELS[permission]}</span></label>)}</fieldset></details>
     <Button type="submit" className="min-h-10 w-full" disabled={busy||!isOnline||!name.trim()||Boolean(secret)}>{busy?'Saving…':'Create API key'}</Button>
    </form>}

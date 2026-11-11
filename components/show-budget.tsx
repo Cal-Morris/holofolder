@@ -7,6 +7,7 @@ import { summarizeShowBudget } from "@/lib/show-budget"
 import { parseAskingPrice } from "@/lib/deal-check"
 import { formatMoney } from "@/lib/regional-price"
 import { DISPLAY_CURRENCIES, type DisplayCurrency } from "@/lib/pricing-region"
+import { Select } from "@/components/ui/select"
 
 export default function ShowBudget({ storageKey, currency, compact = false }: { storageKey: string; currency: DisplayCurrency; compact?: boolean }) {
   const { budget, write, error } = useShowBudget(storageKey)
@@ -25,7 +26,7 @@ export default function ShowBudget({ storageKey, currency, compact = false }: { 
       {editing ? <form className="mt-2 space-y-2" onSubmit={event => { event.preventDefault(); if (amount && write({ limit: amount, currency: chosenCurrency })) setEditing(false) }}>
         <div className="flex gap-2">
           <label className="min-w-0 flex-1">Spending limit<input aria-label="Spending limit" inputMode="decimal" value={input} onChange={event => setInput(event.target.value)} className="mt-1 h-11 w-full rounded-lg border border-border bg-background px-2 text-base" /></label>
-          <label>Currency<select aria-label="Budget currency" value={chosenCurrency} onChange={event => setChosenCurrency(event.target.value as DisplayCurrency)} className="mt-1 block h-11 rounded-lg border border-border bg-background px-2 text-base">{DISPLAY_CURRENCIES.map(value => <option key={value}>{value}</option>)}</select></label>
+          <label>Currency<Select aria-label="Budget currency" value={chosenCurrency} onChange={event => setChosenCurrency(event.target.value as DisplayCurrency)} className="mt-1 flex">{DISPLAY_CURRENCIES.map(value => <option key={value}>{value}</option>)}</Select></label>
         </div>
         <button type="submit" disabled={!amount} className="holo-action min-h-10 rounded-full px-4 font-semibold disabled:opacity-50">Save budget</button>
         <button type="button" onClick={() => setEditing(false)} className="min-h-10 rounded-xl px-3">Cancel</button>

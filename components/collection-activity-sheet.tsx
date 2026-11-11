@@ -12,6 +12,7 @@ import type { ActivityInitialFilter } from "@/components/collection-activity-con
 import type { Binder } from "@/lib/binders/model"
 import { operationActivityMatch } from "@/lib/acknowledged-activity"
 import type { CollectedPokemon } from "@/lib/domain/cards"
+import { Select } from "@/components/ui/select"
 
 interface Props {
   nativeRecovery?: NativeRecoveryBinding
@@ -57,11 +58,11 @@ export default function CollectionActivitySheet(props:Props) {
         {initialFilter.operationId && <p className="mb-2 text-xs wrap-anywhere">Acknowledged operation {initialFilter.operationId}. History lookup does not undo this change.</p>}
         <p className="mb-2 text-xs text-muted-foreground">{selected.has('collectionId') ? binders.find(b=>b.id===selected.get('collectionId'))?.name ?? 'Previous collection' : selected.has('id') ? 'Selected change' : selected.has('recoveryOfEventId') ? 'Undo history' : 'All collections'}{selected.has('pokemonId') ? ` · Pokémon #${selected.get('pokemonId')}` : ''}{selected.has('inventoryItemId') ? ' · Selected copy' : ''}</p>
         {showFilters && <form onSubmit={apply} className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-border p-3">
-          <label className="col-span-2 text-xs">Collection<select name="collectionId" defaultValue={selected.get('collectionId') ?? ''} className={control}><option value="">All collections</option>{binders.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-          <label className="col-span-2 text-xs">Person<select name="actorId" defaultValue={selected.get('actorId') ?? ''} className={control}><option value="">Everyone</option>{scope && <option value={scope.accountId}>You</option>}{scope?.memberIds?.filter(id=>id!==scope.accountId).map(id=><option key={id} value={id}>Collection partner</option>)}</select></label>
+          <label className="col-span-2 text-xs">Collection<Select name="collectionId" defaultValue={selected.get('collectionId') ?? ''} className="w-full"><option value="">All collections</option>{binders.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</Select></label>
+          <label className="col-span-2 text-xs">Person<Select name="actorId" defaultValue={selected.get('actorId') ?? ''} className="w-full"><option value="">Everyone</option>{scope && <option value={scope.accountId}>You</option>}{scope?.memberIds?.filter(id=>id!==scope.accountId).map(id=><option key={id} value={id}>Collection partner</option>)}</Select></label>
           <label className="text-xs">From (UTC)<input type="date" name="since" defaultValue={selected.get('since')?.slice(0,10)} className={control}/></label>
           <label className="text-xs">Through (UTC)<input type="date" name="until" defaultValue={selected.get('until')?.slice(0,10)} className={control}/></label>
-          <label className="col-span-2 text-xs">Action<select name="action" defaultValue={selected.get('action') ?? ''} className={control}><option value="">All changes</option><option value="collection_item">Cards and wanted lists</option><option value="collection_change">Collections and settings</option><option value="legacy">Older recorded changes</option></select></label>
+          <label className="col-span-2 text-xs">Action<Select name="action" defaultValue={selected.get('action') ?? ''} className="w-full"><option value="">All changes</option><option value="collection_item">Cards and wanted lists</option><option value="collection_change">Collections and settings</option><option value="legacy">Older recorded changes</option></Select></label>
           <button type="submit" className="col-span-2 min-h-10 rounded-lg bg-primary px-3 font-medium text-primary-foreground">Apply filters</button>
         </form>}
         {scope ? <ActivityResults key={`${JSON.stringify(scope)}:${filters}:${revision}`} {...props} scope={scope} query={filters} onSelectEvent={id=>setFilters(new URLSearchParams({id}).toString())} /> : <p role="status" className="py-4">{isOnline ? 'Verifying current collection access. If this does not load, use Refresh history to retry.' : 'History is not cached for this account and collection access. Reconnect to load it.'}</p>}
