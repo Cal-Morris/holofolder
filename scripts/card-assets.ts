@@ -668,8 +668,9 @@ async function publish() {
   }
 
   // The app caches mirror reads for days; any real sync revalidates the whole tcg-mirror tag.
+  // Call the Vercel origin directly: Framer's proxy on holofolder.com strips the Authorization header.
   const secret = process.env.CARD_DB_SYNC_SECRET?.trim();
-  const site = process.env.CARD_ASSETS_SITE ?? 'https://holofolder.com';
+  const site = process.env.CARD_ASSETS_SITE ?? 'https://app.holofolder.com';
   if (!secret) {
     console.warn(
       'CARD_DB_SYNC_SECRET is not set: revalidate the mirror cache with a real POST /app/api/admin/sync-card-db?set=<id>&images=0',

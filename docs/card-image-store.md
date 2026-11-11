@@ -62,8 +62,8 @@ Uploads never overwrite (`If-None-Match: *` on R2, `allowOverwrite: false` on Bl
 5. Run the backfill (resumable), repeating with the returned cursor until `"done": true`:
 
    ```sh
-   curl -X POST -H "Authorization: Bearer $CARD_DB_SYNC_SECRET" "https://holofolder.com/app/api/admin/mirror-card-images"
-   curl -X POST -H "Authorization: Bearer $CARD_DB_SYNC_SECRET" "https://holofolder.com/app/api/admin/mirror-card-images?cursor=<nextCursor>"
+   curl -X POST -H "Authorization: Bearer $CARD_DB_SYNC_SECRET" "https://app.holofolder.com/app/api/admin/mirror-card-images"
+   curl -X POST -H "Authorization: Bearer $CARD_DB_SYNC_SECRET" "https://app.holofolder.com/app/api/admin/mirror-card-images?cursor=<nextCursor>"
    ```
 
    New sets are copied by `POST /api/admin/sync-card-db` (add `?images=0` to skip this).

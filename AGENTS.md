@@ -114,7 +114,7 @@ bun run dev                  # http://localhost:3000/app
 | `bun run sync-card-db [--dry-run]` | Full TCGdex → Postgres sync (needs `POSTGRES_URL_NON_POOLING` or `DATABASE_URL`)                                                                                                                                                       |
 | `bun run card-assets <command>`    | The one script for card images: `plan`, `verify`, `discover`, `publish`, `renditions`, `mirror-tcgdex`, `mirror-pokemoncom`, `fill-gaps`, `inventory`, `atlas`, `migrate-bucket`. See [`card-assets/AGENTS.md`](card-assets/AGENTS.md) |
 
-Admin API routes are `POST` only. Authenticate with `Authorization: Bearer <secret>`, where the secret is any of `CARD_DB_SYNC_SECRET`, `SYNC_SECRET` or `CRON_SECRET` (the legacy `x-card-db-sync-secret` header also works). They return 503 when no secret is configured.
+Admin API routes are `POST` only. Call them on `https://app.holofolder.com/app/api/admin/...`, not through `holofolder.com`: Framer's proxy strips the `Authorization` header, so a correct secret comes back "Not authorized" there. Authenticate with `Authorization: Bearer <secret>`, where the secret is any of `CARD_DB_SYNC_SECRET`, `SYNC_SECRET` or `CRON_SECRET` (the legacy `x-card-db-sync-secret` header also works). They return 503 when no secret is configured.
 
 - `/api/admin/sync-card-db`: incremental upsert. Modes: `?set=a,b`, `?recent=N`, or the default `missing`. Options: `?maxSets=` (default 4, max 12), `?dryRun=1`, `?images=0`. Repeat until `"done": true`.
 - `/api/admin/mirror-card-images`: resumable image backfill. Options: `?cursor=`, `?set=`, `?lang=`, `?quality=`, `?maxSets=`, `?maxUploads=`. Repeat with `nextCursor` until `"done": true`.
