@@ -5,7 +5,7 @@ import { ChevronRight, X } from 'lucide-react';
 import { buildCollectionAnalytics } from '@/lib/collection-analytics';
 import type { CardPriceSnapshot } from '@/lib/card-pricing';
 import type { CollectedPokemon } from '@/lib/domain/cards';
-import { buildNativeAnalytics, sumCopyValues } from '@/lib/collection/native-analytics';
+import { buildNativeAnalytics, nativeValueNote, sumCopyValues } from '@/lib/collection/native-analytics';
 import { selectInventoryCollection } from '@/lib/collection/inventory-projection';
 import {
   navigationIndex,
@@ -82,41 +82,46 @@ export function BinderValue({
   );
 }
 
+/** One binder's value from saved prices: the header, page total and inside cover all read this. */
+export function useNativeBinderValue(
+  analytics: { scope: CollectionNavigationScope; read: CollectionNavigationRead } | undefined,
+  collectionId: string | undefined,
+  region: PricingRegion,
+) {
+  const requests = useMemo(() => {
+    const projection = analytics && navigationIndex(analytics.scope, analytics.read).projection;
+    return projection ? selectInventoryCollection(projection, collectionId).priceRequests : [];
+  }, [analytics, collectionId]);
+  const { prices, status } = useInventoryPriceState(requests);
+  const summary = useMemo(
+    () => (analytics ? buildNativeAnalytics(analytics.scope, analytics.read, collectionId, prices, region) : null),
+    [analytics, collectionId, prices, region],
+  );
+  return { summary, status };
+}
+
 const gbp = (amount: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount);
 
 /**
- * Signed-in (native) binder: whole-binder and open-page totals from saved high/medium confidence prices, the same
- * evidence as Analytics. Unpriced and graded copies are counted as unpriced, never guessed.
+ * Signed-in (native) binder: whole-binder and open-page totals from every saved price, the same evidence as Analytics
+ * and the card sheet. Low confidence is labelled, not dropped. Unpriced and graded copies stay unpriced, never guessed.
  */
 export function NativeBinderTotals({
-  analytics,
-  collectionId,
+  value: { summary, status },
   pageItemIds,
   pageLabel,
-  region,
   priceMode,
   onOpen,
   onDismiss,
 }: {
-  analytics: { scope: CollectionNavigationScope; read: CollectionNavigationRead };
-  collectionId: string;
+  value: ReturnType<typeof useNativeBinderValue>;
   pageItemIds: readonly string[];
   pageLabel: string;
-  region: PricingRegion;
   /** The pocket price labels toggle (View → Prices on the legacy binder). */
   priceMode?: { on: boolean; loading: boolean; toggle: () => void };
   onOpen: () => void;
   onDismiss: () => void;
 }) {
-  const requests = useMemo(() => {
-    const projection = navigationIndex(analytics.scope, analytics.read).projection;
-    return projection ? selectInventoryCollection(projection, collectionId).priceRequests : [];
-  }, [analytics, collectionId]);
-  const { prices, status } = useInventoryPriceState(requests);
-  const summary = useMemo(
-    () => buildNativeAnalytics(analytics.scope, analytics.read, collectionId, prices, region),
-    [analytics, collectionId, prices, region],
-  );
   const page = useMemo(
     () => (summary ? sumCopyValues(summary.copies, new Set(pageItemIds)) : null),
     [summary, pageItemIds],
@@ -147,7 +152,7 @@ export function NativeBinderTotals({
           </span>
           <span className="text-muted-foreground block text-xs">
             {summary.pricedCopies} of {summary.physicalCopies} cards priced
-            {summary.rawValueGbp !== null && summary.pricedCopies < summary.physicalCopies ? ' · partial' : ''}
+            {nativeValueNote(summary)}
           </span>
           <span data-testid="binder-page-total" className="block text-xs font-medium tabular-nums">
             {pageLabel}: {page.total ? `${amount(page.valueGbp)} · ${page.priced} of ${page.total} priced` : 'no cards'}

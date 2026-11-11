@@ -190,7 +190,8 @@ import {
   legacyItemFilterFacts,
   matchesCollectionViewFilter,
 } from '@/lib/collection-view-filter';
-import { NativeBinderTotals } from '@/components/binder-value';
+import { NativeBinderTotals, useNativeBinderValue } from '@/components/binder-value';
+import { nativeValueLabel } from '@/lib/collection/native-analytics';
 import { rememberBinderScope } from '@/lib/binders/all-binders';
 import {
   buildSlotDisplay,
@@ -1898,6 +1899,12 @@ function BinderAppSurface(props: BinderAppProps) {
     fxRates,
   } = useCardPrices(priceLookupCards, pricingEnabled && shouldLoadCardPrices);
   const pricingPreferences = usePricingPreferences(settings);
+  // One read of the open binder's value, shared by the header totals and the inside cover.
+  const nativeBinderValue = useNativeBinderValue(
+    pricingEnabled && stagedSlotDisplay ? browserSurface?.analytics : undefined,
+    stagedSlotDisplay?.binder.collectionId,
+    pricingPreferences.region,
+  );
   // Region-grounded prices: re-weight each card's source evidence for the user's market.
   const pricesByCardId = useMemo(
     () => (pricingEnabled ? regionalizeCardPrices(rawPricesByCardId, pricingPreferences.region) : {}),
@@ -3932,6 +3939,7 @@ function BinderAppSurface(props: BinderAppProps) {
                 (c) => c.id === stagedSlotDisplay!.binder.collectionId,
               )?.name,
               slotCount: stagedSlotDisplay!.binder.slots.length,
+              valueLabel: nativeValueLabel(nativeBinderValue.summary),
             }
           : undefined,
         activeCollectionFilterOption,
@@ -4193,11 +4201,9 @@ function BinderAppSurface(props: BinderAppProps) {
       nativeBinderTotals:
         browserSurface && stagedSlotDisplay && pricingEnabled && settings.showBinderValue !== false ? (
           <NativeBinderTotals
-            analytics={browserSurface.analytics}
-            collectionId={stagedSlotDisplay.binder.collectionId}
+            value={nativeBinderValue}
             pageItemIds={visiblePageItemIds}
             pageLabel={visiblePageLabel}
-            region={pricingPreferences.region}
             priceMode={
               hasTrackedCards
                 ? { on: isPriceMode, loading: isLoadingPrices, toggle: () => setIsPriceMode((on) => !on) }

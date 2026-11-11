@@ -9,7 +9,7 @@ import type { BinderColorTheme } from '@/lib/binder-colors';
 import styles from './spread-info-page.module.css';
 
 export interface SpreadInfoPageContext {
-  native?: { name?: string; slotCount: number };
+  native?: { name?: string; slotCount: number; valueLabel?: string };
   activeCollectionFilterOption: { id: CollectionViewFilter; label: string; mobileLabel: string; description: string };
   collectionStats: { collected: number; total: number; percentage: number };
   neededCount: number;
@@ -117,12 +117,20 @@ export function renderSpreadInfoPageView(ctx: SpreadInfoPageContext, side: 'left
             </div>
           </dl>
 
-          {hasTrackedCards && filteredTotalLabel && (
-            <div className={styles.value}>
-              <span>Tracked value</span>
-              <strong>{filteredTotalLabel}</strong>
-            </div>
-          )}
+          {ctx.native
+            ? ctx.native.valueLabel && (
+                <div className={styles.value}>
+                  <span>Binder value</span>
+                  <strong>{ctx.native.valueLabel}</strong>
+                </div>
+              )
+            : hasTrackedCards &&
+              filteredTotalLabel && (
+                <div className={styles.value}>
+                  <span>Tracked value</span>
+                  <strong>{filteredTotalLabel}</strong>
+                </div>
+              )}
 
           <footer className={styles.footer}>
             <p>

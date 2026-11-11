@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildNativeAnalytics, sumCopyValues } from '../lib/collection/native-analytics';
+import { buildNativeAnalytics, nativeValueLabel, sumCopyValues } from '../lib/collection/native-analytics';
 import {
   completeInventoryBrowseFixture,
   inventoryProjectionFixture,
@@ -43,16 +43,26 @@ test('native analytics counts physical copies once across placements and Unassig
   assert.equal(buildNativeAnalytics(scope, read, 'alpha', prices, 'UK', now)!.physicalCopies, 1);
   assert.equal(buildNativeAnalytics(scope, read, 'trades', prices, 'UK', now)!.rawValueGbp, 10);
 });
-test('weak, stale, invalid and missing finish evidence is unknown, graded value never uses raw', async () => {
+test('low, unknown and stale confidence still value the copy (as the card sheet shows it) and are counted', async () => {
   const { read, prices } = await fixture();
+  assert.equal(buildNativeAnalytics(scope, read, undefined, prices, 'UK', now)!.lowConfidenceCopies, 0);
   for (const confidence of ['low', 'unknown'] as const) {
     const weak = prices.map((p) => ({
       ...p,
       confidence,
       finishPrices: p.finishPrices?.map((f) => ({ ...f, confidence })),
     }));
-    assert.equal(buildNativeAnalytics(scope, read, undefined, weak, 'UK', now)!.rawValueGbp, null);
+    const result = buildNativeAnalytics(scope, read, undefined, weak, 'UK', now)!;
+    assert.equal(result.rawValueGbp, 25);
+    assert.equal(result.pricedCopies, 4);
+    assert.equal(result.lowConfidenceCopies, 4);
   }
+  const stale = buildNativeAnalytics(scope, read, undefined, prices, 'UK', now + 40 * 86400000)!;
+  assert.equal(stale.rawValueGbp, 25);
+  assert.equal(stale.lowConfidenceCopies, 4);
+});
+test('invalid and missing finish evidence is unknown, graded value never uses raw', async () => {
+  const { read, prices } = await fixture();
   for (const amount of [0, -10, NaN]) {
     const invalid = prices.map((p) => ({
       ...p,
@@ -71,7 +81,6 @@ test('weak, stale, invalid and missing finish evidence is unknown, graded value 
     )!.rawValueGbp,
     null,
   );
-  assert.equal(buildNativeAnalytics(scope, read, undefined, prices, 'UK', now + 40 * 86400000)!.rawValueGbp, null);
 });
 test('fences reject owner/account/session swaps, incomplete and unknown storage; cached subset stays labelled', async () => {
   const { read, prices } = await fixture();
@@ -139,7 +148,7 @@ test('many same-species copies stay distinct; aliases deduplicate price reads wi
   assert.equal(summary.unpricedRawCopies, 2);
   assert.equal(new Set(summary.copies.map((c) => c.itemId)).size, 60);
 });
-test("a page total sums only that page's gated copies and keeps unpriced copies unpriced", async () => {
+test("a page total sums only that page's priced copies and keeps unpriced copies unpriced", async () => {
   const { read, prices } = await fixture();
   const { copies } = buildNativeAnalytics(scope, read, undefined, prices, 'UK', now)!;
   const all = new Set(copies.map((c) => c.itemId));
@@ -152,8 +161,19 @@ test("a page total sums only that page's gated copies and keeps unpriced copies 
     confidence: 'low' as const,
     finishPrices: p.finishPrices?.map((f) => ({ ...f, confidence: 'low' as const })),
   }));
+  assert.equal(sumCopyValues(buildNativeAnalytics(scope, read, undefined, weak, 'UK', now)!.copies, all).valueGbp, 25);
+});
+test('the value line labels partial and low confidence totals and is empty when nothing is priced', async () => {
+  const { read, prices } = await fixture();
+  const weak = prices.map((p) => ({
+    ...p,
+    finishPrices: p.finishPrices?.map((f) => ({ ...f, confidence: 'low' as const })),
+  }));
+  assert.equal(nativeValueLabel(buildNativeAnalytics(scope, read, undefined, prices, 'UK', now)), '£25.00 · partial');
   assert.equal(
-    sumCopyValues(buildNativeAnalytics(scope, read, undefined, weak, 'UK', now)!.copies, all).valueGbp,
-    null,
+    nativeValueLabel(buildNativeAnalytics(scope, read, undefined, weak, 'UK', now)),
+    '£25.00 · partial · 4 low confidence',
   );
+  assert.equal(nativeValueLabel(buildNativeAnalytics(scope, read, undefined, [], 'UK', now)), undefined);
+  assert.equal(nativeValueLabel(null), undefined);
 });
