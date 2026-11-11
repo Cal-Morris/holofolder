@@ -1,18 +1,30 @@
 import type { PublicBinder } from '@/lib/public-binder';
 import { toSmallCardAssetSrc, toCardImageSrc } from '@/lib/card-image-url';
 
-/** Owned card images first (binder order), then target printings, for the link preview. */
-export function binderPreviewSummary(binder: Pick<PublicBinder, 'slots'>, max = 5) {
+export type PreviewPocket = { src: string | null; owned: boolean };
+
+/** Counts for the link preview, plus the page with the most owned cards (earliest on a tie) as pockets. */
+export function binderPreviewSummary(binder: Pick<PublicBinder, 'slots' | 'rows' | 'cols'>) {
   let collected = 0,
     total = 0;
-  const owned: string[] = [],
-    targets: string[] = [];
   for (const slot of binder.slots) {
     if (slot.target || slot.item) total++;
     if (slot.item) collected++;
-    const src = toCardImageSrc(slot.card?.image);
-    if (!src?.startsWith('https://')) continue;
-    (slot.item ? owned : targets).push(toSmallCardAssetSrc(src) ?? src);
   }
-  return { collected, total, images: [...new Set([...owned, ...targets])].slice(0, max) };
+  const perPage = Math.max(1, binder.rows * binder.cols);
+  let best = 0,
+    bestOwned = -1;
+  for (let start = 0; start < binder.slots.length; start += perPage) {
+    const owned = binder.slots.slice(start, start + perPage).filter((slot) => slot.item).length;
+    if (owned > bestOwned) [best, bestOwned] = [start, owned];
+  }
+  const page: PreviewPocket[] = Array.from({ length: perPage }, (_, i) => {
+    const slot = binder.slots[best + i];
+    const src = toCardImageSrc(slot?.card?.image);
+    return {
+      src: src?.startsWith('https://') ? (toSmallCardAssetSrc(src) ?? src) : null,
+      owned: Boolean(slot?.item),
+    };
+  });
+  return { collected, total, page };
 }

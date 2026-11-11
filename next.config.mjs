@@ -79,6 +79,7 @@ const nextConfig = {
       './node_modules/drizzle-orm/**/*',
       './node_modules/graphile-worker/**/*',
     ],
+    '/u/[username]/[binderSlug]/preview.jpg': ['./assets/fonts/*.ttf'],
   },
 };
 
