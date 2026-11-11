@@ -491,14 +491,22 @@ async function discover() {
 
 type R2Deps = ReturnType<typeof createR2Deps>;
 
-/** Stores `<key>.low.webp` (SOURCE_IMAGE_LOW_WIDTH wide) beside a stored fallback-source image. Returns the new key. */
-async function storeLowRendition(deps: R2Deps, key: string) {
+/**
+ * Stores `<key>.low.webp` (SOURCE_IMAGE_LOW_WIDTH wide) beside a stored fallback-source image. Returns the new key.
+ * Pass `body` when the image is already in hand: right after an upload, the public URL can still answer with a 404
+ * that Cloudflare cached from the pre-upload existence check.
+ */
+async function storeLowRendition(deps: R2Deps, key: string, body?: ArrayBuffer) {
   const low = getSourceImageLowPathname(key);
   if (!low) return null;
   if (await deps.head(low)) return low;
-  const response = await deps.fetch(`${deps.baseUrl}${key}`);
-  if (!response.ok) throw new Error(`reading ${key}: HTTP ${response.status}`);
-  await deps.put(low, await renderLowRendition(await response.arrayBuffer()), 'image/webp');
+  let source = body;
+  if (!source) {
+    const response = await deps.fetch(`${deps.baseUrl}${key}`);
+    if (!response.ok) throw new Error(`reading ${key}: HTTP ${response.status}`);
+    source = await response.arrayBuffer();
+  }
+  await deps.put(low, await renderLowRendition(source), 'image/webp');
   return low;
 }
 
@@ -585,9 +593,11 @@ async function publish() {
             failed.push(`${change.card.id}: not a storable image URL`);
             continue;
           }
+          let original: ArrayBuffer | undefined;
           if (!stored.has(key)) {
             try {
               const image = tcgdex ? await mirror.loadImage(tcgdex) : await mirror.loadSourceImage(source!);
+              original = image.body;
               await image.pendingUpload?.();
               if (!(await deps.head(key))) throw new Error('not in the bucket after upload');
               stored.add(key);
@@ -601,7 +611,7 @@ async function publish() {
           const low = source && getSourceImageLowPathname(key);
           if (low && !stored.has(low)) {
             try {
-              await storeLowRendition(deps, key);
+              await storeLowRendition(deps, key, original);
               stored.add(low);
               await recordInventory(db, r2.bucket, [low]);
             } catch (error) {
