@@ -2977,17 +2977,16 @@ function BinderAppSurface(props: BinderAppProps) {
         {browserSurface.toolbar}
         {browserSurface.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder"
           && activeMainView === "binder" && stagedSlotDisplay && !editingLayout && <CollectionFilterBar value={collectionViewFilter} onChange={setCollectionViewFilter} />}
+        {!editingLayout && layoutToolbar}
         {browserSurface.surface.state.main === "collection" && browserSurface.surface.collection?.state.view === "binder"
           && activeMainView === "binder" && !legacyReadOnlyMode && !shareViewToken && !editingLayout && stagedSlotDisplay && stagedSlotCatalog && browserSurface.scan
-          && collectionViewFilter === "all" && selectedGen === 0 && <NativeBinderScanner
+          && collectionViewFilter === "all" && selectedGen === 0 ? <NativeBinderScanner menu={actions => browserSurface.storageMenu?.(actions)}
             key={`${layoutScopeKey}:${currentBinderPage}`} available={browserSurface.scan.available && browserSurface.scan.rows === settings.binderRows && browserSurface.scan.cols === settings.binderCols} online={browserSurface.scan.online}
             admission={{ snapshot: stagedSlotDisplay.inventory, catalog: stagedSlotCatalog,
               view: { ownerUserId: stagedSlotDisplay.inventory.ownerUserId, collectionId: stagedSlotDisplay.binder.collectionId,
                 sessionId: browserSurface.scan.sessionId, rows: browserSurface.scan.rows ?? settings.binderRows, cols: browserSurface.scan.cols ?? settings.binderCols,
                 pageSlotIds: stagedSlotDisplay.binder.slots.slice((currentBinderPage - 1) * slotsPerPage, currentBinderPage * slotsPerPage).map(s => s.id) },
-              detectPage: browserSurface.scan.detectPage, getOfflineCards: browserSurface.scan.getOfflineCards, onCommandIntent: browserSurface.scan.receive }} />}
-        {!editingLayout && layoutToolbar}
-        {browserSurface.storageMenu}
+              detectPage: browserSurface.scan.detectPage, getOfflineCards: browserSurface.scan.getOfflineCards, onCommandIntent: browserSurface.scan.receive }} /> : browserSurface.storageMenu?.([])}
       </div>}
       {browserHeader}
       {isInstalledApp && isShowModeOn && user && !readOnlyMode && <PartnerPushPrompt userId={user.id} onOpen={() => openExclusively(() => { setPushSettingsRequested(true); setIsSettingsOpen(true) })} />}
