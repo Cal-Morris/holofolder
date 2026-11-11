@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { ArrowUpRight, BookOpen, Camera, Heart, Share2, Users, Wifi } from 'lucide-react';
-import { CardDataAttribution } from '@/components/card-data-attribution';
+import { CreditsNotice } from '@/components/credits';
 import { MarketingCardFan } from '@/components/marketing-card-fan';
 import { MarketingBinderPreview } from '@/components/marketing-binder-preview';
 import { MarketingNavigation } from '@/components/marketing-navigation';
@@ -273,7 +273,7 @@ export default function HomePage({ signedIn = SIGNED_OUT }: { signedIn?: Promise
               Holo Folder
             </a>
           </div>
-          <CardDataAttribution className={styles.attribution} />
+          <CreditsNotice className={styles.attribution} />
         </footer>
       </main>
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />

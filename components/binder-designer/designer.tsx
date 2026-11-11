@@ -23,7 +23,7 @@ import { useBinderAppearance } from '@/hooks/use-binder-appearance';
 import type { BinderSettings } from '@/lib/settings';
 import { BinderPresetPicker } from '@/components/binder-preset-picker';
 import { applyBinderDesignPreset } from '@/lib/binder-design-presets';
-import { CardDataAttribution } from '@/components/card-data-attribution';
+import { CreditsNotice } from '@/components/credits';
 import './studio.css';
 const Viewport = dynamic(() => import('./viewport'), {
   ssr: false,
@@ -677,7 +677,7 @@ export default function BinderDesigner({
                   </select>
                 </label>
               </details>
-              <CardDataAttribution compact className="studio-attribution" />
+              <CreditsNotice className="studio-attribution" />
             </fieldset>
           </section>
         </div>
