@@ -39,7 +39,7 @@ Cal authorized this set's verified TCGplayer images to use the existing Cloudfla
 Backfill is paused because local R2 credentials are absent and production credentials are non-readable sensitive Vercel variables. Current bucket size and monthly operation usage could not be verified. Obtain current budget/headroom evidence or scoped R2 listing access before running the existing bounded backfill, for example:
 
 ```sh
-bun scripts/mirror-card-images.ts --set me06 --lang en --quality high --concurrency 2 --max-class-a 200 --max-gb 0.05
+bun run card-assets mirror-tcgdex --set me06 --lang en --quality high --concurrency 2 --max-class-a 200 --max-gb 0.05
 ```
 
 This is a proposed 200-operation/50 MB ceiling, not evidence of available account allowance. Inspect usage first, then record planned/existing/uploaded counts and verify a sample `x-card-image-source: r2`. Do not run a broad backfill.

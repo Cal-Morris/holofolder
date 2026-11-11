@@ -27,7 +27,7 @@ Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are 
        "https://holofolder.com/app/api/admin/mirror-card-images?set=<id>"
      ```
      Then call it again with `?cursor=<nextCursor>` until `"done": true`.
-   - Local alternative that costs no deploy: `bun run mirror-card-images --set <id>`. Flags: `--lang`, `--quality`, `--concurrency`, `--max-class-a`, `--max-gb`. It retries 429s and 5xx with backoff, and stops before the budgets.
+   - Local alternative that costs no deploy: `bun run card-assets mirror-tcgdex --set <id>`. Flags: `--lang`, `--quality`, `--concurrency`, `--max-class-a`, `--max-gb`. It retries 429s and 5xx with backoff, and stops before the budgets.
    - Uploads never overwrite (`If-None-Match: *`).
 5. **Respect limits.**
    - TCGdex images are mirrored, plus fallback-source images (TCGplayer, pokemontcg.io, Scrydex, Limitless) for cards without a TCGdex image. See `docs/card-image-store.md`.
@@ -47,4 +47,4 @@ Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are 
 - **A set never reaches `done`** because TCGdex lists fewer cards than its total: see `isSetUpToDateWithListedCards` in `lib/card-db-sync-targets.ts`.
 - **Adding a column to `tcg_*`**: follow `adding-a-db-migration`, and remember that `scripts/004_create_tcg_mirror_tables.sql` is read at runtime.
 
-Never hand-insert card rows or invent card data. If TCGdex lacks a card image, an alias or a promo set, fill it from public sources with `bun scripts/fill-card-gaps.ts` (rules and source mapping in `lib/card-gap-fill.ts`; extend `GAP_IMAGE_SOURCES`, `GAP_CARD_ALIASES` or `GAP_NEW_SETS` with a test), then run the image backfill for the touched sets so the images are copied into the image store. What no source has stays missing.
+Never hand-insert card rows or invent card data. If TCGdex lacks a card image, an alias or a promo set, fill it from public sources with `bun run card-assets fill-gaps` (rules and source mapping in `lib/card-gap-fill.ts`; extend `GAP_IMAGE_SOURCES`, `GAP_CARD_ALIASES` or `GAP_NEW_SETS` with a test), then run the image backfill for the touched sets so the images are copied into the image store. What no source has stays missing.

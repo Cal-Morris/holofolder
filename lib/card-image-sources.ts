@@ -151,7 +151,7 @@ function pickTcgplayerProductId(tcgdex: Record<string, unknown> | null) {
   return null;
 }
 
-/** The official pokemon.com scan recorded by `scripts/mirror-pokemoncom-images.ts` (English only). */
+/** The official pokemon.com scan recorded by `bun run card-assets mirror-pokemoncom` (English only). */
 export function pickPokemonComImageUrl(externalIds: unknown) {
   const image = asRecord(asRecord(externalIds)?.pokemoncom)?.image;
   return typeof image === 'string' && parseSourceCardImageUrl(image)?.source === 'pokemoncom' ? image : undefined;

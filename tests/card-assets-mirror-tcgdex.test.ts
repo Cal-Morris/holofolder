@@ -1,6 +1,6 @@
 import { afterEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BudgetExceededError, createPoliteFetch } from '../scripts/mirror-card-images';
+import { BudgetExceededError, createPoliteFetch } from '../scripts/card-assets/mirror-tcgdex';
 
 const ENDPOINT = 'https://acct.r2.cloudflarestorage.com/';
 const realFetch = globalThis.fetch;

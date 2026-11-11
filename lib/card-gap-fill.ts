@@ -6,7 +6,7 @@ import type { MirrorCardExternalSourceRow, MirrorCardRow, MirrorSetRow } from '.
 /**
  * Fills catalog gaps from public sources: images for cards the primary source has no
  * image for, cross-source aliases, and promo sets the primary source does not list.
- * The planner is pure; scripts/fill-card-gaps.ts fetches the sources and applies the plan.
+ * The planner is pure; `bun run card-assets fill-gaps` (scripts/card-assets/fill-gaps.ts) fetches the sources and applies the plan.
  * Every image URL it writes is mirrored into the card image store before it is served.
  */
 
