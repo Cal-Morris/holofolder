@@ -46,7 +46,7 @@ test('remote approval retains the exact callback and copies it without navigatin
     await route.fulfill({ json: { redirectUrl: callback } });
   });
   await page.goto(consentPath);
-  await page.getByRole('checkbox', { name: 'My client is on another machine' }).check();
+  await page.getByRole('switch', { name: 'My client is on another machine' }).check();
   await page.getByRole('button', { name: 'Approve access' }).click();
   await expect(page.getByRole('textbox', { name: 'Callback URL' })).toHaveValue(callback);
   await expect(page.getByRole('button', { name: 'Approve access' })).toHaveCount(0);
@@ -84,7 +84,7 @@ test('remote denial keeps the error callback selectable when clipboard access fa
     await route.fulfill({ json: { redirectUrl: denied } });
   });
   await page.goto(consentPath);
-  await page.getByRole('checkbox', { name: 'My client is on another machine' }).check();
+  await page.getByRole('switch', { name: 'My client is on another machine' }).check();
   await page.getByRole('button', { name: 'Deny', exact: true }).click();
   await page.getByRole('button', { name: 'Copy callback URL' }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'Copy unavailable' })).toHaveText(
@@ -107,7 +107,7 @@ test('local approval still redirects immediately without opting into remote hand
     route.fulfill({ contentType: 'text/html', body: 'Synthetic client received callback' }),
   );
   await page.goto(consentPath);
-  await expect(page.getByRole('checkbox', { name: 'My client is on another machine' })).not.toBeChecked();
+  await expect(page.getByRole('switch', { name: 'My client is on another machine' })).not.toBeChecked();
   await page.getByRole('button', { name: 'Approve access' }).click();
   await expect(page).toHaveURL(callback);
 });
@@ -132,7 +132,7 @@ test('HTTPS callbacks continue without loopback controls', async ({ page }) => {
   );
   await page.goto(consentPath);
   await expect(page.getByRole('button', { name: 'Approve access' })).toBeEnabled();
-  await expect(page.getByRole('checkbox', { name: 'My client is on another machine' })).toHaveCount(0);
+  await expect(page.getByRole('switch', { name: 'My client is on another machine' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Approve access' }).click();
   await expect(page).toHaveURL(hosted);
 });

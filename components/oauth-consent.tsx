@@ -1,6 +1,8 @@
 'use client';
 import { use, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { appPath } from '@/lib/app-path';
 import { isLoopbackOAuthRedirect } from '@/lib/developer-api/oauth';
 import {
@@ -9,6 +11,34 @@ import {
   DEVELOPER_PERMISSIONS,
   type DeveloperPermission,
 } from '@/lib/developer-api/permissions';
+const GROUP_LABEL = 'text-muted-foreground px-1 text-[11px] font-semibold tracking-[0.12em] uppercase';
+const GROUP_CARD = 'border-border/50 bg-muted/25 divide-border/40 divide-y overflow-hidden rounded-2xl border';
+const READ_PERMISSIONS = DEVELOPER_PERMISSIONS.filter((p) => p.endsWith(':read'));
+const CHANGE_PERMISSIONS = DEVELOPER_PERMISSIONS.filter((p) => !p.endsWith(':read'));
+/** Same row shape as Settings: label on the left, switch on the right, whole row taps. */
+function SwitchRow({
+  label,
+  hint,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  hint?: ReactNode;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex min-h-12 cursor-pointer items-center justify-between gap-4 px-4 py-3 has-[:disabled]:cursor-not-allowed">
+      <span className="min-w-0 space-y-1">
+        <span className="block text-sm font-medium break-words">{label}</span>
+        {hint && <span className="text-muted-foreground block text-xs leading-relaxed">{hint}</span>}
+      </span>
+      <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} aria-label={label} />
+    </label>
+  );
+}
 type Details = { client: { id: string; name: string }; redirectUri: string; scope: string; eligible: boolean };
 export default function OAuthConsent({ searchParams }: { searchParams: Promise<{ authorization_id?: string }> }) {
   const { authorization_id: authorizationId } = use(searchParams);
@@ -164,64 +194,75 @@ export default function OAuthConsent({ searchParams }: { searchParams: Promise<{
       {loading && <p className="text-muted-foreground text-sm">Loading authorization request…</p>}
       {details && (
         <>
-          <div className="border-border bg-muted/20 rounded-2xl border p-4">
-            <h2 className="text-lg font-medium break-words">{details.client.name}</h2>
-            <p className="text-muted-foreground mt-2 text-sm">This client wants to access your Holo Folder data.</p>
-            <p className="text-muted-foreground mt-3 text-xs break-all">
-              Redirects to {new URL(details.redirectUri).host || new URL(details.redirectUri).protocol}
-            </p>
-            {details.scope && (
-              <p className="text-muted-foreground mt-2 text-xs break-words">
-                Account information requested: {details.scope.split(' ').join(', ')}
-              </p>
-            )}
-          </div>
+          <section aria-label="Client" className="space-y-1.5">
+            <h2 className={GROUP_LABEL}>Client</h2>
+            <div className={GROUP_CARD}>
+              <div className="space-y-1 px-4 py-3">
+                <h3 className="text-base font-semibold break-words">{details.client.name}</h3>
+                <p className="text-muted-foreground text-sm">Wants to access your Holo Folder data.</p>
+              </div>
+              <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+                <span className="text-muted-foreground shrink-0">Redirects to</span>
+                <span className="min-w-0 text-right font-medium break-all">
+                  {new URL(details.redirectUri).host || new URL(details.redirectUri).protocol}
+                </span>
+              </div>
+              {details.scope && (
+                <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+                  <span className="text-muted-foreground shrink-0">Account info</span>
+                  <span className="min-w-0 text-right font-medium break-words">
+                    {details.scope.split(' ').join(', ')}
+                  </span>
+                </div>
+              )}
+            </div>
+          </section>
           {!details.eligible && (
-            <p className="border-border rounded-xl border p-4 text-sm">
+            <p className="border-border/50 bg-muted/35 rounded-2xl border px-4 py-3 text-sm">
               MCP access requires a Premium subscription or lifetime access. Signup trials do not include it.{' '}
               <a className="underline" href="/app">
                 Open Holo Folder to manage your plan.
               </a>
             </p>
           )}
-          <fieldset disabled={!details.eligible || busy} className="space-y-1">
-            <legend className="mb-2 text-sm font-medium">Allow this client to</legend>
-            {DEVELOPER_PERMISSIONS.map((permission) => (
-              <label key={permission} className="flex min-h-10 items-center gap-3 rounded-lg px-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="size-4"
-                  checked={permissions.includes(permission)}
-                  onChange={(event) =>
-                    setPermissions((current) =>
-                      event.target.checked ? [...current, permission] : current.filter((p) => p !== permission),
-                    )
-                  }
-                />
-                <span className="break-all">{DEVELOPER_PERMISSION_LABELS[permission]}</span>
-              </label>
-            ))}
-          </fieldset>
-          <p className="text-muted-foreground text-xs leading-relaxed">
-            Write permissions allow this client to change your data. Sharing and partner permissions can change who has
-            access. You can revoke the connection in Settings.
+          {(
+            [
+              ['Read access', READ_PERMISSIONS],
+              ['Changes', CHANGE_PERMISSIONS],
+            ] as const
+          ).map(([label, group]) => (
+            <section key={label} aria-label={label} className="space-y-1.5">
+              <h2 className={GROUP_LABEL}>{label}</h2>
+              <div className={GROUP_CARD}>
+                {group.map((permission) => (
+                  <SwitchRow
+                    key={permission}
+                    label={DEVELOPER_PERMISSION_LABELS[permission]}
+                    checked={permissions.includes(permission)}
+                    disabled={!details.eligible || busy}
+                    onChange={(checked) =>
+                      setPermissions((current) =>
+                        checked ? [...current, permission] : current.filter((p) => p !== permission),
+                      )
+                    }
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+          <p className="text-muted-foreground px-1 text-xs leading-relaxed">
+            Changes let this client edit your data. Sharing and partner permissions can change who has access. You can
+            revoke the connection in Settings.
           </p>
           {isLoopbackOAuthRedirect(details.redirectUri) && (
-            <div className="border-border rounded-xl border p-3">
-              <label className="flex min-h-11 items-center gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  className="size-4 shrink-0"
-                  checked={remoteClient}
-                  disabled={busy}
-                  onChange={(event) => setRemoteClient(event.target.checked)}
-                />
-                <span>My client is on another machine</span>
-              </label>
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                For a remote agent, SSH session or container. We will show a callback URL to send to your agent instead
-                of opening localhost on this device.
-              </p>
+            <div className={GROUP_CARD}>
+              <SwitchRow
+                label="My client is on another machine"
+                hint="For a remote agent, SSH session or container. We will show a callback URL to send to your agent instead of opening localhost on this device."
+                checked={remoteClient}
+                disabled={busy}
+                onChange={setRemoteClient}
+              />
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
