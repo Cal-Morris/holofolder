@@ -45,10 +45,10 @@ This is an internal public-page read adapter under existing free share permissio
 - `bun run typecheck`, production build/docs CSS verification and full lint passed. Lint remains at the existing 55 warnings, with zero warnings in changed files. The build retains existing Next partial-prefetch/CSS highlight warnings and the existing eBay prerender diagnostic.
 - No full e2e suite, hosted share/user writes, SQL/migration/grant changes, conversion, merge or publication was performed. Production/CDN deployment and literal rollout acceptance remain unverified and parent-owned.
 
-| Before | After | Why |
-| --- | --- | --- |
-| Public pages booted the private app shell with species-keyed data | Dedicated public allowlist, shared browse-only ordered pockets | No private navigation/session/queue bootstrap or storage IDs in page data |
-| Native arrangement had no public read path | Current arranged slots keep gaps and repeats, with actual custom dimensions | Same sequence and current-target matching without inventing an inventory snapshot |
-| Wide layouts needed a usable pocket region | Minimum 64 px pockets within internal horizontal scrolling | 0 px document overflow across the six tested phones |
+| Before                                                            | After                                                                       | Why                                                                               |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Public pages booted the private app shell with species-keyed data | Dedicated public allowlist, shared browse-only ordered pockets              | No private navigation/session/queue bootstrap or storage IDs in page data         |
+| Native arrangement had no public read path                        | Current arranged slots keep gaps and repeats, with actual custom dimensions | Same sequence and current-target matching without inventing an inventory snapshot |
+| Wide layouts needed a usable pocket region                        | Minimum 64 px pockets within internal horizontal scrolling                  | 0 px document overflow across the six tested phones                               |
 
 Recorded copy and exact-target languages choose their own canonical artwork, cached by card and language. Legacy shares use the recorded card language. If that language has no catalog artwork, the image stays unknown rather than displaying another language.

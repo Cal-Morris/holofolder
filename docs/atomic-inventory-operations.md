@@ -24,16 +24,16 @@ The root has exactly `operationId: string` (8–100 characters), `inventoryRevis
 
 `SelectedWant = null | { index: integer 0..99, expected: WantedCard }`. `expected` is the full exact shared wanted-card value, including people/variant/timestamp fields. The containing destination slot version is mandatory. Fulfillment checks that exact array index/value, validates the chosen item's persisted printing and any wanted variant, then removes **only that index in that destination slot** atomically. Duplicates at other indices and wants in every other slot/collection remain. Null preserves all explicit wants. The selected destination target is fulfilled through its sole primary placement; another collection's target cannot count this item.
 
-| Kind | Exact fields beyond `kind` | Behavior |
-| --- | --- | --- |
-| `add` | `itemId`, `identity`, `grading`, `acquiredAt` | Explicit new ownership in Unassigned. Shared InventoryIdentity/GradingRecord, timestamp string or null. Card identities require trusted persisted catalog; legacy Pokémon-only identities remain honest unknown printings (current Dex 1–1025). No reuse/deduplication. |
-| `edit` | `item: ItemRef`, `grading: GradingRecord or null` | Per-copy grading edit, no identity/acquisition/placement change. Same grading is a no-op. Pokémon-only ownership cannot be graded. No condition/valuation or provider integration. |
-| `removeOwned` | `item: ItemRef` | Explicit loss of ownership. Remove this item and its placement, clear its prior slot status, retain target/order/wants/provenance. Return deleted metadata and prior placement as recovery evidence. |
-| `unassign` | `item: ItemRef` | Clear primary placement/status, retain item/identity/grading/acquisition/metadata and source target/order/wants/provenance. Already Unassigned is a no-op. |
-| `assign` | `selection`, `destination: SlotRef`, `occupied: cancel or unassign`, `fulfillWant: SelectedWant` | Reuse eligible Unassigned or create raw for catalog selection. Explicit existing never creates. An occupied destination conflicts for cancel, or explicitly releases its displaced item to Unassigned. |
-| `move` | `item: ItemRef`, `destination: SlotRef`, `occupied: cancel or unassign or swap`, `fulfillWant: SelectedWant` | Move an already placed item. Swap requires occupied destination and both target matches. Unassign explicitly releases displaced ownership. No source-target/order/want movement. Same source/destination is invalid. |
-| `removeSlots` | `slots: SlotRef[]` | Delete only these storage pockets/wants/provenance and cascade placements into Unassigned. No owned-copy deletion. Surviving order/positions remain; gaps are valid, #362 normalizes on its next structural layout operation. |
-| `deleteCollection` | `collectionId: UUID`, `slots: SlotPrecondition[]`, `replacementDefaultCollectionId: UUID or null` | Exact complete slot list, including empty slots, required. Delete binder/storage plus slots/placements/shares/frozen legacy rows via existing FKs. Every item remains Unassigned. Nondefault deletion requires null replacement. Default deletion requires a distinct same-owner declared current slot collection as explicit replacement, made default atomically; the last binder cannot be deleted. |
+| Kind               | Exact fields beyond `kind`                                                                                   | Behavior                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `add`              | `itemId`, `identity`, `grading`, `acquiredAt`                                                                | Explicit new ownership in Unassigned. Shared InventoryIdentity/GradingRecord, timestamp string or null. Card identities require trusted persisted catalog; legacy Pokémon-only identities remain honest unknown printings (current Dex 1–1025). No reuse/deduplication.                                                                                                                                |
+| `edit`             | `item: ItemRef`, `grading: GradingRecord or null`                                                            | Per-copy grading edit, no identity/acquisition/placement change. Same grading is a no-op. Pokémon-only ownership cannot be graded. No condition/valuation or provider integration.                                                                                                                                                                                                                     |
+| `removeOwned`      | `item: ItemRef`                                                                                              | Explicit loss of ownership. Remove this item and its placement, clear its prior slot status, retain target/order/wants/provenance. Return deleted metadata and prior placement as recovery evidence.                                                                                                                                                                                                   |
+| `unassign`         | `item: ItemRef`                                                                                              | Clear primary placement/status, retain item/identity/grading/acquisition/metadata and source target/order/wants/provenance. Already Unassigned is a no-op.                                                                                                                                                                                                                                             |
+| `assign`           | `selection`, `destination: SlotRef`, `occupied: cancel or unassign`, `fulfillWant: SelectedWant`             | Reuse eligible Unassigned or create raw for catalog selection. Explicit existing never creates. An occupied destination conflicts for cancel, or explicitly releases its displaced item to Unassigned.                                                                                                                                                                                                 |
+| `move`             | `item: ItemRef`, `destination: SlotRef`, `occupied: cancel or unassign or swap`, `fulfillWant: SelectedWant` | Move an already placed item. Swap requires occupied destination and both target matches. Unassign explicitly releases displaced ownership. No source-target/order/want movement. Same source/destination is invalid.                                                                                                                                                                                   |
+| `removeSlots`      | `slots: SlotRef[]`                                                                                           | Delete only these storage pockets/wants/provenance and cascade placements into Unassigned. No owned-copy deletion. Surviving order/positions remain; gaps are valid, #362 normalizes on its next structural layout operation.                                                                                                                                                                          |
+| `deleteCollection` | `collectionId: UUID`, `slots: SlotPrecondition[]`, `replacementDefaultCollectionId: UUID or null`            | Exact complete slot list, including empty slots, required. Delete binder/storage plus slots/placements/shares/frozen legacy rows via existing FKs. Every item remains Unassigned. Nondefault deletion requires null replacement. Default deletion requires a distinct same-owner declared current slot collection as explicit replacement, made default atomically; the last binder cannot be deleted. |
 
 Newly added identities are canonicalized from validated persisted catalog metadata. Explicit existing copies entering **free** slots, unassignments and removal require no catalog evidence. Constrained destinations and both ends of a swap do require evidence. A historical missing catalog record never justifies cloning/deleting a copy. Item moves leave source target, position, wants and preset provenance in place; whole-slot layout moves remain #362's separate operation.
 
@@ -44,13 +44,28 @@ Synthetic selection example, against an empty current slot:
   "operationId": "synthetic-assign-001",
   "inventoryRevision": 7,
   "collections": [{ "collectionId": "03830000-0000-4000-8000-000000000011", "version": 2, "layoutRevision": 3 }],
-  "commands": [{
-    "kind": "assign",
-    "selection": { "kind": "catalog", "identity": { "kind": "card", "cardId": "synthetic-card", "language": "en", "finish": "holo" }, "newItemId": "synthetic-new-owned-copy" },
-    "destination": { "collectionId": "03830000-0000-4000-8000-000000000011", "slot": { "id": "synthetic-slot", "version": 4, "inventoryItemId": null, "itemVersion": null, "placementVersion": null } },
-    "occupied": "cancel",
-    "fulfillWant": null
-  }]
+  "commands": [
+    {
+      "kind": "assign",
+      "selection": {
+        "kind": "catalog",
+        "identity": { "kind": "card", "cardId": "synthetic-card", "language": "en", "finish": "holo" },
+        "newItemId": "synthetic-new-owned-copy"
+      },
+      "destination": {
+        "collectionId": "03830000-0000-4000-8000-000000000011",
+        "slot": {
+          "id": "synthetic-slot",
+          "version": 4,
+          "inventoryItemId": null,
+          "itemVersion": null,
+          "placementVersion": null
+        }
+      },
+      "occupied": "cancel",
+      "fulfillWant": null
+    }
+  ]
 }
 ```
 
@@ -80,18 +95,18 @@ Each `evidence` entry has `kind`, `before`, `after` with bounded touched `items`
 
 Replay uses existing `developer_idempotency`, operation `inventory_v1`, keyed by authenticated actor/operation ID. SQL hashes owner, complete request and trusted original intent. Same key/different intent conflicts. Access is checked first, replay before old/deleted entity predicates. Infinite expiry prevents cleanup from forgetting an accepted command. Failed commands consume no key. #394/#396 must assess retained private result size/retention and integrate audit references before exposure. After an unknown commit outcome, retry the **same** operation ID/intent, not a new ID that could create another copy.
 
-| Internal SQL error/message | Future supported adapter response |
-| --- | --- |
-| `42501`, `inventory_access_denied` | 403/404, no unrelated-owner data |
-| `55000`, `inventory_storage_unavailable` | 503, no conversion or legacy-write fallback |
-| `40001`, owner/collection/item/placement/slot/want conflict | 409, reread relevant scoped state before retry |
-| `40001`, `inventory_destination_occupied` / `inventory_destination_empty` | 409, explicit new occupied-slot intent |
-| `40001`, `inventory_copy_choice_required` | 409, show recorded Raw/grade/copy choices |
-| `40001`, `idempotency_conflict` | 409, original intent or genuinely new operation ID |
-| `22023`, malformed/oversized/repeated/same-slot/invalid selection/want/catalog/target | 400, correct/reduce request |
-| `card_limit_reached` | existing 402 billing contract |
-| safe-integer constraint overflow | 409, no mutation/replay row committed |
-| lock/deadline/serialization failure | bounded whole-operation replay with same ID and original intent; reread unknown outcome |
+| Internal SQL error/message                                                            | Future supported adapter response                                                       |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `42501`, `inventory_access_denied`                                                    | 403/404, no unrelated-owner data                                                        |
+| `55000`, `inventory_storage_unavailable`                                              | 503, no conversion or legacy-write fallback                                             |
+| `40001`, owner/collection/item/placement/slot/want conflict                           | 409, reread relevant scoped state before retry                                          |
+| `40001`, `inventory_destination_occupied` / `inventory_destination_empty`             | 409, explicit new occupied-slot intent                                                  |
+| `40001`, `inventory_copy_choice_required`                                             | 409, show recorded Raw/grade/copy choices                                               |
+| `40001`, `idempotency_conflict`                                                       | 409, original intent or genuinely new operation ID                                      |
+| `22023`, malformed/oversized/repeated/same-slot/invalid selection/want/catalog/target | 400, correct/reduce request                                                             |
+| `card_limit_reached`                                                                  | existing 402 billing contract                                                           |
+| safe-integer constraint overflow                                                      | 409, no mutation/replay row committed                                                   |
+| lock/deadline/serialization failure                                                   | bounded whole-operation replay with same ID and original intent; reread unknown outcome |
 
 The actual app route returns only its unconditional 503. #376 must sanitize DB details and implement supported status mapping, pagination/reads, registry/schema/docs and smoke tests. Do not forward SQL row details or log private grading/certificates.
 
@@ -109,7 +124,6 @@ INVENTORY_COMMAND_TEST_SOCKET=/Users/cal/.local/share/holofolder/issue383-local/
 #361/#362 remain open for their downstream compatibility/runtime gates. #394 real transactional audit, #396 recovery, #363 offline/reconciliation, #376 supported REST/MCP/catalog parity and #379 complete rollout remain prerequisites for **any** executor grant or route enablement. UI picker/move confirmation/offline e2e, privileged legacy/share/import/guest/read/delete compatibility and production-enabled behavior are not claimed by this staged server slice. No full e2e suite or hosted migration is run here.
 
 Prepared-head proof: 1,219 unit-suite entries pass; both opt-in private SQL cases pass, including two-session copy contention, current-partner unlink and legacy/new allowance races in both directions. Full typecheck, build and lint pass, with 55 pre-existing warnings and zero changed-file warnings. 075 is rerun twice locally by the SQL suite. All 88 original table counts and 35 core digests match the pre-074 archive after synthetic fixture cleanup. A two-copy Unassigned lookup EXPLAIN ANALYZE ran inside the rolled-back fixture; it is not production/load-performance evidence. No full e2e, hosted apply, conversion, grant, merge, watch or enabled-production claim.
-
 
 ## Atomic whole-collection deletion (078, internal only)
 
@@ -134,18 +148,14 @@ COLLECTION_DELETE_TEST_SOCKET=/Users/cal/.local/share/holofolder/issue383-atomic
 
 The pure/parser tests first failed on 1,025 and 4,096 deletion admission. The SQL regression first failed with `inventory_batch_too_large` on the recorder-wrapped 075 executor with 077 installed. Tests exercise genuine deletion events, recovery, whole rollback on recorder insertion failure, immutable history, access/replay denial, stale predicates, unchanged ordinary limits and valid oversized-payload refusal. Synthetic rolled-back EXPLAIN evidence is local correctness/bounded-work evidence, never production performance or large-populated-history proof. No full e2e/UI, hosted access, conversion, grants, merge, watch or Framer publication applies. #383 stays open pending parent review and the remaining full-feature gates.
 
-
 078 verification record: 87 focused cases pass; 1,299 unit-suite entries, full typecheck, production build and lint pass (55 existing warnings, zero changed-file warnings). Both opt-in SQL cases pass, including an additional all-1,025-target Dex/empty-native test. The 1,025-slot mixed fixture retained 257 graded duplicates, a compact JSON result of 911,199 bytes and 1,285 recovery entities; its rolled-back forward EXPLAIN was about 153 ms. The 4,096-occupied-slot fixture retained all 4,096 items, a compact JSON result of 9,229,072 bytes and 8,197 recovery entities; its rolled-back forward EXPLAIN was about 5,245 ms. Both emitted genuine events and restored through unchanged 077. These timings are from a small isolated restored history, not production or populated-history service proof.
 
 **Measured recovery latency gate:** 4,096-slot 077 restoration initially timed out at a 120-second outer statement deadline. With a bounded 300-second deadline it completed, with preview about 34.3 seconds and apply plus recorder/constraints about 120.1 seconds. The 1,025-slot fixture took about 0.69 seconds preview and 2.17 seconds apply/flush. Do not expose this maximum-size recovery under an assumed short request deadline or claim acceptable service latency; request/worker orchestration and populated-history performance remain parent-owned pre-exposure work. No recovery function or lock order was changed to hide that result.
 
 The final 078 file applied twice locally, all 90 archived table counts and 35 original-column digests match afterward, and SQL tests verify unchanged 076/077 function bodies and denied runtime permissions. A valid 257-item grading fixture with twenty 500-character multibyte subgrades per copy exceeds the 16 MiB retained result budget and is refused atomically; the collection is not advertised as supported or split into smaller edits. Dumps, auth and private verification logs remain outside git.
 
-
 [080 ordinary converted-content recovery](converted-content-recovery.md) permits safe inverses of actual 074/075 commands only while conversion provenance and frozen source remain unchanged. It keeps 076 recording, source guards, current conflicts/permissions/allowances and denied runtime boundaries; converted deletion, mapped source cascades, conversion undo and auxiliary/private-asset recovery remain required separate gates.
 
-
 081 records presence-only auxiliary deletion dependencies through the existing command before-evidence, for both native and converted collections. Search/history, partner delivery and named-slug cascades reject whole recovery. [Converted cascade recovery](converted-cascade-recovery.md) restores eligible placements of the same retained copies and exact frozen compatibility sources, without another acquisition or runtime exposure.
-
 
 Migration 091 adds staged atomic slot insertion plus explicit copy selection through this same transaction. See [atomic insertion contract/proof](atomic-insert-assign.md). Existing limits, terminal ledger, audit, recovery and admission remain authoritative.

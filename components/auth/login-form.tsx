@@ -1,113 +1,113 @@
-'use client'
+'use client';
 
-import { getMagicLinkRedirectUrl, getPasswordRecoveryRedirectUrl } from '@/lib/auth-redirects'
-import { PasskeySignIn } from '@/components/passkey-sign-in'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { useEffect, useState, useSyncExternalStore } from 'react'
-import { Mail, Loader2, KeyRound } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import styles from './login.module.css'
+import { getMagicLinkRedirectUrl, getPasswordRecoveryRedirectUrl } from '@/lib/auth-redirects';
+import { PasskeySignIn } from '@/components/passkey-sign-in';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { Mail, Loader2, KeyRound } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import styles from './login.module.css';
 
-type AuthMethod = 'magic-link' | 'password'
-type PasswordMode = 'sign-in' | 'sign-up'
-type SuccessState = 'magic-link' | 'password-signup' | 'password-reset' | null
+type AuthMethod = 'magic-link' | 'password';
+type PasswordMode = 'sign-in' | 'sign-up';
+type SuccessState = 'magic-link' | 'password-signup' | 'password-reset' | null;
 
 // supabase-js is only needed once the visitor submits, so it loads then instead of with the page.
 async function createClient() {
-  const { createClient: createBrowserClient } = await import('@/lib/supabase/client')
-  return createBrowserClient()
+  const { createClient: createBrowserClient } = await import('@/lib/supabase/client');
+  return createBrowserClient();
 }
 
 // Read ?mode=recovery after hydration rather than with useSearchParams(), which would make the
 // prerendered page a client-only spinner. The static HTML is the normal sign-in form.
-const subscribeToNothing = () => () => {}
-const readRecoveryMode = () => new URLSearchParams(window.location.search).get('mode') === 'recovery'
-const serverRecoveryMode = () => false
+const subscribeToNothing = () => () => {};
+const readRecoveryMode = () => new URLSearchParams(window.location.search).get('mode') === 'recovery';
+const serverRecoveryMode = () => false;
 
 export function LoginForm() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [success, setSuccess] = useState<SuccessState>(null)
-  const [authMethod, setAuthMethod] = useState<AuthMethod>('magic-link')
-  const [passwordMode, setPasswordMode] = useState<PasswordMode>('sign-in')
-  const [hasRecoverySession, setHasRecoverySession] = useState(false)
-  const [isCheckingRecoverySession, setIsCheckingRecoverySession] = useState(false)
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState<SuccessState>(null);
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('magic-link');
+  const [passwordMode, setPasswordMode] = useState<PasswordMode>('sign-in');
+  const [hasRecoverySession, setHasRecoverySession] = useState(false);
+  const [isCheckingRecoverySession, setIsCheckingRecoverySession] = useState(false);
 
-  const router = useRouter()
-  const recoveryMode = useSyncExternalStore(subscribeToNothing, readRecoveryMode, serverRecoveryMode)
+  const router = useRouter();
+  const recoveryMode = useSyncExternalStore(subscribeToNothing, readRecoveryMode, serverRecoveryMode);
 
   useEffect(() => {
-    if (!recoveryMode) return
+    if (!recoveryMode) return;
 
     const checkRecoverySession = async () => {
-      setIsCheckingRecoverySession(true)
-      const supabase = await createClient().catch(() => null)
+      setIsCheckingRecoverySession(true);
+      const supabase = await createClient().catch(() => null);
       const { data, error } = supabase
         ? await supabase.auth.getUser()
-        : { data: { user: null }, error: new Error('Could not reach the sign-in service.') }
+        : { data: { user: null }, error: new Error('Could not reach the sign-in service.') };
 
       if (error || !data.user) {
-        setError('This password recovery link is invalid or has expired.')
+        setError('This password recovery link is invalid or has expired.');
       } else {
-        setHasRecoverySession(true)
-        setError(null)
+        setHasRecoverySession(true);
+        setError(null);
       }
 
-      setIsCheckingRecoverySession(false)
-    }
+      setIsCheckingRecoverySession(false);
+    };
 
-    checkRecoverySession()
-  }, [recoveryMode])
+    checkRecoverySession();
+  }, [recoveryMode]);
 
   const resetState = () => {
-    setError(null)
-    setSuccess(null)
-    setPassword('')
-    setConfirmPassword('')
-  }
+    setError(null);
+    setSuccess(null);
+    setPassword('');
+    setConfirmPassword('');
+  };
 
   const handleMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const supabase = await createClient()
+      const supabase = await createClient();
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: getMagicLinkRedirectUrl(),
           shouldCreateUser: true,
         },
-      })
+      });
 
-      if (error) throw error
-      setSuccess('magic-link')
+      if (error) throw error;
+      setSuccess('magic-link');
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handlePasswordAuth = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const supabase = await createClient()
+      const supabase = await createClient();
       if (passwordMode === 'sign-up') {
         if (password.length < 8) {
-          throw new Error('Password must be at least 8 characters.')
+          throw new Error('Password must be at least 8 characters.');
         }
 
         if (password !== confirmPassword) {
-          throw new Error('Passwords do not match.')
+          throw new Error('Passwords do not match.');
         }
 
         const { data, error } = await supabase.auth.signUp({
@@ -116,118 +116,128 @@ export function LoginForm() {
           options: {
             emailRedirectTo: getMagicLinkRedirectUrl(),
           },
-        })
+        });
 
-        if (error) throw error
+        if (error) throw error;
 
         if (data.session) {
-          router.push('/')
-          router.refresh()
-          return
+          router.push('/');
+          router.refresh();
+          return;
         }
 
-        setSuccess('password-signup')
-        return
+        setSuccess('password-signup');
+        return;
       }
 
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
-      })
+      });
 
-      if (error) throw error
-      router.push('/')
-      router.refresh()
+      if (error) throw error;
+      router.push('/');
+      router.refresh();
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'Authentication failed')
+      setError(error instanceof Error ? error.message : 'Authentication failed');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handlePasswordReset = async () => {
     if (!email) {
-      setError('Enter your email address first.')
-      return
+      setError('Enter your email address first.');
+      return;
     }
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const supabase = await createClient()
+      const supabase = await createClient();
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: getPasswordRecoveryRedirectUrl(),
-      })
+      });
 
-      if (error) throw error
-      setSuccess('password-reset')
+      if (error) throw error;
+      setSuccess('password-reset');
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'Could not send a password reset link.')
+      setError(error instanceof Error ? error.message : 'Could not send a password reset link.');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleRecoverySubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
-      return
+      setError('Password must be at least 8 characters.');
+      return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match.')
-      return
+      setError('Passwords do not match.');
+      return;
     }
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const supabase = await createClient()
+      const supabase = await createClient();
       const { error } = await supabase.auth.updateUser({
         password,
-      })
+      });
 
-      if (error) throw error
+      if (error) throw error;
 
-      router.push('/')
-      router.refresh()
+      router.push('/');
+      router.refresh();
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'Could not update your password.')
+      setError(error instanceof Error ? error.message : 'Could not update your password.');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const successTitle =
     success === 'password-reset'
       ? 'Check your email'
       : success === 'password-signup'
         ? 'Confirm your email'
-        : 'Check your email'
+        : 'Check your email';
 
   const successMessage =
     success === 'password-reset'
       ? 'We sent you a password reset link.'
       : success === 'password-signup'
         ? 'We sent you a confirmation link to finish creating your account.'
-        : 'We sent you a secure link to open your binder.'
+        : 'We sent you a secure link to open your binder.';
 
   return (
     <>
       <div className={styles.header}>
         <h1 className={styles.heading}>
-          {recoveryMode ? 'Set a new password' : success ? successTitle : authMethod === 'magic-link' ? 'Start your binder' : passwordMode === 'sign-up' ? 'Create account' : 'Sign in to Holo Folder'}
+          {recoveryMode
+            ? 'Set a new password'
+            : success
+              ? successTitle
+              : authMethod === 'magic-link'
+                ? 'Start your binder'
+                : passwordMode === 'sign-up'
+                  ? 'Create account'
+                  : 'Sign in to Holo Folder'}
         </h1>
         <p className={styles.intro}>
           {recoveryMode
             ? 'Choose a password for your Holo Folder account.'
             : success
               ? successMessage
-              : authMethod === 'magic-link' ? 'Create an account or sign in with your email.' : 'Use your password, or create a new account.'}
+              : authMethod === 'magic-link'
+                ? 'Create an account or sign in with your email.'
+                : 'Use your password, or create a new account.'}
         </p>
       </div>
 
@@ -235,19 +245,19 @@ export function LoginForm() {
         {recoveryMode ? (
           <form onSubmit={handleRecoverySubmit} className="space-y-4">
             {error && (
-              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm text-center">
+              <div className="bg-destructive/10 border-destructive/20 text-destructive rounded-xl border p-3 text-center text-sm">
                 {error}
               </div>
             )}
 
             {isCheckingRecoverySession ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
               </div>
             ) : hasRecoverySession ? (
               <>
                 <div className="relative">
-                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <KeyRound className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
                   <Input
                     type="password"
                     aria-label="New password"
@@ -256,13 +266,13 @@ export function LoginForm() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                    className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
                     autoFocus
                   />
                 </div>
 
                 <div className="relative">
-                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <KeyRound className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
                   <Input
                     type="password"
                     aria-label="Confirm new password"
@@ -271,25 +281,21 @@ export function LoginForm() {
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                    className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
                   />
                 </div>
 
-                <Button
-                  type="submit"
-                  className="w-full h-12 rounded-xl font-semibold text-base"
-                  disabled={isLoading}
-                >
-                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save new password'}
+                <Button type="submit" className="h-12 w-full rounded-xl text-base font-semibold" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Save new password'}
                 </Button>
               </>
             ) : null}
           </form>
         ) : success ? (
           <div className="space-y-4">
-            <div className="p-5 bg-primary/5 border border-primary/10 rounded-xl text-center">
-              <Mail className="w-10 h-10 text-primary mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">
+            <div className="bg-primary/5 border-primary/10 rounded-xl border p-5 text-center">
+              <Mail className="text-primary mx-auto mb-3 h-10 w-10" />
+              <p className="text-muted-foreground text-sm">
                 {success === 'password-reset'
                   ? 'Open the reset email and choose a new password.'
                   : success === 'password-signup'
@@ -299,10 +305,10 @@ export function LoginForm() {
             </div>
             <Button
               variant="outline"
-              className="w-full h-12 rounded-xl"
+              className="h-12 w-full rounded-xl"
               onClick={() => {
-                resetState()
-                setEmail('')
+                resetState();
+                setEmail('');
               }}
             >
               Use a different email
@@ -311,40 +317,40 @@ export function LoginForm() {
         ) : (
           <div className="space-y-4">
             {error && (
-              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm text-center">
+              <div className="bg-destructive/10 border-destructive/20 text-destructive rounded-xl border p-3 text-center text-sm">
                 {error}
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 p-1 bg-muted/50 rounded-xl">
+            <div className="bg-muted/50 grid grid-cols-2 gap-2 rounded-xl p-1">
               <button
                 type="button"
                 onClick={() => {
-                  resetState()
-                  setAuthMethod('magic-link')
+                  resetState();
+                  setAuthMethod('magic-link');
                 }}
-                className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all ${
                   authMethod === 'magic-link'
                     ? 'bg-primary/15 text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Mail className="w-4 h-4" />
+                <Mail className="h-4 w-4" />
                 Email
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  resetState()
-                  setAuthMethod('password')
+                  resetState();
+                  setAuthMethod('password');
                 }}
-                className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all ${
                   authMethod === 'password'
                     ? 'bg-primary/15 text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <KeyRound className="w-4 h-4" />
+                <KeyRound className="h-4 w-4" />
                 Password
               </button>
             </div>
@@ -352,7 +358,7 @@ export function LoginForm() {
             {authMethod === 'magic-link' ? (
               <form onSubmit={handleMagicLink} className="space-y-4">
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Mail className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
                   <Input
                     type="email"
                     aria-label="Email address"
@@ -361,33 +367,29 @@ export function LoginForm() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                    className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
                     autoFocus
                   />
                 </div>
 
-                <Button
-                  type="submit"
-                  className="w-full h-12 rounded-xl font-semibold text-base"
-                  disabled={isLoading}
-                >
-                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Continue with email'}
+                <Button type="submit" className="h-12 w-full rounded-xl text-base font-semibold" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Continue with email'}
                 </Button>
 
-                <p className="text-xs text-center text-muted-foreground pt-2">
+                <p className="text-muted-foreground pt-2 text-center text-xs">
                   New here? We’ll create your account. Already collecting? We’ll sign you in.
                 </p>
               </form>
             ) : (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2 p-1 bg-muted/50 rounded-xl">
+                <div className="bg-muted/50 grid grid-cols-2 gap-2 rounded-xl p-1">
                   <button
                     type="button"
                     onClick={() => {
-                      setPasswordMode('sign-in')
-                      setError(null)
+                      setPasswordMode('sign-in');
+                      setError(null);
                     }}
-                    className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`rounded-lg py-2 text-sm font-medium transition-all ${
                       passwordMode === 'sign-in'
                         ? 'bg-primary/15 text-primary shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
@@ -398,10 +400,10 @@ export function LoginForm() {
                   <button
                     type="button"
                     onClick={() => {
-                      setPasswordMode('sign-up')
-                      setError(null)
+                      setPasswordMode('sign-up');
+                      setError(null);
                     }}
-                    className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`rounded-lg py-2 text-sm font-medium transition-all ${
                       passwordMode === 'sign-up'
                         ? 'bg-primary/15 text-primary shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
@@ -413,7 +415,7 @@ export function LoginForm() {
 
                 <form onSubmit={handlePasswordAuth} className="space-y-4">
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Mail className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
                     <Input
                       type="email"
                       aria-label="Email address"
@@ -422,13 +424,13 @@ export function LoginForm() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                      className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
                       autoFocus
                     />
                   </div>
 
                   <div className="relative">
-                    <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <KeyRound className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
                     <Input
                       type="password"
                       aria-label={passwordMode === 'sign-in' ? 'Password' : 'Create a password'}
@@ -437,13 +439,13 @@ export function LoginForm() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                      className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
                     />
                   </div>
 
                   {passwordMode === 'sign-up' && (
                     <div className="relative">
-                      <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <KeyRound className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
                       <Input
                         type="password"
                         aria-label="Confirm password"
@@ -452,18 +454,14 @@ export function LoginForm() {
                         required
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="pl-11 h-12 rounded-xl bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                        className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
                       />
                     </div>
                   )}
 
-                  <Button
-                    type="submit"
-                    className="w-full h-12 rounded-xl font-semibold text-base"
-                    disabled={isLoading}
-                  >
+                  <Button type="submit" className="h-12 w-full rounded-xl text-base font-semibold" disabled={isLoading}>
                     {isLoading ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <Loader2 className="h-5 w-5 animate-spin" />
                     ) : passwordMode === 'sign-in' ? (
                       'Sign in with password'
                     ) : (
@@ -484,17 +482,25 @@ export function LoginForm() {
                   </Button>
                 )}
 
-                <p className="text-xs text-center text-muted-foreground">
+                <p className="text-muted-foreground text-center text-xs">
                   {passwordMode === 'sign-in'
                     ? 'Your usual password, straight to your collection.'
                     : 'Keep your collection together with a Holo Folder account.'}
                 </p>
               </div>
             )}
-            {!(authMethod === 'password' && passwordMode === 'sign-up') && <PasskeySignIn disabled={isLoading} onSuccess={() => { router.push('/'); router.refresh() }} />}
+            {!(authMethod === 'password' && passwordMode === 'sign-up') && (
+              <PasskeySignIn
+                disabled={isLoading}
+                onSuccess={() => {
+                  router.push('/');
+                  router.refresh();
+                }}
+              />
+            )}
           </div>
         )}
       </div>
     </>
-  )
+  );
 }

@@ -1,122 +1,128 @@
-import { toCardImageSrc, PUBLIC_CARD_IMAGE_BASE } from "@/lib/card-image-url"
-import { appPath } from "@/lib/app-path"
-export const OFFLINE_CACHE_WARMUP_MESSAGE_TYPE = "BINDERDEX_WARM_CACHE"
+import { toCardImageSrc, PUBLIC_CARD_IMAGE_BASE } from '@/lib/card-image-url';
+import { appPath } from '@/lib/app-path';
+export const OFFLINE_CACHE_WARMUP_MESSAGE_TYPE = 'BINDERDEX_WARM_CACHE';
 
-import { normalizeCardLanguage } from "@/lib/domain/cards"
-import { getOfficialArtworkUrl } from "@/lib/pokemon-catalog"
+import { normalizeCardLanguage } from '@/lib/domain/cards';
+import { getOfficialArtworkUrl } from '@/lib/pokemon-catalog';
 
 interface OfflineCacheWarmupWantedCard {
-  card_image?: unknown
+  card_image?: unknown;
 }
 
 interface OfflineCacheWarmupCollectionItem {
-  pokemon_id?: unknown
-  card_image?: unknown
-  wanted_cards?: unknown
+  pokemon_id?: unknown;
+  card_image?: unknown;
+  wanted_cards?: unknown;
 }
 
 interface OfflineCacheWarmupInput {
-  visiblePokemonIds?: unknown
-  selectedPokemonId?: unknown
-  collection?: unknown
-  language?: unknown
-  maxUrls?: number
+  visiblePokemonIds?: unknown;
+  selectedPokemonId?: unknown;
+  collection?: unknown;
+  language?: unknown;
+  maxUrls?: number;
 }
 
-
 export function toCacheableCardImageUrl(value: unknown) {
-  if (typeof value !== "string" || value.trim().length === 0) return null
+  if (typeof value !== 'string' || value.trim().length === 0) return null;
 
-  const rendered = toCardImageSrc(value)
-  if(rendered?.startsWith(PUBLIC_CARD_IMAGE_BASE))return rendered
-  const trimmed = value.trim()
-  if (trimmed.startsWith("/api/")) return appPath(trimmed)
-  if (trimmed.startsWith("/")) return trimmed
+  const rendered = toCardImageSrc(value);
+  if (rendered?.startsWith(PUBLIC_CARD_IMAGE_BASE)) return rendered;
+  const trimmed = value.trim();
+  if (trimmed.startsWith('/api/')) return appPath(trimmed);
+  if (trimmed.startsWith('/')) return trimmed;
 
   try {
-    const url = new URL(trimmed)
-    if (url.protocol !== "http:" && url.protocol !== "https:") return null
-    return `/app/api/card-image-proxy?url=${encodeURIComponent(url.toString())}`
+    const url = new URL(trimmed);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    return `/app/api/card-image-proxy?url=${encodeURIComponent(url.toString())}`;
   } catch {
-    return null
+    return null;
   }
 }
 
 export function buildOfflineCacheWarmupUrls(input: OfflineCacheWarmupInput) {
-  const language = normalizeCardLanguage(input.language)
-  const maxUrls = typeof input.maxUrls === "number" && Number.isInteger(input.maxUrls) && input.maxUrls > 0
-    ? input.maxUrls
-    : 500
-  const urls = new Set<string>(["/app"])
-  const collection = Array.isArray(input.collection) ? input.collection as OfflineCacheWarmupCollectionItem[] : []
+  const language = normalizeCardLanguage(input.language);
+  const maxUrls =
+    typeof input.maxUrls === 'number' && Number.isInteger(input.maxUrls) && input.maxUrls > 0 ? input.maxUrls : 500;
+  const urls = new Set<string>(['/app']);
+  const collection = Array.isArray(input.collection) ? (input.collection as OfflineCacheWarmupCollectionItem[]) : [];
 
   // What is on screen comes first so it survives the maxUrls cut on large collections:
   // card lists, the owned card image or (for empty slots) the Pokémon artwork the binder renders.
-  addPokemonCacheUrls(urls, input.visiblePokemonIds, language)
-  addPokemonCacheUrls(urls, [input.selectedPokemonId], language)
-  addVisibleSlotImageUrls(urls, [...toPokemonIds(input.visiblePokemonIds), ...toPokemonIds([input.selectedPokemonId])], collection)
+  addPokemonCacheUrls(urls, input.visiblePokemonIds, language);
+  addPokemonCacheUrls(urls, [input.selectedPokemonId], language);
+  addVisibleSlotImageUrls(
+    urls,
+    [...toPokemonIds(input.visiblePokemonIds), ...toPokemonIds([input.selectedPokemonId])],
+    collection,
+  );
 
   if (collection.length > 0) {
     for (const item of collection) {
-      if (urls.size >= maxUrls) break
-      addPokemonCacheUrls(urls, [item?.pokemon_id], language)
-      addCardImageUrl(urls, item?.card_image)
+      if (urls.size >= maxUrls) break;
+      addPokemonCacheUrls(urls, [item?.pokemon_id], language);
+      addCardImageUrl(urls, item?.card_image);
 
       if (Array.isArray(item?.wanted_cards)) {
         for (const wantedCard of item.wanted_cards as OfflineCacheWarmupWantedCard[]) {
-          if (urls.size >= maxUrls) break
-          addCardImageUrl(urls, wantedCard?.card_image)
+          if (urls.size >= maxUrls) break;
+          addCardImageUrl(urls, wantedCard?.card_image);
         }
       }
     }
   }
 
-  return [...urls].slice(0, maxUrls)
+  return [...urls].slice(0, maxUrls);
 }
 
 export function getOfflineCacheWarmupSignature(urls: string[]) {
-  return urls.join("\n")
+  return urls.join('\n');
 }
 
 export function shouldPostOfflineCacheWarmup(previousSignature: string | null, urls: string[]) {
-  if (urls.length === 0) return false
-  return previousSignature !== getOfflineCacheWarmupSignature(urls)
+  if (urls.length === 0) return false;
+  return previousSignature !== getOfflineCacheWarmupSignature(urls);
 }
 
 function addPokemonCacheUrls(urls: Set<string>, values: unknown, language: string) {
-  if (!Array.isArray(values)) return
+  if (!Array.isArray(values)) return;
 
   for (const value of values) {
-    if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) continue
-    urls.add(`/app/api/tcgdex-cache?pokemonId=${value}&language=${encodeURIComponent(language)}`)
+    if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) continue;
+    urls.add(`/app/api/tcgdex-cache?pokemonId=${value}&language=${encodeURIComponent(language)}`);
   }
 }
 
 function addCardImageUrl(urls: Set<string>, value: unknown) {
-  const imageUrl = toCacheableCardImageUrl(value)
+  const imageUrl = toCacheableCardImageUrl(value);
   if (imageUrl) {
-    urls.add(imageUrl)
+    urls.add(imageUrl);
   }
 }
 
 function toPokemonIds(values: unknown): number[] {
-  if (!Array.isArray(values)) return []
-  return values.filter((value): value is number => typeof value === "number" && Number.isInteger(value) && value > 0)
+  if (!Array.isArray(values)) return [];
+  return values.filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0);
 }
 
-function addVisibleSlotImageUrls(urls: Set<string>, pokemonIds: number[], collection: OfflineCacheWarmupCollectionItem[]) {
-  if (pokemonIds.length === 0) return
+function addVisibleSlotImageUrls(
+  urls: Set<string>,
+  pokemonIds: number[],
+  collection: OfflineCacheWarmupCollectionItem[],
+) {
+  if (pokemonIds.length === 0) return;
 
-  const cardImageByPokemonId = new Map<number, unknown>()
+  const cardImageByPokemonId = new Map<number, unknown>();
   for (const item of collection) {
-    if (typeof item?.pokemon_id === "number" && item.card_image) {
-      cardImageByPokemonId.set(item.pokemon_id, item.card_image)
+    if (typeof item?.pokemon_id === 'number' && item.card_image) {
+      cardImageByPokemonId.set(item.pokemon_id, item.card_image);
     }
   }
 
   for (const pokemonId of pokemonIds) {
-    const cardImageUrl = toCacheableCardImageUrl(cardImageByPokemonId.get(pokemonId))
+    const cardImageUrl = toCacheableCardImageUrl(cardImageByPokemonId.get(pokemonId));
     // Owned slots show the card image; empty slots show the Pokémon artwork.
-    urls.add(cardImageUrl ?? getOfficialArtworkUrl(pokemonId))
+    urls.add(cardImageUrl ?? getOfficialArtworkUrl(pokemonId));
   }
 }

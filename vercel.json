@@ -5,9 +5,7 @@
       "main": true
     }
   },
-  "regions": [
-    "iad1"
-  ],
+  "regions": ["iad1"],
   "crons": [
     {
       "path": "/app/api/card-prices/refresh",

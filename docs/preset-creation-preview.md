@@ -40,11 +40,11 @@ Focused unit verification covers copied manifests, detached immutable drafts, ac
 
 Craft review:
 
-| Before | After | Why |
-| --- | --- | --- |
-| Raw catalog form suffix such as `maushold-family-of-four` | Existing display-name formatter shows Maushold | Keep canonical species IDs while showing familiar names |
-| Staged creation would inherit the legacy full-height switcher | Staged-only dock clearance and dynamic viewport cap | Keep the sheet above the dock and safe areas |
-| Catalog evidence can be absent | Disable printing selection with missing set/language evidence and explain cached coverage | Never guess a printing or imply a complete catalog list |
+| Before                                                        | After                                                                                     | Why                                                     |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Raw catalog form suffix such as `maushold-family-of-four`     | Existing display-name formatter shows Maushold                                            | Keep canonical species IDs while showing familiar names |
+| Staged creation would inherit the legacy full-height switcher | Staged-only dock clearance and dynamic viewport cap                                       | Keep the sheet above the dock and safe areas            |
+| Catalog evidence can be absent                                | Disable printing selection with missing set/language evidence and explain cached coverage | Never guess a printing or imply a complete catalog list |
 
 No new animation is added. Selection and keyboard feedback is immediate; the existing shared sheet gesture handles dismissal. The schema-backed 40-character binder name and plausible long catalog/set labels are exercised without overflow. The synthetic worst-case toggle and all edit scaffolding stay inside the hard-gated harness.
 

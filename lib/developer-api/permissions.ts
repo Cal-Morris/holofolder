@@ -1,27 +1,65 @@
 export const DEVELOPER_PERMISSIONS = [
-  'catalog:read', 'prices:read', 'prices:refresh', 'binders:read', 'binders:write',
-  'collection:read', 'collection:write', 'settings:read', 'settings:write', 'sharing:manage', 'partners:manage',
-] as const
-export type DeveloperPermission = typeof DEVELOPER_PERMISSIONS[number]
-export const DEFAULT_DEVELOPER_PERMISSIONS: readonly DeveloperPermission[] = ['catalog:read', 'prices:read', 'binders:read', 'collection:read', 'settings:read']
+  'catalog:read',
+  'prices:read',
+  'prices:refresh',
+  'binders:read',
+  'binders:write',
+  'collection:read',
+  'collection:write',
+  'settings:read',
+  'settings:write',
+  'sharing:manage',
+  'partners:manage',
+] as const;
+export type DeveloperPermission = (typeof DEVELOPER_PERMISSIONS)[number];
+export const DEFAULT_DEVELOPER_PERMISSIONS: readonly DeveloperPermission[] = [
+  'catalog:read',
+  'prices:read',
+  'binders:read',
+  'collection:read',
+  'settings:read',
+];
 export class DeveloperAccessError extends Error {
-  constructor(public code: string, message: string, public status: number, public retryAfter?: number) { super(message) }
+  constructor(
+    public code: string,
+    message: string,
+    public status: number,
+    public retryAfter?: number,
+  ) {
+    super(message);
+  }
 }
 export function developerEntitled(access: { source?: unknown; enforced?: unknown }): boolean {
-  return access.source === 'subscription' || access.source === 'perpetual'
+  return access.source === 'subscription' || access.source === 'perpetual';
 }
 export function normalizePermissions(value: unknown): DeveloperPermission[] {
-  if (!Array.isArray(value) || value.length > DEVELOPER_PERMISSIONS.length || value.some(p => !DEVELOPER_PERMISSIONS.includes(p))) {
-    throw new DeveloperAccessError('invalid_permissions', 'Choose valid permissions.', 400)
+  if (
+    !Array.isArray(value) ||
+    value.length > DEVELOPER_PERMISSIONS.length ||
+    value.some((p) => !DEVELOPER_PERMISSIONS.includes(p))
+  ) {
+    throw new DeveloperAccessError('invalid_permissions', 'Choose valid permissions.', 400);
   }
-  return [...new Set(value)] as DeveloperPermission[]
+  return [...new Set(value)] as DeveloperPermission[];
 }
 export function requirePermissions(granted: readonly DeveloperPermission[], required: readonly DeveloperPermission[]) {
-  if (required.some(p => !granted.includes(p))) throw new DeveloperAccessError('insufficient_permissions', 'This credential does not have permission for this operation.', 403)
+  if (required.some((p) => !granted.includes(p)))
+    throw new DeveloperAccessError(
+      'insufficient_permissions',
+      'This credential does not have permission for this operation.',
+      403,
+    );
 }
-export const DEVELOPER_PERMISSION_LABELS: Record<DeveloperPermission,string> = {
- 'catalog:read':'Read the card catalog', 'prices:read':'Read prices and comparisons', 'prices:refresh':'Request price refreshes',
- 'binders:read':'Read binders', 'binders:write':'Create, edit and delete binders', 'collection:read':'Read owned and wanted cards',
- 'collection:write':'Change owned and wanted cards', 'settings:read':'Read collection settings', 'settings:write':'Change settings and account identity',
- 'sharing:manage':'Manage sharing and public links', 'partners:manage':'Manage partners and invitations',
-}
+export const DEVELOPER_PERMISSION_LABELS: Record<DeveloperPermission, string> = {
+  'catalog:read': 'Read the card catalog',
+  'prices:read': 'Read prices and comparisons',
+  'prices:refresh': 'Request price refreshes',
+  'binders:read': 'Read binders',
+  'binders:write': 'Create, edit and delete binders',
+  'collection:read': 'Read owned and wanted cards',
+  'collection:write': 'Change owned and wanted cards',
+  'settings:read': 'Read collection settings',
+  'settings:write': 'Change settings and account identity',
+  'sharing:manage': 'Manage sharing and public links',
+  'partners:manage': 'Manage partners and invitations',
+};

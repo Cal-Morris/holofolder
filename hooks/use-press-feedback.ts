@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
-import { useEffect } from "react"
+import { useEffect } from 'react';
 
-let installed = false
+let installed = false;
 
 /**
  * iOS Safari only applies `:active` to elements while a touch is held if some touch listener
@@ -11,9 +11,9 @@ let installed = false
  */
 export function usePressFeedback() {
   useEffect(() => {
-    if (installed) return
-    installed = true
-    const noop = () => {}
-    document.addEventListener("touchstart", noop, { passive: true })
-  }, [])
+    if (installed) return;
+    installed = true;
+    const noop = () => {};
+    document.addEventListener('touchstart', noop, { passive: true });
+  }, []);
 }

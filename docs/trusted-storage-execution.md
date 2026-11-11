@@ -29,12 +29,12 @@ Preview is exactly `{ eventId: string, restoreUnassignedItemIds: string[] }`. Ev
 
 Receipts are projected and validated before returning:
 
-| Operation | Returned fields |
-| --- | --- |
-| inventory | `inventoryRevision`, `changed`, `selectedItemIds`, `acquiredItemIds` |
-| slots | `inventoryRevision`, `collectionVersion`, `layoutRevision`, `changed`, `removedSlotIds` |
+| Operation        | Returned fields                                                                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| inventory        | `inventoryRevision`, `changed`, `selectedItemIds`, `acquiredItemIds`                                                                                   |
+| slots            | `inventoryRevision`, `collectionVersion`, `layoutRevision`, `changed`, `removedSlotIds`                                                                |
 | recovery.preview | `planVersion`, `eventId`, `supported`, `unsupported`, `conflicts`, `planToken`, `restoreUnassignedItemIds`, redacted `changes`, `rootRevisionsAdvance` |
-| recovery.apply | `recoveredEventId`, new `eventId`, `inventoryRevision`, `collections` with `collectionId`, `version`, `layoutRevision` |
+| recovery.apply   | `recoveredEventId`, new `eventId`, `inventoryRevision`, `collections` with `collectionId`, `version`, `layoutRevision`                                 |
 
 No executor context, private grading certificate, label assets, command evidence, legacy source or frozen recovery rows leave this boundary. Preview uses the existing SQL redactor and rejects private keys if an incompatible deployment leaks them. Revisions must be safe nonnegative integers, ID lists and nested preview data are bounded, the global result ceiling is 16 MiB. Normal command SQL keeps its tighter existing evidence/result admission limits before projection.
 
@@ -55,7 +55,6 @@ Run `STORAGE_BRIDGE_TEST_SOCKET=<exact socket above> bun test tests/storage-exec
 Parent reviews 082, refreshes the restore-verified hosted backup, applies only approved migration(s), then verifies hosted ACLs and behavior. This branch does not access/write hosted SQL, merge, watch, deploy or publish. Missing 082 fails closed to `storage_unavailable`; existing public paths remain unchanged.
 
 Before #379 exposure: wire app routes to the named authenticated adapter; add strict registry schemas/permission metadata for the same shared developer operation; align transport body limits (including the sole delete exception); generate and verify REST/OpenAPI/MCP/help/agent docs and smoke coverage together. Complete #363 original-recipient durable reconciliation, bootstrap/renderer/layout/preset gates and #396 Activity/short-Undo/mobile conflict integration. Public registry entries must not advertise this internal RPC as an available capability. Issues stay open until their literal delivery acceptance passes.
-
 
 ## Additive creation dispatch (083)
 

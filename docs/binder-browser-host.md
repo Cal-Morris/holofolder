@@ -45,11 +45,9 @@ The existing cached startup path now applies to production. It still requires th
 
 Focused units cover admission, bootstrap, local startup, lifecycle, complete-read transport and first creation. `e2e/native-production-bootstrap.e2e.ts` exercises the actual app host and production endpoint selection with synthetic remote/auth evidence across six phone modes. `e2e/native-startup.e2e.ts` uses the real production-built worker and genuine page-close/offline relaunch. These checks are not hosted SQL/RLS, real-device installed-PWA or production deployment proof. Parent retains those gates. Release copy remains [unpublished](releases/binder-browser-host-draft.md).
 
-
 ## First-creation hosted prerequisite
 
 Parent API smoke through Framer returned `503 storage_unavailable` with zero binders and zero receipts. The rollback-only diagnostic returned SQLSTATE `55000 storage_owner_state_unavailable`, traced to 093's missing-root guard. Evidence: parent-private `pr507/first-creation-diagnostic.redacted.json`. Parent reports both failed fixture groups fully cleaned and no actual conversion. This follow-up performs no hosted access or SQL. Migration 098 belongs to a separate parent lane; successful mocked browser creation is not hosted creation proof. Parent must apply/verify 098, rerun first creation and verify the exact deployed server/session and 097 reorder behavior before acceptance.
-
 
 ## Corrective follow-up proof
 

@@ -9,15 +9,15 @@ Describe the implemented contract, with source anchors. Start from [the document
 
 ## Find the right source
 
-| Question | Inspect |
-|---|---|
-| Public paths and entry URLs | `next.config.mjs`, `proxy.ts`, `lib/app-path.ts`, `docs/app-routing.md` |
-| First paint and saved startup | `app/page.tsx`, `components/binder-start.tsx`, `lib/binder-start.ts` |
-| Actor, collection owner and binder | `lib/server/collection-owner.ts`, `lib/server/binders.ts`, the API handler |
-| Edit queue, conflicts and retries | `hooks/use-slot-offline-queue.ts`, `lib/collection/{slot-offline-queue,storage-command-browser,inventory-read-browser}.ts` |
-| Offline shell versus data/image caches | `public/sw.js`, `components/offline-app-shell.tsx`, `lib/offline-store/` |
-| Setup and synthetic test configuration | `.env.example`, `package.json`, `playwright.config.ts`, `docs/testing.md`, `scripts/MIGRATIONS.md` |
-| Provider or billing boundary | `lib/card-pricing.ts`, `lib/server/billing*.ts`, relevant workflow and guide |
+| Question                               | Inspect                                                                                                                    |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Public paths and entry URLs            | `next.config.mjs`, `proxy.ts`, `lib/app-path.ts`, `docs/app-routing.md`                                                    |
+| First paint and saved startup          | `app/page.tsx`, `components/binder-start.tsx`, `lib/binder-start.ts`                                                       |
+| Actor, collection owner and binder     | `lib/server/collection-owner.ts`, `lib/server/binders.ts`, the API handler                                                 |
+| Edit queue, conflicts and retries      | `hooks/use-slot-offline-queue.ts`, `lib/collection/{slot-offline-queue,storage-command-browser,inventory-read-browser}.ts` |
+| Offline shell versus data/image caches | `public/sw.js`, `components/offline-app-shell.tsx`, `lib/offline-store/`                                                   |
+| Setup and synthetic test configuration | `.env.example`, `package.json`, `playwright.config.ts`, `docs/testing.md`, `scripts/MIGRATIONS.md`                         |
+| Provider or billing boundary           | `lib/card-pricing.ts`, `lib/server/billing*.ts`, relevant workflow and guide                                               |
 
 ## Make the explanation maintainable
 

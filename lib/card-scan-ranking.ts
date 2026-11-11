@@ -1,14 +1,10 @@
-import { rerankAggregatedCardScanMatches, type AggregatedCardScanMatch } from "./card-scan-matching"
-import {
-  applyCardTextSignalBoost,
-  type CardTextSignals,
-  type TextMatchableCard,
-} from "./card-scan-text"
+import { rerankAggregatedCardScanMatches, type AggregatedCardScanMatch } from './card-scan-matching';
+import { applyCardTextSignalBoost, type CardTextSignals, type TextMatchableCard } from './card-scan-text';
 
 export interface RankAggregatedCardScanMatchesWithTextOptions<TCard> {
-  candidateCards?: TCard[]
-  candidateTextSignals?: Map<string, CardTextSignals | null | undefined>
-  getCardId: (card: TCard) => string
+  candidateCards?: TCard[];
+  candidateTextSignals?: Map<string, CardTextSignals | null | undefined>;
+  getCardId: (card: TCard) => string;
 }
 
 export function rankAggregatedCardScanMatchesWithText<TCard extends TextMatchableCard>(
@@ -17,16 +13,16 @@ export function rankAggregatedCardScanMatchesWithText<TCard extends TextMatchabl
   options: RankAggregatedCardScanMatchesWithTextOptions<TCard>,
 ): AggregatedCardScanMatch<TCard>[] {
   if (!textSignals) {
-    return matches
+    return matches;
   }
 
-  const matchByCardId = new Map(matches.map((match) => [options.getCardId(match.card), match]))
+  const matchByCardId = new Map(matches.map((match) => [options.getCardId(match.card), match]));
   const boostedMatches = applyCardTextSignalBoost(matches, textSignals, {
     candidateCards: options.candidateCards,
     candidateTextSignals: options.candidateTextSignals,
     getCardId: options.getCardId,
   }).map((match): AggregatedCardScanMatch<TCard> => {
-    const originalMatch = matchByCardId.get(options.getCardId(match.card))
+    const originalMatch = matchByCardId.get(options.getCardId(match.card));
 
     if (!originalMatch) {
       return {
@@ -37,15 +33,15 @@ export function rankAggregatedCardScanMatchesWithText<TCard extends TextMatchabl
         appearanceRatio: 1,
         confidence: Math.min(1, 0.52 + match.textScore * 0.24),
         margin: 0,
-      }
+      };
     }
 
     return {
       ...originalMatch,
       similarity: match.similarity,
       confidence: Math.min(1, originalMatch.confidence + match.textScore * 0.12),
-    }
-  })
+    };
+  });
 
-  return rerankAggregatedCardScanMatches(boostedMatches)
+  return rerankAggregatedCardScanMatches(boostedMatches);
 }

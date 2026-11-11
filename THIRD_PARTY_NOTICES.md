@@ -14,10 +14,10 @@ Pokémon, card names, card text and card artwork belong to their respective righ
 
 The tracked `public/binder-presets/magikarp.png` and `public/binder-presets/mew.png` are previews using these printings:
 
-| Preview | Artwork | Illustrator | Image source |
-|---|---|---|---|
+| Preview        | Artwork                                       | Illustrator  | Image source                                                                                                                                                                                                                     |
+| -------------- | --------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `magikarp.png` | Magikarp, Paldea Evolved 203/193 (`sv02-203`) | Shinji Kanda | [TCGdex metadata](https://api.tcgdex.net/v2/en/cards/sv02-203), [card image](https://assets.tcgdex.net/en/sv/sv02/203/high.webp), [official card listing](https://www.pokemon.com/us/pokemon-tcg/pokemon-cards/series/sv02/203/) |
-| `mew.png` | Mew ex, 151 193/165 (`sv03.5-193`) | aky CG Works | [TCGdex metadata](https://api.tcgdex.net/v2/en/cards/sv03.5-193), [card image](https://assets.tcgdex.net/en/sv/sv03.5/193/high.webp) |
+| `mew.png`      | Mew ex, 151 193/165 (`sv03.5-193`)            | aky CG Works | [TCGdex metadata](https://api.tcgdex.net/v2/en/cards/sv03.5-193), [card image](https://assets.tcgdex.net/en/sv/sv03.5/193/high.webp)                                                                                             |
 
 The exact card references and crop frames are in [`lib/binder-design-presets.ts`](lib/binder-design-presets.ts). TCGdex metadata was checked on 2026-11-08. Attribution establishes the source, not redistribution permission. [Pokémon's published guidance](https://support.pokemon.com/hc/en-us/articles/360000634094-Can-I-use-Pok%C3%A9mon-images-or-materials) does not grant general project reuse. Downloading or mirroring images at runtime also remains subject to source terms and rights holders' permissions.
 
@@ -47,11 +47,11 @@ Provider access and hosted infrastructure are not included with the source. Self
 
 ## Runtime artwork sources
 
-| Material | Source | Local reference |
-|---|---|---|
-| Featured card images | TCGdex, individual image and metadata URLs retained for each printing | `lib/featured-cards.ts` |
-| Pokémon official artwork | [PokeAPI sprites](https://github.com/PokeAPI/sprites), `sprites/pokemon/other/official-artwork/` | `lib/pokemon-artwork.ts` |
-| Supplemental card scans | [TCGplayer](https://www.tcgplayer.com), [Pokémon TCG API](https://pokemontcg.io), [Scrydex](https://scrydex.com), [Limitless TCG](https://limitlesstcg.com), [Playshop](https://playshop.fr) | Host allowlist and deterministic source mapping in `lib/card-image-sources.ts` |
+| Material                 | Source                                                                                                                                                                                       | Local reference                                                                |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Featured card images     | TCGdex, individual image and metadata URLs retained for each printing                                                                                                                        | `lib/featured-cards.ts`                                                        |
+| Pokémon official artwork | [PokeAPI sprites](https://github.com/PokeAPI/sprites), `sprites/pokemon/other/official-artwork/`                                                                                             | `lib/pokemon-artwork.ts`                                                       |
+| Supplemental card scans  | [TCGplayer](https://www.tcgplayer.com), [Pokémon TCG API](https://pokemontcg.io), [Scrydex](https://scrydex.com), [Limitless TCG](https://limitlesstcg.com), [Playshop](https://playshop.fr) | Host allowlist and deterministic source mapping in `lib/card-image-sources.ts` |
 
 Which source each card's image comes from is recorded in [`card-assets/`](card-assets/AGENTS.md). Its source classification (kind of image, size, permission) follows the [PTCG Image Atlas](https://github.com/nstrelow/ptcg-image-atlas) by Luna, whose `data.json` is copied in `card-assets/pokemon/tcg/atlas/` under the MIT licence (`card-assets/pokemon/tcg/atlas/LICENSE`).
 

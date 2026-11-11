@@ -1,0 +1,10 @@
+# Generated: written by scripts/generate-api-docs.ts and compared in tests
+public/openapi.json
+# Data, not code
+lib/pokemon-catalog.json
+card-assets/
+docs/evidence/
+# Historical plans, kept as written
+docs/superpowers/
+# Generated: rewritten by next typegen / next build
+next-env.d.ts

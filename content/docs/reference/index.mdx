@@ -3,7 +3,7 @@ title: API explorer
 description: Build a request. Run it. See what comes back.
 ---
 
-import { DocsLink } from '@/components/docs/provider'
+import { DocsLink } from '@/components/docs/provider';
 
 Every endpoint below comes from the same operation schemas that power the REST API and MCP tools. Choose an endpoint to see its parameters, generate a code example and send a real request.
 
@@ -13,16 +13,34 @@ Every endpoint below comes from the same operation schemas that power the REST A
 </div>
 
 <Callout title="Bring your API key">
-Create a personal key in **Settings → Account → Developer access**. In an endpoint's playground, enter the full key as the bearer token. Requests go directly to this site's API. Authentication is kept in your browser tab's session, so close the tab when you're finished on a shared device.
+  Create a personal key in **Settings → Account → Developer access**. In an endpoint's playground, enter the full key as
+  the bearer token. Requests go directly to this site's API. Authentication is kept in your browser tab's session, so
+  close the tab when you're finished on a shared device.
 </Callout>
 
 ## Explore by resource
 
 <Cards>
-  <Card title="Card catalog" href="/docs/reference/catalog/list-cards" description="Search cards, browse sets and series, and look up Pokémon and illustrators." />
-  <Card title="Your collection" href="/docs/reference/collection/list-binders" description="Manage binders, owned and wanted cards, sharing, artwork and show purchases." />
-  <Card title="Prices & insights" href="/docs/reference/prices-and-insights/get-prices" description="Read price evidence, compare listings, check deals and follow price history." />
-  <Card title="Account & preferences" href="/docs/reference/account/get-settings" description="Read settings, update your identity and manage partner connections." />
+  <Card
+    title="Card catalog"
+    href="/docs/reference/catalog/list-cards"
+    description="Search cards, browse sets and series, and look up Pokémon and illustrators."
+  />
+  <Card
+    title="Your collection"
+    href="/docs/reference/collection/list-binders"
+    description="Manage binders, owned and wanted cards, sharing, artwork and show purchases."
+  />
+  <Card
+    title="Prices & insights"
+    href="/docs/reference/prices-and-insights/get-prices"
+    description="Read price evidence, compare listings, check deals and follow price history."
+  />
+  <Card
+    title="Account & preferences"
+    href="/docs/reference/account/get-settings"
+    description="Read settings, update your identity and manage partner connections."
+  />
 </Cards>
 
 ## Before you send a request

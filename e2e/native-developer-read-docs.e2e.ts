@@ -1,23 +1,25 @@
-import { test, expect, emulateStandalone, SAFE_AREA } from "./fixtures"
+import { test, expect, emulateStandalone, SAFE_AREA } from './fixtures';
 
-test("current native read help, strict reference and agent exports stay readable", async ({ page, request }, info) => {
-  if (info.project.metadata.standalone) await emulateStandalone(page, SAFE_AREA)
-  await page.goto("/app/docs/native-reads")
-  await expect(page.getByRole("heading", { name: "Native inventory reads", exact: true })).toBeVisible()
-  await expect(page.getByText("Native developer reads use the current authenticated key or OAuth boundary.", { exact: false })).toBeVisible()
-  await expect(page.getByRole("heading", { name: /^Pages and current authority/ })).toBeAttached()
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  await page.evaluate(() => window.scrollTo(0, 500))
-  const search = page.getByRole("button", { name: "Open Search", exact: true })
-  await expect(search).toBeVisible()
-  expect((await search.boundingBox())!.y).toBeGreaterThanOrEqual(info.project.metadata.standalone ? SAFE_AREA.top : 0)
-  await page.goto("/app/docs/reference/collection/list-inventory-items")
-  await expect(page.getByRole("heading", { name: "List inventory items", exact: true })).toBeVisible()
-  await expect(page.getByText("projection", { exact: false }).first()).toBeVisible()
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  const markdown = await request.get("/app/docs/markdown/native-reads")
-  expect(markdown.ok()).toBe(true)
-  expect(await markdown.text()).toContain("completeSnapshot:false")
-  const full = await request.get("/app/docs/llms-full.txt")
-  expect(await full.text()).toContain('"operationId": "list_inventory_items"')
-})
+test('current native read help, strict reference and agent exports stay readable', async ({ page, request }, info) => {
+  if (info.project.metadata.standalone) await emulateStandalone(page, SAFE_AREA);
+  await page.goto('/app/docs/native-reads');
+  await expect(page.getByRole('heading', { name: 'Native inventory reads', exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Native developer reads use the current authenticated key or OAuth boundary.', { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Pages and current authority/ })).toBeAttached();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(() => window.scrollTo(0, 500));
+  const search = page.getByRole('button', { name: 'Open Search', exact: true });
+  await expect(search).toBeVisible();
+  expect((await search.boundingBox())!.y).toBeGreaterThanOrEqual(info.project.metadata.standalone ? SAFE_AREA.top : 0);
+  await page.goto('/app/docs/reference/collection/list-inventory-items');
+  await expect(page.getByRole('heading', { name: 'List inventory items', exact: true })).toBeVisible();
+  await expect(page.getByText('projection', { exact: false }).first()).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const markdown = await request.get('/app/docs/markdown/native-reads');
+  expect(markdown.ok()).toBe(true);
+  expect(await markdown.text()).toContain('completeSnapshot:false');
+  const full = await request.get('/app/docs/llms-full.txt');
+  expect(await full.text()).toContain('"operationId": "list_inventory_items"');
+});

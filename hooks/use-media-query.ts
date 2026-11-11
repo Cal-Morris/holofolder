@@ -1,13 +1,20 @@
-"use client"
+'use client';
 
-import { useCallback, useSyncExternalStore } from "react"
+import { useCallback, useSyncExternalStore } from 'react';
 
 /** Whether a CSS media query matches (false during SSR and the first hydration pass). */
 export function useMediaQuery(query: string): boolean {
-  const subscribe = useCallback((onChange: () => void) => {
-    const list = window.matchMedia(query)
-    list.addEventListener("change", onChange)
-    return () => list.removeEventListener("change", onChange)
-  }, [query])
-  return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, () => false)
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const list = window.matchMedia(query);
+      list.addEventListener('change', onChange);
+      return () => list.removeEventListener('change', onChange);
+    },
+    [query],
+  );
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
 }

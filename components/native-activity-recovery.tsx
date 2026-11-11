@@ -1,130 +1,369 @@
-"use client"
+'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { activityChanges, type ActivityEvent } from '@/lib/collection-activity'
-import { recoveryExplanation } from '@/lib/domain/activity-recovery'
-import { nativeRecoveryOperation, type NativeRecoveryIntent, type RetainedRecovery } from '@/lib/collection/native-recovery-intent'
-import { sendNativeRecovery, type NativeRecoveryPreview } from '@/lib/collection/native-recovery-browser'
-import type { createSlotOfflineQueue, SlotOfflineScope } from '@/lib/collection/slot-offline-queue'
-import type { InventoryReadScope } from '@/lib/collection/inventory-read-transport'
-import type { InventorySnapshot } from '@/lib/domain/inventory'
-import { Select } from "@/components/ui/select"
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { activityChanges, type ActivityEvent } from '@/lib/collection-activity';
+import { recoveryExplanation } from '@/lib/domain/activity-recovery';
+import {
+  nativeRecoveryOperation,
+  type NativeRecoveryIntent,
+  type RetainedRecovery,
+} from '@/lib/collection/native-recovery-intent';
+import { sendNativeRecovery, type NativeRecoveryPreview } from '@/lib/collection/native-recovery-browser';
+import type { createSlotOfflineQueue, SlotOfflineScope } from '@/lib/collection/slot-offline-queue';
+import type { InventoryReadScope } from '@/lib/collection/inventory-read-transport';
+import type { InventorySnapshot } from '@/lib/domain/inventory';
+import { Select } from '@/components/ui/select';
 
 export interface NativeRecoveryBinding {
-  scope: InventoryReadScope
-  queue: ReturnType<typeof createSlotOfflineQueue> | null
-  currentScope: () => InventoryReadScope | null
-  activeQueueScope: () => SlotOfflineScope | null
-  readCurrent: () => Promise<InventorySnapshot>
-  refresh: () => Promise<void>
-  deviceId: string
-  localHarness: boolean
-  snapshot: InventorySnapshot | null
+  scope: InventoryReadScope;
+  queue: ReturnType<typeof createSlotOfflineQueue> | null;
+  currentScope: () => InventoryReadScope | null;
+  activeQueueScope: () => SlotOfflineScope | null;
+  readCurrent: () => Promise<InventorySnapshot>;
+  refresh: () => Promise<void>;
+  deviceId: string;
+  localHarness: boolean;
+  snapshot: InventorySnapshot | null;
 }
-export function NativeActivityRecovery({event,binding,disabled}: {event:ActivityEvent;binding:NativeRecoveryBinding;disabled:boolean}) {
-  const [preview,setPreview] = useState<NativeRecoveryPreview|null>(null)
-  const [saved,setSaved] = useState<RetainedRecovery|null>(null)
-  const [choices,setChoices] = useState<string[]>([])
-  const [replacement,setReplacement] = useState('')
-  const [reviewedRequest,setReviewedRequest] = useState<Record<string,unknown>|null>(null)
-  const [error,setError] = useState('')
-  const [terminalReviewed,setTerminalReviewed] = useState(false)
-  const [busy,setBusy] = useState(false)
-  const alive = useRef(false), running = useRef(false)
-  const confirmedIntent = useRef<NativeRecoveryIntent | null>(null)
-  const latest = useRef(binding)
-  useLayoutEffect(()=>{latest.current = binding})
-  useEffect(()=>{alive.current=true;void binding.queue?.read().then(r=>{if(alive.current)setSaved(r.recovery?.findLast(v=>v.intent.request.eventId===event.id) ?? null)}).catch(()=>{if(alive.current)setError('Saved requests could not be opened. Recovery is unavailable.')});return()=>{alive.current=false}},[binding.queue,event.id])
-  const current = () => alive.current && latest.current.currentScope() !== null
+export function NativeActivityRecovery({
+  event,
+  binding,
+  disabled,
+}: {
+  event: ActivityEvent;
+  binding: NativeRecoveryBinding;
+  disabled: boolean;
+}) {
+  const [preview, setPreview] = useState<NativeRecoveryPreview | null>(null);
+  const [saved, setSaved] = useState<RetainedRecovery | null>(null);
+  const [choices, setChoices] = useState<string[]>([]);
+  const [replacement, setReplacement] = useState('');
+  const [reviewedRequest, setReviewedRequest] = useState<Record<string, unknown> | null>(null);
+  const [error, setError] = useState('');
+  const [terminalReviewed, setTerminalReviewed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const alive = useRef(false),
+    running = useRef(false);
+  const confirmedIntent = useRef<NativeRecoveryIntent | null>(null);
+  const latest = useRef(binding);
+  useLayoutEffect(() => {
+    latest.current = binding;
+  });
+  useEffect(() => {
+    alive.current = true;
+    void binding.queue
+      ?.read()
+      .then((r) => {
+        if (alive.current) setSaved(r.recovery?.findLast((v) => v.intent.request.eventId === event.id) ?? null);
+      })
+      .catch(() => {
+        if (alive.current) setError('Saved requests could not be opened. Recovery is unavailable.');
+      });
+    return () => {
+      alive.current = false;
+    };
+  }, [binding.queue, event.id]);
+  const current = () => alive.current && latest.current.currentScope() !== null;
   async function run(retry = false) {
-    if (running.current || disabled || !binding.queue || !current()) return
-    running.current=true;setBusy(true);setError('')
+    if (running.current || disabled || !binding.queue || !current()) return;
+    running.current = true;
+    setBusy(true);
+    setError('');
     try {
-      if (retry || reviewedRequest && preview?.planToken) {
-        let retained = saved
+      if (retry || (reviewedRequest && preview?.planToken)) {
+        let retained = saved;
         if (!retained) {
-          if (!reviewedRequest || !preview?.planToken) return
-          const intent = confirmedIntent.current ?? {operation:nativeRecoveryOperation(true,preview.planVersion) as 'recovery.apply'|'recovery.apply.v2',
-            request:{...reviewedRequest,planVersion:preview.planVersion,planToken:preview.planToken,operationId:crypto.randomUUID(),confirmed:true},
-            context:{source:'app' as const,clientId:binding.deviceId,clientOccurredAt:new Date().toISOString()}}
+          if (!reviewedRequest || !preview?.planToken) return;
+          const intent = confirmedIntent.current ?? {
+            operation: nativeRecoveryOperation(true, preview.planVersion) as 'recovery.apply' | 'recovery.apply.v2',
+            request: {
+              ...reviewedRequest,
+              planVersion: preview.planVersion,
+              planToken: preview.planToken,
+              operationId: crypto.randomUUID(),
+              confirmed: true,
+            },
+            context: { source: 'app' as const, clientId: binding.deviceId, clientOccurredAt: new Date().toISOString() },
+          };
           // Keep the confirmed identity through a failed local commit.
-          confirmedIntent.current = intent
+          confirmedIntent.current = intent;
           // Await the IDB transaction BEFORE acknowledging confirmation or sending anything.
-          await binding.queue.retainRecovery(intent,binding.activeQueueScope)
-          retained = { intent, receipt: null, synchronized: false, lease: null }
-          if (!current()) return
-          setSaved(retained);setPreview(null);setReviewedRequest(null)
-          await binding.refresh()
+          await binding.queue.retainRecovery(intent, binding.activeQueueScope);
+          retained = { intent, receipt: null, synchronized: false, lease: null };
+          if (!current()) return;
+          setSaved(retained);
+          setPreview(null);
+          setReviewedRequest(null);
+          await binding.refresh();
         }
-        const verified = await binding.queue.replayRecovery(String(retained.intent.request.operationId),
-          intent=>sendNativeRecovery(intent.operation,intent.request,latest.current.currentScope,binding.localHarness),binding.readCurrent,binding.activeQueueScope)
-        if (!current()) return
-        const record = await binding.queue.read()
-        setSaved(record.recovery!.find(r=>r.intent.request.operationId===retained!.intent.request.operationId)!)
-        setTerminalReviewed(verified === true)
-        await binding.refresh()
-        if (record.recovery!.find(r=>r.intent.request.operationId===retained!.intent.request.operationId)?.synchronized) window.dispatchEvent(new Event('holofolder-activity-updated'))
+        const verified = await binding.queue.replayRecovery(
+          String(retained.intent.request.operationId),
+          (intent) =>
+            sendNativeRecovery(intent.operation, intent.request, latest.current.currentScope, binding.localHarness),
+          binding.readCurrent,
+          binding.activeQueueScope,
+        );
+        if (!current()) return;
+        const record = await binding.queue.read();
+        setSaved(record.recovery!.find((r) => r.intent.request.operationId === retained!.intent.request.operationId)!);
+        setTerminalReviewed(verified === true);
+        await binding.refresh();
+        if (
+          record.recovery!.find((r) => r.intent.request.operationId === retained!.intent.request.operationId)
+            ?.synchronized
+        )
+          window.dispatchEvent(new Event('holofolder-activity-updated'));
       } else {
         // Preview always begins with a newly authorized complete read, never a cached snapshot.
-        const snapshot = await binding.readCurrent()
-        if (!current()) return
-        const target = snapshot.collections.find(c=>c.id===replacement)
-        const layout = snapshot.binders.find(b=>b.collectionId===replacement)
-        const version = replacement ? 2 : 1
-        const request = replacement ? {eventId:event.id,planVersion:2,restoreUnassignedItemIds:[],replacementDefaultCollectionId:replacement,inventoryRevision:snapshot.inventoryRevision,
-          collections:[{collectionId:target?.id,version:target?.version,layoutRevision:layout?.layoutRevision}]} : {eventId:event.id,restoreUnassignedItemIds:choices}
-        const value = await sendNativeRecovery(nativeRecoveryOperation(false,version),request,binding.currentScope,binding.localHarness) as NativeRecoveryPreview
-        if (!current()) return
-        confirmedIntent.current=null;setPreview(value);setReviewedRequest(request)
+        const snapshot = await binding.readCurrent();
+        if (!current()) return;
+        const target = snapshot.collections.find((c) => c.id === replacement);
+        const layout = snapshot.binders.find((b) => b.collectionId === replacement);
+        const version = replacement ? 2 : 1;
+        const request = replacement
+          ? {
+              eventId: event.id,
+              planVersion: 2,
+              restoreUnassignedItemIds: [],
+              replacementDefaultCollectionId: replacement,
+              inventoryRevision: snapshot.inventoryRevision,
+              collections: [
+                { collectionId: target?.id, version: target?.version, layoutRevision: layout?.layoutRevision },
+              ],
+            }
+          : { eventId: event.id, restoreUnassignedItemIds: choices };
+        const value = (await sendNativeRecovery(
+          nativeRecoveryOperation(false, version),
+          request,
+          binding.currentScope,
+          binding.localHarness,
+        )) as NativeRecoveryPreview;
+        if (!current()) return;
+        confirmedIntent.current = null;
+        setPreview(value);
+        setReviewedRequest(request);
       }
-    } catch(e) {
+    } catch (e) {
       if (current() && binding.queue) {
-        const record = await binding.queue.read().catch(()=>null)
-        if (current() && record) setSaved(record.recovery?.findLast(r=>r.intent.request.eventId===event.id) ?? null)
+        const record = await binding.queue.read().catch(() => null);
+        if (current() && record)
+          setSaved(record.recovery?.findLast((r) => r.intent.request.eventId === event.id) ?? null);
       }
-      if(current())setError(e instanceof Error ? e.message : 'Recovery unavailable. Any confirmed request is retained.')}
-    finally {running.current=false;if(alive.current)setBusy(false)}
+      if (current())
+        setError(e instanceof Error ? e.message : 'Recovery unavailable. Any confirmed request is retained.');
+    } finally {
+      running.current = false;
+      if (alive.current) setBusy(false);
+    }
   }
   async function discard() {
-    if (running.current || !saved?.rejection || !terminalReviewed || !binding.queue || !current()) return
-    running.current=true;setBusy(true);setError('')
+    if (running.current || !saved?.rejection || !terminalReviewed || !binding.queue || !current()) return;
+    running.current = true;
+    setBusy(true);
+    setError('');
     try {
-      await binding.queue.discardRecovery(String(saved.intent.request.operationId),binding.readCurrent,binding.activeQueueScope)
-      if (!current()) return
-      const record = await binding.queue.read()
-      if (!current()) return
-      setSaved(record.recovery!.find(r=>r.intent.request.operationId===saved.intent.request.operationId)!)
-      confirmedIntent.current=null;setTerminalReviewed(false)
-      await binding.refresh()
-    } catch(e) {if(current())setError(e instanceof Error ? e.message : 'Saved recovery could not be resolved. Original request and proof are retained.')}
-    finally {running.current=false;if(alive.current)setBusy(false)}
+      await binding.queue.discardRecovery(
+        String(saved.intent.request.operationId),
+        binding.readCurrent,
+        binding.activeQueueScope,
+      );
+      if (!current()) return;
+      const record = await binding.queue.read();
+      if (!current()) return;
+      setSaved(record.recovery!.find((r) => r.intent.request.operationId === saved.intent.request.operationId)!);
+      confirmedIntent.current = null;
+      setTerminalReviewed(false);
+      await binding.refresh();
+    } catch (e) {
+      if (current())
+        setError(
+          e instanceof Error
+            ? e.message
+            : 'Saved recovery could not be resolved. Original request and proof are retained.',
+        );
+    } finally {
+      running.current = false;
+      if (alive.current) setBusy(false);
+    }
   }
-  const button = 'min-h-10 rounded-lg border border-border px-3 text-xs disabled:opacity-50'
-  const removed = event.changes.filter(c=>c.table==='inventory_items' && c.before && !c.after)
-  const defaultCreation = event.action==='collection.create' && event.changes.some(c=>c.table==='binders' && !c.before && c.after?.is_default===true)
-  const description = preview ? activityChanges({changes:preview.changes}) : []
-  return <div className="col-span-2 mt-2 min-w-0 space-y-2 text-xs wrap-anywhere" aria-label="Recovery">
-    {saved ? <>
-      <p role="status">{saved.resolution === 'discarded' ? 'This undo was not applied and has been discarded.' : saved.rejection ? 'This undo was not applied because your collection has changed. Check your collection, then discard it.' : saved.synchronized ? 'Undone. Your collection is up to date.' : saved.receipt ? 'Undo sent. Checking your collection…' : 'Undo saved on this device. It has not been confirmed yet.'}</p>
-      {!saved.synchronized && saved.resolution !== 'discarded' && <button type="button" className={button} disabled={disabled||busy} onClick={()=>void run(true)}>{busy ? 'Checking…' : saved.rejection || saved.receipt ? 'Check my collection' : 'Try again'}</button>}
-      {saved.rejection && saved.resolution !== 'discarded' && terminalReviewed && <section aria-label="Review noncommitted recovery" className="space-y-2">
-        <p>This undo changed nothing. You can discard it, or leave it and decide later.</p>
-        <button type="button" className={button} disabled={disabled||busy} onClick={()=>void discard()}>Discard this undo</button>
-      </section>}
-      {saved.resolution === 'discarded' && <button type="button" className={button} disabled={disabled||busy} onClick={()=>{confirmedIntent.current=null;setSaved(null);setPreview(null);setReviewedRequest(null);setChoices([]);setReplacement('')}}>Start a new undo</button>}
-      {saved.receipt && <details><summary className="min-h-9 cursor-pointer py-2 text-muted-foreground">Technical details</summary><p className="text-muted-foreground">Undo entry {saved.receipt.eventId}, original entry {saved.receipt.recoveredEventId}.</p></details>}
-    </> : <>
-      {removed.length>0 && <fieldset disabled={busy||disabled||!!preview} className="space-y-1"><legend>Cards that were removed</legend><p className="text-muted-foreground">Tick the cards to bring back. They return to your collection, not to a pocket.</p>{removed.map(c=><label key={c.id} className="flex min-h-10 items-center gap-2"><input type="checkbox" checked={choices.includes(c.id)} onChange={e=>setChoices(v=>e.target.checked?[...v,c.id]:v.filter(id=>id!==c.id))}/>Bring back {removed.length === 1 ? 'this card' : `card ${removed.indexOf(c) + 1} of ${removed.length}`}</label>)}</fieldset>}
-      {defaultCreation && <label className="block">Which binder should open first instead?<Select className="mt-1 w-full" value={replacement} disabled={busy||!!preview} onChange={e=>{setReplacement(e.target.value);setChoices([])}}><option value="">Choose a binder</option>{binding.snapshot?.collections.filter(c=>!event.affected_entities.collectionIds?.includes(c.id) && binding.snapshot?.binders.some(b=>b.collectionId===c.id)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Select></label>}
-      {!preview && <button type="button" className={button} disabled={disabled||busy||!binding.queue||defaultCreation&&!replacement} onClick={()=>void run()}>{busy ? 'Checking…' : 'See what undoing does'}</button>}
-      {preview && <section role="region" aria-label="Review recovery" className="space-y-2 rounded-xl border border-border p-3">
-        <p className="font-medium">{preview.planToken ? 'Undoing will do this' : 'This change can no longer be undone'}</p>
-        <div className="flex flex-wrap gap-2">{preview.planToken && <button type="button" className={`${button} bg-primary text-primary-foreground`} disabled={disabled||busy} onClick={()=>void run()}>Undo this change</button>}<button type="button" className={button} disabled={busy} onClick={()=>{confirmedIntent.current=null;setPreview(null);setReviewedRequest(null)}}>{preview.planToken ? 'Not now' : 'Close'}</button></div>
-        {description.map((c,i)=><div key={i}><p>{c.title}</p>{c.fields.map(f=><p key={f.label}>{f.label}: {f.before} → {f.after}</p>)}</div>)}
-        {[...preview.unsupported,...preview.conflicts.map(c=>c.reason)].map((reason,i)=><p key={i} title={reason}>{recoveryExplanation(reason)}</p>)}
-      </section>}
-    </>}
-    {disabled && <p role="status">You need to be online, with your latest changes saved, to undo this.</p>}
-    {error && <p role="alert" className="text-destructive">{error}</p>}
-  </div>
+  const button = 'min-h-10 rounded-lg border border-border px-3 text-xs disabled:opacity-50';
+  const removed = event.changes.filter((c) => c.table === 'inventory_items' && c.before && !c.after);
+  const defaultCreation =
+    event.action === 'collection.create' &&
+    event.changes.some((c) => c.table === 'binders' && !c.before && c.after?.is_default === true);
+  const description = preview ? activityChanges({ changes: preview.changes }) : [];
+  return (
+    <div className="col-span-2 mt-2 min-w-0 space-y-2 text-xs wrap-anywhere" aria-label="Recovery">
+      {saved ? (
+        <>
+          <p role="status">
+            {saved.resolution === 'discarded'
+              ? 'This undo was not applied and has been discarded.'
+              : saved.rejection
+                ? 'This undo was not applied because your collection has changed. Check your collection, then discard it.'
+                : saved.synchronized
+                  ? 'Undone. Your collection is up to date.'
+                  : saved.receipt
+                    ? 'Undo sent. Checking your collection…'
+                    : 'Undo saved on this device. It has not been confirmed yet.'}
+          </p>
+          {!saved.synchronized && saved.resolution !== 'discarded' && (
+            <button type="button" className={button} disabled={disabled || busy} onClick={() => void run(true)}>
+              {busy ? 'Checking…' : saved.rejection || saved.receipt ? 'Check my collection' : 'Try again'}
+            </button>
+          )}
+          {saved.rejection && saved.resolution !== 'discarded' && terminalReviewed && (
+            <section aria-label="Review noncommitted recovery" className="space-y-2">
+              <p>This undo changed nothing. You can discard it, or leave it and decide later.</p>
+              <button type="button" className={button} disabled={disabled || busy} onClick={() => void discard()}>
+                Discard this undo
+              </button>
+            </section>
+          )}
+          {saved.resolution === 'discarded' && (
+            <button
+              type="button"
+              className={button}
+              disabled={disabled || busy}
+              onClick={() => {
+                confirmedIntent.current = null;
+                setSaved(null);
+                setPreview(null);
+                setReviewedRequest(null);
+                setChoices([]);
+                setReplacement('');
+              }}
+            >
+              Start a new undo
+            </button>
+          )}
+          {saved.receipt && (
+            <details>
+              <summary className="text-muted-foreground min-h-9 cursor-pointer py-2">Technical details</summary>
+              <p className="text-muted-foreground">
+                Undo entry {saved.receipt.eventId}, original entry {saved.receipt.recoveredEventId}.
+              </p>
+            </details>
+          )}
+        </>
+      ) : (
+        <>
+          {removed.length > 0 && (
+            <fieldset disabled={busy || disabled || !!preview} className="space-y-1">
+              <legend>Cards that were removed</legend>
+              <p className="text-muted-foreground">
+                Tick the cards to bring back. They return to your collection, not to a pocket.
+              </p>
+              {removed.map((c) => (
+                <label key={c.id} className="flex min-h-10 items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={choices.includes(c.id)}
+                    onChange={(e) =>
+                      setChoices((v) => (e.target.checked ? [...v, c.id] : v.filter((id) => id !== c.id)))
+                    }
+                  />
+                  Bring back{' '}
+                  {removed.length === 1 ? 'this card' : `card ${removed.indexOf(c) + 1} of ${removed.length}`}
+                </label>
+              ))}
+            </fieldset>
+          )}
+          {defaultCreation && (
+            <label className="block">
+              Which binder should open first instead?
+              <Select
+                className="mt-1 w-full"
+                value={replacement}
+                disabled={busy || !!preview}
+                onChange={(e) => {
+                  setReplacement(e.target.value);
+                  setChoices([]);
+                }}
+              >
+                <option value="">Choose a binder</option>
+                {binding.snapshot?.collections
+                  .filter(
+                    (c) =>
+                      !event.affected_entities.collectionIds?.includes(c.id) &&
+                      binding.snapshot?.binders.some((b) => b.collectionId === c.id),
+                  )
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+              </Select>
+            </label>
+          )}
+          {!preview && (
+            <button
+              type="button"
+              className={button}
+              disabled={disabled || busy || !binding.queue || (defaultCreation && !replacement)}
+              onClick={() => void run()}
+            >
+              {busy ? 'Checking…' : 'See what undoing does'}
+            </button>
+          )}
+          {preview && (
+            <section
+              role="region"
+              aria-label="Review recovery"
+              className="border-border space-y-2 rounded-xl border p-3"
+            >
+              <p className="font-medium">
+                {preview.planToken ? 'Undoing will do this' : 'This change can no longer be undone'}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {preview.planToken && (
+                  <button
+                    type="button"
+                    className={`${button} bg-primary text-primary-foreground`}
+                    disabled={disabled || busy}
+                    onClick={() => void run()}
+                  >
+                    Undo this change
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={button}
+                  disabled={busy}
+                  onClick={() => {
+                    confirmedIntent.current = null;
+                    setPreview(null);
+                    setReviewedRequest(null);
+                  }}
+                >
+                  {preview.planToken ? 'Not now' : 'Close'}
+                </button>
+              </div>
+              {description.map((c, i) => (
+                <div key={i}>
+                  <p>{c.title}</p>
+                  {c.fields.map((f) => (
+                    <p key={f.label}>
+                      {f.label}: {f.before} → {f.after}
+                    </p>
+                  ))}
+                </div>
+              ))}
+              {[...preview.unsupported, ...preview.conflicts.map((c) => c.reason)].map((reason, i) => (
+                <p key={i} title={reason}>
+                  {recoveryExplanation(reason)}
+                </p>
+              ))}
+            </section>
+          )}
+        </>
+      )}
+      {disabled && <p role="status">You need to be online, with your latest changes saved, to undo this.</p>}
+      {error && (
+        <p role="alert" className="text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  );
 }

@@ -23,6 +23,8 @@ jobs:
         with:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
+      - name: Format
+        run: bun run format:check
       - name: Typecheck
         run: bun run typecheck
       - name: Unit tests

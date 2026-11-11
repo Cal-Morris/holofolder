@@ -1,71 +1,114 @@
-"use client"
+'use client';
 
-import { useEffect, useState } from "react"
-import { normalizeFetchedCardPrice, type CardPriceSnapshot } from "@/hooks/use-card-prices"
-import { isCardLanguage } from "@/lib/domain/cards"
-import { SAVED_PRICE_SUMMARY_MAX_CARDS, getCardPriceKey, type CardPriceLookup } from "@/lib/card-pricing"
-import { mapWithConcurrency } from "@/lib/card-db-sync-concurrency"
+import { useEffect, useState } from 'react';
+import { normalizeFetchedCardPrice, type CardPriceSnapshot } from '@/hooks/use-card-prices';
+import { isCardLanguage } from '@/lib/domain/cards';
+import { SAVED_PRICE_SUMMARY_MAX_CARDS, getCardPriceKey, type CardPriceLookup } from '@/lib/card-pricing';
+import { mapWithConcurrency } from '@/lib/card-db-sync-concurrency';
 
 /** Groups of saved-price GETs in flight at once. */
-export const SAVED_INVENTORY_PRICE_CONCURRENCY = 4
+export const SAVED_INVENTORY_PRICE_CONCURRENCY = 4;
 
 /** Existing saved-evidence GET only. Never POST, refresh, provider lookup or paid comparison. Summary fields only
  * (see SAVED_PRICE_SUMMARY_COLUMNS). A failed or malformed group leaves only its own cards unpriced (#570). */
-export async function readSavedInventoryPrices(requests: readonly CardPriceLookup[], signal: AbortSignal, fetcher: typeof fetch = fetch): Promise<CardPriceSnapshot[]> {
-  const unique = [...new Map(requests.map(r => [getCardPriceKey(r.cardId, r.language), r])).values()]
-  const size = SAVED_PRICE_SUMMARY_MAX_CARDS
-  const batches = Array.from({ length: Math.ceil(unique.length / size) }, (_, i) => unique.slice(i * size, (i + 1) * size))
-  const groups = await mapWithConcurrency(batches, SAVED_INVENTORY_PRICE_CONCURRENCY, async batch => {
-    if (signal.aborted) return []
-    try { return await readSavedPriceGroup(batch, signal, fetcher) } catch (error) {
-      if (signal.aborted) return []
-      console.error("[holofolder] Failed to read a saved price group:", error)
-      return []
+export async function readSavedInventoryPrices(
+  requests: readonly CardPriceLookup[],
+  signal: AbortSignal,
+  fetcher: typeof fetch = fetch,
+): Promise<CardPriceSnapshot[]> {
+  const unique = [...new Map(requests.map((r) => [getCardPriceKey(r.cardId, r.language), r])).values()];
+  const size = SAVED_PRICE_SUMMARY_MAX_CARDS;
+  const batches = Array.from({ length: Math.ceil(unique.length / size) }, (_, i) =>
+    unique.slice(i * size, (i + 1) * size),
+  );
+  const groups = await mapWithConcurrency(batches, SAVED_INVENTORY_PRICE_CONCURRENCY, async (batch) => {
+    if (signal.aborted) return [];
+    try {
+      return await readSavedPriceGroup(batch, signal, fetcher);
+    } catch (error) {
+      if (signal.aborted) return [];
+      console.error('[holofolder] Failed to read a saved price group:', error);
+      return [];
     }
-  })
-  signal.throwIfAborted()
-  return groups.flat()
+  });
+  signal.throwIfAborted();
+  return groups.flat();
 }
 
 async function readSavedPriceGroup(batch: readonly CardPriceLookup[], signal: AbortSignal, fetcher: typeof fetch) {
-  const response = await fetcher(`/app/api/card-prices?cards=${encodeURIComponent(JSON.stringify(batch))}&fields=summary`, { signal, cache: "no-store" })
-  if (!response.ok) throw new Error("saved_inventory_prices_unavailable")
-  const payload = await response.json()
-  if (!Array.isArray(payload?.prices)) throw new Error("saved_inventory_prices_unavailable")
-  const requested = new Set(batch.map(r => getCardPriceKey(r.cardId, r.language)))
-  const seen = new Set<string>()
-  const prices: CardPriceSnapshot[] = []
+  const response = await fetcher(
+    `/app/api/card-prices?cards=${encodeURIComponent(JSON.stringify(batch))}&fields=summary`,
+    { signal, cache: 'no-store' },
+  );
+  if (!response.ok) throw new Error('saved_inventory_prices_unavailable');
+  const payload = await response.json();
+  if (!Array.isArray(payload?.prices)) throw new Error('saved_inventory_prices_unavailable');
+  const requested = new Set(batch.map((r) => getCardPriceKey(r.cardId, r.language)));
+  const seen = new Set<string>();
+  const prices: CardPriceSnapshot[] = [];
   for (const raw of payload.prices) {
-    if (!raw || typeof raw.cardId !== "string" || !isCardLanguage(raw.language)
-      || !requested.has(getCardPriceKey(raw.cardId, raw.language))) throw new Error("saved_inventory_prices_unavailable")
-    const key = getCardPriceKey(raw.cardId, raw.language)
+    if (
+      !raw ||
+      typeof raw.cardId !== 'string' ||
+      !isCardLanguage(raw.language) ||
+      !requested.has(getCardPriceKey(raw.cardId, raw.language))
+    )
+      throw new Error('saved_inventory_prices_unavailable');
+    const key = getCardPriceKey(raw.cardId, raw.language);
     // The general normalizer supports old quotes with default metadata. Native evidence must not.
-    const price = normalizeFetchedCardPrice({ ...raw, finishPrices: Array.isArray(raw.finishPrices) ? raw.finishPrices.filter((quote: unknown) =>
-      quote && typeof quote === "object" && "cardId" in quote && quote.cardId === raw.cardId && "language" in quote && quote.language === raw.language) : [] })
-    if (!price || seen.has(key)) throw new Error("saved_inventory_prices_unavailable")
-    seen.add(key); prices.push(price)
+    const price = normalizeFetchedCardPrice({
+      ...raw,
+      finishPrices: Array.isArray(raw.finishPrices)
+        ? raw.finishPrices.filter(
+            (quote: unknown) =>
+              quote &&
+              typeof quote === 'object' &&
+              'cardId' in quote &&
+              quote.cardId === raw.cardId &&
+              'language' in quote &&
+              quote.language === raw.language,
+          )
+        : [],
+    });
+    if (!price || seen.has(key)) throw new Error('saved_inventory_prices_unavailable');
+    seen.add(key);
+    prices.push(price);
   }
-  return prices
+  return prices;
 }
 
-export type SavedPriceStatus = "loading" | "ready" | "unavailable"
+export type SavedPriceStatus = 'loading' | 'ready' | 'unavailable';
 
 /** No private snapshot persistence. Loaded public quotes remain usable in this mounted offline view. */
-export function useInventoryPriceState(requests: readonly CardPriceLookup[]): { prices: CardPriceSnapshot[]; status: SavedPriceStatus } {
-  const key = JSON.stringify(requests)
-  const [saved, setSaved] = useState<{ key: string; prices: CardPriceSnapshot[]; failed: boolean }>({ key: "", prices: [], failed: false })
+export function useInventoryPriceState(requests: readonly CardPriceLookup[]): {
+  prices: CardPriceSnapshot[];
+  status: SavedPriceStatus;
+} {
+  const key = JSON.stringify(requests);
+  const [saved, setSaved] = useState<{ key: string; prices: CardPriceSnapshot[]; failed: boolean }>({
+    key: '',
+    prices: [],
+    failed: false,
+  });
   useEffect(() => {
-    const controller = new AbortController()
-    const parsed: CardPriceLookup[] = JSON.parse(key)
-    void readSavedInventoryPrices(parsed, controller.signal).then(prices => {
-      if (!controller.signal.aborted) setSaved({ key, prices, failed: false })
-    }).catch(() => { if (!controller.signal.aborted) setSaved({ key, prices: [], failed: true }) /* Unavailable saved evidence stays unknown. */ })
-    return () => controller.abort()
-  }, [key])
-  if (!requests.length) return { prices: [], status: "ready" }
-  return saved.key === key ? { prices: saved.prices, status: saved.failed ? "unavailable" : "ready" } : { prices: [], status: "loading" }
+    const controller = new AbortController();
+    const parsed: CardPriceLookup[] = JSON.parse(key);
+    void readSavedInventoryPrices(parsed, controller.signal)
+      .then((prices) => {
+        if (!controller.signal.aborted) setSaved({ key, prices, failed: false });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted)
+          setSaved({ key, prices: [], failed: true }); /* Unavailable saved evidence stays unknown. */
+      });
+    return () => controller.abort();
+  }, [key]);
+  if (!requests.length) return { prices: [], status: 'ready' };
+  return saved.key === key
+    ? { prices: saved.prices, status: saved.failed ? 'unavailable' : 'ready' }
+    : { prices: [], status: 'loading' };
 }
 
 export function useInventoryPrices(requests: readonly CardPriceLookup[]) {
-  return useInventoryPriceState(requests).prices
+  return useInventoryPriceState(requests).prices;
 }

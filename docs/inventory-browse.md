@@ -62,11 +62,11 @@ Local production-mode build and full typecheck passed. Focused ESLint reports no
 
 This is a new standalone surface, so there is no previous production layout to measure. On 375×667 standalone, the worst-case text sheet measured 351 px wide at x=12, y=138.86, height=432.14; the close target is 44×44 px. Its bottom is 571 px, 8 px above the dock's 579 px top, with zero horizontal overflow. All six profiles assert viewport/safe-inset bounds, 36 px minimum controls and sheet/dock separation. Both color schemes were exercised; no real hardware was used.
 
-| Before | After | Why |
-| --- | --- | --- |
-| No isolated Inventory view | One selectable row per physical copy, with explicit unknown/cached wording | Inspect duplicates without implying target ownership or complete cache coverage |
-| Equivalent parent renders could change cursor object identity | Exact safe evidence key preserves the current window; actual scope/revision changes reset it | Host updates must not silently blank paginated rows |
-| New repeated browse interactions | Instant query, keyboard and sheet entry; shared swipe primitive and direct press feedback | No decorative or keyboard-triggered motion was introduced |
+| Before                                                        | After                                                                                        | Why                                                                             |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| No isolated Inventory view                                    | One selectable row per physical copy, with explicit unknown/cached wording                   | Inspect duplicates without implying target ownership or complete cache coverage |
+| Equivalent parent renders could change cursor object identity | Exact safe evidence key preserves the current window; actual scope/revision changes reset it | Host updates must not silently blank paginated rows                             |
+| New repeated browse interactions                              | Instant query, keyboard and sheet entry; shared swipe primitive and direct press feedback    | No decorative or keyboard-triggered motion was introduced                       |
 
 UI and motion self-review: approve for the internal read-only slice. Current page/slot presentation, six dismissal paths, long grading strings and privacy projection are covered. Enabled production behavior, offline reload and native phone gestures remain the documented parent rollout gates.
 

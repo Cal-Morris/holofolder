@@ -28,16 +28,16 @@ Verification: `bun test tests/binder-slot-targets.test.ts tests/domain-cards.tes
 
 `BinderSlot` in `lib/domain/binder-slots.ts` has these fields:
 
-| Field | Contract |
-| --- | --- |
-| `id` | Stable slot identity, independent of Pokémon, printing, item and array position. Repeat printing IDs never collapse slots. |
-| `ownerUserId`, `collectionId` | Owner and storage collection scope. `collectionId` maps to the existing binder ID at the future adapter boundary; it is not a second binder identity. |
-| `target` | Validated Pokémon/card target, or explicit `null` for a free slot. |
-| `inventoryItemId` | One referenced owned copy, or `null`. No card identity, grading or acquisition payload is copied into the slot. |
-| `wantedCards` | Explicit choices using the existing shared `WantedCard` type, including optional language/finish and `wanted_by`. An empty target does not create a choice. |
-| `status` | Existing shared `SlotStatus`, or `null` for no explicit state. `collected`/`finalized` require an item reference, and an item reference requires one of those owned states. `considering`/`wishlisted` carry explicit non-owned intent. |
-| `version` | Nonnegative safe integer for slot content changes. Moving the whole slot does not change it. |
-| `presetOrigin` | Copied `{ source: { id, version }, entryId }`, or `null`. Informational provenance, never a position lock or hidden completion requirement. |
+| Field                         | Contract                                                                                                                                                                                                                                |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                          | Stable slot identity, independent of Pokémon, printing, item and array position. Repeat printing IDs never collapse slots.                                                                                                              |
+| `ownerUserId`, `collectionId` | Owner and storage collection scope. `collectionId` maps to the existing binder ID at the future adapter boundary; it is not a second binder identity.                                                                                   |
+| `target`                      | Validated Pokémon/card target, or explicit `null` for a free slot.                                                                                                                                                                      |
+| `inventoryItemId`             | One referenced owned copy, or `null`. No card identity, grading or acquisition payload is copied into the slot.                                                                                                                         |
+| `wantedCards`                 | Explicit choices using the existing shared `WantedCard` type, including optional language/finish and `wanted_by`. An empty target does not create a choice.                                                                             |
+| `status`                      | Existing shared `SlotStatus`, or `null` for no explicit state. `collected`/`finalized` require an item reference, and an item reference requires one of those owned states. `considering`/`wishlisted` carry explicit non-owned intent. |
+| `version`                     | Nonnegative safe integer for slot content changes. Moving the whole slot does not change it.                                                                                                                                            |
+| `presetOrigin`                | Copied `{ source: { id, version }, entryId }`, or `null`. Informational provenance, never a position lock or hidden completion requirement.                                                                                             |
 
 `BinderSnapshot` contains `ownerUserId`, `collectionId`, `layoutRevision`, ordered `slots`, and `presetManifest` (or `null`). The array is the saved arrangement; slots have no competing position field. IDs are nonempty, trimmed opaque strings up to 200 characters, supporting future offline/guest IDs. Persistence adapters must validate/map database UUIDs and establish authorization independently. Revisions are nonnegative safe integers, with overflow rejected by plans.
 
@@ -55,12 +55,12 @@ Normalization validates shape, not catalog existence, inventory ownership, trust
 
 `lib/binder-slot-plans.ts` takes validated snapshots and returns detached plans. Every function also validates the snapshot before planning. Signatures use the same leading `(snapshot, expectedLayoutRevision, ...)` arguments:
 
-| Function | Remaining arguments and effect |
-| --- | --- |
-| `planInsertSlots` | `(emptyFreeSlots, beforeSlotId)` inserts new version-0 free slots before an existing stable anchor, or appends when the anchor is `null`. Existing slots shift forward intact. |
-| `planMoveSlots` | `(slotIds, beforeSlotId)` moves whole selected slots before an unselected anchor, or appends with `null`. Saved relative order wins over selection input order. |
-| `planClearSlots` | `(slotIds)` clears item references and owned status, retaining slots, targets, explicit wants and provenance. Already empty slots are unchanged, including explicit non-owned statuses. |
-| `planRemoveSlots` | `(slotIds)` removes those slots, including their explicit targets/wants. Referenced items remain owned and become Unassigned. |
+| Function               | Remaining arguments and effect                                                                                                                                                                                   |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `planInsertSlots`      | `(emptyFreeSlots, beforeSlotId)` inserts new version-0 free slots before an existing stable anchor, or appends when the anchor is `null`. Existing slots shift forward intact.                                   |
+| `planMoveSlots`        | `(slotIds, beforeSlotId)` moves whole selected slots before an unselected anchor, or appends with `null`. Saved relative order wins over selection input order.                                                  |
+| `planClearSlots`       | `(slotIds)` clears item references and owned status, retaining slots, targets, explicit wants and provenance. Already empty slots are unchanged, including explicit non-owned statuses.                          |
+| `planRemoveSlots`      | `(slotIds)` removes those slots, including their explicit targets/wants. Referenced items remain owned and become Unassigned.                                                                                    |
 | `planChangeSlotTarget` | `(slotId, target, candidate?)` edits a content constraint without discarding an occupied item. Incompatible or missing candidate evidence rejects the edit. Making a slot free does not need candidate evidence. |
 
 Insert-before is direct. To insert after, the adapter uses the next saved slot as the anchor, or `null` at the end. Bulk insertion shifts all following slots across page boundaries in one plan; no search for empty pockets or replacement occurs. Grid pagination is derived later and never part of this contract. Saved trailing free slots are explicit spacers and survive all operations unless selected for removal. Visual padding on an incomplete final page is implicit, has no stable IDs and is never persisted or counted.

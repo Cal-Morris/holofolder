@@ -24,11 +24,11 @@ REST `POST /app/api/v1/storage/inventory/commands` and MCP `execute_inventory_co
 
 ## UI review
 
-| Before | After | Why |
-| --- | --- | --- |
-| Edit layout offered insertion and whole-slot moves | Separate single/group removal review with exact consequence rows | Structural removal requires a deliberate confirmation |
-| No removal recovery affordance | Truthful Activity guidance after sync | Existing receipts cannot identify an exact recoverable event |
-| Single details already used a shared sheet | Single review remains within it; bulk reuses the shared overlay and swipe primitive | Preserves dismissal, dock and safe-area behavior |
+| Before                                             | After                                                                               | Why                                                          |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Edit layout offered insertion and whole-slot moves | Separate single/group removal review with exact consequence rows                    | Structural removal requires a deliberate confirmation        |
+| No removal recovery affordance                     | Truthful Activity guidance after sync                                               | Existing receipts cannot identify an exact recoverable event |
+| Single details already used a shared sheet         | Single review remains within it; bulk reuses the shared overlay and swipe primitive | Preserves dismissal, dock and safe-area behavior             |
 
 No new animation or gesture implementation is added. Primary buttons remain at least 40px; long stable IDs and want text wrap inside the scrollable review. The six-profile test records before/review geometry and checks primary confirmation reachability, safe bounds and overflow.
 

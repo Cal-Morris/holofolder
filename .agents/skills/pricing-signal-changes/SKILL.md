@@ -7,15 +7,15 @@ description: Change holofolder price providers, normalisation, confidence rules,
 
 ## Where things live
 
-| File | Role |
-|---|---|
-| `lib/card-pricing.ts` | Provider fetches, FX (`parseEcbFxRates`), `readPriceAmount`, and the **single source** of pricing types and normalizers. `hooks/use-card-prices.ts` re-exports them and adds only client batching and the localStorage cache. |
-| `lib/price-intelligence.ts` | `PriceProvider`, observation match scoring, `summarizePriceObservations`, `buildBuySignal` |
-| `lib/price-freshness.ts` | Staleness caps and the last-known-price carry-forward |
-| `lib/price-momentum.ts` | Rising rules and thresholds |
-| `lib/breakout-cards.ts` | Breakout ranking |
-| `lib/price-refresh-interval.ts` | Refresh interval validation (`15m`–`24h`, default `3h`) |
-| `workflows/card-price-refresh.ts`, `app/api/card-prices/` | Refresh workflow, cron (`GET`, `CRON_SECRET`) and on-demand (`POST`) |
+| File                                                      | Role                                                                                                                                                                                                                          |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/card-pricing.ts`                                     | Provider fetches, FX (`parseEcbFxRates`), `readPriceAmount`, and the **single source** of pricing types and normalizers. `hooks/use-card-prices.ts` re-exports them and adds only client batching and the localStorage cache. |
+| `lib/price-intelligence.ts`                               | `PriceProvider`, observation match scoring, `summarizePriceObservations`, `buildBuySignal`                                                                                                                                    |
+| `lib/price-freshness.ts`                                  | Staleness caps and the last-known-price carry-forward                                                                                                                                                                         |
+| `lib/price-momentum.ts`                                   | Rising rules and thresholds                                                                                                                                                                                                   |
+| `lib/breakout-cards.ts`                                   | Breakout ranking                                                                                                                                                                                                              |
+| `lib/price-refresh-interval.ts`                           | Refresh interval validation (`15m`–`24h`, default `3h`)                                                                                                                                                                       |
+| `workflows/card-price-refresh.ts`, `app/api/card-prices/` | Refresh workflow, cron (`GET`, `CRON_SECRET`) and on-demand (`POST`)                                                                                                                                                          |
 
 ## Rules you must keep
 

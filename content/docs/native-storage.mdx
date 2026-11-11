@@ -13,15 +13,15 @@ The app uses the same executor through its first-party routes. Unsupported opera
 
 Use the same arguments with the REST path below or the same-named MCP tool. Paths are relative to `/app/api/v1`. All commands require `collection:write` and `binders:write`; recovery also requires `collection:read`.
 
-| MCP tool | REST POST path | Effect |
-| --- | --- | --- |
-| `execute_slot_commands` | `/storage/slots/commands` | Insert, update, clear, remove or reorder stable slots |
-| `execute_inventory_commands` | `/storage/inventory/commands` | Add, edit, remove, assign, move or unassign physical copies; delete a collection |
-| `create_storage_collection` | `/storage/collections` | Atomically create native storage and its copied targets |
-| `import_storage_arrangement` | `/storage/imports/arrangement` | Import explicit copies and arrangement into a compatible native destination |
-| `restore_raw_collection_content` | `/storage/restores/raw-content` | Reconcile supported same-owner raw content |
-| `preview_storage_recovery` / `apply_storage_recovery` | `/storage/recovery/preview` / `/storage/recovery/apply` | Review and apply version 1 native recovery |
-| `preview_storage_recovery_v2` / `apply_storage_recovery_v2` | `/storage/recovery/v2/preview` / `/storage/recovery/v2/apply` | Explicit default-creation replacement recovery |
+| MCP tool                                                    | REST POST path                                                | Effect                                                                           |
+| ----------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `execute_slot_commands`                                     | `/storage/slots/commands`                                     | Insert, update, clear, remove or reorder stable slots                            |
+| `execute_inventory_commands`                                | `/storage/inventory/commands`                                 | Add, edit, remove, assign, move or unassign physical copies; delete a collection |
+| `create_storage_collection`                                 | `/storage/collections`                                        | Atomically create native storage and its copied targets                          |
+| `import_storage_arrangement`                                | `/storage/imports/arrangement`                                | Import explicit copies and arrangement into a compatible native destination      |
+| `restore_raw_collection_content`                            | `/storage/restores/raw-content`                               | Reconcile supported same-owner raw content                                       |
+| `preview_storage_recovery` / `apply_storage_recovery`       | `/storage/recovery/preview` / `/storage/recovery/apply`       | Review and apply version 1 native recovery                                       |
+| `preview_storage_recovery_v2` / `apply_storage_recovery_v2` | `/storage/recovery/v2/preview` / `/storage/recovery/v2/apply` | Explicit default-creation replacement recovery                                   |
 
 Use current inventory, collection, layout, slot, item and placement revisions. Preserve the original `operationId`, identities, expected owner and request across retries. A timeout or lost response is an unknown outcome. Never refresh preconditions or allocate a replacement ID to retry an unknown write.
 
@@ -72,4 +72,3 @@ Accepted receipts and dedicated rejections carry `version:4`. Other command vers
 ## First-party app routes
 
 The cookie-authenticated app uses `GET /app/api/inventory`, `POST /app/api/binder-slots`, `POST /app/api/inventory`, `POST /app/api/storage-collections`, `POST /app/api/native-recovery` and `POST /app/api/raw-content-restore`. These are private, no-store boundaries. Write requests bind the current owner and auth session and use the app origin. Developer credentials use their separate REST/MCP boundaries and never impersonate an app cookie session.
-

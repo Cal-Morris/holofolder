@@ -50,7 +50,6 @@ Draft only, do not publish or send to Framer while hidden:
 
 Only publish after the missing execution/offline/API/UI gates pass. Artwork and label packaging must describe the verified #390 behavior at that time; do not promise lossless images from this slice.
 
-
 ## Optional private metadata compatibility
 
 The authenticated read extension adds optional `collections[].location` to

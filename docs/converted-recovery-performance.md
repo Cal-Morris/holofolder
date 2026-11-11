@@ -10,10 +10,10 @@ An independent private restore ran the same preceding cases and the same maximum
 
 Rolled-back EXPLAIN of the recorder's existing `INSERT ... ON CONFLICT DO NOTHING`, after inserting the same synthetic pending row, measured:
 
-| Fixture state | Planning ms | Execution ms | Shared hits | Shared reads | Rows inserted / conflicting |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Original outer transaction (UTF-8) | 0.004 | 0.044 | 131 | 0 | 0 / 1 |
-| Identical committed fixture, new transaction (UTF-8) | 0.005 | 0.022 | 2 | 0 | 0 / 1 |
+| Fixture state                                        | Planning ms | Execution ms | Shared hits | Shared reads | Rows inserted / conflicting |
+| ---------------------------------------------------- | ----------: | -----------: | ----------: | -----------: | --------------------------: |
+| Original outer transaction (UTF-8)                   |       0.004 |        0.044 |         131 |            0 |                       0 / 1 |
+| Identical committed fixture, new transaction (UTF-8) |       0.005 |        0.022 |           2 |            0 |                       0 / 1 |
 
 This is 65.5 times fewer buffer hits per duplicate pending-key check. It measures one repeated recorder operation, not the entire apply. The complete same-state control below establishes the whole-path effect. Recorder 076 is unchanged; changing its key or bypassing capture would solve the wrong problem.
 
@@ -21,13 +21,13 @@ This is 65.5 times fewer buffer hits per duplicate pending-key check. It measure
 
 The original repository SQL tests are unchanged. The measurements below were initially diagnostic SQL_ASCII runs; UTF-8 acceptance results are recorded separately below. SQL_ASCII incorrectly counts bytes for the native suite’s Unicode grading-length boundary and is not accepted as that regression’s proof. This setup defect was caught before final verification; the earlier logs remain intact. The full converted adapters alter local connection/module setup and avoid reinstalling historical functions over the current schema. Native maximum verification selects the existing performance mode, preserving its 512 later events and tightening setup statements to 10 seconds too. Original full runs retain every preceding case, timezone/mapped/permission/allowance/ABA/rollback/replay assertion and adversarial tail.
 
-| Run | Full original transaction apply ms | Same-state committed apply ms |
-| --- | ---: | ---: |
-| Complete original regression | 8,418 | not measured |
-| Complete original regression, phase logging | 9,657 | not measured |
-| Independent commit control 1 | not measured | 7,238 |
-| Independent commit control 2 | 8,984 | 6,527 |
-| Independent commit control 3 | 8,488 | 5,578 / 5,891 / 5,785 / 5,506 |
+| Run                                         | Full original transaction apply ms | Same-state committed apply ms |
+| ------------------------------------------- | ---------------------------------: | ----------------------------: |
+| Complete original regression                |                              8,418 |                  not measured |
+| Complete original regression, phase logging |                              9,657 |                  not measured |
+| Independent commit control 1                |                       not measured |                         7,238 |
+| Independent commit control 2                |                              8,984 |                         6,527 |
+| Independent commit control 3                |                              8,488 | 5,578 / 5,891 / 5,785 / 5,506 |
 
 Original harness wall times include immediate replay/side-effect checks. The first three control-3 repeated timings stop after actual apply plus flush, with replay/assertions timed separately; its final harness result includes them. The four control-3 committed applies each have a new outer transaction. Each successful apply, replay and exact restoration assertion is followed by rollback. Complete original data/history and byte-equivalent private plan are checked before the next transaction. The diagnostic control-3 deadline margin is **4,109 ms**; across those committed diagnostic controls, the worst result leaves **2,762 ms**. UTF-8 acceptance is separate below. These are individual serial local measurements, not percentiles or a production SLA. Other activity on the shared machine is not controlled.
 
@@ -35,24 +35,24 @@ Original harness wall times include immediate replay/side-effect checks. The fir
 
 The fresh UTF-8 restore matched all original counts/digests before 085 installation. With unchanged 085 definitions:
 
-| UTF-8 workload / transaction | Preview ms | Apply / flush wall ms |
-| --- | ---: | ---: |
-| Complete original converted suite, unchanged outer fixture | 1,454 | 8,469 |
-| Independent same-state control, before commit | 1,729 | 9,242 |
-| Same fixture/history/plan, committed attempt 1 | same plan | 5,843 |
-| Same fixture/history/plan, committed attempt 2 | same plan | 5,882 |
-| Same fixture/history/plan, committed attempt 3 | same plan | 5,606 |
-| Same fixture/history/plan, final committed apply/replay/assertions | same plan | 5,670 |
+| UTF-8 workload / transaction                                       | Preview ms | Apply / flush wall ms |
+| ------------------------------------------------------------------ | ---------: | --------------------: |
+| Complete original converted suite, unchanged outer fixture         |      1,454 |                 8,469 |
+| Independent same-state control, before commit                      |      1,729 |                 9,242 |
+| Same fixture/history/plan, committed attempt 1                     |  same plan |                 5,843 |
+| Same fixture/history/plan, committed attempt 2                     |  same plan |                 5,882 |
+| Same fixture/history/plan, committed attempt 3                     |  same plan |                 5,606 |
+| Same fixture/history/plan, final committed apply/replay/assertions |  same plan |                 5,670 |
 
 A second independent UTF-8 control additionally snapshots **raw slot and placement rows, including every version and timestamp**:
 
-| Exact-row control | Apply / flush wall ms |
-| --- | ---: |
-| Original outer transaction | **10,009, cancelled by the unchanged 10s deadline** |
-| Byte-equivalent committed fixture, attempt 1 | 7,260 |
-| Attempt 2 | 6,703 |
-| Attempt 3 | 6,229 |
-| Final committed apply/replay/assertions | 6,428 |
+| Exact-row control                            |                               Apply / flush wall ms |
+| -------------------------------------------- | --------------------------------------------------: |
+| Original outer transaction                   | **10,009, cancelled by the unchanged 10s deadline** |
+| Byte-equivalent committed fixture, attempt 1 |                                               7,260 |
+| Attempt 2                                    |                                               6,703 |
+| Attempt 3                                    |                                               6,229 |
+| Final committed apply/replay/assertions      |                                               6,428 |
 
 The cancelled original apply rolled back without any row, ledger or history change. Full raw rows and complete SQL-jsonb plan text remained byte-equivalent across the subsequent commit. **All eight committed UTF-8 applies passed**, with at least **2,740 ms observed local headroom** across both controls. The original failure is preserved, not excluded from the report. Each prior attempt rolled back completely; each subsequent attempt started a new transaction and revalidated byte-equivalent complete data/history/plan. The complete original suite passed its full adversarial tail separately. This is the accepted local benchmark evidence; earlier SQL_ASCII diagnostics are not substituted for UTF-8 verification.
 

@@ -1,67 +1,111 @@
-import { MAX_BINDERS_PER_OWNER } from '@/lib/binders/model'
+import { MAX_BINDERS_PER_OWNER } from '@/lib/binders/model';
 
-export const FREE_CARD_LIMIT = 100
-export const BILLING_PRICES = { month: 399, year: 3499 } as const
-export const BILLING_ANNUAL_SAVING = BILLING_PRICES.month * 12 - BILLING_PRICES.year
-export const billingAmount = (pence: number) => `£${(pence / 100).toFixed(2)}`
+export const FREE_CARD_LIMIT = 100;
+export const BILLING_PRICES = { month: 399, year: 3499 } as const;
+export const BILLING_ANNUAL_SAVING = BILLING_PRICES.month * 12 - BILLING_PRICES.year;
+export const billingAmount = (pence: number) => `£${(pence / 100).toFixed(2)}`;
 
 export interface BillingAccess {
-  ownerUserId: string
-  tier: 'free' | 'paid'
-  source: 'free' | 'subscription' | 'perpetual' | 'trial'
-  paidThrough: string | null
-  trialEndsAt: string | null
-  savedCardCount: number
-  cardLimit: number | null
-  freeCardLimit: number
-  freeBinderLimit: number
-  binderLimit: number
-  enforced: boolean
+  ownerUserId: string;
+  tier: 'free' | 'paid';
+  source: 'free' | 'subscription' | 'perpetual' | 'trial';
+  paidThrough: string | null;
+  trialEndsAt: string | null;
+  savedCardCount: number;
+  cardLimit: number | null;
+  freeCardLimit: number;
+  freeBinderLimit: number;
+  binderLimit: number;
+  enforced: boolean;
 }
 
 export function savedCardWeight(item: { status?: unknown; wanted_cards?: unknown }) {
-  const wants = Array.isArray(item.wanted_cards) ? item.wanted_cards.length : 0
-  return item.status === 'wishlisted' ? Math.max(1, wants) : 1 + wants
+  const wants = Array.isArray(item.wanted_cards) ? item.wanted_cards.length : 0;
+  return item.status === 'wishlisted' ? Math.max(1, wants) : 1 + wants;
 }
 export function countSavedCards(items: Array<{ status?: unknown; wanted_cards?: unknown }>) {
-  return items.reduce((sum, item) => sum + savedCardWeight(item), 0)
+  return items.reduce((sum, item) => sum + savedCardWeight(item), 0);
 }
-export function resolveBillingAccess(ownerUserId: string, row: Record<string, unknown> = {}, now = Date.now()): BillingAccess {
+export function resolveBillingAccess(
+  ownerUserId: string,
+  row: Record<string, unknown> = {},
+  now = Date.now(),
+): BillingAccess {
   // Older servers/caches still enforce ten entries and have no free binder cap.
-  const positiveInteger = (value: unknown, fallback: number) => typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback
-  const freeCardLimit = positiveInteger(row.free_card_limit, 10)
-  const freeBinderLimit = Math.min(MAX_BINDERS_PER_OWNER, positiveInteger(row.free_binder_limit, MAX_BINDERS_PER_OWNER))
-  const paidThrough = typeof row.paid_through === 'string' && Number.isFinite(Date.parse(row.paid_through)) ? row.paid_through : null
-  const trialEndsAt = typeof row.trial_ends_at === 'string' && Number.isFinite(Date.parse(row.trial_ends_at)) ? row.trial_ends_at : null
-  const source = row.perpetual === true ? 'perpetual'
-    : ['active', 'past_due'].includes(String(row.status)) && paidThrough && Date.parse(paidThrough) > now ? 'subscription'
-    : trialEndsAt && Date.parse(trialEndsAt) > now ? 'trial' : 'free'
-  return { ownerUserId, tier: source === 'free' ? 'free' : 'paid', source, paidThrough, trialEndsAt,
+  const positiveInteger = (value: unknown, fallback: number) =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
+  const freeCardLimit = positiveInteger(row.free_card_limit, 10);
+  const freeBinderLimit = Math.min(
+    MAX_BINDERS_PER_OWNER,
+    positiveInteger(row.free_binder_limit, MAX_BINDERS_PER_OWNER),
+  );
+  const paidThrough =
+    typeof row.paid_through === 'string' && Number.isFinite(Date.parse(row.paid_through)) ? row.paid_through : null;
+  const trialEndsAt =
+    typeof row.trial_ends_at === 'string' && Number.isFinite(Date.parse(row.trial_ends_at)) ? row.trial_ends_at : null;
+  const source =
+    row.perpetual === true
+      ? 'perpetual'
+      : ['active', 'past_due'].includes(String(row.status)) && paidThrough && Date.parse(paidThrough) > now
+        ? 'subscription'
+        : trialEndsAt && Date.parse(trialEndsAt) > now
+          ? 'trial'
+          : 'free';
+  return {
+    ownerUserId,
+    tier: source === 'free' ? 'free' : 'paid',
+    source,
+    paidThrough,
+    trialEndsAt,
     savedCardCount: typeof row.saved_card_count === 'number' && row.saved_card_count >= 0 ? row.saved_card_count : 0,
-    cardLimit: source === 'free' ? freeCardLimit : null, freeCardLimit, freeBinderLimit,
+    cardLimit: source === 'free' ? freeCardLimit : null,
+    freeCardLimit,
+    freeBinderLimit,
     binderLimit: source === 'free' && row.enforced === true ? freeBinderLimit : MAX_BINDERS_PER_OWNER,
-    enforced: row.enforced === true }
+    enforced: row.enforced === true,
+  };
 }
 export function canGrowCollection(access: BillingAccess, previousCount: number, nextCount: number) {
-  return !access.enforced || access.tier === 'paid' || nextCount <= (access.cardLimit ?? 10) || nextCount <= previousCount
+  return (
+    !access.enforced || access.tier === 'paid' || nextCount <= (access.cardLimit ?? 10) || nextCount <= previousCount
+  );
 }
 export function canCreateOwnerBinder(access: BillingAccess, binderCount: number) {
-  return binderCount < access.binderLimit
+  return binderCount < access.binderLimit;
 }
 export class BillingAccessError extends Error {
-  readonly status = 402
+  readonly status = 402;
   constructor(public code: 'upgrade_required' | 'card_limit_reached' | 'binder_limit_reached' = 'upgrade_required') {
-    super(code === 'card_limit_reached' ? 'You have reached your free entry allowance. Upgrade to save more. Your changes are kept on this device.'
-      : code === 'binder_limit_reached' ? 'Your free plan includes one binder. Upgrade to create more binders.'
-      : 'Upgrade to Holo Folder for more cards and binders, partner mode and price comparisons.')
+    super(
+      code === 'card_limit_reached'
+        ? 'You have reached your free entry allowance. Upgrade to save more. Your changes are kept on this device.'
+        : code === 'binder_limit_reached'
+          ? 'Your free plan includes one binder. Upgrade to create more binders.'
+          : 'Upgrade to Holo Folder for more cards and binders, partner mode and price comparisons.',
+    );
   }
 }
 export function isBillingError(error: unknown): boolean {
-  const candidate = error as { status?: unknown; code?: unknown; message?: unknown } | null
-  return candidate?.status === 402 || ['upgrade_required', 'card_limit_reached', 'binder_limit_reached'].includes(String(candidate?.code))
-    || /upgrade_required|card_limit_reached|binder_limit_reached/.test(String(candidate?.message ?? ''))
+  const candidate = error as { status?: unknown; code?: unknown; message?: unknown } | null;
+  return (
+    candidate?.status === 402 ||
+    ['upgrade_required', 'card_limit_reached', 'binder_limit_reached'].includes(String(candidate?.code)) ||
+    /upgrade_required|card_limit_reached|binder_limit_reached/.test(String(candidate?.message ?? ''))
+  );
 }
 
-export function pendingCardDelta(operations: Array<{ type: string; base?: { status?: unknown; wanted_cards?: unknown } | null; item?: { status?: unknown; wanted_cards?: unknown } }>) {
-  return operations.reduce((sum, operation) => sum + (operation.type === 'upsert' && operation.item ? savedCardWeight(operation.item) : 0) - (operation.base ? savedCardWeight(operation.base) : 0), 0)
+export function pendingCardDelta(
+  operations: Array<{
+    type: string;
+    base?: { status?: unknown; wanted_cards?: unknown } | null;
+    item?: { status?: unknown; wanted_cards?: unknown };
+  }>,
+) {
+  return operations.reduce(
+    (sum, operation) =>
+      sum +
+      (operation.type === 'upsert' && operation.item ? savedCardWeight(operation.item) : 0) -
+      (operation.base ? savedCardWeight(operation.base) : 0),
+    0,
+  );
 }

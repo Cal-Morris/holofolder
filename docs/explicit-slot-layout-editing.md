@@ -24,7 +24,6 @@ The app, REST and MCP slot/inventory routes remain disabled. No operation is reg
 
 Authoritative Undo and stale partner-safe recovery; structural deletion and occupied-slot consequence/confirmation; drag/bulk editing; production durable offline acceptance, reload/conflicts and partner reconciliation; production bootstrap/conversion and API enablement remain open. PR418's clear/remove-target picker behavior stays separate and does not supply Undo. #369 stays open. Staged help is in `content/docs/slot-selection.mdx`; enabled-release copy is unpublished in `docs/releases/explicit-slot-layout-draft.md`. No Framer publication or customer availability claim applies.
 
-
 ## Durable acceptance integration
 
 The shared draft sink now permits a Promise resolving to a matching local-commit receipt, alongside existing synchronous draft-only callbacks. Layout controls stay blocked during commit or a failed unaccepted draft, and Retry same draft retains original operation/slot IDs and predicates. Done/Cancel never revoke accepted queue work. The hard-gated `slots=durable` synthetic session uses the real queue and optimistic snapshot, with Saved on device/Pending sync only after commit. Production bootstrap remains unchanged. Read the [session/replay contract and verification boundary](slot-inventory-offline.md#durable-session-ui-integration-this-slice); no supported REST/MCP operation, authoritative history success, Undo or customer rollout is enabled.

@@ -1,18 +1,18 @@
-import { revalidateTag } from "next/cache"
-import { NextRequest, NextResponse } from "next/server"
-import { runIncrementalCardDbSync } from "@/lib/card-db-sync"
-import { getDefaultCardImageMirror } from "@/lib/card-image-store"
+import { revalidateTag } from 'next/cache';
+import { NextRequest, NextResponse } from 'next/server';
+import { runIncrementalCardDbSync } from '@/lib/card-db-sync';
+import { getDefaultCardImageMirror } from '@/lib/card-image-store';
 import {
   getSyncSecret,
   InvalidSyncRequestError,
   isAuthorizedSyncRequest,
   parseIncrementalSyncRequest,
-} from "@/lib/card-db-sync-targets"
+} from '@/lib/card-db-sync-targets';
 
 // Vercel function limit for this route. Each call stops starting new sets ~60s before this and
 // returns `remainingSetIds`, so callers can simply repeat the request until it is empty.
-export const maxDuration = 300
-const TIME_BUDGET_MS = (maxDuration - 60) * 1000
+export const maxDuration = 300;
+const TIME_BUDGET_MS = (maxDuration - 60) * 1000;
 
 /**
  * POST /app/api/admin/sync-card-db
@@ -30,46 +30,55 @@ const TIME_BUDGET_MS = (maxDuration - 60) * 1000
 export async function POST(request: NextRequest) {
   if (!getSyncSecret(process.env)) {
     return NextResponse.json(
-      { error: "Card DB sync is not configured. Set CARD_DB_SYNC_SECRET (or SYNC_SECRET / CRON_SECRET) in the environment." },
+      {
+        error:
+          'Card DB sync is not configured. Set CARD_DB_SYNC_SECRET (or SYNC_SECRET / CRON_SECRET) in the environment.',
+      },
       { status: 503 },
+    );
+  }
+
+  if (
+    !isAuthorizedSyncRequest(
+      request.headers.get('authorization'),
+      process.env,
+      request.headers.get('x-card-db-sync-secret'),
     )
+  ) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 });
   }
 
-  if (!isAuthorizedSyncRequest(request.headers.get("authorization"), process.env, request.headers.get("x-card-db-sync-secret"))) {
-    return NextResponse.json({ error: "Not authorized" }, { status: 401 })
-  }
-
-  let syncRequest
+  let syncRequest;
   try {
-    syncRequest = parseIncrementalSyncRequest(request.nextUrl.searchParams)
+    syncRequest = parseIncrementalSyncRequest(request.nextUrl.searchParams);
   } catch (error) {
     if (error instanceof InvalidSyncRequestError) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    throw error
+    throw error;
   }
 
-  const log: string[] = []
+  const log: string[] = [];
   try {
     const result = await runIncrementalCardDbSync({
       request: syncRequest,
       timeBudgetMs: TIME_BUDGET_MS,
-      imageMirror: request.nextUrl.searchParams.get("images") === "0" ? null : getDefaultCardImageMirror(),
+      imageMirror: request.nextUrl.searchParams.get('images') === '0' ? null : getDefaultCardImageMirror(),
       logger: (message) => {
-        log.push(message)
-        console.log(`[card-db-sync] ${message}`)
+        log.push(message);
+        console.log(`[card-db-sync] ${message}`);
       },
-    })
+    });
 
     if (!result.dryRun && result.syncedSets.length > 0) {
-      revalidateTag("tcg-mirror", { expire: 0 })
+      revalidateTag('tcg-mirror', { expire: 0 });
     }
 
-    return NextResponse.json({ sync: result, done: result.remainingSetIds.length === 0 })
+    return NextResponse.json({ sync: result, done: result.remainingSetIds.length === 0 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.error("[holofolder] Card DB sync failed:", error)
-    const status = message.includes("already running") ? 409 : 500
-    return NextResponse.json({ error: message, log: log.slice(-20) }, { status })
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[holofolder] Card DB sync failed:', error);
+    const status = message.includes('already running') ? 409 : 500;
+    return NextResponse.json({ error: message, log: log.slice(-20) }, { status });
   }
 }

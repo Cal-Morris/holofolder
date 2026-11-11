@@ -40,11 +40,11 @@ The queue hook also accepts a live host validity predicate during replay. Its fi
 
 ### UI review
 
-| Before | After | Why |
-| --- | --- | --- |
-| Saved intent had no sender or retry control | Existing Pending sync status plus a minimum 36 px Retry pending sync button | Device commit and remote ACK stay distinct |
-| Unavailable commands had no current error explanation | Billing/access/conflict explanations retain the original edit | A failed send must remain visible and recoverable |
-| Host replay scope depended only on the hook remount | Live host invalidation also fences the final transaction | Auth callbacks can invalidate scope before React commits |
+| Before                                                | After                                                                       | Why                                                      |
+| ----------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Saved intent had no sender or retry control           | Existing Pending sync status plus a minimum 36 px Retry pending sync button | Device commit and remote ACK stay distinct               |
+| Unavailable commands had no current error explanation | Billing/access/conflict explanations retain the original edit               | A failed send must remain visible and recoverable        |
+| Host replay scope depended only on the hook remount   | Live host invalidation also fences the final transaction                    | Auth callbacks can invalidate scope before React commits |
 
 No overlay, animation, gesture or public collection layout is introduced. Existing sheet/dock dismissal and navigation regressions stay in the affected host matrix. Stress states include stale/reordered receipts, long conflict explanations, billing/access failures and unknown outcomes at the three phone widths with emulated standalone insets. Installed-PWA/physical-device proof remains separate.
 

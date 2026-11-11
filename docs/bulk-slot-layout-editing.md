@@ -7,8 +7,12 @@ This extends the existing internal layout editor after durable local acceptance 
 `LayoutToolbar` in `components/binder/layout-editor.tsx` accepts optional `bulk: BulkLayoutHost` alongside its existing `editing`, `onToggle` and `boundary` props:
 
 ```tsx
-<LayoutToolbar editing={editing} onToggle={toggleEditing} boundary={boundary}
-  bulk={{ pageIndex, rows, cols, sessionKey }} />
+<LayoutToolbar
+  editing={editing}
+  onToggle={toggleEditing}
+  boundary={boundary}
+  bulk={{ pageIndex, rows, cols, sessionKey }}
+/>
 ```
 
 `pageIndex` is zero-based in the **complete saved arrangement**, never a filtered view. Rows/columns are integers 1–8. `sessionKey` identifies the deliberate edit/session lifetime. The supplied `boundary.snapshot` must be the current complete optimistic inventory snapshot for the matching owner/collection, with its real catalog resolver and existing `SlotCommandSink`. Do not manufacture a local receipt or use a callback that only updates React state to claim persistence. The actual queue adapter's Promise resolves to `saved-on-device` only after the IndexedDB transaction commits; refresh failures after commit remain accepted. Synchronous draft-only callbacks retain their existing semantics and never produce a saved message.

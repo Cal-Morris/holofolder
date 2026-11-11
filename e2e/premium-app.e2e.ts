@@ -1,33 +1,33 @@
-import { test, expect, openSettingsPage } from "./fixtures"
+import { test, expect, openSettingsPage } from './fixtures';
 
-test("binder settings retain page colours and expose the 3D studio", async ({ harness }) => {
-  await harness.page.locator("nav").first().getByRole("button", { name: "More", exact: true }).click()
-  await harness.page.getByRole("menuitem", { name: "Settings" }).click()
-  const settings = await openSettingsPage(harness.page.getByRole("dialog", { name: /settings/i }), "Layout")
-  const studio = settings.getByRole("link", { name: /customise binder/i })
-  await expect(studio).toHaveAttribute("href", "/app/studio")
-  await harness.expectMinTapTarget(studio)
-  await harness.expectWithinSafeViewport(studio)
-  await openSettingsPage(settings, "Appearance")
-  await settings.getByRole("button", { name: "Ruby", exact: true }).click()
-  const apply = settings.getByRole("button", { name: "Use for page 1", exact: true })
-  await apply.scrollIntoViewIfNeeded()
-  await apply.click()
-  await expect(settings.getByText(/Page 1 is currently using Ruby via a page override/)).toBeVisible()
-  await harness.expectNoHorizontalOverflow()
-})
+test('binder settings retain page colours and expose the 3D studio', async ({ harness }) => {
+  await harness.page.locator('nav').first().getByRole('button', { name: 'More', exact: true }).click();
+  await harness.page.getByRole('menuitem', { name: 'Settings' }).click();
+  const settings = await openSettingsPage(harness.page.getByRole('dialog', { name: /settings/i }), 'Layout');
+  const studio = settings.getByRole('link', { name: /customise binder/i });
+  await expect(studio).toHaveAttribute('href', '/app/studio');
+  await harness.expectMinTapTarget(studio);
+  await harness.expectWithinSafeViewport(studio);
+  await openSettingsPage(settings, 'Appearance');
+  await settings.getByRole('button', { name: 'Ruby', exact: true }).click();
+  const apply = settings.getByRole('button', { name: 'Use for page 1', exact: true });
+  await apply.scrollIntoViewIfNeeded();
+  await apply.click();
+  await expect(settings.getByText(/Page 1 is currently using Ruby via a page override/)).toBeVisible();
+  await harness.expectNoHorizontalOverflow();
+});
 
-test("printing browser keeps a physical card outline at every size", async ({ harness }) => {
-  const detail = await harness.openCardDetail()
-  await detail.getByRole("button", { name: /all bulbasaur cards/i }).click()
-  const dialog = harness.page.getByRole("dialog", { name: /all bulbasaur cards/i })
-  const card = dialog.locator(".trading-card").first()
-  await expect(card).toBeVisible()
+test('printing browser keeps a physical card outline at every size', async ({ harness }) => {
+  const detail = await harness.openCardDetail();
+  await detail.getByRole('button', { name: /all bulbasaur cards/i }).click();
+  const dialog = harness.page.getByRole('dialog', { name: /all bulbasaur cards/i });
+  const card = dialog.locator('.trading-card').first();
+  await expect(card).toBeVisible();
   const dimensions = await card.evaluate((element) => {
-    const { width, height } = element.getBoundingClientRect()
-    return { ratio: width / height, radius: getComputedStyle(element).borderRadius }
-  })
-  expect(dimensions.ratio).toBeCloseTo(63 / 88, 2)
-  expect(dimensions.radius).toBe("4.76% / 3.41%")
-  await harness.expectNoHorizontalOverflow()
-})
+    const { width, height } = element.getBoundingClientRect();
+    return { ratio: width / height, radius: getComputedStyle(element).borderRadius };
+  });
+  expect(dimensions.ratio).toBeCloseTo(63 / 88, 2);
+  expect(dimensions.radius).toBe('4.76% / 3.41%');
+  await harness.expectNoHorizontalOverflow();
+});

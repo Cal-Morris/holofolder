@@ -10,11 +10,11 @@ Exact-printing recognition is heuristic. Similarity, confidence, the gap to the 
 
 ## Entry points and pipelines
 
-| Flow | Candidate scope | Recognition and result |
-| --- | --- | --- |
-| Show mode / price lookup | Online catalogue search, or saved cards offline | OCR name and collector number; open one clear result in the deal checker, otherwise return to search |
-| Card selector | Cards already loaded for the selected Pokémon | Compare camera frames against reference images, aggregate results, rerank with OCR and show candidate cards for selection |
-| Binder-page scan (camera photo or uploaded photo) | Cards the user picks per pocket in the review | Detect the grid and occupancy and crop each filled pocket; the user chooses each card, copy and destination in [scan destination review](scan-destinations.md) |
+| Flow                                              | Candidate scope                                 | Recognition and result                                                                                                                                         |
+| ------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Show mode / price lookup                          | Online catalogue search, or saved cards offline | OCR name and collector number; open one clear result in the deal checker, otherwise return to search                                                           |
+| Card selector                                     | Cards already loaded for the selected Pokémon   | Compare camera frames against reference images, aggregate results, rerank with OCR and show candidate cards for selection                                      |
+| Binder-page scan (camera photo or uploaded photo) | Cards the user picks per pocket in the review   | Detect the grid and occupancy and crop each filled pocket; the user chooses each card, copy and destination in [scan destination review](scan-destinations.md) |
 
 UI orchestration lives in [quick-card-scanner](../components/quick-card-scanner.tsx), [card-selector](../components/card-selector.tsx), and [native-page-scanner](../components/native-page-scanner.tsx). Camera acquisition is shared through [use-camera-stream](../hooks/use-camera-stream.ts); guided captures use [camera-frame](../lib/camera-frame.ts).
 

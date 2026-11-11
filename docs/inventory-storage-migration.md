@@ -6,14 +6,14 @@ Related: #361, #357. Schema preparation against main `b432b3c`; **not a runtime 
 
 Existing `binders.id` is `collectionId`. Names, default selection, ordering, grid overrides, appearance, shares and device cookies remain in their existing stores. No binder is replaced or automatically created. `storage_collection_state` adds kind/default presentation, metadata/layout revisions and a copied preset manifest without updating binder timestamps. No state row means `legacy`; explicit `legacy` means the same. `slots` with conversion version 1 identifies converted legacy storage. A newly created slot-native collection uses `slots` with explicit null conversion fields and starts with no implicit targets; the legacy converter rejects it. Unknown versions fail closed.
 
-| Table | Purpose |
-| --- | --- |
-| `inventory_owner_state` | Owner-wide revision/serialization row, including the Unassigned selection absence predicate. |
-| `inventory_items` | One physical copy per ID. Exact #382 identity/grading, nullable acquisition time, version and timestamps. No printing or certificate uniqueness. No collection FK. |
-| `storage_collection_state` | Existing binder identity plus storage kind/presentation, revisions, copied manifest and conversion receipt. |
-| `binder_slots` | Stable ID, unique saved position, target, explicit status/wants, provenance and content version. Position uniqueness is deferred for atomic reorders. |
-| `inventory_placements` | Authoritative item-to-slot relation, at most one primary placement per item and one item per slot. Composite FKs enforce owner/collection agreement. |
-| `binder_legacy_rows` | Frozen original row ID, deterministic slot mapping and **every original field** as JSONB, including unrecognized future fields. Import evidence, not a writable legacy mirror or audit feed. |
+| Table                      | Purpose                                                                                                                                                                                      |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inventory_owner_state`    | Owner-wide revision/serialization row, including the Unassigned selection absence predicate.                                                                                                 |
+| `inventory_items`          | One physical copy per ID. Exact #382 identity/grading, nullable acquisition time, version and timestamps. No printing or certificate uniqueness. No collection FK.                           |
+| `storage_collection_state` | Existing binder identity plus storage kind/presentation, revisions, copied manifest and conversion receipt.                                                                                  |
+| `binder_slots`             | Stable ID, unique saved position, target, explicit status/wants, provenance and content version. Position uniqueness is deferred for atomic reorders.                                        |
+| `inventory_placements`     | Authoritative item-to-slot relation, at most one primary placement per item and one item per slot. Composite FKs enforce owner/collection agreement.                                         |
+| `binder_legacy_rows`       | Frozen original row ID, deterministic slot mapping and **every original field** as JSONB, including unrecognized future fields. Import evidence, not a writable legacy mirror or audit feed. |
 
 Map a stored slot to `BinderSlot.inventoryItemId` by its placement; there is no second item-reference column to synchronize. Map `StorageCollection.name` from the existing binder. Read order is `position,id`; independent item, slot, layout, placement, storage metadata and owner revisions map to the accepted pure contracts. SQL enforces safe-integer revision bounds, identity enums, wanted-choice validation, exact grading shape, scope and placement uniqueness. Deferred triggers enforce owned-status/placement consistency and require slot authority at commit. Future commands validate complete wants/targets/preset provenance with the existing domain normalizers and trusted catalog adapters; JSON storage is not authorization or catalog evidence.
 
@@ -75,8 +75,6 @@ Remaining acceptance: hosted application/verification, parent review/checks/seri
 
 Local evidence for this prepared PR: 1,204 unit tests pass; the separate opt-in SQL/integration run passes all five cases. Full typecheck and production build pass; lint retains the existing 55 warnings and focused lint has zero. All six restored binders produce 6,150 valid targets and 687 distinct items/placements, with matching per-binder full-row/owned/wanted digests. After the test transactions and synthetic race cleanup, all 82 original table counts and all 29 core digests still match the original archive. Synthetic EXPLAIN queries took 0.260 ms for the slot page and 0.009 ms for the owner item page on this local restore; these are not production measurements. No full e2e or hosted writes were run.
 
-
 [080 ordinary converted-content recovery](converted-content-recovery.md) permits safe inverses of actual 074/075 commands only while conversion provenance and frozen source remain unchanged. It keeps 076 recording, source guards, current conflicts/permissions/allowances and denied runtime boundaries; converted deletion, mapped source cascades, conversion undo and auxiliary/private-asset recovery remain required separate gates.
-
 
 [081 converted cascade recovery](converted-cascade-recovery.md) restores supported deleted roots/mappings using full original frozen source evidence and the complete receipt. It does not undo conversion or create owned copies from compatibility rows. Current authority/legacy-write guards remain, with a denied transaction-owned exact INSERT context only for recovery.

@@ -28,11 +28,11 @@ Keep #396 and #379 open. Remaining acceptance includes independently reviewed ho
 
 ## UI review
 
-| Before | After | Why |
-| --- | --- | --- |
-| Native history had no safe recovery entry point | Explicit review inside the existing Activity sheet | Reuses scope, dismissal and dock safe areas |
-| Existing native queue only retained optimistic slot/inventory intents | Optional retained recovery intent in the same atomic record | No invented optimistic inverse or parallel store |
-| Unknown native apply result had no browser journey | Exact retry and separate current-state verification | Preserves original intent without guessing noncommit |
+| Before                                                                | After                                                       | Why                                                  |
+| --------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------- |
+| Native history had no safe recovery entry point                       | Explicit review inside the existing Activity sheet          | Reuses scope, dismissal and dock safe areas          |
+| Existing native queue only retained optimistic slot/inventory intents | Optional retained recovery intent in the same atomic record | No invented optimistic inverse or parallel store     |
+| Unknown native apply result had no browser journey                    | Exact retry and separate current-state verification         | Preserves original intent without guessing noncommit |
 
 No new animation or gesture primitive is added. Existing sheet motion/dismissals are reused. Long names/IDs/reasons wrap, primary controls have 40px minimum height, and all preview changes remain inspectable before confirmation.
 
@@ -62,10 +62,10 @@ The existing optional `recovery` list stores this proof atomically beside the im
 
 Only after discard may the user choose **Review new recovery**, obtain a new preview and explicitly confirm a new operation ID. Accepted receipts and unknown results never gain discard/rebase. The parent's original first-confirmation identity remains frozen through IDB abort retries. No recovery token is automatically refreshed or replayed under a replacement ID.
 
-| Before | After | Why |
-| --- | --- | --- |
-| Proven stale recovery blocked every future command | Explicit current-state review and discard after durable proof | Only transactionally proved noncommit permits resolution |
-| Retained intent had only receipt/synchronization | Optional strict rejection and discarded resolution in the same record | Never present discard as accepted or synchronized |
+| Before                                             | After                                                                 | Why                                                      |
+| -------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------- |
+| Proven stale recovery blocked every future command | Explicit current-state review and discard after durable proof         | Only transactionally proved noncommit permits resolution |
+| Retained intent had only receipt/synchronization   | Optional strict rejection and discarded resolution in the same record | Never present discard as accepted or synchronized        |
 
 No new motion, overlay or gesture is introduced; the existing Activity sheet remains the dismissal/safe-area boundary. Controls wrap at phone widths and retain 40px minimum targets. Hosted apply, independent review, merge/deployment, enabled/authenticated acceptance and physical PWA proof remain parent-owned gates. Issues #396/#363/#376/#379 stay open. Release copy remains unpublished.
 
@@ -96,11 +96,11 @@ REST `GET /app/api/v1/collection/audit?operationId=...`, MCP `list_collection_au
 
 Integration with the collection-deletion lane: current main's `deleteCollection` uses the existing inventory receipt family, so its separately fresh complete ACK is included automatically. No deletion UI/management or admission changed here. BrowserSession coordination is limited to one imported component and one header binding. Price refresh is independent. Creation, restore and recovery restrictions and original session/owner/lease fences remain unchanged. All native production admission gates still return 503. Parent retains issue/project updates, independent review, whole-feature acceptance, merge and hosted/physical-device verification.
 
-| Before | After | Why |
-| --- | --- | --- |
-| Removal guidance required finding an event manually | Synchronized operation selector and exact Activity lookup | No guessed event or local inverse |
-| Operation receipts had no event ID | Receipts stay unchanged; authorized history resolves the operation | Preserves ACK and persistence contracts |
-| An operation could appear to have a convenient first match | Explicit missing/multiple states and selected detail read | Recovery always targets an inspected exact event |
+| Before                                                     | After                                                              | Why                                              |
+| ---------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------ |
+| Removal guidance required finding an event manually        | Synchronized operation selector and exact Activity lookup          | No guessed event or local inverse                |
+| Operation receipts had no event ID                         | Receipts stay unchanged; authorized history resolves the operation | Preserves ACK and persistence contracts          |
+| An operation could appear to have a convenient first match | Explicit missing/multiple states and selected detail read          | Recovery always targets an inspected exact event |
 
 No motion or overlay primitive was added. The existing dismissible sheet and dock insets remain; new controls use 40px minimum heights and identifiers wrap. The phone matrix includes missing/single/multiple/mismatched history, revoked access, unsupported/stale previews, original receipt preservation, offline saved-history refusal and accepted-reply-without-ACK refusal.
 

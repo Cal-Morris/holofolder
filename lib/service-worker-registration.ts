@@ -3,37 +3,46 @@
  * (/home, sign-in) register it once the page has loaded and gone idle, so first-visit and signed-out users
  * also get the offline shell without it competing with the page's own loading. Skipped on Save-Data.
  */
-export const SERVICE_WORKER_URL = "/app?service-worker=1"
+export const SERVICE_WORKER_URL = '/app?service-worker=1';
 
 interface RegistrationEnvironment {
-  location?: { hostname: string }
+  location?: { hostname: string };
   navigator: {
     serviceWorker?: {
-      register: (url: string, options?: { scope: string }) => Promise<unknown>
-      getRegistrations?: () => Promise<Array<{ scope: string; active?: { scriptURL: string } | null; unregister: () => Promise<boolean> }>>
-    }
-    connection?: { saveData?: boolean }
-  }
-  document?: { readyState: string }
-  addEventListener?: (type: "load", listener: () => void, options?: { once?: boolean }) => void
-  removeEventListener?: (type: "load", listener: () => void) => void
-  requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number
-  cancelIdleCallback?: (handle: number) => void
-  setTimeout: (callback: () => void, delay: number) => number
-  clearTimeout: (handle: number) => void
+      register: (url: string, options?: { scope: string }) => Promise<unknown>;
+      getRegistrations?: () => Promise<
+        Array<{ scope: string; active?: { scriptURL: string } | null; unregister: () => Promise<boolean> }>
+      >;
+    };
+    connection?: { saveData?: boolean };
+  };
+  document?: { readyState: string };
+  addEventListener?: (type: 'load', listener: () => void, options?: { once?: boolean }) => void;
+  removeEventListener?: (type: 'load', listener: () => void) => void;
+  requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+  cancelIdleCallback?: (handle: number) => void;
+  setTimeout: (callback: () => void, delay: number) => number;
+  clearTimeout: (handle: number) => void;
 }
 
 function register(env: RegistrationEnvironment) {
-  env.navigator.serviceWorker?.register(SERVICE_WORKER_URL, { scope: "/app" }).then(async () => {
-    // A previous root worker could otherwise keep answering Framer's marketing pages offline.
-    // Keep binder.cal.gg's root registration for its existing installed app and queued edits.
-    if (env.location?.hostname !== "holofolder.com") return
-    for (const registration of await env.navigator.serviceWorker?.getRegistrations?.() ?? []) {
-      if (registration.scope === "https://holofolder.com/" && registration.active?.scriptURL === "https://holofolder.com/sw.js") await registration.unregister()
-    }
-  }).catch((error: unknown) => {
-    console.error("[holofolder] Failed to register service worker:", error)
-  })
+  env.navigator.serviceWorker
+    ?.register(SERVICE_WORKER_URL, { scope: '/app' })
+    .then(async () => {
+      // A previous root worker could otherwise keep answering Framer's marketing pages offline.
+      // Keep binder.cal.gg's root registration for its existing installed app and queued edits.
+      if (env.location?.hostname !== 'holofolder.com') return;
+      for (const registration of (await env.navigator.serviceWorker?.getRegistrations?.()) ?? []) {
+        if (
+          registration.scope === 'https://holofolder.com/' &&
+          registration.active?.scriptURL === 'https://holofolder.com/sw.js'
+        )
+          await registration.unregister();
+      }
+    })
+    .catch((error: unknown) => {
+      console.error('[holofolder] Failed to register service worker:', error);
+    });
 }
 
 /** Returns a cleanup function that cancels a registration that hasn't started yet. */
@@ -41,48 +50,48 @@ export function registerServiceWorker(
   options: { whenIdle?: boolean } = {},
   env: RegistrationEnvironment = window as unknown as RegistrationEnvironment,
 ): () => void {
-  if (!env.navigator.serviceWorker) return () => undefined
+  if (!env.navigator.serviceWorker) return () => undefined;
   if (!options.whenIdle) {
-    register(env)
-    return () => undefined
+    register(env);
+    return () => undefined;
   }
-  if (env.navigator.connection?.saveData) return () => undefined
+  if (env.navigator.connection?.saveData) return () => undefined;
 
-  let cancelled = false
-  let idleHandle: number | null = null
-  let timeoutHandle: number | null = null
+  let cancelled = false;
+  let idleHandle: number | null = null;
+  let timeoutHandle: number | null = null;
 
   const run = () => {
-    idleHandle = null
-    timeoutHandle = null
-    if (!cancelled) register(env)
-  }
+    idleHandle = null;
+    timeoutHandle = null;
+    if (!cancelled) register(env);
+  };
   const scheduleIdle = () => {
-    if (cancelled) return
-    if (typeof env.requestIdleCallback === "function") {
-      idleHandle = env.requestIdleCallback(run, { timeout: 5000 })
+    if (cancelled) return;
+    if (typeof env.requestIdleCallback === 'function') {
+      idleHandle = env.requestIdleCallback(run, { timeout: 5000 });
     } else {
-      timeoutHandle = env.setTimeout(run, 2000)
+      timeoutHandle = env.setTimeout(run, 2000);
     }
-  }
+  };
 
-  const loaded = !env.document || env.document.readyState === "complete"
+  const loaded = !env.document || env.document.readyState === 'complete';
   if (loaded) {
-    scheduleIdle()
+    scheduleIdle();
   } else {
-    env.addEventListener?.("load", scheduleIdle, { once: true })
+    env.addEventListener?.('load', scheduleIdle, { once: true });
   }
 
   return () => {
-    cancelled = true
-    env.removeEventListener?.("load", scheduleIdle)
-    if (idleHandle !== null) env.cancelIdleCallback?.(idleHandle)
-    if (timeoutHandle !== null) env.clearTimeout(timeoutHandle)
-  }
+    cancelled = true;
+    env.removeEventListener?.('load', scheduleIdle);
+    if (idleHandle !== null) env.cancelIdleCallback?.(idleHandle);
+    if (timeoutHandle !== null) env.clearTimeout(timeoutHandle);
+  };
 }
 
 interface StorageEnvironment {
-  navigator?: { storage?: { persisted?: () => Promise<boolean>; persist?: () => Promise<boolean> } }
+  navigator?: { storage?: { persisted?: () => Promise<boolean>; persist?: () => Promise<boolean> } };
 }
 
 /**
@@ -90,14 +99,14 @@ interface StorageEnvironment {
  * evicting them under storage pressure. Best effort: resolves false when unsupported or on error.
  */
 export async function requestPersistentStorage(
-  env: StorageEnvironment = (typeof window === "undefined" ? {} : window) as unknown as StorageEnvironment,
+  env: StorageEnvironment = (typeof window === 'undefined' ? {} : window) as unknown as StorageEnvironment,
 ): Promise<boolean> {
-  const storage = env.navigator?.storage
-  if (!storage || typeof storage.persist !== "function") return false
+  const storage = env.navigator?.storage;
+  if (!storage || typeof storage.persist !== 'function') return false;
   try {
-    if (typeof storage.persisted === "function" && (await storage.persisted())) return true
-    return Boolean(await storage.persist())
+    if (typeof storage.persisted === 'function' && (await storage.persisted())) return true;
+    return Boolean(await storage.persist());
   } catch {
-    return false
+    return false;
   }
 }

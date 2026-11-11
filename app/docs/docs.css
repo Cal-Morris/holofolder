@@ -1,7 +1,7 @@
-@import "tailwindcss";
-@import "fumadocs-ui/css/neutral.css";
-@import "fumadocs-ui/css/preset.css";
-@import "fumadocs-openapi/css/preset.css";
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+@import 'fumadocs-openapi/css/preset.css';
 
 @custom-variant dark (&:is(.dark *));
 @theme inline {
@@ -35,54 +35,217 @@ body:has(.holo-docs) {
   color: var(--color-fd-foreground);
   --fd-layout-width: 1536px;
 }
-.holo-docs #nd-docs-layout { --fd-sidebar-width: 268px; }
-.holo-docs #nd-page { padding-top: 48px; padding-bottom: 64px; }
-.holo-docs #nd-page > h1 { font-size: clamp(2rem, 3.2vw, 2.75rem); font-weight: 600; letter-spacing: -.045em; line-height: 1.15; }
-.holo-docs #nd-page > p { max-width: 65ch; font-size: 17px; line-height: 1.7; }
-.holo-docs .prose { font-size: 15px; line-height: 1.8; }
-.holo-docs .prose h2 { font-weight: 600; letter-spacing: -.025em; }
-.holo-docs .prose h3 { letter-spacing: -.015em; }
-.holo-docs .prose > p { max-width: 76ch; }
-.holo-docs .prose pre { padding: 18px 20px; font-size: 12.5px; line-height: 1.8; }
-.holo-docs .prose figure { border-color: #ffffff14; background: #0e0e13; }
-.holo-docs .prose :not(pre) > code { font-size: .86em; overflow-wrap: anywhere; }
-.holo-docs .prose table { font-size: 13px; }
-.holo-docs .prose th { color: #f4f3f8; }
-.holo-docs .prose td { vertical-align: top; }
-.docs-brand { display: inline-flex; align-items: center; gap: 11px; font-size: 15px; font-weight: 650; letter-spacing: -.025em; }
-.docs-brand-icon { width: 32px; height: 32px; object-fit: contain; }
-.docs-brand-label { margin-left: 9px; font-size: 12px; color: #a3a0b1; font-weight: 450; letter-spacing: 0; }
-.docs-agent-link { display: flex; align-items: center; gap: 11px; min-height: 76px; padding: 14px 12px; margin: 4px 0 12px; border: 1px solid #b9a6ff25; border-radius: 12px; background: linear-gradient(120deg, #b9a6ff0e, #7fe7ff05); color: #c9baff; }
-.docs-agent-link > span { display: grid; gap: 5px; flex: 1; }
-.docs-agent-link strong { font-size: 12px; font-weight: 550; color: #ece6ff; }
-.docs-agent-link span span { font-size: 11px; color: #a3a0b1; }
-.docs-agent-link:hover { border-color: #b9a6ff60; background-color: #b9a6ff08; }
-.docs-marketing-link { display: flex; align-items: center; justify-content: space-between; min-height: 40px; padding: 8px; font-size: 12px; color: #a3a0b1; }
-.docs-quick-links { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0 32px; }
-.docs-quick-links a { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 9px 15px; border: 1px solid #b9a6ff30; border-radius: 9px; color: #d8ccff; font-size: 13px; font-weight: 500; text-decoration: none; background: #b9a6ff0a; }
-.docs-quick-links a:first-child { color: #110b24; background: #b9a6ff; border-color: #b9a6ff; }
-.docs-quick-links a:hover { filter: brightness(1.12); }
-.docs-intro { padding: 22px 24px; border: 1px solid #b9a6ff25; border-radius: 14px; background: linear-gradient(115deg, #b9a6ff0d, #7fe7ff04); margin: 24px 0; }
-.docs-intro p { margin: 0; }
+.holo-docs #nd-docs-layout {
+  --fd-sidebar-width: 268px;
+}
+.holo-docs #nd-page {
+  padding-top: 48px;
+  padding-bottom: 64px;
+}
+.holo-docs #nd-page > h1 {
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1.15;
+}
+.holo-docs #nd-page > p {
+  max-width: 65ch;
+  font-size: 17px;
+  line-height: 1.7;
+}
+.holo-docs .prose {
+  font-size: 15px;
+  line-height: 1.8;
+}
+.holo-docs .prose h2 {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.holo-docs .prose h3 {
+  letter-spacing: -0.015em;
+}
+.holo-docs .prose > p {
+  max-width: 76ch;
+}
+.holo-docs .prose pre {
+  padding: 18px 20px;
+  font-size: 12.5px;
+  line-height: 1.8;
+}
+.holo-docs .prose figure {
+  border-color: #ffffff14;
+  background: #0e0e13;
+}
+.holo-docs .prose :not(pre) > code {
+  font-size: 0.86em;
+  overflow-wrap: anywhere;
+}
+.holo-docs .prose table {
+  font-size: 13px;
+}
+.holo-docs .prose th {
+  color: #f4f3f8;
+}
+.holo-docs .prose td {
+  vertical-align: top;
+}
+.docs-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+.docs-brand-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+.docs-brand-label {
+  margin-left: 9px;
+  font-size: 12px;
+  color: #a3a0b1;
+  font-weight: 450;
+  letter-spacing: 0;
+}
+.docs-agent-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 76px;
+  padding: 14px 12px;
+  margin: 4px 0 12px;
+  border: 1px solid #b9a6ff25;
+  border-radius: 12px;
+  background: linear-gradient(120deg, #b9a6ff0e, #7fe7ff05);
+  color: #c9baff;
+}
+.docs-agent-link > span {
+  display: grid;
+  gap: 5px;
+  flex: 1;
+}
+.docs-agent-link strong {
+  font-size: 12px;
+  font-weight: 550;
+  color: #ece6ff;
+}
+.docs-agent-link span span {
+  font-size: 11px;
+  color: #a3a0b1;
+}
+.docs-agent-link:hover {
+  border-color: #b9a6ff60;
+  background-color: #b9a6ff08;
+}
+.docs-marketing-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: 8px;
+  font-size: 12px;
+  color: #a3a0b1;
+}
+.docs-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 24px 0 32px;
+}
+.docs-quick-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 15px;
+  border: 1px solid #b9a6ff30;
+  border-radius: 9px;
+  color: #d8ccff;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  background: #b9a6ff0a;
+}
+.docs-quick-links a:first-child {
+  color: #110b24;
+  background: #b9a6ff;
+  border-color: #b9a6ff;
+}
+.docs-quick-links a:hover {
+  filter: brightness(1.12);
+}
+.docs-intro {
+  padding: 22px 24px;
+  border: 1px solid #b9a6ff25;
+  border-radius: 14px;
+  background: linear-gradient(115deg, #b9a6ff0d, #7fe7ff04);
+  margin: 24px 0;
+}
+.docs-intro p {
+  margin: 0;
+}
 body:has(.holo-docs) :is(button, input, select):focus-visible,
-.holo-docs a:focus-visible { outline: 2px solid #b9a6ff; outline-offset: 3px; }
-body:has(.holo-docs) [role="dialog"] { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
-body:has(.holo-docs) button { min-height: 36px; min-width: 36px; }
-.holo-docs aside a { min-height: 36px; }
-.holo-docs #nd-sidebar-mobile { top: env(safe-area-inset-top); bottom: env(safe-area-inset-bottom); }
-body:has(.holo-docs) [role="dialog"] input { font-size: 16px; }
+.holo-docs a:focus-visible {
+  outline: 2px solid #b9a6ff;
+  outline-offset: 3px;
+}
+body:has(.holo-docs) [role='dialog'] {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+body:has(.holo-docs) button {
+  min-height: 36px;
+  min-width: 36px;
+}
+.holo-docs aside a {
+  min-height: 36px;
+}
+.holo-docs #nd-sidebar-mobile {
+  top: env(safe-area-inset-top);
+  bottom: env(safe-area-inset-bottom);
+}
+body:has(.holo-docs) [role='dialog'] input {
+  font-size: 16px;
+}
 @media (max-width: 767px) {
-  .holo-docs #nd-docs-layout { --fd-sidebar-width: 0px; }
-  .holo-docs #nd-page { padding: 28px 20px 40px; }
-  .holo-docs #nd-page > p { font-size: 16px; }
-  .holo-docs .prose { font-size: 14px; }
-  .holo-docs .prose pre { padding: 16px; font-size: 12px; }
-  .docs-brand-label { display: none; }
-  .docs-intro { padding: 18px; }
-  .docs-quick-links { gap: 8px; }
+  .holo-docs #nd-docs-layout {
+    --fd-sidebar-width: 0px;
+  }
+  .holo-docs #nd-page {
+    padding: 28px 20px 40px;
+  }
+  .holo-docs #nd-page > p {
+    font-size: 16px;
+  }
+  .holo-docs .prose {
+    font-size: 14px;
+  }
+  .holo-docs .prose pre {
+    padding: 16px;
+    font-size: 12px;
+  }
+  .docs-brand-label {
+    display: none;
+  }
+  .docs-intro {
+    padding: 18px;
+  }
+  .docs-quick-links {
+    gap: 8px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  body:has(.holo-docs) *, body:has(.holo-docs) *::before, body:has(.holo-docs) *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  body:has(.holo-docs) *,
+  body:has(.holo-docs) *::before,
+  body:has(.holo-docs) *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-.holo-docs .docs-key-auth [role="dialog"] { padding-top: 0; padding-bottom: 0; }
+.holo-docs .docs-key-auth [role='dialog'] {
+  padding-top: 0;
+  padding-bottom: 0;
+}

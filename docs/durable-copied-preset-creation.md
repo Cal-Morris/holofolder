@@ -34,11 +34,11 @@ Local browser proof uses real BinderApp/overlay/IDB/HTTP/fresh reads with clearl
 
 ## Craft review
 
-| Before | After | Why |
-| --- | --- | --- |
-| Native navigation had no creation entry | Explicit New storage with a bounded preview/confirmation sheet | Make creation deliberate and reviewable |
-| No native creation sheet | Dynamic viewport cap, dock clearance, shared overlay and swipe header | Keep controls reachable on short standalone phones |
-| Cached startup could expose an edit affordance whose sink refused writes | Explicit read-only editing availability | Match the affordance to current planning authority |
+| Before                                                                   | After                                                                 | Why                                                |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------- | -------------------------------------------------- |
+| Native navigation had no creation entry                                  | Explicit New storage with a bounded preview/confirmation sheet        | Make creation deliberate and reviewable            |
+| No native creation sheet                                                 | Dynamic viewport cap, dock clearance, shared overlay and swipe header | Keep controls reachable on short standalone phones |
+| Cached startup could expose an edit affordance whose sink refused writes | Explicit read-only editing availability                               | Match the affordance to current planning authority |
 
 No new animation is added. Keyboard review/confirmation is immediate; dismissal uses the existing shared gesture. Browser tests cover safe areas, focus return, X/Escape/back/backdrop/swipe/dock navigation, exact counts, long existing catalog labels, current allowances and missing catalog evidence. Physical-device keyboard/gesture behavior is not claimed.
 
@@ -60,9 +60,9 @@ New creation pending entries retain original `creationAuthSessionId` without cha
 
 Device-only reconciliation adds no public mutation. Existing REST/MCP creation schemas and authoritative errors remain current; generated OpenAPI is unchanged. Production first-party/developer admission stays fixed 503. No SQL, hosted changes, bootstrap/read-only startup, backup/import domain, source auth/billing, legacy Activity/Undo, scanner/grading/bulk behavior or Framer publication changes.
 
-| Before | After | Why |
-| --- | --- | --- |
-| All creation errors retained with retry only | Bound 093 proof offers one explicit discard button | Separate proven noncommit from unknown outcomes |
+| Before                                                   | After                                                 | Why                                                      |
+| -------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------- |
+| All creation errors retained with retry only             | Bound 093 proof offers one explicit discard button    | Separate proven noncommit from unknown outcomes          |
 | Reconciliation used command cancellation/rebase language | Creation says discard and requires New storage review | Never imply synchronization or silently rewrite creation |
 
 No motion added or changed. The existing native sheet/dock gestures remain unchanged. The inline button uses the existing 36 px minimum target and wrapping explanatory text; affected six-phone checks verify safe bounds and overflow. Synthetic Auth/RPC, real handler/browser/IDB/read pipeline evidence remains distinct from hosted SQL and installed-device proof. Parent owns independent review, checks, merge, deployment and issue acceptance; all full issues remain open.
@@ -70,7 +70,6 @@ No motion added or changed. The existing native sheet/dock gestures remain uncha
 ### Follow-on local verification
 
 The original implementation on main `d88380105c75dd1a05e4a4fc4ecd49c1557deaa7` including #479, pinned Bun 1.3.14 passes 120 focused unit/contract cases across 11 files, typecheck, production build/docs CSS and lint with the unchanged 55 warnings. Changed-code lint has zero warnings. The combined 216-case affected six-phone run passes every one of the 174 creation cases, plus command/recovery/scanner/bulk/private-grading and guard regressions, with two inherited test failures: backup's whole-record equality sampled the valid pending-to-unavailable sender transition, and 375 standalone cached startup timed out. Isolated backup/startup rerun passes 11/12; all six backup guards pass, with the same startup timeout. An independently built unmodified main `d883801` also reproduces that startup timeout. The original worker changed no backup/import or startup implementation/tests; that baseline startup gate remains with the parent. Parent follow-up corrects only the backup regression assertion to compare retained immutable creation intents, allowing legitimate sender status/lease transitions. Backup/import implementation remains unchanged. Earlier pre-#479 creation and terminal-proof matrices passed 156 and 90 cases respectively. No full e2e, hosted SQL, physical-device, enabled-production or publication claim.
-
 
 Parent acceptance follow-up: independent exact-head source review passed 39 focused creation-queue/browser tests with no blockers. Parent unit suite passes 1,627 cases (53 opt-in SQL skips), typecheck/lint55/build pass, and all 180 selected six-phone creation/proof plus pending-backup guard cases pass after correcting that test's volatile whole-record equality. This is a separate focused run, not a claim that the earlier 216-case matrix is all green. The independently reproduced cached-startup baseline timeout remains an unresolved #379 acceptance gate. No startup assertion was relaxed or timeout increased.
 

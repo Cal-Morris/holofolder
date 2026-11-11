@@ -1,7 +1,7 @@
-import type { JwtPayload, SupabaseClient, User } from "@supabase/supabase-js"
+import type { JwtPayload, SupabaseClient, User } from '@supabase/supabase-js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabaseClient = SupabaseClient<any, any, any>
+type AnySupabaseClient = SupabaseClient<any, any, any>;
 
 /**
  * A `User` built from verified access-token claims. Only the token's fields are real
@@ -11,15 +11,15 @@ type AnySupabaseClient = SupabaseClient<any, any, any>
 export function userFromClaims(claims: JwtPayload): User {
   return {
     id: claims.sub,
-    aud: typeof claims.aud === "string" ? claims.aud : (claims.aud?.[0] ?? "authenticated"),
+    aud: typeof claims.aud === 'string' ? claims.aud : (claims.aud?.[0] ?? 'authenticated'),
     role: claims.role,
     email: claims.email,
     phone: claims.phone,
     is_anonymous: claims.is_anonymous,
     app_metadata: claims.app_metadata ?? {},
     user_metadata: claims.user_metadata ?? {},
-    created_at: "",
-  }
+    created_at: '',
+  };
 }
 
 /**
@@ -31,14 +31,14 @@ export function userFromClaims(claims: JwtPayload): User {
  * `getUser()`. Row Level Security applies to every query either way.
  */
 export async function getSessionUser(client: AnySupabaseClient): Promise<User | null> {
-  const { data, error } = await client.auth.getClaims()
-  if (error || !data?.claims?.sub || data.claims.client_id) return null
-  return userFromClaims(data.claims)
+  const { data, error } = await client.auth.getClaims();
+  if (error || !data?.claims?.sub || data.claims.client_id) return null;
+  return userFromClaims(data.claims);
 }
 
 /** Website writes must not accept an OAuth token placed in the session cookie. */
 export async function getFirstPartyUser(client: AnySupabaseClient) {
-  const { data, error } = await client.auth.getClaims()
-  if (error || !data?.claims?.sub || data.claims.client_id) return { data: { user: null }, error: null }
-  return client.auth.getUser()
+  const { data, error } = await client.auth.getClaims();
+  if (error || !data?.claims?.sub || data.claims.client_id) return { data: { user: null }, error: null };
+  return client.auth.getUser();
 }
