@@ -9,6 +9,7 @@ import { toCardImageSrc } from "@/lib/card-image-url"
 import { formatDexNumber } from "@/lib/pokemon-catalog"
 import { X, Zap } from "lucide-react"
 import type { Dispatch, RefObject, SetStateAction } from "react"
+import type { useSwipeToDismiss } from "@/hooks/use-overlay"
 import type { ResolvedPricingPreferences } from "@/lib/pricing-region"
 import type { CardPriceSnapshot, SupportedCurrency } from "@/hooks/use-card-prices"
 import type { PokemonSearchResultMeta } from "@/components/pokemon-search"
@@ -39,6 +40,7 @@ export interface SearchOverlayContext {
   pricingPreferences: ResolvedPricingPreferences
   readOnlyMode: boolean
   searchDialogRef: RefObject<HTMLDivElement | null>
+  searchSwipe: ReturnType<typeof useSwipeToDismiss>
   selectedHasWantedCard: boolean
   selectedPokemon: PokemonSummary | null
   selectedPokemonDisplayFit: "object-contain"
@@ -51,7 +53,7 @@ export interface SearchOverlayContext {
 }
 
 export function renderSearchOverlayView(ctx: SearchOverlayContext) {
-  const { nativeConsumer, history, binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages } = ctx
+  const { nativeConsumer, history, binderCardDisplay, closeSearch, collected, currentPagePokemon, filteredPokemonList, getCardState, getOfflineSearchCards, getSearchResultMeta, handlePokemonSelect, handleSearchJumpToPage, isSearchOpen, openCardBrowser, openIllustratorBrowser, openQuickMode, openSetFromSearch, priceFormat, pricingPreferences, readOnlyMode, searchDialogRef, searchSwipe, selectedHasWantedCard, selectedPokemon, selectedPokemonDisplayFit, selectedPokemonDisplayImage, selectedPokemonDisplayName, selectedPokemonDisplayTone, selectedPrimaryCardPreview, setIsSearchOpen, totalBinderPages } = ctx
   return (
     isSearchOpen && (
       <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={closeSearch}>
@@ -63,7 +65,8 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
             aria-label="Search Pokemon"
             onClick={(event) => event.stopPropagation()}
             className="flex min-h-0 flex-1 flex-col holo-panel overflow-hidden rounded-[1.75rem] border border-border/65 bg-card/96 shadow-[0_30px_80px_-36px_rgba(15,23,42,0.35)] dark:border-border/50 dark:shadow-2xl">
-            <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-1 gap-y-1 border-b border-border/40 px-4 py-3">
+            <div data-sheet-grabber {...searchSwipe} className="relative grid shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-1 gap-y-1 border-b border-border/40 px-4 py-3">
+              <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30 sm:hidden" />
               <div className="min-w-0">
                 <p className="text-sm font-semibold">Search</p>
               </div>

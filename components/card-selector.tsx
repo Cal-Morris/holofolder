@@ -11,7 +11,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useTCGdex, type TCGCard, type CardFilters, type CardLanguage } from "@/hooks/use-tcgdex"
 import type { CardFinish } from "@/lib/domain/cards"
 import { Button } from "@/components/ui/button"
-import { useOverlay } from "@/hooks/use-overlay"
+import { useOverlay, useSwipeToDismiss } from "@/hooks/use-overlay"
 import { useCardSearch } from "@/hooks/use-card-search"
 import { buildOfflineCardIndex } from "@/lib/offline-card-index"
 import CardPickerFiltersSheet from "@/components/card-picker-filters-sheet"
@@ -553,6 +553,7 @@ export default function CardSelector({
     closeCardScanner()
   }, [closeCardScanner, isApplyingCardResults, isCapturingCardScan])
   useOverlay(true, onClose, { containerRef: selectorDialogRef, autoFocus: false })
+  const selectorSwipe = useSwipeToDismiss(selectorDialogRef, onClose)
   useOverlay(isCardScannerOpen, closeCardScannerSafely, { containerRef: cardScannerRef })
 
   const openCardScanner = useCallback(() => {
@@ -817,7 +818,9 @@ export default function CardSelector({
       >
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="z-20 shrink-0 border-b border-border bg-card px-4 pb-2.5 pt-2 sm:px-5 sm:pt-3">
-            <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-muted-foreground/30 sm:hidden" />
+            <div data-sheet-grabber {...selectorSwipe} className="-mx-4 -mt-2 mb-1 px-4 pb-1 pt-2 sm:hidden">
+              <div aria-hidden="true" className="mx-auto h-1.5 w-10 rounded-full bg-muted-foreground/30" />
+            </div>
             <h2 className="sr-only">{intentCopy.title}</h2>
             <p className="sr-only">{intentCopy.helper}</p>
             <div className="flex items-center gap-2">

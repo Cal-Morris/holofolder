@@ -54,7 +54,8 @@ export default function NativeBackup({ binding, restore, collectionId, onClose }
   return <div className="fixed inset-0 z-[42] flex items-end justify-center pb-[var(--dock-clearance)] sm:items-center">
     <div data-overlay-backdrop className="absolute inset-0 bg-black/50" onClick={onClose} />
     <div ref={panel} role="dialog" aria-modal="true" aria-label="Collection data backup" className="relative flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-12px)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border bg-background shadow-xl sm:rounded-2xl">
-      <header data-sheet-grabber {...swipe} className="flex shrink-0 items-center justify-between gap-2 p-4">
+      <header data-sheet-grabber {...swipe} className="relative flex shrink-0 items-center justify-between gap-2 p-4">
+        <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30" />
         <h2 className="font-semibold">Back up your collection</h2>
         <button className="flex h-9 w-9 shrink-0 items-center justify-center" aria-label="Close backup" onClick={onClose}><X className="h-5 w-5" /></button>
       </header>

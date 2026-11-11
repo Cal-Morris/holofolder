@@ -58,7 +58,7 @@ export default function NativePageScanner({ admission, onClose }: { admission: N
   return <div className="fixed inset-0 z-40">
     <div data-overlay-backdrop className="absolute inset-0 bg-black/55" onClick={close} />
     <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Scan page" className="absolute inset-x-2 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-background text-foreground">
-      <header data-sheet-grabber {...swipe} className="flex shrink-0 items-center gap-2 p-3"><h2 className="flex-1 font-semibold">Scan page</h2><button className={button} onClick={close} aria-label="Close page scanner">Close</button></header>
+      <header data-sheet-grabber {...swipe} className="relative flex shrink-0 items-center gap-2 p-3"><span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30" /><h2 className="flex-1 font-semibold">Scan page</h2><button className={button} onClick={close} aria-label="Close page scanner">Close</button></header>
       <div className="space-y-3 overflow-y-auto p-3">
         <p className="text-sm text-muted-foreground">Fit the whole page in view ({admission.view.rows} by {admission.view.cols} pockets) and take a photo. You choose each card before anything is added.</p>
         <video ref={video} autoPlay playsInline muted className="max-h-48 w-full rounded-xl bg-black object-cover" />

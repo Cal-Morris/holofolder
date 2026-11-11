@@ -119,7 +119,8 @@ export default function ScanDestinationReview({ admission, capture, cells, onClo
     <div data-overlay-backdrop className="absolute inset-0 bg-black/55" onClick={close} />
     <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Scanned cards"
       className="absolute inset-x-2 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground outline-none">
-      <header data-sheet-grabber {...swipe} className="flex shrink-0 items-center gap-2 border-b border-border p-3">
+      <header data-sheet-grabber {...swipe} className="relative flex shrink-0 items-center gap-2 border-b border-border p-3">
+        <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30" />
         <div className="min-w-0 flex-1"><h2 className="font-semibold">{found.length === 1 && !found[0].slotId ? "Scanned card" : "Cards on this page"}</h2>
           <p className="text-xs text-muted-foreground">Choose each card, then add them to your binder.</p></div>
         <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-muted disabled:opacity-45" disabled={acceptance.busy} aria-label="Close scan review" onClick={close}><X className="h-4 w-4" /></button>

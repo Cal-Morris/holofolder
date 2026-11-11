@@ -214,7 +214,8 @@ export default function SettingsModal({
         className="absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--dock-clearance)+0.75rem)] mx-auto flex w-auto max-w-md flex-col holo-panel overflow-hidden rounded-[1.5rem] border border-border/50 bg-card shadow-2xl backdrop-blur-xl animate-slide-up md:inset-auto md:left-1/2 md:top-1/2 md:h-[min(85vh,48rem)] md:w-full md:-translate-x-1/2 md:-translate-y-1/2"
         onClick={(e) => e.stopPropagation()}
       >
-        <div data-sheet-grabber className="flex items-center justify-between border-b border-border/50 px-5 py-4 shrink-0" {...swipe}>
+        <div data-sheet-grabber className="relative flex items-center justify-between border-b border-border/50 px-5 py-4 shrink-0" {...swipe}>
+          <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30 md:hidden" />
           <h2 className="text-lg font-semibold tracking-tight">Settings</h2>
           <button onClick={onClose} aria-label="Close settings" className="mr-0.5 flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted/70 transition-colors">
             <X className="w-4 h-4" />

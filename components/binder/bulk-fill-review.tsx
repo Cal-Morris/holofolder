@@ -71,7 +71,8 @@ export default function BulkFillReview({ boundary, selection, grid, onClose }: {
     <div data-overlay-backdrop className="absolute inset-0 bg-black/60" onClick={onClose} />
     <div ref={ref} role="dialog" aria-modal="true" aria-label="Fill pockets"
       className="absolute inset-x-3 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-xl">
-      <header data-sheet-grabber {...swipe} className="flex shrink-0 items-center justify-between gap-2 border-b border-border p-3">
+      <header data-sheet-grabber {...swipe} className="relative flex shrink-0 items-center justify-between gap-2 border-b border-border p-3">
+        <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30" />
         <div className="min-w-0"><h2 className="text-sm font-semibold">Fill pockets from spare cards</h2><p className="text-xs text-muted-foreground">Spare cards are ones you own that aren&apos;t in a pocket yet.</p></div>
         <button type="button" aria-label="Close" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-muted" onClick={onClose}><X className="h-4 w-4" /></button>
       </header>

@@ -47,7 +47,8 @@ export default function NativeCollectionDeletion({ binding, collectionId, onClos
     <div data-overlay-backdrop className="absolute inset-0 bg-black/60" onClick={onClose} />
     <div ref={ref} role="dialog" aria-modal="true" aria-label="Delete collection" tabIndex={-1}
       className="absolute inset-x-3 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-xl [overflow-wrap:anywhere]">
-      <header data-sheet-grabber {...swipe} className="flex shrink-0 items-center justify-between gap-2 border-b border-border p-3">
+      <header data-sheet-grabber {...swipe} className="relative flex shrink-0 items-center justify-between gap-2 border-b border-border p-3">
+        <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30" />
         <h2 className="min-w-0 text-sm font-semibold">Delete {name}?</h2>
         <button type="button" aria-label="Close collection deletion" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-muted" onClick={onClose}>✕</button>
       </header>

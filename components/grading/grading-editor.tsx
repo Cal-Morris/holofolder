@@ -74,7 +74,7 @@ function EditorSession({ item, itemRef, ownerEvidence, onClose, onAcceptDraft, o
   return <div className={styles.overlay}>
     <div data-overlay-backdrop className={styles.backdrop} onClick={onClose} />
     <div ref={ref} role="dialog" aria-modal="true" aria-label="Edit copy grading" tabIndex={-1} className={styles.sheet}>
-      <header {...swipe} data-sheet-grabber className={styles.header}><h2>Edit grading</h2>
+      <header {...swipe} data-sheet-grabber className={`${styles.header} relative`}><span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/30" /><h2>Edit grading</h2>
         <button type="button" aria-label="Close grading editor" onClick={onClose}><X size={20} /></button></header>
       <div className={styles.actions}>
         <button type="button" disabled={busy || (!onQueue && !onCommit && !onAcceptDraft)} onClick={() => void submit()}>{busy ? "Saving…" : onQueue ? locked ? "Try again" : "Save grading" : onCommit ? "Save grading" : "Use grading draft"}</button>

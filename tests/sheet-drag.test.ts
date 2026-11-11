@@ -1,6 +1,6 @@
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
-import { dismissDuration, dragOffset, dragDistanceForOffset, MAX_OVERDRAG, releaseVelocity, shouldDismissDrag } from "../lib/sheet-drag"
+import { bodyMoveDragsSheet, dismissDuration, dragOffset, dragDistanceForOffset, MAX_OVERDRAG, releaseVelocity, shouldDismissDrag } from "../lib/sheet-drag"
 
 describe("sheet drag", () => {
   it("measures velocity over the last stretch of the gesture only", () => {
@@ -42,5 +42,14 @@ describe("sheet drag", () => {
   it("keeps exit animations short", () => {
     assert.equal(dismissDuration(600, 5), 120)
     assert.equal(dismissDuration(600, 0), 240)
+  })
+
+  it("lets a body drag move the sheet only when pulling down from the top", () => {
+    assert.equal(bodyMoveDragsSheet(0, 6, 0), true)
+    assert.equal(bodyMoveDragsSheet(-3, 3, 0), true, "a diagonal still counts as down")
+    assert.equal(bodyMoveDragsSheet(0, 6, 40), false, "a scrolled body scrolls back up first")
+    assert.equal(bodyMoveDragsSheet(0, -6, 0), false, "pushing up scrolls the body")
+    assert.equal(bodyMoveDragsSheet(8, 4, 0), false, "a sideways move belongs to carousels")
+    assert.equal(bodyMoveDragsSheet(0, 0, 0), false)
   })
 })
