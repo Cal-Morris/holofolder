@@ -31,6 +31,8 @@ const LAND_SPRING = `linear(${Array.from({ length: 41 }, (_, i) =>
 const LAND_MS = 420;
 const SHIFT_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 const SHIFT_MS = 260;
+/** How long a dropped pocket waits for its move to render before going back. */
+const DROP_WAIT_MS = 1200;
 
 export interface PocketDrag {
   /** A pocket was picked up: the binder goes into layout editing (wiggle mode). */
@@ -41,8 +43,8 @@ export interface PocketDrag {
 
 /**
  * Picking a pocket up and dropping it on another. While the pointer is down the pocket is the pointer (inline
- * `translate`, no easing, no React state); once it lets go, the pocket springs into its new place, and any pocket the
- * move pushed aside slides there too.
+ * `translate`, no easing, no React state), and the pockets between it and where it would land slide aside to show the
+ * gap, as on the iOS home screen. Once it lets go, the pocket springs into its new place.
  */
 function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: boolean) {
   const ref = useRef<HTMLButtonElement>(null);
@@ -50,22 +52,36 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
   // Armed: the next move past the tolerance picks the pocket up instead of panning or cancelling.
   const armed = useRef(false);
   const arm = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const drag = useRef<{ grabX: number; grabY: number; x: number; y: number; over: HTMLElement | null } | null>(null);
+  const drag = useRef<{
+    grabX: number;
+    grabY: number;
+    x: number;
+    y: number;
+    // This page's cells as they were when it was picked up; the gap previews move pockets, the cells stay put.
+    cells: { el: Element; rect: DOMRect }[];
+    start: DOMRect;
+    over: HTMLElement | null;
+  } | null>(null);
   // A finished touch drag still has its touchend to come; the binder's page swipe must not see it.
   const dragged = useRef(false);
-  // Where it sat in the grid last render (offsets ignore transforms), and where a just-dropped pocket was drawn.
+  // Where it sat in the grid last render (offsets ignore transforms), and whether a just-dropped pocket is in flight.
   const place = useRef<{ x: number; y: number; editing: boolean } | null>(null);
-  const released = useRef<{ x: number; y: number } | null>(null);
+  const released = useRef(false);
   const landing = useRef<Animation | null>(null);
-  // Slide from (x, y) back to the pocket's own place. Released pockets spring, pushed ones ease.
-  const settle = (x: number, y: number, spring: boolean) => {
+  const fallback = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Slide from where it is drawn now, offset by (dx, dy) of grid movement, back to its own place.
+  const settle = (dx: number, dy: number, spring: boolean) => {
     const el = ref.current;
     if (!el) return;
+    const [x, y] = drawnOffset(el);
     el.style.translate = '';
+    delete el.dataset.shifting;
     landing.current?.cancel();
     landing.current = null;
-    if ((!x && !y) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    landing.current = el.animate([{ translate: `${x}px ${y}px` }, { translate: '0px 0px' }], {
+    const fromX = x + dx,
+      fromY = y + dy;
+    if ((!fromX && !fromY) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    landing.current = el.animate([{ translate: `${fromX}px ${fromY}px` }, { translate: '0px 0px' }], {
       duration: spring ? LAND_MS : SHIFT_MS,
       easing: spring && CSS.supports('transition-timing-function', 'linear(0, 1)') ? LAND_SPRING : SHIFT_EASE,
     });
@@ -80,15 +96,17 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
     if (!was || drag.current) return;
     const dx = was.x - now.x,
       dy = was.y - now.y;
-    if (released.current) {
-      settle(released.current.x + dx, released.current.y + dy, true);
-      released.current = null;
-    } else if ((dx || dy) && was.editing && now.editing) settle(dx, dy, false);
+    if (released.current || ((dx || dy) && was.editing && now.editing) || (el.style.translate && (dx || dy))) {
+      settle(dx, dy, released.current);
+      released.current = false;
+      if (fallback.current) clearTimeout(fallback.current);
+    }
   });
   const draggable = Boolean(onDrag);
   useEffect(
     () => () => {
       if (arm.current) clearTimeout(arm.current);
+      if (fallback.current) clearTimeout(fallback.current);
     },
     [],
   );
@@ -113,31 +131,67 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
       el.removeEventListener('touchcancel', onTouchEnd);
     };
   }, [draggable]);
+  const capture = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    try {
+      ref.current?.setPointerCapture(event.pointerId);
+    } catch {
+      /* Not an active pointer (a synthetic event); touch is captured implicitly anyway. */
+    }
+  };
   const disarm = () => {
     if (arm.current) {
       clearTimeout(arm.current);
       arm.current = null;
     }
   };
+  // The pockets between this one and the target move one cell towards the gap; everything else rests.
+  const preview = (cells: { el: Element; rect: DOMRect }[], to: number) => {
+    const from = cells.findIndex((c) => c.el === ref.current);
+    cells.forEach((cell, i) => {
+      if (cell.el === ref.current || !(cell.el instanceof HTMLElement) || !cell.el.dataset.slotId) return;
+      const step = from < 0 || to < 0 ? 0 : from < i && i <= to ? -1 : to <= i && i < from ? 1 : 0;
+      if (!step) {
+        if (cell.el.dataset.shifting !== undefined) cell.el.style.translate = '';
+        return;
+      }
+      const into = cells[i + step].rect;
+      cell.el.dataset.shifting = '';
+      cell.el.style.translate = `${into.left - cell.rect.left}px ${into.top - cell.rect.top}px`;
+    });
+  };
   const follow = (x: number, y: number) => {
     const el = ref.current,
       d = drag.current;
     if (!el || !d) return;
-    // Relative to where the pocket sits now, so a bar appearing above the binder doesn't throw it off.
+    // Relative to where the pocket sits now, so anything above the binder moving doesn't throw it off.
     const box = el.getBoundingClientRect();
-    d.x = x - d.grabX - (box.left - d.x);
-    d.y = y - d.grabY - (box.top - d.y);
+    const naturalX = box.left - d.x,
+      naturalY = box.top - d.y;
+    d.x = x - d.grabX - naturalX;
+    d.y = y - d.grabY - naturalY;
     el.style.translate = `${d.x}px ${d.y}px`;
+    // Same correction for the cells measured at pick-up.
+    const sx = naturalX - d.start.left,
+      sy = naturalY - d.start.top;
+    const index = d.cells.findIndex(
+      ({ rect }) => x >= rect.left + sx && x < rect.right + sx && y >= rect.top + sy && y < rect.bottom + sy,
+    );
+    const hit = index < 0 ? undefined : d.cells[index].el;
+    // Off this page (the other page of a spread): whatever pocket is under the pointer, outlined, with no preview.
     const over =
-      document
-        .elementsFromPoint(x, y)
-        .map((node) => node.closest<HTMLElement>('button[data-slot-id]'))
-        .find((node) => node && node !== el) ?? null;
-    if (over !== d.over) {
-      d.over?.removeAttribute('data-drop-target');
-      over?.setAttribute('data-drop-target', '');
-      d.over = over;
-    }
+      index >= 0
+        ? hit instanceof HTMLElement && hit.dataset.slotId && hit !== el
+          ? hit
+          : null
+        : (document
+            .elementsFromPoint(x, y)
+            .map((node) => node.closest<HTMLElement>('button[data-slot-id]'))
+            .find((node) => node && node !== el) ?? null);
+    if (over === d.over) return;
+    d.over?.removeAttribute('data-drop-target');
+    over?.setAttribute('data-drop-target', '');
+    d.over = over;
+    preview(d.cells, over && index >= 0 ? index : -1);
   };
   const putDown = (drop: boolean) => {
     const el = ref.current,
@@ -147,16 +201,24 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
     drag.current = null;
     delete el.dataset.dragging;
     d.over?.removeAttribute('data-drop-target');
-    const target = d.over?.dataset.slotId;
-    // Stays where the pointer let go; the next render (the move) or the next frame (no move) springs it home.
-    released.current = { x: d.x, y: d.y };
-    if (drop && target) onDrag?.drop(id, target);
-    requestAnimationFrame(() => {
-      if (!released.current) return;
-      const { x, y } = released.current;
-      released.current = null;
-      settle(x, y, true);
-    });
+    const target = drop ? d.over?.dataset.slotId : undefined;
+    const rest = () => {
+      fallback.current = null;
+      released.current = false;
+      preview(d.cells, -1);
+      settle(0, 0, true);
+    };
+    if (!target) {
+      rest();
+      return;
+    }
+    // It stays where the pointer let go and the gap stays open until the move renders (the layout effect lands
+    // everything from where it is drawn); if the move never comes, everything goes back.
+    released.current = true;
+    onDrag?.drop(id, target);
+    fallback.current = setTimeout(() => {
+      if (released.current) rest();
+    }, DROP_WAIT_MS);
   };
   return {
     ref,
@@ -172,6 +234,8 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
       dragged.current = false;
       disarm();
       armed.current = Boolean(onDrag && event.pointerType === 'mouse' && event.button === 0);
+      // A quick flick can leave the pocket before it counts as a drag; captured, its moves still come here.
+      if (armed.current) capture(event);
       if (onDrag && wiggling && event.pointerType !== 'mouse')
         arm.current = setTimeout(() => {
           arm.current = null;
@@ -194,14 +258,24 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
       // Caught mid-landing: measure from where it rests, the pointer re-grabs it from there.
       landing.current?.cancel();
       landing.current = null;
-      released.current = null;
-      const box = el.getBoundingClientRect();
-      drag.current = { grabX: origin.current.x - box.left, grabY: origin.current.y - box.top, x: 0, y: 0, over: null };
-      try {
-        el.setPointerCapture(event.pointerId);
-      } catch {
-        /* Not an active pointer (a synthetic event); touch is captured implicitly anyway. */
-      }
+      if (fallback.current) clearTimeout(fallback.current);
+      released.current = false;
+      el.style.translate = '';
+      const start = el.getBoundingClientRect();
+      const cells = [...(el.parentElement?.children ?? [])].map((cell) => ({
+        el: cell,
+        rect: offsetRect(cell),
+      }));
+      drag.current = {
+        grabX: origin.current.x - start.left,
+        grabY: origin.current.y - start.top,
+        x: 0,
+        y: 0,
+        cells,
+        start,
+        over: null,
+      };
+      capture(event);
       el.dataset.dragging = '';
       onDrag.start(id);
       follow(event.clientX, event.clientY);
@@ -211,13 +285,38 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
   };
 }
 
+/** The inline translate a pocket is drawn at (a drag or a gap preview), in px. */
+function drawnOffset(el: HTMLElement): [number, number] {
+  const [x = '0', y = '0'] = el.style.translate.split(' ');
+  return [parseFloat(x) || 0, parseFloat(y) || 0];
+}
+
+/** A cell's box without the translate it is drawn at. */
+function offsetRect(cell: Element) {
+  const box = cell.getBoundingClientRect();
+  if (!(cell instanceof HTMLElement)) return box;
+  const [x, y] = drawnOffset(cell);
+  return new DOMRect(box.left - x, box.top - y, box.width, box.height);
+}
+
+/** Arrow-key neighbour in a grid of siblings: one along, or one row up or down (rows read from their offsets). */
+function gridNeighbour(el: HTMLElement, key: string) {
+  const cells = [...(el.parentElement?.children ?? [])] as HTMLElement[];
+  const i = cells.indexOf(el);
+  const cols = cells.filter((c) => c.offsetTop === cells[0]?.offsetTop).length || 1;
+  const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols }[key];
+  const next = step === undefined ? undefined : cells[i + step];
+  return next?.matches('button[data-slot-id]') ? next : undefined;
+}
+
 /**
  * One binder pocket. A tap selects it. Where the host offers pocket actions (`onMenu`), a right-click, the keyboard
  * menu key or a long press opens them instead; a long press is dropped as soon as the finger pans, scrolls or
  * turns the page, and never also counts as a tap. `marked` shows layout selection on the pocket itself.
  *
  * Where the host offers `onDrag`, a pocket can be picked up and dropped on another: a mouse drags straight away, a
- * finger keeps holding after the long press (or, while the binder wiggles, rests briefly) and then moves.
+ * finger keeps holding after the long press (or, while the binder wiggles, rests briefly) and then moves. Arrow keys
+ * move focus between pockets, and while editing, Alt with an arrow moves the focused pocket.
  */
 export function OrderedSlot({
   slot,
@@ -326,6 +425,14 @@ export function OrderedSlot({
         press.current = null;
         cancelHold();
         pocketDrag.cancel();
+      }}
+      onKeyDown={(event) => {
+        // Arrows walk the page's pockets; while editing, Alt (Option) with an arrow moves this pocket there instead.
+        const next = gridNeighbour(event.currentTarget, event.key);
+        if (!next || event.metaKey || event.ctrlKey) return;
+        event.preventDefault();
+        if (!event.altKey) next.focus();
+        else if (onDrag && marked !== undefined && next.dataset.slotId) onDrag.drop(slot.id, next.dataset.slotId);
       }}
       onContextMenu={(event) => {
         if (!onMenu) return;

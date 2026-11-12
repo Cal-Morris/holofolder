@@ -273,14 +273,18 @@ test.describe('layout editing on the pockets', () => {
     const target = (await pocket(page, 'slot-d').boundingBox())!;
     await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 4 });
     await expect(pocket(page, 'slot-d')).toHaveAttribute('data-drop-target', '');
+    // The pockets between make room while it's held, as on the iOS home screen; the ones after it stay put.
+    const drawn = (id: string) => pocket(page, id).evaluate((el) => (el as HTMLElement).style.translate);
+    expect(await drawn('slot-b')).not.toBe('');
+    expect(await drawn('slot-d')).not.toBe('');
+    expect(await drawn('slot-e')).toBe('');
     await page.mouse.up();
-    // It lands, and the pockets it pushed aside slide over, instead of jumping.
-    const sliding = (id: string) =>
-      pocket(page, id).evaluate((el) =>
+    // It springs into its place instead of jumping.
+    expect(
+      await pocket(page, 'slot-a').evaluate((el) =>
         el.getAnimations().some((a) => (a.effect as KeyframeEffect).getKeyframes().some((k) => 'translate' in k)),
-      );
-    expect(await sliding('slot-a')).toBe(true);
-    expect(await sliding('slot-b')).toBe(true);
+      ),
+    ).toBe(true);
     await expect(count(page)).toHaveText('1');
     expect((await order(page)).slice(0, 4)).toEqual(['slot-b', 'slot-c', 'slot-d', 'slot-a']);
     await expect(pocket(page, 'slot-a')).toHaveClass(/pocket-wiggle/);
@@ -297,6 +301,51 @@ test.describe('layout editing on the pockets', () => {
     expect((await order(page)).slice(0, 4)).toEqual(['slot-a', 'slot-b', 'slot-c', 'slot-d']);
     await bar(page).getByRole('button', { name: 'Done', exact: true }).click();
     await expect(pocket(page, 'slot-a')).not.toHaveClass(/pocket-wiggle/);
+  });
+
+  test('moves can be undone and redone, with the buttons or the keyboard', async ({ harness }) => {
+    const { page } = harness;
+    await edit(page);
+    const undo = bar(page).getByRole('button', { name: 'Undo move', exact: true });
+    const redo = bar(page).getByRole('button', { name: 'Redo move', exact: true });
+    await expect(undo).toBeDisabled();
+    await expect(redo).toBeDisabled();
+    // Arrow keys walk the pockets; Alt with an arrow moves the focused one.
+    await pocket(page, 'slot-a').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(pocket(page, 'slot-b')).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(pocket(page, 'slot-f')).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Alt+ArrowRight');
+    await expect(count(page)).toHaveText('1');
+    expect((await order(page)).slice(0, 4)).toEqual(['slot-a', 'slot-c', 'slot-b', 'slot-d']);
+    await expect(pocket(page, 'slot-b')).toBeFocused();
+    await page.keyboard.press('Alt+ArrowRight');
+    await expect(count(page)).toHaveText('2');
+    expect((await order(page)).slice(0, 4)).toEqual(['slot-a', 'slot-c', 'slot-d', 'slot-b']);
+    // Undo steps back one move at a time, Redo replays it.
+    await undo.click();
+    await expect(count(page)).toHaveText('3');
+    expect((await order(page)).slice(0, 4)).toEqual(['slot-a', 'slot-c', 'slot-b', 'slot-d']);
+    await page.keyboard.press('ControlOrMeta+z');
+    await expect(count(page)).toHaveText('4');
+    expect((await order(page)).slice(0, 4)).toEqual(['slot-a', 'slot-b', 'slot-c', 'slot-d']);
+    await expect(undo).toBeDisabled();
+    await redo.click();
+    await expect(count(page)).toHaveText('5');
+    expect((await order(page)).slice(0, 4)).toEqual(['slot-a', 'slot-c', 'slot-b', 'slot-d']);
+    await page.keyboard.press('ControlOrMeta+Shift+z');
+    await expect(count(page)).toHaveText('6');
+    expect((await order(page)).slice(0, 4)).toEqual(['slot-a', 'slot-c', 'slot-d', 'slot-b']);
+    await expect(redo).toBeDisabled();
+    // A new move clears what could be redone.
+    await undo.click();
+    await expect(redo).toBeEnabled();
+    await pocket(page, 'slot-a').focus();
+    await page.keyboard.press('Alt+ArrowRight');
+    await expect(count(page)).toHaveText('8');
+    await expect(redo).toBeDisabled();
   });
 
   test('a finger that keeps holding after the long press drags the pocket instead', async ({ harness }) => {

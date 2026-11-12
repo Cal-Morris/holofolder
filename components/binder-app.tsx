@@ -4256,7 +4256,7 @@ function BinderAppSurface(props: BinderAppProps) {
           region={pricingPreferences.region}
         />
       ) : undefined,
-      layoutToolbar: browserSurface && !editingLayout ? undefined : layoutToolbar,
+      layoutToolbar: browserSurface ? undefined : layoutToolbar,
       orderedDisplaySlots: orderedDisplayPages?.flat(),
       onSelectSlot: setSelectedSlotId,
       pricingEnabled,
@@ -4481,7 +4481,8 @@ function BinderAppSurface(props: BinderAppProps) {
           {/* The same row on every view: binder picker first, that view's tools after. Pages carry their own title. */}
           {browserSurface && (
             <div className="flex shrink-0 items-center gap-1 px-3 pb-1 sm:px-4 md:px-7">
-              {browserSurface.toolbar}
+              {/* Layout editing takes over this row (one row high), so the binder below never moves. */}
+              {!editingLayout && browserSurface.toolbar}
               {browserSurface.surface.state.main === 'collection' &&
                 browserSurface.surface.collection?.state.view === 'binder' &&
                 activeMainView === 'binder' &&
@@ -4505,7 +4506,7 @@ function BinderAppSurface(props: BinderAppProps) {
                     <Coins className="h-4 w-4" aria-hidden />
                   </button>
                 )}
-              {!editingLayout && layoutToolbar}
+              {editingLayout ? <div className="min-w-0 flex-1">{layoutToolbar}</div> : layoutToolbar}
               {browserSurface.surface.state.main === 'collection' &&
               browserSurface.surface.collection?.state.view === 'binder' &&
               activeMainView === 'binder' &&

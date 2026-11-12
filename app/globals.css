@@ -1125,6 +1125,13 @@ button[data-slot-id] {
     scale 160ms cubic-bezier(0.23, 1, 0.32, 1),
     box-shadow 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
+/* Pockets making room for a held one ease aside (and back) on the iOS sheet curve. */
+button[data-slot-id][data-shifting] {
+  transition:
+    translate 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    scale 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
 button[data-slot-id][data-dragging] {
   z-index: 30;
   animation: none;
@@ -1132,7 +1139,8 @@ button[data-slot-id][data-dragging] {
   box-shadow: 0 12px 28px rgb(0 0 0 / 0.35);
   cursor: grabbing;
 }
-button[data-slot-id][data-drop-target] {
+/* Only a drop onto the other page of a spread, where nothing makes room, needs an outline. */
+button[data-slot-id][data-drop-target]:not([data-shifting]) {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }

@@ -222,3 +222,40 @@ for (const size of [3, 4, 8])
       JSON.stringify({ browse: summary(browse), edit: summary(edit) }),
     );
   });
+
+test('layout editing takes the toolbar row, so the binder stays put, and a drag saves through the device queue', async ({
+  page,
+}) => {
+  await mockInventory(page, 4);
+  await page.goto(`/app/e2e-harness?signedIn=1&browserHost=1&binder=${alpha}`);
+  const pockets = page.locator('[data-binder-page] button[data-slot-id]');
+  const order = () => pockets.evaluateAll((els) => els.map((el) => el.getAttribute('data-slot-id')));
+  await expect(pockets.first()).toBeVisible();
+  const before = await pockets.first().boundingBox();
+  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  const bar = page.getByRole('region', { name: 'Layout editing', exact: true });
+  await expect(bar.getByRole('button', { name: 'Done', exact: true })).toBeVisible();
+  expect(await pockets.first().boundingBox()).toEqual(before);
+  // Nothing in the row is pushed off screen.
+  const width = page.viewportSize()!.width;
+  for (const control of await bar.locator('xpath=..').locator('button:visible').all())
+    expect((await control.boundingBox())!.x + (await control.boundingBox())!.width).toBeLessThanOrEqual(width);
+  await bar.getByRole('button', { name: 'Done', exact: true }).click();
+  const start = await order();
+  const from = (await pockets.nth(0).boundingBox())!;
+  const to = (await pockets.nth(2).boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(order).toEqual([start[1], start[2], start[0], ...start.slice(3)]);
+  // A second drop straight after waits for the first to show, then applies on top of it.
+  const again = (await pockets.nth(3).boundingBox())!;
+  const first = (await pockets.nth(0).boundingBox())!;
+  await page.mouse.move(again.x + again.width / 2, again.y + again.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(order).toEqual([start[3], start[1], start[2], start[0], ...start.slice(4)]);
+  await expect(pockets).toHaveCount(start.length);
+});
