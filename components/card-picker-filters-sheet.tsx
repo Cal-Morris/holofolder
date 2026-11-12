@@ -50,6 +50,9 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
   const sheetRef = useRef<HTMLDivElement | null>(null);
   useOverlay(true, onClose, { containerRef: sheetRef });
   const swipe = useSwipeToDismiss(sheetRef, onClose);
+  // Set and rarity options come from the loaded results, so hide a picker with nothing to choose.
+  const showSets = props.sets.length > 1 || Boolean(props.set);
+  const showRarities = props.rarities.length > 1 || Boolean(props.rarity);
 
   if (typeof document === 'undefined') return null;
 
@@ -152,40 +155,46 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
             </label>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block min-w-0 space-y-1.5">
-              <span className="text-muted-foreground text-xs font-semibold">Set</span>
-              <Select
-                aria-label="Set"
-                className={selectClass}
-                value={props.set ?? ''}
-                onChange={(event) => props.onSetChange(event.target.value || undefined)}
-              >
-                <option value="">All sets</option>
-                {props.sets.map((set) => (
-                  <option key={set.id} value={set.id}>
-                    {set.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="block min-w-0 space-y-1.5">
-              <span className="text-muted-foreground text-xs font-semibold">Rarity</span>
-              <Select
-                aria-label="Rarity"
-                className={selectClass}
-                value={props.rarity ?? ''}
-                onChange={(event) => props.onRarityChange(event.target.value || undefined)}
-              >
-                <option value="">All rarities</option>
-                {props.rarities.map((rarity) => (
-                  <option key={rarity} value={rarity}>
-                    {rarity}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          </div>
+          {(showSets || showRarities) && (
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(0,1fr))] gap-2">
+              {showSets && (
+                <label className="block min-w-0 space-y-1.5">
+                  <span className="text-muted-foreground text-xs font-semibold">Set</span>
+                  <Select
+                    aria-label="Set"
+                    className={selectClass}
+                    value={props.set ?? ''}
+                    onChange={(event) => props.onSetChange(event.target.value || undefined)}
+                  >
+                    <option value="">All sets</option>
+                    {props.sets.map((set) => (
+                      <option key={set.id} value={set.id}>
+                        {set.name}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              )}
+              {showRarities && (
+                <label className="block min-w-0 space-y-1.5">
+                  <span className="text-muted-foreground text-xs font-semibold">Rarity</span>
+                  <Select
+                    aria-label="Rarity"
+                    className={selectClass}
+                    value={props.rarity ?? ''}
+                    onChange={(event) => props.onRarityChange(event.target.value || undefined)}
+                  >
+                    <option value="">All rarities</option>
+                    {props.rarities.map((rarity) => (
+                      <option key={rarity} value={rarity}>
+                        {rarity}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mt-2 grid shrink-0 grid-cols-[auto_minmax(0,1fr)] gap-2">
