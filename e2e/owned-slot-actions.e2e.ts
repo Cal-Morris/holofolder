@@ -191,3 +191,46 @@ test('a second finish switch queues behind one still syncing instead of failing'
   expect((await record(page))!.receipts.map((r) => r.outcome)).toEqual(['acknowledged', 'acknowledged']);
   await expect(finish.getByRole('button', { name: 'Holo' })).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('an edit made while the background read is failing still saves instead of saying the collection is syncing', async ({
+  page,
+}) => {
+  await page.route('**/app/api/tcgdex-cache**', (route) =>
+    route.fulfill({
+      json: {
+        source: 'mirror',
+        cards: [
+          {
+            id: 'synthetic-owned-bulbasaur',
+            localId: '1',
+            name: 'Synthetic Owned Bulbasaur',
+            set: { id: 'synthetic', name: 'Synthetic set' },
+            rarity: 'Rare Holo',
+            variants: { holo: true, reverse: true },
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto(entry);
+  await page.locator('[data-slot-id="synthetic-slot-0"]').click();
+  const dialog = page.getByRole('dialog', { name: /details$/ });
+  const finish = dialog.getByRole('group', { name: 'Finish' });
+  await expect(finish.getByRole('button', { name: 'Holo' })).toBeVisible();
+  // Every read now fails slowly, and coming back to the app starts one, like returning from a notification.
+  let failReads = true;
+  await page.route('**/app/e2e-harness/storage/inventory**', async (route) => {
+    if (failReads && route.request().method() === 'GET') {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return route.abort();
+    }
+    await route.fallback();
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await finish.getByRole('button', { name: 'Reverse' }).click();
+  await expect(finish.getByRole('button', { name: 'Reverse' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  failReads = false;
+  await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(1);
+  expect((await record(page))!.receipts[0].outcome).toBe('acknowledged');
+});

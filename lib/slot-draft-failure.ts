@@ -1,11 +1,4 @@
-const BUSY = new Set([
-  'inactive-or-unavailable-session',
-  'fresh-scoped-read-required',
-  'queue-reconciliation-required',
-  'recovery-pending',
-  'creation-pending',
-  'collection-deletion-pending',
-]);
+const BUSY = new Set(['inactive-or-unavailable-session', 'fresh-scoped-read-required']);
 const CHANGED = new Set([
   'picker-scope-changed',
   'inactive-queue-scope',
@@ -28,6 +21,15 @@ export function slotDraftFailureMessage(cause: unknown): string {
     return 'Could not save on this device. Free some storage, then try again. Save not confirmed.';
   if (reason.startsWith('IndexedDB') || reason === 'queue_storage_unavailable')
     return 'Could not save on this device. Try again. Save not confirmed.';
+  // Things that genuinely hold new edits back say what they are; none of them clears by waiting.
+  if (reason === 'queue-reconciliation-required')
+    return "An earlier change couldn't be saved and needs your decision. Choose what to do in your binder, then add this again. Save not confirmed.";
+  if (reason === 'recovery-pending')
+    return 'Some changes on this device need reviewing first. Review them in your binder, then try again. Save not confirmed.';
+  if (reason === 'creation-pending')
+    return 'Your new binder is still being created. Try again once it opens. Save not confirmed.';
+  if (reason === 'collection-deletion-pending')
+    return 'This binder is being deleted, so it cannot be changed. Save not confirmed.';
   if (BUSY.has(reason)) return 'Your collection is still syncing. Try again in a moment. Save not confirmed.';
   if (CHANGED.has(reason)) return 'This pocket changed. Close it and try again. Save not confirmed.';
   if (reason === 'target-mismatch')
