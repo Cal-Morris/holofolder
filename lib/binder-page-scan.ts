@@ -69,6 +69,8 @@ interface GridDetectionMaps {
   verticalIntegral: Float32Array;
   horizontalIntegral: Float32Array;
   edgeIntegral: Float32Array;
+  /** Below this mean edge strength a grid candidate is treated as blank (table, cover). Lower for soft photos. */
+  minEdgeMean: number;
 }
 
 interface SlotFeatureMaps {
@@ -137,6 +139,8 @@ const WHITE_PIXEL_LUMINANCE_THRESHOLD = 236;
 const MIN_GRID_COVERAGE = 0.52;
 const MAX_GRID_COVERAGE = 0.98;
 const MIN_GRID_CONFIDENCE = 4.2;
+const MIN_GRID_EDGE_MEAN = 8;
+const SOFT_PHOTO_EDGE_SHARE = 0.6;
 const PAGE_EDGE_SAMPLE_STEP = 3;
 const PAGE_EDGE_THRESHOLD_FLOOR = 52;
 const PAGE_EDGE_SEARCH_PADDING = 0.32;
@@ -868,10 +872,13 @@ function buildGridDetectionMaps(imageData: ImageData, width: number, height: num
     }
   }
 
+  const edgeIntegral = buildIntegralImage(combinedEdge, width, height);
+
   return {
     verticalIntegral: buildIntegralImage(verticalGradient, width, height),
     horizontalIntegral: buildIntegralImage(horizontalGradient, width, height),
-    edgeIntegral: buildIntegralImage(combinedEdge, width, height),
+    edgeIntegral,
+    minEdgeMean: getBlankRegionEdgeFloor(rectMean(edgeIntegral, width, 0, 0, width, height)),
   };
 }
 
@@ -1084,7 +1091,7 @@ function scoreBinderGridCandidate(
   const bandWidth = Math.max(2, Math.round(Math.min(rectWidth, rectHeight) * 0.007));
   const edgeMean = rectMean(maps.edgeIntegral, imageWidth, x, y, rectWidth, rectHeight);
 
-  if (edgeMean < 8) {
+  if (edgeMean < maps.minEdgeMean) {
     return -Infinity;
   }
 
@@ -1137,6 +1144,14 @@ export function getBinderSlotBoundaryOffsets(length: number, count: number, tota
   }
 
   return positions;
+}
+
+/**
+ * Mean edge strength below which a grid candidate counts as blank (a table, the binder cover). A soft phone photo
+ * has weak edges everywhere, so the floor follows the photo's own sharpness and never rises above the old fixed 8.
+ */
+export function getBlankRegionEdgeFloor(photoMeanEdge: number) {
+  return Math.min(MIN_GRID_EDGE_MEAN, photoMeanEdge * SOFT_PHOTO_EDGE_SHARE);
 }
 
 export function getBinderGridAspectRatio(rows: number, cols: number) {
