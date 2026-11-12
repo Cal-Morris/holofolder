@@ -11,7 +11,10 @@ import { speciesSelectorCard, type SlotPickerBoundary } from '@/lib/slot-picker'
 import { displaySlotName } from '@/lib/pocket-labels';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 
-type SelectorPricing = Pick<ComponentProps<typeof CardSelector>, 'defaultCardLanguage' | 'formatAmount'> & {
+type SelectorPricing = Pick<
+  ComponentProps<typeof CardSelector>,
+  'defaultCardLanguage' | 'formatAmount' | 'targetLanguages'
+> & {
   pricingRegion: PricingRegion;
 };
 
@@ -66,6 +69,7 @@ function PocketSelector({
         selectedWantedCardId={slot.wantedCards[0]?.card_id}
         {...pricing}
         defaultCardLanguage={reserved?.language ?? pricing.defaultCardLanguage}
+        targetLanguages={reserved?.language ? [reserved.language] : pricing.targetLanguages}
         anyCard={
           species
             ? undefined

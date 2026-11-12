@@ -508,6 +508,33 @@ test.describe('explicit stable-slot picker', () => {
     await expect(pocket(page, 'slot-g')).toHaveAccessibleName('Trainer, Unfilled target');
   });
 
+  test("the binder filter starts on the binder's languages and warns once widened", async ({ harness }) => {
+    const { page } = harness;
+    // Synthetic: one extra Snorlax printing that only exists in Japanese; the harness binder keeps English.
+    const [first] = snorlaxList();
+    await routeSnorlax(page, [
+      ...snorlaxList(),
+      { ...first, id: 'synthetic-snorlax-jp', name: 'Kabigon', languages: ['ja'] },
+    ]);
+    await pocket(page, 'slot-e').click();
+    const dialog = selector(page);
+    await expect(tile(dialog, 'Snorlax A')).toBeVisible();
+    await expect(tile(dialog, 'Kabigon')).toHaveCount(0);
+    await expect(dialog.getByText('Your filters don’t match this binder’s settings.')).toHaveCount(0);
+
+    await dialog.getByRole('button', { name: 'Binder filter' }).click();
+    await page.getByRole('menuitemradio', { name: 'All cards' }).click();
+    await expect(tile(dialog, 'Kabigon')).toBeVisible();
+    await expect(dialog.getByText('Your filters don’t match this binder’s settings.')).toBeVisible();
+    await harness.expectNoHorizontalOverflow();
+
+    // A card filter, so it resets when the selector opens again.
+    await dialog.getByRole('button', { name: 'Close card selector' }).click();
+    await pocket(page, 'slot-e').click();
+    await expect(tile(selector(page), 'Snorlax A')).toBeVisible();
+    await expect(tile(selector(page), 'Kabigon')).toHaveCount(0);
+  });
+
   test('an empty species pocket opens the card selector directly, already showing that species', async ({
     harness,
   }) => {
