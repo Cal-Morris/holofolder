@@ -1,7 +1,7 @@
 'use client';
 
 // The card check (Show mode and plain Quick mode): what you need at a stall, one-handed. Ownership state, the market price for the
-// chosen variant, an asking-price input with a verdict (lib/deal-check.ts), and big Bought / Add owned /
+// chosen variant, an asking-price input with a verdict (lib/deal-check.ts), and big Add owned /
 // Want / Mark got buttons with undo. Works offline from the device's cached prices and says how old they are.
 import NativeWantedEntries from '@/components/native-wanted-entries';
 import {
@@ -13,18 +13,7 @@ import {
 import { useBillingContext } from '@/hooks/use-billing';
 import { useGoogleAnalytics } from '@/components/google-analytics';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ArrowLeft,
-  Check,
-  ChevronDown,
-  ExternalLink,
-  Heart,
-  Layers,
-  Plus,
-  ShoppingBag,
-  TrendingUp,
-  WifiOff,
-} from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, ExternalLink, Heart, Layers, Plus, TrendingUp, WifiOff } from 'lucide-react';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { getCardPriceKey } from '@/hooks/use-card-prices';
 import { CardThumbnail } from '@/components/card-thumbnail';
@@ -60,7 +49,7 @@ import { CardPriceComparison } from '@/components/card-price-comparison';
 import { DealPriceScale } from '@/components/deal-price-scale';
 import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from '@/components/deal-keypad';
 
-export type QuickCardAction = 'bought' | 'add-owned' | 'want' | 'got' | 'remove-wanted';
+export type QuickCardAction = 'add-owned' | 'want' | 'got' | 'remove-wanted';
 
 import type { QuickCardState } from '@/lib/quick-card-state';
 export type { QuickCardState } from '@/lib/quick-card-state';
@@ -107,7 +96,7 @@ export interface QuickCardCheckProps {
   onAction: (action: QuickCardAction, finish: CardFinish) => Promise<void>;
   isInBundle: (key: string) => boolean;
   onAddToBundle: (entry: QuickBundleEntry) => void;
-  /** Show mode's extras: Bought (logged to the show tally) and Bundle. Plain Quick mode keeps Own / Want / Got. */
+  /** Show mode's extras: the bundle and the price tools. */
   showTools?: boolean;
 }
 
@@ -590,17 +579,6 @@ export default function QuickCardCheck({
           <div
             className={`grid ${readOnly || nativeConsumer ? 'grid-cols-1' : 'grid-cols-2'} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}
           >
-            {showTools && !readOnly && !nativeConsumer && (
-              <button
-                type="button"
-                disabled={needsConfirmation}
-                onClick={() => run('bought')}
-                className={`${bigButton} bg-primary text-primary-foreground`}
-              >
-                <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />
-                Bought
-              </button>
-            )}
             {!readOnly &&
               !nativeConsumer &&
               (state.wanted && !state.owned ? (

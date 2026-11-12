@@ -74,7 +74,7 @@ for (const viewport of [
       await expect(asking).toBeFocused();
       await asking.fill('7');
       await expect(check.getByTestId('deal-verdict')).toHaveAttribute('data-verdict', 'great');
-      for (const name of ['Bought', 'Add owned', 'Want', 'Add to bundle']) {
+      for (const name of ['Add owned', 'Want', 'Add to bundle']) {
         const button = check.getByRole('button', { name, exact: true });
         await expect(button).toBeVisible();
         const box = (await button.boundingBox())!;

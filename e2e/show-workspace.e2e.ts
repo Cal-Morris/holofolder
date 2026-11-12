@@ -63,7 +63,7 @@ for (const theme of ['light', 'dark']) {
       const pane = (await check.boundingBox())!;
       for (const control of [
         check.getByRole('textbox', { name: 'Asking price' }),
-        check.getByRole('button', { name: 'Bought', exact: true }),
+        check.getByRole('button', { name: 'Add owned', exact: true }),
         check.getByRole('button', { name: 'Add to bundle' }),
       ]) {
         await harness.expectWithinSafeViewport(control);

@@ -142,7 +142,6 @@ test.describe('on-screen keyboard', () => {
     await expect(harness.dock()).toBeHidden();
     // The native keyboard handles entry; actions wait for Done.
     await expectTypingLayout(harness, check, input, 'deal-verdict-pinned', 'deal-verdict', [
-      'Bought',
       'Add owned',
       'Want',
       'Add to bundle',
@@ -169,7 +168,7 @@ test.describe('on-screen keyboard', () => {
     await expect(check.getByTestId('deal-verdict')).toBeVisible();
     await expect(check.getByTestId('deal-verdict')).toHaveAttribute('data-verdict', 'great');
     await expect(check.getByTestId('deal-verdict-pinned')).toBeHidden();
-    for (const name of ['Bought', 'Add owned', 'Want', 'Add to bundle'])
+    for (const name of ['Add owned', 'Want', 'Add to bundle'])
       await expect(check.getByRole('button', { name, exact: true })).toBeVisible();
     await input.evaluate((element: HTMLInputElement) => element.setSelectionRange(0, 0));
     await input.click({ position: { x: 4, y: 10 } });
@@ -255,7 +254,7 @@ test.describe('on-screen keyboard', () => {
     ).toBe('0px');
     await expect(check.getByRole('group', { name: 'Keypad' })).toHaveCount(0);
     await expect(check.getByTestId('deal-verdict-pinned')).toBeVisible();
-    await expect(check.getByRole('button', { name: 'Bought', exact: true })).toBeHidden();
+    await expect(check.getByRole('button', { name: 'Add owned', exact: true })).toBeHidden();
     await input.blur();
     await expect(html(page)).not.toHaveAttribute('data-keyboard-open');
     await expect(check.getByRole('group', { name: 'Keypad' })).toHaveCount(0);
@@ -348,7 +347,7 @@ test.describe('on-screen keyboard', () => {
     await input.press('Backspace');
     await expect(input).toHaveValue('1');
     await input.press('1');
-    await expectTypingLayout(harness, bundle, input, 'bundle-verdict-pinned', 'bundle-verdict', ['Bought bundle']);
+    await expectTypingLayout(harness, bundle, input, 'bundle-verdict-pinned', 'bundle-verdict', []);
     await expect(bundle.getByTestId('bundle-verdict-pinned')).toHaveAttribute('data-verdict', 'great');
 
     await bundle.getByRole('button', { name: 'Done editing price' }).click();
@@ -358,7 +357,6 @@ test.describe('on-screen keyboard', () => {
     await expect(bundle.getByTestId('bundle-verdict')).toBeVisible();
     await expect(bundle.getByTestId('bundle-verdict-pinned')).toBeHidden();
     await expect(bundle.getByRole('group', { name: 'Keypad' })).toHaveCount(0);
-    await expect(bundle.getByRole('button', { name: 'Bought bundle' })).toBeVisible();
   });
 
   test('a shorter visual viewport with nothing focused (toolbars, zoom) changes nothing', async ({ harness }) => {

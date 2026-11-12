@@ -529,19 +529,13 @@ function QuickMode({
       <QuickBundle
         entries={bundle}
         nativeConsumer={nativeConsumer}
-        destinationName={show.destinationName}
         budgetKey={nativeConsumer ? undefined : show.budgetKey}
-        getCardState={(entry) => show.getCardState(entry.card, entry.pokemon, entry.finish)}
         currency={show.currency}
-        readOnly={Boolean(nativeConsumer) || show.readOnly}
         onBack={() => setIsBundleOpen(false)}
         onRemove={(key) => updateBundle(bundle.filter((entry) => entry.key !== key))}
         onClear={() => updateBundle([])}
         onSoldCheck={(key, soldCheck) =>
           updateBundle((current) => current.map((entry) => (entry.key === key ? { ...entry, soldCheck } : entry)))
-        }
-        onAction={(action, entry) =>
-          nativeConsumer ? Promise.resolve() : show.onAction(action, entry.card, entry.pokemon, entry.finish)
         }
       />
     ) : null;
