@@ -106,8 +106,19 @@ interface CardSelectorProps {
    * sheet or a variant filter), never inferred. Wanted mode and "mark owned without card" are legacy
    * collection writes, so they are hidden along with the More menu; slot structure belongs to layout editing.
    */
-  native?: { onPick: (card: TCGCard & { dexIds?: number[] }, finish: CardFinish | undefined) => void };
+  native?: {
+    onPick: (card: TCGCard & { dexIds?: number[] }, finish: CardFinish | undefined) => void;
+    /** Pick several cards at once for the empty pockets on this page (`room` of them). */
+    many?: {
+      room: number;
+      busy: boolean;
+      error: string | null;
+      onAdd: (picks: CardSelectorPick[]) => void;
+    };
+  };
 }
+
+export type CardSelectorPick = { card: TCGCard & { dexIds?: number[] }; finish: CardFinish | undefined };
 
 const noOfflineCards = () => buildOfflineCardIndex([]);
 
@@ -357,13 +368,18 @@ export default function CardSelector({
     ? 'hover:border-amber-400/65 hover:ring-2 hover:ring-amber-400/20'
     : 'hover:border-emerald-400/65 hover:ring-2 hover:ring-emerald-400/20';
 
+  const [several, setSeveral] = useState(false);
+  const [picks, setPicks] = useState<CardSelectorPick[]>([]);
+  const room = native?.many?.room ?? 0;
   const selectCard = useCallback(
     (card: TCGCard, finish?: CardFinish) => {
       if (native) {
-        native.onPick(
-          isAnyCard ? card : { ...card, language: selectedCardLanguage },
-          finish ?? recordedFinish ?? undefined,
-        );
+        const pick = {
+          card: isAnyCard ? card : { ...card, language: selectedCardLanguage },
+          finish: finish ?? recordedFinish ?? undefined,
+        };
+        if (several) setPicks((current) => (current.length < room ? [...current, pick] : current));
+        else native.onPick(pick.card, pick.finish);
         return;
       }
       completeCardSelectorSelection({
@@ -371,7 +387,18 @@ export default function CardSelector({
         onSelect: () => onSelect({ ...card, language: selectedCardLanguage }, selectionMode, finish ?? finishFor(card)),
       });
     },
-    [finishFor, isAnyCard, native, onClose, onSelect, recordedFinish, selectedCardLanguage, selectionMode],
+    [
+      finishFor,
+      isAnyCard,
+      native,
+      onClose,
+      onSelect,
+      recordedFinish,
+      room,
+      selectedCardLanguage,
+      selectionMode,
+      several,
+    ],
   );
   const [pendingCard, setPendingCard] = useState<TCGCard | null>(null);
   const pendingSnapshot = pendingCard
@@ -389,6 +416,11 @@ export default function CardSelector({
   /** Tapping a card picks it; a printing that comes in several finishes asks which one first. */
   const pickCard = useCallback(
     (card: TCGCard) => {
+      if (several && picks.some((pick) => pick.card.id === card.id)) {
+        setPicks((current) => current.filter((pick) => pick.card.id !== card.id));
+        return;
+      }
+      if (several && picks.length >= room) return;
       if (
         getCardPickerFinishChoices(
           card.variants,
@@ -402,7 +434,7 @@ export default function CardSelector({
       }
       selectCard(card);
     },
-    [selectCard, variantChoice, pricesByCardId, selectedCardLanguage],
+    [selectCard, variantChoice, pricesByCardId, selectedCardLanguage, several, picks, room],
   );
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
   useEffect(() => {
@@ -1063,9 +1095,28 @@ export default function CardSelector({
                 <p className="text-muted-foreground truncate text-[11px]">
                   {anyCard && !anyCardQuery.trim()
                     ? 'Any card, Trainer or Energy'
-                    : `${filteredCards.length} of ${cards.length} cards`}
+                    : several
+                      ? `${picks.length} of ${room} empty pocket${room === 1 ? '' : 's'} on this page`
+                      : `${filteredCards.length} of ${cards.length} cards`}
                 </p>
               </div>
+              {native?.many && room > 1 && (
+                <button
+                  type="button"
+                  aria-pressed={several}
+                  onClick={() => {
+                    setSeveral((on) => !on);
+                    setPicks([]);
+                  }}
+                  className={`h-9 shrink-0 rounded-full px-3 text-xs font-semibold transition-colors ${
+                    several
+                      ? 'bg-emerald-500/15 text-emerald-700 ring-1 ring-emerald-400/50 dark:text-emerald-300'
+                      : 'border-border/60 text-muted-foreground hover:text-foreground border'
+                  }`}
+                >
+                  {several ? 'Pick one' : 'Pick several'}
+                </button>
+              )}
               {!native && (
                 <div className="relative shrink-0">
                   <Button
@@ -1467,7 +1518,8 @@ export default function CardSelector({
                   {displayedCards.map((card) => {
                     const price = pricesByCardId[getCardPriceKey(card.id, selectedCardLanguage)];
                     const priceLabels = getCardSelectorPriceLabels(price, formatAmount);
-                    const isCurrent = matchesCatalogCardId(card, activeSelectedCardId);
+                    const pickNumber = several ? picks.findIndex((pick) => pick.card.id === card.id) + 1 : 0;
+                    const isCurrent = pickNumber > 0 || matchesCatalogCardId(card, activeSelectedCardId);
                     const isWantedHere = !isWishlistMode && matchesCatalogCardId(card, selectedWantedCardId);
 
                     return (
@@ -1475,7 +1527,8 @@ export default function CardSelector({
                         key={card.id}
                         type="button"
                         onClick={() => pickCard(card)}
-                        aria-label={`${isWishlistMode ? 'Want card' : 'Add card'} ${card.name} from ${card.set.name}`}
+                        aria-label={`${isWishlistMode ? 'Want card' : several ? 'Pick card' : 'Add card'} ${card.name} from ${card.set.name}`}
+                        aria-pressed={several ? pickNumber > 0 : undefined}
                         className={`group/card bg-card focus-visible:ring-primary/70 relative flex flex-col justify-start overflow-hidden rounded-xl border-2 text-left transition-[background-color,border-color,transform,scale] focus-visible:ring-2 focus-visible:outline-none sm:hover:scale-[1.03] ${
                           isCurrent ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
                         }`}
@@ -1491,7 +1544,11 @@ export default function CardSelector({
                             alt={card.name}
                             className="bg-muted absolute inset-0 h-full w-full object-cover"
                           />
-                          {isCurrent ? (
+                          {pickNumber > 0 ? (
+                            <div className="absolute top-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white tabular-nums">
+                              {pickNumber}
+                            </div>
+                          ) : isCurrent ? (
                             <div
                               className={`absolute top-1.5 right-1.5 rounded-full border px-2 py-1 text-[9px] font-bold tracking-[0.12em] uppercase backdrop-blur ${intentCopy.activeClass}`}
                             >
@@ -1578,6 +1635,24 @@ export default function CardSelector({
               )}
             </div>
           </div>
+          {several && native?.many && (
+            <div className="border-border bg-card shrink-0 border-t px-4 pt-3 pb-[calc(var(--safe-bottom)+0.75rem)]">
+              {native.many.error && (
+                <p role="alert" className="text-destructive mb-2 text-xs">
+                  {native.many.error}
+                </p>
+              )}
+              <Button
+                className="min-h-11 w-full rounded-2xl"
+                disabled={!picks.length || native.many.busy}
+                onClick={() => native.many?.onAdd(picks)}
+              >
+                {picks.length
+                  ? `Add ${picks.length} card${picks.length === 1 ? '' : 's'} to this page`
+                  : 'Tap cards to pick them'}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </>

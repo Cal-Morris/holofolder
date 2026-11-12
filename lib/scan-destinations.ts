@@ -281,3 +281,30 @@ export function prepareScanDraft(
     throw cause;
   }
 }
+
+/**
+ * Several cards picked at once for one page: each goes into the first empty pocket on the page that accepts it, starting
+ * at the pocket that was tapped and wrapping round. Fails with `page-full` when a card has nowhere left to go.
+ */
+export function planPageFill(
+  snapshot: InventorySnapshot,
+  view: ScanDestinationView,
+  startSlotId: string,
+  picks: readonly { card: SearchCardResult; finish?: CardFinish }[],
+): ScanChoice[] {
+  const start = Math.max(0, view.pageSlotIds.indexOf(startSlotId));
+  const order = [...view.pageSlotIds.slice(start), ...view.pageSlotIds.slice(0, start)];
+  const used = new Set<string>();
+  return picks.map(({ card, finish }) => {
+    const fits = new Set(scanDestinations(snapshot, view, card, finish).map((s) => s.id));
+    const slotId = order.find((id) => fits.has(id) && !used.has(id)) ?? fail('page-full');
+    used.add(slotId);
+    return {
+      cellIndex: view.pageSlotIds.indexOf(slotId),
+      slotId,
+      card,
+      ...(finish ? { finish } : {}),
+      copy: 'raw' as const,
+    };
+  });
+}

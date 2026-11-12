@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   captureScanDestination,
   mapScanCells,
+  planPageFill,
   prepareScanDraft,
   scanDestinations,
   scanShowsDifferentCard,
@@ -537,5 +538,33 @@ test('replacing a filled pocket unassigns the recorded copy and only when explic
         catalog,
       ),
     /replace-same-card|copy-choice/,
+  );
+});
+
+test('page fill starts at the tapped pocket, wraps round, skips pockets kept for other cards', () => {
+  const s = setup();
+  const [snorlaxA, snorlaxB, trainer] = s.cards;
+  const choices = planPageFill(s.snapshot, s.view, 'slot-d', [
+    { card: trainer },
+    { card: snorlaxA },
+    { card: snorlaxB },
+    { card: trainer },
+  ]);
+  // From d: trainer takes d, Snorlax A takes e, Snorlax B skips f (kept for the trainer) for g, the second trainer gets f.
+  assert.deepEqual(
+    choices.map((c) => c.slotId),
+    ['slot-d', 'slot-e', 'slot-g', 'slot-f'],
+  );
+  const result = prepareScanDraft(s.snapshot, s.view, s.capture, choices, s.context, s.catalog);
+  assert.equal(result.preview.binders[0].slots.filter((slot) => slot.inventoryItemId !== null).length, 4);
+  assert.throws(
+    () =>
+      planPageFill(
+        s.snapshot,
+        s.view,
+        'slot-a',
+        Array.from({ length: 8 }, () => ({ card: trainer })),
+      ),
+    /page-full/,
   );
 });
