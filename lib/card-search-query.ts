@@ -58,7 +58,7 @@ function partialWordMatch(nameWord: string | undefined, word: string) {
   if (!nameWord) return false;
   // "30" or "30th" → "30th Celebration"; never "30" → "130" or a bare number set name.
   const ordinal = /^(\d{1,3})(?:st|nd|rd|th)?$/.exec(word);
-  if (ordinal) return new RegExp(`^${ordinal[1]}(?:st|nd|rd|th)$`).test(nameWord);
+  if (ordinal) return /^(\d{1,3})(?:st|nd|rd|th)$/.exec(nameWord)?.[1] === ordinal[1];
   return /^[a-z]{3,}$/.test(word) && nameWord.startsWith(word);
 }
 
