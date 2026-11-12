@@ -60,7 +60,20 @@ export function getRecordedFinish(choice: CardPickerVariantChoice): CardFinish |
   return choice === 'any' || choice === 'first_edition' ? null : choice;
 }
 
-export type CardPickerFilterKey = 'language' | 'set' | 'rarity' | 'variant' | 'sort';
+export type CardPickerFilterKey = 'language' | 'pokemon' | 'set' | 'rarity' | 'variant' | 'sort';
+
+/** Pokémon featured in search results, by name, so "mew" can drop the MEW (151) set hits. */
+export function getPokemonFilterOptions(
+  cards: ReadonlyArray<{ dexIds: readonly number[] }>,
+  nameFor: (dexId: number) => string | undefined,
+) {
+  return [...new Set(cards.flatMap((card) => card.dexIds))]
+    .flatMap((id) => {
+      const name = nameFor(id);
+      return name ? [{ id, name }] : [];
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
 
 export interface CardPickerFilterState {
   filters: CardFilters;
@@ -79,6 +92,7 @@ export interface CardPickerFilterChip {
 export function getActiveFilterChips(
   state: CardPickerFilterState,
   setNameById: (id: string) => string | undefined,
+  pokemonNameById: (id: number) => string | undefined = () => undefined,
 ): CardPickerFilterChip[] {
   const chips: CardPickerFilterChip[] = [];
   if (state.sort !== 'default') {
@@ -98,6 +112,9 @@ export function getActiveFilterChips(
       key: 'variant',
       label: CARD_PICKER_VARIANTS.find((variant) => variant.id === state.variant)?.label ?? state.variant,
     });
+  }
+  if (state.filters.pokemon !== undefined) {
+    chips.push({ key: 'pokemon', label: pokemonNameById(state.filters.pokemon) ?? `#${state.filters.pokemon}` });
   }
   if (state.filters.set) chips.push({ key: 'set', label: setNameById(state.filters.set) ?? state.filters.set });
   if (state.filters.rarity) chips.push({ key: 'rarity', label: state.filters.rarity });
