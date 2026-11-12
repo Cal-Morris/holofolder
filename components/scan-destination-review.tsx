@@ -34,6 +34,8 @@ export interface ScanReviewCell {
   occupied: boolean;
   candidates: SearchCardResult[];
   crop?: string;
+  /** What was read off the card (its name), so the picker opens already searched for it. */
+  query?: string;
 }
 interface CellChoice {
   card?: SearchCardResult;
@@ -588,7 +590,7 @@ export default function ScanDestinationReview({
               ? undefined
               : pickingReserved
                 ? { title: 'Which card is this?', cardId: pickingReserved.cardId }
-                : { title: 'Which card is this?' }
+                : { title: 'Which card is this?', query: picking.cell.query }
           }
           native={{
             onPick: (card, finish) => {

@@ -80,7 +80,7 @@ interface CardSelectorProps {
    * Any-card picking for pockets that are not tied to one Pokémon: the same selector, searching every supported
    * card (Trainers and Energy included). `cardId` narrows it to the one printing a pocket is reserved for.
    */
-  anyCard?: { title: string; cardId?: string };
+  anyCard?: { title: string; cardId?: string; query?: string };
   onSelect: (card: TCGCard | null, mode: CardSelectorMode, finish?: CardFinish) => void;
   onClose: () => void;
   selectedCardId?: string;
@@ -240,7 +240,7 @@ export default function CardSelector({
 }: CardSelectorProps) {
   const { fetchCardsForPokemon, filterCards, isLoading: isLoadingSpecies, error: speciesError } = useTCGdex();
   const [speciesCards, setCards] = useState<TCGCard[]>([]);
-  const [filters, setFilters] = useState<CardFilters>({});
+  const [filters, setFilters] = useState<CardFilters>(() => (anyCard?.query ? { searchQuery: anyCard.query } : {}));
   const [sort, setSort] = useState<CardPickerSort>(readCardPickerSort);
   const [selectedCardLanguage, setSelectedCardLanguage] = useState<CardLanguage>(defaultCardLanguage ?? 'en');
   // Any-card mode searches the whole catalog as you type; a reserved printing is looked up by its own ID.

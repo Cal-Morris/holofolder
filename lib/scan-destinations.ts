@@ -29,6 +29,8 @@ export interface ScanCell {
   row: number;
   col: number;
   occupied: boolean;
+  /** The pocket's crop from the page photo, when the detector kept one. */
+  cardImageDataUrl?: string;
 }
 export interface ScanChoice {
   cellIndex: number;
