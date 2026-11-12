@@ -264,46 +264,154 @@ test.describe('layout editing on the pockets', () => {
     await expect(count(page)).toHaveText('0');
   });
 
-  test("a mouse drags a pocket into another pocket's place, and the binder wiggles until Done", async ({ harness }) => {
-    const { page } = harness;
-    const from = (await pocket(page, 'slot-a').boundingBox())!;
-    const to = (await pocket(page, 'slot-d').boundingBox())!;
-    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  /** Press a pocket with the mouse and carry it over another, without letting go. */
+  const hold = async (page: Page, from: string, to: string) => {
+    const a = (await pocket(page, from).boundingBox())!;
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
     await page.mouse.down();
-    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+    const b = (await pocket(page, to).boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 8 });
+    // Aim again: the edit bar may have come in above the binder when the card was picked up.
+    const c = (await pocket(page, to).boundingBox())!;
+    await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2, { steps: 2 });
+  };
+  const drawn = (page: Page, id: string) => pocket(page, id).evaluate((el) => (el as HTMLElement).style.translate);
+  const ghost = (page: Page) => page.locator('[data-pocket-ghost]');
+
+  test('a quick drop swaps the two pockets and nothing shifts while the card is carried', async ({ harness }) => {
+    const { page } = harness;
+    await hold(page, 'slot-a', 'slot-d');
     await expect(bar(page).getByRole('button', { name: 'Done', exact: true })).toBeVisible();
-    // Re-aim after the bar appears above the binder: the pocket follows the pointer, not the page.
-    const target = (await pocket(page, 'slot-d').boundingBox())!;
-    await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 4 });
-    await expect(pocket(page, 'slot-d')).toHaveAttribute('data-drop-target', '');
-    // The pockets between make room while it's held, as on the iOS home screen; the ones after it stay put.
-    const drawn = (id: string) => pocket(page, id).evaluate((el) => (el as HTMLElement).style.translate);
-    expect(await drawn('slot-b')).not.toBe('');
-    expect(await drawn('slot-d')).not.toBe('');
-    expect(await drawn('slot-e')).toBe('');
+    // The card under the pointer is a copy; its own pocket waits empty-looking, the target is outlined as a swap.
+    await expect(ghost(page)).toHaveCount(1);
+    await expect(pocket(page, 'slot-a')).toHaveAttribute('data-drag-source', '');
+    await expect(pocket(page, 'slot-d')).toHaveAttribute('data-drop-target', 'swap');
+    for (const id of ['slot-b', 'slot-c', 'slot-d']) expect(await drawn(page, id)).toBe('');
     await page.mouse.up();
-    // It springs into its place instead of jumping.
-    expect(
-      await pocket(page, 'slot-a').evaluate((el) =>
-        el.getAnimations().some((a) => (a.effect as KeyframeEffect).getKeyframes().some((k) => 'translate' in k)),
-      ),
-    ).toBe(true);
     await expect(count(page)).toHaveText('1');
-    expect((await order(page)).slice(0, 4)).toEqual(['slot-b', 'slot-c', 'slot-d', 'slot-a']);
+    expect(await order(page)).toEqual(['slot-d', 'slot-b', 'slot-c', 'slot-a', 'slot-e', 'slot-f', 'slot-g']);
+    await expect(ghost(page)).toHaveCount(0);
+    await expect(pocket(page, 'slot-a')).not.toHaveAttribute('data-drag-source', '');
     await expect(pocket(page, 'slot-a')).toHaveClass(/pocket-wiggle/);
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await landed(page);
-    // Back to slot-a's old place, now in wiggle mode: dragging backward lands before the pocket.
-    const back = (await pocket(page, 'slot-a').boundingBox())!;
-    const first = (await pocket(page, 'slot-b').boundingBox())!;
-    await page.mouse.move(back.x + back.width / 2, back.y + back.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2, { steps: 8 });
+    // Onto an empty pocket the card just goes there.
+    await hold(page, 'slot-b', 'slot-e');
+    await expect(pocket(page, 'slot-e')).toHaveAttribute('data-drop-target', 'place');
     await page.mouse.up();
     await expect(count(page)).toHaveText('2');
-    expect((await order(page)).slice(0, 4)).toEqual(['slot-a', 'slot-b', 'slot-c', 'slot-d']);
+    expect(await order(page)).toEqual(['slot-d', 'slot-e', 'slot-c', 'slot-a', 'slot-b', 'slot-f', 'slot-g']);
     await bar(page).getByRole('button', { name: 'Done', exact: true }).click();
     await expect(pocket(page, 'slot-a')).not.toHaveClass(/pocket-wiggle/);
+  });
+
+  test('resting on a filled pocket makes room there, pushing cards on into the next empty pocket', async ({
+    harness,
+  }) => {
+    const { page } = harness;
+    await edit(page);
+    await hold(page, 'slot-a', 'slot-c');
+    await expect(pocket(page, 'slot-c')).toHaveAttribute('data-drop-target', 'push');
+    // c and d slide on one place; e is the empty pocket they fill, so it and everything before c stay put.
+    expect(await drawn(page, 'slot-c')).not.toBe('');
+    expect(await drawn(page, 'slot-d')).not.toBe('');
+    for (const id of ['slot-b', 'slot-e']) expect(await drawn(page, id)).toBe('');
+    await page.mouse.up();
+    await expect(count(page)).toHaveText('1');
+    expect(await order(page)).toEqual(['slot-e', 'slot-b', 'slot-a', 'slot-c', 'slot-d', 'slot-f', 'slot-g']);
+    expect((await draft(page)).intent.request.commands).toHaveLength(2);
+    await landed(page);
+    await bar(page).getByRole('button', { name: 'Undo move', exact: true }).click();
+    await expect(count(page)).toHaveText('2');
+    expect(await order(page)).toEqual(['slot-a', 'slot-b', 'slot-c', 'slot-d', 'slot-e', 'slot-f', 'slot-g']);
+  });
+
+  test('Escape, or letting go over nothing, puts the card back', async ({ harness }) => {
+    const { page } = harness;
+    await edit(page);
+    await hold(page, 'slot-a', 'slot-c');
+    await page.keyboard.press('Escape');
+    await expect(ghost(page)).toHaveCount(0, { timeout: 2000 });
+    await expect(pocket(page, 'slot-c')).not.toHaveAttribute('data-drop-target', /.*/);
+    await page.mouse.up();
+    await expect(bar(page).getByRole('button', { name: 'Done', exact: true })).toBeVisible();
+    await hold(page, 'slot-a', 'slot-b');
+    await page.mouse.move(2, 2, { steps: 4 });
+    await page.mouse.up();
+    await expect(ghost(page)).toHaveCount(0, { timeout: 2000 });
+    await expect(count(page)).toHaveText('0');
+  });
+
+  test('a card carried to the side of the binder turns the page after a beat, or a second finger swipes it', async ({
+    harness,
+  }) => {
+    const { page } = harness;
+    await page.goto('/app/e2e-harness?signedIn=1&slots=picker&rows=2&cols=2');
+    await expect(pocket(page, 'slot-a')).toBeVisible();
+    await edit(page);
+    const a = (await pocket(page, 'slot-a').boundingBox())!;
+    const stage = (await page.locator('[data-page-turn-ms]').boundingBox())!;
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(stage.x + stage.width - 4, a.y + a.height / 2, { steps: 10 });
+    // Not straight away: the bar fills first.
+    await expect(page.locator('[data-pocket-edge="next"]')).toHaveCount(1);
+    await expect(pocket(page, 'slot-e')).toBeVisible();
+    await expect(ghost(page)).toHaveCount(1);
+    // Page 2 is in and the card is still held; drop it in an empty pocket there.
+    const e = (await pocket(page, 'slot-e').boundingBox())!;
+    await page.mouse.move(e.x + e.width / 2, e.y + e.height / 2, { steps: 6 });
+    await expect(pocket(page, 'slot-e')).toHaveAttribute('data-drop-target', 'place');
+    await page.mouse.up();
+    await expect(count(page)).toHaveText('1');
+    await expect(pocket(page, 'slot-a')).toBeVisible();
+    expect((await order(page))[0]).toBe('slot-a');
+    // A finger holding a card while another swipes: the page turns back under it.
+    await landed(page);
+    const held = (await pocket(page, 'slot-a').boundingBox())!;
+    await touch(pocket(page, 'slot-a'), 'pointerdown');
+    await page.waitForTimeout(300);
+    await touch(pocket(page, 'slot-a'), 'pointermove', 20, 0);
+    await expect(ghost(page)).toHaveCount(1);
+    const swipe = (type: string, x: number) =>
+      page.evaluate(
+        ([type, x, y]) =>
+          document.body.dispatchEvent(
+            new PointerEvent(type as string, {
+              pointerType: 'touch',
+              pointerId: 9,
+              isPrimary: false,
+              bubbles: true,
+              clientX: x as number,
+              clientY: y as number,
+            }),
+          ),
+        [type, x, held.y + held.height / 2] as const,
+      );
+    await swipe('pointerdown', 150);
+    await swipe('pointermove', 260);
+    await swipe('pointerup', 260);
+    await expect(pocket(page, 'slot-b')).toBeVisible();
+    // Its pocket left with the old page, and the card is still held.
+    await expect(pocket(page, 'slot-a')).toHaveCount(0);
+    await expect(ghost(page)).toHaveCount(1);
+    await page.evaluate(() =>
+      window.dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'touch', pointerId: 7, bubbles: true })),
+    );
+    await expect(ghost(page)).toHaveCount(0, { timeout: 2000 });
+  });
+
+  test('while the binder wiggles, a resting finger never opens the pocket menu', async ({ harness }) => {
+    const { page } = harness;
+    await edit(page);
+    const target = pocket(page, 'slot-b');
+    await touch(target, 'pointerdown');
+    await page.waitForTimeout(700);
+    // Android sends contextmenu for a long press while the finger is still down.
+    await target.dispatchEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 });
+    await touch(target, 'pointerup');
+    await expect(menu(page)).toHaveCount(0);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 
   test('dragging a selected pocket carries the whole selection', async ({ harness }) => {
@@ -311,16 +419,12 @@ test.describe('layout editing on the pockets', () => {
     await edit(page);
     await pocket(page, 'slot-a').click();
     await pocket(page, 'slot-c').click();
-    const from = (await pocket(page, 'slot-c').boundingBox())!;
-    const to = (await pocket(page, 'slot-f').boundingBox())!;
-    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
-    // The held pocket says how many it carries; the rest of the selection fades; nothing shifts one by one.
-    await expect(pocket(page, 'slot-c')).toHaveAttribute('data-carry', '2');
+    await hold(page, 'slot-c', 'slot-f');
+    // The held card says how many it carries; the rest of the selection fades; nothing shifts one by one.
+    await expect(ghost(page)).toHaveAttribute('data-carry', '2');
     await expect(pocket(page, 'slot-a')).toHaveAttribute('data-carried', '');
-    await expect(pocket(page, 'slot-f')).toHaveAttribute('data-drop-target', '');
-    expect(await pocket(page, 'slot-d').evaluate((el) => (el as HTMLElement).style.translate)).toBe('');
+    await expect(pocket(page, 'slot-f')).toHaveAttribute('data-drop-target', 'group');
+    expect(await drawn(page, 'slot-d')).toBe('');
     await page.mouse.up();
     await expect(count(page)).toHaveText('1');
     expect(await order(page)).toEqual(['slot-b', 'slot-d', 'slot-e', 'slot-f', 'slot-a', 'slot-c', 'slot-g']);
@@ -385,17 +489,17 @@ test.describe('layout editing on the pockets', () => {
     await touch(target, 'pointermove', dx / 2, 0);
     await expect(menu(page)).toHaveCount(0);
     await expect(bar(page).getByRole('button', { name: 'Done', exact: true })).toBeVisible();
-    // The held pocket is drawn under the finger, so aim from where it is drawn now.
+    // The pocket itself stays put (a copy follows the finger), so aim from where it sits.
     const aim = (await pocket(page, 'slot-c').boundingBox())!;
     const now = (await target.boundingBox())!;
     const ax = aim.x + aim.width / 2 - (now.x + now.width / 2);
     const ay = aim.y + aim.height / 2 - (now.y + now.height / 2);
     await touch(target, 'pointermove', ax, ay);
-    await expect(pocket(page, 'slot-c')).toHaveAttribute('data-drop-target', '');
+    await expect(pocket(page, 'slot-c')).toHaveAttribute('data-drop-target', 'swap');
     await touch(target, 'pointerup', ax, ay);
     await target.dispatchEvent('click', { detail: 1, bubbles: true });
     await expect(count(page)).toHaveText('1');
-    expect((await order(page)).slice(0, 4)).toEqual(['slot-b', 'slot-c', 'slot-a', 'slot-d']);
+    expect((await order(page)).slice(0, 4)).toEqual(['slot-c', 'slot-b', 'slot-a', 'slot-d']);
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 

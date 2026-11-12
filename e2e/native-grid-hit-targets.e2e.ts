@@ -248,7 +248,8 @@ test('layout editing takes the toolbar row, so the binder stays put, and a drag 
   await page.mouse.down();
   await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 6 });
   await page.mouse.up();
-  await expect.poll(order).toEqual([start[1], start[2], start[0], ...start.slice(3)]);
+  // A quick drop swaps the two pockets.
+  await expect.poll(order).toEqual([start[2], start[1], start[0], ...start.slice(3)]);
   // A second drop straight after waits for the first to show, then applies on top of it.
   const again = (await pockets.nth(3).boundingBox())!;
   const first = (await pockets.nth(0).boundingBox())!;
@@ -256,6 +257,6 @@ test('layout editing takes the toolbar row, so the binder stays put, and a drag 
   await page.mouse.down();
   await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2, { steps: 6 });
   await page.mouse.up();
-  await expect.poll(order).toEqual([start[3], start[1], start[2], start[0], ...start.slice(4)]);
+  await expect.poll(order).toEqual([start[3], start[1], start[0], start[2], ...start.slice(4)]);
   await expect(pockets).toHaveCount(start.length);
 });

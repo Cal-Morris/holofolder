@@ -20,9 +20,9 @@ import {
   captureBulkSelection,
   bulkSelectionState,
   prepareBulkLayoutIntent,
+  preparePocketMoves,
   type BulkSelection,
   type BulkLayoutAction,
-  type BulkDestination,
 } from '@/lib/binder-bulk-editing';
 import { SLOT_LIMITS } from '@/lib/domain/slot-commands';
 import { useSlotDraftAcceptance } from '@/hooks/use-slot-draft-acceptance';
@@ -30,6 +30,7 @@ import { useNativeSlotAction } from '@/hooks/use-native-slot-pick';
 import { layoutFailureMessage } from '@/lib/slot-draft-failure';
 import type { CardNamer } from '@/lib/pocket-labels';
 import { cn } from '@/lib/utils';
+import { invertPocketMoves, planPocketDrop, type PocketDropMode, type PocketMove } from '@/lib/pocket-drop';
 
 const SlotRemovalReview = dynamic(() => import('@/components/binder/slot-removal-review'), { ssr: false });
 const BulkFillReview = dynamic(() => import('@/components/binder/bulk-fill-review'), { ssr: false });
@@ -49,9 +50,11 @@ export interface LayoutBoundary {
 
 /**
  * How the binder grid talks to the bar while editing: a tapped pocket is a selection toggle or a move destination.
- * With `dropOn`, the pocket was dragged onto that pocket and takes its place, whatever is selected.
+ * With `dropOn`, the pocket was dragged onto that pocket, whatever is selected: `place` swaps the two, `push` makes
+ * room there (lib/pocket-drop.ts). A dragged selection lands together in the dropped-on pocket's place. Returns
+ * whether a change was sent.
  */
-export type LayoutTap = (slotId: string, dropOn?: string) => void;
+export type LayoutTap = (slotId: string, dropOn?: string, mode?: PocketDropMode) => boolean;
 export interface LayoutEditHost {
   rows: number;
   cols: number;
@@ -148,11 +151,10 @@ export function LayoutToolbar({
   );
 }
 
-/** One pocket moved: where it went, and where it came back to on Undo. */
+/** One drop, arrow-key move or move to a spot: the single-pocket moves it made, and the ones that undo it. */
 interface MoveStep {
-  id: string;
-  to: BulkDestination;
-  back: BulkDestination;
+  to: PocketMove[];
+  back: PocketMove[];
 }
 
 function safeCapture(boundary: LayoutBoundary, ids: readonly string[]) {
@@ -252,21 +254,17 @@ function LayoutBar({
       setError(`You can select up to ${SLOT_LIMITS.affected} pockets at once.`);
     }
   };
-  // `step`: the single-pocket move this is, for Undo. Anything else (a group move, an insert) clears the history.
-  const emit = (
-    action: BulkLayoutAction,
-    picked?: BulkSelection,
-    step?: { step: MoveStep; via: 'do' | 'undo' | 'redo' },
-  ) => {
-    if (picked ? blocked : unavailable) return;
+  // A group move or an insert: these clear the Undo history.
+  const emit = (action: BulkLayoutAction) => {
+    if (unavailable) return;
     setMenu(null);
-    stepping.current = step ?? null;
+    stepping.current = null;
     try {
       preparedOn.current = snapshot;
       prepared.current = prepareBulkLayoutIntent(
         snapshot,
         scope,
-        picked ?? selection,
+        selection,
         action,
         {
           source: 'app',
@@ -283,16 +281,38 @@ function LayoutBar({
       setError(layoutFailureMessage(cause));
     }
   };
-  // One pocket to `to`, whatever is selected: a drop, an arrow-key move, an Undo or a Redo.
-  const moveOne = (step: MoveStep, via: 'do' | 'undo' | 'redo') => {
+  // Single-pocket moves, whatever is selected: a drop, an arrow-key move, an Undo or a Redo. A drop that leaves a new
+  // empty pocket behind (`create`) can't be undone as one step, so it clears the history like an insert.
+  const moveOne = (step: MoveStep, via: 'do' | 'undo' | 'redo', create?: { before: string }) => {
     if (blocked) {
       if (behind.current === snapshot) setError('Still placing the last move. Try again in a moment.');
-      return;
+      return false;
     }
-    emit({ kind: 'move', destination: via === 'undo' ? step.back : step.to }, safeCapture(boundary, [step.id]), {
-      step,
-      via,
-    });
+    setMenu(null);
+    stepping.current = create ? null : { step, via };
+    try {
+      preparedOn.current = snapshot;
+      prepared.current = preparePocketMoves(
+        snapshot,
+        scope,
+        via === 'undo' ? step.back : step.to,
+        {
+          source: 'app',
+          clientId: null,
+          operationId: crypto.randomUUID(),
+          batchId: null,
+          clientOccurredAt: new Date().toISOString(),
+        },
+        catalog,
+        create ? { id: crypto.randomUUID(), before: create.before } : undefined,
+      );
+      handoff({ scope: prepared.current.scope, intent: prepared.current.intent });
+      return true;
+    } catch (cause) {
+      stepping.current = null;
+      setError(layoutFailureMessage(cause));
+      return false;
+    }
   };
   const undo = () => {
     const step = steps.done.at(-1);
@@ -304,52 +324,55 @@ function LayoutBar({
   };
   const insert = (amount: number, destination: BulkLayoutAction['destination']) =>
     emit({ kind: 'insert', ids: Array.from({ length: amount }, () => crypto.randomUUID()), destination });
-  const tap = (slotId: string, dropOn?: string) => {
+  const tap = (slotId: string, dropOn?: string, mode: PocketDropMode = 'place') => {
     if (dropOn) {
       const from = binder.slots.findIndex((s) => s.id === slotId);
       const to = binder.slots.findIndex((s) => s.id === dropOn);
-      if (from < 0 || to < 0 || from === to) return;
+      if (from < 0 || to < 0 || from === to) return false;
       // A selected pocket carries the whole selection with it, landing in the same place a single one would.
       if (ids.length > 1 && ids.includes(slotId)) {
-        if (ids.includes(dropOn)) return;
+        if (ids.includes(dropOn)) return false;
         if (blocked || state !== 'current') {
           setError(
             state !== 'current'
               ? 'These pockets changed. Update the selection to carry on.'
               : 'Still placing the last move. Try again in a moment.',
           );
-          return;
+          return false;
         }
         emit({ kind: 'move', destination: { kind: from < to ? 'after' : 'before', slotId: dropOn } });
-        return;
+        return true;
       }
-      const next = binder.slots[from + 1];
-      // Dragged forward it lands after the pocket it was dropped on, backward before it: either way, in its place.
-      // Undo puts it back before the pocket that followed it.
-      moveOne(
+      const order = binder.slots.map((s) => ({ id: s.id, filled: s.inventoryItemId !== null }));
+      const plan = planPocketDrop(order, slotId, dropOn, mode);
+      if (!plan) return false;
+      return moveOne(
         {
-          id: slotId,
-          to: { kind: from < to ? 'after' : 'before', slotId: dropOn },
-          back: next ? { kind: 'before', slotId: next.id } : { kind: 'end' },
+          to: plan.moves,
+          back: invertPocketMoves(
+            order.map((s) => s.id),
+            plan.moves,
+          ),
         },
         'do',
+        plan.create,
       );
-      return;
     }
-    if (blocked) return;
+    if (blocked) return false;
     if (state !== 'current') {
       setError('These pockets changed. Update the selection to carry on.');
-      return;
+      return false;
     }
     if (!moving) {
       select(ids.includes(slotId) ? ids.filter((id) => id !== slotId) : [...ids, slotId]);
-      return;
+      return false;
     }
     if (ids.includes(slotId)) {
       setError("Tap a pocket that isn't selected.");
-      return;
+      return false;
     }
     emit({ kind: 'move', destination: { kind: 'before', slotId } });
+    return true;
   };
   useLayoutEffect(() => {
     onTap(tap);

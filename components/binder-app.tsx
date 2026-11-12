@@ -76,6 +76,7 @@ import {
 } from '@/lib/regional-price';
 import { normalizeCollectionItems } from '@/lib/collection/normalize';
 import { useTouchGestures } from '@/hooks/use-touch-gestures';
+import type { PocketDropMode } from '@/lib/pocket-drop';
 import { loadCardsForPokemon } from '@/hooks/use-tcgdex';
 import {
   POKEMON_CATALOG,
@@ -4041,7 +4042,16 @@ function BinderAppSurface(props: BinderAppProps) {
           onSlotDrag: layoutBoundary
             ? {
                 start: () => (editingLayout ? setPocketMenu(null) : startLayoutEditing()),
-                drop: (slotId: string, targetId: string) => layoutTap.current?.(slotId, targetId),
+                drop: (slotId: string, targetId: string, mode: PocketDropMode) =>
+                  layoutTap.current?.(slotId, targetId, mode) ?? false,
+                turn: (direction: 1 | -1) =>
+                  direction > 0
+                    ? isSpreadLayout
+                      ? goToNextSpread()
+                      : goToNextPage()
+                    : isSpreadLayout
+                      ? goToPrevSpread()
+                      : goToPrevPage(),
               }
             : undefined,
           binderSlotImageSizes,

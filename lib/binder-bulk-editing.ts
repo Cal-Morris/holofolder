@@ -4,6 +4,7 @@ import type { InventoryCatalogResolver, InventorySnapshot } from '@/lib/domain/i
 import { SLOT_LIMITS, type SlotCommand } from '@/lib/domain/slot-commands';
 import { parseSlotIntent, projectSlotIntent, sameValue } from '@/lib/collection/slot-optimistic';
 import type { StagedSlotCommandIntent } from '@/lib/binder-slot-editing';
+import type { PocketMove } from '@/lib/pocket-drop';
 
 type Scope = StagedSlotCommandIntent['scope'];
 export type BulkDestination = { kind: 'beginning' | 'end' } | { kind: 'before' | 'after'; slotId: string };
@@ -144,6 +145,56 @@ export function prepareBulkLayoutIntent(
       collectionVersion: collection.version,
       layoutRevision: binder.layoutRevision,
       commands: [command],
+    },
+  });
+  return { scope: { ...scope, slotId: null }, intent, preview: projectSlotIntent(snapshot, intent, catalog) };
+}
+
+/**
+ * Single-pocket moves as one request, in order (a drag's swap or push, or its Undo and Redo), after making one empty
+ * pocket first when `create` is given. Every moved pocket is checked against this snapshot.
+ */
+export function preparePocketMoves(
+  snapshot: InventorySnapshot,
+  scope: Scope,
+  moves: readonly PocketMove[],
+  context: OperationIntentContext,
+  catalog: InventoryCatalogResolver,
+  create?: { id: string; before: string },
+) {
+  const { binder, collection } = layout(snapshot, scope);
+  const live = new Set(binder.slots.map((s) => s.id));
+  if (!moves.length || moves.some((m) => !live.has(m.id) || (m.before !== null && !live.has(m.before))))
+    throw new Error('invalid-anchor');
+  if (create && binder.slots.length + 1 > SLOT_LIMITS.capacity) throw new Error('layout-capacity');
+  const commands: SlotCommand[] = create ? [{ kind: 'create', ids: [create.id], beforeSlotId: create.before }] : [];
+  for (const move of moves) {
+    const { slots } = captureBulkSelection(snapshot, scope, [move.id]);
+    const { slot, item, placement } = slots[0];
+    commands.push({
+      kind: 'move',
+      beforeSlotId: move.before,
+      slots: [
+        {
+          id: slot.id,
+          version: slot.version,
+          inventoryItemId: slot.inventoryItemId,
+          itemVersion: item?.version ?? null,
+          placementVersion: placement?.version ?? null,
+        },
+      ],
+    });
+  }
+  const intent = parseSlotIntent({
+    kind: 'slots',
+    context,
+    request: {
+      operationId: context.operationId,
+      inventoryRevision: snapshot.inventoryRevision,
+      collectionId: scope.collectionId,
+      collectionVersion: collection.version,
+      layoutRevision: binder.layoutRevision,
+      commands,
     },
   });
   return { scope: { ...scope, slotId: null }, intent, preview: projectSlotIntent(snapshot, intent, catalog) };
