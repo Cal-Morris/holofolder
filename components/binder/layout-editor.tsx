@@ -35,8 +35,11 @@ export interface LayoutBoundary {
   resolveCard?: CardNamer;
 }
 
-/** How the binder grid talks to the bar while editing: a tapped pocket is a selection toggle or a move destination. */
-export type LayoutTap = (slotId: string) => void;
+/**
+ * How the binder grid talks to the bar while editing: a tapped pocket is a selection toggle or a move destination.
+ * With `dropOn`, the pocket was dragged onto that pocket and takes its place, whatever is selected.
+ */
+export type LayoutTap = (slotId: string, dropOn?: string) => void;
 export interface LayoutEditHost {
   rows: number;
   cols: number;
@@ -204,14 +207,14 @@ function LayoutBar({
       setError(`You can select up to ${SLOT_LIMITS.affected} pockets at once.`);
     }
   };
-  const emit = (action: BulkLayoutAction) => {
-    if (unavailable) return;
+  const emit = (action: BulkLayoutAction, picked?: BulkSelection) => {
+    if (picked ? blocked : unavailable) return;
     setMenu(null);
     try {
       prepared.current = prepareBulkLayoutIntent(
         snapshot,
         scope,
-        selection,
+        picked ?? selection,
         action,
         {
           source: 'app',
@@ -229,8 +232,19 @@ function LayoutBar({
   };
   const insert = (amount: number, destination: BulkLayoutAction['destination']) =>
     emit({ kind: 'insert', ids: Array.from({ length: amount }, () => crypto.randomUUID()), destination });
-  const tap = (slotId: string) => {
+  const tap = (slotId: string, dropOn?: string) => {
     if (blocked) return;
+    if (dropOn) {
+      const from = binder.slots.findIndex((s) => s.id === slotId);
+      const to = binder.slots.findIndex((s) => s.id === dropOn);
+      if (from < 0 || to < 0 || from === to) return;
+      // Dragged forward it lands after the pocket it was dropped on, backward before it: either way, in its place.
+      emit(
+        { kind: 'move', destination: { kind: from < to ? 'after' : 'before', slotId: dropOn } },
+        safeCapture(boundary, [slotId]),
+      );
+      return;
+    }
     if (state !== 'current') {
       setError('These pockets changed. Update the selection to carry on.');
       return;

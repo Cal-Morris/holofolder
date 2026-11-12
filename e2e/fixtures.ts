@@ -658,6 +658,18 @@ export class Harness {
 }
 
 export const test = base.extend<Fixtures>({
+  // Wiggling pockets (layout editing) never hold still for Playwright's stability check; specs assert the class.
+  page: async ({ page }, use) => {
+    await page.addInitScript(() => {
+      const still = () =>
+        document.head.append(
+          Object.assign(document.createElement('style'), { textContent: '.pocket-wiggle{animation:none!important}' }),
+        );
+      if (document.head) still();
+      else document.addEventListener('DOMContentLoaded', still);
+    });
+    await use(page);
+  },
   signedIn: [false, { option: true }],
   collection: [SEEDED_COLLECTION, { option: true }],
   standalone: [

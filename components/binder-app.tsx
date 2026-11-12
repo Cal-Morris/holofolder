@@ -4031,6 +4031,12 @@ function BinderAppSurface(props: BinderAppProps) {
           onSlotMenu: layoutBoundary
             ? (slotId: string, point: { x: number; y: number }) => setPocketMenu({ slotId, point })
             : undefined,
+          onSlotDrag: layoutBoundary
+            ? {
+                start: () => (editingLayout ? setPocketMenu(null) : startLayoutEditing()),
+                drop: (slotId: string, targetId: string) => layoutTap.current?.(slotId, targetId),
+              }
+            : undefined,
           binderSlotImageSizes,
           binderCardDisplay,
           cardFinishEffectStyle,

@@ -1,6 +1,6 @@
 'use client';
 
-import { OrderedSlot } from '@/components/binder/ordered-slot';
+import { OrderedSlot, type PocketDrag } from '@/components/binder/ordered-slot';
 import { adaptLegacyDisplaySlots, displaySlotPriceLookup, type BinderDisplaySlot } from '@/lib/binder-display-model';
 import { getCardPriceKey } from '@/lib/card-pricing';
 import { getCollectionItemPriceKey } from '@/components/binder/binder-app-model';
@@ -42,6 +42,7 @@ export interface BinderGridPageContext {
   layoutMarks?: { ids: ReadonlySet<string>; moving: boolean };
   /** Right-click, menu key or long press on a pocket. Absent where the pocket has no actions (shares, cached). */
   onSlotMenu?: (id: string, point: { x: number; y: number }) => void;
+  onSlotDrag?: PocketDrag;
   binderSlotImageSizes: string;
   binderCardDisplay: BinderCardDisplay;
   cardFinishEffectStyle: CSSProperties;
@@ -312,6 +313,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
                   selected={ctx.selectedSlotId === displaySlot.id}
                   onSelect={ctx.onSelectSlot!}
                   onMenu={ctx.onSlotMenu}
+                  onDrag={ctx.onSlotDrag}
                   marked={ctx.layoutMarks ? ctx.layoutMarks.ids.has(displaySlot.id) : undefined}
                   dimmed={Boolean(ctx.layoutMarks?.moving && ctx.layoutMarks.ids.has(displaySlot.id))}
                   imageSizes={binderSlotImageSizes}

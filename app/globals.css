@@ -1096,3 +1096,48 @@ html[data-edge-back] body::after {
     animation: none;
   }
 }
+
+/*
+ * Layout editing ("wiggle mode"): pockets wiggle to show they can be dragged (components/binder/ordered-slot.tsx).
+ * `rotate` and `scale` are their own properties, so the drag's inline `translate` still moves the pocket.
+ */
+@keyframes pocket-wiggle {
+  0%,
+  100% {
+    rotate: -0.9deg;
+  }
+  50% {
+    rotate: 0.9deg;
+  }
+}
+.pocket-wiggle {
+  animation: pocket-wiggle 260ms ease-in-out infinite;
+}
+.pocket-wiggle:nth-child(2n) {
+  animation-delay: -130ms;
+}
+.pocket-wiggle:nth-child(3n) {
+  animation-duration: 290ms;
+}
+/* Lifting and setting down ease the scale and shadow; the position itself tracks the pointer 1:1. */
+button[data-slot-id] {
+  transition:
+    scale 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+button[data-slot-id][data-dragging] {
+  z-index: 30;
+  animation: none;
+  scale: 1.06;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.35);
+  cursor: grabbing;
+}
+button[data-slot-id][data-drop-target] {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pocket-wiggle {
+    animation: none;
+  }
+}
