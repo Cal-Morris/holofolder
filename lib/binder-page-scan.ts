@@ -69,6 +69,8 @@ interface GridDetectionMaps {
   verticalIntegral: Float32Array;
   horizontalIntegral: Float32Array;
   edgeIntegral: Float32Array;
+  /** Below this mean edge strength a grid candidate is treated as blank (table, cover). Lower for soft photos. */
+  minEdgeMean: number;
 }
 
 interface SlotFeatureMaps {
@@ -137,12 +139,15 @@ const WHITE_PIXEL_LUMINANCE_THRESHOLD = 236;
 const MIN_GRID_COVERAGE = 0.52;
 const MAX_GRID_COVERAGE = 0.98;
 const MIN_GRID_CONFIDENCE = 4.2;
+const MIN_GRID_EDGE_MEAN = 8;
+const SOFT_PHOTO_EDGE_SHARE = 0.6;
 const PAGE_EDGE_SAMPLE_STEP = 3;
 const PAGE_EDGE_THRESHOLD_FLOOR = 52;
 const PAGE_EDGE_SEARCH_PADDING = 0.32;
 const SLOT_CARD_CROP_INSET = 0.04;
-const SLOT_CARD_CROP_WIDTH = 240;
-const SLOT_CARD_CROP_HEIGHT = 336;
+const SLOT_CARD_CROP_MIN_WIDTH = 240;
+const SLOT_CARD_CROP_MAX_WIDTH = 500;
+const SLOT_CARD_CROP_ASPECT = 88 / 63;
 
 let scanicScannerPromise: Promise<ScanicScanner> | null = null;
 
@@ -303,7 +308,10 @@ function classifySlotsForGrid(
       const occupied = !glareLikeRejected && isOccupied(metrics, score);
       const confidence = scoreSlotConfidence(metrics, score);
       const cardImageDataUrl = occupied
-        ? cropSlotCardImageDataUrl(image.canvas, slotX, slotY, slotWidth, slotHeight)
+        ? cropSlotCardImageDataUrl(
+            image.canvas,
+            insetRect({ x: slotX, y: slotY, width: slotWidth, height: slotHeight }, SLOT_CARD_CROP_INSET),
+          )
         : undefined;
 
       slots.push({
@@ -339,39 +347,35 @@ function classifySlotsForGrid(
   };
 }
 
+function insetRect(rect: { x: number; y: number; width: number; height: number }, inset: number) {
+  return {
+    x: rect.x + rect.width * inset,
+    y: rect.y + rect.height * inset,
+    width: rect.width * (1 - inset * 2),
+    height: rect.height * (1 - inset * 2),
+  };
+}
+
+/** Cuts the pocket at the photo's own resolution (no upscaling), capped so a page of crops stays light on memory. */
 function cropSlotCardImageDataUrl(
   sourceCanvas: HTMLCanvasElement,
-  slotX: number,
-  slotY: number,
-  slotWidth: number,
-  slotHeight: number,
+  rect: { x: number; y: number; width: number; height: number },
 ) {
-  const sourceInsetX = slotWidth * SLOT_CARD_CROP_INSET;
-  const sourceInsetY = slotHeight * SLOT_CARD_CROP_INSET;
-  const sourceX = clamp(slotX + sourceInsetX, 0, sourceCanvas.width - 1);
-  const sourceY = clamp(slotY + sourceInsetY, 0, sourceCanvas.height - 1);
-  const sourceWidth = clamp(slotWidth - sourceInsetX * 2, 1, sourceCanvas.width - sourceX);
-  const sourceHeight = clamp(slotHeight - sourceInsetY * 2, 1, sourceCanvas.height - sourceY);
+  const sourceX = clamp(rect.x, 0, sourceCanvas.width - 1);
+  const sourceY = clamp(rect.y, 0, sourceCanvas.height - 1);
+  const sourceWidth = clamp(rect.width, 1, sourceCanvas.width - sourceX);
+  const sourceHeight = clamp(rect.height, 1, sourceCanvas.height - sourceY);
+  const scale = Math.min(1, SLOT_CARD_CROP_MAX_WIDTH / sourceWidth);
   const canvas = document.createElement('canvas');
-  canvas.width = SLOT_CARD_CROP_WIDTH;
-  canvas.height = SLOT_CARD_CROP_HEIGHT;
+  canvas.width = Math.max(SLOT_CARD_CROP_MIN_WIDTH, Math.round(sourceWidth * scale));
+  canvas.height = Math.round(canvas.width * SLOT_CARD_CROP_ASPECT);
   const context = canvas.getContext('2d');
 
   if (!context) {
     return undefined;
   }
 
-  context.drawImage(
-    sourceCanvas,
-    sourceX,
-    sourceY,
-    sourceWidth,
-    sourceHeight,
-    0,
-    0,
-    SLOT_CARD_CROP_WIDTH,
-    SLOT_CARD_CROP_HEIGHT,
-  );
+  context.drawImage(sourceCanvas, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
 
   return canvas.toDataURL('image/jpeg', 0.86);
 }
@@ -868,10 +872,13 @@ function buildGridDetectionMaps(imageData: ImageData, width: number, height: num
     }
   }
 
+  const edgeIntegral = buildIntegralImage(combinedEdge, width, height);
+
   return {
     verticalIntegral: buildIntegralImage(verticalGradient, width, height),
     horizontalIntegral: buildIntegralImage(horizontalGradient, width, height),
-    edgeIntegral: buildIntegralImage(combinedEdge, width, height),
+    edgeIntegral,
+    minEdgeMean: getBlankRegionEdgeFloor(rectMean(edgeIntegral, width, 0, 0, width, height)),
   };
 }
 
@@ -1084,7 +1091,7 @@ function scoreBinderGridCandidate(
   const bandWidth = Math.max(2, Math.round(Math.min(rectWidth, rectHeight) * 0.007));
   const edgeMean = rectMean(maps.edgeIntegral, imageWidth, x, y, rectWidth, rectHeight);
 
-  if (edgeMean < 8) {
+  if (edgeMean < maps.minEdgeMean) {
     return -Infinity;
   }
 
@@ -1137,6 +1144,14 @@ export function getBinderSlotBoundaryOffsets(length: number, count: number, tota
   }
 
   return positions;
+}
+
+/**
+ * Mean edge strength below which a grid candidate counts as blank (a table, the binder cover). A soft phone photo
+ * has weak edges everywhere, so the floor follows the photo's own sharpness and never rises above the old fixed 8.
+ */
+export function getBlankRegionEdgeFloor(photoMeanEdge: number) {
+  return Math.min(MIN_GRID_EDGE_MEAN, photoMeanEdge * SOFT_PHOTO_EDGE_SHARE);
 }
 
 export function getBinderGridAspectRatio(rows: number, cols: number) {
