@@ -235,6 +235,8 @@ function ScopedBrowserSession({
   /** Set when the connection or the app returns, so a parked edit is retried at once instead of after its pause. */
   const resumeNow = useRef(false);
   const completeReadAvailable = useRef(false);
+  /** The server can't serve this collection yet (still being set up): the only state that stops new edits. */
+  const setupPending = useRef(false);
   const [ready, setReady] = useState(false);
   const [online, setOnline] = useState(true);
   const alive = useRef(false),
@@ -313,6 +315,7 @@ function ScopedBrowserSession({
       const pending =
         record?.pending.some((p) => p.status !== 'acknowledged') || record?.recovery?.some(recoveryUnresolved);
       completeReadAvailable.current = true;
+      setupPending.current = false;
       readRetry.current.attempts = 0;
       // Show the read before the queue settles acknowledged edits, so the view never drops back to the old read.
       setRead(fresh);
@@ -333,6 +336,7 @@ function ScopedBrowserSession({
           ['inventory_not_initialized', 'legacy_inventory_incomplete'].includes(error.code)
         ) {
           completeReadAvailable.current = false;
+          setupPending.current = true;
           setRead((previous) =>
             previous.evidence.kind === 'complete'
               ? { ...previous, evidence: { kind: 'cached', snapshot: previous.evidence.snapshot } }
@@ -663,20 +667,19 @@ function ScopedBrowserSession({
     if (pendingCount) kickSender.current();
   }, [pendingCount]);
   const receive: SlotCommandSink = async (draft, selected, pickedCard) => {
-    // A focus or visibility refresh is routine; every fence below still applies to the read it settles on.
-    const current = refreshing.current && inFlightRead.current ? await inFlightRead.current.catch(() => null) : read;
+    // An edit never waits on sync. A routine read in flight is used if it lands; otherwise the last read this device
+    // has (fresh or saved) is the base. The queue projects the edit onto its own record and the server checks revisions.
+    const settled = refreshing.current && inFlightRead.current ? await inFlightRead.current.catch(() => null) : null;
+    const current = settled?.evidence.kind === 'complete' ? settled : read;
     if (
-      !current ||
-      refreshing.current ||
-      !completeReadAvailable.current ||
       !valid() ||
+      setupPending.current ||
+      current.evidence.kind === 'unavailable' ||
       draft.scope.ownerUserId !== scope.ownerUserId
     )
       throw new Error('inactive-or-unavailable-session');
-    const record = await latest.current.queue.queue?.read();
     // Edits queue behind ones still syncing: the queue projects each onto the last and sends them in order.
-    if (!valid() || current.evidence.kind !== 'complete' || !record || record.recovery?.some(recoveryUnresolved))
-      throw new Error('fresh-scoped-read-required');
+    // Recovery and parked edits are refused by the queue itself, with their own reason.
     const host = current === read ? catalog : browserHostCatalog(current.catalog);
     if (pickedCard)
       setPicked((previous) => [

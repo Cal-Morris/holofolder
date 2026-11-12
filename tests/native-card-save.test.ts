@@ -111,3 +111,16 @@ test('aborted or unknown saves never invent a quota failure or assert no commit'
   assert.doesNotMatch(slotDraftFailureMessage(new Error('IndexedDB transaction aborted')), /Free|Nothing is saved/);
   assert.doesNotMatch(slotDraftFailureMessage(new Error('unknown outcome')), /Nothing is saved/);
 });
+
+test('edits held back by a parked change, recovery or deletion say why instead of "still syncing"', () => {
+  for (const reason of [
+    'queue-reconciliation-required',
+    'recovery-pending',
+    'creation-pending',
+    'collection-deletion-pending',
+  ]) {
+    assert.doesNotMatch(slotDraftFailureMessage(new Error(reason)), /syncing/);
+    assert.match(slotDraftFailureMessage(new Error(reason)), /Save not confirmed\.$/);
+  }
+  assert.match(slotDraftFailureMessage(new Error('queue-reconciliation-required')), /decision/);
+});
