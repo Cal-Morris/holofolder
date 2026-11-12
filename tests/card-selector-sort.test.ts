@@ -1,7 +1,12 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { CardPriceSnapshot } from '../lib/card-pricing';
-import { getCardPickerSortAmount, normalizeCardPickerSort, sortCardPickerCards } from '../lib/card-selector-sort';
+import {
+  cardNameMatchRank,
+  getCardPickerSortAmount,
+  normalizeCardPickerSort,
+  sortCardPickerCards,
+} from '../lib/card-selector-sort';
 
 // TEST FIXTURES ONLY: synthetic cards and amounts. Not market data.
 const card = (id: string, releaseDate?: string) => ({ id, localId: id, set: { id: `set-${id}`, releaseDate } });
@@ -47,5 +52,23 @@ describe('card picker sort', () => {
       null,
     );
     assert.equal(getCardPickerSortAmount(undefined, 'normal', 'UK'), null);
+  });
+});
+
+describe('cardNameMatchRank', () => {
+  // Synthetic card names; not real printings.
+  const order = (query: string, names: string[]) =>
+    [...names].sort((a, b) => cardNameMatchRank(a, query) - cardNameMatchRank(b, query));
+
+  test('the exact Pokémon comes before its ex, which comes before longer names and set hits', () => {
+    assert.deepEqual(order('mew 30th', ['Mewtwo', 'Pikachu', 'Mew ex', 'Mew']), ['Mew', 'Mew ex', 'Mewtwo', 'Pikachu']);
+    assert.deepEqual(order('Mew', ['Mewtwo ex', 'Mew V', 'Mew']), ['Mew', 'Mew V', 'Mewtwo ex']);
+  });
+  test('more typed words matched wins inside a tier, accents and case ignored', () => {
+    assert.deepEqual(order('mew ex', ['Mew', 'Mew ex']), ['Mew ex', 'Mew']);
+    assert.equal(cardNameMatchRank('Flabébé', 'flabebe'), cardNameMatchRank('Mew', 'MEW'));
+  });
+  test('an empty query ranks nothing', () => {
+    assert.equal(cardNameMatchRank('Mew', ''), Number.POSITIVE_INFINITY);
   });
 });
