@@ -87,6 +87,9 @@ const MIRRORED_CARD_SELECT = `
 
 const MIRROR_CACHE_LIFE = 'days';
 const HIDDEN_SET_IDS = new Set(['jumbo']);
+/** A set query ("30th", "abra 151") returns the whole set; the largest (Cosmic Eclipse) has 272 cards. */
+// ponytail: one row cap shared by up to 4 matched sets; page it if several large sets must show in full.
+const SET_BROWSE_LIMIT = 400;
 const MIRROR_CACHE_VERSION = 'v6-card-languages';
 
 function cacheSafeTag(prefix: string, value: string | number) {
@@ -571,6 +574,17 @@ export function toSearchCardResult(
   };
 }
 
+/**
+ * An English search only matches sets printed in English, so a Japanese "30th CELEBRATION" can't take its place.
+ * Other languages price English prints too, so they keep every set.
+ */
+function printedInEnglish<T extends { not: (column: string, operator: string, value: null) => T }>(
+  query: T,
+  language: MirrorLanguage,
+) {
+  return language === 'en' ? query.not('name_json->>en', 'is', null) : query;
+}
+
 function localIdCandidates(number: string) {
   const normalized = normalizeLocalId(number);
   const digits = /^(\d+)([a-z]?)$/.exec(normalized);
@@ -665,9 +679,7 @@ export async function searchMirroredCards(
     ),
   ];
   if (candidates.length) {
-    const catalog = await admin
-      .from('tcg_sets')
-      .select('id,name_en')
+    const catalog = await printedInEnglish(admin.from('tcg_sets').select('id,name_en'), language)
       .or(
         candidates
           .flatMap((phrase) => [`id.ilike.${JSON.stringify(phrase)}`, `name_en.ilike.${JSON.stringify(`%${phrase}%`)}`])
@@ -692,7 +704,7 @@ export async function searchMirroredCards(
     let bySet = admin.from('tcg_cards').select(select).in('set_id', parsed.setIds);
     if (parsed.text) bySet = bySet.ilike('name_en', `%${parsed.text}%`);
     if (numberCandidates) bySet = bySet.in('local_id', numberCandidates);
-    requests.push(bySet.order('local_id_sort', { ascending: true, nullsFirst: false }).limit(limit));
+    requests.push(bySet.order('local_id_sort', { ascending: true, nullsFirst: false }).limit(SET_BROWSE_LIMIT));
   } else if (parsed.text.length >= 2) {
     let byName = admin.from('tcg_cards').select(select).ilike('name_en', `%${parsed.text}%`);
     if (numberCandidates) byName = byName.in('local_id', numberCandidates);
@@ -709,9 +721,7 @@ export async function searchMirroredCards(
     // instead of before it.
     requests.push(
       (async () => {
-        const setMatches = await admin
-          .from('tcg_sets')
-          .select('id')
+        const setMatches = await printedInEnglish(admin.from('tcg_sets').select('id'), language)
           .or(`id.ilike.${parsed.text},id.ilike.${resolveSetSearchAlias(parsed.text)},name_en.ilike.%${parsed.text}%`)
           .order('release_date', { ascending: false, nullsFirst: false })
           .limit(4);
@@ -722,7 +732,7 @@ export async function searchMirroredCards(
         if (setIds.length === 0) return { data: [], error: null };
         let bySet = admin.from('tcg_cards').select(select).in('set_id', setIds);
         if (numberCandidates) bySet = bySet.in('local_id', numberCandidates);
-        return await bySet.order('local_id_sort', { ascending: true, nullsFirst: false }).limit(limit);
+        return await bySet.order('local_id_sort', { ascending: true, nullsFirst: false }).limit(SET_BROWSE_LIMIT);
       })(),
     );
   }
@@ -737,7 +747,7 @@ export async function searchMirroredCards(
     if (card && !results.has(card.id)) results.set(card.id, card);
   }
 
-  const cards = Array.from(results.values()).slice(0, limit * 2);
+  const cards = Array.from(results.values());
   if (!cards.length && correction) {
     const retry = await searchMirroredCards(correction, language, limit, includeNonPokemon);
     return { cards: retry.cards, correction: retry.cards.length ? correction : null };
