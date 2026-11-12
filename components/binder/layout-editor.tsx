@@ -1,8 +1,19 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState, type ButtonHTMLAttributes } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes } from 'react';
 import dynamic from 'next/dynamic';
-import { ArrowLeftRight, MoreHorizontal, PencilRuler, Plus, Sparkles, Trash2 } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  ArrowLeftToLine,
+  ArrowRightToLine,
+  MoreHorizontal,
+  PencilRuler,
+  Plus,
+  Redo2,
+  Sparkles,
+  Trash2,
+  Undo2,
+} from 'lucide-react';
 import type { InventoryCatalogResolver, InventorySnapshot } from '@/lib/domain/inventory';
 import type { StagedSlotCommandIntent, SlotCommandSink } from '@/lib/binder-slot-editing';
 import {
@@ -11,6 +22,7 @@ import {
   prepareBulkLayoutIntent,
   type BulkSelection,
   type BulkLayoutAction,
+  type BulkDestination,
 } from '@/lib/binder-bulk-editing';
 import { SLOT_LIMITS } from '@/lib/domain/slot-commands';
 import { useSlotDraftAcceptance } from '@/hooks/use-slot-draft-acceptance';
@@ -35,8 +47,11 @@ export interface LayoutBoundary {
   resolveCard?: CardNamer;
 }
 
-/** How the binder grid talks to the bar while editing: a tapped pocket is a selection toggle or a move destination. */
-export type LayoutTap = (slotId: string) => void;
+/**
+ * How the binder grid talks to the bar while editing: a tapped pocket is a selection toggle or a move destination.
+ * With `dropOn`, the pocket was dragged onto that pocket and takes its place, whatever is selected.
+ */
+export type LayoutTap = (slotId: string, dropOn?: string) => void;
 export interface LayoutEditHost {
   rows: number;
   cols: number;
@@ -75,6 +90,12 @@ function LayoutButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
     />
   );
 }
+
+/** Menus and notices open over the binder, so the bar never grows and pushes it down. */
+const popover =
+  'border-border/70 bg-card text-foreground absolute inset-x-0 top-full z-40 mt-1 grid gap-0.5 rounded-2xl border p-1 shadow-xl sm:left-auto';
+const notice =
+  'border-border/70 bg-card flex flex-wrap items-center gap-2 rounded-2xl border px-3 py-2 text-xs shadow-xl';
 
 const menuItem =
   'flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-medium hover:bg-muted/70 disabled:opacity-45';
@@ -127,6 +148,13 @@ export function LayoutToolbar({
   );
 }
 
+/** One pocket moved: where it went, and where it came back to on Undo. */
+interface MoveStep {
+  id: string;
+  to: BulkDestination;
+  back: BulkDestination;
+}
+
 function safeCapture(boundary: LayoutBoundary, ids: readonly string[]) {
   const binder = boundary.snapshot.binders.find((b) => b.collectionId === boundary.scope.collectionId);
   const live = new Set(binder?.slots.map((s) => s.id));
@@ -160,6 +188,13 @@ function LayoutBar({
   const [sheet, setSheet] = useState<'remove' | 'fill' | 'reserve' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const prepared = useRef<ReturnType<typeof prepareBulkLayoutIntent> | null>(null);
+  // This session's single-pocket moves, for Undo and Redo, and the one now being saved.
+  const [steps, setSteps] = useState<{ done: MoveStep[]; undone: MoveStep[] }>({ done: [], undone: [] });
+  const stepping = useRef<{ step: MoveStep; via: 'do' | 'undo' | 'redo' } | null>(null);
+  // The snapshot the last accepted change was prepared on. Until a newer one arrives the view hasn't caught up,
+  // and a change prepared now would be built on the collection as it was before that one.
+  const preparedOn = useRef<InventorySnapshot | null>(null);
+  const behind = useRef<InventorySnapshot | null>(null);
   const ids = selection.slots.map((s) => s.slot.id);
   let state: ReturnType<typeof bulkSelectionState> = 'selection-changed';
   try {
@@ -172,11 +207,24 @@ function LayoutBar({
     () => {
       const accepted = prepared.current;
       if (accepted) setSelection(captureBulkSelection(accepted.preview, scope, ids));
+      behind.current = preparedOn.current;
+      const done = stepping.current;
+      stepping.current = null;
+      // Group moves and inserts can't be undone as one step, so earlier steps would no longer read true.
+      if (!done) setSteps({ done: [], undone: [] });
+      else
+        setSteps(({ done: past, undone }) =>
+          done.via === 'undo'
+            ? { done: past.slice(0, -1), undone: [...undone, done.step] }
+            : done.via === 'redo'
+              ? { done: [...past, done.step], undone: undone.slice(0, -1) }
+              : { done: [...past, done.step], undone: [] },
+        );
       setMoving(false);
       setError(null);
     },
   );
-  const blocked = busy || pending !== null;
+  const blocked = busy || pending !== null || behind.current === snapshot;
   const unavailable = blocked || state !== 'current';
   // The pocket stays selected across its own change, on the collection as it now is.
   const keepSelection = (preview?: InventorySnapshot) => {
@@ -204,14 +252,15 @@ function LayoutBar({
       setError(`You can select up to ${SLOT_LIMITS.affected} pockets at once.`);
     }
   };
-  const emit = (action: BulkLayoutAction) => {
-    if (unavailable) return;
+  const emit = (action: BulkLayoutAction, picked?: BulkSelection) => {
+    if (picked ? blocked : unavailable) return;
     setMenu(null);
     try {
+      preparedOn.current = snapshot;
       prepared.current = prepareBulkLayoutIntent(
         snapshot,
         scope,
-        selection,
+        picked ?? selection,
         action,
         {
           source: 'app',
@@ -224,12 +273,61 @@ function LayoutBar({
       );
       handoff({ scope: prepared.current.scope, intent: prepared.current.intent });
     } catch (cause) {
+      stepping.current = null;
       setError(layoutFailureMessage(cause));
     }
   };
+  // One pocket to `to`, whatever is selected: a drop, an arrow-key move, an Undo or a Redo.
+  const moveOne = (step: MoveStep, via: 'do' | 'undo' | 'redo') => {
+    if (blocked) {
+      if (behind.current === snapshot) setError('Still placing the last move. Try again in a moment.');
+      return;
+    }
+    stepping.current = { step, via };
+    emit({ kind: 'move', destination: via === 'undo' ? step.back : step.to }, safeCapture(boundary, [step.id]));
+  };
+  const undo = () => {
+    const step = steps.done.at(-1);
+    if (step) moveOne(step, 'undo');
+  };
+  const redo = () => {
+    const step = steps.undone.at(-1);
+    if (step) moveOne(step, 'redo');
+  };
   const insert = (amount: number, destination: BulkLayoutAction['destination']) =>
     emit({ kind: 'insert', ids: Array.from({ length: amount }, () => crypto.randomUUID()), destination });
-  const tap = (slotId: string) => {
+  const tap = (slotId: string, dropOn?: string) => {
+    if (dropOn) {
+      const from = binder.slots.findIndex((s) => s.id === slotId);
+      const to = binder.slots.findIndex((s) => s.id === dropOn);
+      if (from < 0 || to < 0 || from === to) return;
+      // A selected pocket carries the whole selection with it, landing in the same place a single one would.
+      if (ids.length > 1 && ids.includes(slotId)) {
+        if (ids.includes(dropOn)) return;
+        if (blocked || state !== 'current') {
+          setError(
+            state !== 'current'
+              ? 'These pockets changed. Update the selection to carry on.'
+              : 'Still placing the last move. Try again in a moment.',
+          );
+          return;
+        }
+        emit({ kind: 'move', destination: { kind: from < to ? 'after' : 'before', slotId: dropOn } });
+        return;
+      }
+      const next = binder.slots[from + 1];
+      // Dragged forward it lands after the pocket it was dropped on, backward before it: either way, in its place.
+      // Undo puts it back before the pocket that followed it.
+      moveOne(
+        {
+          id: slotId,
+          to: { kind: from < to ? 'after' : 'before', slotId: dropOn },
+          back: next ? { kind: 'before', slotId: next.id } : { kind: 'end' },
+        },
+        'do',
+      );
+      return;
+    }
     if (blocked) return;
     if (state !== 'current') {
       setError('These pockets changed. Update the selection to carry on.');
@@ -249,6 +347,24 @@ function LayoutBar({
     onTap(tap);
     return () => onTap(null);
   });
+  const shortcuts = useRef({ undo, redo });
+  useLayoutEffect(() => {
+    shortcuts.current = { undo, redo };
+  });
+  // Cmd/Ctrl+Z undoes the last move while editing; Shift+Cmd+Z or Ctrl+Y redoes it. Text fields keep their own.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!(event.metaKey || event.ctrlKey) || target?.closest('input, textarea, [contenteditable="true"]')) return;
+      const key = event.key.toLowerCase();
+      if (key === 'z' && !event.shiftKey) shortcuts.current.undo();
+      else if ((key === 'z' && event.shiftKey) || key === 'y') shortcuts.current.redo();
+      else return;
+      event.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const selectionKey = ids.join(',');
   // The grid draws the selection; it only needs the IDs and whether a tap now picks a destination.
   useLayoutEffect(() => {
@@ -265,113 +381,147 @@ function LayoutBar({
     <section
       aria-label="Layout editing"
       data-layout-bar
-      className="border-border/70 bg-card/95 text-foreground relative shrink-0 rounded-2xl border px-2 py-1.5 shadow-sm"
+      className="text-foreground relative z-30 w-full min-w-0 shrink-0"
     >
-      <div className="flex flex-wrap items-center gap-1.5">
-        <p role="status" className="order-1 min-w-0 flex-1 truncate px-1 text-sm font-semibold">
+      {/* One row, the same height as the toolbar it replaces, so the binder doesn't move. Below 640px the actions
+          are icons with their names as labels, and the count is read out rather than shown. */}
+      <div className="flex min-h-9 items-center gap-0.5 sm:gap-1">
+        <p
+          role="status"
+          className={cn('min-w-0 flex-1 truncate px-1.5 text-sm font-semibold', !moving && 'max-sm:sr-only')}
+        >
           {moving ? `Tap where ${ids.length === 1 ? 'it goes' : 'they go'}` : count}
         </p>
-        {/* Phones: the count and Done on one row, the actions on the next. Wider screens: a single row. */}
-        <div className="order-3 flex w-full flex-wrap items-center gap-1.5 sm:order-2 sm:w-auto">
-          {moving ? (
-            <>
+        {!moving && <span aria-hidden className="flex-1 sm:hidden" />}
+        {moving ? (
+          <>
+            <LayoutButton
+              aria-label="To the start"
+              title="To the start"
+              disabled={unavailable}
+              onClick={() => emit({ kind: 'move', destination: { kind: 'beginning' } })}
+            >
+              <ArrowLeftToLine className="h-3.5 w-3.5" aria-hidden />
+              <span className="max-sm:hidden">To the start</span>
+            </LayoutButton>
+            <LayoutButton
+              aria-label="To the end"
+              title="To the end"
+              disabled={unavailable}
+              onClick={() => emit({ kind: 'move', destination: { kind: 'end' } })}
+            >
+              <ArrowRightToLine className="h-3.5 w-3.5" aria-hidden />
+              <span className="max-sm:hidden">To the end</span>
+            </LayoutButton>
+            <LayoutButton
+              onClick={() => {
+                setMoving(false);
+                setError(null);
+              }}
+            >
+              Cancel
+            </LayoutButton>
+          </>
+        ) : (
+          <>
+            <LayoutButton
+              aria-label="Undo move"
+              title="Undo move (⌘Z)"
+              disabled={!steps.done.length || blocked}
+              className="w-9 px-0"
+              onClick={undo}
+            >
+              <Undo2 className="h-4 w-4" aria-hidden />
+            </LayoutButton>
+            <LayoutButton
+              aria-label="Redo move"
+              title="Redo move (⇧⌘Z)"
+              disabled={!steps.undone.length || blocked}
+              className="w-9 px-0"
+              onClick={redo}
+            >
+              <Redo2 className="h-4 w-4" aria-hidden />
+            </LayoutButton>
+            <LayoutButton
+              aria-label="Move"
+              title="Move"
+              disabled={unavailable || !ids.length || ids.length === binder.slots.length}
+              className="max-sm:w-9 max-sm:px-0"
+              onClick={() => {
+                setMenu(null);
+                setMoving(true);
+                setError(null);
+              }}
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden />
+              <span className="max-sm:hidden">Move</span>
+            </LayoutButton>
+            <LayoutButton
+              aria-label="Add"
+              title="Add"
+              aria-haspopup="menu"
+              aria-expanded={menu === 'add'}
+              disabled={unavailable}
+              className="max-sm:w-9 max-sm:px-0"
+              onClick={() => setMenu(menu === 'add' ? null : 'add')}
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+              <span className="max-sm:hidden">Add</span>
+            </LayoutButton>
+            {boundary.bulkFill?.available && ids.length > 0 && (
               <LayoutButton
+                aria-label="Fill"
+                title="Fill"
                 disabled={unavailable}
-                onClick={() => emit({ kind: 'move', destination: { kind: 'beginning' } })}
-              >
-                To the start
-              </LayoutButton>
-              <LayoutButton disabled={unavailable} onClick={() => emit({ kind: 'move', destination: { kind: 'end' } })}>
-                To the end
-              </LayoutButton>
-            </>
-          ) : (
-            <>
-              <LayoutButton
-                disabled={unavailable || !ids.length || ids.length === binder.slots.length}
+                className="max-sm:w-9 max-sm:px-0"
                 onClick={() => {
                   setMenu(null);
-                  setMoving(true);
-                  setError(null);
+                  setSheet('fill');
                 }}
               >
-                <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden />
-                Move
+                <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                <span className="max-sm:hidden">Fill</span>
               </LayoutButton>
+            )}
+            {boundary.removal && (
               <LayoutButton
-                aria-haspopup="menu"
-                aria-expanded={menu === 'add'}
-                disabled={unavailable}
-                onClick={() => setMenu(menu === 'add' ? null : 'add')}
+                aria-label="Remove"
+                title="Remove"
+                disabled={unavailable || !ids.length || !boundary.removal.available}
+                className="max-sm:w-9 max-sm:px-0"
+                onClick={() => {
+                  setMenu(null);
+                  setSheet('remove');
+                }}
               >
-                <Plus className="h-3.5 w-3.5" aria-hidden />
-                Add
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                <span className="max-sm:hidden">Remove</span>
               </LayoutButton>
-              {boundary.bulkFill?.available && ids.length > 0 && (
-                <LayoutButton
-                  disabled={unavailable}
-                  onClick={() => {
-                    setMenu(null);
-                    setSheet('fill');
-                  }}
-                >
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                  Fill
-                </LayoutButton>
-              )}
-              {boundary.removal && (
-                <LayoutButton
-                  disabled={unavailable || !ids.length || !boundary.removal.available}
-                  onClick={() => {
-                    setMenu(null);
-                    setSheet('remove');
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                  Remove
-                </LayoutButton>
-              )}
-              {single && (
-                <LayoutButton
-                  aria-label="More pocket options"
-                  aria-haspopup="menu"
-                  aria-expanded={menu === 'more'}
-                  disabled={unavailable}
-                  className="w-9 px-0"
-                  onClick={() => setMenu(menu === 'more' ? null : 'more')}
-                >
-                  <MoreHorizontal className="h-4 w-4" aria-hidden />
-                </LayoutButton>
-              )}
-            </>
-          )}
-        </div>
-        {moving ? (
-          <LayoutButton
-            className="order-2 sm:order-3"
-            onClick={() => {
-              setMoving(false);
-              setError(null);
-            }}
-          >
-            Cancel
-          </LayoutButton>
-        ) : (
-          <LayoutButton
-            aria-pressed
-            onClick={onDone}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 order-2 px-3.5 sm:order-3"
-          >
-            Done
-          </LayoutButton>
+            )}
+            {single && (
+              <LayoutButton
+                aria-label="More pocket options"
+                aria-haspopup="menu"
+                aria-expanded={menu === 'more'}
+                disabled={unavailable}
+                className="w-9 px-0"
+                onClick={() => setMenu(menu === 'more' ? null : 'more')}
+              >
+                <MoreHorizontal className="h-4 w-4" aria-hidden />
+              </LayoutButton>
+            )}
+            <LayoutButton
+              aria-pressed
+              onClick={onDone}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 ml-0.5 px-3"
+            >
+              Done
+            </LayoutButton>
+          </>
         )}
       </div>
       {menu === 'add' && (
-        <div
-          role="menu"
-          aria-label="Add an empty pocket"
-          className="border-border/60 bg-background/60 mt-1.5 grid gap-0.5 rounded-xl border p-1 sm:grid-cols-2"
-        >
+        <div role="menu" aria-label="Add an empty pocket" className={popover + ' sm:w-[26rem] sm:grid-cols-2'}>
           {first && (
             <button
               type="button"
@@ -411,11 +561,7 @@ function LayoutBar({
         </div>
       )}
       {menu === 'more' && single && (
-        <div
-          role="menu"
-          aria-label="Pocket options"
-          className="border-border/60 bg-background/60 mt-1.5 grid gap-0.5 rounded-xl border p-1"
-        >
+        <div role="menu" aria-label="Pocket options" className={popover + ' sm:w-72'}>
           {!single.inventoryItemId && (
             <button
               type="button"
@@ -460,48 +606,53 @@ function LayoutBar({
           )}
         </div>
       )}
-      {state !== 'current' && !blocked && (
-        <div role="alert" className="mt-1.5 flex flex-wrap items-center gap-2 px-1 text-xs">
-          <span className="min-w-0 flex-1">These pockets changed since you selected them.</span>
-          <LayoutButton
-            onClick={() => {
-              setSelection(safeCapture(boundary, ids));
-              setMoving(false);
-              setError(null);
-            }}
-          >
-            Update selection
-          </LayoutButton>
-        </div>
-      )}
-      {failure && (
-        <div role="alert" className="mt-1.5 flex flex-wrap items-center gap-2 px-1 text-xs">
-          <span className="min-w-0 flex-1 break-words">{failure}</span>
-          {pending && (
-            <LayoutButton disabled={busy} onClick={() => handoff(pending)}>
-              Try again
-            </LayoutButton>
+      {((state !== 'current' && !blocked) || failure) && (
+        <div className="absolute inset-x-0 top-full z-40 mt-1 grid gap-1">
+          {state !== 'current' && !blocked && (
+            <div role="alert" className={notice}>
+              <span className="min-w-0 flex-1">These pockets changed since you selected them.</span>
+              <LayoutButton
+                onClick={() => {
+                  setSelection(safeCapture(boundary, ids));
+                  setMoving(false);
+                  setError(null);
+                }}
+              >
+                Update selection
+              </LayoutButton>
+            </div>
           )}
-          {pending && (
-            <LayoutButton
-              disabled={busy}
-              onClick={() => {
-                discard();
-                setError(null);
-              }}
-            >
-              Discard
-            </LayoutButton>
-          )}
-          {!pending && pocket.retry && (
-            <LayoutButton disabled={pocket.busy} onClick={pocket.retry}>
-              Try again
-            </LayoutButton>
-          )}
-          {!pending && pocket.failed && (
-            <LayoutButton disabled={pocket.busy} onClick={pocket.dismiss}>
-              Dismiss
-            </LayoutButton>
+          {failure && (
+            <div role="alert" className={notice}>
+              <span className="min-w-0 flex-1 break-words">{failure}</span>
+              {pending && (
+                <LayoutButton disabled={busy} onClick={() => handoff(pending)}>
+                  Try again
+                </LayoutButton>
+              )}
+              {pending && (
+                <LayoutButton
+                  disabled={busy}
+                  onClick={() => {
+                    discard();
+                    setError(null);
+                  }}
+                >
+                  Discard
+                </LayoutButton>
+              )}
+              {!pending && pocket.retry && (
+                <LayoutButton disabled={pocket.busy} onClick={pocket.retry}>
+                  Try again
+                </LayoutButton>
+              )}
+              {!pending && pocket.failed && (
+                <LayoutButton disabled={pocket.busy} onClick={pocket.dismiss}>
+                  Dismiss
+                </LayoutButton>
+              )}
+              {!pending && error && <LayoutButton onClick={() => setError(null)}>Dismiss</LayoutButton>}
+            </div>
           )}
         </div>
       )}

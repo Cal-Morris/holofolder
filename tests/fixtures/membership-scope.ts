@@ -215,6 +215,13 @@ async function useRun() {
   target.dispatchEvent(new Event('focus'));
   await settle();
   assert.equal(shared.currentScope()!.ownerUserId, owner, 'a later successful check recovers the shared scope');
+  // A blip while the collection is open (focus recheck, membership read fails) is not a reason to close it.
+  const steady = shared.currentScope()!;
+  membershipError = { message: 'Synthetic transient membership read failure', code: '57014' };
+  target.dispatchEvent(new Event('focus'));
+  await settle();
+  assert.equal(shared.currentScope(), steady, 'an inconclusive focus recheck keeps the open collection');
+  membershipError = null;
   billing = false;
   membershipBarrier = new Promise<void>((resolve) => {
     release = resolve;
