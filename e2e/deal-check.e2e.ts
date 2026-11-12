@@ -70,7 +70,7 @@ test.describe('deal checker', () => {
     await expect(verdict.getByTestId('deal-pay-up-to')).toHaveText('Pay up to £11.00');
 
     await typePrice(check, '7');
-    for (const name of ['Bought', 'Add owned', 'Want', 'Add to bundle']) {
+    for (const name of ['Add owned', 'Want', 'Add to bundle']) {
       const button = check.getByRole('button', { name, exact: true });
       await harness.expectWithinSafeViewport(button);
       await harness.expectHittable(button);
@@ -333,10 +333,9 @@ test.describe('deal checker outside Show mode', () => {
     await typePrice(check, '12');
     await expect(check.getByTestId('deal-verdict')).toContainText('Rising: this price may be fair soon');
 
-    // Own / Want stay; Show's Bought (tally) and Bundle don't come along.
+    // Own / Want stay; Show's Bundle doesn't come along.
     await expect(check.getByRole('button', { name: 'Add owned', exact: true })).toBeVisible();
     await expect(check.getByRole('button', { name: 'Want', exact: true })).toBeVisible();
-    await expect(check.getByRole('button', { name: 'Bought', exact: true })).toHaveCount(0);
     await expect(check.getByRole('button', { name: 'Add to bundle', exact: true })).toHaveCount(0);
     await harness.expectNoHorizontalOverflow();
 

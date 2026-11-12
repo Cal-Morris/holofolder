@@ -169,7 +169,7 @@ test.describe('Cardmarket catalog in the deal checker', () => {
       await input.fill('7');
       await input.press('Enter');
       await expect(check.getByTestId('deal-verdict')).toHaveAttribute('data-verdict', 'good');
-      const action = check.getByRole('button', { name: show ? 'Bought' : 'Add owned', exact: true });
+      const action = check.getByRole('button', { name: 'Add owned', exact: true });
       await harness.expectWithinSafeViewport(action);
       await harness.expectHittable(action);
       await harness.expectNoHorizontalOverflow();
@@ -264,11 +264,11 @@ test.describe('Cardmarket catalog in the deal checker', () => {
       expect(box.y).toBeGreaterThanOrEqual(harness.insets.top);
       expect(box.y + box.height).toBeLessThanOrEqual(harness.viewport.height - 300);
     }
-    await expect(check.getByRole('button', { name: 'Bought', exact: true })).toBeHidden();
+    await expect(check.getByRole('button', { name: 'Add owned', exact: true })).toBeHidden();
     await check.getByRole('button', { name: 'Done editing price' }).click();
     await setKeyboard(0);
     await expect(harness.page.locator('html')).not.toHaveAttribute('data-keyboard-open');
-    for (const name of ['Bought', 'Add owned', 'Want', 'Add to bundle']) {
+    for (const name of ['Add owned', 'Want', 'Add to bundle']) {
       const button = check.getByRole('button', { name, exact: true });
       await button.scrollIntoViewIfNeeded();
       await harness.expectWithinSafeViewport(button);
@@ -329,7 +329,7 @@ test.describe('deal scale geometry', () => {
       await expect(sources).toContainText('Original €10.00 EUR');
       await expect(sources).toBeInViewport({ ratio: 0.1 });
       const height = size?.height ?? harness.viewport.height;
-      for (const name of ['Bought', 'Add owned', 'Want', 'Add to bundle']) {
+      for (const name of ['Add owned', 'Want', 'Add to bundle']) {
         const button = check.getByRole('button', { name, exact: true });
         await button.scrollIntoViewIfNeeded();
         const box = (await button.boundingBox())!;

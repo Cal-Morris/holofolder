@@ -1,7 +1,7 @@
 'use client';
 
 // Show mode's bundle check: several cards for one asking total ("all three for £20"), judged against their
-// combined market price. "Bought bundle" adds every card as owned and logs the total, split by market price.
+// combined market price.
 import {
   nativeCardConsumers,
   nativeCardState,
@@ -10,7 +10,7 @@ import {
 } from '@/lib/collection/native-card-consumers';
 import { useBillingContext } from '@/hooks/use-billing';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ShoppingBag, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Trash2, X } from 'lucide-react';
 import ShowBudget from '@/components/show-budget';
 import { checkBundle, parseAskingPrice, readDealThresholds } from '@/lib/deal-check';
 import { requestCardPriceCheck } from '@/lib/card-price-check-client';
@@ -22,49 +22,33 @@ import { formatMoney } from '@/lib/regional-price';
 import { formatCardNumber } from '@/lib/pokemon-card-browse';
 import { formatCardFinishLabel } from '@/lib/card-labels';
 import type { DisplayCurrency } from '@/lib/pricing-region';
-import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from '@/components/deal-keypad';
-import type { QuickCardState, QuickBundleEntry, QuickCardAction } from '@/components/quick-card-check';
+import { DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from '@/components/deal-keypad';
+import type { QuickBundleEntry } from '@/components/quick-card-check';
 
 export interface QuickBundleProps {
   nativeConsumer?: NativeConsumerBinding;
   entries: QuickBundleEntry[];
   budgetKey?: string | null;
-  destinationName?: string;
-  getCardState?: (entry: QuickBundleEntry) => QuickCardState;
   currency: DisplayCurrency;
-  readOnly?: boolean;
   onBack: () => void;
   onRemove: (key: string) => void;
   onClear: () => void;
   onSoldCheck: (key: string, check: CardPriceCheck) => void;
-  onAction: (action: QuickCardAction, entry: QuickBundleEntry) => Promise<void>;
 }
 
 export default function QuickBundle({
   nativeConsumer,
   budgetKey,
   entries,
-  destinationName = 'this binder',
-  getCardState,
   currency,
-  readOnly = false,
   onBack,
   onRemove,
   onClear,
-  onAction,
   onSoldCheck,
 }: QuickBundleProps) {
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
-  const comparisonOnly = Boolean(nativeConsumer) || readOnly;
   const billing = useBillingContext();
   const premium = billing?.premium !== false;
-  const states = entries.map((entry) => getCardState?.(entry));
-  const replacementKey = JSON.stringify(entries.map((entry, index) => [entry.key, states[index]?.replacing]));
-  const [confirmedReplacement, setConfirmedReplacement] = useState<string | null>(null);
-  const replacing = states.some((state) => state?.replacing);
-  const needsConfirmation = replacing && confirmedReplacement !== replacementKey;
-  const repeatedSlot = new Set(entries.map((entry) => entry.pokemon.id)).size !== entries.length;
-  const alreadyOwned = states.some((state) => state?.owned);
   const [input, setInput] = useState('');
   const [thresholds] = useState(() =>
     readDealThresholds(typeof window === 'undefined' ? undefined : window.localStorage),
@@ -163,12 +147,6 @@ export default function QuickBundle({
     await Promise.all([worker(), worker()]);
     if (!abort.signal.aborted) setChecking(false);
   }
-  const buyAll = async () => {
-    if (comparisonOnly || entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned) return;
-    // Only guests reach Buy here (native hosts are read-only); the host asks them to join.
-    await onAction('bought', pricedEntries[0]);
-  };
-
   const verdictEmptyText =
     nativeConsumer && !guide.complete
       ? 'Incomplete price evidence. Every selected printing needs a saved reference in the same currency, so no bundle verdict.'
@@ -209,7 +187,7 @@ export default function QuickBundle({
           )}
         </div>
 
-        {nativeConsumer ? (
+        {nativeConsumer && (
           <section aria-label="Bundle comparison" className="border-border/60 rounded-xl border p-3 text-sm">
             <p className="font-semibold">Read-only comparison</p>
             <p>
@@ -220,45 +198,6 @@ export default function QuickBundle({
                   : 'Ownership unavailable'}
               . Selected printings are lookups, not copies to acquire.
             </p>
-          </section>
-        ) : (
-          <section aria-label="Bundle destination" className="border-border/60 rounded-xl border p-3 text-sm">
-            <p className="font-semibold">Adds to {destinationName}</p>
-            {entries.map((entry, index) =>
-              states[index]?.ownedElsewhere?.length ? (
-                <p key={entry.key}>
-                  {entry.card.name}: already owned in {states[index]!.ownedElsewhere!.join(', ')}
-                </p>
-              ) : null,
-            )}
-            {states.some((state) => state?.otherBindersIncomplete) && (
-              <p>Other binders haven&apos;t all loaded. Duplicate check is incomplete.</p>
-            )}
-            {repeatedSlot && (
-              <p role="status">
-                Only one printing per Pokémon fits in this binder. Remove the extra printings before buying.
-              </p>
-            )}
-            {alreadyOwned && (
-              <p role="status">A card is already in this binder. Remove it from the bundle before buying.</p>
-            )}
-            {replacing && (
-              <label className="mt-2 flex min-h-10 items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={!needsConfirmation}
-                  onChange={(event) => setConfirmedReplacement(event.target.checked ? replacementKey : null)}
-                />
-                <span>
-                  Replace{' '}
-                  {states
-                    .filter((state) => state?.replacing)
-                    .map((state) => state!.replacing)
-                    .join(', ')}{' '}
-                  in {destinationName}
-                </span>
-              </label>
-            )}
           </section>
         )}
         <ul className="flex flex-col gap-1" aria-label="Cards in bundle">
@@ -383,17 +322,6 @@ export default function QuickBundle({
         />
         {!nativeConsumer && budgetKey && <ShowBudget compact storageKey={budgetKey} currency={moneyCurrency} />}
         <DealPriceInput value={input} onChange={setInput} label="Bundle price" />
-        {!comparisonOnly && (
-          <button
-            type="button"
-            disabled={entries.length === 0 || needsConfirmation || repeatedSlot || alreadyOwned}
-            onClick={() => void buyAll()}
-            className={`bg-primary text-primary-foreground flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-bold disabled:opacity-45 ${DEAL_HIDE_WHILE_TYPING}`}
-          >
-            <ShoppingBag className="h-5 w-5" aria-hidden />
-            Bought bundle
-          </button>
-        )}
       </div>
     </section>
   );
