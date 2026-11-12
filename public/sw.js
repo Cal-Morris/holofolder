@@ -49,6 +49,7 @@ const APP_SHELL_ASSETS = [
   '/app/holofolder-maskable-192.png',
   '/app/holofolder-maskable-512.png',
   '/app/holofolder-icon.svg',
+  '/app/holofolder-favicon.svg',
   '/app/apple-touch-icon-holo-card.png',
   '/app/pwa-holo-card-192.png',
   '/app/pwa-holo-card-512.png',

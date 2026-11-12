@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: '/app/holofolder-icon-32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/app/holofolder-icon.svg', type: 'image/svg+xml' },
+      { url: '/app/holofolder-favicon.svg', type: 'image/svg+xml' },
     ],
     shortcut: '/app/holofolder-favicon.ico',
     apple: '/app/holofolder-apple-touch-icon.png',
