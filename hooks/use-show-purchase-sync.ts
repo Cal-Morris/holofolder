@@ -1,31 +1,20 @@
 'use client';
 
-// Keeps this device's show purchases (hooks/use-show-session.ts) in step with the account's purchase log
-// (public.show_purchases, lib/show-purchase-sync.ts). Purchases are queued on the device and sent when online;
-// the log belongs to the collection owner, so a shared partner sees the same tally.
+// Pulls the account's show purchases (public.show_purchases, lib/show-purchase-sync.ts) into this device's
+// tally (hooks/use-show-session.ts). The log belongs to the collection owner, so a shared partner sees the same tally.
 import { useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { SHOW_SESSION_EVENT } from '@/lib/show-session';
-import { SHOW_PURCHASE_COLUMNS, syncShowPurchases, type ShowPurchaseRemote } from '@/lib/show-purchase-sync';
+import { SHOW_PURCHASE_COLUMNS, pullShowPurchases, type ShowPurchaseRemote } from '@/lib/show-purchase-sync';
 import { showPurchaseStore } from '@/hooks/use-show-session';
 
 /** How often a partner's purchases are picked up while Show mode is on. */
 const SHOW_MODE_POLL_MS = 60_000;
-const LOCAL_CHANGE_DELAY_MS = 400;
 
 function supabaseRemote(ownerUserId: string): ShowPurchaseRemote {
-  const table = () => createClient().from('show_purchases');
   return {
-    async insert(rows) {
-      const { error } = await table().upsert(rows, { onConflict: 'owner_user_id,client_id', ignoreDuplicates: true });
-      if (error) throw error;
-    },
-    async remove(clientIds) {
-      const { error } = await table().delete().eq('owner_user_id', ownerUserId).in('client_id', clientIds);
-      if (error) throw error;
-    },
     async listSince(sinceIso) {
-      const { data, error } = await table()
+      const { data, error } = await createClient()
+        .from('show_purchases')
         .select(SHOW_PURCHASE_COLUMNS)
         .eq('owner_user_id', ownerUserId)
         .gte('bought_at', sinceIso)
@@ -62,10 +51,9 @@ export function useShowPurchaseSync({
       }
       running.current = (async () => {
         try {
-          showPurchaseStore.ensureQueue(Date.now());
-          await syncShowPurchases({ remote, store: showPurchaseStore, ownerUserId });
+          await pullShowPurchases({ remote, store: showPurchaseStore });
         } catch {
-          // Offline, signed out or the table isn't there yet: the queue stays and the next sync retries.
+          // Offline, signed out or the table isn't there yet: the tally stays and the next pull retries.
         } finally {
           running.current = null;
           if (again.current && !cancelled) {
@@ -76,16 +64,10 @@ export function useShowPurchaseSync({
       })();
     };
 
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const soon = () => {
-      clearTimeout(timer);
-      timer = setTimeout(run, LOCAL_CHANGE_DELAY_MS);
-    };
     const onVisible = () => {
       if (document.visibilityState === 'visible') run();
     };
     run();
-    window.addEventListener(SHOW_SESSION_EVENT, soon);
     window.addEventListener('online', run);
     document.addEventListener('visibilitychange', onVisible);
     const poll = isShowModeOn
@@ -93,9 +75,7 @@ export function useShowPurchaseSync({
       : undefined;
     return () => {
       cancelled = true;
-      clearTimeout(timer);
       clearInterval(poll);
-      window.removeEventListener(SHOW_SESSION_EVENT, soon);
       window.removeEventListener('online', run);
       document.removeEventListener('visibilitychange', onVisible);
     };

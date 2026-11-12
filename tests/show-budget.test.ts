@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseShowBudget, summarizeShowBudget, showBudgetStorageKey } from '../lib/show-budget';
-import { parseShowSession, removeShowPurchases, SHOW_SESSION_MAX_AGE_MS } from '../lib/show-session';
+import { parseShowSession, SHOW_SESSION_MAX_AGE_MS } from '../lib/show-session';
 
 const purchase = (id: string, price: number, currency: string) => ({
   id,
@@ -37,7 +37,7 @@ describe('show budget', () => {
   test('totals only the budget currency, reports excluded purchases and over-budget amounts', () => {
     assert.deepEqual(summarizeShowBudget(budget, session), { spent: 16.5, remaining: 3.5, excludedCount: 1 });
     assert.equal(summarizeShowBudget({ ...budget, limit: 10 }, session).remaining, -6.5);
-    assert.equal(summarizeShowBudget(budget, removeShowPurchases(session, ['a'])).remaining, 15.5);
+    assert.equal(summarizeShowBudget(budget, { ...session, purchases: session.purchases.slice(1) }).remaining, 15.5);
   });
   test('starts spending from zero for a cleared or expired show and isolates accounts', () => {
     assert.equal(
