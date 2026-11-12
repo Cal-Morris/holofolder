@@ -19151,7 +19151,7 @@
       "patch": {
         "operationId": "update_binder",
         "summary": "Update binder",
-        "description": "Rename a binder.\n\nRequired permissions: `binders:write`. MCP tool: `update_binder`.",
+        "description": "Rename a binder or choose the card languages its card lists show (default English only). Send name, cardLanguages or both.\n\nRequired permissions: `binders:write`. MCP tool: `update_binder`.",
         "tags": [
           "Collection"
         ],
@@ -19184,11 +19184,27 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 40
+                  },
+                  "cardLanguages": {
+                    "minItems": 1,
+                    "maxItems": 8,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "en",
+                        "fr",
+                        "de",
+                        "es",
+                        "it",
+                        "pt-br",
+                        "ja",
+                        "ko"
+                      ]
+                    }
                   }
                 },
-                "required": [
-                  "name"
-                ],
+                "required": [],
                 "additionalProperties": false
               }
             }

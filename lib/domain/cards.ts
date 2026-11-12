@@ -114,6 +114,8 @@ export interface TCGCard extends CardCatalogIdentity {
   name: string;
   image?: string;
   language?: CardLanguage;
+  /** Languages this printing exists in; absent when unknown. */
+  languages?: CardLanguage[];
   set: {
     id: string;
     name: string;

@@ -175,10 +175,20 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     name: 'update_binder',
     method: 'PATCH',
     path: '/binders/{id}',
-    description: 'Rename a binder.',
+    description:
+      'Rename a binder or choose the card languages its card lists show (default English only). Send name, cardLanguages or both.',
     permissions: ['binders:write'],
     write: true,
-    schema: z.object({ id: binderId, name: z.string().min(1).max(40) }).strict(),
+    schema: z
+      .object({
+        id: binderId,
+        name: z.string().min(1).max(40).optional(),
+        cardLanguages: z.array(z.enum(CARD_LANGUAGES)).min(1).max(CARD_LANGUAGES.length).optional(),
+      })
+      .strict()
+      .refine((input) => input.name !== undefined || input.cardLanguages !== undefined, {
+        message: 'Send name or cardLanguages.',
+      }),
   },
   {
     name: 'reorder_binders',
