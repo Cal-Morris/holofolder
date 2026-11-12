@@ -9,6 +9,8 @@ import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 export const SCAN_REGIONS = ['name', 'number-left', 'number-right', 'bottom'] as const;
 /** Most matches a pocket offers as tap-to-pick choices; more than this opens the picker instead. */
 const MAX_POCKET_CHOICES = 6;
+/** A pocket still unread by now (reader download or search stuck on dead Wi-Fi) is left for you to choose. */
+const POCKET_READ_TIMEOUT_MS = 30_000;
 
 export function lookupPokemon(id: number) {
   const entry = getPokemonById(id);
@@ -45,11 +47,26 @@ export async function searchCards(
 export async function identifyPocketCrop(
   crop: string,
   getOfflineCards: () => Promise<SearchCardResult[]>,
+  { recognize = recognizeCardTextSignalsFromImage, timeoutMs = POCKET_READ_TIMEOUT_MS } = {},
+): Promise<{ candidates: SearchCardResult[]; query: string }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const unread = new Promise<{ candidates: SearchCardResult[]; query: string }>((resolve) => {
+    timer = setTimeout(() => resolve({ candidates: [], query: '' }), timeoutMs);
+  });
+  try {
+    return await Promise.race([readPocket(crop, getOfflineCards, recognize), unread]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readPocket(
+  crop: string,
+  getOfflineCards: () => Promise<SearchCardResult[]>,
+  recognize: typeof recognizeCardTextSignalsFromImage,
 ): Promise<{ candidates: SearchCardResult[]; query: string }> {
   try {
-    const read = readScannedCard(
-      await recognizeCardTextSignalsFromImage(crop, { regions: SCAN_REGIONS, isEnough: isScanReadComplete }),
-    );
+    const read = readScannedCard(await recognize(crop, { regions: SCAN_REGIONS, isEnough: isScanReadComplete }));
     if (!read.query) return { candidates: [], query: '' };
     const { cards } = await searchCards(read.query, true, getOfflineCards, true);
     const outcome = decideScanOutcome(cards, read, lookupPokemon);
