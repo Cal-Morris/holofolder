@@ -4852,6 +4852,12 @@ function BinderAppSurface(props: BinderAppProps) {
                   : null
               }
               picker={slotPickerBoundary(selectedDisplaySlot.id)}
+              page={
+                // Only on the full page order a page scan would lay out, never a filtered one.
+                collectionViewFilter === 'all' && selectedGen === 0
+                  ? { rows: settings.binderRows, cols: settings.binderCols }
+                  : undefined
+              }
               host={{
                 onOpenWant: hasNativeConsumer ? openWantedCard : undefined,
                 // Full price panel for the owner's cards, and on a public share when its owner turned prices on.

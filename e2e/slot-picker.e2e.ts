@@ -122,6 +122,40 @@ test.describe('explicit stable-slot picker', () => {
     expect(writes).toEqual([]);
   });
 
+  test('several cards picked at once fill the empty pockets on the page in one save', async ({ harness }) => {
+    const { page } = harness;
+    const dialog = await search(page, 'slot-g', 'synthetic');
+    await dialog.getByRole('button', { name: 'Pick several', exact: true }).click();
+    await expect(dialog).toContainText('0 of 3 empty pockets on this page');
+    for (const name of ['Energy', 'Snorlax A', 'Trainer']) {
+      await dialog.getByRole('button', { name: new RegExp(`^Pick card ${name} from `) }).click();
+      await variant(page)
+        .getByRole('button', { name: /^Add Normal/ })
+        .click();
+    }
+    const energy = dialog.getByRole('button', { name: /^Pick card Energy from / });
+    await expect(energy).toHaveAttribute('aria-pressed', 'true');
+    const add = dialog.getByRole('button', { name: 'Add 3 cards to this page', exact: true });
+    await harness.expectWithinSafeViewport(add);
+    await harness.expectMinTapTarget(add, 36);
+    await harness.expectNoHorizontalOverflow();
+    await expect(count(page)).toHaveText('0');
+    await add.click();
+    await expect(count(page)).toHaveText('1');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    // From the tapped pocket: Energy in the free pocket, Snorlax in its Pokémon pocket, Trainer in the pocket kept for it.
+    const placed = Object.fromEntries(
+      (await draft(page)).intent.request.commands
+        .filter((c: { kind: string }) => c.kind === 'assign')
+        .map((c: { destination: { slot: { id: string } }; selection: { inventoryItemId: string } }) => [
+          c.destination.slot.id,
+          c.selection.inventoryItemId,
+        ]),
+    );
+    expect(Object.keys(placed).sort()).toEqual(['slot-e', 'slot-f', 'slot-g']);
+    await harness.expectScrollUnlocked();
+  });
+
   test('a pocket kept for one printing shows that printing in the selector and saves it', async ({ harness }) => {
     const { page } = harness;
     await pocket(page, 'slot-f').click();
