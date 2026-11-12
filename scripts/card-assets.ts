@@ -16,6 +16,8 @@
  *   bun run card-assets mirror-pokemoncom [--set a,b] …         copy pokemon.com's official images into R2
  *   bun run card-assets fill-gaps [--apply]                     fill catalog gaps (images, aliases, promo sets)
  *   bun run card-assets inventory                               rebuild card_image_inventory from an R2 LIST
+ *   bun run card-assets fingerprints [--lang en,ja] [--set a,b] [--report] [--publish]
+ *                                                               build the picture-matching index from the R2 images
  *
  * This is the one entry point for collecting, uploading and recording card images; the subcommands above live in
  * scripts/card-assets/.
@@ -60,6 +62,7 @@ import {
 import { getMirrorDatabaseUrl } from '../lib/card-db-sync';
 import { run as importTcgdex } from './card-assets/import-tcgdex';
 import { run as fillGaps } from './card-assets/fill-gaps';
+import { run as buildFingerprints } from './card-assets/fingerprints';
 import { run as rebuildInventory } from './card-assets/inventory';
 import { run as mirrorPokemonCom } from './card-assets/mirror-pokemoncom';
 import { run as mirrorSets } from './card-assets/mirror-sets';
@@ -774,6 +777,7 @@ const commands: Record<string, () => Promise<void>> = {
   'fill-gaps': fillGaps,
   'import-tcgdex': importTcgdex,
   inventory: rebuildInventory,
+  fingerprints: buildFingerprints,
 };
 const command = commands[process.argv[2] ?? ''];
 if (!command) {
