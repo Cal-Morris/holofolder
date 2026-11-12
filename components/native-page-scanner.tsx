@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
+import { Camera, Image as ImageIcon, Loader2, X } from 'lucide-react';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { useCameraStream } from '@/hooks/use-camera-stream';
 import { scanBinderPageImage } from '@/lib/binder-page-scan';
@@ -14,6 +15,7 @@ import {
 } from '@/lib/scan-destinations';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 import ScanDestinationReview, { type ScanReviewCell } from '@/components/scan-destination-review';
+import CameraControls from '@/components/camera-controls';
 
 export interface NativePageScanAdmission extends ScanDestinationAdmission {
   getOfflineCards: () => Promise<SearchCardResult[]>;
@@ -22,7 +24,6 @@ export interface NativePageScanAdmission extends ScanDestinationAdmission {
 }
 const detectPage = async (file: File, rows: number, cols: number) =>
   (await scanBinderPageImage(file, rows, cols)).slots;
-const button = 'min-h-11 rounded-xl border border-border bg-background px-3 py-2 text-base disabled:opacity-50';
 const pageProblem = (cause: unknown) =>
   cause instanceof Error && cause.message === 'scan-stale'
     ? 'This page changed while scanning. Close this and try again.'
@@ -127,52 +128,90 @@ export default function NativePageScanner({
         role="dialog"
         aria-modal="true"
         aria-label="Scan page"
-        className="border-border bg-background text-foreground absolute inset-x-2 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl border"
+        className="absolute inset-x-2 bottom-[var(--dock-clearance)] mx-auto flex h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl bg-black p-3 text-white outline-none"
       >
-        <header data-sheet-grabber {...swipe} className="relative flex shrink-0 items-center gap-2 p-3">
+        <header data-sheet-grabber {...swipe} className="relative flex shrink-0 items-center gap-2 pb-2">
           <span
             aria-hidden="true"
-            className="bg-muted-foreground/30 pointer-events-none absolute top-1 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full"
+            className="pointer-events-none absolute -top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-white/30"
           />
-          <h2 className="flex-1 font-semibold">Scan page</h2>
-          <button className={button} onClick={close} aria-label="Close page scanner">
-            Close
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base leading-tight font-bold">Scan page</h2>
+            <p className="text-xs text-white/65">
+              Fit all {admission.view.rows} by {admission.view.cols} pockets in view. You choose each card before
+              anything is added.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Close page scanner"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10"
+          >
+            <X className="h-5 w-5" aria-hidden />
           </button>
         </header>
-        <div className="space-y-3 overflow-y-auto p-3">
-          <p className="text-muted-foreground text-sm">
-            Fit the whole page in view ({admission.view.rows} by {admission.view.cols} pockets) and take a photo. You
-            choose each card before anything is added.
-          </p>
-          <video ref={video} autoPlay playsInline muted className="max-h-48 w-full rounded-xl bg-black object-cover" />
-          {camera.error && (
-            <p className="text-sm">The camera isn&apos;t available. Choose a photo of the page instead.</p>
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[2rem] border border-white/10 bg-black">
+          <video ref={video} autoPlay playsInline muted className="h-full w-full object-cover" />
+          {!camera.ready && !camera.error && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Starting camera
+              </span>
+            </div>
           )}
-          {error && <p role="alert">{error}</p>}
-          <button className={`${button} w-full`} disabled={busy || !camera.ready} onClick={() => void cameraCapture()}>
-            Take photo
-          </button>
-          <label className="block text-sm">
-            Or choose a photo
-            <input
-              aria-label="Page photo"
-              type="file"
-              accept="image/*"
-              disabled={busy}
-              className="mt-2 block min-h-11 w-full max-w-full text-base"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = '';
-                if (!file || busy) return;
-                try {
-                  void capture(file, captureScanDestination(admission.snapshot, admission.view));
-                } catch (cause) {
-                  setError(pageProblem(cause));
-                }
-              }}
-            />
-          </label>
-          {busy && <p role="status">Reading the page…</p>}
+          <CameraControls track={camera.track} />
+        </div>
+        <div className="shrink-0 space-y-2 pt-3">
+          {error ? (
+            <p role="alert" className="min-h-5 text-center text-sm text-red-300">
+              {error}
+            </p>
+          ) : (
+            <p role="status" className="min-h-5 text-center text-sm text-white/75">
+              {busy
+                ? 'Reading the page…'
+                : camera.error
+                  ? "The camera isn't available. Choose a photo of the page instead."
+                  : ''}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <label className="flex h-14 shrink-0 cursor-pointer items-center gap-2 rounded-2xl border border-white/20 px-4 text-sm font-semibold has-[:disabled]:opacity-40">
+              <ImageIcon className="h-4 w-4" aria-hidden />
+              Choose photo
+              <input
+                aria-label="Page photo"
+                type="file"
+                accept="image/*"
+                disabled={busy}
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file || busy) return;
+                  try {
+                    void capture(file, captureScanDestination(admission.snapshot, admission.view));
+                  } catch (cause) {
+                    setError(pageProblem(cause));
+                  }
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={busy || !camera.ready}
+              onClick={() => void cameraCapture()}
+              className="holo-action flex h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-4 text-base font-semibold disabled:opacity-50"
+            >
+              {busy ? (
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+              ) : (
+                <Camera className="h-5 w-5" aria-hidden />
+              )}
+              Take photo
+            </button>
+          </div>
         </div>
       </div>
     </div>

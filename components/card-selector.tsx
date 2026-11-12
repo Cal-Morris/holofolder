@@ -4,6 +4,7 @@ import CardImage from '@/components/card-image';
 import { toCardImageSrc } from '@/lib/card-image-url';
 import { SINGLE_CARD_GUIDE, captureSingleCardFrame, delay } from '@/lib/camera-frame';
 import { useCameraStream } from '@/hooks/use-camera-stream';
+import CameraControls from '@/components/camera-controls';
 import { matchesCatalogCardId } from '@/lib/card-catalog';
 import { isCardLanguage } from '@/lib/domain/cards';
 import { formatPokemonDisplayName, getPokemonById } from '@/lib/pokemon-catalog';
@@ -925,6 +926,7 @@ export default function CardSelector({
                     </div>
                   </div>
                 )}
+                {!lastFramePreviewUrl && <CameraControls track={camera.track} />}
               </div>
 
               <div className="space-y-3 border-t border-white/10 bg-black/85 px-4 py-4 text-white">

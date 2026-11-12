@@ -24,6 +24,7 @@ import {
   type ScanDestinationCapture,
 } from '@/lib/scan-destinations';
 import ScanDestinationReview, { type ScanReviewCell } from '@/components/scan-destination-review';
+import CameraControls from '@/components/camera-controls';
 
 const SCAN_FRAMES = 3;
 const SCAN_FRAME_GAP_MS = 300;
@@ -325,6 +326,7 @@ function QuickCardScannerCamera({
                 </span>
               </div>
             )}
+            <CameraControls track={camera.track} />
           </div>
 
           <div className="shrink-0 space-y-2 pt-3">
