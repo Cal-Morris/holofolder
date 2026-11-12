@@ -21,9 +21,18 @@ async function appIcon(size, background, maskable = false) {
     .toBuffer();
 }
 
+async function faviconIcon(size) {
+  const extent = Math.round(size * 0.84);
+  const mark = await sharp(master).resize({ width: extent, height: extent, fit: 'inside' }).png().toBuffer();
+  return sharp({ create: { width: size, height: size, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: mark, gravity: 'centre' }])
+    .png()
+    .toBuffer();
+}
+
 async function createIco(file) {
   const sizes = [16, 32, 48, 64];
-  const images = await Promise.all(sizes.map((size) => appIcon(size, lightBackground)));
+  const images = await Promise.all(sizes.map(faviconIcon));
   const header = Buffer.alloc(6);
   header.writeUInt16LE(1, 2);
   header.writeUInt16LE(sizes.length, 4);
@@ -43,8 +52,6 @@ async function createIco(file) {
 }
 
 const outputs = [
-  ['holo-cards-light-32.png', 32, lightBackground],
-  ['holo-cards-dark-32.png', 32, darkBackground],
   ['apple-touch-icon-holo-cards.png', 180, lightBackground],
   ['apple-touch-icon-holo-dark.png', 180, darkBackground],
   ['pwa-holo-cards-dark-192.png', 192, darkBackground],
@@ -59,6 +66,13 @@ const outputs = [
 ];
 for (const [name, size, background, maskable] of outputs)
   fs.writeFileSync(path.join(publicDir, name), await appIcon(size, background, maskable));
+
+for (const [name, size] of [
+  ['holo-cards-light-32.png', 32],
+  ['holo-cards-dark-32.png', 32],
+  ['holofolder-favicon-512.png', 512],
+])
+  fs.writeFileSync(path.join(publicDir, name), await faviconIcon(size));
 
 for (const [source, aliases] of [
   ['holo-cards-light-32.png', ['icon-light-32x32.png']],
@@ -85,6 +99,7 @@ const adaptive = vectorIcon(
   `:root{--bg:${lightBackground}}@media(prefers-color-scheme:dark){:root{--bg:${darkBackground}}}`,
 );
 for (const name of ['holo-cards-icon.svg', 'icon.svg']) fs.writeFileSync(path.join(publicDir, name), adaptive);
+fs.writeFileSync(path.join(publicDir, 'holo-cards-favicon.svg'), vectorIcon(''));
 fs.writeFileSync(
   path.join(publicDir, 'holo-cards-light.svg'),
   vectorIcon(`<rect width="512" height="512" fill="${lightBackground}"/>`),
@@ -110,6 +125,7 @@ fs.copyFileSync(path.join(publicDir, 'holo-cards-favicon.ico'), path.join(public
 // New canonical URLs bypass cached artwork, old URLs remain compatible aliases.
 for (const [source, destination] of [
   ['holo-cards-dark-32.png', 'holofolder-icon-32.png'],
+  ['holo-cards-favicon.svg', 'holofolder-favicon.svg'],
   ['holo-cards-dark.svg', 'holofolder-icon.svg'],
   ['holo-cards-favicon.ico', 'holofolder-favicon.ico'],
   ['apple-touch-icon-holo-dark.png', 'holofolder-apple-touch-icon.png'],
