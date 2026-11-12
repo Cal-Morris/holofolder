@@ -1132,15 +1132,27 @@ button[data-slot-id][data-shifting] {
     scale 160ms cubic-bezier(0.23, 1, 0.32, 1),
     box-shadow 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
-button[data-slot-id][data-dragging] {
-  z-index: 30;
+/* The card under the finger: a copy fixed to the viewport (ordered-slot.tsx), so turning the page can't drop it. */
+[data-pocket-ghost] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 70;
+  margin: 0;
+  pointer-events: none;
   animation: none;
   scale: 1.06;
   box-shadow: 0 12px 28px rgb(0 0 0 / 0.35);
-  cursor: grabbing;
 }
-/* Carrying a selection: the held pocket shows how many, the rest of the selection fades where it sits. */
-button[data-slot-id][data-carry]::after {
+/* Where it was picked up from: an empty-looking pocket until the drop renders. */
+button[data-slot-id][data-drag-source] {
+  animation: none;
+  opacity: 0.22;
+  outline: 2px dashed color-mix(in oklab, var(--foreground) 40%, transparent);
+  outline-offset: -2px;
+}
+/* Carrying a selection: the held card shows how many, the rest of the selection fades where it sits. */
+[data-pocket-ghost][data-carry]::after {
   content: attr(data-carry);
   position: absolute;
   top: 0.25rem;
@@ -1160,10 +1172,65 @@ button[data-slot-id][data-carry]::after {
 button[data-slot-id][data-carried] {
   opacity: 0.35;
 }
-/* Only a drop onto the other page of a spread, where nothing makes room, needs an outline. */
-button[data-slot-id][data-drop-target]:not([data-shifting]) {
+/* Drop preview: the pocket it would land in is outlined and stops wiggling; nothing else moves until the finger
+   rests there to make room. The label says what letting go does. */
+button[data-slot-id][data-drop-target] {
+  animation: none;
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+button[data-slot-id][data-drop-target]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  background: color-mix(in oklab, var(--primary) 22%, transparent);
+}
+button[data-slot-id][data-drop-target='swap']::after,
+button[data-slot-id][data-drop-target='push']::after {
+  position: absolute;
+  bottom: 0.25rem;
+  left: 50%;
+  z-index: 20;
+  translate: -50% 0;
+  padding: 0.125rem 0.375rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1rem;
+  white-space: nowrap;
+}
+button[data-slot-id][data-drop-target='swap']::after {
+  content: 'Swap';
+}
+button[data-slot-id][data-drop-target='push']::after {
+  content: 'Make room';
+}
+button[data-slot-id][data-shifting] {
+  animation: none;
+}
+button[data-slot-id][data-push-out] {
+  opacity: 0.3;
+}
+/* Resting at the binder's side: a bar fills up, and the page turns when it's full. */
+[data-pocket-edge] {
+  position: fixed;
+  z-index: 69;
+  width: 6px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: color-mix(in oklab, var(--primary) 25%, transparent);
+  background-image: linear-gradient(var(--primary), var(--primary));
+  background-repeat: no-repeat;
+  background-size: 100% 0%;
+  animation: pocket-edge-fill linear forwards;
+}
+@keyframes pocket-edge-fill {
+  to {
+    background-size: 100% 100%;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .pocket-wiggle {

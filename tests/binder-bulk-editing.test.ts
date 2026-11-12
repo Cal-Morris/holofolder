@@ -4,8 +4,10 @@ import {
   captureBulkSelection,
   bulkSelectionState,
   prepareBulkLayoutIntent,
+  preparePocketMoves,
   savedPageSlotIds,
 } from '@/lib/binder-bulk-editing';
+import { planPocketDrop } from '@/lib/pocket-drop';
 import { projectSlotIntent } from '@/lib/collection/slot-optimistic';
 import { syntheticSlotPickerSnapshot } from './fixtures/slot-picker';
 import { pickerCandidate } from '@/lib/slot-picker';
@@ -312,4 +314,30 @@ test('the exact 256-slot bound is accepted as one command, including whole-page 
     moved.preview.binders[0].slots.slice(-256).map((s) => s.id),
     selection.slots.map((s) => s.slot.id),
   );
+});
+
+test('a dragged swap and a push with nowhere to go are one request each, projected like the server applies them', () => {
+  const { inventory, scope, catalog } = setup();
+  inventory.binders[0].slots = inventory.binders[0].slots.slice(0, 4);
+  const slots = inventory.binders[0].slots.map((s) => ({ id: s.id, filled: true }));
+  const swap = preparePocketMoves(
+    inventory,
+    scope,
+    planPocketDrop(slots, 'slot-a', 'slot-d', 'place')!.moves,
+    context,
+    catalog,
+  );
+  assert.deepEqual(
+    swap.preview.binders[0].slots.map((s) => s.id),
+    ['slot-d', 'slot-b', 'slot-c', 'slot-a'],
+  );
+  assert.equal(swap.intent.request.commands.length, 2);
+  const push = planPocketDrop(slots, 'slot-a', 'slot-c', 'push')!;
+  const id = '00000000-0000-4000-8000-000000000001';
+  const grown = preparePocketMoves(inventory, scope, push.moves, context, catalog, { id, before: push.create!.before });
+  assert.deepEqual(
+    grown.preview.binders[0].slots.map((s) => s.id),
+    [id, 'slot-b', 'slot-a', 'slot-c', 'slot-d'],
+  );
+  assert.throws(() => preparePocketMoves(inventory, scope, [{ id: 'slot-z', before: null }], context, catalog));
 });
