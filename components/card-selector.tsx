@@ -23,6 +23,7 @@ import {
   readCardPickerSort,
   saveCardPickerSort,
   sortCardPickerCards,
+  cardNameMatchRank,
   type CardPickerSort,
 } from '@/lib/card-selector-sort';
 import {
@@ -498,12 +499,13 @@ export default function CardSelector({
   }, [scanMatches]);
   const likelyRank = useCallback(
     (card: TCGCard) => {
-      // Most likely picks first: in Add mode the card this slot wants, then the slot's current card.
+      // Most likely picks first: in Add mode the card this slot wants, then the slot's current card, then how well
+      // the name answers the search.
       if (!isWishlistMode && matchesCatalogCardId(card, selectedWantedCardId)) return 0;
       if (matchesCatalogCardId(card, activeSelectedCardId)) return 1;
-      return Number.POSITIVE_INFINITY;
+      return 1000 + cardNameMatchRank(card.name, filters.searchQuery ?? '');
     },
-    [activeSelectedCardId, isWishlistMode, selectedWantedCardId],
+    [activeSelectedCardId, filters.searchQuery, isWishlistMode, selectedWantedCardId],
   );
   const displayedCards = useMemo(() => {
     if (scanRankById.size === 0) {

@@ -81,6 +81,35 @@ function compareReleaseDate(a: SortableCard, b: SortableCard, direction: 1 | -1)
   return aDate.localeCompare(bDate) * direction;
 }
 
+function words(text: string) {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+/**
+ * How well a card's name answers the search, lower first. For "mew 30th": "Mew" (its whole name was typed), then
+ * "Mew ex" (starts with a typed word), then "Mewtwo" (contains one), then set or illustrator hits. Within a tier,
+ * names covering more of the typed words come first, so "mew ex" puts "Mew ex" above "Mew".
+ */
+export function cardNameMatchRank(name: string, query: string) {
+  const typed = words(query);
+  const named = words(name);
+  if (!typed.length || !named.length) return Number.POSITIVE_INFINITY;
+  const covered = typed.filter((word) => named.includes(word)).length;
+  const tier = named.every((word) => typed.includes(word))
+    ? 0
+    : typed.includes(named[0])
+      ? 1
+      : typed.some((word) => word.length >= 2 && name.toLowerCase().includes(word))
+        ? 2
+        : 3;
+  return tier * 100 - covered;
+}
+
 function compareNumber(a: SortableCard, b: SortableCard) {
   return (
     a.set.id.localeCompare(b.set.id) ||
