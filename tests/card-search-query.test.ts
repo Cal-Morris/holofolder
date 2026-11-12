@@ -120,3 +120,31 @@ test('partial sets still honor explicit numbers and exact set-name precedence', 
     },
   );
 });
+
+test('MEW is read as a Pokémon unless the rest of the query names one', () => {
+  const catalog = [...sets, { id: '30th', name: '30th Celebration' }];
+  const mewCards = [
+    { id: 'sv03.5-151', name: 'Mew ex', localId: '151', set: sets[0], dexIds: [151] },
+    { id: '30th-152', name: 'Mew ex', localId: '152', set: catalog[3], dexIds: [151] },
+    { id: 'sv03.5-025', name: 'Pikachu', localId: '025', set: sets[0], dexIds: [25] },
+  ];
+  assert.deepEqual(resolveCardSearchQuery('Mew 30th', catalog), {
+    text: 'mew',
+    number: null,
+    cardId: null,
+    setIds: ['30th'],
+  });
+  assert.deepEqual(resolveCardSearchQuery('Mew ex 152', catalog).setIds, []);
+  assert.deepEqual(
+    searchOfflineCards(mewCards, 'Mew ex 152/128').map((card) => card.id),
+    ['30th-152'],
+  );
+  assert.deepEqual(
+    searchOfflineCards(mewCards, 'Pikachu MEW').map((card) => card.id),
+    ['sv03.5-025'],
+  );
+  assert.deepEqual(
+    searchOfflineCards(mewCards, 'Mew 151').map((card) => card.id),
+    ['sv03.5-151'],
+  );
+});
