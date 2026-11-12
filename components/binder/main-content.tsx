@@ -392,6 +392,7 @@ export function renderMainContentView(ctx: MainContentContext) {
             collectionRows={ctx.nativeSpecies?.rows}
             formatPrice={priceFormat.label}
             pricingRegion={pricingPreferences.region}
+            cardLanguage={pricingPreferences.cardLanguage}
             onSelectSlot={handleSelectSetSlot}
             onBrowseCard={(slot, card) =>
               openCardBrowser({ id: slot.dexId, name: slot.pokemonName }, { highlightCardId: card.id })

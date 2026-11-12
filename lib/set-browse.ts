@@ -1,5 +1,6 @@
 import { isSetYearQuery } from '@/lib/set-search';
 import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
+import type { CardLanguage } from '@/lib/domain/cards';
 import type { TCGSetSummary } from '@/lib/tcg-set-slots';
 
 const OTHER_SERIES = 'Other';
@@ -12,15 +13,29 @@ export interface SetSeriesGroup {
 const newestFirst = (left: TCGSetSummary, right: TCGSetSummary) =>
   (right.releaseDate ?? '').localeCompare(left.releaseDate ?? '') || left.name.localeCompare(right.name);
 
-/** Sets grouped by TCGdex series, newest series first, newest set first inside each. */
+/**
+ * Sets grouped by TCGdex series, newest set first inside each. Series are ordered by their median release so
+ * long-running collections (McDonald's, promos) sit with their era instead of jumping the current one whenever
+ * a new set drops.
+ */
 export function groupSetsBySeries(sets: readonly TCGSetSummary[]): SetSeriesGroup[] {
   const groups = new Map<string, TCGSetSummary[]>();
   for (const set of [...sets].sort(newestFirst)) {
     const series = set.seriesName?.trim() || OTHER_SERIES;
     groups.set(series, [...(groups.get(series) ?? []), set]);
   }
-  // Map keeps insertion order, and each group's first set is its newest, so groups are already newest first.
-  return [...groups].map(([series, grouped]) => ({ series, sets: grouped }));
+  const median = (grouped: TCGSetSummary[]) => grouped[Math.floor(grouped.length / 2)].releaseDate ?? '';
+  return [...groups]
+    .map(([series, grouped]) => ({ series, sets: grouped }))
+    .sort(
+      (left, right) => median(right.sets).localeCompare(median(left.sets)) || newestFirst(left.sets[0], right.sets[0]),
+    );
+}
+
+/** Whether the set was printed in `language`; sets from older saved lists without languages are kept. */
+export function isSetInLanguage(set: TCGSetSummary, language: CardLanguage) {
+  // TCGdex keys Brazilian Portuguese as plain `pt`.
+  return !set.languages?.length || set.languages.includes(language === 'pt-br' ? 'pt' : language);
 }
 
 /** Series to filter by, in browse order. */
