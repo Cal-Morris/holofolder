@@ -49,6 +49,7 @@ import { Switch } from '@/components/ui/switch';
 import type { BinderSettings } from '@/hooks/use-settings';
 import { BINDER_COLOR_PRESETS, type BinderColorId } from '@/lib/binder-colors';
 import { buildBinderShareUrl } from '@/lib/binder-share';
+import { trackGoogleEvent } from '@/lib/google-analytics';
 import type { User } from '@supabase/supabase-js';
 
 const OfflineSetPicker = dynamic(
@@ -367,6 +368,7 @@ export default function SettingsModal({
 
     try {
       await navigator.clipboard.writeText(fullShareUrl);
+      trackGoogleEvent('share_link_copied', { surface: 'settings' });
       toast('Share link copied');
     } catch {
       toast('Could not copy the share link', 'error');

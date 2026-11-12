@@ -2,6 +2,7 @@ import { readRawRestoreDelivery } from '@/lib/collection/raw-restore-delivery';
 import { isCreationRejection } from '@/lib/collection/creation-import-rejection';
 import { isStorageCommandRejection } from '@/lib/collection/storage-command-rejection';
 import { appPath } from '@/lib/app-path';
+import { trackCollectionCommand } from '@/lib/google-analytics';
 import { parseSlotIntent, type SlotOfflineIntent } from '@/lib/collection/slot-optimistic';
 import { sameInventoryReadScope, type InventoryReadScope } from '@/lib/collection/inventory-read-transport';
 import type { SlotReplayResult } from '@/lib/collection/slot-offline-queue';
@@ -141,6 +142,7 @@ export async function sendStorageCommand(
       !validReceipt(body.receipt, parsed)
     )
       return { status: 0 };
+    if (!localHarness) trackCollectionCommand(parsed);
     return {
       status: 200,
       operationId: parsed.request.operationId,
