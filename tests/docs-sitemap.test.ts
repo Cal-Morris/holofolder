@@ -12,7 +12,7 @@ test('the sitemap discovers public guides and every generated API reference at t
   }
   const referenceUrls = urls.filter((url) => url.includes('/docs/reference/'));
   assert.equal(referenceUrls.length, DEVELOPER_OPERATIONS.length);
-  assert.ok(referenceUrls.includes('https://holofolder.com/app/docs/reference/catalog/get-set'));
+  assert.ok(referenceUrls.some((url) => url === 'https://holofolder.com/app/docs/reference/catalog/get-set'));
   for (const url of urls) {
     assert.match(url, /^https:\/\/holofolder\.com\/app\/docs(?:\/[^?#]+)?$/);
     assert.ok(!url.includes('/app/app/'), url);
