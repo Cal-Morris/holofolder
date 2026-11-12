@@ -186,6 +186,7 @@ import type { LayoutSessionStart, LayoutTap } from '@/components/binder/layout-e
 import type { WantedDashboardCard } from '@/lib/wanted-dashboard';
 import { pocketPlace } from '@/lib/pocket-labels';
 import { CollectionFilterBar } from '@/components/binder/collection-filter-bar';
+import { DEFAULT_BINDER_CARD_LANGUAGES } from '@/lib/card-languages';
 import {
   displaySlotFilterFacts,
   legacyItemFilterFacts,
@@ -4812,6 +4813,7 @@ function BinderAppSurface(props: BinderAppProps) {
                 defaultCardLanguage: pricingPreferences.cardLanguage,
                 pricingRegion: pricingPreferences.region,
                 formatAmount: priceFormat.amount,
+                targetLanguages: activeBinder?.cardLanguages ?? DEFAULT_BINDER_CARD_LANGUAGES,
               }}
               key={`${stagedSlotSessionId}:${user?.id}:${stagedSlotDisplay?.inventory.ownerUserId}:${stagedSlotDisplay?.binder.collectionId}:${selectedDisplaySlot.id}`}
               slot={selectedDisplaySlot}

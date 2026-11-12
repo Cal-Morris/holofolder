@@ -51,7 +51,20 @@ import {
 import { selectCandidateCardsForAssetTextOcr } from '@/lib/card-scan-candidate-text';
 import { rankAggregatedCardScanMatchesWithText } from '@/lib/card-scan-ranking';
 import { buildCardMetadataTextSignals, mergeCardTextSignals, type CardTextSignals } from '@/lib/card-scan-text';
-import { X, Search, Check, Loader2, Camera, Heart, MoreHorizontal, SlidersHorizontal, WifiOff } from 'lucide-react';
+import {
+  X,
+  Search,
+  Check,
+  Loader2,
+  Camera,
+  Heart,
+  ListFilter,
+  MoreHorizontal,
+  SlidersHorizontal,
+  WifiOff,
+} from 'lucide-react';
+import { SelectorMenu } from '@/components/collection-navigation/selector-menu';
+import { cardMatchesLanguages } from '@/lib/card-languages';
 
 export type CardSelectorMode = 'collect' | 'wishlist';
 
@@ -76,6 +89,11 @@ interface CardSelectorProps {
   defaultCardLanguage?: CardLanguage;
   /** The user's pricing region; card prices are weighted for it. */
   pricingRegion?: PricingRegion;
+  /**
+   * Languages the pocket takes (its reserved language, else the binder's). When set, a filter icon narrows the
+   * cards to them by default and a note shows while the filters don't match.
+   */
+  targetLanguages?: readonly CardLanguage[];
   /** Formats a GBP amount in the user's display currency (GBP when omitted). */
   formatAmount?: CardSelectorAmountFormatter;
   /**
@@ -210,6 +228,7 @@ export default function CardSelector({
   onClearWanted,
   mode = 'collect',
   defaultCardLanguage,
+  targetLanguages,
   pricingRegion = DEFAULT_PRICING_REGION,
   formatAmount = formatGbpAmount,
   native,
@@ -435,11 +454,19 @@ export default function CardSelector({
   const isCameraReady = camera.ready;
 
   const variantFilter = getVariantFilter(variantChoice);
+  // Starts on the binder's settings each time the selector opens; not remembered.
+  const [matchBinder, setMatchBinder] = useState(true);
+  const binderLanguageFilter = matchBinder ? targetLanguages : undefined;
   const filteredCards = useMemo(
-    // Any-card results are already the search's matches (name, set, number or artist), so they are not re-filtered by text.
-    () => filterCards(cards, { ...filters, ...(isAnyCard ? { searchQuery: undefined } : {}), variant: variantFilter }),
-    [isAnyCard, cards, filters, filterCards, variantFilter],
+    () =>
+      filterCards(
+        binderLanguageFilter ? cards.filter((card) => cardMatchesLanguages(card, binderLanguageFilter)) : cards,
+        // Any-card results are already the search's matches (name, set, number or artist), so they are not re-filtered by text.
+        { ...filters, ...(isAnyCard ? { searchQuery: undefined } : {}), variant: variantFilter },
+      ),
+    [binderLanguageFilter, isAnyCard, cards, filters, filterCards, variantFilter],
   );
+  const filtersMatchBinder = !targetLanguages || (matchBinder && targetLanguages.includes(selectedCardLanguage));
   const scanRankById = useMemo(() => {
     return new Map(scanMatches.map((match, index) => [match.card.id, index + 1]));
   }, [scanMatches]);
@@ -1070,6 +1097,30 @@ export default function CardSelector({
                   </button>
                 )}
               </div>
+              {targetLanguages && (
+                <SelectorMenu
+                  label="Binder filter"
+                  heading="Show"
+                  menuLabel="Choose which cards to show"
+                  width={200}
+                  className="shrink-0"
+                  icon={
+                    <>
+                      <ListFilter className={`h-4 w-4 ${matchBinder ? 'text-primary' : ''}`} aria-hidden />
+                      {matchBinder && (
+                        <span className="bg-primary absolute top-1.5 right-1.5 h-2 w-2 rounded-full" aria-hidden />
+                      )}
+                    </>
+                  }
+                  value={matchBinder ? 'binder' : 'all'}
+                  valueLabel={matchBinder ? 'Binder settings' : 'All cards'}
+                  options={[
+                    { value: 'binder', label: 'Binder settings' },
+                    { value: 'all', label: 'All cards' },
+                  ]}
+                  onSelect={(value) => setMatchBinder(value === 'binder')}
+                />
+              )}
               <button
                 type="button"
                 onClick={() => setIsFiltersOpen(true)}
@@ -1470,6 +1521,11 @@ export default function CardSelector({
                     );
                   })}
                 </div>
+              )}
+              {!filtersMatchBinder && !isLoading && (
+                <p role="status" className="mt-4 px-2 text-center text-xs text-amber-700 dark:text-amber-300">
+                  Your filters don’t match this binder’s settings.
+                </p>
               )}
             </div>
           </div>
