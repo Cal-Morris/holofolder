@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { captureScanDestination, mapScanCells, prepareScanDraft, scanDestinations } from '@/lib/scan-destinations';
+import {
+  captureScanDestination,
+  mapScanCells,
+  prepareScanDraft,
+  scanDestinations,
+  scanShowsDifferentCard,
+} from '@/lib/scan-destinations';
 import { syntheticSlotPickerSnapshot } from './fixtures/slot-picker';
 import { pickerCandidate } from '@/lib/slot-picker';
 
@@ -476,4 +482,60 @@ test('append accepts the exact 100-command and 4096-slot boundaries', () => {
     assert.equal(result.preview.binders[0].slots.length, count + choices.length);
     assert.equal(new Set(result.preview.placements.map((p) => p.inventoryItemId)).size, choices.length);
   }
+});
+
+test('replacing a filled pocket unassigns the recorded copy and only when explicitly chosen', () => {
+  const seed = syntheticSlotPickerSnapshot();
+  const snapshot = seed.inventory;
+  const binder = snapshot.binders[0];
+  const view = {
+    ownerUserId: snapshot.ownerUserId,
+    collectionId: binder.collectionId,
+    sessionId: 'session-a',
+    rows: 2,
+    cols: 4,
+    pageSlotIds: binder.slots.map((s) => s.id),
+  };
+  const catalog = (id: string) => {
+    const card = seed.cards.find((c) => c.id === id);
+    return card ? pickerCandidate(card) : undefined;
+  };
+  const capture = captureScanDestination(snapshot, view);
+  const context = {
+    source: 'app' as const,
+    clientId: null,
+    operationId: 'synthetic-replace',
+    batchId: null,
+    clientOccurredAt: null,
+  };
+  const item = seed.cards.find((c) => c.id === 'synthetic-item')!;
+  const energy = seed.cards.find((c) => c.id === 'synthetic-energy')!;
+  // slot-d (free target) records synthetic-energy as item-d.
+  assert.equal(scanShowsDifferentCard([item], { kind: 'card', cardId: 'synthetic-energy' }), true);
+  assert.equal(scanShowsDifferentCard([item, energy], { kind: 'card', cardId: 'synthetic-energy' }), false);
+  assert.equal(scanShowsDifferentCard([], { kind: 'card', cardId: 'synthetic-energy' }), false);
+  const choice = { cellIndex: 3, slotId: 'slot-d', card: item, copy: 'raw' as const };
+  assert.throws(() => prepareScanDraft(snapshot, view, capture, [choice], context, catalog), /target-mismatch/);
+  const result = prepareScanDraft(snapshot, view, capture, [{ ...choice, replace: true }], context, catalog);
+  const assign = result.intent.request.commands.find((c) => c.kind === 'assign');
+  assert.ok(assign && assign.kind === 'assign');
+  assert.equal(assign.occupied, 'unassign');
+  assert.equal(assign.destination.slot.inventoryItemId, 'item-d');
+  assert.equal(
+    result.preview.placements.some((p) => p.inventoryItemId === 'item-d'),
+    false,
+  );
+  assert.ok(result.preview.items.some((i) => i.id === 'item-d'));
+  assert.throws(
+    () =>
+      prepareScanDraft(
+        snapshot,
+        view,
+        capture,
+        [{ ...choice, card: energy, copy: { inventoryItemId: 'item-d', itemVersion: 1 }, replace: true }],
+        context,
+        catalog,
+      ),
+    /replace-same-card|copy-choice/,
+  );
 });

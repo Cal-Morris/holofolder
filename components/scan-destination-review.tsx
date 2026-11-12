@@ -10,6 +10,7 @@ import {
   assertScanCurrent,
   prepareScanDraft,
   scanDestinations,
+  scanShowsDifferentCard,
   type ScanChoice,
   type ScanDestinationAdmission,
   type ScanDestinationCapture,
@@ -40,6 +41,8 @@ interface CellChoice {
   copy?: string;
   destination?: string;
   skip?: boolean;
+  /** The pocket already holds a card; you chose to put this one there instead. */
+  replace?: boolean;
 }
 const cardKey = (card: SearchCardResult) => `${card.id}:${card.language ?? 'unknown'}`;
 const unusedLegacySelect = () => {};
@@ -51,6 +54,7 @@ function scanProblem(cause: unknown) {
   if (reason === 'scan-stale') return 'This page changed after the scan. Close this and scan again. Nothing was added.';
   if (reason === 'target-mismatch')
     return "One of these cards doesn't fit the pocket chosen for it. Pick another pocket for it.";
+  if (reason === 'replace-same-card') return 'That card is already in this pocket. Choose a different card or keep it.';
   if (reason === 'duplicate-scan-destination') return 'Two cards are set to go in the same pocket. Change one of them.';
   if (
     reason === 'duplicate-scan-copy' ||
@@ -136,7 +140,12 @@ export default function ScanDestinationReview({
   const rows = found.map((cell) => {
     const choice = choices[cell.index] ?? {};
     const slot = cell.slotId ? binder?.slots.find((s) => s.id === cell.slotId) : undefined;
-    const recorded = Boolean(slot?.inventoryItemId);
+    const recordedItem = slot?.inventoryItemId
+      ? admission.snapshot.items.find((i) => i.id === slot.inventoryItemId)
+      : undefined;
+    const replacing = Boolean(slot?.inventoryItemId && choice.replace);
+    const recorded = Boolean(slot?.inventoryItemId) && !replacing;
+    const differs = Boolean(recordedItem && scanShowsDifferentCard(cell.candidates, recordedItem.identity));
     const card = choice.card;
     const finishes = card ? pickerFinishes(card) : [];
     const finish = choice.finish ?? (finishes.length === 1 ? finishes[0].finish : undefined);
@@ -166,13 +175,15 @@ export default function ScanDestinationReview({
         : !cell.slotId && pockets.find((p) => p.target)
           ? `slot:${pockets.find((p) => p.target)!.id}`
           : undefined;
-    const destination = choice.destination ?? fallback;
+    const destination = replacing ? `slot:${cell.slotId}` : (choice.destination ?? fallback);
     const ready = Boolean(card && copy && destination && !choice.skip && !recorded);
     return {
       cell,
       choice,
       slot,
       recorded,
+      replacing,
+      differs,
       card,
       finishes,
       finish,
@@ -187,7 +198,7 @@ export default function ScanDestinationReview({
   const adding = rows.filter((r) => r.ready);
   const confirm = () => {
     try {
-      const selected: ScanChoice[] = adding.map(({ cell, card, finish, copy, destination }) => {
+      const selected: ScanChoice[] = adding.map(({ cell, choice, card, finish, copy, destination }) => {
         const existing = copy!.startsWith('copy:')
           ? admission.snapshot.items.find((i) => i.id === copy!.slice(5))
           : undefined;
@@ -196,6 +207,7 @@ export default function ScanDestinationReview({
           cellIndex: cell.index,
           slotId: destination === 'append' ? null : destination!.slice(5),
           ...(destination === 'append' ? { append: 'free' as const } : {}),
+          ...(choice.replace ? { replace: true as const } : {}),
           card: card!,
           ...(finish ? { finish } : {}),
           copy: existing ? { inventoryItemId: existing.id, itemVersion: existing.version } : 'raw',
@@ -289,6 +301,8 @@ export default function ScanDestinationReview({
               choice,
               slot,
               recorded,
+              replacing,
+              differs,
               card,
               finishes,
               finish,
@@ -328,7 +342,27 @@ export default function ScanDestinationReview({
                       </p>
                     )}
                     {recorded ? (
-                      <p className="text-sm">Already in your binder. Nothing to add.</p>
+                      <>
+                        <p className="text-sm">
+                          {differs
+                            ? 'Your binder has a different card in this pocket.'
+                            : 'Already in your binder. Nothing to add.'}
+                        </p>
+                        <button
+                          type="button"
+                          className={differs ? `${small} border-primary/50 bg-primary/15 text-primary` : small}
+                          disabled={locked}
+                          onClick={() =>
+                            update(cell.index, {
+                              replace: true,
+                              skip: false,
+                              ...(differs ? {} : { card: undefined }),
+                            })
+                          }
+                        >
+                          {differs ? 'Replace it' : 'Wrong card? Replace it'}
+                        </button>
+                      </>
                     ) : choice.skip ? (
                       <>
                         <p className="text-muted-foreground text-sm">Skipped</p>
@@ -382,9 +416,9 @@ export default function ScanDestinationReview({
                             type="button"
                             className={small}
                             disabled={locked}
-                            onClick={() => update(cell.index, { skip: true })}
+                            onClick={() => update(cell.index, replacing ? { replace: false } : { skip: true })}
                           >
-                            Skip
+                            {replacing ? 'Keep current card' : 'Skip'}
                           </button>
                         </div>
                       </>
@@ -454,7 +488,7 @@ export default function ScanDestinationReview({
                           ? destination === `slot:${cell.slotId}`
                           : pockets.length <= 1 && destination !== 'append') ? (
                           <p className="text-xs">
-                            Goes in{' '}
+                            {replacing ? 'Replaces the card in' : 'Goes in'}{' '}
                             <span className="font-semibold">
                               {destination === 'append' ? 'a new pocket at the end' : place(destination.slice(5))}
                             </span>
@@ -495,9 +529,9 @@ export default function ScanDestinationReview({
                             type="button"
                             className={small}
                             disabled={locked}
-                            onClick={() => update(cell.index, { skip: true })}
+                            onClick={() => update(cell.index, replacing ? { replace: false } : { skip: true })}
                           >
-                            Skip
+                            {replacing ? 'Keep current card' : 'Skip'}
                           </button>
                         </div>
                       </>

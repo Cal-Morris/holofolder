@@ -1,5 +1,5 @@
 import { matchesSlotTarget, isSlotRevision } from '@/lib/domain/binder-slots';
-import type { InventoryCatalogResolver, InventorySnapshot } from '@/lib/domain/inventory';
+import type { InventoryCatalogResolver, InventoryIdentity, InventorySnapshot } from '@/lib/domain/inventory';
 import type { OperationIntentContext } from '@/lib/domain/audit-context';
 import type { InventoryCommand, InsertInventorySelection } from '@/lib/domain/inventory-commands';
 import type { StagedSlotCommandIntent, SlotLocalAcceptance } from '@/lib/binder-slot-editing';
@@ -37,6 +37,8 @@ export interface ScanChoice {
   append?: 'free' | 'card';
   card: SearchCardResult;
   finish?: CardFinish;
+  /** The pocket already holds a different card: put this one there instead, the old copy stays owned but unplaced. */
+  replace?: true;
   /** Explicit recorded copy ID, or Raw reuse/create, never an OCR-derived grade. */
   copy: 'raw' | { inventoryItemId: string; itemVersion: number };
 }
@@ -125,6 +127,16 @@ export function scanDestinations(
   );
 }
 
+/** True when the scan has matches for a filled pocket and none of them is the card recorded there. */
+export function scanShowsDifferentCard(candidates: readonly SearchCardResult[], recorded: InventoryIdentity) {
+  return (
+    candidates.length > 0 &&
+    !candidates.some((c) =>
+      recorded.kind === 'card' ? matchesCatalogCardId(c, recorded.cardId) : c.dexIds?.includes(recorded.pokemonId),
+    )
+  );
+}
+
 /** All reviewed cells become ONE immutable command. No per-cell save or positional assignment. */
 export function prepareScanDraft(
   snapshot: InventorySnapshot,
@@ -154,11 +166,20 @@ export function prepareScanDraft(
     cells.add(choice.cellIndex);
     if (choice.slotId !== null) slots.add(choice.slotId);
     if (choice.slotId === null && choice.append !== 'free' && choice.append !== 'card') return fail('scan-unconfirmed');
+    const candidate = { ...pickerCandidate(choice.card), ...(choice.finish ? { finish: choice.finish } : {}) };
     const slot =
       choice.slotId === null
         ? null
-        : (scanDestinations(snapshot, view, choice.card, choice.finish).find((s) => s.id === choice.slotId) ??
-          fail('target-mismatch'));
+        : choice.replace
+          ? (binder.slots.find(
+              (s) =>
+                s.id === choice.slotId &&
+                s.ownerUserId === view.ownerUserId &&
+                s.inventoryItemId !== null &&
+                matchesSlotTarget(candidate, s.target),
+            ) ?? fail('target-mismatch'))
+          : (scanDestinations(snapshot, view, choice.card, choice.finish).find((s) => s.id === choice.slotId) ??
+            fail('target-mismatch'));
     const identity = {
       kind: 'card' as const,
       cardId: choice.card.canonicalId ?? choice.card.id,
@@ -201,6 +222,7 @@ export function prepareScanDraft(
     }
     const copyId = selection.kind === 'new' ? selection.itemId : selection.inventoryItemId;
     if (copies.has(copyId)) return fail('duplicate-scan-copy');
+    if (slot && copyId === slot.inventoryItemId) return fail('replace-same-card');
     copies.add(copyId);
     if (!slot)
       commands.push({
@@ -220,12 +242,13 @@ export function prepareScanDraft(
           slot: {
             id: slot.id,
             version: slot.version,
-            inventoryItemId: null,
-            itemVersion: null,
-            placementVersion: null,
+            inventoryItemId: slot.inventoryItemId,
+            itemVersion: snapshot.items.find((i) => i.id === slot.inventoryItemId)?.version ?? null,
+            placementVersion:
+              snapshot.placements.find((p) => p.inventoryItemId === slot.inventoryItemId)?.version ?? null,
           },
         },
-        occupied: 'cancel',
+        occupied: choice.replace ? 'unassign' : 'cancel',
         fulfillWant: null,
       });
   }
