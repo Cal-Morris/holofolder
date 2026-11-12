@@ -7,6 +7,7 @@ import {
   navigationLocation,
   navigationStorageKey,
   normalizeNavigationState,
+  projectPendingLayouts,
   resolveNavigation,
   type CollectionNavigationRead,
 } from '../lib/collection-navigation';
@@ -278,4 +279,18 @@ test('custom defaults to List only on first visit, saved Binder and explicit pag
     resolveNavigation(initial, scope, r, new URLSearchParams('binder=alpha&view=binder')).state.collections.alpha.view,
     'binder',
   );
+});
+
+describe('projectPendingLayouts', () => {
+  const layout = (layoutRevision: number) => ({ collectionId: 'alpha', layoutRevision, rows: 4, cols: 4 });
+  test('a read landing mid-sync still matches the binder with moves pending (synthetic revisions)', () => {
+    // Base 5, three queued moves project to 8; the server has acknowledged one, so the read says 6.
+    assert.deepEqual(projectPendingLayouts([layout(6)], [{ collectionId: 'alpha', layoutRevision: 8 }]), [layout(8)]);
+    assert.deepEqual(projectPendingLayouts([layout(5)], [{ collectionId: 'alpha', layoutRevision: 8 }]), [layout(8)]);
+  });
+  test('a read ahead of the projection, or for another binder, is left alone', () => {
+    assert.deepEqual(projectPendingLayouts([layout(9)], [{ collectionId: 'alpha', layoutRevision: 8 }]), [layout(9)]);
+    assert.deepEqual(projectPendingLayouts([layout(5)], [{ collectionId: 'beta', layoutRevision: 8 }]), [layout(5)]);
+    assert.deepEqual(projectPendingLayouts([layout(5)], undefined), [layout(5)]);
+  });
 });

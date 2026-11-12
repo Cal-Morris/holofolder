@@ -303,6 +303,29 @@ test.describe('layout editing on the pockets', () => {
     await expect(pocket(page, 'slot-a')).not.toHaveClass(/pocket-wiggle/);
   });
 
+  test('dragging a selected pocket carries the whole selection', async ({ harness }) => {
+    const { page } = harness;
+    await edit(page);
+    await pocket(page, 'slot-a').click();
+    await pocket(page, 'slot-c').click();
+    const from = (await pocket(page, 'slot-c').boundingBox())!;
+    const to = (await pocket(page, 'slot-f').boundingBox())!;
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+    // The held pocket says how many it carries; the rest of the selection fades; nothing shifts one by one.
+    await expect(pocket(page, 'slot-c')).toHaveAttribute('data-carry', '2');
+    await expect(pocket(page, 'slot-a')).toHaveAttribute('data-carried', '');
+    await expect(pocket(page, 'slot-f')).toHaveAttribute('data-drop-target', '');
+    expect(await pocket(page, 'slot-d').evaluate((el) => (el as HTMLElement).style.translate)).toBe('');
+    await page.mouse.up();
+    await expect(count(page)).toHaveText('1');
+    expect(await order(page)).toEqual(['slot-b', 'slot-d', 'slot-e', 'slot-f', 'slot-a', 'slot-c', 'slot-g']);
+    expect((await draft(page)).intent.request.commands).toHaveLength(1);
+    await expect(pocket(page, 'slot-a')).not.toHaveAttribute('data-carried', '');
+    await expect(bar(page).getByRole('status')).toHaveText('2 selected');
+  });
+
   test('moves can be undone and redone, with the buttons or the keyboard', async ({ harness }) => {
     const { page } = harness;
     await edit(page);

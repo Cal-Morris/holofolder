@@ -53,6 +53,24 @@ const object = (v: unknown): Record<string, unknown> =>
 const text = (v: unknown) => (typeof v === 'string' ? v.slice(0, 512) : '');
 const integer = (v: unknown, max: number, min = 0) =>
   typeof v === 'number' && Number.isSafeInteger(v) ? Math.min(max, Math.max(min, v)) : min;
+/**
+ * Pending moves run a binder's layout revision ahead of the last read. A read can land anywhere between the queue's
+ * base and its projection (an acknowledged move read back while later ones still wait, or a focus refresh), so any
+ * layout at or behind the projected revision carries forward to it. Matching only the exact base revision left no
+ * layout for the projected binder mid-sync, which blanked the binder and ended layout editing.
+ */
+export function projectPendingLayouts(
+  layouts: readonly InventoryLayoutEvidence[],
+  projected: readonly { collectionId: string; layoutRevision: number }[] | undefined,
+): InventoryLayoutEvidence[] {
+  return layouts.map((layout) => {
+    const binder = projected?.find((b) => b.collectionId === layout.collectionId);
+    return binder && layout.layoutRevision <= binder.layoutRevision
+      ? { ...layout, layoutRevision: binder.layoutRevision }
+      : layout;
+  });
+}
+
 export const defaultCollectionView = (view: CollectionViewState['view'] = 'binder'): CollectionViewState => ({
   view,
   page: 1,

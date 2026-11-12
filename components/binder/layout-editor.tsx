@@ -210,7 +210,9 @@ function LayoutBar({
       behind.current = preparedOn.current;
       const done = stepping.current;
       stepping.current = null;
-      if (done)
+      // Group moves and inserts can't be undone as one step, so earlier steps would no longer read true.
+      if (!done) setSteps({ done: [], undone: [] });
+      else
         setSteps(({ done: past, undone }) =>
           done.via === 'undo'
             ? { done: past.slice(0, -1), undone: [...undone, done.step] }
@@ -299,6 +301,20 @@ function LayoutBar({
       const from = binder.slots.findIndex((s) => s.id === slotId);
       const to = binder.slots.findIndex((s) => s.id === dropOn);
       if (from < 0 || to < 0 || from === to) return;
+      // A selected pocket carries the whole selection with it, landing in the same place a single one would.
+      if (ids.length > 1 && ids.includes(slotId)) {
+        if (ids.includes(dropOn)) return;
+        if (blocked || state !== 'current') {
+          setError(
+            state !== 'current'
+              ? 'These pockets changed. Update the selection to carry on.'
+              : 'Still placing the last move. Try again in a moment.',
+          );
+          return;
+        }
+        emit({ kind: 'move', destination: { kind: from < to ? 'after' : 'before', slotId: dropOn } });
+        return;
+      }
       const next = binder.slots[from + 1];
       // Dragged forward it lands after the pocket it was dropped on, backward before it: either way, in its place.
       // Undo puts it back before the pocket that followed it.

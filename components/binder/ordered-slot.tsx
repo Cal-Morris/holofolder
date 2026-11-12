@@ -46,7 +46,7 @@ export interface PocketDrag {
  * `translate`, no easing, no React state), and the pockets between it and where it would land slide aside to show the
  * gap, as on the iOS home screen. Once it lets go, the pocket springs into its new place.
  */
-function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: boolean) {
+function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: boolean, carry: number) {
   const ref = useRef<HTMLButtonElement>(null);
   const origin = useRef({ x: 0, y: 0 });
   // Armed: the next move past the tolerance picks the pocket up instead of panning or cancelling.
@@ -191,7 +191,8 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
     d.over?.removeAttribute('data-drop-target');
     over?.setAttribute('data-drop-target', '');
     d.over = over;
-    preview(d.cells, over && index >= 0 ? index : -1);
+    // Carrying a selection, the gap can't be shown one cell at a time: the target is outlined instead.
+    if (carry < 2) preview(d.cells, over && index >= 0 ? index : -1);
   };
   const putDown = (drop: boolean) => {
     const el = ref.current,
@@ -200,6 +201,9 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
     if (!el || !d) return;
     drag.current = null;
     delete el.dataset.dragging;
+    delete el.dataset.carry;
+    for (const other of document.querySelectorAll<HTMLElement>('button[data-slot-id][data-carried]'))
+      delete other.dataset.carried;
     d.over?.removeAttribute('data-drop-target');
     const target = drop ? d.over?.dataset.slotId : undefined;
     const rest = () => {
@@ -277,6 +281,11 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
       };
       capture(event);
       el.dataset.dragging = '';
+      if (carry > 1) {
+        el.dataset.carry = String(carry);
+        for (const other of document.querySelectorAll<HTMLElement>('button[data-slot-id][aria-pressed="true"]'))
+          if (other !== el) other.dataset.carried = '';
+      }
       onDrag.start(id);
       follow(event.clientX, event.clientY);
       return 'picked';
@@ -325,6 +334,7 @@ export function OrderedSlot({
   onSelect,
   onMenu,
   onDrag,
+  carry,
   marked,
   dimmed,
   imageSizes,
@@ -344,6 +354,8 @@ export function OrderedSlot({
   onSelect: (id: string) => void;
   onMenu?: (id: string, point: { x: number; y: number }) => void;
   onDrag?: PocketDrag;
+  /** How many pockets are selected; dragging a selected one carries them all. */
+  carry?: number;
   /** Layout selection: undefined outside layout editing, otherwise whether this pocket is selected. */
   marked?: boolean;
   dimmed?: boolean;
@@ -355,7 +367,7 @@ export function OrderedSlot({
   const press = useRef<{ key: string | undefined; x: number; y: number } | null>(null);
   const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false);
-  const pocketDrag = usePocketDrag(slot.id, onDrag, marked !== undefined);
+  const pocketDrag = usePocketDrag(slot.id, onDrag, marked !== undefined, marked ? (carry ?? 1) : 1);
   const { ref } = pocketDrag;
   const cancelHold = () => {
     if (hold.current) {

@@ -314,6 +314,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
                   onSelect={ctx.onSelectSlot!}
                   onMenu={ctx.onSlotMenu}
                   onDrag={ctx.onSlotDrag}
+                  carry={ctx.layoutMarks?.ids.size}
                   marked={ctx.layoutMarks ? ctx.layoutMarks.ids.has(displaySlot.id) : undefined}
                   dimmed={Boolean(ctx.layoutMarks?.moving && ctx.layoutMarks.ids.has(displaySlot.id))}
                   imageSizes={binderSlotImageSizes}

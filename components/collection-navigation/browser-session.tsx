@@ -29,7 +29,7 @@ import {
   sameInventoryReadScope,
   type InventoryReadScope,
 } from '@/lib/collection/inventory-read-transport';
-import type { CollectionNavigationRead } from '@/lib/collection-navigation';
+import { projectPendingLayouts, type CollectionNavigationRead } from '@/lib/collection-navigation';
 import { getOfflineStore } from '@/lib/offline-store/kv';
 import {
   browserHostCatalog,
@@ -882,13 +882,7 @@ function ScopedBrowserSession({
       ? {
           ...shownRead,
           evidence: { kind: 'cached', snapshot: queue.record.optimistic },
-          layouts: read.layouts.map((layout) => {
-            const base = queue.record?.snapshot?.binders.find((b) => b.collectionId === layout.collectionId);
-            const projected = queue.record?.optimistic?.binders.find((b) => b.collectionId === layout.collectionId);
-            return base?.layoutRevision === layout.layoutRevision && projected
-              ? { ...layout, layoutRevision: projected.layoutRevision }
-              : layout;
-          }),
+          layouts: projectPendingLayouts(read.layouts, queue.record.optimistic.binders),
         }
       : !online && read.evidence.kind === 'complete'
         ? { ...shownRead, evidence: { kind: 'cached', snapshot: read.evidence.snapshot } }
