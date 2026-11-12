@@ -18,8 +18,15 @@ export function cardSearchSetCandidates(raw: string) {
       if (/[#/]/.test(phrase)) continue;
       const remainder = [...words.slice(0, start), ...words.slice(end)].join(' ');
       const code = resolveSetSearchAlias(phrase);
-      candidates.push({ phrase: code, remainder });
-      if (code !== phrase) candidates.push({ phrase, remainder });
+      // "MEW" is 151's printed code and a Pokémon: "mew 001" and "pikachu mew" mean the set, "mew ex" and "mew 30th" don't.
+      const isCode = code !== phrase;
+      const pokemonFirst =
+        isCode &&
+        isPokemonName(phrase) &&
+        !/^#?\d{1,4}[a-z]?$/.test(remainder) &&
+        !isPokemonText(parseCardSearchQuery(remainder).text);
+      if (!pokemonFirst) candidates.push({ phrase: code, remainder });
+      if (isCode) candidates.push({ phrase, remainder });
     }
   }
   return candidates.sort((a, b) => b.phrase.length - a.phrase.length);
@@ -39,8 +46,12 @@ function pokemonCorrection(text: string) {
   return ranked[0] && ranked[0].distance !== ranked[1]?.distance ? ranked[0].name : null;
 }
 
+function isPokemonName(text: string) {
+  return POKEMON_CATALOG.some((pokemon) => pokemon.name === text);
+}
+
 function isPokemonText(text: string) {
-  return POKEMON_CATALOG.some((pokemon) => pokemon.name === text) || Boolean(pokemonCorrection(text));
+  return isPokemonName(text) || Boolean(pokemonCorrection(text));
 }
 
 function partialSetMatch(name: string, phrase: string) {
