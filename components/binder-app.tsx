@@ -3950,10 +3950,11 @@ function BinderAppSurface(props: BinderAppProps) {
       }
     };
 
-    setTimeout(() => window.addEventListener('click', handleClick), 0);
+    const timer = setTimeout(() => window.addEventListener('click', handleClick), 0);
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('click', handleClick);
       window.removeEventListener('keydown', handleKeyDown);
     };
