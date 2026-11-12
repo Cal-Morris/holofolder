@@ -1,4 +1,4 @@
-// Show mode's session tally: what you bought at this card show, kept on the device. Pure and client-safe.
+// Show mode's session tally: what was bought at this card show, pulled from the account. Pure and client-safe.
 // A session starts on the first purchase and quietly resets once it is older than a day of show-going,
 // so the next show starts from zero without a "clear" step. Amounts are in the display currency at the time.
 
@@ -75,27 +75,9 @@ export function parseShowSession(raw: string | null | undefined, now: number): S
   }
 }
 
-export function addShowPurchase(session: ShowSession, purchase: ShowPurchase, now: number): ShowSession {
-  const expired = now - session.startedAt > SHOW_SESSION_MAX_AGE_MS;
-  const base =
-    session.purchases.length === 0 || expired
-      ? withClearedAt(emptyShowSession(now), expired ? session.startedAt + SHOW_SESSION_MAX_AGE_MS : session.clearedAt)
-      : session;
-  return { ...base, purchases: [...base.purchases, purchase] };
-}
-
 /** An empty tally that ignores account purchases from before `now` (Settings → Clear). */
 export function clearedShowSession(now: number): ShowSession {
   return { ...emptyShowSession(now), clearedAt: now };
-}
-
-function withClearedAt(session: ShowSession, clearedAt: number | undefined): ShowSession {
-  return clearedAt === undefined ? session : { ...session, clearedAt };
-}
-
-export function removeShowPurchases(session: ShowSession, ids: readonly string[]): ShowSession {
-  const drop = new Set(ids);
-  return { ...session, purchases: session.purchases.filter((entry) => !drop.has(entry.id)) };
 }
 
 export interface ShowSessionSummary {
@@ -128,21 +110,4 @@ export function summarizeShowSession(
     saved: round(marketValue - priced.reduce((sum, entry) => sum + entry.price, 0)),
     currency: entries.length > 0 ? currency : null,
   };
-}
-
-/** Splits a bundle's total across its cards in proportion to market price (evenly when none is priced). */
-export function splitBundlePrice(total: number, marketPrices: ReadonlyArray<number | null>): number[] {
-  if (marketPrices.length === 0) return [];
-  const known = marketPrices.map((price) => (typeof price === 'number' && price > 0 ? price : 0));
-  const knownTotal = known.reduce((sum, price) => sum + price, 0);
-  const raw =
-    knownTotal > 0 && known.every((price) => price > 0)
-      ? known.map((price) => (total * price) / knownTotal)
-      : marketPrices.map(() => total / marketPrices.length);
-  const rounded = raw.map(round);
-  // Put any rounding remainder on the last card so the parts add up to the total.
-  rounded[rounded.length - 1] = round(
-    rounded[rounded.length - 1] + (total - rounded.reduce((sum, price) => sum + price, 0)),
-  );
-  return rounded;
 }

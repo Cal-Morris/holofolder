@@ -94,7 +94,7 @@ This race applies to the first boot. A later server boot, such as changing binde
 
 The app runs one collection model, native slot storage. Signed-in clients read the inventory through `/api/inventory` (`lib/collection/inventory-read-browser.ts`) and send storage commands from `lib/collection/storage-command-browser.ts`; the device keeps them in the IndexedDB command queue (`lib/collection/slot-offline-queue.ts`) and replays them exactly when back online, then confirms them with a fresh read. Signed-out guests are read-only: every collection edit opens the sign-up dialog, and nothing is queued for them. The legacy `/api/collection` route and its server helpers are deleted, and every binder is created native (migration 105). The frozen `pokemon_collection` tables stay until migration 107.
 
-Do not replace this with a second optimistic store or an unscoped queue. Collection, show-purchase and binder-history queues have different server contracts; sharing their persistence code without preserving those contracts risks replaying or losing edits.
+Do not replace this with a second optimistic store or an unscoped queue. Collection and binder-history queues have different server contracts; sharing their persistence code without preserving those contracts risks replaying or losing edits.
 
 ```mermaid
 flowchart TB
