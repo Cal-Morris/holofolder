@@ -16,6 +16,9 @@ interface CardPickerFiltersSheetProps {
   onLanguageChange: (language: CardLanguage) => void;
   variant: CardPickerVariantChoice;
   onVariantChange: (variant: CardPickerVariantChoice) => void;
+  pokemon?: number;
+  pokemonOptions: Array<{ id: number; name: string }>;
+  onPokemonChange: (pokemon: number | undefined) => void;
   set?: string;
   sets: Array<{ id: string; name: string }>;
   onSetChange: (set: string | undefined) => void;
@@ -38,7 +41,7 @@ function chipClass(selected: boolean) {
 }
 
 /**
- * The card picker's filter and sort sheet: sort, card language, variant, set and rarity in one place,
+ * The card picker's filter and sort sheet: sort, card language, variant, Pokémon (any-card search), set and rarity in one place,
  * so the picker itself can open straight onto search and cards. Built on the shared overlay primitive
  * (Escape/back closes it, focus is trapped and returned).
  */
@@ -129,6 +132,25 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
               ))}
             </div>
           </fieldset>
+
+          {props.pokemonOptions.length > 1 && (
+            <label className="block space-y-1.5">
+              <span className="text-muted-foreground text-xs font-semibold">Pokémon</span>
+              <Select
+                aria-label="Pokémon"
+                className={selectClass}
+                value={props.pokemon ?? ''}
+                onChange={(event) => props.onPokemonChange(event.target.value ? Number(event.target.value) : undefined)}
+              >
+                <option value="">All Pokémon</option>
+                {props.pokemonOptions.map((pokemon) => (
+                  <option key={pokemon.id} value={pokemon.id}>
+                    {pokemon.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          )}
 
           <div className="grid grid-cols-2 gap-2">
             <label className="block min-w-0 space-y-1.5">

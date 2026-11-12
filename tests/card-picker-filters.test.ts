@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getActiveFilterChips,
+  getPokemonFilterOptions,
   getCardPickerFinishChoices,
   ownedCopyFinishChoices,
   getRecordedFinish,
@@ -44,6 +45,33 @@ describe('card picker filters', () => {
       chips.map((chip) => chip.label),
       ['Price: high to low', 'Japanese', 'Holo', '151', 'Common'],
     );
+  });
+});
+
+describe('card picker Pokémon filter', () => {
+  test('lists each named Pokémon in the results once, alphabetically', () => {
+    // Synthetic results for "mew": Mew, Mewtwo, and a 151 set hit featuring Bulbasaur; 0 has no name.
+    const names: Record<number, string> = { 151: 'Mew', 150: 'Mewtwo', 1: 'Bulbasaur' };
+    assert.deepEqual(
+      getPokemonFilterOptions(
+        [{ dexIds: [151] }, { dexIds: [150, 151] }, { dexIds: [1] }, { dexIds: [0] }],
+        (id) => names[id],
+      ),
+      [
+        { id: 1, name: 'Bulbasaur' },
+        { id: 151, name: 'Mew' },
+        { id: 150, name: 'Mewtwo' },
+      ],
+    );
+  });
+
+  test('a chosen Pokémon becomes a chip', () => {
+    const chips = getActiveFilterChips(
+      { filters: { pokemon: 151 }, language: 'en', defaultLanguage: 'en', variant: 'any', sort: 'default' },
+      () => undefined,
+      (id) => (id === 151 ? 'Mew' : undefined),
+    );
+    assert.deepEqual(chips, [{ key: 'pokemon', label: 'Mew' }]);
   });
 });
 

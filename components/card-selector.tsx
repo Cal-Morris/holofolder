@@ -6,6 +6,7 @@ import { SINGLE_CARD_GUIDE, captureSingleCardFrame, delay } from '@/lib/camera-f
 import { useCameraStream } from '@/hooks/use-camera-stream';
 import { matchesCatalogCardId } from '@/lib/card-catalog';
 import { isCardLanguage } from '@/lib/domain/cards';
+import { formatPokemonDisplayName, getPokemonById } from '@/lib/pokemon-catalog';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useTCGdex, type TCGCard, type CardFilters, type CardLanguage } from '@/hooks/use-tcgdex';
@@ -26,6 +27,7 @@ import {
 } from '@/lib/card-selector-sort';
 import {
   getActiveFilterChips,
+  getPokemonFilterOptions,
   getCardPickerFinishChoices,
   getCardPickerSuggestedFinish,
   getRecordedFinish,
@@ -457,14 +459,38 @@ export default function CardSelector({
   // Starts on the binder's settings each time the selector opens; not remembered.
   const [matchBinder, setMatchBinder] = useState(true);
   const binderLanguageFilter = matchBinder ? targetLanguages : undefined;
+  // Any-card search also matches set codes and artists ("mew" is the 151 set's code), so offer to narrow to a Pokémon.
+  const pokemonOptions = useMemo(
+    () =>
+      isAnyCard
+        ? getPokemonFilterOptions(catalogSearch.cards, (id) => {
+            const pokemon = getPokemonById(id);
+            return pokemon ? formatPokemonDisplayName(pokemon.name) : undefined;
+          })
+        : [],
+    [isAnyCard, catalogSearch.cards],
+  );
+  // A new search can drop the chosen Pokémon; ignore it rather than show nothing.
+  const pokemonFilter = pokemonOptions.some((option) => option.id === filters.pokemon) ? filters.pokemon : undefined;
+  const pokemonCardIds = useMemo(
+    () =>
+      pokemonFilter === undefined
+        ? null
+        : new Set(catalogSearch.cards.filter((card) => card.dexIds.includes(pokemonFilter)).map((card) => card.id)),
+    [catalogSearch.cards, pokemonFilter],
+  );
   const filteredCards = useMemo(
     () =>
       filterCards(
-        binderLanguageFilter ? cards.filter((card) => cardMatchesLanguages(card, binderLanguageFilter)) : cards,
+        cards.filter(
+          (card) =>
+            (!binderLanguageFilter || cardMatchesLanguages(card, binderLanguageFilter)) &&
+            (!pokemonCardIds || pokemonCardIds.has(card.id)),
+        ),
         // Any-card results are already the search's matches (name, set, number or artist), so they are not re-filtered by text.
         { ...filters, ...(isAnyCard ? { searchQuery: undefined } : {}), variant: variantFilter },
       ),
-    [binderLanguageFilter, isAnyCard, cards, filters, filterCards, variantFilter],
+    [binderLanguageFilter, isAnyCard, cards, filters, filterCards, pokemonCardIds, variantFilter],
   );
   const filtersMatchBinder = !targetLanguages || (matchBinder && targetLanguages.includes(selectedCardLanguage));
   const scanRankById = useMemo(() => {
@@ -524,10 +550,17 @@ export default function CardSelector({
   const activeFilterChips = useMemo(
     () =>
       getActiveFilterChips(
-        { filters, language: selectedCardLanguage, defaultLanguage, variant: variantChoice, sort },
+        {
+          filters: { ...filters, pokemon: pokemonFilter },
+          language: selectedCardLanguage,
+          defaultLanguage,
+          variant: variantChoice,
+          sort,
+        },
         (id) => uniqueSets.find((set) => set.id === id)?.name,
+        (id) => pokemonOptions.find((option) => option.id === id)?.name,
       ),
-    [defaultLanguage, filters, selectedCardLanguage, sort, uniqueSets, variantChoice],
+    [defaultLanguage, filters, pokemonFilter, pokemonOptions, selectedCardLanguage, sort, uniqueSets, variantChoice],
   );
   const updateSort = useCallback((next: CardPickerSort) => {
     setSort(next);
@@ -1208,6 +1241,9 @@ export default function CardSelector({
               onLanguageChange={setSelectedCardLanguage}
               variant={variantChoice}
               onVariantChange={setVariantChoice}
+              pokemon={pokemonFilter}
+              pokemonOptions={pokemonOptions}
+              onPokemonChange={(pokemon) => setFilters((f) => ({ ...f, pokemon }))}
               set={filters.set}
               sets={uniqueSets}
               onSetChange={(set) => setFilters((f) => ({ ...f, set }))}
