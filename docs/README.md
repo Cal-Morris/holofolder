@@ -11,7 +11,7 @@ For repeatable maintenance, invoke `$repo-health`, `$docs-and-architecture` or `
 Every binder is native slot storage, signed-out guests are read-only, and native reads and storage commands are admitted over the app, REST and MCP. Use these guides for current behaviour.
 
 - [Architecture](architecture.md): ownership boundaries, startup, writes, offline sync and integrations.
-- [Public routing](app-routing.md): `/app`, Framer/Vercel proxying, binder slug URLs, auth, PWA scope and legacy URLs.
+- [Public routing](app-routing.md): `/app`, Framer/Vercel proxying, documentation sitemap, binder slug URLs, auth, PWA scope and legacy URLs.
 - [Public API capability inventory](public-api/coverage.md) and [agent-readable API docs](public-api/agent-docs.md): REST/MCP coverage, app-only boundaries, generated Markdown, `llms.txt` and OpenAPI discovery. [API smoke checks](api-smoke.md) cover the hosted runner.
 - [Native developer operations](native-developer-operations.md) and [native developer reads](native-developer-read.md): command and redacted read contracts.
 - [Transactional collection history](transactional-collection-audit.md) and [Collection Activity](collection-activity-ui.md): history rows, projected changes and the Activity view.

@@ -9,6 +9,12 @@ The public site is `https://holofolder.com`. Framer serves marketing and forward
 
 Next.js builds with `basePath: "/app"`. Next Link and router destinations stay app-relative (`/auth/login`, `/studio`, `/`). Raw fetches, images, anchors, share links and service worker paths include `/app`. `appPath` prefixes a raw path once. `binderHref` returns an unprefixed router destination; wrap it with `appPath` for a full browser navigation. Don't prefix a Next Link/router destination twice.
 
+## Public documentation and search discovery
+
+Public documentation uses `https://holofolder.com/app/docs` and its child paths. Framer permanently redirects the old `/docs` and `/docs/*` addresses to their matching `/app/docs` paths with HTTP 308; it no longer serves duplicate documentation at those addresses. Marketing links and documentation canonicals use the prefixed public URLs.
+
+`app/sitemap.ts` generates `https://holofolder.com/app/sitemap.xml` from the same `docsSource` as the documentation pages, covering both guides and generated API reference pages. It lists only public documentation URLs, not private app routes or API endpoints. Submit this sitemap separately in the `holofolder.com` Search Console property; Framer's root `/sitemap.xml` covers the marketing site. Google controls crawl and indexing timing after submission.
+
 ## Direct developer access
 
 Developer REST clients use `https://app.holofolder.com/app/api/v1`; remote MCP clients use `https://app.holofolder.com/app/mcp`. These requests bypass Framer, which drops the `WWW-Authenticate` header needed for MCP OAuth discovery. The discovery header and protected-resource metadata both identify the direct host. OAuth consent and account settings stay on the public website.
