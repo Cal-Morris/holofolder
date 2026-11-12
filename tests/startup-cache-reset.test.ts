@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isOfflineCacheKey, isAppServiceWorker } from '../lib/startup-cache-reset';
+import { holdsQueuedEdits, isOfflineCacheKey, isAppServiceWorker } from '../lib/startup-cache-reset';
 
 test('startup reset selects offline caches, never auth credentials or device identity', () => {
   for (const key of [
@@ -25,6 +25,12 @@ test('startup reset selects offline caches, never auth credentials or device ide
     'holofolder-startup-reset-v2',
   ])
     assert.equal(isOfflineCacheKey(key), false, key);
+});
+
+test('startup reset keeps queued edits and the binder they replay against', () => {
+  assert.equal(holdsQueuedEdits('slot-intent:v1:["synthetic-device"]'), true);
+  assert.equal(holdsQueuedEdits('slot-navigation-v1:["synthetic-device"]'), true);
+  assert.equal(holdsQueuedEdits('tcg-set:synthetic'), false);
 });
 
 test('startup reset recognizes the real query-route worker and legacy script, preserving unrelated workers', () => {

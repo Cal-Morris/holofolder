@@ -252,9 +252,15 @@ function LayoutBar({
       setError(`You can select up to ${SLOT_LIMITS.affected} pockets at once.`);
     }
   };
-  const emit = (action: BulkLayoutAction, picked?: BulkSelection) => {
+  // `step`: the single-pocket move this is, for Undo. Anything else (a group move, an insert) clears the history.
+  const emit = (
+    action: BulkLayoutAction,
+    picked?: BulkSelection,
+    step?: { step: MoveStep; via: 'do' | 'undo' | 'redo' },
+  ) => {
     if (picked ? blocked : unavailable) return;
     setMenu(null);
+    stepping.current = step ?? null;
     try {
       preparedOn.current = snapshot;
       prepared.current = prepareBulkLayoutIntent(
@@ -283,8 +289,10 @@ function LayoutBar({
       if (behind.current === snapshot) setError('Still placing the last move. Try again in a moment.');
       return;
     }
-    stepping.current = { step, via };
-    emit({ kind: 'move', destination: via === 'undo' ? step.back : step.to }, safeCapture(boundary, [step.id]));
+    emit({ kind: 'move', destination: via === 'undo' ? step.back : step.to }, safeCapture(boundary, [step.id]), {
+      step,
+      via,
+    });
   };
   const undo = () => {
     const step = steps.done.at(-1);

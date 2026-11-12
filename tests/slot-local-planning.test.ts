@@ -322,3 +322,45 @@ test('catalog display differences do not create duplicate persisted printing ide
   );
   assert.equal(merged.length, 1);
 });
+
+test('a card picked for a sent edit is kept with it, so a newer read still projects the edit', async () => {
+  const { prepareSlotPickerIntent } = await import('@/lib/slot-picker');
+  const { browserHostCatalog } = await import('@/lib/collection/browser-host-catalog');
+  const { queue } = await fixture();
+  await queue.enqueue(append(snapshot).intent, () => undefined);
+  const base = (await queue.read()).optimistic!;
+  const evidence = [
+    {
+      card: {
+        id: 'synthetic-card',
+        localId: '1',
+        name: 'Synthetic',
+        set: { id: 'synthetic-set', name: 'Synthetic' },
+        language: 'en' as const,
+      },
+      speciesNames: ['Synthetic'],
+      pokemonIds: [25],
+    },
+  ];
+  const assign = prepareSlotPickerIntent(
+    base,
+    { ownerUserId: 'owner', collectionId, slotId: 'operation-one-slot' },
+    {
+      kind: 'assign',
+      selection: {
+        kind: 'catalog',
+        identity: { kind: 'card', cardId: 'synthetic-card', language: 'en', finish: 'normal' },
+        newItemId: 'synthetic-copy',
+      },
+      fulfillWant: null,
+    },
+    context('assign-operation'),
+    browserHostCatalog(evidence),
+  );
+  await queue.enqueue(assign.intent, browserHostCatalog(evidence), undefined, () => scope, undefined, evidence);
+  // A refreshed read (no caller catalog) still projects the pick instead of failing it as a conflict.
+  await queue.saveSnapshot(await readSyntheticComplete(snapshot));
+  const record = await queue.read();
+  assert.equal(record.pending[1].status, 'pending');
+  assert.equal(record.optimistic!.items[0].id, 'synthetic-copy');
+});

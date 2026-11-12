@@ -886,7 +886,7 @@ test('a bare SQL conflict code and supplied snapshot never prove noncommit', asy
   );
   await assert.rejects(q.reconcile('operation-one', { kind: 'keep-remote' }, catalog), /reconciliation/);
 });
-test('terminal review refuses to cancel or rebase a head with dependent queued edits', async () => {
+test('keeping the remote state cancels a rejected head with the edits planned on top of it; rebase still refuses', async () => {
   const q = createSlotOfflineQueue(createMemoryStore(), scope);
   await q.saveSnapshot(await complete(snapshot()));
   await q.enqueue(intent(), catalog);
@@ -916,13 +916,22 @@ test('terminal review refuses to cancel or rebase a head with dependent queued e
     catalog,
     () => complete(remote),
   );
-  await assert.rejects(q.reconcile('operation-one', { kind: 'keep-remote' }, catalog), /reconciliation/);
   await assert.rejects(q.rebase('operation-one', 'operation-new', catalog), /reconciliation/);
   assert.deepEqual(
     (await q.read()).pending.map((p) => p.intent),
     [intent(), dependent],
   );
-  assert.equal((await q.read()).receipts.length, 0);
+  await q.reconcile('operation-one', { kind: 'keep-remote' }, catalog);
+  const after = await q.read();
+  assert.equal(after.pending.length, 0);
+  assert.deepEqual(
+    after.receipts.map((r) => [r.operationId, r.outcome]),
+    [
+      ['operation-one', 'cancelled'],
+      ['operation-dependent', 'cancelled'],
+    ],
+  );
+  assert.equal(after.optimistic?.inventoryRevision, 2);
 });
 test('unknown conflict may explicitly retry only its unchanged original operation', async () => {
   const q = createSlotOfflineQueue(createMemoryStore(), scope);

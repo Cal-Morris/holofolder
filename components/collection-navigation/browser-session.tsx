@@ -268,6 +268,15 @@ function ScopedBrowserSession({
   });
   // The latest routine read, so an edit made while it is in flight waits for it instead of failing.
   const inFlightRead = useRef<Promise<CollectionNavigationRead> | null>(null);
+  const readRetry = useRef<{ timer?: ReturnType<typeof setTimeout>; attempts: number }>({ attempts: 0 });
+  /** A read that failed or came back behind this device is tried again by itself, with backoff. */
+  const retryRead = () => {
+    clearTimeout(readRetry.current.timer);
+    const delay = Math.min(30_000, 1000 * 2 ** readRetry.current.attempts++);
+    readRetry.current.timer = setTimeout(() => {
+      if (valid() && !refreshing.current && !sending.current) void refresh().catch(() => {});
+    }, delay);
+  };
   const refresh = () => {
     const read = readFresh();
     inFlightRead.current = read;
@@ -297,10 +306,14 @@ function ScopedBrowserSession({
         record?.snapshot?.inventoryRevision ?? 0,
         ...(record?.pending.map((p) => p.acknowledgedRevision ?? 0) ?? []),
       );
-      if (fresh.evidence.snapshot.inventoryRevision < floor) return fresh;
+      if (fresh.evidence.snapshot.inventoryRevision < floor) {
+        retryRead();
+        return fresh;
+      }
       const pending =
         record?.pending.some((p) => p.status !== 'acknowledged') || record?.recovery?.some(recoveryUnresolved);
       completeReadAvailable.current = true;
+      readRetry.current.attempts = 0;
       // Show the read before the queue settles acknowledged edits, so the view never drops back to the old read.
       setRead(fresh);
       setNotice('');
@@ -312,21 +325,21 @@ function ScopedBrowserSession({
       return fresh;
     } catch (error) {
       if (valid() && request === sequence.current) {
-        completeReadAvailable.current = false;
         setUpdateFailed(true);
-        setRead((previous) =>
-          previous.evidence.kind === 'complete'
-            ? { ...previous, evidence: { kind: 'cached', snapshot: previous.evidence.snapshot } }
-            : previous,
-        );
-        setNotice(
+        // Only a collection the server cannot serve yet stops editing. A failed read is a blip: the last complete
+        // read stays the base for edits (the server still checks every revision) and the read retries by itself.
+        if (
           error instanceof CollectionNavigationReadError &&
-            ['inventory_not_initialized', 'legacy_inventory_incomplete'].includes(error.code)
-            ? 'Your collection is still being set up on our side. Nothing is lost. Please check back shortly.'
-            : navigator.onLine
-              ? "Couldn't update just now. Showing what was last saved on this device."
-              : '',
-        );
+          ['inventory_not_initialized', 'legacy_inventory_incomplete'].includes(error.code)
+        ) {
+          completeReadAvailable.current = false;
+          setRead((previous) =>
+            previous.evidence.kind === 'complete'
+              ? { ...previous, evidence: { kind: 'cached', snapshot: previous.evidence.snapshot } }
+              : previous,
+          );
+          setNotice('Your collection is still being set up on our side. Nothing is lost. Please check back shortly.');
+        } else if (navigator.onLine) retryRead();
       }
       throw error;
     } finally {
@@ -338,9 +351,9 @@ function ScopedBrowserSession({
     alive.current = true;
     let cachedFinished = false,
       active = true;
+    const retry = readRetry.current;
     const initial = async () => {
       // The server read starts first; this device's saved copy only fills the wait and never replaces it.
-      const startupRequest = sequence.current + 1;
       const network = refresh();
       network.catch(() => {});
       const record = await latest.current.queue.queue?.read();
@@ -360,12 +373,7 @@ function ScopedBrowserSession({
         setRead((previous) => (previous.evidence.kind === 'unavailable' ? cached : previous));
       }
       cachedFinished = true;
-      try {
-        await network;
-      } catch (error) {
-        if (active && valid() && sequence.current === startupRequest)
-          onStartupFailure(error instanceof Error ? error.message : 'storage_startup_failed');
-      }
+      // A failed first read retries by itself (see retryRead) while the saved copy stays on screen.
     };
     void initial().catch((error) => {
       if (active && valid()) {
@@ -394,6 +402,7 @@ function ScopedBrowserSession({
     };
     return () => {
       active = false;
+      clearTimeout(retry.timer);
       invalidate();
       window.removeEventListener('offline', disconnected);
       window.removeEventListener('online', reconnect);
@@ -429,11 +438,12 @@ function ScopedBrowserSession({
         // After five failed tries the queue parks an edit. An edit whose outcome is simply unknown (the server could
         // not be reached or answered with an error) is picked up again by itself: the same request and operation ID,
         // after a pause, or straight away when the connection or the app comes back. Rejections still wait for a decision.
+        // A send interrupted mid-flight (status still 'sending' once its lease runs out) and a change held back by a
+        // local check are picked up the same way; only the server's answer can make one need a decision.
         if (
           active() &&
           head &&
-          head.status === 'unavailable' &&
-          head.attempts >= 5 &&
+          (head.status === 'conflict' || (['unavailable', 'sending'].includes(head.status) && head.attempts >= 5)) &&
           !head.conflict?.rejected &&
           !(head.lease && head.lease.until > Date.now()) &&
           (resumeNow.current || head.nextAttemptAt + RETRY_ROUND_PAUSE_MS <= Date.now())
@@ -451,7 +461,7 @@ function ScopedBrowserSession({
             current.evidence.snapshot.inventoryRevision >= head.acknowledgedRevision!
           )
             await latest.current.queue.saveSnapshot(current.evidence.snapshot, latest.current.catalog);
-          else await refresh(); // Retries each tick while reads lag the ack; a failed read pauses this until reconnect or focus.
+          else await refresh(); // Retries each tick while reads lag the ack.
           return;
         }
         if (
@@ -488,12 +498,7 @@ function ScopedBrowserSession({
           active,
         );
       } catch {
-        if (active())
-          setNotice(
-            navigator.onLine
-              ? "Couldn't sync just now. Your changes are saved on this device and will be sent again."
-              : '',
-          );
+        // The edit stays queued on this device and the next tick sends it again.
       } finally {
         sending.current = false;
         running = false;
@@ -683,6 +688,7 @@ function ScopedBrowserSession({
       withSelectedPrintings(host, current.catalog, selected),
       undefined,
       valid,
+      pickedCard ? [pickedCard] : undefined,
     );
   };
 
@@ -1326,7 +1332,7 @@ function ScopedBrowserSession({
                               Your last change wasn&apos;t applied because your collection had changed. What would you
                               like to do?
                             </p>
-                            {head.conflict.current && queue.record?.pending.length === 1 ? (
+                            {head.conflict.current ? (
                               <>
                                 <button
                                   type="button"
@@ -1337,15 +1343,17 @@ function ScopedBrowserSession({
                                 >
                                   Keep my collection as it is
                                 </button>
-                                <button
-                                  type="button"
-                                  className="min-h-9 pr-4 underline"
-                                  onClick={() => {
-                                    void reviewConflict('rebase');
-                                  }}
-                                >
-                                  Apply my change again
-                                </button>
+                                {queue.record?.pending.length === 1 && (
+                                  <button
+                                    type="button"
+                                    className="min-h-9 pr-4 underline"
+                                    onClick={() => {
+                                      void reviewConflict('rebase');
+                                    }}
+                                  >
+                                    Apply my change again
+                                  </button>
+                                )}
                               </>
                             ) : (
                               <button
