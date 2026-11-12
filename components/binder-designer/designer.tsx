@@ -267,7 +267,7 @@ export default function BinderDesigner({
     }
   }
   return (
-    <main className="binder-studio">
+    <main className="binder-studio" data-keyboard-fit>
       <header className="studio-header">
         <Link href="/">
           <ArrowLeft size={16} aria-hidden="true" />
@@ -540,6 +540,8 @@ export default function BinderDesigner({
                         Find a card
                         <input
                           className="studio-card-search"
+                          // Field at the top of the panel, so the results get the room above the keyboard.
+                          onFocus={(e) => e.currentTarget.scrollIntoView({ block: 'start' })}
                           placeholder="Name, set or number"
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}

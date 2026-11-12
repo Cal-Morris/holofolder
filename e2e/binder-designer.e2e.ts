@@ -335,3 +335,43 @@ test('cover artwork search finds cards beyond the featured list', async ({ page 
     encodeURIComponent('https://assets.tcgdex.net/en/pl/pl4/AR1/high.webp'),
   );
 });
+test('cover artwork results stay above the on-screen keyboard', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1000) > 760, 'phone layout only');
+  // Synthetic search results; Chromium has no soft keyboard, so shorten the visual viewport like one does.
+  await page.route('**/app/api/tcg-card-search**', (route) =>
+    route.fulfill({
+      json: {
+        cards: ['AR1', 'AR3'].map((localId) => ({
+          id: `pl4-${localId}`,
+          localId,
+          name: 'Arceus',
+          image: `https://assets.tcgdex.net/en/pl/pl4/${localId}/high.webp`,
+          set: { id: 'pl4', name: 'Arceus' },
+          dexIds: [493],
+        })),
+      },
+    }),
+  );
+  await page.goto('/app/studio');
+  await expect(page.getByRole('button', { name: 'Save appearance', exact: true })).toBeEnabled();
+  await page.getByText('Choose Pokémon card artwork', { exact: true }).click();
+  const search = page.getByLabel('Find a card', { exact: true });
+  await search.focus();
+  const keyboard = 300;
+  await page.evaluate((covered) => {
+    const proto = Object.getPrototypeOf(window.visualViewport!);
+    Object.defineProperty(proto, 'height', { configurable: true, get: () => window.innerHeight - covered });
+    Object.defineProperty(proto, 'offsetTop', { configurable: true, get: () => 0 });
+    window.visualViewport!.dispatchEvent(new Event('resize'));
+  }, keyboard);
+  await expect(page.locator('html')).toHaveAttribute('data-keyboard-open', '');
+  await search.fill('arceus');
+  const keyboardTop = page.viewportSize()!.height - keyboard;
+  const result = page.getByRole('button', { name: 'Use Arceus AR1 artwork', exact: true });
+  await expect(result).toBeVisible();
+  const field = (await search.boundingBox())!;
+  const card = (await result.boundingBox())!;
+  expect(field.y, 'search field on screen').toBeGreaterThanOrEqual(0);
+  expect(field.y + field.height, 'search field above the keyboard').toBeLessThanOrEqual(keyboardTop);
+  expect(card.y + card.height / 2, 'most of the first result above the keyboard').toBeLessThanOrEqual(keyboardTop);
+});

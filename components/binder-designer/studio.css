@@ -515,6 +515,16 @@
     gap: 6px;
   }
 }
+/* Keyboard up: [data-keyboard-fit] sizes the studio to the visible area, so give it all to the controls. */
+html[data-keyboard-open] .binder-studio {
+  padding-bottom: 8px;
+}
+html[data-keyboard-open] .studio-save-status {
+  display: none;
+}
+html[data-keyboard-open] .studio-card-picker {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 @media (prefers-reduced-motion: reduce) {
   .binder-studio button {
     transition: none;
