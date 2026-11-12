@@ -242,6 +242,9 @@ test.describe('layout editing on the pockets', () => {
     await target.dispatchEvent('click', { detail: 1, bubbles: true });
     await expect(page.getByRole('dialog', { name: /details$/ })).toHaveCount(0);
     await expect(menu(page)).toBeVisible();
+    // iOS sends that click to whatever is under the finger now, the menu's backdrop: it must not close the menu.
+    await page.locator('[data-overlay-backdrop]').dispatchEvent('click', { detail: 1, bubbles: true });
+    await expect(menu(page)).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(menu(page)).toHaveCount(0);
     // A pan, a scroll or a page swipe: the finger moves, so nothing opens, then or later.

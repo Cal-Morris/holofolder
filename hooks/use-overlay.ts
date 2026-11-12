@@ -267,8 +267,23 @@ export function useOverlay(open: boolean, onClose: () => void, options: UseOverl
       }
     };
 
+    // A long press opens an overlay under the finger. When it lifts, iOS hit-tests the click at that point, which is now
+    // the backdrop: swallow a backdrop click whose press began before the overlay opened, so it doesn't close at once.
+    let pressedSinceOpen = false;
+    const handlePointerDown = () => {
+      pressedSinceOpen = true;
+    };
+    const handleStrayClick = (event: MouseEvent) => {
+      if (pressedSinceOpen || !(event.target instanceof Element) || !event.target.closest('[data-overlay-backdrop]'))
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
     window.addEventListener('popstate', handlePopState);
     window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('pointerdown', handlePointerDown, true);
+    window.addEventListener('click', handleStrayClick, true);
 
     let focusFrame = 0;
     if (autoFocus && containerRef) {
@@ -284,6 +299,8 @@ export function useOverlay(open: boolean, onClose: () => void, options: UseOverl
       window.cancelAnimationFrame(focusFrame);
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('pointerdown', handlePointerDown, true);
+      window.removeEventListener('click', handleStrayClick, true);
       stack.remove(entry.id);
 
       disposed = true;
