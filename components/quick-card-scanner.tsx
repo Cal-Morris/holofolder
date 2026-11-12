@@ -14,8 +14,7 @@ import { mergeCardTextSignals, type CardTextSignals } from '@/lib/card-scan-text
 import { recognizeCardTextSignalsFromImage, warmCardTextReader } from '@/lib/card-scan-ocr';
 import { trackGoogleEvent } from '@/lib/google-analytics';
 import { decideScanOutcome, isScanReadComplete, readScannedCard, type CardScanOutcome } from '@/lib/card-scan-identify';
-import { searchOfflineCards } from '@/lib/offline-card-index';
-import { formatPokemonDisplayName, getPokemonById } from '@/lib/pokemon-catalog';
+import { SCAN_REGIONS, lookupPokemon, searchCards } from '@/lib/card-scan-search';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 
 import {
@@ -28,7 +27,6 @@ import CameraControls from '@/components/camera-controls';
 
 const SCAN_FRAMES = 3;
 const SCAN_FRAME_GAP_MS = 300;
-const SCAN_REGIONS = ['name', 'number-left', 'number-right', 'bottom'] as const;
 /** A first read can include downloading the reader on show Wi-Fi; past this, fall back to typing. */
 const SCAN_FRAME_TIMEOUT_MS = 20_000;
 
@@ -63,33 +61,6 @@ export interface QuickCardScannerProps {
   onResult: (result: CardScanResult) => void;
   isOnline: boolean;
   getOfflineCards: () => Promise<SearchCardResult[]>;
-}
-
-function lookupPokemon(id: number) {
-  const entry = getPokemonById(id);
-  return entry ? { id: entry.id, name: formatPokemonDisplayName(entry.name) } : null;
-}
-
-async function searchCards(
-  query: string,
-  isOnline: boolean,
-  getOfflineCards: () => Promise<SearchCardResult[]>,
-  includeNonPokemon = false,
-) {
-  const onDevice = async () => searchOfflineCards(await getOfflineCards().catch(() => []), query);
-  if (!query) return { cards: [] as SearchCardResult[], offline: !isOnline };
-  if (!isOnline || (typeof navigator !== 'undefined' && navigator.onLine === false))
-    return { cards: await onDevice(), offline: true };
-  try {
-    const response = await fetch(
-      `/app/api/tcg-card-search?q=${encodeURIComponent(query.toLowerCase())}${includeNonPokemon ? '&includeNonPokemon=1' : ''}`,
-    );
-    if (!response.ok) throw new Error(`Card search failed (${response.status})`);
-    const payload = (await response.json()) as { cards?: SearchCardResult[] };
-    return { cards: Array.isArray(payload?.cards) ? payload.cards : [], offline: false };
-  } catch {
-    return { cards: await onDevice(), offline: true };
-  }
 }
 
 export default function QuickCardScanner(props: QuickCardScannerProps) {
