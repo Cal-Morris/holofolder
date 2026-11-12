@@ -12,7 +12,13 @@ import { KEYBOARD_INSET_SCRIPT } from '@/lib/keyboard-inset';
 import { socialMetadata } from '@/lib/social-metadata';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
-const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains-mono', display: 'swap' });
+// Only the API key field and chart tooltips use mono, so don't preload it on every page.
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+  preload: false,
+});
 const THEME_COLOR_DARK = '#07070a';
 
 export const metadata: Metadata = {
