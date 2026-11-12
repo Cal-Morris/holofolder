@@ -1,4 +1,5 @@
 import type { OperationContext } from '@/lib/developer-api/types';
+import { trackApiRequest } from '@/lib/server/google-analytics';
 export function auditDeveloperOperation(
   context: Pick<OperationContext, 'principal' | 'requestId'>,
   operation: string,
@@ -18,4 +19,10 @@ export function auditDeveloperOperation(
       requestId: context.requestId,
     }),
   );
+  trackApiRequest(context.principal.credentialId, {
+    transport: context.principal.transport,
+    operation,
+    outcome,
+    code,
+  });
 }
