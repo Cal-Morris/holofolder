@@ -253,10 +253,19 @@ export default function CardSelector({
     () =>
       !isAnyCard
         ? speciesCards
-        : // A result keeps its own language. One from the server was asked for in the chosen language; one found on this
-          // device with no language recorded stays unknown rather than being guessed.
+        : // A result keeps its own language. The server leaves it unset when the card isn't printed in the chosen one;
+          // in English that means no English print (a Japanese-only card), so it is dropped unless it is the reserved
+          // printing. Other languages price English prints, so their unset cards stay. One found on this device with no
+          // language recorded stays unknown rather than being guessed.
           catalogSearch.cards
             .filter((card) => !reservedCardId || matchesCatalogCardId(card, reservedCardId))
+            .filter(
+              (card) =>
+                reservedCardId ||
+                catalogSearch.offline ||
+                selectedCardLanguage !== 'en' ||
+                isCardLanguage(card.language),
+            )
             .map((card) => ({
               ...card,
               language: isCardLanguage(card.language)
