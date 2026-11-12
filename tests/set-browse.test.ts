@@ -1,6 +1,13 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { filterSetGroups, getSetMonogram, groupSetsBySeries, listSetSeries, pickSetArtwork } from '../lib/set-browse';
+import {
+  filterSetGroups,
+  getSetMonogram,
+  groupSetsBySeries,
+  isSetInLanguage,
+  listSetSeries,
+  pickSetArtwork,
+} from '../lib/set-browse';
 
 // Synthetic sets, not real TCG data.
 const sets = [
@@ -81,4 +88,31 @@ test('browse filters by exact release year while retaining the series filter', (
     ['new2', 'new1'],
   );
   assert.deepEqual(filterSetGroups(sets, { series: 'Old Era', query: '2026' }), []);
+});
+
+test('a long-running collection with a brand new set does not jump the current era', () => {
+  // Synthetic sets, not real TCG data.
+  const mixed = [
+    { id: 'era1', name: 'Era One', seriesName: 'Current Era', releaseDate: '2026-01-01' },
+    { id: 'era2', name: 'Era Two', seriesName: 'Current Era', releaseDate: '2026-06-01' },
+    { id: 'col1', name: 'Collection 2012', seriesName: 'Collection', releaseDate: '2012-01-01' },
+    { id: 'col2', name: 'Collection 2018', seriesName: 'Collection', releaseDate: '2018-01-01' },
+    { id: 'col3', name: 'Collection 2026', seriesName: 'Collection', releaseDate: '2026-11-01' },
+    { id: 'prev', name: 'Previous', seriesName: 'Previous Era', releaseDate: '2024-01-01' },
+  ];
+  assert.deepEqual(
+    groupSetsBySeries(mixed).map((group) => [group.series, group.sets.map((set) => set.id)]),
+    [
+      ['Current Era', ['era2', 'era1']],
+      ['Previous Era', ['prev']],
+      ['Collection', ['col3', 'col2', 'col1']],
+    ],
+  );
+});
+
+test('sets are kept only in the card language, Brazilian Portuguese matching TCGdex pt', () => {
+  assert.equal(isSetInLanguage({ id: 'a', name: 'A', languages: ['en', 'fr'] }, 'en'), true);
+  assert.equal(isSetInLanguage({ id: 'b', name: 'B', languages: ['ja'] }, 'en'), false);
+  assert.equal(isSetInLanguage({ id: 'c', name: 'C', languages: ['en', 'pt'] }, 'pt-br'), true);
+  assert.equal(isSetInLanguage({ id: 'd', name: 'D' }, 'ko'), true);
 });

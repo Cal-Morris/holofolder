@@ -6,6 +6,8 @@ export interface TCGSetSummary {
   seriesName?: string;
   officialCardCount?: number;
   releaseDate?: string;
+  /** TCGdex languages the set was printed in (its name keys); absent on older saved lists. */
+  languages?: string[];
   /** Verified public CDN set artwork, available on browse and search summaries. */
   symbol?: string;
   logo?: string;

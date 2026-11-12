@@ -336,6 +336,7 @@ export async function getBrowsableMirroredSets(): Promise<TCGSetSummary[]> {
       seriesName: pickLocalizedText(set.tcg_series?.name_json, 'en') || set.tcg_series?.name_en || undefined,
       officialCardCount: typeof set.official_card_count === 'number' ? set.official_card_count : undefined,
       releaseDate: typeof set.release_date === 'string' ? set.release_date : undefined,
+      ...(set.name_json && typeof set.name_json === 'object' ? { languages: Object.keys(set.name_json) } : {}),
       ...getSetArtwork(set.id),
     }));
 }

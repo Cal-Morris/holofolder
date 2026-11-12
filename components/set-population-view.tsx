@@ -13,7 +13,7 @@ import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { DEFAULT_PRICING_REGION, type PricingRegion } from '@/lib/pricing-region';
 import { CardHighlights } from '@/components/card-highlights';
-import type { CollectedPokemon } from '@/lib/domain/cards';
+import { DEFAULT_CARD_LANGUAGE, type CardLanguage, type CollectedPokemon } from '@/lib/domain/cards';
 import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSlotsResponse, TCGSetSummary } from '@/lib/tcg-set-slots';
 import { getOfflineStore } from '@/lib/offline-store/kv';
 import { loadSetQuery, saveSetQuery } from '@/lib/offline-store/records';
@@ -21,7 +21,7 @@ import { getProxiedThumbnailUrl } from '@/lib/card-show-prep';
 import { readOfflineSets, searchOfflineSets } from '@/lib/offline-card-index';
 import { useCollapseOnScroll } from '@/hooks/use-collapse-on-scroll';
 import { getSetCompletion } from '@/lib/set-completion';
-import { filterSetGroups, getSetMonogram, publicSetArtworkUrl, listSetSeries } from '@/lib/set-browse';
+import { filterSetGroups, getSetMonogram, isSetInLanguage, publicSetArtworkUrl, listSetSeries } from '@/lib/set-browse';
 import {
   getSetSlotState,
   getSetCardState,
@@ -44,6 +44,8 @@ interface SetPopulationViewProps {
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null;
   /** The user's pricing region; set card prices are weighted for it. */
   pricingRegion?: PricingRegion;
+  /** Browse lists only sets printed in this language. */
+  cardLanguage?: CardLanguage;
   onSelectSlot: (slot: TCGSetDexSlot) => void;
   onBrowseCard: (slot: TCGSetDexSlot, card: TCGSetSlotCard) => void;
   onCollectCard: (slot: TCGSetDexSlot, card: TCGSetSlotCard) => void | Promise<void>;
@@ -125,6 +127,7 @@ export default function SetPopulationView({
   collectionRows,
   formatPrice,
   pricingRegion = DEFAULT_PRICING_REGION,
+  cardLanguage = DEFAULT_CARD_LANGUAGE,
   onSelectSlot,
   onBrowseCard,
   onCollectCard,
@@ -437,10 +440,14 @@ export default function SetPopulationView({
     [filteredSlots, selectedCardIdsByDexId, selectedDexIds],
   );
 
-  const seriesOptions = useMemo(() => listSetSeries(allSets), [allSets]);
+  const languageSets = useMemo(
+    () => allSets.filter((set) => isSetInLanguage(set, cardLanguage)),
+    [allSets, cardLanguage],
+  );
+  const seriesOptions = useMemo(() => listSetSeries(languageSets), [languageSets]);
   const browseGroups = useMemo(
-    () => (isBrowsing ? filterSetGroups(allSets, { series: seriesFilter, query }) : []),
-    [allSets, isBrowsing, query, seriesFilter],
+    () => (isBrowsing ? filterSetGroups(languageSets, { series: seriesFilter, query }) : []),
+    [languageSets, isBrowsing, query, seriesFilter],
   );
 
   const addSet = (set: TCGSetSummary) => {
@@ -533,7 +540,7 @@ export default function SetPopulationView({
             aria-label="Filter sets by series"
             className="scrollbar-hide -mx-4 mt-3 flex gap-1.5 overflow-x-auto px-4 pb-1"
           >
-            {[{ series: null, count: allSets.length }, ...seriesOptions].map(({ series, count }) => {
+            {[{ series: null, count: languageSets.length }, ...seriesOptions].map(({ series, count }) => {
               const isActive = seriesFilter === series;
               return (
                 <button
