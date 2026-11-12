@@ -148,3 +148,49 @@ test('MEW is read as a Pokémon unless the rest of the query names one', () => {
     ['sv03.5-151'],
   );
 });
+
+// Synthetic cards on real catalog set ids/names (30th Celebration, 151); not real printings or prices.
+const celebrationSets = [
+  { id: 'sv03.5', name: '151' },
+  { id: '30th', name: '30th Celebration' },
+  { id: '30th-c', name: '30th Classic Collection' },
+];
+const celebrationCards = [
+  { id: 'sv03.5-030', name: 'Nidorina', localId: '030', set: celebrationSets[0], dexIds: [30] },
+  { id: 'synthetic-30th-mew', name: 'Mew', localId: '12', set: celebrationSets[1], dexIds: [151] },
+  { id: 'synthetic-30th-lugia', name: 'Lugia', localId: '40', set: celebrationSets[1], dexIds: [249] },
+  { id: 'synthetic-30th-c-lugia', name: 'Lugia', localId: '9', set: celebrationSets[2], dexIds: [249] },
+];
+
+test('a Pokémon with an anniversary set beats the MEW printed code', () => {
+  const found = (query: string) => searchOfflineCards(celebrationCards, query).map((card) => card.id);
+  for (const query of ['mew 30th', 'Mew 30', '30th mew', 'mew 30th celebration'])
+    assert.deepEqual(found(query), ['synthetic-30th-mew'], query);
+  assert.deepEqual(found('lugia 30th'), ['synthetic-30th-lugia']);
+  assert.deepEqual(found('lugia 30').sort(), ['synthetic-30th-c-lugia', 'synthetic-30th-lugia']);
+  // Without a Pokémon name the printed code and collector number still win.
+  assert.deepEqual(found('MEW 030'), ['sv03.5-030']);
+  assert.deepEqual(resolveCardSearchQuery('abra 130', celebrationSets).setIds, []);
+});
+
+test('a bare number read as an anniversary set falls back to the collector number when the set has no match', () => {
+  const pikachu25 = {
+    id: 'synthetic-pikachu-25',
+    name: 'Pikachu',
+    localId: '25',
+    set: { id: 'fx2', name: 'Fixture' },
+    dexIds: [25],
+  };
+  const jp25th = {
+    id: 'synthetic-25th-mew',
+    name: 'Mew',
+    localId: '1',
+    set: { id: 'S8a', name: '25th Anniversary Collection' },
+    dexIds: [151],
+  };
+  assert.deepEqual(searchOfflineCardsWithCorrection([pikachu25, jp25th], 'pikachu 25'), {
+    cards: [pikachu25],
+    correction: 'pikachu #25',
+  });
+  assert.deepEqual(searchOfflineCardsWithCorrection([pikachu25, jp25th], 'mew 25').cards, [jp25th]);
+});

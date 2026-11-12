@@ -54,21 +54,37 @@ function isPokemonText(text: string) {
   return isPokemonName(text) || Boolean(pokemonCorrection(text));
 }
 
-function partialSetMatch(name: string, phrase: string) {
-  // Whole word prefixes, at least three letters each; never arbitrary substrings or fuzzy set names.
-  const words = phrase.split(' ');
-  if (!words.every((word) => /^[a-z]{3,}$/.test(word))) return false;
-  const nameWords = name.toLowerCase().split(/[^a-z0-9]+/);
-  return nameWords.some((_, start) => words.every((word, index) => nameWords[start + index]?.startsWith(word)));
+function partialWordMatch(nameWord: string | undefined, word: string) {
+  if (!nameWord) return false;
+  // "30" or "30th" → "30th Celebration"; never "30" → "130" or a bare number set name.
+  const ordinal = /^(\d{1,3})(?:st|nd|rd|th)?$/.exec(word);
+  if (ordinal) return new RegExp(`^${ordinal[1]}(?:st|nd|rd|th)$`).test(nameWord);
+  return /^[a-z]{3,}$/.test(word) && nameWord.startsWith(word);
 }
 
-/** Exact catalog names/codes win; partial set phrases require a recognizable Pokémon remainder. */
+function partialSetMatch(name: string, phrase: string) {
+  // Whole word prefixes, at least three letters each (or an anniversary ordinal); never arbitrary substrings or fuzzy set names.
+  const words = phrase.split(' ');
+  const nameWords = name.toLowerCase().split(/[^a-z0-9]+/);
+  return nameWords.some((_, start) => words.every((word, index) => partialWordMatch(nameWords[start + index], word)));
+}
+
+/**
+ * A set plus a Pokémon name wins ("mew 30th" is Mew from 30th Celebration, not 151 #30th); exact names and codes
+ * beat partial ones, and typo-tolerant partial matches come last. Partial set phrases always need a Pokémon remainder.
+ */
 export function resolveCardSearchQuery(raw: string, sets: SearchSet[]) {
   const candidates = cardSearchSetCandidates(raw);
-  for (const partial of [false, true]) {
+  const passes = [
+    { partial: false, remainder: (text: string) => !text || isPokemonText(text) },
+    { partial: true, remainder: isPokemonName },
+    { partial: false, remainder: () => true },
+    { partial: true, remainder: isPokemonText },
+  ];
+  for (const { partial, remainder } of passes) {
     for (const candidate of candidates) {
       const parsed = parseCardSearchQuery(candidate.remainder);
-      if (partial && !isPokemonText(parsed.text)) continue;
+      if (!remainder(parsed.text)) continue;
       const matches = sets.filter((set) =>
         partial
           ? partialSetMatch(set.name, candidate.phrase)
@@ -91,9 +107,12 @@ export function resolveCardSearchQuery(raw: string, sets: SearchSet[]) {
 export function correctedCardSearchQuery(raw: string, sets: SearchSet[]) {
   const parsed = resolveCardSearchQuery(raw, sets);
   if (!parsed.setIds.length || parsed.cardId) return null;
+  const query = sanitizeSearchText(raw).toLowerCase();
   const name = pokemonCorrection(parsed.text);
-  if (!name) return null;
-  return sanitizeSearchText(raw)
-    .toLowerCase()
-    .replace(new RegExp(`\\b${parsed.text}\\b`), name);
+  if (name) return query.replace(new RegExp(`\\b${parsed.text}\\b`), name);
+  // "pikachu 25" read as 25th Anniversary found nothing: fall back to collector number #25.
+  const literal = parseCardSearchQuery(raw).number;
+  if (literal && !parsed.number && /^\d+$/.test(literal))
+    return query.replace(new RegExp(`\\b${literal}\\b`), `#${literal}`);
+  return null;
 }
