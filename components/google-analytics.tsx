@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, type ReactNode } from 'react';
 import { GoogleAnalytics } from '@next/third-parties/google';
-import { sendGoogleEvent, type GoogleEvents } from '@/lib/google-analytics';
+import { sendGoogleEvent, setGoogleAnalyticsEnabled, type GoogleEvents } from '@/lib/google-analytics';
 
 const AnalyticsEnabled = createContext(false);
 
@@ -16,6 +16,8 @@ export function GoogleAnalyticsProvider({
   children: ReactNode;
 }) {
   const active = enabled && Boolean(gaId);
+  // Idempotent, and set during render so children's first effects already see it.
+  setGoogleAnalyticsEnabled(active);
   return (
     <AnalyticsEnabled.Provider value={active}>
       {active && gaId && <GoogleAnalytics gaId={gaId} />}

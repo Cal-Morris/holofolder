@@ -3,6 +3,7 @@
 // Show mode's purchase tally (lib/show-session.ts), shared by every component and tab on this device.
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { setItemMakingRoom } from '@/lib/storage/make-room';
+import { trackGoogleEvent } from '@/lib/google-analytics';
 import {
   SHOW_SESSION_EVENT,
   SHOW_SESSION_KEY,
@@ -88,6 +89,7 @@ export function useShowSession() {
   const session = useMemo(() => parseShowSession(raw, openedAt), [openedAt, raw]);
 
   const logPurchases = useCallback((purchases: Array<Omit<ShowPurchase, 'id' | 'at'>>) => {
+    trackGoogleEvent('show_purchase_logged', { count: purchases.length });
     const now = Date.now();
     let next = parseShowSession(readRaw(), now);
     const ids: string[] = [];

@@ -12,6 +12,7 @@ import { useCameraStream } from '@/hooks/use-camera-stream';
 import { SINGLE_CARD_GUIDE, captureSingleCardFrame, delay } from '@/lib/camera-frame';
 import { mergeCardTextSignals, type CardTextSignals } from '@/lib/card-scan-text';
 import { recognizeCardTextSignalsFromImage, warmCardTextReader } from '@/lib/card-scan-ocr';
+import { trackGoogleEvent } from '@/lib/google-analytics';
 import { decideScanOutcome, isScanReadComplete, readScannedCard, type CardScanOutcome } from '@/lib/card-scan-identify';
 import { searchOfflineCards } from '@/lib/offline-card-index';
 import { formatPokemonDisplayName, getPokemonById } from '@/lib/pokemon-catalog';
@@ -238,8 +239,10 @@ function QuickCardScannerCamera({
       const scanned = readScannedCard(mergeCardTextSignals(frames));
       setPhase('matching');
       const { cards, offline } = await searchCards(scanned.query, isOnline, getOfflineCards, !!onReadStarted);
+      const outcome = decideScanOutcome(cards, scanned, lookupPokemon);
+      trackGoogleEvent('card_scanned', { outcome: outcome.kind, offline });
       onResult({
-        outcome: decideScanOutcome(cards, scanned, lookupPokemon),
+        outcome,
         ...(onReadStarted ? { candidates: cards } : {}),
         readerUnavailable: frames.length === 0 && readerFailures > 0,
         offline,

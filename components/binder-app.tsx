@@ -704,19 +704,21 @@ function BinderAppSurface(props: BinderAppProps) {
   const requireAccount = useCallback(
     async (..._edit: unknown[]) => {
       if (!guest) return;
+      trackGoogleEvent('sign_up_prompted', {});
       closeAllOverlays();
       runAfterOverlayHistory(() => {
         setAuthInitialMode('sign-up');
         setIsAuthOpen(true);
       });
     },
-    [guest],
+    [guest, trackGoogleEvent],
   );
 
   // The binder on screen is this device's last opened one (the server reads the cookie on the next visit).
   useEffect(() => {
     if (!readOnlyMode) rememberLastOpenedBinder(initialBinderId);
-  }, [initialBinderId, readOnlyMode]);
+    trackGoogleEvent('binder_opened', { read_only: readOnlyMode });
+  }, [initialBinderId, readOnlyMode, trackGoogleEvent]);
   // The binder list stays on this device, so the switcher still works offline (lib/binders/offline.ts).
   useEffect(() => {
     if (readOnlyMode || !user || !resolvedCollectionOwnerUserId || binders.length === 0) return;
@@ -3053,11 +3055,12 @@ function BinderAppSurface(props: BinderAppProps) {
 
     try {
       await navigator.clipboard.writeText(fullShareUrl);
+      trackGoogleEvent('share_link_copied', { surface: 'binder' });
       toast('Share link copied');
     } catch {
       toast('Could not copy the share link', 'error');
     }
-  }, [fullShareUrl]);
+  }, [fullShareUrl, trackGoogleEvent]);
 
   const handleDisableReadOnlyShare = useCallback(async () => {
     if (!canManageShare) return;
@@ -4070,6 +4073,7 @@ function BinderAppSurface(props: BinderAppProps) {
     if (isTouch && typeof navigator.share === 'function') {
       try {
         await navigator.share({ title: 'Want list', text });
+        trackGoogleEvent('want_list_shared', { method: 'share_sheet' });
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
@@ -4077,6 +4081,7 @@ function BinderAppSurface(props: BinderAppProps) {
     }
     try {
       await navigator.clipboard.writeText(text);
+      trackGoogleEvent('want_list_shared', { method: 'clipboard' });
       toast('Want list copied');
     } catch {
       toast('Could not copy the want list', 'error');

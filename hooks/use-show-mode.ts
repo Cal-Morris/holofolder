@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { setItemMakingRoom } from '@/lib/storage/make-room';
+import { trackGoogleEvent } from '@/lib/google-analytics';
 import {
   SHOW_MODE_EVENT,
   SHOW_MODE_KEY,
@@ -98,6 +99,7 @@ export function useShowMode() {
   const isOn = useSyncExternalStore(subscribe, readOn, () => false);
 
   const setShowMode = useCallback((on: boolean) => {
+    trackGoogleEvent('show_mode_toggled', { on });
     try {
       // A full storage gives up other binders' offline copies first, so the switch survives a reload.
       setItemMakingRoom(window.localStorage, SHOW_MODE_KEY, serializeShowMode(on));

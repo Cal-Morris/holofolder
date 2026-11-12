@@ -5,6 +5,7 @@
 // matches from the directory (saved on the device after the first load) and set hits from the set search.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CardLanguage } from '@/lib/domain/cards';
+import { trackGoogleEvent } from '@/lib/google-analytics';
 import { getPokemonSummary } from '@/lib/pokemon-catalog';
 import {
   groupCardResultsByPokemon,
@@ -80,9 +81,12 @@ export function useCardSearch(
       const result = searchOfflineCardsWithCorrection(eligible, searchText);
       return { cards: result.cards, groups: groupCards(result.cards), correction: result.correction };
     };
+    const trackSearch = (resultCount: number, offline: boolean) =>
+      trackGoogleEvent('search', { search_term: searchText.slice(0, 100), result_count: resultCount, offline });
     const showOffline = async () => {
       const result = await searchOnDevice();
       if (controller.signal.aborted) return;
+      trackSearch(result?.cards.length ?? 0, true);
       setState({
         key,
         groups: result?.groups ?? [],
@@ -109,15 +113,16 @@ export function useCardSearch(
         })
         .then((payload: { cards?: SearchCardResult[]; correction?: string | null }) => {
           const cards = Array.isArray(payload?.cards) ? payload.cards : [];
-          if (!controller.signal.aborted)
-            setState({
-              key,
-              groups: groupCards(cards),
-              cards,
-              loading: false,
-              offline: false,
-              correction: cards.length && typeof payload.correction === 'string' ? payload.correction : null,
-            });
+          if (controller.signal.aborted) return;
+          trackSearch(cards.length, false);
+          setState({
+            key,
+            groups: groupCards(cards),
+            cards,
+            loading: false,
+            offline: false,
+            correction: cards.length && typeof payload.correction === 'string' ? payload.correction : null,
+          });
         })
         .catch((error: unknown) => {
           if ((error as { name?: string })?.name === 'AbortError' || controller.signal.aborted) return;
