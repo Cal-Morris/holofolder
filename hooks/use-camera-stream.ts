@@ -7,9 +7,11 @@ export interface CameraStreamState {
   error: string | null;
   /** The camera was refused or isn't there (as opposed to still starting). */
   unavailable: boolean;
+  /** The live video track, for zoom and torch (`CameraControls`). */
+  track: MediaStreamTrack | null;
 }
 
-const IDLE: CameraStreamState = { ready: false, error: null, unavailable: false };
+const IDLE: CameraStreamState = { ready: false, error: null, unavailable: false, track: null };
 
 /** A plain-language reason the camera didn't start (iOS reports NotAllowedError when access is off). */
 export function describeCameraError(error: unknown) {
@@ -59,9 +61,10 @@ export function useCameraStream(active: boolean, videoRef: RefObject<HTMLVideoEl
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
-        if (!cancelled) setState({ ready: true, error: null, unavailable: false });
+        if (!cancelled)
+          setState({ ready: true, error: null, unavailable: false, track: stream.getVideoTracks()[0] ?? null });
       } catch (error) {
-        if (!cancelled) setState({ ready: false, error: describeCameraError(error), unavailable: true });
+        if (!cancelled) setState({ ready: false, error: describeCameraError(error), unavailable: true, track: null });
       }
     };
 
