@@ -11,6 +11,7 @@ import {
   binderFill,
   binderTurnPage,
   artworkRectangle,
+  isCardArtworkUrl,
   type BinderDesign,
   type BinderPart,
   type BinderStats,
@@ -24,6 +25,8 @@ import type { BinderSettings } from '@/lib/settings';
 import { BinderPresetPicker } from '@/components/binder-preset-picker';
 import { applyBinderDesignPreset } from '@/lib/binder-design-presets';
 import { CreditsNotice } from '@/components/credits';
+import { useCardSearch } from '@/hooks/use-card-search';
+import { toCardImageProxySrc, toCardThumbnailSrc } from '@/lib/card-image-url';
 import './studio.css';
 const Viewport = dynamic(() => import('./viewport'), {
   ssr: false,
@@ -214,9 +217,23 @@ export default function BinderDesigner({
   );
   const maxPreviewPages = geometryDesign.pageCount;
   const previewPage = Math.min(page, maxPreviewPages);
-  const picker = FEATURED_CARDS.filter((c) =>
-    (c.name + ' ' + c.set + ' ' + c.num).toLowerCase().includes(search.toLowerCase()),
-  );
+  // Featured cards until there's a query, then the whole catalogue. Only TCGdex images can be saved as artwork.
+  const cardSearch = useCardSearch(search, true);
+  const searching = search.trim().length >= 2;
+  const picker = searching
+    ? cardSearch.cards.flatMap((c) => {
+        const artwork = toCardImageProxySrc(c.image);
+        return artwork && isCardArtworkUrl(artwork)
+          ? [{ id: c.id, name: c.name, set: c.set.name, num: c.localId, artwork }]
+          : [];
+      })
+    : FEATURED_CARDS.map((c) => ({
+        id: c.id,
+        name: c.name,
+        set: c.set,
+        num: c.num,
+        artwork: getFeaturedCardImageUrl(c),
+      }));
   async function upload(file?: File) {
     if (!file || !surface) return;
     const target = surface,
@@ -522,29 +539,36 @@ export default function BinderDesigner({
                       <label>
                         Find a card
                         <input
+                          className="studio-card-search"
                           placeholder="Name, set or number"
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
                         />
                       </label>
+                      {searching && (cardSearch.loading || !picker.length) && (
+                        <p className="studio-picker-status" role="status">
+                          {cardSearch.loading ? 'Searching…' : 'No cards found.'}
+                        </p>
+                      )}
                       <div className="studio-card-picker">
                         {picker.map((c) => (
                           <button
                             key={c.id}
                             aria-label={`Use ${c.name} ${c.num} artwork`}
-                            onClick={() =>
+                            onClick={() => {
                               editSurface({
-                                artwork: getFeaturedCardImageUrl(c),
+                                artwork: c.artwork,
                                 frame: { fit: 'fill', zoom: 1, x: 0, y: 0 },
-                              })
-                            }
+                              });
+                              setSearch('');
+                            }}
                           >
                             <NextImage
                               unoptimized
                               width={315}
                               height={440}
                               loading="lazy"
-                              src={getFeaturedCardImageUrl(c)}
+                              src={toCardThumbnailSrc(c.artwork)?.src ?? c.artwork}
                               alt={`${c.name} ${c.set} ${c.num}`}
                               className="trading-card"
                             />
