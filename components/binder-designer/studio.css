@@ -336,8 +336,11 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  max-height: 440px;
-  overflow: auto;
+}
+.studio-picker-status {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-bottom: 8px;
 }
 .binder-studio .studio-card-picker button {
   padding: 8px;
@@ -495,6 +498,10 @@
   .studio-pagination button {
     padding: 4px 12px;
     min-height: 36px;
+  }
+  /* The keyboard covers half the screen: give the card picker all of it while there's a query (picking clears it). */
+  .binder-studio:has(.studio-card-search:not(:placeholder-shown)) :is(.studio-title, .studio-preview) {
+    display: none;
   }
 }
 @media (max-height: 500px) and (max-width: 760px) {

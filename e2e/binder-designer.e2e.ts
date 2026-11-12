@@ -304,3 +304,34 @@ test('curated presets preserve page settings and support undo and device saving'
   await expect(page.getByLabel('Artwork zoom', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+test('cover artwork search finds cards beyond the featured list', async ({ page }) => {
+  // Synthetic search result: a printing that isn't in the featured catalog.
+  await page.route('**/app/api/tcg-card-search**', (route) =>
+    route.fulfill({
+      json: {
+        cards: [
+          {
+            id: 'pl4-AR1',
+            localId: 'AR1',
+            name: 'Arceus',
+            image: 'https://assets.tcgdex.net/en/pl/pl4/AR1/high.webp',
+            set: { id: 'pl4', name: 'Arceus' },
+            dexIds: [493],
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto('/app/studio');
+  await expect(page.getByRole('button', { name: 'Save appearance', exact: true })).toBeEnabled();
+  await page.getByText('Choose Pokémon card artwork', { exact: true }).click();
+  await page.getByLabel('Find a card', { exact: true }).fill('arceus');
+  if ((page.viewportSize()?.width ?? 1000) <= 760) await expect(page.locator('.studio-preview')).toBeHidden();
+  await page.getByRole('button', { name: 'Use Arceus AR1 artwork', exact: true }).click();
+  await expect(page.locator('.studio-preview')).toBeVisible();
+  await page.getByRole('button', { name: 'Save appearance', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: /^Saved on this device\./ })).toBeVisible();
+  expect((await readSavedRecord(page))?.design.surfaces.cover.artwork).toContain(
+    encodeURIComponent('https://assets.tcgdex.net/en/pl/pl4/AR1/high.webp'),
+  );
+});
