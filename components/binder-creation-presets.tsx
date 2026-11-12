@@ -21,6 +21,7 @@ import { POKEMON_CATALOG, formatPokemonDisplayName } from '@/lib/pokemon-catalog
 import { GENERATIONS } from '@/components/binder/binder-app-model';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 import { useCardSearch } from '@/hooks/use-card-search';
+import type { CreationPreset } from '@/lib/binder-creation-wizard';
 import CardImage from '@/components/card-image';
 import { buildOfflineCardIndex } from '@/lib/offline-card-index';
 
@@ -48,7 +49,7 @@ export function BinderCreationPresets({
   const [name, setName] = useState('');
   const [kind, setKind] = useState<BinderCreationDraft['kind']>('binder');
   const [location, setLocation] = useState('');
-  const [mode, setMode] = useState(initialSet ? 'set' : 'blank');
+  const [mode, setMode] = useState<CreationPreset>(initialSet ? 'set' : 'blank');
   const [setChecklist, setSetChecklist] = useState<SetChecklist | null>(null);
   const [generation, setGeneration] = useState(1);
   const [query, setQuery] = useState('');
@@ -197,7 +198,7 @@ export function BinderCreationPresets({
           aria-label="Starting arrangement"
           value={mode}
           onChange={(e) => {
-            setMode(e.target.value);
+            setMode(e.target.value as CreationPreset);
             setSetChecklist(null);
             setPreviewPage(0);
             setQuery('');
