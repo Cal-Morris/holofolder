@@ -57,8 +57,15 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
         setCachedFallbackAllowed(false);
         return;
       }
-      /** accessCheck: the membership or billing read failed; retrying can recover without a reset. */
+      /** accessCheck: the membership or billing read failed; retrying can recover without a reset.
+       * closeFallback marks a definite answer (signed out, another account, access denied). A background recheck of an
+       * open collection that ends without one keeps it open: tearing it down unmounted the binder mid-edit, dropped
+       * the edit session and stranded the save that was refreshing, all for a blip the next recheck would clear. */
       const fail = (message: string, closeFallback: boolean, accessCheck = false) => {
+        if (kept && !closeFallback) {
+          lifetime.establish(request, kept);
+          return;
+        }
         if (kept) invalidate();
         setError({ message, accessCheck });
         if (closeFallback) setCachedFallbackAllowed(false);
