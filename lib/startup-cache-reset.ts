@@ -1,5 +1,5 @@
 import { SERVICE_WORKER_URL } from '@/lib/service-worker-registration';
-import { deleteBrowserOfflineDatabase } from '@/lib/offline-store/kv';
+import { getOfflineStore } from '@/lib/offline-store/kv';
 
 // Leave room for the 30s browser inventory request and 15s server read budget.
 export const CHECKED_STARTUP_TIMEOUT_MS = 45_000;
@@ -13,6 +13,18 @@ export function isOfflineCacheKey(key: string) {
   );
 }
 
+/** Queued edits and the saved binder they replay against. A reset must never drop these. */
+export function holdsQueuedEdits(key: string) {
+  return key.startsWith('slot-intent:') || key.startsWith('slot-navigation-v1:');
+}
+
+async function clearOfflineRecords() {
+  const store = getOfflineStore();
+  if (!store) return;
+  const keys = (await store.keys()).filter((key) => !holdsQueuedEdits(key));
+  await Promise.all(keys.map((key) => store.delete(key)));
+}
+
 export function isAppServiceWorker(scriptURL: string, scope: string, origin: string) {
   const script = new URL(scriptURL);
   const registeredScope = new URL(scope);
@@ -24,11 +36,11 @@ export function isAppServiceWorker(scriptURL: string, scope: string, origin: str
   );
 }
 
-/** One tab gets one automatic reset. Never touches cookies, auth storage or the device identity. */
+/** One tab gets one automatic reset. Never touches cookies, auth storage, the device identity or queued edits. */
 export async function resetStartupCaches() {
   for (const key of Object.keys(localStorage)) if (isOfflineCacheKey(key)) localStorage.removeItem(key);
   const results = await Promise.allSettled([
-    deleteBrowserOfflineDatabase(),
+    clearOfflineRecords(),
     caches
       .keys()
       .then((keys) => Promise.all(keys.filter((key) => key.startsWith('binderdex-')).map((key) => caches.delete(key)))),

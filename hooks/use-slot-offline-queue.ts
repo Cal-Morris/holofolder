@@ -11,6 +11,7 @@ import {
 import type { SlotOfflineIntent } from '@/lib/collection/slot-optimistic';
 import type { StagedSlotCommandIntent, SlotLocalAcceptance } from '@/lib/binder-slot-editing';
 import type { InventoryCatalogResolver, InventorySnapshot } from '@/lib/domain/inventory';
+import type { InventoryCatalogEvidence } from '@/lib/domain/inventory-browse';
 
 function sessionLifetime() {
   let active = false,
@@ -144,6 +145,7 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, 
       catalog: InventoryCatalogResolver,
       planningBase?: InventorySnapshot,
       isCurrent: () => boolean = () => true,
+      picked?: readonly InventoryCatalogEvidence[],
     ) {
       if (!active() || !session.queue) throw new Error('inactive-or-unavailable-session');
       const token = session.token();
@@ -153,6 +155,7 @@ export function useSlotOfflineQueue(scope: SlotOfflineScope, sessionId: string, 
         planningBase,
         () => (active(token) && isCurrent() ? session.scope : null),
         session.authSessionId,
+        picked,
       );
       return accepted(intent.request.operationId, token);
     },

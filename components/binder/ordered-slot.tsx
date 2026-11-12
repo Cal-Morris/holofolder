@@ -69,6 +69,9 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
   const released = useRef(false);
   const landing = useRef<Animation | null>(null);
   const fallback = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The cells measured for this pocket's drag, until they're back in place: a pocket that unmounts mid-drag or before
+  // its drop lands puts them back.
+  const shifted = useRef<{ el: Element; rect: DOMRect }[] | null>(null);
   // Slide from where it is drawn now, offset by (dx, dy) of grid movement, back to its own place.
   const settle = (dx: number, dy: number, spring: boolean) => {
     const el = ref.current;
@@ -96,9 +99,11 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
     if (!was || drag.current) return;
     const dx = was.x - now.x,
       dy = was.y - now.y;
-    if (released.current || ((dx || dy) && was.editing && now.editing) || (el.style.translate && (dx || dy))) {
+    // A dropped pocket lands when its move renders, not on an unrelated re-render (that left the gap open).
+    if ((dx || dy) && (released.current || (was.editing && now.editing) || el.style.translate)) {
       settle(dx, dy, released.current);
       released.current = false;
+      shifted.current = null;
       if (fallback.current) clearTimeout(fallback.current);
     }
   });
@@ -194,6 +199,17 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
     // Carrying a selection, the gap can't be shown one cell at a time: the target is outlined instead.
     if (carry < 2) preview(d.cells, over && index >= 0 ? index : -1);
   };
+  const shifts = shifted;
+  useEffect(
+    () => () => {
+      if (!shifts.current) return; // Not this pocket's drag.
+      for (const other of document.querySelectorAll<HTMLElement>('button[data-slot-id][data-carried]'))
+        delete other.dataset.carried;
+      document.querySelector('[data-drop-target]')?.removeAttribute('data-drop-target');
+      for (const cell of shifts.current ?? []) if (cell.el instanceof HTMLElement) cell.el.style.translate = '';
+    },
+    [shifts],
+  );
   const putDown = (drop: boolean) => {
     const el = ref.current,
       d = drag.current;
@@ -209,6 +225,7 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
     const rest = () => {
       fallback.current = null;
       released.current = false;
+      shifted.current = null;
       preview(d.cells, -1);
       settle(0, 0, true);
     };
@@ -279,6 +296,7 @@ function usePocketDrag(id: string, onDrag: PocketDrag | undefined, editing: bool
         start,
         over: null,
       };
+      shifted.current = cells;
       capture(event);
       el.dataset.dragging = '';
       if (carry > 1) {

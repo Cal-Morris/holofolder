@@ -925,6 +925,7 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
       planningBase?: InventorySnapshot,
       activeScope: () => SlotOfflineScope | null = () => scope,
       creationAuthSessionId?: string,
+      picked: readonly InventoryCatalogEvidence[] = [],
     ) {
       const intent = parseSlotIntent(raw);
       await update((record) => {
@@ -993,8 +994,17 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
         if (!record.optimistic || record.pending.some((p) => ['conflict', 'blocked', 'billing'].includes(p.status)))
           fail('queue-reconciliation-required');
         const next = projectSlotIntent(record.optimistic, intent, catalog);
+        // A card picked for this edit that the saved read doesn't know yet. Kept with the edit so it can be
+        // replayed onto a newer read after an earlier edit settles, instead of failing as a fake conflict.
+        let localCatalog: InventoryCatalogEvidence[] | undefined;
+        try {
+          if (picked.length) localCatalog = localCatalogEvidence(record.optimistic, picked);
+        } catch {
+          localCatalog = undefined;
+        }
         record.pending.push({
           ...(intent.kind === 'creation' && creationAuthSessionId ? { creationAuthSessionId } : {}),
+          ...(localCatalog ? { localCatalog } : {}),
           intent,
           base: intent.kind === 'raw-restore' ? null : record.optimistic,
           status: 'pending',
@@ -1413,11 +1423,26 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           p.lease ||
           !p.conflict?.rejected ||
           !current ||
-          record.pending.length !== 1
+          (decision.kind === 'replace' && record.pending.length !== 1) ||
+          record.pending
+            .slice(1)
+            .some(
+              (later) =>
+                later.lease ||
+                later.status === 'acknowledged' ||
+                later.intent.kind === 'creation' ||
+                later.intent.kind === 'raw-restore',
+            )
         )
           fail('reconciliation-required');
         if (decision.kind === 'keep-remote') {
-          record.receipts.push({ operationId, intent: p.intent, outcome: 'cancelled' });
+          // Edits queued behind the rejected one were planned on top of it, so they go with it.
+          for (const dropped of record.pending)
+            record.receipts.push({
+              operationId: dropped.intent.request.operationId,
+              intent: dropped.intent,
+              outcome: 'cancelled',
+            });
           record.pending = [];
           record.snapshot = current;
           record.optimistic = current;

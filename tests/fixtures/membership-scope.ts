@@ -203,11 +203,7 @@ async function useRun() {
   signalMembershipLifecycle('recheck');
   await settle();
   assert.equal(shared.currentScope(), null, 'a failed membership read never falls back to own or shared scope');
-  assert.deepEqual(
-    state,
-    { message: 'Synthetic membership read failed', accessCheck: true },
-    'membership failures are retryable access checks',
-  );
+  assert.equal(state, null, 'a failed membership read retries quietly instead of showing an error');
   target.dispatchEvent(new Event('focus'));
   await settle();
   assert.equal(shared.currentScope(), null, 'a failed retry stays closed');

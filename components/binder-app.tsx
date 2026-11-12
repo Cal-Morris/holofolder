@@ -297,32 +297,37 @@ export default function BinderApp(props: BinderAppProps) {
   const [startupError, setStartupError] = useState('');
   const [resetting, setResetting] = useState(false);
   const [startupOnline, setStartupOnline] = useState(true);
-  const opened = Boolean(scope && completedSession === scope.sessionId);
-  // A failed membership or billing read is retried from the page below, never by clearing offline data.
-  const accessRetry = browserScope.accessCheckFailed && startupOnline;
-  const failStartup = useCallback((reason: string) => {
-    if (!navigator.onLine) return;
-    setStartupError(reason);
-    try {
-      if (sessionStorage.getItem(STARTUP_RESET_KEY)) return;
-      sessionStorage.setItem(STARTUP_RESET_KEY, '1');
-    } catch {
-      return;
-    } // Without a durable guard, never risk a reload loop.
-    setResetting(true);
-    let deadline: ReturnType<typeof setTimeout>;
-    void Promise.race([
-      resetStartupCaches(),
-      new Promise<void>((_, reject) => {
-        deadline = setTimeout(() => reject(new Error('offline_cache_reset_timed_out')), 3000);
-      }),
-    ])
-      .catch(() => {})
-      .finally(() => {
-        clearTimeout(deadline);
-        window.location.reload();
-      });
-  }, []);
+  // Once the binder has opened, startup is over for this tab: a later scope blip or rotation never resets it.
+  const [everOpened, setEverOpened] = useState(false);
+  const openedNow = Boolean(scope && completedSession === scope.sessionId);
+  if (openedNow && !everOpened) setEverOpened(true);
+  const opened = openedNow || everOpened;
+  const failStartup = useCallback(
+    (reason: string) => {
+      if (!navigator.onLine || opened) return;
+      setStartupError(reason);
+      try {
+        if (sessionStorage.getItem(STARTUP_RESET_KEY)) return;
+        sessionStorage.setItem(STARTUP_RESET_KEY, '1');
+      } catch {
+        return;
+      } // Without a durable guard, never risk a reload loop.
+      setResetting(true);
+      let deadline: ReturnType<typeof setTimeout>;
+      void Promise.race([
+        resetStartupCaches(),
+        new Promise<void>((_, reject) => {
+          deadline = setTimeout(() => reject(new Error('offline_cache_reset_timed_out')), 3000);
+        }),
+      ])
+        .catch(() => {})
+        .finally(() => {
+          clearTimeout(deadline);
+          window.location.reload();
+        });
+    },
+    [opened],
+  );
   useEffect(() => {
     const update = () => setStartupOnline(navigator.onLine);
     update();
@@ -334,15 +339,18 @@ export default function BinderApp(props: BinderAppProps) {
     };
   }, []);
   useEffect(() => {
-    if (!nativeHost || opened || accessRetry || !startupOnline || !navigator.onLine) return;
+    // Only storage that hangs after the account check passed is reset. A check still retrying (dead Wi-Fi)
+    // keeps the saved copy on screen instead.
+    if (!nativeHost || opened || !scope || paintableSession === scope.sessionId || !startupOnline || !navigator.onLine)
+      return;
     const timer = setTimeout(() => failStartup(CHECKED_STARTUP_TIMEOUT_ERROR), CHECKED_STARTUP_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [nativeHost, opened, accessRetry, startupOnline, failStartup]);
+  }, [nativeHost, opened, scope, paintableSession, startupOnline, failStartup]);
   useEffect(() => {
-    if (!nativeHost || opened || !browserScope.error || browserScope.accessCheckFailed) return;
+    if (!nativeHost || opened || !browserScope.error) return;
     const timer = setTimeout(() => failStartup(browserScope.error!), 0);
     return () => clearTimeout(timer);
-  }, [nativeHost, opened, browserScope.error, browserScope.accessCheckFailed, failStartup]);
+  }, [nativeHost, opened, browserScope.error, failStartup]);
   if (!nativeHost) return <BinderAppSurface {...props} />;
   if (startupError && startupOnline && !opened)
     return (
@@ -366,11 +374,9 @@ export default function BinderApp(props: BinderAppProps) {
   const failed = browserScope.error ? (
     <main className="bg-background text-foreground flex min-h-dvh flex-col gap-3 px-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-[var(--dock-clearance)]">
       <p role="status">
-        {accessRetry
-          ? 'Could not check your collection access. Try again in a moment. Saved copies and pending edits are retained.'
-          : browserScope.cachedFallbackAllowed
-            ? 'Could not check your account. Connect and try again. Saved copies and pending edits are retained.'
-            : 'Saved storage is paused. Connect to check your account and collection access. Pending edits are retained.'}
+        {browserScope.cachedFallbackAllowed
+          ? 'Could not check your account. Connect and try again. Saved copies and pending edits are retained.'
+          : 'Saved storage is paused. Connect to check your account and collection access. Pending edits are retained.'}
       </p>
       <button
         type="button"
@@ -391,14 +397,13 @@ export default function BinderApp(props: BinderAppProps) {
       cols={props.startGrid?.cols ?? props.initialSettings.binderCols}
     />
   );
-  const placeholder =
-    browserScope.cachedFallbackAllowed && !accessRetry ? (
-      <CachedNativeStartup legacyProps={props} whileChecking>
-        {loading}
-      </CachedNativeStartup>
-    ) : (
-      loading
-    );
+  const placeholder = browserScope.cachedFallbackAllowed ? (
+    <CachedNativeStartup legacyProps={props} whileChecking>
+      {loading}
+    </CachedNativeStartup>
+  ) : (
+    loading
+  );
   const session = scope && admission.admitted ? scope : null;
   // The placeholder keeps its place (and its saved copy) until the session has something to paint,
   // so a reload goes skeleton or saved copy → binder once, never saved copy → skeleton → binder.
@@ -1565,8 +1570,8 @@ function BinderAppSurface(props: BinderAppProps) {
     (ids: readonly string[], moving: boolean) => setLayoutMarks({ ids: new Set(ids), moving }),
     [],
   );
-  const canEditLayout = Boolean(
-    (!browserSurface || browserSurface.editingAvailable) &&
+  // Where layout editing applies. Leaving it ends the edit session; a brief dip in the session's availability doesn't.
+  const layoutPlace = Boolean(
     !legacyReadOnlyMode &&
     !shareViewToken &&
     user &&
@@ -1577,6 +1582,7 @@ function BinderAppSurface(props: BinderAppProps) {
     collectionViewFilter === 'all' &&
     selectedGen === 0,
   );
+  const canEditLayout = layoutPlace && (!browserSurface || browserSurface.editingAvailable);
   const editingLayout = canEditLayout && layoutSession?.scope === layoutScopeKey;
   useEffect(() => {
     queueMicrotask(() => {
@@ -1584,7 +1590,7 @@ function BinderAppSurface(props: BinderAppProps) {
       setPocketMenu(null);
       closeSlotDetail();
     });
-  }, [layoutScopeKey, canEditLayout, closeSlotDetail]);
+  }, [layoutScopeKey, layoutPlace, closeSlotDetail]);
   const layoutBoundary =
     canEditLayout && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent
       ? {
@@ -4878,7 +4884,8 @@ function BinderAppSurface(props: BinderAppProps) {
                 if (editingLayout) layoutTap.current?.(id);
                 else startLayoutEditing({ ids: [id], moving: false });
               }}
-              onMove={() => startLayoutEditing({ ids: [pocketMenuSlot.id], moving: true })}
+              // Already editing: the pocket is dragged or moved from the bar; restarting the session lost its Undo.
+              onMove={editingLayout ? undefined : () => startLayoutEditing({ ids: [pocketMenuSlot.id], moving: true })}
             />
           )}
 

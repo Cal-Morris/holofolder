@@ -19,7 +19,7 @@ import type { InventoryReadScope } from '@/lib/collection/inventory-read-transpo
  * Invalidate synchronously in the auth callback before any claims/network await. */
 export function useBrowserCollectionScope(accountId: string | null, ownerUserId: string | null, enabled: boolean) {
   const [lifetime] = useState(() => collectionScopeLifetime<InventoryReadScope>());
-  const [error, setError] = useState<{ message: string; accessCheck: boolean } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [cachedFallbackAllowed, setCachedFallbackAllowed] = useState(true);
   const [resolved, setResolved] = useState<{
     accountId: string;
@@ -35,6 +35,8 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
   useEffect(() => {
     if (!enabled || !accountId) return;
     let active = true;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let retries = 0;
     const client = createClient();
     const invalidate = () => {
       const request = lifetime.invalidate();
@@ -57,18 +59,21 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
         setCachedFallbackAllowed(false);
         return;
       }
-      /** accessCheck: the membership or billing read failed; retrying can recover without a reset.
-       * closeFallback marks a definite answer (signed out, another account, access denied). A background recheck of an
-       * open collection that ends without one keeps it open: tearing it down unmounted the binder mid-edit, dropped
-       * the edit session and stranded the save that was refreshing, all for a blip the next recheck would clear. */
-      const fail = (message: string, closeFallback: boolean, accessCheck = false) => {
-        if (kept && !closeFallback) {
-          lifetime.establish(request, kept);
+      /** closeFallback marks a definite answer (signed out, another account, access denied). Anything else is a
+       * blip: a background recheck keeps the open collection (tearing it down unmounted the binder mid-edit), and a
+       * first check retries quietly with backoff while the saved copy stays on screen. */
+      const fail = (message: string, closeFallback: boolean) => {
+        if (!closeFallback) {
+          if (kept) lifetime.establish(request, kept);
+          else {
+            clearTimeout(retry);
+            retry = setTimeout(() => active && refresh(initial), Math.min(30_000, 1000 * 2 ** retries++));
+          }
           return;
         }
         if (kept) invalidate();
-        setError({ message, accessCheck });
-        if (closeFallback) setCachedFallbackAllowed(false);
+        setError(message);
+        setCachedFallbackAllowed(false);
       };
       // Auth callbacks must release the Supabase lock before checking claims.
       queueMicrotask(() => {
@@ -77,11 +82,6 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
           .then(async ({ data, error }) => {
             if (!active || !lifetime.isCurrent(request)) return;
             if (error) {
-              // A dropped connection during a recheck is not a reason to close an open collection.
-              if (kept && isAuthRetryableFetchError(error)) {
-                lifetime.establish(request, kept);
-                return;
-              }
               fail(error.message, !isAuthRetryableFetchError(error));
               return;
             }
@@ -98,8 +98,6 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
             const membership = await resolveCollectionMembership(client, accountId, {
               strictBilling: true,
               ownWhenDenied: true,
-            }).catch((cause) => {
-              throw { cause, accessCheck: true };
             });
             if (!active || !lifetime.isCurrent(request)) return;
             const ownerUserId = membership.ownerUserId;
@@ -110,7 +108,7 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
               });
               if (!active || !lifetime.isCurrent(request)) return;
               if (accessError) {
-                fail(accessError.message, false, true);
+                fail(accessError.message, false);
                 return;
               }
               if (allowed !== true) {
@@ -129,16 +127,11 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
               sessionId: crypto.randomUUID(),
             };
             if (!lifetime.establish(request, scope)) return;
+            retries = 0;
             setResolved({ accountId, ownerUserId, scope, partnerPaused: membership.partnerAccessDenied });
           })
-          .catch((thrown) => {
+          .catch((error) => {
             if (!active || !lifetime.isCurrent(request)) return;
-            const accessCheck = thrown?.accessCheck === true,
-              error = accessCheck ? thrown.cause : thrown;
-            if (kept && isAuthRetryableFetchError(error)) {
-              lifetime.establish(request, kept);
-              return;
-            }
             const denied =
               error instanceof BillingAccessError ||
               error?.status === 401 ||
@@ -149,7 +142,6 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
                 ? error.message
                 : 'account_access_check_failed',
               denied,
-              accessCheck && !denied,
             );
           });
       });
@@ -184,6 +176,7 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
     });
     return () => {
       active = false;
+      clearTimeout(retry);
       lifetime.invalidate();
       unsubscribeMembership();
       window.removeEventListener('online', recheck);
@@ -195,8 +188,7 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
   return {
     scope: current?.scope ?? null,
     partnerPaused: current?.partnerPaused === true,
-    error: error?.message ?? null,
-    accessCheckFailed: error?.accessCheck === true,
+    error,
     cachedFallbackAllowed,
     currentScope: () => lifetime.current(),
   };

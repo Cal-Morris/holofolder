@@ -48,32 +48,29 @@ export default function CachedNativeStartup({
       );
     };
     const client = createClient();
-    let initialized = false;
+    // Token refreshes, cold-client recovery and other tabs writing storage are not account changes: the saved copy
+    // stays unless the signed-in account no longer matches its saved identity.
+    const sameAccount = (session: Parameters<typeof cachedNativeIdentity>[1]) =>
+      session?.user.id === legacyProps.initialUser?.id && Boolean(cachedNativeIdentity(localStorage, session));
     const {
       data: { subscription },
     } = client.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION') {
-        initialized = true;
-        return;
-      }
-      // Cold-client recovery is not an account change; it must match the saved identity.
-      if (
-        !initialized &&
-        event === 'SIGNED_IN' &&
-        session?.user.id === legacyProps.initialUser?.id &&
-        cachedNativeIdentity(localStorage, session)
-      )
-        return;
-      invalidate();
+      if (event !== 'INITIAL_SESSION' && !sameAccount(session)) invalidate();
     });
+    const recheckStorage = () => {
+      void client.auth.getSession().then(({ data }) => {
+        if (active && !sameAccount(data.session)) invalidate();
+      }, invalidate);
+    };
     const unsubscribeMembership = subscribeMembershipLifecycle(() => {
       flushSync(() => {
         invalidate();
         closeAllOverlays();
       });
     });
-    window.addEventListener('online', invalidate);
-    window.addEventListener('storage', invalidate);
+    // While the live check runs it replaces this copy itself; only the offline shell hands over on reconnect.
+    if (!whileChecking) window.addEventListener('online', invalidate);
+    window.addEventListener('storage', recheckStorage);
     void (async () => {
       const session = await readDeviceStartupSession(() => client.auth.getSession());
       if (!active || (navigator.onLine && !whileChecking)) return;
@@ -106,7 +103,7 @@ export default function CachedNativeStartup({
       clearTimeout(expiry);
       subscription.unsubscribe();
       window.removeEventListener('online', invalidate);
-      window.removeEventListener('storage', invalidate);
+      window.removeEventListener('storage', recheckStorage);
     };
   }, [whileChecking, legacyProps.initialUser?.id, legacyProps.initialCollectionOwnerUserId]);
   if (
