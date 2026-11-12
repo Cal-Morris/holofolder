@@ -18,7 +18,14 @@ import { wantedCardKey } from '@/lib/collection/wanted-card-edit';
 import { inferCardFinish, formatCardNumber, type SearchCardResult } from '@/lib/pokemon-card-browse';
 import { getCardPickerFinishChoices } from '@/lib/card-picker-filters';
 import type { QuickCardAction, QuickCardState } from '@/components/quick-card-check';
-import { isCardLanguage, type CardFinish, type WantedCard } from '@/lib/domain/cards';
+import {
+  CARD_LANGUAGES,
+  isCardLanguage,
+  type CardFinish,
+  type CardLanguage,
+  type WantedCard,
+} from '@/lib/domain/cards';
+import { cardMatchesLanguages, DEFAULT_BINDER_CARD_LANGUAGES, parseLanguageSearch } from '@/lib/card-languages';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { useTCGdex, type TCGCard } from '@/hooks/use-tcgdex';
 import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices';
@@ -57,6 +64,8 @@ export interface PokemonCardsBrowserProps {
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null;
   /** The user's pricing region; printing prices are weighted for it. */
   pricingRegion?: PricingRegion;
+  /** The binder's card languages; other printings are hidden unless owned or wanted. Default English. */
+  cardLanguages?: readonly CardLanguage[] | null;
 }
 
 const FILTERS: Array<{ id: BrowseCardFilter; label: string }> = [
@@ -85,7 +94,9 @@ export default function PokemonCardsBrowser({
   onAddCard,
   formatPrice,
   pricingRegion = DEFAULT_PRICING_REGION,
+  cardLanguages,
 }: PokemonCardsBrowserProps) {
+  const binderLanguages = cardLanguages ?? DEFAULT_BINDER_CARD_LANGUAGES;
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
@@ -103,6 +114,7 @@ export default function PokemonCardsBrowser({
   const [loadError, setLoadError] = useState(false);
   const [filter, setFilter] = useState<BrowseCardFilter>('all');
   const [textFilter, setTextFilter] = useState('');
+  const [languageFilter, setLanguageFilter] = useState<CardLanguage | 'all'>('all');
   const [pendingCardId, setPendingCardId] = useState<string | null>(null);
   const displayName = pokemon ? formatPokemonDisplayName(pokemon.name) : (cardDetails?.card.name ?? 'Card');
   const [detailFinish, setDetailFinish] = useState<CardFinish>(cardDetails?.finish ?? 'normal');
@@ -140,12 +152,33 @@ export default function PokemonCardsBrowser({
     };
   }, [fetchCardsForPokemon, pokemonId]);
 
-  const allEntries = useMemo(
+  const catalogEntries = useMemo(
     () =>
       buildBrowseEntries(cards ?? [], nativeConsumer ? null : collectionItem).map((entry) =>
         nativeConsumer ? { ...entry, ...nativeCardState(nativeModel, entry.card) } : entry,
       ),
     [cards, collectionItem, nativeConsumer, nativeModel],
+  );
+  // The binder's languages hide catalogue noise only: owned, wanted and the card being looked at always show.
+  const allEntries = useMemo(
+    () =>
+      catalogEntries.filter(
+        (entry) =>
+          entry.owned ||
+          entry.wanted ||
+          entry.card.id === highlightCardId ||
+          cardMatchesLanguages(entry.card, binderLanguages),
+      ),
+    [binderLanguages, catalogEntries, highlightCardId],
+  );
+  const hiddenCount = catalogEntries.length - allEntries.length;
+  const shownLanguages = useMemo(
+    () =>
+      CARD_LANGUAGES.filter(
+        (language) =>
+          binderLanguages.includes(language) && allEntries.some((entry) => entry.card.languages?.includes(language)),
+      ),
+    [allEntries, binderLanguages],
   );
   const counts = useMemo(
     () => ({
@@ -169,9 +202,13 @@ export default function PokemonCardsBrowser({
     const byState = allEntries.filter(
       (entry) => filter === 'all' || (filter === 'owned' ? entry.owned : entry.wanted && !entry.owned),
     );
-    const needle = textFilter.trim().toLowerCase();
-    if (!needle) return byState;
-    return byState.filter((entry) =>
+    const search = parseLanguageSearch(textFilter);
+    const languages =
+      search.languages.length > 0 ? search.languages : languageFilter === 'all' ? null : [languageFilter];
+    const byLanguage = languages ? byState.filter((entry) => cardMatchesLanguages(entry.card, languages)) : byState;
+    const needle = search.text.toLowerCase();
+    if (!needle) return byLanguage;
+    return byLanguage.filter((entry) =>
       [
         entry.card.name,
         entry.card.set.name,
@@ -181,7 +218,7 @@ export default function PokemonCardsBrowser({
         ...entry.variantLabels,
       ].some((value) => value.toLowerCase().includes(needle)),
     );
-  }, [allEntries, filter, textFilter]);
+  }, [allEntries, filter, languageFilter, textFilter]);
 
   const priceLookups = useMemo(
     () => allEntries.map((entry) => ({ cardId: entry.card.id, language: entry.card.language ?? 'en' })),
@@ -216,7 +253,7 @@ export default function PokemonCardsBrowser({
       })),
     [allEntries],
   );
-  const showBreakout = filter === 'all' && !textFilter.trim();
+  const showBreakout = filter === 'all' && languageFilter === 'all' && !textFilter.trim();
 
   const scrollToCard = useCallback((cardId: string) => {
     const target = bodyRef.current?.querySelector<HTMLElement>(`li[data-card-id="${CSS.escape(cardId)}"]`);
@@ -335,7 +372,7 @@ export default function PokemonCardsBrowser({
               ))}
             </div>
             <label className="relative min-w-[10rem] flex-1">
-              <span className="sr-only">Filter by set, number or variant</span>
+              <span className="sr-only">Filter by set, number, variant or language (eng, jpn)</span>
               <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
               <input
                 type="search"
@@ -347,6 +384,25 @@ export default function PokemonCardsBrowser({
               />
             </label>
           </div>
+          {shownLanguages.length > 1 && (
+            <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Filter by language" data-no-swipe>
+              {(['all', ...shownLanguages] as const).map((language) => (
+                <button
+                  key={language}
+                  type="button"
+                  aria-pressed={languageFilter === language}
+                  onClick={() => setLanguageFilter(language)}
+                  className={`h-9 rounded-full border px-3 text-xs font-semibold transition-colors ${
+                    languageFilter === language
+                      ? 'border-primary/35 bg-primary/12 text-primary'
+                      : 'border-border/50 bg-card text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {language === 'all' ? 'All languages' : formatCardLanguageLabel(language)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-4">
@@ -630,6 +686,12 @@ export default function PokemonCardsBrowser({
                 })}
               </ul>
             </>
+          )}
+          {cards !== null && hiddenCount > 0 && (
+            <p className="text-muted-foreground mt-4 px-2 text-center text-xs">
+              {hiddenCount} {hiddenCount === 1 ? 'printing' : 'printings'} in other languages hidden. Choose this
+              binder’s card languages in Binders → Edit.
+            </p>
           )}
         </div>
       </div>

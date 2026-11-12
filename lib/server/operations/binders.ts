@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveCollectionOwnerUserId } from '@/lib/server/collection-owner';
 import { ensureDefaultBinderId, listOwnerBinders } from '@/lib/server/binders';
 import { isBinderId, normalizeBinderName, type Binder } from '@/lib/binders/model';
+import { normalizeBinderCardLanguages } from '@/lib/card-languages';
+import { isMissingColumnError } from '@/lib/settings';
 import { canCreateBinder, validateBinderOrder } from '@/lib/binders/manage';
 import { BillingAccessError, canCreateOwnerBinder, isBillingError } from '@/lib/billing';
 import { billingErrorResponse, getBillingAccess } from '@/lib/server/billing';
@@ -106,7 +108,12 @@ export async function updateBinder(request: NextRequest, actor: Pick<User, 'id'>
     const session = await requireOwner(actor, verifiedOwnerId);
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     const { admin, ownerUserId } = session;
-    const body = (await request.json().catch(() => null)) as { id?: unknown; name?: unknown; order?: unknown } | null;
+    const body = (await request.json().catch(() => null)) as {
+      id?: unknown;
+      name?: unknown;
+      order?: unknown;
+      cardLanguages?: unknown;
+    } | null;
     const binders = await listOwnerBinders(admin, ownerUserId);
 
     if (body?.order !== undefined) {
@@ -124,9 +131,20 @@ export async function updateBinder(request: NextRequest, actor: Pick<User, 'id'>
     if (!isBinderId(body?.id) || !binders.some((binder) => binder.id === body.id)) {
       return NextResponse.json({ error: 'Binder not found' }, { status: 404 });
     }
-    const name = normalizeBinderName(body?.name);
-    if (!name) return NextResponse.json({ error: 'Give the binder a name (up to 40 characters)' }, { status: 400 });
-    const { error } = await admin.from('binders').update({ name }).eq('id', body.id).eq('owner_user_id', ownerUserId);
+    const update: { name?: string; card_languages?: string[] } = {};
+    if (body.name !== undefined || body.cardLanguages === undefined) {
+      const name = normalizeBinderName(body.name);
+      if (!name) return NextResponse.json({ error: 'Give the binder a name (up to 40 characters)' }, { status: 400 });
+      update.name = name;
+    }
+    if (body.cardLanguages !== undefined) {
+      const cardLanguages = normalizeBinderCardLanguages(body.cardLanguages);
+      if (!cardLanguages) return NextResponse.json({ error: 'Choose at least one card language' }, { status: 400 });
+      update.card_languages = cardLanguages;
+    }
+    const { error } = await admin.from('binders').update(update).eq('id', body.id).eq('owner_user_id', ownerUserId);
+    if (error && isMissingColumnError(error))
+      return NextResponse.json({ error: 'Card languages are not available yet' }, { status: 503 });
     if (error) throw error;
     return respond(await listWithCounts(admin, ownerUserId));
   } catch (error) {

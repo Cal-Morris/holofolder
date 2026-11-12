@@ -1,4 +1,6 @@
 import { isBinderSlug } from '@/lib/binders/url';
+import { normalizeBinderCardLanguages } from '@/lib/card-languages';
+import type { CardLanguage } from '@/lib/domain/cards';
 
 // Multiple binders: shared types and row mapping (see docs/multiple-binders.md).
 // Every binder is a full National Dex binder; slots (pokemon_collection rows) belong to one binder.
@@ -15,6 +17,8 @@ export interface Binder {
   /** Page size for this binder; null inherits the account's binder settings. */
   rows: number | null;
   cols: number | null;
+  /** Card languages its "All cards" sheet shows; null (or missing before migration 115) means English only. */
+  cardLanguages?: CardLanguage[] | null;
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -57,6 +61,7 @@ export function binderFromRow(row: Record<string, unknown>): Binder | null {
     isDefault: row.is_default === true,
     rows: intOrNull(row.binder_rows),
     cols: intOrNull(row.binder_cols),
+    cardLanguages: normalizeBinderCardLanguages(row.card_languages),
     createdAt: stringOrNull(row.created_at),
     updatedAt: stringOrNull(row.updated_at),
   };

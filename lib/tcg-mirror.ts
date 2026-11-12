@@ -3,7 +3,8 @@ import type { ImportLookup } from '@/lib/collection-import';
 import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
 import { getSetArtwork } from '@/lib/set-artwork';
 import { isSetYearQuery, rankSetMatches } from '@/lib/set-search';
-import type { CardCatalogIdentity } from '@/lib/domain/cards';
+import type { CardCatalogIdentity, CardLanguage } from '@/lib/domain/cards';
+import { cardLanguagesFromNames } from '@/lib/card-languages';
 import { deduplicateCatalogCards, readCatalogMetadata } from '@/lib/card-catalog';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
@@ -36,6 +37,8 @@ export interface MirroredTCGCard extends CardCatalogIdentity {
   localId: string;
   name: string;
   image?: string;
+  /** Languages this printing exists in (from its TCGdex names). */
+  languages?: CardLanguage[];
   set: {
     id: string;
     name: string;
@@ -56,32 +59,7 @@ export interface MirroredTCGCard extends CardCatalogIdentity {
   illustrator?: string;
 }
 
-type MirroredCardQueryResult =
-  | (CardCatalogIdentity & {
-      id: string;
-      localId: string;
-      name: string;
-      image?: string;
-      set: {
-        id: string;
-        name: string;
-        officialCardCount?: number;
-        releaseDate?: string;
-      };
-      rarity?: string;
-      variants?: {
-        normal?: boolean;
-        reverse?: boolean;
-        holo?: boolean;
-        firstEdition?: boolean;
-        wPromo?: boolean;
-        jumbo?: boolean;
-      };
-      hp?: number;
-      types?: string[];
-      illustrator?: string;
-    })
-  | null;
+type MirroredCardQueryResult = MirroredTCGCard | null;
 
 const MIRRORED_CARD_SELECT = `
   dex_id,
@@ -109,7 +87,7 @@ const MIRRORED_CARD_SELECT = `
 
 const MIRROR_CACHE_LIFE = 'days';
 const HIDDEN_SET_IDS = new Set(['jumbo']);
-const MIRROR_CACHE_VERSION = 'v5-catalog-printings';
+const MIRROR_CACHE_VERSION = 'v6-card-languages';
 
 function cacheSafeTag(prefix: string, value: string | number) {
   return `${prefix}:${String(value)
@@ -176,6 +154,7 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
         localId: readCatalogMetadata(card.external_ids_json).localId ?? card.local_id,
         name: pickLocalizedText(card.name_json, language) || `Pokemon #${pokemonId}`,
         image,
+        languages: cardLanguagesFromNames(card.name_json),
         set: {
           id: set.id,
           name: pickLocalizedText(set.name_json, language) || set.id,

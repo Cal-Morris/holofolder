@@ -8,7 +8,10 @@ import { ActivityButton } from '@/components/collection-activity-context';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { OverlayLink } from '@/components/overlay-link';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, Check, Loader2, Paintbrush, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Languages, Loader2, Paintbrush, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { CARD_LANGUAGES, type CardLanguage } from '@/lib/domain/cards';
+import { DEFAULT_BINDER_CARD_LANGUAGES } from '@/lib/card-languages';
+import { CARD_LANGUAGE_LABELS } from '@/lib/card-labels';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { BINDER_NAME_MAX_LENGTH, MAX_BINDERS_PER_OWNER, type Binder } from '@/lib/binders/model';
 import { POKEMON_CATALOG } from '@/lib/pokemon-catalog';
@@ -69,6 +72,7 @@ export default function BinderSwitcherSheet({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [languagesId, setLanguagesId] = useState<string | null>(null);
   const [deleteAcknowledged, setDeleteAcknowledged] = useState(false);
 
   useEffect(() => {
@@ -127,6 +131,15 @@ export default function BinderSwitcherSheet({
     void run(`rename:${binderId}`, async () => {
       apply((await bindersApi.rename(binderId, renameDraft)).binders);
       setRenamingId(null);
+    });
+  };
+
+  const handleToggleLanguage = (binder: Row, language: CardLanguage) => {
+    const current = binder.cardLanguages ?? DEFAULT_BINDER_CARD_LANGUAGES;
+    const next = current.includes(language) ? current.filter((item) => item !== language) : [...current, language];
+    if (next.length === 0) return;
+    void run(`languages:${binder.id}`, async () => {
+      apply((await bindersApi.setCardLanguages(binder.id, next)).binders);
     });
   };
 
@@ -204,6 +217,7 @@ export default function BinderSwitcherSheet({
                     setIsManaging((value) => !value);
                     setConfirmDeleteId(null);
                     setRenamingId(null);
+                    setLanguagesId(null);
                   }}
                   aria-pressed={isManaging}
                   disabled={!isOnline}
@@ -255,6 +269,8 @@ export default function BinderSwitcherSheet({
               const isActive = binder.id === activeBinderId;
               const isRenaming = managing && renamingId === binder.id;
               const isConfirmingDelete = managing && confirmDeleteId === binder.id;
+              const isChoosingLanguages = managing && languagesId === binder.id;
+              const binderLanguages = binder.cardLanguages ?? DEFAULT_BINDER_CARD_LANGUAGES;
               const hasSlots = (binder.slotCount ?? 0) > 0;
               const openableOffline = isActive || Boolean(offlineBinderIds?.has(binder.id));
               const switchDisabled = managing || (canManage && !isOnline && !openableOffline);
@@ -358,10 +374,25 @@ export default function BinderSwitcherSheet({
                               setRenamingId(binder.id);
                               setRenameDraft(binder.name);
                               setConfirmDeleteId(null);
+                              setLanguagesId(null);
                             }}
                             className="text-muted-foreground hover:bg-muted/70 flex h-9 w-9 items-center justify-center rounded-full"
                           >
                             <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Card languages for ${binder.name}`}
+                            aria-expanded={isChoosingLanguages}
+                            disabled={busy !== null}
+                            onClick={() => {
+                              setLanguagesId(isChoosingLanguages ? null : binder.id);
+                              setRenamingId(null);
+                              setConfirmDeleteId(null);
+                            }}
+                            className="text-muted-foreground hover:bg-muted/70 aria-expanded:text-primary flex h-9 w-9 items-center justify-center rounded-full"
+                          >
+                            <Languages className="h-4 w-4" />
                           </button>
                           <button
                             type="button"
@@ -372,6 +403,7 @@ export default function BinderSwitcherSheet({
                               setConfirmDeleteId(binder.id);
                               setDeleteAcknowledged(false);
                               setRenamingId(null);
+                              setLanguagesId(null);
                             }}
                             className="text-destructive hover:bg-destructive/10 flex h-9 w-9 items-center justify-center rounded-full disabled:opacity-30"
                           >
@@ -379,6 +411,39 @@ export default function BinderSwitcherSheet({
                           </button>
                         </div>
                       )}
+                    </div>
+                  )}
+                  {isChoosingLanguages && (
+                    <div
+                      role="group"
+                      aria-label={`Card languages for ${binder.name}`}
+                      className="border-border/60 bg-muted/30 mx-1.5 mb-1.5 rounded-xl border p-2.5"
+                    >
+                      <p className="text-xs font-semibold">Card languages</p>
+                      <p className="text-muted-foreground mt-0.5 text-[11px]">
+                        Which printings this binder’s card lists show. Cards you own or want always show.
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {CARD_LANGUAGES.map((language) => {
+                          const on = binderLanguages.includes(language);
+                          return (
+                            <button
+                              key={language}
+                              type="button"
+                              aria-pressed={on}
+                              disabled={busy !== null || (on && binderLanguages.length === 1)}
+                              onClick={() => handleToggleLanguage(binder, language)}
+                              className={`h-9 rounded-full border px-3 text-xs font-semibold transition-colors disabled:opacity-60 ${
+                                on
+                                  ? 'border-primary/35 bg-primary/12 text-primary'
+                                  : 'border-border/50 bg-card text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              {CARD_LANGUAGE_LABELS[language]}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                   {isConfirmingDelete && (

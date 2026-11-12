@@ -4788,6 +4788,7 @@ function BinderAppSurface(props: BinderAppProps) {
               onAddCard={readOnlyMode ? undefined : requireAccount}
               formatPrice={priceFormat.label}
               pricingRegion={pricingPreferences.region}
+              cardLanguages={activeBinder?.cardLanguages}
             />
           ) : null}
 
