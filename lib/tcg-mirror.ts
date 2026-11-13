@@ -1,5 +1,10 @@
 import { hasRarity, matchCardNicknames, matchesNicknameRest, matchRarityWords } from '@/lib/card-nicknames';
-import { cardSearchSetCandidates, correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
+import {
+  cardNameSearchFilter,
+  cardSearchSetCandidates,
+  correctedCardSearchQuery,
+  resolveCardSearchQuery,
+} from '@/lib/card-search-query';
 import type { ImportLookup } from '@/lib/collection-import';
 import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
 import { getSetArtwork } from '@/lib/set-artwork';
@@ -784,7 +789,7 @@ export async function searchMirroredCards(
     if (numberCandidates) bySet = bySet.in('local_id', numberCandidates);
     requests.push(bySet.order('local_id_sort', { ascending: true, nullsFirst: false }).limit(SET_BROWSE_LIMIT));
   } else if (parsed.text.length >= 2) {
-    let byName = admin.from('tcg_cards').select(select).ilike('name_en', `%${parsed.text}%`);
+    let byName = admin.from('tcg_cards').select(select).or(cardNameSearchFilter(parsed.text));
     if (numberCandidates) byName = byName.in('local_id', numberCandidates);
     requests.push(byName.limit(limit));
 
