@@ -1048,8 +1048,7 @@ export default function CardSelector({
         </div>
       )}
 
-      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- backdrop tap; keyboard users close with Escape via useOverlay */}
-      <div data-overlay-backdrop className="fixed inset-0 z-50 bg-black/80" onClick={onClose} />
+      <div data-overlay-backdrop aria-hidden="true" className="fixed inset-0 z-50 bg-black/80" onClick={onClose} />
       {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops taps bubbling to parent overlays through the React tree */}
       <div
         ref={selectorDialogRef}

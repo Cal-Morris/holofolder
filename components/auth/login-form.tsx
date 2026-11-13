@@ -25,6 +25,7 @@ const subscribeToNothing = () => () => {};
 const readRecoveryMode = () => new URLSearchParams(window.location.search).get('mode') === 'recovery';
 const serverRecoveryMode = () => false;
 
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent form fields and status; one reducer would not read better
 export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -267,6 +268,7 @@ export function LoginForm() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
+                    // oxlint-disable-next-line jsx-a11y/no-autofocus -- the reset page's only task is this field
                     autoFocus
                   />
                 </div>
@@ -368,6 +370,7 @@ export function LoginForm() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
+                    // oxlint-disable-next-line jsx-a11y/no-autofocus -- the sign-in page's only task starts at this field
                     autoFocus
                   />
                 </div>
@@ -425,6 +428,7 @@ export function LoginForm() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
+                      // oxlint-disable-next-line jsx-a11y/no-autofocus -- the sign-in page's only task starts at this field
                       autoFocus
                     />
                   </div>

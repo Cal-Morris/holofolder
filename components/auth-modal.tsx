@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { X, Loader2, Mail, Sparkles, KeyRound } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -20,6 +20,7 @@ type AuthMethod = 'magic-link' | 'password';
 type PasswordMode = 'sign-in' | 'sign-up';
 type SuccessState = 'magic-link' | 'password-signup' | 'password-reset' | null;
 
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent form fields and status; one reducer would not read better
 export default function AuthModal({ isOpen, initialMode = 'sign-in', returnTo, onClose }: AuthModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const [email, setEmail] = useState('');
@@ -33,14 +34,20 @@ export default function AuthModal({ isOpen, initialMode = 'sign-in', returnTo, o
 
   const supabase = createClient();
 
-  useEffect(() => {
-    if (!isOpen) return;
-    setError(null);
-    setSuccess(null);
-    setIsLoading(false);
-    setAuthMethod('password');
-    setPasswordMode(initialMode);
-  }, [isOpen, initialMode]);
+  // Each opening (or a new initial mode while open) starts on a fresh password form.
+  const openedAs = isOpen ? initialMode : null;
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- React's previous-prop pattern: remembers how the modal was last opened to reset it during render
+  const [shownAs, setShownAs] = useState<PasswordMode | null>(null);
+  if (shownAs !== openedAs) {
+    setShownAs(openedAs);
+    if (openedAs) {
+      setError(null);
+      setSuccess(null);
+      setIsLoading(false);
+      setAuthMethod('password');
+      setPasswordMode(openedAs);
+    }
+  }
 
   const closeAndReload = () => {
     onClose();
@@ -63,8 +70,8 @@ export default function AuthModal({ isOpen, initialMode = 'sign-in', returnTo, o
 
       if (error) throw error;
       setSuccess('magic-link');
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err) {
+      setError((err instanceof Error && err.message) || 'An error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -111,8 +118,8 @@ export default function AuthModal({ isOpen, initialMode = 'sign-in', returnTo, o
 
       if (error) throw error;
       closeAndReload();
-    } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+    } catch (err) {
+      setError((err instanceof Error && err.message) || 'Authentication failed');
     } finally {
       setIsLoading(false);
     }
@@ -134,8 +141,8 @@ export default function AuthModal({ isOpen, initialMode = 'sign-in', returnTo, o
 
       if (error) throw error;
       setSuccess('password-reset');
-    } catch (err: any) {
-      setError(err.message || 'Could not send a password reset link.');
+    } catch (err) {
+      setError((err instanceof Error && err.message) || 'Could not send a password reset link.');
     } finally {
       setIsLoading(false);
     }
@@ -172,6 +179,7 @@ export default function AuthModal({ isOpen, initialMode = 'sign-in', returnTo, o
   return (
     <div
       data-overlay-backdrop
+      role="presentation"
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
