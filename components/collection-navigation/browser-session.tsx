@@ -208,6 +208,9 @@ function ScopedBrowserSession({
   const consumerAdmission = useRef<import('@/lib/collection/native-card-consumers').NativeConsumerBinding['admit']>(
     () => null,
   );
+  const acquireAdmission = useRef<
+    NonNullable<import('@/lib/collection/native-card-consumers').NativeConsumerBinding['acquire']>
+  >(() => null);
   const [read, setRead] = useState<CollectionNavigationRead>({
     scope: navigationScope,
     evidence: { kind: 'unavailable' },
@@ -802,8 +805,24 @@ function ScopedBrowserSession({
         receive,
       };
     };
+    // Bought queues like any binder edit: offline and behind other queued edits, planned on what this device shows.
+    acquireAdmission.current = () =>
+      valid() && !setupPending.current && visibleRead.evidence.kind !== 'unavailable'
+        ? {
+            read: visibleRead,
+            context: () => ({
+              source: 'app',
+              clientId: deviceId,
+              operationId: crypto.randomUUID(),
+              batchId: null,
+              clientOccurredAt: new Date().toISOString(),
+            }),
+            receive,
+          }
+        : null;
     return () => {
       consumerAdmission.current = () => null;
+      acquireAdmission.current = () => null;
     };
   });
 
@@ -1263,6 +1282,7 @@ function ScopedBrowserSession({
                       : (surface.state.collectionId ?? undefined),
                   editingAvailable: bulkFillAvailable && !queue.record?.legacy.length,
                   admit: () => consumerAdmission.current(),
+                  acquire: () => acquireAdmission.current(),
                 },
                 analytics: { scope: navigationScope, read: visibleRead },
                 toolbar: surface.header,

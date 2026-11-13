@@ -367,6 +367,7 @@ function BundleBought({
     );
     return {
       entries: entries.map((entry, index) => ({
+        card: entry.card,
         cardId: entry.card.id,
         cardName: entry.card.name,
         language: entry.card.language ?? 'en',
