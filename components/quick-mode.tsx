@@ -707,7 +707,7 @@ function QuickMode({
               {preparingOffline ? 'Prepare offline' : lookupOnly ? 'Price check' : show ? 'Show mode' : 'Quick mode'}
             </h2>
           </div>
-          {show && !nativeConsumer && (
+          {show && (
             <button
               type="button"
               onClick={() => setPreparingOffline((value) => !value)}

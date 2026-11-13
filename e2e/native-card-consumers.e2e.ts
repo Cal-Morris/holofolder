@@ -276,7 +276,8 @@ test('native bundle compares repeated exact printings, removes one entry, and st
   await expect(items).toHaveCount(1);
   await expect(bundle.getByRole('button', { name: /Bought|Check bundle prices|Unlock|Replace/ })).toHaveCount(0);
   await expect(bundle.getByRole('region', { name: 'Bundle destination' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Prepare offline/ })).toHaveCount(0);
+  // Show's binder prep is a read-only download and stays in the header; the bundle itself offers none.
+  await expect(bundle.getByRole('button', { name: /Prepare offline/ })).toHaveCount(0);
   await bundle.getByRole('button', { name: 'Clear bundle' }).click();
   await expect(bundle.getByRole('button', { name: 'Remove Synthetic Trainer from bundle' })).toHaveCount(0);
   await expect(page.getByLabel('Synthetic draft count')).toHaveText('0');

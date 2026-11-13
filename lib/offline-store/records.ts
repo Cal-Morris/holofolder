@@ -1,7 +1,5 @@
 // What Holo Folder keeps in IndexedDB for offline use. Every record is a plain, versionless JSON value
 // under a fixed key; readers validate what they get back.
-import type { CollectedPokemon } from '@/lib/domain/cards';
-import { normalizeCollectionItems } from '@/lib/collection/normalize';
 import type { TCGSetSlotsResponse } from '@/lib/tcg-set-slots';
 import type { OfflineKeyValueStore } from '@/lib/offline-store/kv';
 import {
@@ -11,34 +9,8 @@ import {
   type IllustratorSummary,
 } from '@/lib/illustrators';
 
-export const COLLECTION_RECORD_KEY = 'collection';
 const SET_QUERY_PREFIX = 'sets:query:';
 export const MAX_STORED_SET_QUERIES = 40;
-
-/** The saved collection plus the edits not yet synced. The wantlist is derived from the same rows. */
-export interface CollectionRecord {
-  ownerUserId: string | null;
-  /** The binder the collection is of; null for the single-binder layout. */
-  binderId?: string | null;
-  savedAt: string;
-  collection: CollectedPokemon[];
-  pendingOperations: unknown[];
-}
-
-export async function loadCollectionRecord(
-  store: OfflineKeyValueStore,
-  key = COLLECTION_RECORD_KEY,
-): Promise<CollectionRecord | null> {
-  const value = await store.get<Partial<CollectionRecord>>(key);
-  if (!value || !Array.isArray(value.collection)) return null;
-  return {
-    ownerUserId: typeof value.ownerUserId === 'string' ? value.ownerUserId : null,
-    binderId: typeof value.binderId === 'string' ? value.binderId : null,
-    savedAt: typeof value.savedAt === 'string' ? value.savedAt : new Date(0).toISOString(),
-    collection: normalizeCollectionItems(value.collection),
-    pendingOperations: Array.isArray(value.pendingOperations) ? value.pendingOperations : [],
-  };
-}
 
 /** Set-coverage lookups the user made (`/app/api/tcg-set-slots` responses), keyed by their query string. */
 interface StoredSetQuery {

@@ -767,9 +767,10 @@ function BinderAppSurface(props: BinderAppProps) {
   }, [initialBinderId, readOnlyMode, trackGoogleEvent]);
   // The binder list stays on this device, so the switcher still works offline (lib/binders/offline.ts).
   useEffect(() => {
-    if (readOnlyMode || !user || !resolvedCollectionOwnerUserId || binders.length === 0) return;
+    // Native binders render read-only surfaces, so this keys on shares and read-only views, not readOnlyMode.
+    if (accountSettingsReadOnly || !user || !resolvedCollectionOwnerUserId || binders.length === 0) return;
     rememberDeviceBinders(window.localStorage, resolvedCollectionOwnerUserId, binders);
-  }, [binders, readOnlyMode, resolvedCollectionOwnerUserId, user]);
+  }, [binders, accountSettingsReadOnly, resolvedCollectionOwnerUserId, user]);
   useEffect(() => {
     queueMicrotask(closeSlotDetail);
   }, [stagedSlotDisplay?.inventory.ownerUserId, stagedSlotDisplay?.binder.collectionId, user?.id, closeSlotDetail]);
@@ -3592,6 +3593,15 @@ function BinderAppSurface(props: BinderAppProps) {
         : null,
     [isQuickModeOpen, nativeScope, nativeRead, nativeCollectionId],
   );
+  // Show mode's offline prep: every owned and wanted printing of this binder, whatever the current view.
+  const prepBinderId = initialBinderId ?? nativeCollectionId ?? binders.find((binder) => binder.isDefault)?.id ?? null;
+  const nativePrepRows = useMemo(
+    () =>
+      isQuickModeOpen && nativeScope && nativeRead && prepBinderId
+        ? nativeSpeciesCollection({ scope: nativeScope, read: nativeRead, collectionId: prepBinderId })?.rows
+        : undefined,
+    [isQuickModeOpen, nativeScope, nativeRead, prepBinderId],
+  );
   // Shares have no browser session: species views use the public index, same shape as nativeSpeciesCollection.
   const speciesCollection = nativeSpecies ?? (publicIndex && nativeSpeciesView ? publicIndex.species : null);
 
@@ -4666,12 +4676,9 @@ function BinderAppSurface(props: BinderAppProps) {
             <QuickMode
               nativeConsumer={nativeConsumer}
               offlineBinder={{
-                collection,
-                scope: {
-                  ownerUserId: resolvedCollectionOwnerUserId ?? null,
-                  binderId: initialBinderId,
-                  isDefault: activeBinder?.isDefault !== false,
-                },
+                collection: nativePrepRows ?? collection,
+                accountUserId: user?.id ?? null,
+                scope: { ownerUserId: resolvedCollectionOwnerUserId ?? null, binderId: prepBinderId },
               }}
               history={history}
               onClose={closeQuickMode}

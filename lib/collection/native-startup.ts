@@ -118,3 +118,25 @@ export async function readDeviceStartupSession(
     clearTimeout(timer);
   }
 }
+
+/** The owner's native snapshot saved on this device, with its queued edits applied. Null when nothing is saved. */
+export async function readSavedNativeSnapshot(
+  store: AtomicOfflineStore,
+  storage: Pick<Storage, 'getItem'>,
+  accountId: string | null,
+  ownerUserId: string | null,
+) {
+  try {
+    const deviceId = storage.getItem('holofolder-slot-device-v1');
+    if (!accountId || !ownerUserId || !isSlotContractId(deviceId)) return null;
+    const record = await createSlotOfflineQueue(store, {
+      deviceId,
+      workspaceId: 'holofolder',
+      accountId,
+      ownerUserId,
+    }).read();
+    return record.optimistic ?? record.snapshot;
+  } catch {
+    return null;
+  }
+}

@@ -1625,16 +1625,6 @@
       "file": "offline-search.e2e.ts",
       "title": [
         "offline search and card show prep",
-        "Show finder prepares offline without opening Sets, then inspects partial saved data offline"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByRole('button', { name: 'Prepare offline', exact: true })"
-    },
-    {
-      "file": "offline-search.e2e.ts",
-      "title": [
-        "offline search and card show prep",
         "wanted sets are offered directly and stopping a size check keeps the panel usable"
       ],
       "cause": "stale-selector-or-flow",

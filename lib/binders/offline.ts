@@ -1,6 +1,5 @@
-// Multiple binders offline: where each binder's saved copy lives on this device, and which binders it can open
-// without a connection. The default binder keeps the original keys, so data saved before binders stays valid;
-// every other binder gets its own `…:<binderId>` keys (see docs/multiple-binders.md).
+// Multiple binders offline: which binders this device can open without a connection. Their data is the owner's
+// native snapshot in IndexedDB (lib/collection/slot-offline-queue.ts); this list only says which binders it holds.
 import type { Binder } from '@/lib/binders/model';
 import { matchBinder } from '@/lib/binders/url';
 
@@ -9,11 +8,6 @@ export const DEVICE_BINDERS_KEY = 'binderdex_device_binders_v1';
 
 type ReadableStorage = Pick<Storage, 'getItem'>;
 type WritableStorage = Pick<Storage, 'getItem' | 'setItem'>;
-
-/** The IndexedDB record key of a binder's collection copy. Pending edits stay in the default record (one queue). */
-export function collectionRecordKey(binderId: string | null | undefined, isDefault: boolean) {
-  return binderId && !isDefault ? `collection:${binderId}` : 'collection';
-}
 
 export interface DeviceBinders {
   ownerUserId: string;
@@ -67,10 +61,11 @@ export function rememberDeviceBinders(
   const next: DeviceBinders = {
     ownerUserId,
     binders: binders.map(
-      ({ id, ownerUserId: owner, name, color, sortOrder, isDefault, rows, cols, createdAt, updatedAt }) => ({
+      ({ id, ownerUserId: owner, name, slug, color, sortOrder, isDefault, rows, cols, createdAt, updatedAt }) => ({
         id,
         ownerUserId: owner,
         name,
+        slug,
         color,
         sortOrder,
         isDefault,
@@ -87,20 +82,23 @@ export function rememberDeviceBinders(
   writeDeviceBinders(storage, next);
 }
 
-/** Note that this device now holds a saved copy of a binder (called when its collection snapshot is written). */
-export function markBinderSavedOnDevice(
+/**
+ * Record which binders this device holds a saved copy of: the binders in the owner's native snapshot, called once it
+ * is written to IndexedDB. The snapshot is owner-wide, so it replaces the previous set.
+ */
+export function rememberSavedBinders(
   storage: WritableStorage,
-  ownerUserId: string | null,
-  binderId: string | null | undefined,
+  ownerUserId: string,
+  binderIds: readonly string[],
   now = new Date(),
 ) {
-  if (!ownerUserId || !binderId) return;
   const existing = readDeviceBinders(storage, ownerUserId);
-  if (existing?.savedBinderIds.includes(binderId)) return;
+  const savedBinderIds = [...new Set(binderIds)];
+  if (existing && JSON.stringify(existing.savedBinderIds) === JSON.stringify(savedBinderIds)) return;
   writeDeviceBinders(storage, {
     ownerUserId,
     binders: existing?.binders ?? [],
-    savedBinderIds: [...(existing?.savedBinderIds ?? []), binderId],
+    savedBinderIds,
     savedAt: now.toISOString(),
   });
 }
