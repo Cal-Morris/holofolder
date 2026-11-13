@@ -250,6 +250,12 @@ test('All cards from an owned pocket opens another printing with its want contro
     .filter({ has: page.getByRole('region', { name: 'On your want list' }) });
   await expect(card).toHaveCount(1);
   await expect(detail).toHaveCount(0);
+  // The printing can be wanted from here: it goes on the Bulbasaur pocket and can be taken off again.
+  await card.getByRole('button', { name: 'Add to want list' }).click();
+  await expect(card.getByRole('button', { name: 'Remove from want list' })).toBeVisible();
+  await expect(card.getByRole('region', { name: 'On your want list' })).toContainText('1 card');
+  await card.getByRole('button', { name: 'Remove from want list' }).click();
+  await expect(card.getByRole('button', { name: 'Add to want list' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('region', { name: 'On your want list' })).toHaveCount(0);
   await expect(printing).toBeVisible();

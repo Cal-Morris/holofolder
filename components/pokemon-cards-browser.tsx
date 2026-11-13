@@ -5,8 +5,13 @@ import {
   nativeCardConsumers,
   nativeCardState,
   nativeCardLabel,
+  nativeWantPocket,
+  planNativeAddWant,
+  planNativeRemoveWant,
   type NativeConsumerBinding,
 } from '@/lib/collection/native-card-consumers';
+import { toast } from '@/components/ui/toast';
+import { pickerCandidate } from '@/lib/slot-picker';
 import CardImage from '@/components/card-image';
 import CardImageZoom from '@/components/card-image-zoom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -135,6 +140,57 @@ export default function PokemonCardsBrowser({
     setPendingCardId(cardDetails.card.id);
     try {
       await cardDetails.onAction(action, detailFinish);
+    } finally {
+      setPendingCardId(null);
+    }
+  };
+
+  // Native wants live on a pocket: a new one goes on the open binder's pocket for this card (see nativeWantPocket).
+  const nativeSnapshot =
+    nativeConsumer && nativeConsumer.read.evidence.kind !== 'unavailable'
+      ? nativeConsumer.read.evidence.snapshot
+      : null;
+  const nativeWantEntry = cardDetails
+    ? nativeModel?.wants.find(
+        (w) =>
+          w.card &&
+          matchesCatalogCardId(cardDetails.card, w.card.canonicalId ?? w.card.id) &&
+          w.card.language === cardDetails.card.language &&
+          w.finish === detailFinish,
+      )
+    : undefined;
+  const nativeCanWant = Boolean(
+    cardDetails && nativeSnapshot && nativeWantPocket(nativeSnapshot, nativeConsumer?.collectionId, cardDetails.card),
+  );
+  const toggleNativeWant = async () => {
+    if (!cardDetails || !nativeConsumer || pendingCardId) return;
+    setPendingCardId(cardDetails.card.id);
+    try {
+      // The device queue's admission: works offline and behind queued edits, like every binder edit.
+      const admission = nativeConsumer.acquire?.();
+      if (!admission || admission.read.evidence.kind === 'unavailable') throw new Error('collection-unavailable');
+      const snapshot = admission.read.evidence.snapshot;
+      const draft = nativeWantEntry
+        ? planNativeRemoveWant(snapshot, nativeWantEntry.destination, admission.context())
+        : planNativeAddWant(
+            snapshot,
+            nativeConsumer.collectionId,
+            cardDetails.card,
+            detailFinish,
+            admission.context(),
+            new Date().toISOString(),
+          );
+      if (!draft) throw new Error('no-pocket');
+      // The card as shown, so a printing the collection didn't hold yet still shows on the want list before the next read.
+      const card = cardDetails.card;
+      await admission.receive(draft, undefined, {
+        card: { ...card, language: isCardLanguage(card.language) ? card.language : undefined },
+        speciesNames: [],
+        pokemonIds: pickerCandidate(card).pokemonIds,
+      });
+      toast(nativeWantEntry ? 'Removed from your want list' : 'Added to your want list');
+    } catch {
+      toast('Could not update your want list. Your binder may have changed, so check it and try again.', 'error');
     } finally {
       setPendingCardId(null);
     }
@@ -413,6 +469,24 @@ export default function PokemonCardsBrowser({
                 </p>
               </div>
             </div>
+            {/* Gated on the device queue, not live editing, so wanting works offline and queues like every binder edit. */}
+            {nativeConsumer?.acquire && (
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  disabled={Boolean(pendingCardId) || (!nativeWantEntry && !nativeCanWant)}
+                  onClick={() => void toggleNativeWant()}
+                  className={`min-h-11 w-full rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-50 ${nativeWantEntry ? 'border-destructive/30 text-destructive' : 'border-border/60'}`}
+                >
+                  {nativeWantEntry ? 'Remove from want list' : 'Add to want list'}
+                </button>
+                {!nativeWantEntry && !nativeCanWant && (
+                  <p className="text-muted-foreground text-xs">
+                    This binder has no pocket for this card. Open a binder with one to want it.
+                  </p>
+                )}
+              </div>
+            )}
             {nativeConsumer && (
               <NativeWantedEntries
                 binding={readOnly ? { ...nativeConsumer, editingAvailable: false } : nativeConsumer}
