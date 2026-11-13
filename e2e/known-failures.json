@@ -94,33 +94,6 @@
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('link', { name: /Binder Studio/ })"
     },
     {
-      "file": "binder-3d-interactions.e2e.ts",
-      "title": ["3D binder gestures", "appearance refresh keeps settled 3D slots tappable"],
-      "cause": "app-bug",
-      "batch": 3,
-      "failure": "Native parity gap: signed-in (native) binders have no View options, so 3D can't be opened (header View is guest-only since 261d0c3a). Needs a product decision."
-    },
-    {
-      "file": "binder-3d-interactions.e2e.ts",
-      "title": [
-        "3D binder gestures",
-        "preloads neighbours, swipes both ways, pans while zoomed and opens Pokémon details"
-      ],
-      "cause": "app-bug",
-      "batch": 3,
-      "failure": "Native parity gap: signed-in (native) binders have no View options, so 3D can't be opened (header View is guest-only since 261d0c3a). Needs a product decision."
-    },
-    {
-      "file": "binder-3d-interactions.e2e.ts",
-      "title": [
-        "3D binder gestures",
-        "keeps the current spread visible while adjacent artwork loads and survives rapid turns"
-      ],
-      "cause": "app-bug",
-      "batch": 3,
-      "failure": "Native parity gap: signed-in (native) binders have no View options, so 3D can't be opened (header View is guest-only since 261d0c3a). Needs a product decision."
-    },
-    {
       "file": "binder-creation.e2e.ts",
       "title": ["actual creation rejects auth spoof without discard"],
       "cause": "flaky",
@@ -349,16 +322,6 @@
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Storage', exact: true }).getByRole('button', { name: 'New storage', exact: true })"
-    },
-    {
-      "file": "dashboard-binder.e2e.ts",
-      "title": [
-        "Dashboard binder appearance",
-        "loads cloud appearance on reload and shows real National Dex slots in 3D"
-      ],
-      "cause": "app-bug",
-      "batch": 3,
-      "failure": "Native parity gap: signed-in (native) binders have no View options, so 3D can't be opened (header View is guest-only since 261d0c3a). Needs a product decision."
     },
     {
       "file": "developer-access.e2e.ts",

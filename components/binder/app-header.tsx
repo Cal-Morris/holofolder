@@ -25,6 +25,7 @@ import {
   Sun,
   Ticket,
   Users,
+  Box,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import type { ShowSessionSummary } from '@/lib/show-session';
@@ -84,6 +85,8 @@ export interface AppHeaderContext {
   /** Signed-in owner/partner may manage the current collection's public link (independent of readOnlyMode). */
   canManageShare?: boolean;
   onNationalDex?: () => void;
+  /** Native binder: the header's 2D/3D toggle (guests keep it in the View sheet). */
+  onToggle3d?: () => void;
   setIsAuthOpen: Dispatch<SetStateAction<boolean>>;
   setIsBinderSwitcherOpen: Dispatch<SetStateAction<boolean>>;
   setIsDesktopActionsOpen: Dispatch<SetStateAction<boolean>>;
@@ -304,6 +307,18 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
+          )}
+          {ctx.onToggle3d && (
+            <Button
+              variant="ghost"
+              aria-label="3D view"
+              aria-pressed={binderDimension === '3d'}
+              className={`h-11 min-w-11 gap-1.5 rounded-xl px-2 text-xs ${binderDimension === '3d' ? 'bg-primary/12 text-primary' : ''}`}
+              onClick={ctx.onToggle3d}
+            >
+              <Box className="h-4 w-4" aria-hidden />
+              3D
+            </Button>
           )}
           {!ctx.nativeStorage && activeMainView !== 'pokemon' && activeMainView !== 'analytics' && (
             <Button

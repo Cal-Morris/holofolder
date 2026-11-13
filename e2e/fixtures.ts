@@ -557,6 +557,24 @@ export class Harness {
     if (this.signedIn) await expect(this.page.getByRole('button', { name: 'Edit layout', exact: true })).toBeEnabled();
   }
 
+  /** Toggle the binder to 3D (or back to 2D): the header button for signed-in binders, the View sheet for guests. */
+  async setDimension(dimension: '2D' | '3D') {
+    if (this.signedIn) {
+      // The live read remounts the binder once it lands; toggle after it, as a settled user would.
+      await expect(this.page.getByRole('button', { name: 'Edit layout', exact: true })).toBeEnabled({
+        timeout: 30_000,
+      });
+      const toggle = this.page.getByTestId('app-header').getByRole('button', { name: '3D view', exact: true });
+      if ((await toggle.getAttribute('aria-pressed')) !== String(dimension === '3D')) await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-pressed', String(dimension === '3D'));
+      return;
+    }
+    await this.openViewOptions();
+    await this.page.getByRole('button', { name: dimension, exact: true }).click();
+    const close = this.page.getByRole('button', { name: 'Close view options', exact: true });
+    if (await close.isVisible()) await close.click();
+  }
+
   async openViewOptions() {
     const dialog = this.page.getByRole('dialog', { name: 'View options', exact: true });
     if (!(await dialog.isVisible()))

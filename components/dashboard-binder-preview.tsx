@@ -2,14 +2,14 @@
 
 import { adaptLegacyDisplaySlots, displaySlotLabel, type BinderDisplaySlot } from '@/lib/binder-display-model';
 import { POKEMON_CATALOG } from '@/lib/pokemon-catalog';
-import { toCardImageProxySrc } from '@/lib/card-image-url';
+import { cardTextureSources } from '@/lib/binder-design';
 
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { loadViewport } from '@/components/binder-designer/load-viewport';
 import Link from 'next/link';
 import {
   binderFill,
-  isCardArtworkUrl,
   binderSpread,
   binderTurnPage,
   type BinderDesign,
@@ -21,10 +21,18 @@ import type { CollectedPokemon } from '@/lib/domain/cards';
 import { getPokemonSummary, type PokemonSummary } from '@/lib/pokemon-catalog';
 import styles from '@/components/dashboard-binder-preview.module.css';
 
-const Viewport = dynamic(() => import('@/components/binder-designer/viewport'), {
-  ssr: false,
-  loading: () => <div className={styles.loading}>Opening your binder…</div>,
-});
+const Viewport = dynamic(
+  () =>
+    loadViewport().catch(() => () => (
+      <p role="status" className={styles.loading}>
+        3D needs a connection the first time. Your binder is still here in 2D.
+      </p>
+    )),
+  {
+    ssr: false,
+    loading: () => <div className={styles.loading}>Opening your binder…</div>,
+  },
+);
 const views: { label: string; view: BinderView }[] = [
   { label: 'Cover', view: 'front' },
   { label: 'Inside', view: 'inside' },
@@ -67,13 +75,12 @@ export default function DashboardBinderPreview({
         if (!slot) return [];
         const legacy = slot.legacyItem;
         const card = legacy ? getBinderDisplayCard(legacy, 'mixed') : null;
-        const image = toCardImageProxySrc(slot.legacyPokemonId ? card?.card_image : slot.card?.image) ?? '';
         if (slot.legacyPokemonId && !card?.card_id) return [];
         return [
           {
             id: slot.id,
             name: slot.legacyPokemonId ? card?.card_name || legacy?.pokemon_name || '' : displaySlotLabel(slot),
-            image: isCardArtworkUrl(image) ? image : '',
+            ...cardTextureSources(slot.legacyPokemonId ? card?.card_image : slot.card?.image),
             slot: position,
             ...(!slot.legacyPokemonId
               ? {

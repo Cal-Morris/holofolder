@@ -107,10 +107,9 @@ test.describe('Dashboard binder appearance', () => {
 
 /** Sign in as another account in this tab, the way Supabase announces a session change. */
 
-// Signed-in (native) binders have no View options, so these signed-in 3D flows can't open 3D yet (native parity gap, known failures).
 test.describe('Dashboard binder appearance', () => {
   test.use({ signedIn: true });
-  test('loads cloud appearance on reload and shows real National Dex slots in 3D', async ({ harness }) => {
+  test('loads cloud appearance on reload and shows the native binder slots in 3D', async ({ harness }) => {
     const { page } = harness;
     // Synthetic cloud appearance, deliberately different from the settings defaults.
     const design = defaultBinderDesign();
@@ -120,24 +119,24 @@ test.describe('Dashboard binder appearance', () => {
     await page.route('**/app/api/binder-appearance', (route) =>
       route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }),
     );
-    await page.goto('/app/e2e-harness?signedIn=1&cardArtwork=1');
-    await harness.openViewOptions();
-    const display = page.getByRole('group', { name: 'Binder display' });
-    await expect(display.getByRole('button', { name: '2D', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await page.goto(`${harness.path}&cardArtwork=1`);
+    const toggle = page.getByTestId('app-header').getByRole('button', { name: '3D view', exact: true });
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
     await expect(page.locator('[data-binder-page="1"] > div').first()).toHaveCSS(
       'background-image',
       /rgb\(170, 34, 68\)/,
     );
-    await harness.expectMinTapTarget(display.getByRole('button', { name: '3D', exact: true }));
-    await display.getByRole('button', { name: '3D', exact: true }).click();
-    const preview = page.getByRole('region', { name: 'Your 3D National Dex binder' });
+    await harness.expectMinTapTarget(toggle);
+    await harness.setDimension('3D');
+    const preview = page.getByRole('region', { name: 'Your 3D slot binder' });
     await expect(preview).toHaveAttribute('data-binder-name', "Cal's archive");
-    await expect(preview.getByText('National Dex / 2 cards placed', { exact: true })).toBeVisible();
-    await expect(preview.getByRole('list', { name: 'Cards on this spread' }).getByRole('listitem')).toHaveText([
-      'Bulbasaur, slot 1',
-      'Charmander, slot 4',
+    await expect(preview.getByText('Ordered slots / 2 cards placed', { exact: true })).toBeVisible();
+    const spread = preview.getByRole('list', { name: 'Cards on this spread' });
+    await expect(spread.getByRole('button', { name: /Owned/ })).toHaveText([
+      'Bulbasaur, Owned, slot 1',
+      'Charmander, Owned, slot 4',
     ]);
-    await expect(preview.getByRole('link', { name: 'Customize in Studio' })).toHaveAttribute('href', '/app/studio');
+    await expect(spread.getByRole('button', { name: 'Ivysaur, Unfilled target, slot 2', exact: true })).toBeAttached();
     await expect(preview.getByTestId('binder-3d-stage')).toHaveAttribute('data-right-cards', '2');
     const next = preview.getByRole('button', { name: 'Next 3D binder spread' });
     await harness.expectMinTapTarget(next);
@@ -145,18 +144,16 @@ test.describe('Dashboard binder appearance', () => {
     await harness.expectHittable(next);
     await harness.expectWithinSafeViewport(next);
     await next.click();
-    await expect(preview.getByText('No placed cards on this spread', { exact: true })).toBeVisible();
+    await expect(spread.getByRole('button', { name: /slot 17$/ })).toBeAttached();
+    await expect(spread.getByRole('button', { name: /Owned/ })).toHaveCount(0);
     await harness.expectNoHorizontalOverflow();
     await expect(harness.dock()).toBeVisible();
-    await harness.openViewOptions();
-    await display.getByRole('button', { name: '2D', exact: true }).click();
-    await page.getByRole('button', { name: 'Close view options', exact: true }).click();
-    await expect(page.locator('button[data-dex-id="17"]').first()).toBeVisible();
+    await harness.setDimension('2D');
+    await expect(harness.slot(17)).toBeVisible();
     await page.reload();
-    await harness.openViewOptions();
-    await display.getByRole('button', { name: '3D', exact: true }).click();
+    await harness.setDimension('3D');
     await expect(preview).toHaveAttribute('data-binder-name', "Cal's archive");
     await expect(preview.getByTestId('binder-3d-stage')).toHaveAttribute('data-current-page', '2');
-    await expect(preview.getByText('No placed cards on this spread', { exact: true })).toBeVisible();
+    await expect(spread.getByRole('button', { name: /Owned/ })).toHaveCount(0);
   });
 });

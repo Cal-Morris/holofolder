@@ -1,7 +1,7 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import { binderCameraFrame } from '../lib/binder-camera';
 import sharp from 'sharp';
-import { test, expect as baseExpect, E2E_USER } from './fixtures';
+import { test, expect as baseExpect, E2E_USER, SEEDED_COLLECTION, seedCollection } from './fixtures';
 
 // The 3D binder renders on SwiftShader in CI and can take ~10 s to open and settle a spread.
 const expect = baseExpect.configure({ timeout: 30_000 });
@@ -209,7 +209,18 @@ test('staged 3D slots preserve copy identity, target labels and sparse/zero spre
   await expect(page.getByRole('list', { name: 'Cards on this spread' }).getByRole('button')).toHaveCount(0);
 });
 
-// Signed-in (native) binders have no View options, so these signed-in 3D flows can't open 3D yet (native parity gap, known failures).
+/** Synthetic Pidgeot owned in pocket 18 (page 2), so the next spread has artwork to preload. */
+const seedNextSpreadCard = (page: import('@playwright/test').Page) =>
+  seedCollection(
+    page,
+    [
+      ...SEEDED_COLLECTION,
+      { pokemon_id: 18, card_id: 'synthetic-18', card_language: 'en', card_finish: 'normal', status: 'collected' },
+    ],
+    [{ id: 'synthetic-18', localId: '18', name: 'Pidgeot', set: { id: 'synthetic', name: 'Synthetic' }, dexIds: [18] }],
+  );
+const isNextSpreadArtwork = (url: string) => url.startsWith('https://assets.holofolder.com/') && url.includes('/18/');
+
 test.describe('3D binder gestures', () => {
   test.use({ signedIn: true });
   test('appearance refresh keeps settled 3D slots tappable', async ({ harness }) => {
@@ -219,8 +230,7 @@ test.describe('3D binder gestures', () => {
       route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }),
     );
     await page.reload();
-    await harness.openViewOptions();
-    await page.getByRole('button', { name: '3D', exact: true }).click();
+    await harness.setDimension('3D');
     const stage = page.getByTestId('binder-3d-stage'),
       canvas = stage.locator('canvas');
     await expect(stage).toHaveAttribute('data-opening-state', 'settled');
@@ -275,13 +285,10 @@ test.describe('3D binder gestures', () => {
       route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }),
     );
     // Synthetic artwork and a card on the next spread to verify preloading before navigation.
-    const preload = page.waitForRequest(
-      (request) =>
-        request.url().includes('card-image-proxy') && decodeURIComponent(request.url()).includes('/8/high.webp'),
-    );
-    await page.goto('/app/e2e-harness?signedIn=1&cardArtwork=1');
-    await harness.openViewOptions();
-    await page.getByRole('button', { name: '3D', exact: true }).click();
+    await seedNextSpreadCard(page);
+    const preload = page.waitForRequest((request) => isNextSpreadArtwork(request.url()));
+    await page.goto(harness.path);
+    await harness.setDimension('3D');
     const stage = page.getByTestId('binder-3d-stage'),
       canvas = stage.locator('canvas');
     // Software WebGL can take longer to build the first spread than to turn a page.
@@ -318,10 +325,10 @@ test.describe('3D binder gestures', () => {
     // The accessible spread list exercises selection state independently of canvas hit detection below.
     const laterCard = page
       .getByRole('list', { name: 'Cards on this spread' })
-      .getByRole('button', { name: 'Pidgeot, slot 18', exact: true });
+      .getByRole('button', { name: /^Pidgeot.*slot 18$/ });
     await expect(laterCard).toBeAttached();
     await laterCard.dispatchEvent('click');
-    const laterDetails = page.getByRole('dialog', { name: 'Pidgeot details', exact: true });
+    const laterDetails = page.getByRole('dialog', { name: /Pidgeot.*details/ });
     await expect(laterDetails).toBeVisible();
     // The page-selection cleanup runs in requestAnimationFrame, so wait through it before asserting persistence.
     await page.evaluate(
@@ -420,11 +427,8 @@ test.describe('3D binder gestures', () => {
     await expect(stage).toHaveAttribute('data-current-page', '1');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     // Return to the fitted view after pinch/pan, then a fresh tap must still select a pocket.
-    await harness.openViewOptions();
-    await page.getByRole('button', { name: '2D', exact: true }).click();
-    await page.getByRole('button', { name: 'Close view options', exact: true }).click();
-    await harness.openViewOptions();
-    await page.getByRole('button', { name: '3D', exact: true }).click();
+    await harness.setDimension('2D');
+    await harness.setDimension('3D');
     await expect(stage).toHaveAttribute('data-opening-state', 'settled');
     await expect(stage).toHaveAttribute('data-current-page', '1');
     await expect(stage).toHaveAttribute('aria-busy', 'false');
@@ -486,19 +490,19 @@ test.describe('3D binder gestures', () => {
       release = resolve;
     });
     let requested = false;
-    await page.route('**/app/api/card-image-proxy?**', async (route) => {
-      if (decodeURIComponent(route.request().url()).includes('/8/high.webp')) {
+    await seedNextSpreadCard(page);
+    await page.route('https://assets.holofolder.com/**', async (route) => {
+      if (isNextSpreadArtwork(route.request().url())) {
         requested = true;
         await loaded;
       }
       await route.fallback();
     });
     await page.clock.install();
-    await page.goto('/app/e2e-harness?signedIn=1&cardArtwork=1');
-    await harness.openViewOptions();
-    await page.getByRole('button', { name: '3D', exact: true }).click();
+    await page.goto(harness.path);
+    await harness.setDimension('3D');
     const stage = page.getByTestId('binder-3d-stage'),
-      preview = page.getByRole('region', { name: 'Your 3D National Dex binder' });
+      preview = page.getByRole('region', { name: 'Your 3D slot binder' });
     await expect(stage).toHaveAttribute('data-current-page', '1');
     await expect(stage).toHaveAttribute('data-opening-state', 'settled');
     await expect.poll(() => requested).toBe(true);
@@ -506,11 +510,7 @@ test.describe('3D binder gestures', () => {
     // Compare rendered pages without the overlay button's browser compositing.
     const screenshotOptions = { style: 'button[aria-label="Fit binder"] { visibility: hidden !important; }' };
     const initial = await stage.locator('canvas').screenshot(screenshotOptions);
-    const artworkResponse = page.waitForResponse(
-      (response) =>
-        decodeURIComponent(response.url()).includes('card-image-proxy') &&
-        decodeURIComponent(response.url()).includes('/8/high.webp'),
-    );
+    const artworkResponse = page.waitForResponse((response) => isNextSpreadArtwork(response.url()));
     try {
       await preview.getByRole('button', { name: 'Next 3D binder spread' }).click();
       await page.clock.runFor(100);

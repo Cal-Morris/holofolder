@@ -517,6 +517,9 @@ export default function BinderApp(props: BinderAppProps) {
   );
 }
 
+// The cached start and the live read remount the surface; keep the 2D/3D choice for this page load.
+let sessionDimension: '2d' | '3d' = '2d';
+
 function BinderAppSurface(props: BinderAppProps) {
   const {
     localBrowserHost = false,
@@ -687,7 +690,10 @@ function BinderAppSurface(props: BinderAppProps) {
   const isDesktopViewport = useMediaQuery('(min-width: 640px)');
   const isCompactViewport = useMediaQuery('(max-width: 767px)');
   const isWideBinderSpread = useMediaQuery('(min-width: 1280px)');
-  const [binderDimension, setBinderDimension] = useState<'2d' | '3d'>('2d');
+  const [binderDimension, setBinderDimension] = useState<'2d' | '3d'>(() => sessionDimension);
+  useEffect(() => {
+    sessionDimension = binderDimension;
+  }, [binderDimension]);
   const [isMobileSpreadPreview, setIsMobileSpreadPreview] = useState(false);
   const [slotGlareState, setSlotGlareState] = useState(DEFAULT_SLOT_GLARE_STATE);
   const [motionGlintStatus, setMotionGlintStatus] = useState<MotionGlintStatus>('fallback');
@@ -1796,6 +1802,13 @@ function BinderAppSurface(props: BinderAppProps) {
     browserSurface?.surface.state.main === 'collection' &&
     browserSurface.surface.collection?.state.view === 'binder' &&
     activeMainView === 'binder';
+  // Native 3D only renders the open binder; Inventory, Slabs, List and the Dex stay 2D without losing the choice.
+  const shownDimension = browserSurface && !nativeBinderOpen ? '2d' : binderDimension;
+  const enter3d = () => {
+    closeAllOverlays();
+    setSelectedPokemon(null);
+    setBinderDimension('3d');
+  };
 
   const getPageSlots = useCallback(
     (pageNumber: number) => {
@@ -3984,7 +3997,8 @@ function BinderAppSurface(props: BinderAppProps) {
     });
 
   const onPageKey = useEffectEvent((e: KeyboardEvent) => {
-    if (isSearchOpen) return;
+    // A focused control that handled the key (the 3D view turns its own pages) wins.
+    if (isSearchOpen || e.defaultPrevented) return;
     if (e.key === 'ArrowLeft') {
       if (isSpreadLayout) {
         goToPrevSpread();
@@ -4204,15 +4218,7 @@ function BinderAppSurface(props: BinderAppProps) {
       <button type="button" aria-pressed={binderDimension === '2d'} onClick={() => setBinderDimension('2d')}>
         2D
       </button>
-      <button
-        type="button"
-        aria-pressed={binderDimension === '3d'}
-        onClick={() => {
-          closeAllOverlays();
-          setSelectedPokemon(null);
-          setBinderDimension('3d');
-        }}
-      >
+      <button type="button" aria-pressed={binderDimension === '3d'} onClick={enter3d}>
         3D
       </button>
     </div>
@@ -4233,12 +4239,15 @@ function BinderAppSurface(props: BinderAppProps) {
       inventoryNavigation,
       activeBinder: browserSurface ? null : activeBinder,
       nativeStorage: Boolean(browserSurface),
+      onToggle3d: nativeBinderOpen
+        ? () => (binderDimension === '3d' ? setBinderDimension('2d') : enter3d())
+        : undefined,
       canManageShare,
       onNationalDex: browserSurface?.surface.onDex,
       activeJumpLabel,
       activeJumpPokemonList,
       activeMainView,
-      binderDimension,
+      binderDimension: shownDimension,
       binderDisplayControls,
       binders,
       canFilterCollection,
@@ -4344,7 +4353,7 @@ function BinderAppSurface(props: BinderAppProps) {
       activeJumpLabel,
       activeMainView,
       binderAppearance,
-      binderDimension,
+      binderDimension: shownDimension,
       binderFitSize,
       binderPageRef,
       collection,
