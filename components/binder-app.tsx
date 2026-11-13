@@ -106,6 +106,7 @@ import { buildPokemonSearchPreview } from '@/lib/pokemon-search-preview';
 import { buildWantedDashboardSummary } from '@/lib/wanted-dashboard';
 import { buildWantedListText } from '@/lib/wanted-share';
 import { TRADING_CARD_ASPECT_RATIO } from '@/lib/page-scan';
+import { fitBinderPages, insideCoverFits, spreadKeepsPocketSize } from '@/lib/binder-fit';
 import { formatPriceConfidenceLabel, formatPriceSourceLabel } from '@/lib/card-labels';
 import type { TCGSetDexSlot, TCGSetSummary } from '@/lib/tcg-set-slots';
 import type { User } from '@supabase/supabase-js';
@@ -993,7 +994,21 @@ function BinderAppSurface(props: BinderAppProps) {
   );
 
   const slotsPerPage = settings.binderRows * settings.binderCols;
-  const isSpreadLayout = isWideBinderSpread || (isCompactViewport && isMobileSpreadPreview);
+  const binderPagePadding = isDesktopViewport ? 16 : 8;
+  const binderSpreadGap = isWideBinderSpread ? 16 : 12;
+  // Wide screens open a spread only when it keeps pockets near their single-page size (a 2×6 binder stays one page).
+  // Before the stage is measured, keep the spread the startup skeleton painted.
+  const isWideSpreadFit =
+    isWideBinderSpread &&
+    (binderStageSize.width === 0 ||
+      spreadKeepsPocketSize({
+        stage: binderStageSize,
+        rows: settings.binderRows,
+        cols: settings.binderCols,
+        padding: binderPagePadding,
+        spreadGap: binderSpreadGap,
+      }));
+  const isSpreadLayout = isWideSpreadFit || (isCompactViewport && isMobileSpreadPreview);
   const getBinderThemeForPage = useCallback(
     (pageNumber?: number | null) => {
       const binderColorId =
@@ -2204,41 +2219,32 @@ function BinderAppSurface(props: BinderAppProps) {
   }, [selectedPokemon?.id, visiblePagePokemonIds]);
 
   const binderFitSize = useMemo(() => {
-    // Leave room for the active page's 2px outline inside the clipped stage.
-    const outlineClearance = 4;
     if (!isDesktopViewport && (settings.binderRows > 4 || settings.binderCols > 4)) {
+      // Leave room for the active page's 2px outline inside the clipped stage.
       return {
-        width: Math.max(1, binderStageSize.width - outlineClearance),
-        height: Math.max(1, binderStageSize.height - outlineClearance),
+        width: Math.max(1, binderStageSize.width - 4),
+        height: Math.max(1, binderStageSize.height - 4),
       };
     }
-    const padding = isDesktopViewport ? 16 : 8;
-    const gap = 6;
-    const pages = isSpreadLayout ? 2 : 1;
-    const spreadGap = isSpreadLayout ? (isWideBinderSpread ? 16 : 12) : 0;
-    const horizontalChrome = padding * 2 + gap * (settings.binderCols - 1);
-    // The page label sits in a 24px bottom gutter (pb-6 in binder-grid-page.tsx) instead of the bottom padding.
-    const verticalChrome = padding + 24 + gap * (settings.binderRows - 1);
-    const slotHeight = Math.min(
-      (binderStageSize.height - outlineClearance - verticalChrome) / settings.binderRows,
-      ((binderStageSize.width - outlineClearance - spreadGap) / pages - horizontalChrome) /
-        settings.binderCols /
-        TRADING_CARD_ASPECT_RATIO,
-    );
-    if (slotHeight <= 0) return null;
-
-    return {
-      width: pages * (slotHeight * TRADING_CARD_ASPECT_RATIO * settings.binderCols + horizontalChrome) + spreadGap,
-      height: slotHeight * settings.binderRows + verticalChrome,
-    };
+    return fitBinderPages({
+      stage: binderStageSize,
+      rows: settings.binderRows,
+      cols: settings.binderCols,
+      pages: isSpreadLayout ? 2 : 1,
+      padding: binderPagePadding,
+      spreadGap: binderSpreadGap,
+    });
   }, [
+    binderPagePadding,
+    binderSpreadGap,
     binderStageSize,
     isDesktopViewport,
     isSpreadLayout,
-    isWideBinderSpread,
     settings.binderCols,
     settings.binderRows,
   ]);
+  // The inside cover only takes the first spread's left page when it has clear room; otherwise that page is blank.
+  const showInsideCover = Boolean(binderFitSize && insideCoverFits(binderFitSize, binderSpreadGap));
 
   const binderSlotImageSizes = binderFitSize
     ? `${Math.max(settings.binderRows > 4 || settings.binderCols > 4 ? 64 : 0, Math.ceil(((binderFitSize.height - (isDesktopViewport ? 40 : 32) - 6 * (settings.binderRows - 1)) / settings.binderRows) * TRADING_CARD_ASPECT_RATIO))}px`
@@ -4055,35 +4061,36 @@ function BinderAppSurface(props: BinderAppProps) {
       : undefined;
   }, [orderedDisplaySlots, priceFormat, pricesByCardId]);
 
-  const renderSpreadInfoPage = (side: 'left' | 'right') =>
-    renderSpreadInfoPageView(
-      {
-        native: nativeCoverStats
-          ? {
-              name: stagedSlotDisplay!.inventory.collections.find(
-                (c) => c.id === stagedSlotDisplay!.binder.collectionId,
-              )?.name,
-              slotCount: stagedSlotDisplay!.binder.slots.length,
-              valueLabel: isPriceMode ? nativeValueLabel(nativeBinderValue.summary) : undefined,
-            }
-          : undefined,
-        activeCollectionFilterOption,
-        collectionStats: nativeCoverStats ?? collectionStats,
-        neededCount: nativeCoverStats?.needed ?? neededPokemonList.length,
-        shareValueLabel: publicIndex ? shareValueLabel : undefined,
-        canEditBinder: browserSurface?.editingAvailable ?? canEditBinder,
-        filteredPokemonList,
-        filteredTotalLabel,
-        getBinderThemeForPage,
-        hasTrackedCards,
-        selectedGen,
-        settings,
-        totalBinderPages,
-      },
-      side,
-    );
-
   const renderSpreadBlankPage = (side: 'left' | 'right') => renderSpreadBlankPageView({ getBinderThemeForPage }, side);
+  const renderSpreadInfoPage = (side: 'left' | 'right') =>
+    !showInsideCover
+      ? renderSpreadBlankPage(side)
+      : renderSpreadInfoPageView(
+          {
+            native: nativeCoverStats
+              ? {
+                  name: stagedSlotDisplay!.inventory.collections.find(
+                    (c) => c.id === stagedSlotDisplay!.binder.collectionId,
+                  )?.name,
+                  slotCount: stagedSlotDisplay!.binder.slots.length,
+                  valueLabel: isPriceMode ? nativeValueLabel(nativeBinderValue.summary) : undefined,
+                }
+              : undefined,
+            activeCollectionFilterOption,
+            collectionStats: nativeCoverStats ?? collectionStats,
+            neededCount: nativeCoverStats?.needed ?? neededPokemonList.length,
+            shareValueLabel: publicIndex ? shareValueLabel : undefined,
+            canEditBinder: browserSurface?.editingAvailable ?? canEditBinder,
+            filteredPokemonList,
+            filteredTotalLabel,
+            getBinderThemeForPage,
+            hasTrackedCards,
+            selectedGen,
+            settings,
+            totalBinderPages,
+          },
+          side,
+        );
 
   const slotActions = useBinderSlotActions({
     currentBinderPage,
