@@ -512,7 +512,7 @@ export default function PokemonSearch({
                           </div>
                         ) : null}
                         {meta?.isFavorite ? (
-                          <div className="absolute -top-1 -right-1 rounded-full bg-amber-500 p-1 text-white shadow">
+                          <div className="absolute -top-1 -right-1 rounded-full bg-amber-500 p-1 text-white shadow-sm">
                             <Star className="h-2.5 w-2.5 fill-current" />
                           </div>
                         ) : null}

@@ -107,7 +107,7 @@ function CardFan({ images }: { images: string[] }) {
       {images.slice(0, 3).map((src, index) => (
         <span
           key={src}
-          className="trading-card bg-muted absolute top-0.5 w-10 overflow-hidden rounded-[4px] border border-white/20 shadow"
+          className="trading-card bg-muted absolute top-0.5 w-10 overflow-hidden rounded-[4px] border border-white/20 shadow-sm"
           style={{
             left: `calc(50% - 1.25rem + ${(index - 1) * 1.3}rem)`,
             transform: `rotate(${(index - 1) * 10}deg)`,

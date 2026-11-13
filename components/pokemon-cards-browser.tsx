@@ -592,7 +592,7 @@ export default function PokemonCardsBrowser({
                         )}
                         <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
                           {entry.owned ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
                               <Check className="h-3 w-3" /> Owned
                               {nativeConsumer ? ` ×${nativeCardState(nativeModel, card).ownedCount}` : ''}
                             </span>
@@ -601,14 +601,14 @@ export default function PokemonCardsBrowser({
                           !entry.owned &&
                           formatOwnedIn(ownedElsewhereByCard?.get(card.id) ?? [], 'In') ? (
                             <span
-                              className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-sky-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow"
+                              className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-sky-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm"
                               data-testid="card-owned-elsewhere"
                             >
                               {formatOwnedIn(ownedElsewhereByCard?.get(card.id) ?? [], 'In')}
                             </span>
                           ) : null}
                           {entry.wanted ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
                               <Heart className="h-3 w-3 fill-current" /> Wanted
                               {nativeConsumer ? ` ×${nativeCardState(nativeModel, card).wantedCount}` : ''}
                             </span>

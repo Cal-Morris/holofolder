@@ -78,7 +78,7 @@ export default function PictureScannerPrep({ isOnline }: { isOnline: boolean }) 
         >
           <span
             aria-hidden
-            className={`bg-background absolute top-1 left-1 h-7 w-7 rounded-full shadow transition-transform ${lit ? 'translate-x-5' : ''}`}
+            className={`bg-background absolute top-1 left-1 h-7 w-7 rounded-full shadow-sm transition-transform ${lit ? 'translate-x-5' : ''}`}
           />
         </button>
       </div>

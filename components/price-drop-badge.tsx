@@ -19,7 +19,7 @@ export function PriceDropBadge({ price, className = '' }: PriceDropBadgeProps) {
       data-testid="price-drop-badge"
       title={`Price dropped ${change} vs ${momentum.timeframe} average`}
       aria-label={`Price dropped ${change} over ${momentum.timeframe}`}
-      className={`inline-flex items-center gap-0.5 rounded-full bg-emerald-600/90 px-1.5 py-0.5 text-[10px] font-bold text-white tabular-nums shadow ${className}`}
+      className={`inline-flex items-center gap-0.5 rounded-full bg-emerald-600/90 px-1.5 py-0.5 text-[10px] font-bold text-white tabular-nums shadow-sm ${className}`}
     >
       <TrendingDown className="h-3 w-3" aria-hidden="true" />
       {/* Short on phones so the card name keeps its room; the full wording is in the label. */}

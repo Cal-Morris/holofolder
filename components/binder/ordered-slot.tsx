@@ -756,7 +756,7 @@ export function OrderedSlot({
         <span
           aria-hidden="true"
           data-pocket-mark={marked ? 'selected' : 'available'}
-          className={`absolute top-1 right-1 z-10 flex h-5 w-5 items-center justify-center rounded-full border-2 shadow ${marked ? 'border-primary bg-primary text-primary-foreground' : 'border-white/85 bg-black/35'}`}
+          className={`absolute top-1 right-1 z-10 flex h-5 w-5 items-center justify-center rounded-full border-2 shadow-sm ${marked ? 'border-primary bg-primary text-primary-foreground' : 'border-white/85 bg-black/35'}`}
         >
           {marked && <Check className="h-3 w-3" strokeWidth={3} />}
         </span>
