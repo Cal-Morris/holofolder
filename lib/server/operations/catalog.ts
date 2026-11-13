@@ -14,7 +14,7 @@ import { expandSearchAliases, matchCardNicknames, matchRarityWords } from '@/lib
 import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
 import { createDeveloperImageResolver, type DeveloperImageResolver } from '@/lib/server/developer-images';
 import { sanitizeDeveloperImages } from '@/lib/server/developer-image-fields';
-import { getSimilarCardNeighbours } from '@/lib/tcg-mirror';
+import { getSimilarCardNeighbours, suggestMirroredCards } from '@/lib/tcg-mirror';
 
 const CARD_COLUMNS =
   'raw_json,id,series_id,set_id,local_id,name_json,category,rarity,hp,illustrator,types_json,image_languages_json,external_ids_json,variants_json,tcg_sets(id,name_json,official_card_count,release_date)';
@@ -278,6 +278,29 @@ export async function getCatalogSimilarCards(id: string, lang: CardLanguage) {
     language: lang,
     sameArtwork: toEntries(split.sameArtwork),
     similarLook: toEntries(split.similarLook),
+  };
+}
+
+/** Cards to go with a page's cards (suggest_cards), ranked like the app's free-pocket suggestions, as catalog cards. */
+export async function suggestCatalogCards(cardIds: string[], pokemon: number[], lang: CardLanguage) {
+  if (!cardIds.length && !pokemon.length) return { language: lang, cards: [] };
+  const ids = (
+    await suggestMirroredCards(
+      [...cardIds].toSorted(),
+      [...pokemon].toSorted((a, b) => a - b),
+      lang,
+    )
+  ).map((card) => card.id);
+  if (!ids.length) return { language: lang, cards: [] };
+  const { data, error } = await createAdminClient().from('tcg_cards').select(CARD_COLUMNS).in('id', ids);
+  if (error) throw new Error('Card suggestions unavailable');
+  const rows = new Map((data ?? []).map((row) => [String(record(row).id), row]));
+  return {
+    language: lang,
+    cards: await cardPage(
+      ids.flatMap((id) => rows.get(id) ?? []),
+      lang,
+    ),
   };
 }
 

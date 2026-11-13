@@ -20,6 +20,7 @@ import type { CardCatalogIdentity, CardLanguage } from '@/lib/domain/cards';
 import { cardLanguagesFromNames, primaryCardLanguage, type CardSearchLanguage } from '@/lib/card-languages';
 import { formatPokemonDisplayName, POKEMON_CATALOG } from '@/lib/pokemon-catalog';
 import { deduplicateCatalogCards, readCatalogMetadata } from '@/lib/card-catalog';
+import { rankPageSuggestions, rankVisualSuggestions, type SuggestionTraits } from '@/lib/page-card-suggestions';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   selectRecentSetSummaries,
@@ -31,6 +32,7 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { EMBEDDING_MODEL } from '@/lib/card-assets/embeddings-db';
 import {
   normalizeSimilarNeighbours,
+  SIMILAR_LOOK_LIMIT,
   SIMILAR_NEIGHBOUR_LIMIT,
   splitSimilarNeighbours,
   type CardSubject,
@@ -708,6 +710,96 @@ export async function getMirroredCardsByIds(ids: readonly string[], language: Mi
   return ids.flatMap((id) => cards.get(id) ?? []);
 }
 
+const SUGGESTION_CANDIDATE_LIMIT = 150;
+/** Picture neighbours read per page card; cards near several page cards add up and rank first. */
+const VISUAL_NEIGHBOUR_LIMIT = 40;
+const SUGGESTION_LIMIT = 60;
+type SuggestionRow = {
+  id: string;
+  set_id: string;
+  illustrator?: unknown;
+  types_json?: unknown;
+  tcg_card_dex_ids?: unknown;
+};
+const suggestionTraits = (row: SuggestionRow): SuggestionTraits => ({
+  id: row.id,
+  setId: row.set_id,
+  illustrator: typeof row.illustrator === 'string' && row.illustrator.trim() ? row.illustrator.trim() : undefined,
+  types: Array.isArray(row.types_json) ? row.types_json.filter((t): t is string => typeof t === 'string') : [],
+  dexIds: (Array.isArray(row.tcg_card_dex_ids) ? (row.tcg_card_dex_ids as Array<{ dex_id?: unknown }>) : []).flatMap(
+    (link) => (typeof link?.dex_id === 'number' ? [link.dex_id] : []),
+  ),
+});
+
+/**
+ * Cards like the ones on a binder page. First by picture: each page card's "similar look" neighbours (reprints of the same
+ * artwork left out), ranked by `rankVisualSuggestions`. Then, to fill up and for cards with no fingerprint yet, the same
+ * Pokémon, illustrator or set, ranked by `rankPageSuggestions`. `cardIds` and `pokemonIds` are what the page holds.
+ */
+export async function suggestMirroredCards(
+  cardIds: readonly string[],
+  pokemonIds: readonly number[],
+  language: MirrorLanguage = 'en',
+): Promise<SearchCardResult[]> {
+  'use cache: remote';
+  cacheLife(MIRROR_CACHE_LIFE);
+  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION);
+  const admin = createAdminClient();
+  // A card without a fingerprint (or a failed read) just adds nothing by picture.
+  const visualLists = Promise.all(
+    cardIds.map((id) =>
+      getSimilarCardNeighbours(id, language, VISUAL_NEIGHBOUR_LIMIT).then(
+        (split) => split.similarLook,
+        () => [],
+      ),
+    ),
+  );
+  const seedRows = cardIds.length
+    ? await admin
+        .from('tcg_cards')
+        .select('id,set_id,illustrator,types_json,tcg_card_dex_ids(dex_id)')
+        .in('id', [...cardIds])
+    : { data: [], error: null };
+  if (seedRows.error) throw seedRows.error;
+  const seeds = (seedRows.data ?? []).map(suggestionTraits);
+  const dexIds = [...new Set([...pokemonIds, ...seeds.flatMap((s) => s.dexIds)])];
+  const illustrators = [...new Set(seeds.flatMap((s) => s.illustrator ?? []))];
+  const setIds = [...new Set(seeds.map((s) => s.setId))];
+  // Ids first (cheap, indexed), then one full fetch: filtering the full select by an embedded dex id times out.
+  const idLists = await Promise.all([
+    dexIds.length
+      ? admin.from('tcg_card_dex_ids').select('id:card_id').in('dex_id', dexIds).limit(SUGGESTION_CANDIDATE_LIMIT)
+      : null,
+    illustrators.length
+      ? admin.from('tcg_cards').select('id').in('illustrator', illustrators).limit(SUGGESTION_CANDIDATE_LIMIT)
+      : null,
+    setIds.length ? admin.from('tcg_cards').select('id').in('set_id', setIds).limit(SUGGESTION_CANDIDATE_LIMIT) : null,
+  ]);
+  const visualIds = rankVisualSuggestions(await visualLists, cardIds);
+  const ids = new Set<string>(visualIds);
+  for (const list of idLists) {
+    if (list?.error) throw list.error;
+    for (const row of list?.data ?? []) ids.add(row.id);
+  }
+  if (!ids.size) return [];
+  const { data, error } = await printedInEnglish(
+    admin.from('tcg_cards').select(`${cardSearchSelect(true)}, types_json`),
+    language,
+  ).in('id', [...ids]);
+  if (error) throw error;
+  const candidates = (data ?? []).flatMap((row) => {
+    const card = toSearchCardResult(row, language, true);
+    return card ? [{ ...suggestionTraits(row as unknown as SuggestionRow), card }] : [];
+  });
+  const byId = new Map(candidates.map((candidate) => [candidate.id, candidate.card]));
+  const visual = visualIds.flatMap((id) => byId.get(id) ?? []);
+  const shown = new Set(visual.map((card) => card.id));
+  const catalog = rankPageSuggestions(seeds, pokemonIds, candidates).flatMap(({ card }) =>
+    shown.has(card.id) ? [] : [card],
+  );
+  return [...visual, ...catalog].slice(0, SUGGESTION_LIMIT);
+}
+
 /**
  * Card search across the mirror: card name, card number ("bulbasaur 44/102"), set name/id
  * ("pitch black", "me05 12"), illustrator ("arita") or a TCGdex card id ("base1-44"). Defaults to cards that feature a Pokémon; explicit-slot catalog mode also includes non-Pokémon cards.
@@ -1053,7 +1145,11 @@ export async function getMirroredCardsByIllustrator(
  * similar look (lib/similar-cards.ts). Reads the `similar_tcg_cards` function (migration 116) for the card's print in
  * `language`, falling back to its English print. Empty when the card has no fingerprint yet.
  */
-export async function getSimilarCardNeighbours(cardId: string, language: CardLanguage = 'en') {
+export async function getSimilarCardNeighbours(
+  cardId: string,
+  language: CardLanguage = 'en',
+  similarLookLimit = SIMILAR_LOOK_LIMIT,
+) {
   'use cache: remote';
   cacheLife(MIRROR_CACHE_LIFE);
   cacheTag('tcg-mirror', MIRROR_CACHE_VERSION, cacheSafeTag('similar', cardId), cacheSafeTag('language', language));
@@ -1099,7 +1195,7 @@ export async function getSimilarCardNeighbours(cardId: string, language: CardLan
       },
     ]),
   );
-  return splitSimilarNeighbours(cardId, neighbours, subjects);
+  return splitSimilarNeighbours(cardId, neighbours, subjects, { similarLook: similarLookLimit });
 }
 
 /** Similar cards for the app's card detail, as browse cards in each print's own language. */

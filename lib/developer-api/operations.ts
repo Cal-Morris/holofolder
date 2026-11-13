@@ -4,6 +4,7 @@ import {
   catalogGroupDetailSchema,
   catalogPageSchema,
   similarCardsSchema,
+  suggestedCardsSchema,
   identifyCardSchema,
 } from './catalog';
 import { IDENTIFY_DEFAULT_LIMIT, IDENTIFY_MAX_LIMIT, IDENTIFY_MAX_REQUEST_BYTES } from '@/lib/card-identify';
@@ -81,6 +82,22 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     permissions: ['catalog:read'],
     write: false,
     schema: z.strictObject({ id, language }),
+  },
+  {
+    name: 'suggest_cards',
+    idempotent: true,
+    responseSchema: suggestedCardsSchema,
+    method: 'POST',
+    path: '/cards/suggest',
+    description:
+      'Cards that would fit alongside a group of cards, such as the cards on one binder page. Ranked by picture first (cards that look like several of the given cards come first, from image fingerprints; reprints of the same artwork are left out), then filled up with cards sharing a Pokémon, illustrator, energy type or set. pokemon adds Pokédex numbers for pockets kept for a Pokémon without a card. The given cards are never returned; leave out any others you already have yourself. At most 60 cards.',
+    permissions: ['catalog:read'],
+    write: false,
+    schema: z.strictObject({
+      cardIds: z.array(id).max(40).describe('Card IDs already on the page, e.g. ["base1-4", "base1-2"].'),
+      pokemon: z.array(z.number().int().positive().max(9999)).max(40).optional().describe('Pokédex numbers.'),
+      language,
+    }),
   },
   {
     name: 'identify_card',

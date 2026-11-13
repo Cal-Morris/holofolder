@@ -66,8 +66,10 @@ import {
   ListFilter,
   MoreHorizontal,
   SlidersHorizontal,
+  Sparkles,
   WifiOff,
 } from 'lucide-react';
+import { usePageCardSuggestions, type PageSuggestionSeeds } from '@/hooks/use-page-card-suggestions';
 import { SelectorMenu } from '@/components/collection-navigation/selector-menu';
 import { cardMatchesLanguages, type CardSearchLanguage } from '@/lib/card-languages';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -83,6 +85,8 @@ interface CardSelectorProps {
    * card (Trainers and Energy included). `cardId` narrows it to the one printing a pocket is reserved for.
    */
   anyCard?: { title: string; cardId?: string; query?: string };
+  /** A free pocket's page. Shows a toggle that, with the search empty, lists cards like the ones on that page. */
+  pageSuggestions?: PageSuggestionSeeds;
   onSelect: (card: TCGCard | null, mode: CardSelectorMode, finish?: CardFinish) => void;
   onClose: () => void;
   selectedCardId?: string;
@@ -263,6 +267,7 @@ export default function CardSelector({
   formatAmount = formatGbpAmount,
   native,
   anyCard,
+  pageSuggestions,
   // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of picker and scanner UI state; one reducer would not read better
 }: CardSelectorProps) {
   const { fetchCardsForPokemon, filterCards, isLoading: isLoadingSpecies, error: speciesError } = useTCGdex();
@@ -288,7 +293,16 @@ export default function CardSelector({
   const [lastSearchCards, setLastSearchCards] = useState(catalogSearch.cards);
   if (!catalogSearch.loading && catalogSearch.cards.length > 0 && catalogSearch.cards !== lastSearchCards)
     setLastSearchCards(catalogSearch.cards);
-  const searchCards = catalogSearch.loading ? lastSearchCards : catalogSearch.cards;
+  const suggestions = usePageCardSuggestions(
+    isAnyCard && !reservedCardId ? pageSuggestions : undefined,
+    selectedCardLanguage,
+  );
+  const showingSuggestions = suggestions.available && suggestions.enabled && !anyCardQuery.trim();
+  const searchCards = showingSuggestions
+    ? suggestions.cards
+    : catalogSearch.loading
+      ? lastSearchCards
+      : catalogSearch.cards;
   const cards = useMemo<TCGCard[]>(
     () =>
       !isAnyCard
@@ -319,7 +333,7 @@ export default function CardSelector({
           }),
     [isAnyCard, reservedCardId, searchCards, catalogSearch.offline, selectedCardLanguage, fixedLanguage, speciesCards],
   );
-  const isLoading = anyCard ? catalogSearch.loading : isLoadingSpecies;
+  const isLoading = anyCard ? (showingSuggestions ? suggestions.loading : catalogSearch.loading) : isLoadingSpecies;
   const error = anyCard ? null : speciesError;
   // Follows the `mode` prop, and the Add/Want toggle can switch it until the prop next changes.
   const [modeChoice, setModeChoice] = useState<{ prop: CardSelectorMode; value: CardSelectorMode } | null>(null);
@@ -1151,15 +1165,17 @@ export default function CardSelector({
                   {anyCard?.title ?? pokemonName}
                 </p>
                 <p className="text-muted-foreground truncate text-[11px]">
-                  {anyCard && !anyCardQuery.trim()
-                    ? 'Any card, Trainer or Energy'
-                    : several
-                      ? `${picks.length} of ${room} empty pocket${room === 1 ? '' : 's'} on this page`
-                      : isLoading
-                        ? anyCard
-                          ? 'Searching…'
-                          : 'Loading cards…'
-                        : `${filteredCards.length} of ${cards.length} cards`}
+                  {several && (showingSuggestions || anyCardQuery.trim() || !anyCard)
+                    ? `${picks.length} of ${room} empty pocket${room === 1 ? '' : 's'} on this page`
+                    : showingSuggestions
+                      ? 'Suggested for this page'
+                      : anyCard && !anyCardQuery.trim()
+                        ? 'Any card, Trainer or Energy'
+                        : isLoading
+                          ? anyCard
+                            ? 'Searching…'
+                            : 'Loading cards…'
+                          : `${filteredCards.length} of ${cards.length} cards`}
                 </p>
               </div>
               {native?.many && room > 1 && (
@@ -1244,6 +1260,21 @@ export default function CardSelector({
                   autoFocus={Boolean(anyCard)}
                   className="border-border/60 bg-background/85 placeholder:text-muted-foreground focus-visible:ring-primary/50 h-11 w-full rounded-2xl border pr-11 pl-9 text-base outline-none focus-visible:ring-2 md:text-sm [&::-webkit-search-cancel-button]:hidden"
                 />
+                {anyCard && suggestions.available && (
+                  <button
+                    type="button"
+                    onClick={suggestions.toggle}
+                    aria-pressed={suggestions.enabled}
+                    aria-label="Suggest cards like this page"
+                    className={`absolute top-1/2 right-1 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl ${
+                      suggestions.enabled
+                        ? 'bg-primary/15 text-primary'
+                        : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+                    }`}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </button>
+                )}
                 {!anyCard && (
                   <button
                     type="button"
@@ -1526,20 +1557,24 @@ export default function CardSelector({
                     <Search className="text-muted-foreground h-6 w-6" />
                   )}
                   <p className="text-sm font-semibold">
-                    {anyCardQuery.trim().length < 2
-                      ? 'Search for a card'
-                      : !isOnline
-                        ? "You're offline"
-                        : 'No cards found'}
+                    {showingSuggestions
+                      ? 'No suggestions for this page'
+                      : anyCardQuery.trim().length < 2
+                        ? 'Search for a card'
+                        : !isOnline
+                          ? "You're offline"
+                          : 'No cards found'}
                   </p>
                   <p className="text-muted-foreground text-xs">
-                    {anyCardQuery.trim().length < 2
-                      ? 'Type a name, a set or a card number. Trainers and Energy work too.'
-                      : !isOnline
-                        ? 'Only cards already saved on this device can be found offline.'
-                        : anyCard.cardId
-                          ? "This card isn't available to add right now."
-                          : 'Try a different name, set or number.'}
+                    {showingSuggestions
+                      ? 'Add a few cards to this page first, or search for one.'
+                      : anyCardQuery.trim().length < 2
+                        ? 'Type a name, a set or a card number. Trainers and Energy work too.'
+                        : !isOnline
+                          ? 'Only cards already saved on this device can be found offline.'
+                          : anyCard.cardId
+                            ? "This card isn't available to add right now."
+                            : 'Try a different name, set or number.'}
                   </p>
                 </div>
               ) : error || cards.length === 0 ? (

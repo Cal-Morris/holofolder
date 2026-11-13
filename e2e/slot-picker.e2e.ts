@@ -860,6 +860,55 @@ test.describe('explicit stable-slot picker', () => {
     await harness.expectScrollUnlocked();
   });
 
+  test('a free pocket suggests cards like the page once the toggle is on, and remembers it', async ({ harness }) => {
+    const { page } = harness;
+    const requests: URLSearchParams[] = [];
+    // Synthetic suggestion: one made-up card, served for the page's own cards.
+    await page.route('**/app/api/tcg-card-search?like=**', (route) => {
+      requests.push(new URL(route.request().url()).searchParams);
+      return route.fulfill({
+        json: {
+          cards: [
+            {
+              id: 'synthetic-suggested-1',
+              localId: '1',
+              name: 'Suggested Snorlax',
+              language: 'en',
+              set: { id: 'synthetic', name: 'Synthetic set' },
+              dexIds: [143],
+            },
+          ],
+        },
+      });
+    });
+    await pocket(page, 'slot-g').click();
+    let dialog = selector(page);
+    const toggle = dialog.getByRole('button', { name: 'Suggest cards like this page', exact: true });
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(dialog).toContainText('Search for a card');
+    await harness.expectMinTapTarget(toggle, 36);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(dialog.getByText('Suggested for this page')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Add card Suggested Snorlax from Synthetic set' })).toBeVisible();
+    expect(requests[0].get('like')).toBeTruthy();
+    await harness.expectNoHorizontalOverflow();
+    // Typing searches as usual; clearing the search brings the suggestions back.
+    await dialog.getByRole('searchbox', { name: 'Search cards' }).fill('snorlax');
+    await expect(dialog.getByText('Suggested for this page')).toHaveCount(0);
+    await dialog.getByRole('searchbox', { name: 'Search cards' }).fill('');
+    await expect(dialog.getByText('Suggested for this page')).toBeVisible();
+    await harness.closeControl(dialog).click();
+    await pocket(page, 'slot-g').click();
+    dialog = selector(page);
+    await expect(dialog.getByRole('button', { name: 'Suggest cards like this page', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(dialog.getByRole('button', { name: 'Add card Suggested Snorlax from Synthetic set' })).toBeVisible();
+    await expect(count(page)).toHaveText('0');
+  });
+
   test("an owned pocket opens the card's details and never the selector", async ({ harness }) => {
     const { page } = harness;
     await routeSnorlax(page);
