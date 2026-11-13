@@ -593,6 +593,7 @@ function ScopedNavigation({
       {content}
       <nav aria-label="Collection navigation" className={styles.dock}>
         <button
+          type="button"
           aria-current={visible.main === 'collection' ? 'page' : undefined}
           disabled={!collectionId}
           onClick={() => navigate({ ...visible, main: 'collection' })}
@@ -600,12 +601,14 @@ function ScopedNavigation({
           Collections
         </button>
         <button
+          type="button"
           aria-current={visible.main === 'inventory' ? 'page' : undefined}
           onClick={() => navigate({ ...visible, main: 'inventory' })}
         >
           Inventory
         </button>
         <button
+          type="button"
           aria-current={visible.main === 'dex' ? 'page' : undefined}
           onClick={() => navigate({ ...visible, main: 'dex' })}
         >

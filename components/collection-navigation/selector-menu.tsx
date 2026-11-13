@@ -10,6 +10,25 @@ export interface SelectorOption {
   label: string;
 }
 
+/** Arrow, Home and End keys move focus between the menu's options. */
+function move(event: KeyboardEvent<HTMLDivElement>) {
+  const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
+  const at = items.indexOf(document.activeElement as HTMLElement);
+  const next =
+    event.key === 'ArrowDown'
+      ? (at + 1) % items.length
+      : event.key === 'ArrowUp'
+        ? (at - 1 + items.length) % items.length
+        : event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? items.length - 1
+            : -1;
+  if (next < 0) return;
+  event.preventDefault();
+  items[next]?.focus();
+}
+
 /** An enclosed selector: a bordered trigger showing the current value and a chevron, opening a bounded
  * single-choice menu on the shared overlay primitive. `onSelect` runs after the menu and its history entry are gone. */
 export function SelectorMenu({
@@ -68,23 +87,6 @@ export function SelectorMenu({
       });
     setOpen((current) => !current);
   };
-  const move = (event: KeyboardEvent<HTMLDivElement>) => {
-    const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
-    const at = items.indexOf(document.activeElement as HTMLElement);
-    const next =
-      event.key === 'ArrowDown'
-        ? (at + 1) % items.length
-        : event.key === 'ArrowUp'
-          ? (at - 1 + items.length) % items.length
-          : event.key === 'Home'
-            ? 0
-            : event.key === 'End'
-              ? items.length - 1
-              : -1;
-    if (next < 0) return;
-    event.preventDefault();
-    items[next]?.focus();
-  };
   return (
     <div className={`relative ${className}`}>
       <button
@@ -139,6 +141,7 @@ export function SelectorMenu({
             <div
               role="menu"
               aria-label={menuLabel}
+              tabIndex={-1}
               onKeyDown={move}
               className="flex min-h-0 flex-col gap-0.5 overflow-y-auto overscroll-contain p-1 text-sm"
             >
