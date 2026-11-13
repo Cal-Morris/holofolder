@@ -16,6 +16,8 @@ export type {
 // The only row fields Activity shows. Everything else (certificates, labels, artwork) is dropped.
 const stateFields = new Set([
   'id',
+  'binder_rows',
+  'binder_cols',
   'card_id',
   'card_name',
   'card_set',

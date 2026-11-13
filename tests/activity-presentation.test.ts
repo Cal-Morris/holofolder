@@ -46,6 +46,16 @@ test('wants, owned cards, rename and bulk changes have meaningful verbs', () => 
     /want list/,
   );
   assert.equal(activitySummary(make({ name: 'Old' }, { name: 'New' }, 'binders')).title, 'Renamed Old to New');
+  const layout = make(
+    { name: 'Trades', binder_rows: 4, binder_cols: 4 },
+    { name: 'Trades', binder_rows: 3, binder_cols: 3 },
+    'binders',
+  );
+  assert.equal(activitySummary(layout).title, 'Changed the layout of Trades');
+  assert.deepEqual(readableActivityChanges(layout)[0].fields, [
+    { label: 'Rows', before: '4', after: '3' },
+    { label: 'Columns', before: '4', after: '3' },
+  ]);
   assert.equal(
     activitySummary({
       ...base,
