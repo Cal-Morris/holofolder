@@ -9,6 +9,8 @@ Choose **Edit layout** above the binder and tap pockets to select them, across p
 
 **Move**, then tap a pocket outside the selection to move the whole group before it, or choose **To the start** or **To the end**. Pockets keep their targets, cards and wants, in their saved relative order.
 
+To move a whole page, open **···** (More options) while on that page and choose **Move page N to another page**, then pick its new page number. The pages in between shift by one and the binder follows the page to its new number. Only full pages can move, because a partial page would push every later page off its grid; add empty pockets to fill the last page first.
+
 **Add** inserts one empty pocket before or after the selection or at the end of the binder, or a whole page of empty pockets (the current grid size) before the selection or at the end. Following pockets shift automatically, including across pages, and changing the grid later repaginates them. A binder holds at most 4,096 pockets.
 
 ## Fill from spare cards
@@ -54,4 +56,12 @@ Then apply with those preconditions and a retry-stable `operationId`:
 
 A retry with the same body returns the stored receipt. If anything in the collection changed since the dry run, the apply returns 409; run the dry run again and review it. Grids other than the presets need Premium (402 `premium_required`). It needs `collection:read`, `binders:read`, `collection:write` and `binders:write`, and is also an MCP tool.
 
-Moves, inserts and removals use `execute_slot_commands` (`POST /app/api/v1/storage/slots/commands`); fill uses `execute_inventory_commands`. Both are available over REST and MCP with `collection:write` and `binders:write`. See [native storage](/docs/native-storage).
+Whole-page moves use `move_binder_page` (`POST /app/api/v1/binders/{id}/pages/move`) with one-based page numbers and a retry-stable `operationId`:
+
+```json
+{ "from": 5, "to": 3, "operationId": "page-00000000-0000-4000-8000-000000000000" }
+```
+
+The server reads the binder's current pockets and grid and sends one atomic move. A retry with the same body returns the stored receipt. A page that isn't full, or the same page twice, returns 400 `page_not_movable`; a change by someone else during the request returns 409, so try again with a new `operationId`. It needs the same permissions as `set_binder_layout`, is recorded in Activity and is also an MCP tool.
+
+Other moves, inserts and removals use `execute_slot_commands` (`POST /app/api/v1/storage/slots/commands`); fill uses `execute_inventory_commands`. Both are available over REST and MCP with `collection:write` and `binders:write`. See [native storage](/docs/native-storage).

@@ -55,7 +55,7 @@ Private uploaded binder artwork lives in a separate private R2 bucket. Upload pr
 
 `update_binder` takes a `name`, a `cardLanguages` list (for example `["en", "ja"]`) or both. `cardLanguages` sets which printings the binder's card lists show; a binder that never set it shows English only, and owned or wanted cards always show. Send at least one language.
 
-`set_binder_layout` changes a binder's rows × columns: review it with `dryRun: true`, then apply with the returned preconditions and an `operationId` (see [bulk layout](/docs/bulk-layout#api)).
+`set_binder_layout` changes a binder's rows × columns: review it with `dryRun: true`, then apply with the returned preconditions and an `operationId` (see [bulk layout](/docs/bulk-layout#api)). `move_binder_page` moves a whole full page to another page number in one request.
 
 Collection and storage commands must protect against overwriting a newer edit. Duplicate retries of creation, purchase and job operations must not create duplicate effects. See the API reference for each request schema. Binder creation requires an `Idempotency-Key`, sent as a header or in the body; when both are present they must match. Settings replacement requires a `baseFingerprint` from the previous read. Native storage commands use revisions and a retry-stable `operationId` instead (see [native storage](/docs/native-storage)). Retry keys are retained for 24 hours. Cursors do not freeze the dataset while other clients make changes.
 

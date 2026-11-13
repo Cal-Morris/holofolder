@@ -166,6 +166,11 @@ export const API_SMOKE_ASSERTIONS: Record<string, Check> = {
     } else
       assert.equal(value.layoutRevision, Number(input.layoutRevision) + 1, 'A layout change advances the revision');
   },
+  move_binder_page: (value, input) => {
+    assert.equal(value.binderId, input.id);
+    assert.deepEqual([value.from, value.to], [input.from, input.to]);
+    assert.equal(typeof value.layoutRevision, 'number', 'A page move returns the slot receipt');
+  },
   delete_binder: (value, input) => {
     binders(value, input);
     assert.equal(value.deletedBinderId, input.id);

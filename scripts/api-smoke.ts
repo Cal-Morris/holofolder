@@ -230,6 +230,15 @@ async function main() {
     };
     const applied = await call('set_binder_layout', layoutApply);
     assert.deepEqual(await call('set_binder_layout', layoutApply), applied, 'A retried layout must replay its receipt');
+    // The synthetic binder has no full pages, so a page move is refused whole.
+    await call(
+      'move_binder_page',
+      { id: binderId, from: 2, to: 1, operationId: `page-${runId}` },
+      actors[0],
+      0,
+      'not-movable',
+      400,
+    );
     const settings = await read('get_settings', { binderId: defaultBinder });
     const settingsInput = {
       ...record(settings.settings),
