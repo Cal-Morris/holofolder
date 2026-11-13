@@ -1,9 +1,7 @@
 'use client';
 
-import { useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import { OverlayDialog } from '@/components/ui/overlay-dialog';
 import type { CardSearchLanguage } from '@/lib/card-languages';
 import { CARD_PICKER_SORTS, normalizeCardPickerSort, type CardPickerSort } from '@/lib/card-selector-sort';
 import { CARD_PICKER_LANGUAGES, CARD_PICKER_VARIANTS, type CardPickerVariantChoice } from '@/lib/card-picker-filters';
@@ -49,185 +47,168 @@ function chipClass(selected: boolean) {
  */
 export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProps) {
   const { onClose } = props;
-  const sheetRef = useRef<HTMLDivElement | null>(null);
-  useOverlay(true, onClose, { containerRef: sheetRef });
-  const swipe = useSwipeToDismiss(sheetRef, onClose);
   // Set and rarity options come from the loaded results, so hide a picker with nothing to choose.
   const showSets = props.sets.length > 1 || Boolean(props.set);
   const showRarities = props.rarities.length > 1 || Boolean(props.rarity);
 
-  if (typeof document === 'undefined') return null;
-
-  return createPortal(
-    <div
-      data-overlay-backdrop
-      role="presentation"
-      className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-[2px]"
-      onClick={onClose}
+  return (
+    <OverlayDialog
+      onClose={onClose}
+      aria-label="Filters and sort"
+      className="flex flex-col px-4 pt-3 pb-[calc(var(--safe-bottom)+0.75rem)]"
     >
-      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops taps inside the sheet reaching the backdrop's close handler */}
-      <div
-        ref={sheetRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Filters and sort"
-        className="border-border/65 bg-card absolute inset-x-0 bottom-0 mx-auto flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-[1.6rem] border-t px-4 pt-3 pb-[calc(var(--safe-bottom)+0.75rem)] shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] outline-none sm:bottom-4 sm:rounded-[1.6rem] sm:border"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div data-sheet-grabber className="-mx-4 -mt-3 shrink-0 px-4 pt-3" {...swipe}>
-          <div aria-hidden="true" className="bg-muted-foreground/30 mx-auto mb-2 h-1.5 w-10 rounded-full" />
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold">Filters &amp; sort</p>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close filters"
-              className="text-muted-foreground hover:bg-muted/70 hover:text-foreground -mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+      <div data-sheet-grabber className="-mx-4 -mt-3 shrink-0 px-4 pt-3">
+        <div aria-hidden="true" className="bg-muted-foreground/30 mx-auto mb-2 h-1.5 w-10 rounded-full" />
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold">Filters &amp; sort</p>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close filters"
+            className="text-muted-foreground hover:bg-muted/70 hover:text-foreground -mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
+      </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-2">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-2">
+        <label className="block space-y-1.5">
+          <span className="text-muted-foreground text-xs font-semibold">Sort</span>
+          <Select
+            aria-label="Sort cards"
+            className={selectClass}
+            value={props.sort}
+            onChange={(event) => props.onSortChange(normalizeCardPickerSort(event.target.value))}
+          >
+            {CARD_PICKER_SORTS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </label>
+
+        <fieldset className="space-y-1.5">
+          <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">Card language</legend>
+          <p className="text-muted-foreground text-[11px]">
+            {props.language === 'any'
+              ? 'Every printing, saved and priced in the language it was printed in.'
+              : 'Prices follow this language; card art stays on the English print.'}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {(props.allowAnyLanguage
+              ? [{ id: 'any' as const, label: 'Any language', shortLabel: 'Any' }, ...CARD_PICKER_LANGUAGES]
+              : CARD_PICKER_LANGUAGES
+            ).map((language) => (
+              <button
+                key={language.id}
+                type="button"
+                aria-pressed={props.language === language.id}
+                aria-label={language.label}
+                onClick={() => props.onLanguageChange(language.id)}
+                className={chipClass(props.language === language.id)}
+              >
+                {language.shortLabel}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="space-y-1.5">
+          <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">Variant</legend>
+          <div className="flex flex-wrap gap-1.5">
+            {CARD_PICKER_VARIANTS.map((variant) => (
+              <button
+                key={variant.id}
+                type="button"
+                aria-pressed={props.variant === variant.id}
+                onClick={() => props.onVariantChange(variant.id)}
+                className={chipClass(props.variant === variant.id)}
+              >
+                {variant.label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
+        {props.pokemonOptions.length > 1 && (
           <label className="block space-y-1.5">
-            <span className="text-muted-foreground text-xs font-semibold">Sort</span>
+            <span className="text-muted-foreground text-xs font-semibold">Pokémon</span>
             <Select
-              aria-label="Sort cards"
+              aria-label="Pokémon"
               className={selectClass}
-              value={props.sort}
-              onChange={(event) => props.onSortChange(normalizeCardPickerSort(event.target.value))}
+              value={props.pokemon ?? ''}
+              onChange={(event) => props.onPokemonChange(event.target.value ? Number(event.target.value) : undefined)}
             >
-              {CARD_PICKER_SORTS.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
+              <option value="">All Pokémon</option>
+              {props.pokemonOptions.map((pokemon) => (
+                <option key={pokemon.id} value={pokemon.id}>
+                  {pokemon.name}
                 </option>
               ))}
             </Select>
           </label>
+        )}
 
-          <fieldset className="space-y-1.5">
-            <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">Card language</legend>
-            <p className="text-muted-foreground text-[11px]">
-              {props.language === 'any'
-                ? 'Every printing, saved and priced in the language it was printed in.'
-                : 'Prices follow this language; card art stays on the English print.'}
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {(props.allowAnyLanguage
-                ? [{ id: 'any' as const, label: 'Any language', shortLabel: 'Any' }, ...CARD_PICKER_LANGUAGES]
-                : CARD_PICKER_LANGUAGES
-              ).map((language) => (
-                <button
-                  key={language.id}
-                  type="button"
-                  aria-pressed={props.language === language.id}
-                  aria-label={language.label}
-                  onClick={() => props.onLanguageChange(language.id)}
-                  className={chipClass(props.language === language.id)}
+        {(showSets || showRarities) && (
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(0,1fr))] gap-2">
+            {showSets && (
+              <label className="block min-w-0 space-y-1.5">
+                <span className="text-muted-foreground text-xs font-semibold">Set</span>
+                <Select
+                  aria-label="Set"
+                  className={selectClass}
+                  value={props.set ?? ''}
+                  onChange={(event) => props.onSetChange(event.target.value || undefined)}
                 >
-                  {language.shortLabel}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset className="space-y-1.5">
-            <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">Variant</legend>
-            <div className="flex flex-wrap gap-1.5">
-              {CARD_PICKER_VARIANTS.map((variant) => (
-                <button
-                  key={variant.id}
-                  type="button"
-                  aria-pressed={props.variant === variant.id}
-                  onClick={() => props.onVariantChange(variant.id)}
-                  className={chipClass(props.variant === variant.id)}
+                  <option value="">All sets</option>
+                  {props.sets.map((set) => (
+                    <option key={set.id} value={set.id}>
+                      {set.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
+            {showRarities && (
+              <label className="block min-w-0 space-y-1.5">
+                <span className="text-muted-foreground text-xs font-semibold">Rarity</span>
+                <Select
+                  aria-label="Rarity"
+                  className={selectClass}
+                  value={props.rarity ?? ''}
+                  onChange={(event) => props.onRarityChange(event.target.value || undefined)}
                 >
-                  {variant.label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          {props.pokemonOptions.length > 1 && (
-            <label className="block space-y-1.5">
-              <span className="text-muted-foreground text-xs font-semibold">Pokémon</span>
-              <Select
-                aria-label="Pokémon"
-                className={selectClass}
-                value={props.pokemon ?? ''}
-                onChange={(event) => props.onPokemonChange(event.target.value ? Number(event.target.value) : undefined)}
-              >
-                <option value="">All Pokémon</option>
-                {props.pokemonOptions.map((pokemon) => (
-                  <option key={pokemon.id} value={pokemon.id}>
-                    {pokemon.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          )}
-
-          {(showSets || showRarities) && (
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(0,1fr))] gap-2">
-              {showSets && (
-                <label className="block min-w-0 space-y-1.5">
-                  <span className="text-muted-foreground text-xs font-semibold">Set</span>
-                  <Select
-                    aria-label="Set"
-                    className={selectClass}
-                    value={props.set ?? ''}
-                    onChange={(event) => props.onSetChange(event.target.value || undefined)}
-                  >
-                    <option value="">All sets</option>
-                    {props.sets.map((set) => (
-                      <option key={set.id} value={set.id}>
-                        {set.name}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-              )}
-              {showRarities && (
-                <label className="block min-w-0 space-y-1.5">
-                  <span className="text-muted-foreground text-xs font-semibold">Rarity</span>
-                  <Select
-                    aria-label="Rarity"
-                    className={selectClass}
-                    value={props.rarity ?? ''}
-                    onChange={(event) => props.onRarityChange(event.target.value || undefined)}
-                  >
-                    <option value="">All rarities</option>
-                    {props.rarities.map((rarity) => (
-                      <option key={rarity} value={rarity}>
-                        {rarity}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-2 grid shrink-0 grid-cols-[auto_minmax(0,1fr)] gap-2">
-          <button
-            type="button"
-            onClick={props.onReset}
-            className="border-border/60 text-muted-foreground hover:text-foreground h-11 rounded-2xl border px-4 text-sm font-semibold"
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-primary text-primary-foreground h-11 rounded-2xl px-4 text-sm font-semibold"
-          >
-            Show {props.resultCount} {props.resultCount === 1 ? 'card' : 'cards'}
-          </button>
-        </div>
+                  <option value="">All rarities</option>
+                  {props.rarities.map((rarity) => (
+                    <option key={rarity} value={rarity}>
+                      {rarity}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
+          </div>
+        )}
       </div>
-    </div>,
-    document.body,
+
+      <div className="mt-2 grid shrink-0 grid-cols-[auto_minmax(0,1fr)] gap-2">
+        <button
+          type="button"
+          onClick={props.onReset}
+          className="border-border/60 text-muted-foreground hover:text-foreground h-11 rounded-2xl border px-4 text-sm font-semibold"
+        >
+          Reset
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="bg-primary text-primary-foreground h-11 rounded-2xl px-4 text-sm font-semibold"
+        >
+          Show {props.resultCount} {props.resultCount === 1 ? 'card' : 'cards'}
+        </button>
+      </div>
+    </OverlayDialog>
   );
 }
