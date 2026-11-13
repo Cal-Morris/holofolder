@@ -20,7 +20,8 @@ const toolbar = (page: Page) => page.getByRole('region', { name: 'Layout editing
 const append = async (page: Page) => {
   const edit = toolbar(page).getByRole('button', { name: 'Edit layout', exact: true });
   if (await edit.count()) await edit.click();
-  await toolbar(page).getByRole('button', { name: 'Append free slot', exact: true }).click();
+  await toolbar(page).getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'At the end of the binder', exact: true }).click();
 };
 const open = async (page: Page) => {
   await page.goto('/app/e2e-harness?signedIn=1&slots=durable&rows=2&cols=2');
@@ -49,7 +50,6 @@ test.describe('isolated durable slot session', () => {
     await context.setOffline(true);
     await append(page);
     await expect.poll(async () => (await record(page))?.pending.length).toBe(1);
-    await expect(toolbar(page)).toContainText('Saved on device');
     const original = (await record(page))!.pending[0].intent;
     await toolbar(page).getByRole('button', { name: 'Done', exact: true }).click();
     await context.setOffline(false);
@@ -102,14 +102,13 @@ test.describe('isolated durable slot session', () => {
       };
     });
     await append(page);
-    await expect(toolbar(page)).toContainText('Saving on device');
     await expect(page.locator('html')).toHaveAttribute('data-synthetic-transaction-held', '1');
     await expect(page.getByLabel('Durable acceptance', { exact: true })).toHaveText('null');
-    await expect(toolbar(page).getByRole('button', { name: 'Append free slot', exact: true })).toBeDisabled();
-    await expect(page.getByText('Saved on device · Pending sync', { exact: true })).toHaveCount(0);
+    await expect(toolbar(page).getByRole('button', { name: 'Add', exact: true })).toBeDisabled();
+    expect((await record(page))?.pending ?? []).toHaveLength(0);
     await page.evaluate(() => window.dispatchEvent(new Event('synthetic-release-commit')));
     await expect.poll(async () => (await record(page))?.pending.length).toBe(1);
-    await expect(toolbar(page)).toContainText('Saved on device');
+    await expect(toolbar(page).getByRole('button', { name: 'Add', exact: true })).toBeEnabled();
   });
 
   for (const failure of ['abort', 'quota', 'clone'] as const) {
@@ -141,7 +140,7 @@ test.describe('isolated durable slot session', () => {
       const draft = JSON.parse((await page.getByLabel('Durable draft', { exact: true }).textContent()) ?? 'null');
       expect((await record(page))!.pending.length).toBe(0);
       await expect(page.getByLabel('Durable acceptance', { exact: true })).toHaveText('null');
-      const retry = toolbar(page).getByRole('button', { name: 'Retry same draft' });
+      const retry = toolbar(page).getByRole('button', { name: 'Try again', exact: true });
       await harness.expectMinTapTarget(retry, 36);
       await retry.click();
       await expect.poll(async () => (await record(page))?.pending[0]?.intent).toEqual(draft.intent);
@@ -183,7 +182,7 @@ test.describe('isolated durable slot session', () => {
       await expect
         .poll(async () => JSON.parse((await page.getByLabel('Durable acceptance').textContent()) ?? 'null')?.status)
         .toBe('saved-on-device');
-      await expect(toolbar(page).getByRole('button', { name: 'Retry same draft' })).toHaveCount(0);
+      await expect(toolbar(page).getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0);
       await page.getByRole('button', { name: 'Retry refresh', exact: true }).click();
       await expect.poll(async () => (await record(page))?.pending.length).toBe(1);
     });
@@ -193,15 +192,14 @@ test.describe('isolated durable slot session', () => {
     await open(page);
     await page.locator('button[data-slot-id="slot-a"]').click();
     const dialog = page.getByRole('dialog', { name: /details$/ });
-    await dialog.locator('summary').filter({ hasText: 'Card options' }).click();
-    await dialog.getByRole('button', { name: 'Move card to Unassigned', exact: true }).click();
+    await dialog.getByRole('button', { name: 'More card options', exact: true }).click();
+    await dialog.getByRole('menuitem', { name: /^Take out of this pocket/ }).click();
     await expect.poll(async () => (await record(page))?.pending.length).toBe(1);
     const r = (await record(page))!;
     expect(r.optimistic!.binders[0].slots[0].inventoryItemId).toBeNull();
     expect(r.optimistic!.items.some((i) => i.id === 'item-a')).toBe(true);
-    await expect(dialog).toContainText('Saved on device');
-    await harness.expectWithinSafeViewport(dialog);
-    await harness.closeControl(dialog).click();
+    // The pocket is empty now, so its card details close by themselves.
+    await expect(dialog).toBeHidden();
     await page.reload();
     await expect.poll(async () => (await record(page))?.pending[0]?.intent).toEqual(r.pending[0].intent);
   });
@@ -219,8 +217,8 @@ test.describe('isolated durable slot session', () => {
     await pager.fill('2');
     await pager.press('Enter');
     await page.locator('button[data-slot-id="slot-g"]').click();
-    const dialog = page.getByRole('dialog', { name: /details$/ });
-    await dialog.getByRole('textbox', { name: 'Search slot catalog' }).fill('Energy');
+    const dialog = page.getByRole('dialog', { name: 'Card selector', exact: true });
+    await dialog.getByRole('searchbox', { name: 'Search cards', exact: true }).fill('Energy');
     await page.evaluate(() => {
       const put = IDBObjectStore.prototype.put;
       IDBObjectStore.prototype.put = function (value, key) {
@@ -231,7 +229,7 @@ test.describe('isolated durable slot session', () => {
         return put.call(this, value, key);
       };
     });
-    await dialog.getByRole('button', { name: /^Energy ·/ }).click();
+    await dialog.getByRole('button', { name: 'Add card Energy from Synthetic set', exact: true }).click();
     const failed = page.getByRole('dialog', { name: "Couldn't add this card" });
     await expect(failed.getByRole('alert')).toContainText('Free some storage');
     await expect(failed.getByRole('alert')).toContainText('Save not confirmed.');
