@@ -99,9 +99,9 @@ function exactQuote(
       preferred
         .flatMap((price) => [
           quoteFromSource(price, price.source ?? undefined, finish, true),
-          ...(price.sourcePrices ?? [])
-            .filter((quote) => quote.source !== price.source)
-            .map((quote) => quoteFromSource(price, quote.source, finish, true)),
+          ...(price.sourcePrices ?? []).flatMap((quote) =>
+            quote.source === price.source ? [] : [quoteFromSource(price, quote.source, finish, true)],
+          ),
         ])
         .find((price) => usableQuote(price, now)) ?? null
     );
@@ -116,9 +116,9 @@ function exactQuote(
   return (
     [
       preferred,
-      ...(snapshot.sourcePrices ?? [])
-        .filter((quote) => labelledFinish(quote.variantLabel) === finish)
-        .map((quote) => quoteFromSource(snapshot, quote.source, finish)),
+      ...(snapshot.sourcePrices ?? []).flatMap((quote) =>
+        labelledFinish(quote.variantLabel) === finish ? [quoteFromSource(snapshot, quote.source, finish)] : [],
+      ),
     ].find((price) => usableQuote(price, now)) ?? null
   );
 }
@@ -206,14 +206,15 @@ export function buildCollectionAnalytics(
   const owned = cards.filter((card) => card.scope === 'owned');
   const priced = owned.filter((card) => card.amount !== null);
   return {
-    ownedSpecies: new Set(collection.filter((item) => item.status !== 'wishlisted').map((item) => item.pokemon_id))
-      .size,
+    ownedSpecies: new Set(collection.flatMap((item) => (item.status === 'wishlisted' ? [] : [item.pokemon_id]))).size,
     assignedCards: owned.length,
     wantedCards: cards.filter((card) => card.scope === 'wanted').length,
     pricedCards: priced.length,
     estimatedFinishCards: priced.filter((card) => card.estimatedFinish).length,
-    oldestQuoteAt:
-      priced.map((card) => card.price!.updatedAt!).sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null,
+    oldestQuoteAt: priced.reduce<string | null>((oldest, card) => {
+      const updatedAt = card.price!.updatedAt!;
+      return oldest === null || Date.parse(updatedAt) < Date.parse(oldest) ? updatedAt : oldest;
+    }, null),
     staleCards: priced.filter((card) => (getPriceDataAgeDays(card.price?.updatedAt, now) ?? 0) > STALE_AFTER_DAYS)
       .length,
     valueGbp: owned.reduce((sum, card) => sum + (card.amount ?? 0), 0),

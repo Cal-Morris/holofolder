@@ -136,11 +136,14 @@ const aliases: Record<ImportField, string[]> = {
   productType: ['product type', 'category'],
   status: ['slot status'],
 };
+const aliasSets = Object.fromEntries(
+  Object.entries(aliases).map(([field, names]) => [field, new Set(names)]),
+) as Record<ImportField, Set<string>>;
 
 export function parseImportFile(source: string): ImportDocument {
   if (new TextEncoder().encode(source).length > IMPORT_MAX_BYTES) throw new Error('Maximum file size is 10 MiB.');
   const text = source.replace(/^\uFEFF/, '');
-  if (/^\s*[\[{]/.test(text)) {
+  if (/^\s*[[{]/.test(text)) {
     let backup: unknown;
     try {
       backup = JSON.parse(text);
@@ -196,7 +199,8 @@ export function parseImportFile(source: string): ImportDocument {
   const mapping: ImportMapping = trusted ? { ...holoMapping } : {};
   if (!trusted)
     for (const field of IMPORT_FIELDS) {
-      const index = keys.findIndex((key) => aliases[field].includes(key));
+      // oxlint-disable-next-line react-doctor/js-index-maps -- first matching column in header order
+      const index = keys.findIndex((key) => aliasSets[field].has(key));
       if (index >= 0) mapping[field] = index;
     }
   return { headers, records, mapping, trusted };
@@ -351,9 +355,10 @@ export function buildImportPlan(
     next.set(id, merged);
     return { ...result, selected: true };
   });
-  const operations = [...next.values()]
-    .filter((item) => collectionFingerprint(item) !== collectionFingerprint(existing.get(item.pokemon_id)))
-    .map((item) => ({ next: item, base: existing.get(item.pokemon_id) ?? null }));
+  const operations = Array.from(next.values()).flatMap((item) => {
+    const base = existing.get(item.pokemon_id);
+    return collectionFingerprint(item) === collectionFingerprint(base) ? [] : [{ next: item, base: base ?? null }];
+  });
   return { rows, operations, delta: operations.reduce((sum, op) => sum + weight(op.next) - weight(op.base), 0) };
 }
 
@@ -396,6 +401,7 @@ export async function applyImportPlan(
     if (signal.aborted) break;
     let result: { error?: string; queued?: boolean };
     try {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- writes go in order and stop when aborted
       result = await save(operation.next, operation.base);
     } catch (error) {
       result = { error: error instanceof Error ? error.message : 'Write failed. Check your binder before retrying.' };

@@ -141,9 +141,10 @@ export function extractCardTextSignals(rawText: string): CardTextSignals {
   const normalizedText = normalizeText(rawText);
   const textTokens = normalizedText.split(/\s+/).filter(Boolean);
   const words = new Set(
-    textTokens
-      .map((word) => word.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, ''))
-      .filter((word) => word.length >= OCR_WORD_MIN_LENGTH && /[a-z]/.test(word)),
+    textTokens.flatMap((token) => {
+      const word = token.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
+      return word.length >= OCR_WORD_MIN_LENGTH && /[a-z]/.test(word) ? [word] : [];
+    }),
   );
   const collectorNumbers: string[] = [];
   const seenNumbers = new Set<string>();
@@ -226,10 +227,7 @@ export function mergeCardTextSignals(signals: Array<CardTextSignals | null | und
   const usefulSignals = signals.filter((signal): signal is CardTextSignals => Boolean(signal));
   if (usefulSignals.length === 0) return null;
 
-  const rawText = usefulSignals
-    .map((signal) => signal.rawText)
-    .filter(Boolean)
-    .join('\n');
+  const rawText = usefulSignals.flatMap((signal) => (signal.rawText ? [signal.rawText] : [])).join('\n');
   const merged = extractCardTextSignals(rawText);
   const collectorNumberSet = new Set(merged.collectorNumbers);
 
@@ -250,9 +248,7 @@ export function mergeCardTextSignals(signals: Array<CardTextSignals | null | und
 
 export function buildCardMetadataTextSignals(card: TextMatchableCard) {
   const variantWords = card.variants
-    ? Object.entries(card.variants)
-        .filter(([, enabled]) => enabled)
-        .map(([variant]) => variant)
+    ? Object.entries(card.variants).flatMap(([variant, enabled]) => (enabled ? [variant] : []))
     : [];
 
   return extractCardTextSignals(
@@ -411,12 +407,14 @@ function scoreCollectorNumberSimilarity(querySignals: CardTextSignals, candidate
 
   for (const queryNumber of querySignals.collectorNumbers) {
     if (candidateNumbers.has(queryNumber)) {
+      // oxlint-disable-next-line react-doctor/js-set-map-lookups -- substring check on a string
       best = Math.max(best, queryNumber.includes('/') ? 1 : /[a-z]/.test(queryNumber) ? 0.86 : 0.72);
       continue;
     }
 
     const queryNumeric = normalizeNumberToken(queryNumber);
     if (queryNumeric && candidateNumbers.has(queryNumeric)) {
+      // oxlint-disable-next-line react-doctor/js-set-map-lookups -- substring check on a string
       best = Math.max(best, queryNumeric.includes('/') ? 0.82 : 0.58);
     }
   }

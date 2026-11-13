@@ -77,31 +77,41 @@ const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 function safeState(v: unknown, depth = 0): ActivityState | null {
   if (!record(v) || depth > 3) return null;
   return Object.fromEntries(
-    Object.entries(v)
-      .filter(([k]) => stateFields.has(k))
-      .map(([k, value]) => [
-        k,
-        Array.isArray(value)
-          ? value.map((x) =>
-              record(x) ? safeState(x, depth + 1) : typeof x === 'string' || typeof x === 'number' ? x : null,
-            )
-          : record(value)
-            ? safeState(value, depth + 1)
-            : value === null || ['string', 'number', 'boolean'].includes(typeof value)
-              ? value
-              : null,
-      ]),
+    Object.entries(v).flatMap(([k, value]) =>
+      stateFields.has(k)
+        ? [
+            [
+              k,
+              Array.isArray(value)
+                ? value.map((x) =>
+                    record(x) ? safeState(x, depth + 1) : typeof x === 'string' || typeof x === 'number' ? x : null,
+                  )
+                : record(value)
+                  ? safeState(value, depth + 1)
+                  : value === null || ['string', 'number', 'boolean'].includes(typeof value)
+                    ? value
+                    : null,
+            ],
+          ]
+        : [],
+    ),
   );
 }
 /** Stored audit changes, reduced to the fields Activity shows. */
 export function projectActivityChanges(value: unknown): ActivityChange[] {
   return Array.isArray(value)
-    ? value.filter(record).map((c) => ({
-        table: typeof c.table === 'string' ? c.table : 'unknown',
-        id: typeof c.id === 'string' ? c.id : '',
-        before: safeState(c.before),
-        after: safeState(c.after),
-      }))
+    ? value.flatMap((c: unknown) =>
+        record(c)
+          ? [
+              {
+                table: typeof c.table === 'string' ? c.table : 'unknown',
+                id: typeof c.id === 'string' ? c.id : '',
+                before: safeState(c.before),
+                after: safeState(c.after),
+              },
+            ]
+          : [],
+      )
     : [];
 }
 export function parseActivityPage(value: unknown): ActivityPage | null {
@@ -233,7 +243,7 @@ function display(value: unknown): string {
 }
 export function activityChanges(event: Pick<ActivityEvent, 'changes'>) {
   const changes = event.changes;
-  const removedItems = new Set(changes.filter((c) => c.table === 'inventory_items' && !c.after).map((c) => c.id));
+  const removedItems = new Set(changes.flatMap((c) => (c.table === 'inventory_items' && !c.after ? [c.id] : [])));
   return changes.map((change) => {
     const state = change.after ?? change.before;
     const name = String(
@@ -278,13 +288,17 @@ export function activityChanges(event: Pick<ActivityEvent, 'changes'>) {
     return {
       ...change,
       title: `${verb} · ${name}`,
-      fields: keys
-        .filter((key) => JSON.stringify(change.before?.[key]) !== JSON.stringify(change.after?.[key]))
-        .map((key) => ({
-          label: labels[key] ?? key.replaceAll('_', ' '),
-          before: display(change.before?.[key]),
-          after: display(change.after?.[key]),
-        })),
+      fields: keys.flatMap((key) =>
+        JSON.stringify(change.before?.[key]) === JSON.stringify(change.after?.[key])
+          ? []
+          : [
+              {
+                label: labels[key] ?? key.replaceAll('_', ' '),
+                before: display(change.before?.[key]),
+                after: display(change.after?.[key]),
+              },
+            ],
+      ),
     };
   });
 }

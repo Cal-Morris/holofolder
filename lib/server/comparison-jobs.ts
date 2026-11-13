@@ -6,6 +6,8 @@ import { loadCardPriceChecks, loadSavedCardPriceChecks } from '@/lib/server/card
 import type { CheckCompsProgress } from '@/lib/check-comps';
 import type { ComparisonJob, ComparisonTarget, ComparisonResult } from '@/lib/comparison-jobs';
 
+const RETRYABLE_STATUSES = new Set([429, 503]);
+
 export interface StoredComparisonJob extends ComparisonJob {
   owner_user_id: string;
   initiated_by?: string | null;
@@ -50,6 +52,7 @@ export async function estimateComparisonSpend(targets: ComparisonTarget[]) {
   const fresh = new Set<string>();
   const ids = [...new Set(targets.map((target) => target.cardId))];
   for (let i = 0; i < ids.length; i += 100) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- batches go one at a time to bound database load
     const { data, error } = await createAdminClient()
       .from('card_price_checks')
       .select('card_id,finish,checked_at')
@@ -74,6 +77,7 @@ export async function checkComparisonTarget(
   let failed = false;
   let retryable = false;
   for (const source of PRICE_CHECK_SOURCES) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- sources run one at a time and stop when the job is cancelled
     if (jobId && !(await comparisonJobActive(jobId))) return { result: 'failed', stopped: {} };
     if (saved[source]) continue;
     allFresh = false;
@@ -85,7 +89,7 @@ export async function checkComparisonTarget(
     try {
       result = await loadCardPriceChecks(target.cardId, target.finish, true, source);
     } catch (error) {
-      if (error instanceof DeveloperAccessError && [429, 503].includes(error.status))
+      if (error instanceof DeveloperAccessError && RETRYABLE_STATUSES.has(error.status))
         return { result: 'failed', stopped: {}, retryable: true };
       throw error;
     }

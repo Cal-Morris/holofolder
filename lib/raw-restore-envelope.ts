@@ -12,6 +12,7 @@ export function rawRestoreV2GraphBytes(current: InventorySnapshot, desired: Bind
   const collection = current.collections.find((c) => c.id === collectionId)!;
   const reordered = before.slots.some((s, n) => s.id !== desired.slots[n]?.id);
   const graph: { table: string; id: string; before: unknown; after: unknown }[] = [];
+  const desiredSlots = new Map(desired.slots.map((s) => [s.id, s]));
   for (const slot of before.slots) {
     const persisted = {
       id: slot.id,
@@ -24,7 +25,7 @@ export function rawRestoreV2GraphBytes(current: InventorySnapshot, desired: Bind
       preset_origin: slot.presetOrigin,
       version: slot.version,
     };
-    const after = desired.slots.find((s) => s.id === slot.id)!;
+    const after = desiredSlots.get(slot.id)!;
     graph.push({
       table: 'binder_slots',
       id: slot.id,
@@ -43,9 +44,13 @@ export function rawRestoreV2GraphBytes(current: InventorySnapshot, desired: Bind
     ...old.map((p) => p.inventoryItemId),
     ...desired.slots.flatMap((s) => (s.inventoryItemId === null ? [] : [s.inventoryItemId])),
   ]);
+  const oldPlacements = new Map(old.map((p) => [p.inventoryItemId, p]));
+  const desiredPlacements = new Map(
+    desired.slots.flatMap((s) => (s.inventoryItemId === null ? [] : [[s.inventoryItemId, s] as const])),
+  );
   for (const id of ids) {
-    const placed = old.find((p) => p.inventoryItemId === id),
-      slot = desired.slots.find((s) => s.inventoryItemId === id);
+    const placed = oldPlacements.get(id),
+      slot = desiredPlacements.get(id);
     const state = (slotId: string, version: number) => ({
       inventory_item_id: id,
       owner_user_id: owner,

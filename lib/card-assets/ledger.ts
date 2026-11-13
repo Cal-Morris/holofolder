@@ -124,7 +124,10 @@ export function parseRules(text: string, sources: readonly AssetSource[]): Asset
     if (!/^[a-z]{2}(-[a-z]{2,3})?$/.test(lang)) throw new Error(`${where}: lang "${lang}" is not a language code`)
     if (seen.has(`${scope} ${lang}`)) throw new Error(`${where}: duplicate rule for ${scope} ${lang}`)
     seen.add(`${scope} ${lang}`)
-    const prefer = (row.prefer ?? "").split(">").map(id => id.trim()).filter(Boolean)
+    const prefer = (row.prefer ?? "").split(">").flatMap(token => {
+      const id = token.trim()
+      return id ? [id] : []
+    })
     if (!prefer.length) throw new Error(`${where}: prefer is empty`)
     for (const token of prefer) {
       if (token === REVIEWED) continue
@@ -215,6 +218,7 @@ export function imageCandidates(card: MirrorCardRow, lang = "en", discovered: re
 export function chooseImage(candidates: readonly ImageCandidate[], prefer: readonly string[]) {
   for (const token of prefer) {
     const [id, language] = token.split(":")
+    // oxlint-disable-next-line react-doctor/js-index-maps -- first candidate for each preference, in order
     const match = candidates.find(candidate => id === REVIEWED ? candidate.reviewed : !candidate.reviewed && candidate.source === id && (language === undefined || candidate.language === language))
     if (match) return match
   }
@@ -235,7 +239,7 @@ export function ledgerRow(card: MirrorCardRow, rules: readonly AssetRule[], sour
     kind: chosen ? kinds.get(chosen.source) ?? "" : "",
     image_language: chosen?.language ?? "",
     url: chosen?.url ?? "",
-    alternatives: candidates.filter(candidate => candidate !== chosen).map(candidate => candidate.source + (candidate.language ? `:${candidate.language}` : "")).join(" "),
+    alternatives: candidates.flatMap(candidate => candidate === chosen ? [] : [candidate.source + (candidate.language ? `:${candidate.language}` : "")]).join(" "),
   }
 }
 
@@ -256,7 +260,7 @@ export function crossCheckAtlas(sources: readonly AssetSource[], atlas: AtlasDat
   for (const source of sources) {
     if (source.atlasId && !atlasIds.has(source.atlasId)) errors.push(`${source.id}: atlas_id "${source.atlasId}" is not in the atlas`)
     if (!source.atlasId || source.permissionNote || (source.permission !== "none" && source.permission !== "granted")) continue
-    const flagged = (atlas.gaps ?? []).flatMap(gap => (gap.fills ?? []).filter(fill => fill.source === source.atlasId && fill.permission !== "none").map(fill => `${gap.lang}: ${fill.permission}`))
+    const flagged = (atlas.gaps ?? []).flatMap(gap => (gap.fills ?? []).flatMap(fill => fill.source === source.atlasId && fill.permission !== "none" ? [`${gap.lang}: ${fill.permission}`] : []))
     if (flagged.length) warnings.push(`${source.id}: allowed here, but the atlas says ${[...new Set(flagged)].join(", ")}. Record why in permission_note.`)
   }
   return { errors, warnings }

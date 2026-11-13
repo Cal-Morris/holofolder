@@ -66,8 +66,8 @@ export function inferCardFinish(rarity: unknown, variants: unknown): CardFinish 
   if (rarityLabel.includes('shiny')) return 'shiny_rare';
   if (rarityLabel.includes('ultra')) return 'ultra_rare';
   if (rarityLabel.includes('double')) return 'double_rare';
-  if (Boolean(variantMap.jumbo)) return 'jumbo';
-  if (Boolean(variantMap.holo)) return 'holo';
+  if (variantMap.jumbo) return 'jumbo';
+  if (variantMap.holo) return 'holo';
 
   return 'normal';
 }
@@ -83,7 +83,7 @@ const VARIANT_LABELS: Array<[keyof BrowseCardVariants, string]> = [
 
 export function getCardVariantLabels(variants?: BrowseCardVariants | null) {
   if (!variants) return [];
-  return VARIANT_LABELS.filter(([key]) => Boolean(variants[key])).map(([, label]) => label);
+  return VARIANT_LABELS.flatMap(([key, label]) => (variants[key] ? [label] : []));
 }
 
 export function formatCardNumber(card: Pick<BrowseCard, 'localId' | 'set'>) {
@@ -113,16 +113,16 @@ export function buildBrowseEntries<TCard extends BrowseCard>(
     collectionItem && collectionItem.status !== 'wishlisted' ? (collectionItem.card_id ?? null) : null;
   const wantedIds = new Set((collectionItem?.wanted_cards ?? []).map((wanted) => wanted.card_id));
 
-  return cards
-    .toSorted(compareBrowseCards)
-    .map((card) => ({
+  return cards.toSorted(compareBrowseCards).flatMap((card) => {
+    const entry = {
       card,
       owned: matchesCatalogCardId(card, ownedCardId),
       wanted: [...wantedIds].some((id) => matchesCatalogCardId(card, id)),
       variantLabels: getCardVariantLabels(card.variants),
       numberLabel: formatCardNumber(card),
-    }))
-    .filter((entry) => filter === 'all' || (filter === 'owned' ? entry.owned : entry.wanted));
+    };
+    return filter === 'all' || (filter === 'owned' ? entry.owned : entry.wanted) ? [entry] : [];
+  });
 }
 
 export interface ParsedCardSearchQuery {

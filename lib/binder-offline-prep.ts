@@ -143,11 +143,11 @@ export async function inspectBinderPrep(
     ),
   ];
   const saved = new Map<string, unknown>();
-  for (let i = 0; i < keys.length; i += 100) {
-    const batch = keys.slice(i, i + 100);
-    const values = await deps.store.getMany(batch);
-    batch.forEach((key, index) => saved.set(key, values[index]));
-  }
+  const batches = Array.from({ length: Math.ceil(keys.length / 100) }, (_, index) =>
+    keys.slice(index * 100, index * 100 + 100),
+  );
+  const batchValues = await Promise.all(batches.map((batch) => deps.store.getMany(batch)));
+  batches.forEach((batch, n) => batch.forEach((key, index) => saved.set(key, batchValues[n][index])));
   const countedChecks = new Set<string>();
   await mapWithConcurrency(cards, 4, async (card) => {
     if (savedCards.has(printingKey(card))) status.cards++;
@@ -258,7 +258,9 @@ export async function downloadBinderPrep(
   });
   const checks = [
     ...new Map(
-      cards.filter(supportsSavedChecks).map((card) => [`${card.cardId}:${priceCheckFinish(card.finish)}`, card]),
+      cards.flatMap((card) =>
+        supportsSavedChecks(card) ? [[`${card.cardId}:${priceCheckFinish(card.finish)}`, card] as const] : [],
+      ),
     ).values(),
   ];
   const checkBatches = Array.from({ length: Math.ceil(checks.length / 25) }, (_, index) =>
@@ -274,6 +276,7 @@ export async function downloadBinderPrep(
     const data = await response.json();
     if (!Array.isArray(data.checks)) throw new Error('Invalid saved checks');
     for (const card of batch) {
+      // oxlint-disable-next-line react-doctor/js-index-maps -- one small response batch of at most 25 checks
       const saved = data.checks.find(
         (check: { cardId?: unknown; finish?: unknown }) =>
           check?.cardId === card.cardId && check.finish === priceCheckFinish(card.finish),
@@ -281,6 +284,7 @@ export async function downloadBinderPrep(
       if (!saved) throw new Error('Incomplete saved-check response');
       for (const source of PRICE_CHECK_SOURCES) {
         if (!isCardPriceCheck(saved[source])) continue;
+        // oxlint-disable-next-line react-doctor/async-await-in-loop -- each check is pinned and verified before its receipt is written
         await pinCardPriceCheck(card.cardId, card.finish, source, saved[source], options.store);
         const pinned = await readPinnedCardPriceCheck(card.cardId, card.finish, source, options.store);
         if (!pinned || Date.parse(pinned.checkedAt) < Date.parse(saved[source].checkedAt))
