@@ -67,14 +67,14 @@ export async function inspectRawRestore(
     !backup.layouts ||
     backupContentKey(backup.layouts.map(({ layoutRevision: _r, ...l }) => l)) !==
       backupContentKey(
-        read.layouts.filter((l) => l.collectionId === collectionId).map(({ layoutRevision: _r, ...l }) => l),
+        read.layouts.flatMap(({ layoutRevision: _r, ...l }) => (l.collectionId === collectionId ? [l] : [])),
       )
   )
     return fail();
   const desiredIds = new Set(backup.placements.map((p) => p.inventoryItemId));
   const involved = new Set([
     ...desiredIds,
-    ...snapshot.placements.filter((p) => p.collectionId === collectionId).map((p) => p.inventoryItemId),
+    ...snapshot.placements.flatMap((p) => (p.collectionId === collectionId ? [p.inventoryItemId] : [])),
   ]);
   if (
     involved.size > RAW_RESTORE_V2_LIMITS.items ||
@@ -83,10 +83,13 @@ export async function inspectRawRestore(
       RAW_RESTORE_V2_LIMITS.work
   )
     return fail();
+  const items = new Map(snapshot.items.map((i) => [i.id, i])),
+    fileItems = new Map(backup.items.map((i) => [i.id, i])),
+    placements = new Map(snapshot.placements.map((p) => [p.inventoryItemId, p]));
   for (const id of involved) {
-    const item = snapshot.items.find((i) => i.id === id),
-      fromFile = backup.items.find((i) => i.id === id),
-      placement = snapshot.placements.find((p) => p.inventoryItemId === id);
+    const item = items.get(id),
+      fromFile = fileItems.get(id),
+      placement = placements.get(id);
     if (
       !item ||
       item.grading !== null ||
@@ -184,6 +187,7 @@ export async function requestNativeRawRestorePlan(
     backupContentKey(command.releaseItemIds) !== backupContentKey(input.choices.releaseItemIds)
   )
     throw new Error('Restore review changed. Nothing has been queued.');
+  // oxlint-disable-next-line react-doctor/async-defer-await -- the session is rechecked after the binding is ready
   await binding.assertReady();
   if (!valid()) throw new Error('Restore session changed.');
   return freezeBackupPlan(command);

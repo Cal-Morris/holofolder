@@ -58,7 +58,7 @@ function buildSetChecklist(input: SetChecklistInput, preserveCapturedOrder: bool
   )
     throw new Error('Unsupported finish scope');
   const byId = new Map<string, SetChecklistScope['cards'][number]>();
-  const promoCardIds: string[] = [];
+  const promoIds = new Set<string>();
   const aliases = new Map<string, string>();
   for (const [cards, isPromo] of [
     [input.cards, false],
@@ -66,14 +66,15 @@ function buildSetChecklist(input: SetChecklistInput, preserveCapturedOrder: bool
   ] as const) {
     for (const card of cards) {
       const cardId = card.canonicalId ?? card.id;
+      const setId = card.set?.id;
       if (
-        ![cardId, card.id, card.localId, card.name, card.set?.id].every(isSlotContractId) ||
-        (!isPromo && card.set.id !== input.set.id)
+        ![cardId, card.id, card.localId, card.name, setId].every(isSlotContractId) ||
+        (!isPromo && setId !== input.set.id)
       )
         throw new Error('Invalid catalog identity');
       const copy = {
         cardId,
-        setId: card.set.id,
+        setId,
         localId: card.localId,
         name: card.name,
         languageConfirmed: card.languageConfirmed === true && card.language === input.language,
@@ -87,7 +88,7 @@ function buildSetChecklist(input: SetChecklistInput, preserveCapturedOrder: bool
         if (aliases.has(id) && aliases.get(id) !== cardId) throw new Error('Conflicting catalog alias');
         aliases.set(id, cardId);
       }
-      if (isPromo && !promoCardIds.includes(cardId)) promoCardIds.push(cardId);
+      if (isPromo) promoIds.add(cardId);
     }
   }
   const excludedCardIds = Array.from(
@@ -99,21 +100,24 @@ function buildSetChecklist(input: SetChecklistInput, preserveCapturedOrder: bool
       }),
     ),
   ).sort();
+  const excluded = new Set(excludedCardIds);
   const cards = preserveCapturedOrder
     ? [...byId.values()]
     : Array.from(byId.values()).sort(
         (a, b) =>
-          Number(promoCardIds.includes(a.cardId)) - Number(promoCardIds.includes(b.cardId)) ||
+          Number(promoIds.has(a.cardId)) - Number(promoIds.has(b.cardId)) ||
           compareCollectorNumbers(a.localId, b.localId) ||
           a.cardId.localeCompare(b.cardId),
       );
   const entries = cards.flatMap((card, index) => {
-    if (!card.languageConfirmed || excludedCardIds.includes(card.cardId)) return [];
+    if (!card.languageConfirmed || excluded.has(card.cardId)) return [];
     const base = { kind: 'card' as const, cardId: card.cardId, language: input.language };
     return input.finishes.length
-      ? input.finishes
-          .filter((f) => card.verifiedFinishes.includes(f))
-          .map((finish) => ({ id: `target-${index + 1}-${finish}`, target: { ...base, finish } }))
+      ? input.finishes.flatMap((finish) =>
+          card.verifiedFinishes.includes(finish)
+            ? [{ id: `target-${index + 1}-${finish}`, target: { ...base, finish } }]
+            : [],
+        )
       : [{ id: `target-${index + 1}`, target: base }];
   });
   const officialCardCount = input.set.officialCardCount ?? null;
@@ -124,7 +128,7 @@ function buildSetChecklist(input: SetChecklistInput, preserveCapturedOrder: bool
   ];
   if (officialCardCount !== null)
     warnings.push(
-      `${cards.filter((c) => !promoCardIds.includes(c.cardId)).length} catalog rows; printed base count ${officialCardCount} is not a master-set denominator.`,
+      `${cards.filter((c) => !promoIds.has(c.cardId)).length} catalog rows; printed base count ${officialCardCount} is not a master-set denominator.`,
     );
   const unavailableLanguage = cards.filter((c) => !c.languageConfirmed).length;
   if (unavailableLanguage)
@@ -135,8 +139,9 @@ function buildSetChecklist(input: SetChecklistInput, preserveCapturedOrder: bool
     warnings.push(
       'Only explicitly true variant flags are eligible. False, absent and unknown flags are unavailable; rarity, price and grade supply no evidence.',
     );
+  const eligible = cards.filter((c) => c.languageConfirmed && !excluded.has(c.cardId));
   for (const finish of input.finishes) {
-    const eligible = cards.filter((c) => c.languageConfirmed && !excludedCardIds.includes(c.cardId));
+    // oxlint-disable-next-line react-doctor/js-set-map-lookups -- each card's own short list of finishes
     const verified = eligible.filter((c) => c.verifiedFinishes.includes(finish)).length;
     warnings.push(
       `${finish}: ${verified} verified targets of ${eligible.length} included language-confirmed cards; ${eligible.length - verified} unavailable. Flags describe catalog evidence, not guaranteed regional distribution.`,
@@ -150,7 +155,7 @@ function buildSetChecklist(input: SetChecklistInput, preserveCapturedOrder: bool
     capturedAt: input.capturedAt,
     officialCardCount,
     cards,
-    promoCardIds,
+    promoCardIds: [...promoIds],
     excludedCardIds,
     warnings,
   };

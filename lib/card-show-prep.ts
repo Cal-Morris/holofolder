@@ -94,6 +94,7 @@ export async function planCardShowPrep(
 
   for (const set of sets) {
     const url = getSetSlotsUrl(set);
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- sets download one at a time so a failure stops the plan
     const response = await fetchOfflineResource(url, { signal: options.signal, fetcher: fetcher as typeof fetch });
     if (!response.ok) throw new Error(`Couldn't load ${set.name} (${response.status})`);
     const text = await response.text();
@@ -109,6 +110,7 @@ export async function planCardShowPrep(
   const sampledImageBytes: number[] = [];
   const sampledImageUrls: string[] = [];
   for (const url of imageUrls.slice(0, ESTIMATE_SAMPLE_SIZE)) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- a small sample, downloaded one at a time
     const response = await fetchOfflineResource(url, {
       signal: options.signal,
       fetcher: fetcher as typeof fetch,
@@ -224,6 +226,7 @@ export async function downloadCardShowImages(
       const url = urls[next];
       next += 1;
       try {
+        // oxlint-disable-next-line react-doctor/async-await-in-loop -- each worker takes one image at a time from the shared queue
         const saved = await cache?.match(url);
         if (!saved?.ok || !saved.headers.get('content-type')?.startsWith('image/')) {
           const response = await fetchOfflineResource(url, {
@@ -262,15 +265,22 @@ export async function inspectSavedShowSets(options: {
 }): Promise<SavedShowSet[]> {
   const names = await options.cacheStorage.keys();
   const imageUrls = new Set<string>();
-  for (const name of names.filter((name) => /^binderdex-.*-(?:show-)?images$/.test(name))) {
-    for (const request of await (await options.cacheStorage.open(name)).keys()) imageUrls.add(request.url);
-  }
+  const imageRequests = await Promise.all(
+    names.flatMap((name) =>
+      /^binderdex-.*-(?:show-)?images$/.test(name)
+        ? [options.cacheStorage.open(name).then((cache) => cache.keys())]
+        : [],
+    ),
+  );
+  for (const requests of imageRequests) for (const request of requests) imageUrls.add(request.url);
   const saved = new Map<string, SavedShowSet>();
   for (const name of names.filter((name) => /^binderdex-.*-data$/.test(name))) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- caches are read in order; a later copy of a set replaces an earlier one
     const cache = await options.cacheStorage.open(name);
     for (const request of await cache.keys()) {
       const url = new URL(request.url);
       if (appPath(url.pathname) !== '/app/api/tcg-set-slots' || !url.searchParams.has('setId')) continue;
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- caches are read in order; a later copy of a set replaces an earlier one
       const response = await cache.match(request);
       const payload = (await response?.json().catch(() => null)) as TCGSetSlotsResponse | null;
       if (
