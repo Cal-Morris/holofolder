@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "nextjs", "jsx-a11y", "import"],
-  "jsPlugins": ["oxlint-plugin-react-doctor"],
+  "jsPlugins": ["oxlint-plugin-react-doctor", "eslint-plugin-better-tailwindcss", "./lint/holo-design-plugin.mjs"],
   "categories": {
     "correctness": "error"
   },
@@ -241,11 +241,62 @@
     "react-doctor/zod-v4-no-deprecated-error-apis": "warn",
     "react-doctor/zod-v4-no-deprecated-error-customization": "warn",
     "react-doctor/zod-v4-no-deprecated-schema-apis": "warn",
-    "react-doctor/zod-v4-prefer-top-level-string-formats": "warn"
+    "react-doctor/zod-v4-prefer-top-level-string-formats": "warn",
+    "better-tailwindcss/no-unknown-classes": [
+      "warn",
+      {
+        "ignore": [
+          "^holo-",
+          "^trading-card$",
+          "^scrollbar-hide$",
+          "^animate-(slide-up|scale-in|slot-glare-sweep)$",
+          "^studio-",
+          "^card-finish-",
+          "^binder-skeleton-",
+          "^show-hunt-group$",
+          "^pocket-wiggle$",
+          "^safe-area-bottom$",
+          "^not-prose$",
+          "^binder-studio$",
+          "^(?:.*:)?(?:text|bg|border)-fd-",
+          "^docs-",
+          "^dark$",
+          "^animate-(shimmer|holographic-foil)$"
+        ]
+      }
+    ],
+    "better-tailwindcss/no-conflicting-classes": "warn",
+    "better-tailwindcss/no-deprecated-classes": "off",
+    "better-tailwindcss/no-duplicate-classes": "warn",
+    "better-tailwindcss/no-restricted-classes": [
+      "warn",
+      {
+        "restrict": [
+          {
+            "pattern": "^(?:.*:)?(?:bg|text|border|ring|fill|stroke|from|via|to|outline|decoration|divide|placeholder|caret|accent|shadow)-\\[(?:#|rgb|hsl|oklch|color)",
+            "message": "Use a colour token from app/globals.css (bg-card, text-muted-foreground, border-border, \u2026), not a raw colour value. See the design-system skill."
+          },
+          {
+            "pattern": "^(?:.*:)?(?:bg|text|border|ring|fill|stroke|from|via|to|outline|decoration|divide|placeholder|caret|accent|shadow)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\\d{2,3}(?:/\\d+)?$",
+            "message": "Use a colour token from app/globals.css instead of a Tailwind palette colour, so light and dark themes stay consistent. If no token fits, ask before adding one. See the design-system skill."
+          },
+          {
+            "pattern": "^(?:.*:)?rounded$",
+            "message": "Plain `rounded` is 4px, off the radius scale (globals.css sets --radius-sm/md/lg/xl from --radius). Pick rounded-md, rounded-lg, rounded-xl, rounded-2xl or rounded-full to match the reference implementation. Do not auto-replace with rounded-sm (that is 10px here). See the design-system skill."
+          }
+        ]
+      }
+    ],
+    "holo-design/no-handrolled-overlay": "warn",
+    "holo-design/no-role-dialog": "warn",
+    "holo-design/primary-button-uses-holo-action": "warn"
   },
   "settings": {
     "react-doctor": {
       "framework": "nextjs"
+    },
+    "better-tailwindcss": {
+      "entryPoint": "app/globals.css"
     }
   },
   "ignorePatterns": [
@@ -269,6 +320,13 @@
       "rules": {
         "unicorn/no-thenable": "off",
         "import/namespace": "off"
+      }
+    },
+    {
+      "files": ["app/global-error.tsx"],
+      "rules": {
+        "better-tailwindcss/no-unknown-classes": "off",
+        "better-tailwindcss/no-duplicate-classes": "off"
       }
     }
   ]
