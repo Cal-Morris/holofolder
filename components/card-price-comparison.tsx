@@ -209,33 +209,47 @@ export function CardPriceComparison({
         </Button>
       )}
       {result ? (
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1" aria-live="polite">
+        <div className="mt-2 grid gap-1.5" aria-live="polite">
           {(['ebay', 'soldcomps'] as const).map((source) => (
-            <div key={source}>
-              {pending[source] ? <p role="status">Checking {source === 'ebay' ? 'eBay' : 'sold comps'}…</p> : null}
+            <div
+              key={source}
+              className="border-border/45 bg-background/35 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-xl border px-2.5 py-1.5 dark:border-white/10 dark:bg-white/[0.03]"
+            >
+              <div className="min-w-0">
+                <p className="text-foreground font-semibold">{source === 'ebay' ? 'eBay UK asking' : 'eBay UK sold'}</p>
+                {pending[source] ? <p role="status">Checking {source === 'ebay' ? 'eBay' : 'sold comps'}…</p> : null}
+                {result[source]?.summary.count ? (
+                  <p>
+                    <strong>{formatGbpAmount(result[source]!.summary.median)}</strong> median{' '}
+                    {source === 'ebay' ? 'asking' : 'sold'} price · {result[source]!.summary.count} matched{' '}
+                    {source === 'ebay' ? 'listings' : 'sales'}
+                  </p>
+                ) : result[source] ? (
+                  <p>No matching {source === 'ebay' ? 'listings' : 'sales'} in the search sample.</p>
+                ) : !pending[source] && !result.errors[source] ? (
+                  <p className="text-muted-foreground">Not checked yet</p>
+                ) : null}
+                {result[source] && !pending[source] ? (
+                  <p className="text-muted-foreground" data-testid={`price-check-age-${source}`}>
+                    Last checked on{' '}
+                    <time dateTime={result[source]!.checkedAt}>
+                      {new Date(result[source]!.checkedAt).toLocaleDateString('en-GB')}
+                    </time>
+                    {isPriceCheckFresh(result[source]) ? '' : ' · older snapshot'}
+                  </p>
+                ) : null}
+                {result.errors[source] ? (
+                  <p role="status" className="text-muted-foreground">
+                    {result.errors[source]}
+                    {result[source] ? ' Showing the saved check.' : ''}
+                  </p>
+                ) : null}
+              </div>
               {result[source]?.summary.count ? (
-                <p>
-                  <strong>{formatGbpAmount(result[source]!.summary.median)}</strong> median{' '}
-                  {source === 'ebay' ? 'asking' : 'sold'} price · {result[source]!.summary.count} matched{' '}
-                  {source === 'ebay' ? 'listings' : 'sales'}
-                </p>
-              ) : result[source] ? (
-                <p>No matching {source === 'ebay' ? 'listings' : 'sales'} in the search sample.</p>
-              ) : null}
-              {result[source] && !pending[source] ? (
-                <p className="text-muted-foreground" data-testid={`price-check-age-${source}`}>
-                  Last checked on{' '}
-                  <time dateTime={result[source]!.checkedAt}>
-                    {new Date(result[source]!.checkedAt).toLocaleDateString('en-GB')}
-                  </time>
-                  {isPriceCheckFresh(result[source]) ? '' : ' · older snapshot'}
-                </p>
-              ) : null}
-              {result.errors[source] ? (
-                <p role="status" className="text-muted-foreground">
-                  {result.errors[source]}
-                  {result[source] ? ' Showing the saved check.' : ''}
-                </p>
+                <div className="text-muted-foreground text-right tabular-nums">
+                  <p>Low {formatGbpAmount(result[source]!.summary.low)}</p>
+                  <p>High {formatGbpAmount(result[source]!.summary.high)}</p>
+                </div>
               ) : null}
             </div>
           ))}
