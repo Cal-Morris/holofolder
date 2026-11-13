@@ -691,7 +691,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const [pwaStatusMessage, setPwaStatusMessage] = useState<string | null>(null);
   const isDesktopViewport = useMediaQuery('(min-width: 640px)');
   const isCompactViewport = useMediaQuery('(max-width: 767px)');
-  const isWideBinderSpread = useMediaQuery('(min-width: 1280px)');
+  const isWideBinderSpread = useMediaQuery('(min-width: 1024px)');
   const [binderDimension, setBinderDimension] = useState<'2d' | '3d'>(() => sessionDimension);
   useEffect(() => {
     sessionDimension = binderDimension;
