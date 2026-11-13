@@ -4,6 +4,7 @@
 // what was paid to this show's tally. Both go through queues on the device, so it works with no signal.
 import { useState } from 'react';
 import { ShoppingBag } from 'lucide-react';
+import { toast } from '@/components/ui/toast';
 import type { ShowPurchase } from '@/lib/show-session';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 
@@ -26,66 +27,35 @@ export function ShowBought({
   label: string;
   className: string;
   disabled: boolean;
-  /** What to buy and the confirmation to show, or null when there is nothing to log. */
+  /** What to buy and what the confirmation toast leads with, or null when there is nothing to log. */
   purchases: () => { entries: BoughtEntry[]; message: string } | null;
   onLogged: () => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [logged, setLogged] = useState<{ message: string; undo: () => Promise<void> } | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const log = async () => {
     const next = purchases();
     if (!next || busy) return;
     setBusy(true);
-    setError(null);
     try {
       const { added, undo } = await tally.buy(next.entries);
       navigator.vibrate?.([12, 40, 12]);
-      setLogged({ message: `${next.message} · ${added}`, undo });
+      toast(`${next.message} · ${added}`, {
+        action: {
+          label: 'Undo',
+          onAction: () => void undo().catch(() => toast('Couldn’t undo that. Open Activity to check it.', 'error')),
+        },
+      });
       onLogged();
     } catch {
-      setError('Couldn’t add it to your collection, so nothing was logged. Try again.');
-    } finally {
-      setBusy(false);
-    }
-  };
-  const undo = async () => {
-    if (!logged || busy) return;
-    setBusy(true);
-    try {
-      await logged.undo();
-      setLogged(null);
-    } catch {
-      setError('Couldn’t undo that. Open Activity to check it.');
+      toast('Couldn’t add it to your collection, so nothing was logged. Try again.', 'error');
     } finally {
       setBusy(false);
     }
   };
   return (
-    <>
-      <button type="button" disabled={disabled || busy} onClick={() => void log()} className={className}>
-        <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />
-        {label}
-      </button>
-      {(logged || error) && (
-        <div
-          role="status"
-          className="bg-muted/60 order-last col-span-full flex min-h-11 items-center gap-2 rounded-2xl px-3 text-sm"
-        >
-          <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden />
-          <span className="min-w-0 flex-1">{error ?? logged?.message}</span>
-          {logged && !error && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void undo()}
-              className="text-primary min-h-9 shrink-0 px-2 font-semibold"
-            >
-              Undo
-            </button>
-          )}
-        </div>
-      )}
-    </>
+    <button type="button" disabled={disabled || busy} onClick={() => void log()} className={className}>
+      <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />
+      {label}
+    </button>
   );
 }

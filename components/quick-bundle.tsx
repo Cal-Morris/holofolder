@@ -11,6 +11,7 @@ import {
 import { useBillingContext } from '@/hooks/use-billing';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Trash2, X } from 'lucide-react';
+import { TOAST_ANCHOR } from '@/components/ui/toast';
 import { ShowBought, type ShowTally } from '@/components/show-bought';
 import { splitBundlePrice } from '@/lib/show-session';
 import ShowBudget from '@/components/show-budget';
@@ -39,6 +40,9 @@ export interface QuickBundleProps {
   /** Show mode's purchase tally: Bought bundle logs the total, split across the cards by market price. */
   tally?: ShowTally;
 }
+
+const FOOTER_CLASS =
+  'border-border/50 bg-card/95 min-w-0 shrink-0 border-t px-3 pt-2 pb-[calc(var(--safe-bottom)+0.75rem)]';
 
 export default function QuickBundle({
   nativeConsumer,
@@ -312,7 +316,7 @@ export default function QuickBundle({
         <DealVerdictPanel deal={result.deal} money={money} testId="bundle-verdict" emptyText={verdictEmptyText} />
       </div>
 
-      <div className="border-border/50 bg-card/95 min-w-0 shrink-0 border-t px-3 pt-2 pb-[calc(var(--safe-bottom)+0.75rem)]">
+      <div {...TOAST_ANCHOR} className={FOOTER_CLASS}>
         {guide.marketTotal > 0 && (!nativeConsumer || guide.complete) ? (
           <DealPriceScale
             market={guide.marketTotal}
@@ -377,7 +381,7 @@ function BundleBought({
         currency,
         bundleId,
       })),
-      message: `Bought ${entries.length} card${entries.length === 1 ? '' : 's'} for ${formatMoney(total, currency)}`,
+      message: `Bought ${entries.length} card${entries.length === 1 ? '' : 's'}`,
     };
   };
   if (!tally) return null;
@@ -386,7 +390,7 @@ function BundleBought({
       tally={tally}
       label="Bought bundle"
       disabled={entries.length === 0 || !total}
-      className={`bg-primary text-primary-foreground flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-bold disabled:opacity-45 ${DEAL_HIDE_WHILE_TYPING}`}
+      className={`holo-action flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-bold disabled:opacity-45 ${DEAL_HIDE_WHILE_TYPING}`}
       purchases={purchases}
       onLogged={() => {
         resetInput('');
