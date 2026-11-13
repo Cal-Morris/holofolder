@@ -868,14 +868,23 @@ test.describe('explicit stable-slot picker', () => {
       requests.push(new URL(route.request().url()).searchParams);
       return route.fulfill({
         json: {
+          // Most alike first, deliberately oldest set first so a newest-first sort would reverse them.
           cards: [
             {
               id: 'synthetic-suggested-1',
               localId: '1',
               name: 'Suggested Snorlax',
               language: 'en',
-              set: { id: 'synthetic', name: 'Synthetic set' },
+              set: { id: 'synthetic', name: 'Synthetic set', releaseDate: '1999-01-09' },
               dexIds: [143],
+            },
+            {
+              id: 'synthetic-suggested-2',
+              localId: '2',
+              name: 'Suggested Munchlax',
+              language: 'en',
+              set: { id: 'synthetic-new', name: 'Synthetic new set', releaseDate: '2025-01-01' },
+              dexIds: [446],
             },
           ],
         },
@@ -891,6 +900,11 @@ test.describe('explicit stable-slot picker', () => {
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
     await expect(dialog.getByText('Suggested for this page')).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Add card Suggested Snorlax from Synthetic set' })).toBeVisible();
+    // Best match keeps the suggestion order rather than re-sorting by set.
+    await expect(dialog.getByRole('button', { name: /^Add card Suggested / })).toHaveText([
+      /Suggested Snorlax/,
+      /Suggested Munchlax/,
+    ]);
     expect(requests[0].get('like')).toBeTruthy();
     await harness.expectNoHorizontalOverflow();
     // Typing searches as usual; clearing the search brings the suggestions back.
