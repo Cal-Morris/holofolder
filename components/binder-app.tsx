@@ -769,7 +769,7 @@ function BinderAppSurface(props: BinderAppProps) {
   useEffect(() => {
     // Native binders render read-only surfaces, so this keys on shares and read-only views, not readOnlyMode.
     if (accountSettingsReadOnly || !user || !resolvedCollectionOwnerUserId || binders.length === 0) return;
-    rememberDeviceBinders(window.localStorage, resolvedCollectionOwnerUserId, binders);
+    rememberDeviceBinders(window.localStorage, user.id, resolvedCollectionOwnerUserId, binders);
   }, [binders, accountSettingsReadOnly, resolvedCollectionOwnerUserId, user]);
   useEffect(() => {
     queueMicrotask(closeSlotDetail);
@@ -4804,7 +4804,12 @@ function BinderAppSurface(props: BinderAppProps) {
               offlineBinderIds={
                 isOnline
                   ? undefined
-                  : offlineAvailableBinderIds(window.localStorage, resolvedCollectionOwnerUserId, binders)
+                  : offlineAvailableBinderIds(
+                      window.localStorage,
+                      user?.id ?? null,
+                      resolvedCollectionOwnerUserId,
+                      binders,
+                    )
               }
               onSwitch={switchBinder}
               onBindersChange={setBinders}

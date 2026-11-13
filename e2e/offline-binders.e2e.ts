@@ -1,4 +1,4 @@
-import { test as base, expect, type Page, type Route } from '@playwright/test';
+import { test as base, expect, type BrowserContext, type Page, type Route } from '@playwright/test';
 import {
   mockBackends,
   emulateStandalone,
@@ -22,23 +22,26 @@ const SPARE = 'e2e00000-0000-4000-8000-000000000004';
 const id = (value: string) => (value === 'alpha' ? MAIN : TRADES);
 const layouts = inventoryBrowseLayouts.map((l) => ({ ...l, collectionId: id(l.collectionId) }));
 
+// The harness's ?partner=1 owner: the signed-in e2e user is this owner's partner.
+const PARTNER_OWNER = '00000000-0000-4000-8000-0000000000e3';
+
 // Synthetic native read: one base1-4 holo copy in each binder. Client shell, worker and IndexedDB are real.
-async function inventory(route: Route) {
+async function inventory(route: Route, owner = E2E_USER.id) {
   const snapshot = inventoryBrowseFixture(5),
     url = new URL(route.request().url());
-  snapshot.ownerUserId = E2E_USER.id;
+  snapshot.ownerUserId = owner;
   snapshot.items.forEach((i) => {
-    i.ownerUserId = E2E_USER.id;
+    i.ownerUserId = owner;
   });
   snapshot.collections.forEach((c) => {
-    c.ownerUserId = E2E_USER.id;
+    c.ownerUserId = owner;
     c.id = id(c.id);
   });
   snapshot.binders.forEach((b) => {
-    b.ownerUserId = E2E_USER.id;
+    b.ownerUserId = owner;
     b.collectionId = id(b.collectionId);
     b.slots.forEach((s) => {
-      s.ownerUserId = E2E_USER.id;
+      s.ownerUserId = owner;
       s.collectionId = b.collectionId;
     });
   });
@@ -52,7 +55,7 @@ async function inventory(route: Route) {
       requestId: url.searchParams.get('requestId'),
       scope: {
         actorUserId: E2E_USER.id,
-        ownerUserId: E2E_USER.id,
+        ownerUserId: owner,
         authSessionId: 'synthetic-e2e-auth-session',
         sessionId: url.searchParams.get('sessionId'),
       },
@@ -83,9 +86,37 @@ test.beforeEach(async ({ page, context, baseURL }, info) => {
   await context.route('**/app/api/inventory?*', (route) => inventory(route));
 });
 
+/** The signed-in user is PARTNER_OWNER's partner: the native read, membership and billing all name that owner. */
+async function asPartner(context: BrowserContext) {
+  await context.route('**/app/api/inventory?*', (route) => inventory(route, PARTNER_OWNER));
+  await context.route('**/rest/v1/partnerships*', (route) =>
+    route.fulfill({
+      json: [
+        { id: 'synthetic-partnership', owner_user_id: PARTNER_OWNER, user1_id: PARTNER_OWNER, user2_id: E2E_USER.id },
+      ],
+    }),
+  );
+  await context.route('**/app/api/billing', (route) =>
+    route.fulfill({
+      json: {
+        access: {
+          ownerUserId: PARTNER_OWNER,
+          tier: 'paid',
+          source: 'perpetual',
+          paidThrough: null,
+          savedCardCount: 2,
+          cardLimit: null,
+          enforced: true,
+        },
+        canManage: false,
+      },
+    }),
+  );
+}
+
 /** Open a binder online and wait until the worker, the shell and this device's native copy are all saved. */
-async function openOnline(page: Page, binderId: string) {
-  await page.goto(`/app/e2e-harness?signedIn=1&binders=3&binder=${binderId}`);
+async function openOnline(page: Page, binderId: string, partner = false) {
+  await page.goto(`/app/e2e-harness?signedIn=1&binders=3&binder=${binderId}${partner ? '&partner=1' : ''}`);
   await expect(collectionPicker(page)).toBeVisible();
   await expect
     .poll(
@@ -130,39 +161,60 @@ async function relaunchOffline(page: Page, standalone: boolean, path: string) {
 const harnessFor = (page: Page, standalone: boolean) =>
   new Harness(page, standalone ? SAFE_AREA : { top: 0, bottom: 0, left: 0, right: 0 }, true);
 
-test(
-  'binders saved online open offline after a reload; an unsaved binder says it needs a connection',
-  { tag: '@matrix' },
-  async ({ page }, info) => {
-    test.setTimeout(120_000);
-    const standalone = Boolean(info.project.metadata?.standalone);
-    await openOnline(page, MAIN);
-    const unsaved = (target: Page) => target.getByRole('status').filter({ hasText: 'saved on this device yet' });
+for (const partner of [false, true])
+  test(
+    partner
+      ? "a partner's saved binders of the owner open offline after a reload; an unsaved one says it needs a connection"
+      : 'binders saved online open offline after a reload; an unsaved binder says it needs a connection',
+    { tag: '@matrix' },
+    async ({ page }, info) => {
+      test.setTimeout(120_000);
+      const standalone = Boolean(info.project.metadata?.standalone);
+      if (partner) await asPartner(page.context());
+      await openOnline(page, MAIN, partner);
+      const unsaved = (target: Page) => target.getByRole('status').filter({ hasText: 'saved on this device yet' });
 
-    // Cold offline relaunch straight into the second binder, with no "not saved" notice.
-    const reopened = await relaunchOffline(page, standalone, `/app?binder=${TRADES}`);
-    const picker = collectionPicker(reopened);
-    await expect(picker).toContainText('Trades', { timeout: 30_000 });
-    await expect(reopened.getByTestId('connection-chip')).toContainText('Offline');
-    await expect(unsaved(reopened)).toHaveCount(0);
+      // Cold offline relaunch straight into the second binder, with no "not saved" notice.
+      const reopened = await relaunchOffline(page, standalone, `/app?binder=${TRADES}`);
+      const picker = collectionPicker(reopened);
+      await expect(picker).toContainText('Trades', { timeout: 30_000 });
+      await expect(reopened.getByTestId('connection-chip')).toContainText('Offline');
+      await expect(unsaved(reopened)).toHaveCount(0);
 
-    // Reloading offline into the other saved binder opens it too.
-    await reopened.goto(`/app?binder=${MAIN}`);
-    await expect(picker).toContainText('Alpha', { timeout: 30_000 });
-    await expect(unsaved(reopened)).toHaveCount(0);
-    // And the picker still switches between saved binders offline.
-    await chooseCollection(reopened, TRADES);
-    await expect(picker).toContainText('Trades');
+      // Reloading offline into the other saved binder opens it too.
+      await reopened.goto(`/app?binder=${MAIN}`);
+      await expect(picker).toContainText('Alpha', { timeout: 30_000 });
+      await expect(unsaved(reopened)).toHaveCount(0);
+      // And the picker still switches between saved binders offline.
+      await chooseCollection(reopened, TRADES);
+      await expect(picker).toContainText('Trades');
 
-    // A link to the binder this device has no copy of opens the last saved one and says why.
-    await reopened.goto(`/app?binder=${SPARE}`);
-    await expect(unsaved(reopened)).toContainText("“Spare” isn't saved on this device yet", { timeout: 30_000 });
-    await expect(picker).not.toContainText('Spare');
-    const h = harnessFor(reopened, standalone);
-    await h.expectWithinSafeViewport(unsaved(reopened));
-    await h.expectNoHorizontalOverflow();
-  },
-);
+      // A link to the binder this device has no copy of opens the last saved one and says why.
+      await reopened.goto(`/app?binder=${SPARE}`);
+      await expect(unsaved(reopened)).toContainText("“Spare” isn't saved on this device yet", { timeout: 30_000 });
+      await expect(picker).not.toContainText('Spare');
+      const h = harnessFor(reopened, standalone);
+      await h.expectWithinSafeViewport(unsaved(reopened));
+      await h.expectNoHorizontalOverflow();
+    },
+  );
+
+test("after a partner signs out, the offline app shows nothing of the owner's binders", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  const standalone = Boolean(info.project.metadata?.standalone);
+  await asPartner(page.context());
+  await openOnline(page, TRADES, true);
+  // Signing out clears the session cookie; this device's saved lists and native copy stay behind.
+  await page.context().clearCookies({ name: /auth-token/ });
+  const reopened = await relaunchOffline(page, standalone, `/app?binder=${TRADES}`);
+  await expect(reopened.getByTestId('connection-chip')).toContainText('Offline', { timeout: 30_000 });
+  await expect(reopened.getByText('Trades')).toHaveCount(0);
+  await expect(reopened.getByText('My binder')).toHaveCount(0);
+  await expect(reopened.getByRole('status').filter({ hasText: 'saved on this device yet' })).toHaveCount(0);
+  expect(
+    await reopened.evaluate(() => JSON.parse(localStorage.getItem('binderdex_device_binders_v1') ?? 'null')?.userId),
+  ).toBe(E2E_USER.id);
+});
 
 test("Show mode's binder prep counts the cards this device saved for that binder", async ({ page }, info) => {
   test.setTimeout(120_000);

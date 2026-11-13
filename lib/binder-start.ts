@@ -57,6 +57,17 @@ export function writeBinderStartMarker(storage: WritableStorage & Partial<Storag
 }
 
 /**
+ * The collection `userId` last opened on this device: the partner's when the start marker says so and the cached
+ * billing still lets partners in, else the account's own. Another account's marker never names an owner.
+ */
+export function savedCollectionOwner(storage: StorageLike, userId: string) {
+  const marker = readBinderStartMarker(storage);
+  if (!marker || marker.userId !== userId || marker.ownerUserId === userId) return userId;
+  const access = readBillingCache(storage, userId, marker.ownerUserId);
+  return access && !(access.enforced && access.tier !== 'paid') ? marker.ownerUserId : userId;
+}
+
+/**
  * The binder to paint straight away for `userId`, or null to wait for the server. Only when the server
  * already opened this account, owner and binder on this device with native storage, and the URL does not ask
  * for another binder. A different account on a shared device, a first
@@ -69,11 +80,7 @@ export function readLocalBinderStart(
   requestedBinderId: string | null = null,
 ): LocalBinderStart | null {
   const marker = readBinderStartMarker(storage);
-  if (!marker || marker.userId !== userId) return null;
-  if (marker.ownerUserId !== userId) {
-    const access = readBillingCache(storage, userId, marker.ownerUserId);
-    if (!access || (access.enforced && access.tier !== 'paid')) return null;
-  }
+  if (!marker || marker.userId !== userId || savedCollectionOwner(storage, userId) !== marker.ownerUserId) return null;
   if (requestedBinderId && matchBinder(marker.binders, requestedBinderId)?.id !== marker.binderId) return null;
   // A native marker is a display pointer only. IDB/JWT checks happen in CachedNativeStartup.
   if (!marker.native) return null;

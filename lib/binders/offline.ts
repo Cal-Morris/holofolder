@@ -3,13 +3,15 @@
 import type { Binder } from '@/lib/binders/model';
 import { matchBinder } from '@/lib/binders/url';
 
-/** The owner's binder list as this device last saw it, plus the binders saved here. */
+/** The binder list this device last saw for one signed-in account and collection owner, plus the binders saved here. */
 export const DEVICE_BINDERS_KEY = 'binderdex_device_binders_v1';
 
 type ReadableStorage = Pick<Storage, 'getItem'>;
 type WritableStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
 export interface DeviceBinders {
+  /** The signed-in account that saved it. A partner's list belongs to the partner, under the owner's collection. */
+  userId: string;
   ownerUserId: string;
   binders: Binder[];
   /** Binders with a saved copy on this device: they open offline. */
@@ -22,13 +24,20 @@ function isBinderLike(value: unknown): value is Binder {
   return Boolean(binder) && typeof binder!.id === 'string' && typeof binder!.name === 'string';
 }
 
-export function readDeviceBinders(storage: ReadableStorage, ownerUserId?: string | null): DeviceBinders | null {
+/** The list saved by `userId` for `ownerUserId`'s collection; any other account or owner gets nothing. */
+export function readDeviceBinders(
+  storage: ReadableStorage,
+  userId: string | null,
+  ownerUserId: string | null,
+): DeviceBinders | null {
+  if (!userId || !ownerUserId) return null;
   try {
     const parsed = JSON.parse(storage.getItem(DEVICE_BINDERS_KEY) ?? 'null') as Partial<DeviceBinders> | null;
-    if (!parsed || typeof parsed.ownerUserId !== 'string') return null;
-    if (ownerUserId && parsed.ownerUserId !== ownerUserId) return null;
+    // Lists saved before they named the account are dropped; the next online read writes them again.
+    if (!parsed || parsed.userId !== userId || parsed.ownerUserId !== ownerUserId) return null;
     return {
-      ownerUserId: parsed.ownerUserId,
+      userId,
+      ownerUserId,
       binders: Array.isArray(parsed.binders) ? parsed.binders.filter(isBinderLike) : [],
       savedBinderIds: Array.isArray(parsed.savedBinderIds)
         ? parsed.savedBinderIds.filter((id): id is string => typeof id === 'string')
@@ -51,14 +60,16 @@ function writeDeviceBinders(storage: WritableStorage, value: DeviceBinders) {
 /** Remember the owner's binder list on this device. Saved copies of binders that no longer exist are forgotten. */
 export function rememberDeviceBinders(
   storage: WritableStorage,
+  userId: string,
   ownerUserId: string,
   binders: readonly Binder[],
   now = new Date(),
 ) {
-  if (!ownerUserId || binders.length === 0) return;
-  const existing = readDeviceBinders(storage, ownerUserId);
+  if (!userId || !ownerUserId || binders.length === 0) return;
+  const existing = readDeviceBinders(storage, userId, ownerUserId);
   const ids = new Set(binders.map((binder) => binder.id));
   const next: DeviceBinders = {
+    userId,
     ownerUserId,
     binders: binders.map(
       ({ id, ownerUserId: owner, name, slug, color, sortOrder, isDefault, rows, cols, createdAt, updatedAt }) => ({
@@ -88,14 +99,16 @@ export function rememberDeviceBinders(
  */
 export function rememberSavedBinders(
   storage: WritableStorage,
+  userId: string,
   ownerUserId: string,
   binderIds: readonly string[],
   now = new Date(),
 ) {
-  const existing = readDeviceBinders(storage, ownerUserId);
+  const existing = readDeviceBinders(storage, userId, ownerUserId);
   const savedBinderIds = [...new Set(binderIds)];
   if (existing && JSON.stringify(existing.savedBinderIds) === JSON.stringify(savedBinderIds)) return;
   writeDeviceBinders(storage, {
+    userId,
     ownerUserId,
     binders: existing?.binders ?? [],
     savedBinderIds,
@@ -106,10 +119,11 @@ export function rememberSavedBinders(
 /** Binders this device can open without a connection: the ones it has a saved copy of. */
 export function offlineAvailableBinderIds(
   storage: ReadableStorage,
+  userId: string | null,
   ownerUserId: string | null,
   binders: readonly Binder[],
 ) {
-  const saved = new Set((ownerUserId ? readDeviceBinders(storage, ownerUserId) : null)?.savedBinderIds ?? []);
+  const saved = new Set(readDeviceBinders(storage, userId, ownerUserId)?.savedBinderIds ?? []);
   return new Set(binders.flatMap((binder) => (saved.has(binder.id) ? [binder.id] : [])));
 }
 
