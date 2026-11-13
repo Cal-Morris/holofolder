@@ -114,3 +114,13 @@ export function correctedCardSearchQuery(raw: string, sets: SearchSet[]) {
     return query.replace(new RegExp(`\\b${literal}\\b`), `#${literal}`);
   return null;
 }
+
+/**
+ * PostgREST `or` filter for a card-name search. Two Latin letters or digits match the start of a word ("ab" finds Abra,
+ * Mega Absol and Ho-Oh for "oh", not Kabuto): a contains-match that short can't use the trigram index, so it scans every
+ * card, and returns hundreds of unrelated ones. Longer or non-Latin text matches anywhere in the name.
+ */
+export function cardNameSearchFilter(text: string) {
+  const patterns = /^[a-z0-9]{2}$/i.test(text) ? [`${text}%`, `% ${text}%`, `%-${text}%`] : [`%${text}%`];
+  return patterns.map((pattern) => `name_en.ilike.${JSON.stringify(pattern)}`).join(',');
+}

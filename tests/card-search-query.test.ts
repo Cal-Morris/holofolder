@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { correctedCardSearchQuery, resolveCardSearchQuery } from '../lib/card-search-query';
+import { cardNameSearchFilter, correctedCardSearchQuery, resolveCardSearchQuery } from '../lib/card-search-query';
 import { searchOfflineCards, searchOfflineCardsWithCorrection } from '../lib/offline-card-index';
 
 // Synthetic cards using catalog set identifiers/names, never pricing evidence.
@@ -193,4 +193,15 @@ test('a bare number read as an anniversary set falls back to the collector numbe
     correction: 'pikachu #25',
   });
   assert.deepEqual(searchOfflineCardsWithCorrection([pikachu25, jp25th], 'mew 25').cards, [jp25th]);
+});
+
+describe('cardNameSearchFilter', () => {
+  test('two letters match the start of a word, after a space or a hyphen', () => {
+    assert.equal(cardNameSearchFilter('ab'), 'name_en.ilike."ab%",name_en.ilike."% ab%",name_en.ilike."%-ab%"');
+  });
+
+  test('longer and non-Latin text matches anywhere in the name', () => {
+    assert.equal(cardNameSearchFilter('abr'), 'name_en.ilike."%abr%"');
+    assert.equal(cardNameSearchFilter('ピカ'), 'name_en.ilike."%ピカ%"');
+  });
 });
