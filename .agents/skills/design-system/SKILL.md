@@ -30,15 +30,15 @@ Defined in `app/globals.css` for light (`:root`) and dark (`.dark`), and exposed
 
 Global classes in `app/globals.css`. They set the gradient-and-depth look, so use them rather than rebuilding it.
 
-| Class           | Use                                                                                           |
-| --------------- | --------------------------------------------------------------------------------------------- |
-| `holo-panel`    | Raised chrome: sheets, the toast pill, header panels                                          |
-| `holo-toolbar`  | Toolbars and bars                                                                             |
-| `holo-tile`     | Cards and tiles in grids and lists                                                            |
-| `holo-selected` | The selected state of a tile or row                                                           |
-| `holo-action`   | The primary action fill (the purple-to-green gradient). Built into `Button`'s default variant |
-| `holo-progress` | Progress bars                                                                                 |
-| `holo-loading`  | Loading shimmer                                                                               |
+| Class           | Use                                                                                               |
+| --------------- | ------------------------------------------------------------------------------------------------- |
+| `holo-panel`    | Raised chrome: sheets, the toast pill, header panels                                              |
+| `holo-toolbar`  | Toolbars and bars                                                                                 |
+| `holo-tile`     | Cards and tiles in grids and lists                                                                |
+| `holo-selected` | The selected state of a tile or row                                                               |
+| `holo-action`   | The primary action: a card fill with a thin holo foil edge. Built into `Button`'s default variant |
+| `holo-progress` | Progress bars                                                                                     |
+| `holo-loading`  | Loading shimmer                                                                                   |
 
 ## Scales (what the app actually uses)
 

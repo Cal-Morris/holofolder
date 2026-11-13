@@ -164,9 +164,13 @@
 .holo-progress {
   background-image: linear-gradient(110deg, #e7a4dc, #b9a6ff 36%, #9debe6 72%, #f5e9ab);
 }
+/* Primary action: a quiet card fill with the holo foil as a thin edge. */
 .holo-action {
-  color: #f4f3f8;
-  background-image: linear-gradient(110deg, #7039a6, #5b44b4 36%, #235c88 72%, #186550);
+  color: var(--foreground);
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(110deg, #e7a4dc, #b9a6ff 36%, #9debe6 72%, #f5e9ab) border-box;
 }
 .holo-selected {
   background-image: linear-gradient(
