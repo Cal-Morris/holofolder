@@ -1,5 +1,5 @@
 /**
- * Sticky glass (the dock, the header and sticky filter bars) re-blurs whatever moves behind it on
+ * Sticky glass (the dock and sticky filter bars) re-blurs whatever moves behind it on
  * every scroll frame, which is what makes iOS Safari stutter. While anything scrolls, the document
  * carries `data-scrolling` and those surfaces swap the live blur for a near-opaque fill
  * (globals.css); the blur comes back once scrolling has been quiet for `SCROLL_SETTLE_MS`, or

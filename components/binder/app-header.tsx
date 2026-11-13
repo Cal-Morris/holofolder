@@ -184,7 +184,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
       data-testid="app-header"
       className={`sticky top-0 z-40 mb-1 shrink-0 border-b pt-[var(--top-inset)] ${isShowModeOn ? 'border-amber-400/40 bg-amber-50 dark:bg-amber-950' : 'border-border/40 bg-background'}`}
     >
-      <div data-scroll-blur="card" className="pr-[var(--right-inset)] pl-[var(--left-inset)] sm:px-4">
+      <div className="pr-[var(--right-inset)] pl-[var(--left-inset)] sm:px-4">
         <section
           aria-label={isShowModeOn ? 'Show mode' : undefined}
           className="flex flex-wrap items-center gap-0 py-1 md:gap-2 md:px-3"
