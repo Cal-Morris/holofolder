@@ -24,7 +24,7 @@ function Controls({ track }: { track: MediaStreamTrack }) {
     track.applyConstraints({ advanced: [constraint as MediaTrackConstraintSet] }).catch(() => undefined);
 
   return (
-    <div className="absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-full bg-black/60 px-3 py-1.5 text-white backdrop-blur">
+    <div className="absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-full bg-black/60 px-3 py-1.5 text-white backdrop-blur-sm">
       {zoomRange && (
         <label className="flex min-w-0 flex-1 items-center gap-2 text-xs">
           <span className="w-9 shrink-0 tabular-nums">{(zoom ?? zoomRange.min).toFixed(1)}×</span>

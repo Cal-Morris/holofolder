@@ -114,7 +114,7 @@ export default function CardPriceComparisonChart({
                   if (!active || !day?.count) return null;
                   const sales = data.sales.filter((sale) => sale.time === day.time);
                   return (
-                    <div className="border-border bg-background rounded-lg border px-2 py-1 text-xs shadow">
+                    <div className="border-border bg-background rounded-lg border px-2 py-1 text-xs shadow-sm">
                       <p>
                         {date(day.time)} · {day.count} sales
                       </p>

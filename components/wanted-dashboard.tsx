@@ -314,7 +314,7 @@ export default function WantedDashboard({
         )}
         <div
           data-scroll-blur="background"
-          className="bg-background/92 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 -mx-1 space-y-2 px-1 pt-1 pb-2 backdrop-blur"
+          className="bg-background/92 supports-[backdrop-filter]:bg-background/75 sticky top-0 z-10 -mx-1 space-y-2 px-1 pt-1 pb-2 backdrop-blur-sm"
         >
           {scopeToggle ? (
             <div className="flex items-center justify-between gap-2">

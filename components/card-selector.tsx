@@ -961,7 +961,7 @@ export default function CardSelector({
                       alt="Last scanned card frame"
                       className="absolute inset-0 h-full w-full object-contain"
                     />
-                    <div className="pointer-events-none absolute inset-x-4 top-4 flex items-center justify-between rounded-full border border-white/12 bg-black/60 px-3 py-2 text-[11px] text-white/80 backdrop-blur">
+                    <div className="pointer-events-none absolute inset-x-4 top-4 flex items-center justify-between rounded-full border border-white/12 bg-black/60 px-3 py-2 text-[11px] text-white/80 backdrop-blur-sm">
                       <span>Last good frame</span>
                       <span>{cardUsableFrames} usable</span>
                       <span>
@@ -1593,7 +1593,7 @@ export default function CardSelector({
                             </div>
                           ) : isCurrent ? (
                             <div
-                              className={`absolute top-1.5 right-1.5 rounded-full border px-2 py-1 text-[9px] font-bold tracking-[0.12em] uppercase backdrop-blur ${intentCopy.activeClass}`}
+                              className={`absolute top-1.5 right-1.5 rounded-full border px-2 py-1 text-[9px] font-bold tracking-[0.12em] uppercase backdrop-blur-sm ${intentCopy.activeClass}`}
                             >
                               {intentCopy.currentLabel}
                             </div>

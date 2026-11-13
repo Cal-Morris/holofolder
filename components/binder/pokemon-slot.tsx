@@ -536,7 +536,7 @@ export const PokemonSlot = memo(function PokemonSlot({
               onAddCard();
             }}
             aria-label={`${quickActions.addAccessibleLabel} for ${pokemon.name}`}
-            className="flex h-7 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-emerald-300/45 bg-emerald-500/92 px-2 text-[10px] font-bold text-white shadow-[0_8px_18px_-12px_rgba(16,185,129,0.9)] backdrop-blur transition-colors hover:bg-emerald-500 focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:outline-none"
+            className="flex h-7 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-emerald-300/45 bg-emerald-500/92 px-2 text-[10px] font-bold text-white shadow-[0_8px_18px_-12px_rgba(16,185,129,0.9)] backdrop-blur-sm transition-colors hover:bg-emerald-500 focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:outline-none"
           >
             <Check className="h-3 w-3 shrink-0" />
             <span className="truncate">{quickActions.addLabel}</span>
@@ -548,7 +548,7 @@ export const PokemonSlot = memo(function PokemonSlot({
               onAddWanted();
             }}
             aria-label={`${quickActions.wantAccessibleLabel} for ${pokemon.name}`}
-            className="flex h-7 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-amber-300/45 bg-amber-500/92 px-2 text-[10px] font-bold text-white shadow-[0_8px_18px_-12px_rgba(245,158,11,0.9)] backdrop-blur transition-colors hover:bg-amber-500 focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:outline-none"
+            className="flex h-7 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-amber-300/45 bg-amber-500/92 px-2 text-[10px] font-bold text-white shadow-[0_8px_18px_-12px_rgba(245,158,11,0.9)] backdrop-blur-sm transition-colors hover:bg-amber-500 focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:outline-none"
           >
             <Heart className="h-3 w-3 shrink-0 fill-current" />
             <span className="truncate">{quickActions.wantLabel}</span>

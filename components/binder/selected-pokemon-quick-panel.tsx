@@ -357,7 +357,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                   />
                   {binderCardDisplay !== 'wanted' && collected && !selectedPreviewIsCard && (
                     <div
-                      className={`absolute flex h-4 w-4 items-center justify-center rounded-full bg-green-500 shadow ${selectedPreviewBadgeClass}`}
+                      className={`absolute flex h-4 w-4 items-center justify-center rounded-full bg-green-500 shadow-sm ${selectedPreviewBadgeClass}`}
                     >
                       <Check className="h-2.5 w-2.5 text-white" />
                     </div>
