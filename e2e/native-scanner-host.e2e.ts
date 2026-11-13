@@ -656,3 +656,38 @@ test('a graded copy whose ID is raw is still chosen explicitly under Which copy?
   expect(commands[0].kind).toBe('assign');
   expect(commands[0].selection).toMatchObject({ kind: 'existing', inventoryItemId: 'raw' });
 });
+
+test('a chosen photo opens the scan review when the camera is blocked, and saves nothing', async ({ page }) => {
+  await page.addInitScript(() => {
+    // Synthetic: the camera is refused, so the chosen photo is the only way in.
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () => {
+          throw Object.assign(new Error('denied'), { name: 'NotAllowedError' });
+        },
+      },
+    });
+  });
+  await page.goto(entry);
+  await scan(page, 'Scan card');
+  await expect(page.getByTestId('card-scan-status')).toContainText('Choose a photo of the card instead.');
+  await expect(page.getByRole('button', { name: 'Read card', exact: true })).toBeDisabled();
+  // A synthetic card-sized PNG drawn in the page; the stubbed TextDetector supplies the text.
+  const png = Buffer.from(
+    await page.evaluate(() => {
+      const canvas = Object.assign(document.createElement('canvas'), { width: 400, height: 560 });
+      const c = canvas.getContext('2d')!;
+      c.fillStyle = '#e8c547';
+      c.fillRect(0, 0, 400, 560);
+      return canvas.toDataURL('image/png').split(',')[1];
+    }),
+    'base64',
+  );
+  await page
+    .getByLabel('Card photo', { exact: true })
+    .setInputFiles({ name: 'card.png', mimeType: 'image/png', buffer: png });
+  await expect(review(page)).toBeVisible();
+  await expect(scanned(page)).toBeVisible();
+  expect((await record(page))?.pending ?? []).toHaveLength(0);
+});

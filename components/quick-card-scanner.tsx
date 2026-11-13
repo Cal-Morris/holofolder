@@ -6,7 +6,7 @@
 // the lookup uses the card search online and the cards saved on this device offline. When it can't be
 // sure, Quick mode gets the text it read so the search field can finish the job.
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import { Camera, Keyboard, Loader2, X } from 'lucide-react';
+import { Camera, ImageIcon, Keyboard, Loader2, X } from 'lucide-react';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { useCameraStream } from '@/hooks/use-camera-stream';
 import { SINGLE_CARD_GUIDE, captureSingleCardFrame, delay } from '@/lib/camera-frame';
@@ -181,55 +181,79 @@ function QuickCardScannerCamera({
     } else onResult({ outcome: { kind: 'unread', query: '' }, readerUnavailable: false, offline: !isOnline });
   }, [isOnline, onResult, onReadStarted, getOfflineCards, beginCapture]);
 
+  /** Reads up to `count` frames from `nextFrame` (camera captures or one chosen photo), then looks the card up. */
+  const readFrames = useCallback(
+    async (count: number, nextFrame: (index: number) => Promise<string>) => {
+      if (!beginCapture()) return;
+      setPhase('reading');
+      const frames: Array<CardTextSignals | null> = [];
+      let readerFailures = 0;
+      try {
+        for (let index = 0; index < count; index += 1) {
+          setFrame(index + 1);
+          try {
+            frames.push(
+              await withTimeout(
+                recognizeCardTextSignalsFromImage(await nextFrame(index), {
+                  regions: SCAN_REGIONS,
+                  isEnough: isScanReadComplete,
+                }),
+                SCAN_FRAME_TIMEOUT_MS,
+              ),
+            );
+          } catch (error) {
+            readerFailures += 1;
+            console.info('[holofolder] Card scan frame not read:', error);
+          }
+          if (isScanReadComplete(mergeCardTextSignals(frames))) break;
+          if (index < count - 1) await delay(SCAN_FRAME_GAP_MS);
+        }
+
+        const scanned = readScannedCard(mergeCardTextSignals(frames));
+        setPhase('matching');
+        const { cards, offline } = await searchCards(scanned.query, isOnline, getOfflineCards, !!onReadStarted);
+        const outcome = decideScanOutcome(cards, scanned, lookupPokemon);
+        trackGoogleEvent('card_scanned', { outcome: outcome.kind, offline });
+        onResult({
+          outcome,
+          ...(onReadStarted ? { candidates: cards } : {}),
+          readerUnavailable: frames.length === 0 && readerFailures > 0,
+          offline,
+        });
+      } catch (error) {
+        console.info('[holofolder] Card scan failed:', error);
+        onResult({
+          outcome: { kind: 'unread', query: readScannedCard(mergeCardTextSignals(frames)).query },
+          readerUnavailable: true,
+          offline: !isOnline,
+        });
+      } finally {
+        setPhase('idle');
+      }
+    },
+    [getOfflineCards, isOnline, onResult, onReadStarted, beginCapture],
+  );
+
   const read = useCallback(async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas || !camera.ready || busy) return;
-    if (!beginCapture()) return;
-    setPhase('reading');
-    const frames: Array<CardTextSignals | null> = [];
-    let readerFailures = 0;
-    try {
-      for (let index = 0; index < SCAN_FRAMES; index += 1) {
-        setFrame(index + 1);
-        try {
-          const { previewUrl } = await captureSingleCardFrame(video, canvas, index);
-          frames.push(
-            await withTimeout(
-              recognizeCardTextSignalsFromImage(previewUrl, { regions: SCAN_REGIONS, isEnough: isScanReadComplete }),
-              SCAN_FRAME_TIMEOUT_MS,
-            ),
-          );
-        } catch (error) {
-          readerFailures += 1;
-          console.info('[holofolder] Card scan frame not read:', error);
-        }
-        if (isScanReadComplete(mergeCardTextSignals(frames))) break;
-        if (index < SCAN_FRAMES - 1) await delay(SCAN_FRAME_GAP_MS);
-      }
+    await readFrames(SCAN_FRAMES, async (index) => (await captureSingleCardFrame(video, canvas, index)).previewUrl);
+  }, [busy, camera.ready, readFrames]);
 
-      const scanned = readScannedCard(mergeCardTextSignals(frames));
-      setPhase('matching');
-      const { cards, offline } = await searchCards(scanned.query, isOnline, getOfflineCards, !!onReadStarted);
-      const outcome = decideScanOutcome(cards, scanned, lookupPokemon);
-      trackGoogleEvent('card_scanned', { outcome: outcome.kind, offline });
-      onResult({
-        outcome,
-        ...(onReadStarted ? { candidates: cards } : {}),
-        readerUnavailable: frames.length === 0 && readerFailures > 0,
-        offline,
+  const readPhoto = useCallback(
+    async (file: File) => {
+      if (busy) return;
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
       });
-    } catch (error) {
-      console.info('[holofolder] Card scan failed:', error);
-      onResult({
-        outcome: { kind: 'unread', query: readScannedCard(mergeCardTextSignals(frames)).query },
-        readerUnavailable: true,
-        offline: !isOnline,
-      });
-    } finally {
-      setPhase('idle');
-    }
-  }, [busy, camera.ready, getOfflineCards, isOnline, onResult, onReadStarted, beginCapture]);
+      await readFrames(1, async () => dataUrl);
+    },
+    [busy, readFrames],
+  );
 
   return (
     <div className={managedContainerRef ? 'fixed inset-0 z-40' : 'contents'}>
@@ -304,7 +328,7 @@ function QuickCardScannerCamera({
             <p role="status" className="min-h-5 text-center text-sm text-white/75" data-testid="card-scan-status">
               {destinationError ??
                 (camera.error
-                  ? camera.error
+                  ? `${camera.error} Choose a photo of the card instead.`
                   : phase === 'reading'
                     ? `Reading the card… ${frame}/${SCAN_FRAMES}`
                     : phase === 'matching'
@@ -327,6 +351,22 @@ function QuickCardScannerCamera({
                 <Keyboard className="h-4 w-4" aria-hidden />
                 Type instead
               </button>
+              <label className="flex h-14 shrink-0 cursor-pointer items-center gap-2 rounded-2xl border border-white/20 px-4 text-sm font-semibold has-[:disabled]:opacity-40">
+                <ImageIcon className="h-4 w-4" aria-hidden />
+                Photo
+                <input
+                  aria-label="Card photo"
+                  type="file"
+                  accept="image/*"
+                  disabled={busy}
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) void readPhoto(file);
+                  }}
+                />
+              </label>
               <button
                 type="button"
                 onClick={() => void read()}
