@@ -7,7 +7,9 @@ import { useSlotOfflineQueue } from '@/hooks/use-slot-offline-queue';
 import { syntheticSlotPickerSnapshot } from '@/tests/fixtures/slot-picker';
 import { readSyntheticComplete } from '@/tests/fixtures/slot-durable-session';
 import { pickerCandidate } from '@/lib/slot-picker';
-import type { ScanDestinationView } from '@/lib/scan-destinations';
+import { identifyPocketCrop } from '@/lib/card-scan-search';
+import { extractCardTextSignals } from '@/lib/card-scan-text';
+import type { ScanCell, ScanDestinationView } from '@/lib/scan-destinations';
 
 // Synthetic data/detector only. Production scanner components, parser, projection and IndexedDB queue.
 const seed = syntheticSlotPickerSnapshot();
@@ -17,6 +19,39 @@ seed.binder.slots.forEach((s) => {
   s.inventoryItemId = null;
   s.status = null;
 });
+// `?filled=1` puts one synthetic copy (Snorlax A) in free pocket 3 (slot-c), for replacing a filled pocket.
+const filledSeed = structuredClone(seed.inventory);
+filledSeed.items = syntheticSlotPickerSnapshot().inventory.items.filter((i) => i.id === 'item-a');
+filledSeed.binders[0].slots[2].inventoryItemId = 'item-a';
+filledSeed.binders[0].slots[2].status = 'collected';
+filledSeed.placements = [
+  { inventoryItemId: 'item-a', collectionId: seed.binder.collectionId, slotId: 'slot-c', version: 1 },
+];
+/** Synthetic pocket crop: a plain tile whose "printed text" rides in the URL for the synthetic reader below. */
+const syntheticCrop = (text: string) =>
+  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="63" height="88"><rect width="63" height="88" fill="#345"/><!--${text}--></svg>`)}`;
+/** Synthetic OCR, not an accuracy claim: FAIL throws, HANG never answers, anything else is the card's text. */
+const syntheticRecognize = async (crop: unknown) => {
+  const text = decodeURIComponent(String(crop)).match(/<!--([\s\S]*)-->/)?.[1] ?? '';
+  if (text === 'FAIL') throw new Error('synthetic-reader-failure');
+  if (text === 'HANG') return new Promise<never>(() => {});
+  return extractCardTextSignals(text);
+};
+/** A page photo may be JSON naming what each pocket reads: `{ "cells": [{ "index": 0, "text": "Snorlax" }] }`. */
+async function syntheticPagePhoto(file: File, cols: number): Promise<ScanCell[] | null> {
+  try {
+    const { cells } = JSON.parse(await file.text()) as { cells: { index: number; text: string }[] };
+    return cells.map(({ index, text }) => ({
+      index,
+      row: Math.floor(index / cols),
+      col: index % cols,
+      occupied: true,
+      cardImageDataUrl: syntheticCrop(text),
+    }));
+  } catch {
+    return null;
+  }
+}
 const scope = {
   deviceId: 'synthetic-scan-device',
   workspaceId: 'synthetic-scan-workspace',
@@ -54,8 +89,9 @@ export default function ScanDestinationHarness() {
     let active = true;
     void (async () => {
       const record = await latest.current.queue?.read();
+      const filled = new URLSearchParams(location.search).get('filled') === '1';
       if (active && record && !record.snapshot)
-        await latest.current.saveSnapshot(await readSyntheticComplete(seed.inventory), catalog);
+        await latest.current.saveSnapshot(await readSyntheticComplete(filled ? filledSeed : seed.inventory), catalog);
     })().catch(() => {
       if (active) setError('Synthetic initialization failed');
     });
@@ -147,11 +183,16 @@ export default function ScanDestinationHarness() {
           admission={{
             ...admission,
             getOfflineCards,
-            detectPage: async (_file, rows, cols) => {
+            // Short limit so a pocket that never answers is given up on within the test, not after 30 s.
+            identifyPocket: (crop) =>
+              identifyPocketCrop(crop, getOfflineCards, { recognize: syntheticRecognize, timeoutMs: 1500 }),
+            detectPage: async (file, rows, cols) => {
               if (deferred.current)
                 await new Promise<void>((resolve) =>
                   window.addEventListener('synthetic-scan-release', () => resolve(), { once: true }),
                 );
+              const read = await syntheticPagePhoto(file, cols);
+              if (read) return read;
               // Deliberately shuffled detector order, actual row/column coordinates.
               return [
                 { index: 5, row: Math.floor(5 / cols), col: 5 % cols, occupied: true },
