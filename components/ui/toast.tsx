@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertCircle, Check } from 'lucide-react';
 
 type Tone = 'success' | 'error';
@@ -36,6 +37,25 @@ const subscribe = (listener: () => void) => {
 const pill =
   'holo-panel border-border/60 bg-card text-foreground pointer-events-auto flex min-h-11 max-w-sm items-center gap-2 rounded-full border text-left text-sm font-medium shadow-xl transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none starting:translate-y-2 starting:opacity-0';
 
+/** Marks a sheet's bottom action area (OverlayFooter, Show's deal check and bundle footers): toasts sit above it. */
+export const TOAST_ANCHOR = { 'data-toast-anchor': '' } as const;
+
+type Place = { host: HTMLDialogElement | null; top: number | null };
+
+/**
+ * Where a toast goes. A modal `<dialog>` is in the top layer and makes the page inert, so the toast renders inside the
+ * topmost one. In that layer (or the page when none is open) it sits just above the last visible `[data-toast-anchor]`,
+ * so a sheet that covers the dock keeps its action area clear; with no anchor it sits above the dock.
+ */
+function findPlace(): Place & { anchor: HTMLElement | null } {
+  const host = [...document.querySelectorAll('dialog[open]')].filter((d) => d.matches(':modal')).at(-1) ?? null;
+  const anchor =
+    [...(host ?? document).querySelectorAll<HTMLElement>('[data-toast-anchor]')]
+      .filter((el) => el.getClientRects().length > 0)
+      .at(-1) ?? null;
+  return { host: host as HTMLDialogElement | null, anchor, top: anchor ? anchor.getBoundingClientRect().top : null };
+}
+
 /** Mounted once in the root layout. The live region stays mounted so screen readers announce each toast. */
 export function Toaster() {
   const active = useSyncExternalStore(
@@ -65,6 +85,25 @@ export function Toaster() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- restart only when a new toast arrives
   }, [active]);
 
+  // Follow the anchor while the toast is up: its height changes (keyboard, verdict) and the viewport resizes.
+  const [place, setPlace] = useState<Place>({ host: null, top: null });
+  useLayoutEffect(() => {
+    if (!active) return;
+    const { host, anchor } = findPlace();
+    const measure = () => setPlace({ host, top: anchor?.isConnected ? anchor.getBoundingClientRect().top : null });
+    measure();
+    if (!anchor) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(anchor);
+    window.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('resize', measure);
+    };
+  }, [active]);
+
   const icon =
     active?.tone === 'error' ? (
       <AlertCircle className="text-destructive h-4 w-4 shrink-0" aria-hidden />
@@ -72,12 +111,13 @@ export function Toaster() {
       <Check className="text-primary h-4 w-4 shrink-0" aria-hidden />
     );
 
-  return (
+  const region = (
     <div
       aria-live="polite"
       role="status"
       data-toaster
       className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--dock-clearance)+0.75rem)] z-[70] flex justify-center px-4 md:bottom-6"
+      style={place.top === null ? undefined : { top: place.top - 8, bottom: 'auto', translate: '0 -100%' }}
     >
       {active?.action ? (
         <div
@@ -112,4 +152,5 @@ export function Toaster() {
       )}
     </div>
   );
+  return place.host?.isConnected ? createPortal(region, place.host) : region;
 }

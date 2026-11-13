@@ -11,6 +11,7 @@ import {
 import { useBillingContext } from '@/hooks/use-billing';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Trash2, X } from 'lucide-react';
+import { TOAST_ANCHOR } from '@/components/ui/toast';
 import { ShowBought, type ShowTally } from '@/components/show-bought';
 import { splitBundlePrice } from '@/lib/show-session';
 import ShowBudget from '@/components/show-budget';
@@ -312,7 +313,10 @@ export default function QuickBundle({
         <DealVerdictPanel deal={result.deal} money={money} testId="bundle-verdict" emptyText={verdictEmptyText} />
       </div>
 
-      <div className="border-border/50 bg-card/95 min-w-0 shrink-0 border-t px-3 pt-2 pb-[calc(var(--safe-bottom)+0.75rem)]">
+      <div
+        {...TOAST_ANCHOR}
+        className="border-border/50 bg-card/95 min-w-0 shrink-0 border-t px-3 pt-2 pb-[calc(var(--safe-bottom)+0.75rem)]"
+      >
         {guide.marketTotal > 0 && (!nativeConsumer || guide.complete) ? (
           <DealPriceScale
             market={guide.marketTotal}

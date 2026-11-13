@@ -15,6 +15,7 @@ import { useBillingContext } from '@/hooks/use-billing';
 import { useGoogleAnalytics } from '@/components/google-analytics';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, ChevronDown, ExternalLink, Heart, Layers, Plus, TrendingUp, WifiOff } from 'lucide-react';
+import { TOAST_ANCHOR } from '@/components/ui/toast';
 import { ShowBought, type ShowTally } from '@/components/show-bought';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { getCardPriceKey } from '@/hooks/use-card-prices';
@@ -520,7 +521,10 @@ export default function QuickCardCheck({
       </div>
 
       {/* Short screens need room to scroll prices as well as reach the footer controls. */}
-      <div className="border-border/50 bg-card/95 max-h-[70%] min-h-0 min-w-0 shrink scroll-pb-[calc(var(--safe-bottom)+0.75rem)] overflow-y-auto overscroll-contain border-t px-3 pt-2 pb-[calc(var(--safe-bottom)+0.75rem)]">
+      <div
+        {...TOAST_ANCHOR}
+        className="border-border/50 bg-card/95 max-h-[70%] min-h-0 min-w-0 shrink scroll-pb-[calc(var(--safe-bottom)+0.75rem)] overflow-y-auto overscroll-contain border-t px-3 pt-2 pb-[calc(var(--safe-bottom)+0.75rem)]"
+      >
         {market ? (
           <DealPriceScale
             market={market.amount}

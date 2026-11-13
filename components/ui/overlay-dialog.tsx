@@ -15,6 +15,7 @@ import {
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import { TOAST_ANCHOR } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 
 const VARIANT_CLASSES = {
@@ -279,9 +280,13 @@ export function OverlayHeader({ className, children }: { className?: string; chi
   );
 }
 
-/** The bordered action row at the bottom of a sheet (Cancel, then the primary action). */
+/** The bordered action row at the bottom of a sheet (Cancel, then the primary action). Toasts sit above it. */
 export function OverlayFooter({ className, children }: { className?: string; children: ReactNode }) {
-  return <footer className={cn('border-border flex shrink-0 gap-2 border-t p-3', className)}>{children}</footer>;
+  return (
+    <footer {...TOAST_ANCHOR} className={cn('border-border flex shrink-0 gap-2 border-t p-3', className)}>
+      {children}
+    </footer>
+  );
 }
 
 /**

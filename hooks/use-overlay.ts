@@ -251,7 +251,9 @@ export function useOverlay(open: boolean, onClose: () => void, options: UseOverl
         const container = liveOptionsRef.current.containerRef?.current;
         if (!container) return;
         // A toast's action (e.g. Undo) floats above every overlay, so Tab reaches it too.
-        const toastAction = document.querySelector<HTMLElement>('[data-toaster] [data-toast-action]');
+        // Inside a modal dialog the toast renders in the dialog, so it's already in the container.
+        const outsideAction = document.querySelector<HTMLElement>('[data-toaster] [data-toast-action]');
+        const toastAction = outsideAction && !container.contains(outsideAction) ? outsideAction : null;
         const focusable = [
           ...container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
           ...(toastAction ? [toastAction] : []),
