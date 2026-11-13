@@ -1,0 +1,167 @@
+{
+  "source": {
+    "username": "cal",
+    "binderId": "c4b400ae-dd1c-4c84-940a-8327eb4a9048"
+  },
+  "showcase": {
+    "email": "showcase@holofolder.com",
+    "username": "showcase",
+    "displayName": "Holo Folder"
+  },
+  "pages": [
+    {
+      "page": 0,
+      "name": "Erika's garden",
+      "slug": "erikas-garden",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 1,
+      "name": "Autumn leaves",
+      "slug": "autumn-leaves",
+      "view": {
+        "preset": "blank",
+        "rows": 4,
+        "cols": 3,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 2,
+      "name": "Into the woods",
+      "slug": "into-the-woods",
+      "view": {
+        "preset": "selected-species",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 3,
+      "name": "Legendary pairs",
+      "slug": "legendary-pairs",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": true
+      }
+    },
+    {
+      "page": 4,
+      "name": "Pretty in pink",
+      "slug": "pretty-in-pink",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 2,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 5,
+      "name": "Pikachu party",
+      "slug": "pikachu-party",
+      "view": {
+        "preset": "selected-printings",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": true
+      }
+    },
+    {
+      "page": 6,
+      "name": "Myths and megas",
+      "slug": "myths-and-megas",
+      "view": {
+        "preset": "blank",
+        "rows": 2,
+        "cols": 2,
+        "showPrices": true
+      }
+    },
+    {
+      "page": 7,
+      "name": "Evolution lines",
+      "slug": "evolution-lines",
+      "view": {
+        "preset": "selected-printings",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 8,
+      "name": "Sylveon and friends",
+      "slug": "sylveon-and-friends",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 9,
+      "name": "Good doggos",
+      "slug": "good-doggos",
+      "view": {
+        "preset": "blank",
+        "rows": 2,
+        "cols": 6,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 11,
+      "name": "Giovanni's Team Rocket",
+      "slug": "giovannis-team-rocket",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": true
+      }
+    },
+    {
+      "page": 12,
+      "name": "Frozen over",
+      "slug": "frozen-over",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 13,
+      "name": "Neon pop",
+      "slug": "neon-pop",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 14,
+      "name": "Deep blue",
+      "slug": "deep-blue",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    }
+  ]
+}
