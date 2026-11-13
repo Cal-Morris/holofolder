@@ -169,7 +169,7 @@ export function rankScanCandidates(cards: readonly SearchCardResult[], read: Sca
   const wantNumber = read.number ? normalizeLocalId(read.number.number) : null;
   const wantTotal = read.number?.total ? Number.parseInt(read.number.total, 10) : null;
   return cards
-    .map((card) => {
+    .flatMap((card) => {
       const cardWords = scanWords(card.name);
       const nameHit =
         Boolean(read.pokemon) &&
@@ -186,9 +186,8 @@ export function rankScanCandidates(cards: readonly SearchCardResult[], read: Sca
           set: card.set,
           rarity: card.rarity,
         });
-      return { card, nameHit, numberHit, totalHit, score };
+      return nameHit || numberHit ? [{ card, nameHit, numberHit, totalHit, score }] : [];
     })
-    .filter((entry) => entry.nameHit || entry.numberHit)
     .sort((a, b) => b.score - a.score);
 }
 

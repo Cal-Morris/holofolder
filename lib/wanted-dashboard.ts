@@ -224,7 +224,7 @@ export function sortWantedDashboardEntries<T extends WantedDashboardCard>(
       else current.total = roundMoney(current.total + card.effectiveGbpAmount);
       setCost.set(key, current);
     }
-    return [...cards].sort((left, right) => {
+    return cards.toSorted((left, right) => {
       const leftSet = left.card.card_set || 'Unknown set';
       const rightSet = right.card.card_set || 'Unknown set';
       const a = setCost.get(leftSet)!;
@@ -245,7 +245,7 @@ export function sortWantedDashboardEntries<T extends WantedDashboardCard>(
 
   if (sort === 'rising') {
     const change = new Map(cards.map((card) => [card.key, getRisingMomentum(card.price, now)?.change ?? null]));
-    return [...cards].sort(
+    return cards.toSorted(
       (left, right) =>
         compareMaybePrice(negate(change.get(left.key) ?? null), negate(change.get(right.key) ?? null)) ||
         comparePriceDescending(left, right) ||
@@ -253,7 +253,7 @@ export function sortWantedDashboardEntries<T extends WantedDashboardCard>(
     );
   }
 
-  return [...cards].sort((left, right) => {
+  return cards.toSorted((left, right) => {
     if (sort === 'highest') {
       return comparePriceDescending(left, right) || compareDex(left, right);
     }
@@ -473,7 +473,7 @@ function incrementBreakdown(groups: Map<string, WantedDashboardBreakdown>, label
 }
 
 function sortBreakdown(groups: Map<string, WantedDashboardBreakdown>) {
-  return [...groups.values()].sort(
+  return Array.from(groups.values()).sort(
     (left, right) =>
       right.count - left.count || right.totalGbp - left.totalGbp || left.label.localeCompare(right.label),
   );

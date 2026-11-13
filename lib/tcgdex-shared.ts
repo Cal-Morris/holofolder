@@ -69,8 +69,9 @@ export function pickImageLanguage(value: unknown, requestedLanguage: string) {
     return requestedLanguage;
   }
 
+  const available = new Set(languages);
   for (const fallback of TCGDEX_LANGUAGE_FALLBACKS) {
-    if (languages.includes(fallback)) {
+    if (available.has(fallback)) {
       return fallback;
     }
   }

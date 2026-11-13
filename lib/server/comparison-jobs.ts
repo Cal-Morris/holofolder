@@ -6,6 +6,8 @@ import { loadCardPriceChecks, loadSavedCardPriceChecks } from '@/lib/server/card
 import type { CheckCompsProgress } from '@/lib/check-comps';
 import type { ComparisonJob, ComparisonTarget, ComparisonResult } from '@/lib/comparison-jobs';
 
+const RETRYABLE_STATUSES = new Set([429, 503]);
+
 export interface StoredComparisonJob extends ComparisonJob {
   owner_user_id: string;
   initiated_by?: string | null;
@@ -85,7 +87,7 @@ export async function checkComparisonTarget(
     try {
       result = await loadCardPriceChecks(target.cardId, target.finish, true, source);
     } catch (error) {
-      if (error instanceof DeveloperAccessError && [429, 503].includes(error.status))
+      if (error instanceof DeveloperAccessError && RETRYABLE_STATUSES.has(error.status))
         return { result: 'failed', stopped: {}, retryable: true };
       throw error;
     }

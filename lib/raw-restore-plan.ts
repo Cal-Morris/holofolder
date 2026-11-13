@@ -76,11 +76,11 @@ export function planRawContentRestore(input: {
     !backup.layouts ||
     backupContentKey(backup.layouts.map(({ layoutRevision: _revision, ...l }) => l)) !==
       backupContentKey(
-        input.layouts.filter((l) => l.collectionId === collectionId).map(({ layoutRevision: _revision, ...l }) => l),
+        input.layouts.flatMap(({ layoutRevision: _revision, ...l }) => (l.collectionId === collectionId ? [l] : [])),
       ) ||
     backupContentKey(input.choices.slotIds) !== backupContentKey(binder.slots.map((s) => s.id)) ||
     backupContentKey(sourceBinder.slots.map((s) => s.id).sort()) !==
-      backupContentKey([...input.choices.slotIds].sort()) ||
+      backupContentKey(input.choices.slotIds.toSorted()) ||
     sourceBinder.slots.some(
       (s) =>
         backupContentKey(s.presetOrigin) !== backupContentKey(binder.slots.find((b) => b.id === s.id)?.presetOrigin),
@@ -91,13 +91,17 @@ export function planRawContentRestore(input: {
   const desiredIds = new Set(desired.placements.map((p) => p.inventoryItemId));
   const touched = new Set([
     ...desiredIds,
-    ...current.placements.filter((p) => p.collectionId === collectionId).map((p) => p.inventoryItemId),
+    ...current.placements.flatMap((p) => (p.collectionId === collectionId ? [p.inventoryItemId] : [])),
   ]);
   const items: RawRestoreCommand['items'] = [];
-  for (const id of [...touched].sort()) {
-    const item = current.items.find((i) => i.id === id),
-      original = desired.items.find((i) => i.id === id);
-    const placement = current.placements.find((p) => p.inventoryItemId === id);
+  const currentItems = new Map(current.items.map((i) => [i.id, i])),
+    desiredItems = new Map(desired.items.map((i) => [i.id, i])),
+    placements = new Map(current.placements.map((p) => [p.inventoryItemId, p])),
+    slots = new Map(binder.slots.map((s) => [s.id, s]));
+  for (const id of Array.from(touched).sort()) {
+    const item = currentItems.get(id),
+      original = desiredItems.get(id);
+    const placement = placements.get(id);
     if (!item || item.grading !== null || (placement && placement.collectionId !== collectionId)) return fail();
     if (
       original &&
@@ -106,7 +110,7 @@ export function planRawContentRestore(input: {
         original.acquiredAt !== item.acquiredAt)
     )
       return fail();
-    const slot = placement ? binder.slots.find((s) => s.id === placement.slotId)! : null;
+    const slot = placement ? slots.get(placement.slotId)! : null;
     items.push({
       itemId: id,
       itemVersion: item.version,
@@ -125,8 +129,8 @@ export function planRawContentRestore(input: {
           : null,
     });
   }
-  const releases = items.filter((i) => i.placement && !desiredIds.has(i.itemId)).map((i) => i.itemId);
-  if (backupContentKey([...input.choices.releaseItemIds].sort()) !== backupContentKey(releases)) return fail();
+  const releases = items.flatMap((i) => (i.placement && !desiredIds.has(i.itemId) ? [i.itemId] : []));
+  if (backupContentKey(input.choices.releaseItemIds.toSorted()) !== backupContentKey(releases)) return fail();
   if (
     rawRestoreSavedEntries(desired.binders[0].slots) - rawRestoreSavedEntries(binder.slots) >
     input.savedEntryRemaining

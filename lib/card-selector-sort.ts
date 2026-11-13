@@ -129,7 +129,7 @@ export function sortCardPickerCards<TCard extends SortableCard>(
 ): TCard[] {
   if (sort === 'default') {
     const ranks = new Map(cards.map((card) => [card, likelyRank(card)]));
-    return [...cards].sort((a, b) => {
+    return cards.toSorted((a, b) => {
       const aRank = ranks.get(a) ?? Number.POSITIVE_INFINITY;
       const bRank = ranks.get(b) ?? Number.POSITIVE_INFINITY;
       if (aRank !== bRank) return aRank < bRank ? -1 : 1;
@@ -138,10 +138,10 @@ export function sortCardPickerCards<TCard extends SortableCard>(
   }
   if (sort === 'newest' || sort === 'oldest') {
     const direction = sort === 'newest' ? -1 : 1;
-    return [...cards].sort((a, b) => compareReleaseDate(a, b, direction) || compareNumber(a, b));
+    return cards.toSorted((a, b) => compareReleaseDate(a, b, direction) || compareNumber(a, b));
   }
   const amounts = new Map(cards.map((card) => [card, amountOf(card)]));
-  return [...cards].sort((a, b) => {
+  return cards.toSorted((a, b) => {
     const aAmount = amounts.get(a) ?? null;
     const bAmount = amounts.get(b) ?? null;
     if (aAmount === bAmount) return 0;

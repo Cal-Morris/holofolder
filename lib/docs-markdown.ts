@@ -3,7 +3,7 @@ import schema from '@/public/openapi.json';
 const ORIGIN = 'https://holofolder.com';
 
 export function docsMarkdownHref(href: string): string {
-  if (/^\/docs(?:[\/#]|$)/.test(href)) return `${ORIGIN}${href.replace(/^\/docs/, '/app/docs/markdown')}`;
+  if (/^\/docs(?:[/#]|$)/.test(href)) return `${ORIGIN}${href.replace(/^\/docs/, '/app/docs/markdown')}`;
   return href.startsWith('/') ? `${ORIGIN}${href}` : href;
 }
 

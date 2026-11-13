@@ -31,9 +31,10 @@ function savedAtOf(storage: StorageLike, key: string) {
 /** Other binders' snapshot keys, least recently saved first. */
 export function evictableSnapshotKeys(storage: StorageLike, keep: readonly string[] = []) {
   const keys: string[] = [];
+  const kept = new Set(keep);
   for (let index = 0; index < storage.length; index += 1) {
     const key = storage.key(index);
-    if (key && key.startsWith(BINDER_SNAPSHOT_PREFIX) && !keep.includes(key)) keys.push(key);
+    if (key && key.startsWith(BINDER_SNAPSHOT_PREFIX) && !kept.has(key)) keys.push(key);
   }
   return keys
     .map((key) => ({ key, savedAt: savedAtOf(storage, key) }))

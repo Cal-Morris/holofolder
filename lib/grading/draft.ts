@@ -44,15 +44,14 @@ export function duplicateGradingCopies(
 ): string[] {
   if (!grading?.certificate) return [];
   const key = (p: GradingRecord['provider']) => (p.kind === 'known' ? `known:${p.id}` : `custom:${p.name}`);
-  return evidence
-    .filter(
-      (other) =>
-        other.id !== item.id &&
-        other.ownerUserId === item.ownerUserId &&
-        other.grading?.certificate === grading.certificate &&
-        key(other.grading.provider) === key(grading.provider),
-    )
-    .map((other) => other.id);
+  return evidence.flatMap((other) =>
+    other.id !== item.id &&
+    other.ownerUserId === item.ownerUserId &&
+    other.grading?.certificate === grading.certificate &&
+    key(other.grading.provider) === key(grading.provider)
+      ? [other.id]
+      : [],
+  );
 }
 
 /** Advisory only: preserve legacy/text grades, never regrade or infer a label from a number. */

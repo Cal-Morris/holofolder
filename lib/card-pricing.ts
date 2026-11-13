@@ -190,6 +190,7 @@ export const CARD_PRICE_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 export const CARD_PRICE_MISSING_CACHE_TTL_MS = 5 * 60 * 1000;
 export const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ['en', 'fr', 'de', 'es', 'it', 'pt-br', 'ja', 'ko'];
 const CARDMARKET_FIRST_LANGUAGES = new Set<CardLanguage>(['fr', 'de', 'es', 'it', 'pt-br']);
+const STANDARD_VARIANT_KEYS = new Set<string>(['normal', 'unlimited', 'holo', 'holofoil', 'unlimited-holofoil']);
 const TCGPLAYER_VARIANT_PRIORITY = [
   'normal',
   'reverse',
@@ -307,14 +308,12 @@ export async function loadSavedCardPrices(
       return (data ?? []) as unknown as CardPriceRow[];
     }),
   );
-  return pages
-    .flat()
-    .filter((row) => keys.has(getCardPriceKey(row.card_id, row.language)))
-    .map((row) => {
-      const snapshot = rowToSnapshot(row);
-      if (summary) delete snapshot.historyPoints;
-      return snapshot;
-    });
+  return pages.flat().flatMap((row) => {
+    if (!keys.has(getCardPriceKey(row.card_id, row.language))) return [];
+    const snapshot = rowToSnapshot(row);
+    if (summary) delete snapshot.historyPoints;
+    return [snapshot];
+  });
 }
 
 export async function refreshCardPriceLookups(
@@ -716,7 +715,7 @@ async function mapWithConcurrency<TInput, TOutput>(
   concurrency: number,
   worker: (item: TInput) => Promise<TOutput>,
 ) {
-  const results = new Array<TOutput>(items.length);
+  const results: TOutput[] = Array.from({ length: items.length });
   let index = 0;
 
   const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
@@ -1877,7 +1876,7 @@ function buildFinishPrices(
       : variantKey.includes('holo')
         ? 'holo'
         : 'normal';
-    const isStandard = ['normal', 'unlimited', 'holo', 'holofoil', 'unlimited-holofoil'].includes(variantKey);
+    const isStandard = STANDARD_VARIANT_KEYS.has(variantKey);
     const sameFinishMarket = isStandard && finish === baseFinish ? cardmarket : null;
     const preferred = CARDMARKET_FIRST_LANGUAGES.has(language) ? (sameFinishMarket ?? tcgplayer) : tcgplayer;
     const combined = combineSourceEvidence(preferred, [tcgplayer, sameFinishMarket]);
@@ -1889,7 +1888,10 @@ function buildFinishPrices(
       finish,
       variantKey,
       updatedAt: Number.isFinite(Date.parse(preferred.updatedAt ?? ''))
-        ? (timestamps.sort((left, right) => Date.parse(left) - Date.parse(right))[0] ?? null)
+        ? timestamps.reduce<string | null>(
+            (oldest, date) => (oldest === null || Date.parse(date) < Date.parse(oldest) ? date : oldest),
+            null,
+          )
         : null,
       trendPoints: sameFinishMarket?.updatedAt ? combined.trendPoints : [],
     });

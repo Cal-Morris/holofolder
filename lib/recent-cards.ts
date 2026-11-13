@@ -4,6 +4,7 @@ import { formatCardNumber, type SearchCardResult } from '@/lib/pokemon-card-brow
 
 export const RECENT_CARDS_STORAGE_KEY = 'binderdex:recent-cards:v1';
 export const RECENT_CARDS_LIMIT = 20;
+const VARIANT_KEYS = new Set(['normal', 'reverse', 'holo', 'firstEdition', 'wPromo', 'jumbo']);
 
 /** A card opened from search, kept on this device so it can be reopened from an empty search. */
 export interface RecentCard extends CardCatalogIdentity {
@@ -119,11 +120,7 @@ export function parseRecentCards(raw: string | null | undefined): RecentCard[] {
         ...(variants && typeof variants === 'object'
           ? {
               variants: Object.fromEntries(
-                Object.entries(variants).filter(
-                  ([key, value]) =>
-                    ['normal', 'reverse', 'holo', 'firstEdition', 'wPromo', 'jumbo'].includes(key) &&
-                    typeof value === 'boolean',
-                ),
+                Object.entries(variants).filter(([key, value]) => VARIANT_KEYS.has(key) && typeof value === 'boolean'),
               ),
             }
           : {}),

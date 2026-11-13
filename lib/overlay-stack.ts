@@ -34,7 +34,8 @@ export class OverlayStack {
   }
 
   private notify() {
-    for (const listener of [...this.listeners]) listener();
+    // Snapshot first: a listener may unsubscribe (or subscribe another) while we notify.
+    for (const listener of Array.from(this.listeners)) listener();
   }
 
   update(id: number, close: () => void) {

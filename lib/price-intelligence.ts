@@ -326,11 +326,11 @@ function buildCollectorNumberAliases(subject: PriceSubject) {
 }
 
 function buildSetSignals(subject: PriceSubject) {
-  return [subject.setId, subject.setName, ...(subject.setAliases ?? [])]
-    .flatMap((value) =>
-      value ? [normalizeComparableText(value), normalizeComparableText(value).replace(/\s+/g, '')] : [],
-    )
-    .filter(Boolean);
+  return [subject.setId, subject.setName, ...(subject.setAliases ?? [])].flatMap((value) => {
+    const text = value ? normalizeComparableText(value) : '';
+    // An empty spaced form means the compact form is empty too.
+    return text ? [text, text.replace(/\s+/g, '')].filter(Boolean) : [];
+  });
 }
 
 function findConflictingPrefixedCollectorNumber(normalizedTitle: string, validAliases: string[]) {
@@ -338,7 +338,12 @@ function findConflictingPrefixedCollectorNumber(normalizedTitle: string, validAl
 
   const compactTitle = normalizedTitle.replace(/\s+/g, '');
   const validCompacts = new Set(validAliases.map((alias) => alias.replace(/\s+/g, '')));
-  const setPrefixes = new Set([...validCompacts].map((alias) => alias.replace(/\d+$/, '')).filter(Boolean));
+  const setPrefixes = new Set(
+    Array.from(validCompacts).flatMap((alias) => {
+      const prefix = alias.replace(/\d+$/, '');
+      return prefix ? [prefix] : [];
+    }),
+  );
 
   for (const prefix of setPrefixes) {
     const matches = compactTitle.match(new RegExp(`${escapeRegExp(prefix)}0*\\d{1,4}`, 'g')) ?? [];

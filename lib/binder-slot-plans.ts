@@ -115,7 +115,8 @@ export function planMoveSlots(
   const rest = plan.snapshot.slots.filter((slot) => !slotIds.includes(slot.id));
   const index = beforeSlotId === null ? rest.length : rest.findIndex((slot) => slot.id === beforeSlotId);
   rest.splice(index, 0, ...selected);
-  if (rest.every((slot, index) => slot.id === plan.snapshot.slots[index].id)) return plan;
+  const slots = plan.snapshot.slots;
+  if (rest.length === slots.length && rest.every((slot, index) => slot.id === slots[index].id)) return plan;
   plan.snapshot.slots = rest;
   return bumpLayout(plan);
 }

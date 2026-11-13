@@ -100,9 +100,10 @@ export async function mirrorSetImages(
   const refs = planCardImageRefs(setCards, options);
   const sourceRefs = planSourceImageRefs(setCards);
   const existing = new Set<string>();
-  for (const language of new Set(refs.map((ref) => ref.language))) {
-    for (const pathname of await mirror.listSetPathnames(language, setId)) existing.add(pathname);
-  }
+  const listings = await Promise.all(
+    Array.from(new Set(refs.map((ref) => ref.language)), (language) => mirror.listSetPathnames(language, setId)),
+  );
+  for (const pathnames of listings) for (const pathname of pathnames) existing.add(pathname);
 
   const missing = refs.filter((ref) => !existing.has(getCardImageBlobPathname(ref)));
   let uploaded = 0;
@@ -201,11 +202,12 @@ function boundedInt(value: string | null, fallback: number, max: number) {
 function listParam(searchParams: URLSearchParams, name: string) {
   return [
     ...new Set(
-      searchParams
-        .getAll(name)
-        .flatMap((value) => value.split(','))
-        .map((value) => value.trim())
-        .filter(Boolean),
+      searchParams.getAll(name).flatMap((value) =>
+        value.split(',').flatMap((part) => {
+          const item = part.trim();
+          return item ? [item] : [];
+        }),
+      ),
     ),
   ];
 }

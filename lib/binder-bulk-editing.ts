@@ -75,16 +75,16 @@ export function bulkSelectionState(
     return 'selection-changed';
   const current = captureBulkSelection(snapshot, scope, []);
   const { binder } = layout(snapshot, scope);
+  const slots = new Map(binder.slots.map((s) => [s.id, s]));
+  const items = new Map(snapshot.items.map((i) => [i.id, i]));
+  const placements = new Map(snapshot.placements.map((p) => [p.inventoryItemId, p]));
   for (const evidence of selection.slots) {
-    const slot = binder.slots.find((s) => s.id === evidence.slot.id);
+    const slot = slots.get(evidence.slot.id);
     if (
       !slot ||
       !sameValue(slot, evidence.slot) ||
-      !sameValue(snapshot.items.find((i) => i.id === slot.inventoryItemId) ?? null, evidence.item) ||
-      !sameValue(
-        snapshot.placements.find((p) => p.inventoryItemId === slot.inventoryItemId) ?? null,
-        evidence.placement,
-      )
+      !sameValue((slot.inventoryItemId && items.get(slot.inventoryItemId)) || null, evidence.item) ||
+      !sameValue((slot.inventoryItemId && placements.get(slot.inventoryItemId)) || null, evidence.placement)
     )
       return 'selection-changed';
   }

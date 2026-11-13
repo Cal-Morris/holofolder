@@ -29,13 +29,12 @@ export function getQuickCardState(
     owned,
     wanted: Boolean(item?.wanted_cards.some((entry) => matches(entry))),
     ownedElsewhere:
-      lookup?.binders
-        .filter(
-          (binder) =>
-            binder.id !== currentBinderId &&
-            lookup.collections.get(binder.id)?.some((entry) => hasOwnedPrinting(entry) && matches(entry)),
-        )
-        .map((binder) => binder.name) ?? [],
+      lookup?.binders.flatMap((binder) =>
+        binder.id !== currentBinderId &&
+        lookup.collections.get(binder.id)?.some((entry) => hasOwnedPrinting(entry) && matches(entry))
+          ? [binder.name]
+          : [],
+      ) ?? [],
     replacing: item && hasOwnedPrinting(item) && !owned ? item.card_name || item.card_id! : null,
     otherBindersIncomplete: !lookup || lookup.binders.some((binder) => !lookup.loadedBinderIds?.includes(binder.id)),
   };

@@ -130,8 +130,8 @@ export function getHuntFilterOptions(cards: readonly HuntCard[]) {
     sets.set(card.setId, set);
   }
   return {
-    eras: [...eras.values()].sort((a, b) => ERA_ORDER.indexOf(a.era.id) - ERA_ORDER.indexOf(b.era.id)),
-    sets: [...sets.values()].sort(
+    eras: Array.from(eras.values()).sort((a, b) => ERA_ORDER.indexOf(a.era.id) - ERA_ORDER.indexOf(b.era.id)),
+    sets: Array.from(sets.values()).sort(
       (a, b) => ERA_ORDER.indexOf(a.era.id) - ERA_ORDER.indexOf(b.era.id) || a.name.localeCompare(b.name),
     ),
   };
@@ -269,5 +269,5 @@ export function orderPokemonCards<T extends { standing: PokemonCardStanding; pri
   cards: readonly T[],
 ): T[] {
   const rank: Record<PokemonCardStanding, number> = { wanted: 0, missing: 1, owned: 2 };
-  return [...cards].sort((a, b) => rank[a.standing] - rank[b.standing] || byPriceDesc(a, b));
+  return cards.toSorted((a, b) => rank[a.standing] - rank[b.standing] || byPriceDesc(a, b));
 }

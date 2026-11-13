@@ -199,8 +199,9 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
   const text = parsed.text;
   const number = parsed.number ? normalizeLocalId(parsed.number) : null;
   const results: SearchCardResult[] = [];
+  const setIds = new Set(parsed.setIds);
   for (const card of cards) {
-    if (parsed.setIds.length && !parsed.setIds.includes(card.set.id)) continue;
+    if (setIds.size && !setIds.has(card.set.id)) continue;
     if (text) {
       const matchesText =
         card.name.toLowerCase().includes(text) ||
@@ -252,11 +253,13 @@ export async function readCachedCardApiResponses(
         const path = appPath(new URL(request.url).pathname);
         return apiPrefixes.some((prefix) => path.startsWith(prefix));
       });
-      for (const request of requests.slice(0, MAX_CACHED_RESPONSES - results.length)) {
-        const response = await cache.match(request);
-        const payload = await response?.json().catch(() => null);
-        if (payload) results.push({ url: request.url, payload });
-      }
+      const payloads = await Promise.all(
+        requests.slice(0, MAX_CACHED_RESPONSES - results.length).map(async (request) => {
+          const response = await cache.match(request);
+          return { url: request.url, payload: await response?.json().catch(() => null) };
+        }),
+      );
+      for (const entry of payloads) if (entry.payload) results.push(entry);
       if (results.length >= MAX_CACHED_RESPONSES) break;
     }
   } catch {

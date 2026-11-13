@@ -33,7 +33,9 @@ export function buildWantedListText(cards: WantedDashboardCard[], formatAmount: 
     bySet.set(set, [...(bySet.get(set) ?? []), entry]);
   }
   const lines = [`Want list · ${cards.length} card${cards.length === 1 ? '' : 's'}`];
-  for (const set of [...bySet.keys()].sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b)))) {
+  for (const set of Array.from(bySet.keys()).sort((a, b) =>
+    a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b),
+  )) {
     lines.push('', set);
     const entries = bySet
       .get(set)!

@@ -262,9 +262,14 @@ export async function inspectSavedShowSets(options: {
 }): Promise<SavedShowSet[]> {
   const names = await options.cacheStorage.keys();
   const imageUrls = new Set<string>();
-  for (const name of names.filter((name) => /^binderdex-.*-(?:show-)?images$/.test(name))) {
-    for (const request of await (await options.cacheStorage.open(name)).keys()) imageUrls.add(request.url);
-  }
+  const imageRequests = await Promise.all(
+    names.flatMap((name) =>
+      /^binderdex-.*-(?:show-)?images$/.test(name)
+        ? [options.cacheStorage.open(name).then((cache) => cache.keys())]
+        : [],
+    ),
+  );
+  for (const requests of imageRequests) for (const request of requests) imageUrls.add(request.url);
   const saved = new Map<string, SavedShowSet>();
   for (const name of names.filter((name) => /^binderdex-.*-data$/.test(name))) {
     const cache = await options.cacheStorage.open(name);

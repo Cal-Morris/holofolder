@@ -62,11 +62,11 @@ export function summarizeEbayListingEvidence(subject: PriceSubject, items: unkno
       price?.currency !== 'GBP' ||
       location?.country !== 'GB' ||
       !Array.isArray(row.buyingOptions) ||
-      !row.buyingOptions.includes('FIXED_PRICE') ||
-      row.buyingOptions.includes('AUCTION') ||
       row.itemGroupHref
     )
       continue;
+    const buyingOptions = new Set(row.buyingOptions);
+    if (!buyingOptions.has('FIXED_PRICE') || buyingOptions.has('AUCTION')) continue;
     if (typeof price.value !== 'string' && typeof price.value !== 'number') continue;
     if (typeof price.value === 'string' && !/^\d+(?:\.\d+)?$/.test(price.value)) continue;
     const amount = Number(price.value);

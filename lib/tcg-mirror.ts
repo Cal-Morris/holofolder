@@ -143,7 +143,9 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
     throw error;
   }
 
-  const cards = deduplicateCatalogCards(((data || []) as any[]).map((row) => row.tcg_cards).filter(Boolean))
+  const cards = deduplicateCatalogCards(
+    ((data || []) as any[]).flatMap((row) => (row.tcg_cards ? [row.tcg_cards] : [])),
+  )
     .map((card): MirroredCardQueryResult => {
       const set = card?.tcg_sets;
 
@@ -253,16 +255,20 @@ export async function searchMirroredSets(
     throw error;
   }
 
-  return ((data || []) as any[])
-    .filter((set) => !HIDDEN_SET_IDS.has(set.id))
-    .map((set) => ({
-      id: set.id,
-      ...getSetArtwork(set.id),
-      name: pickLocalizedText(set.name_json, 'en') || set.name_en || set.id,
-      seriesName: pickLocalizedText(set.tcg_series?.name_json, 'en') || set.tcg_series?.name_en || undefined,
-      officialCardCount: typeof set.official_card_count === 'number' ? set.official_card_count : undefined,
-      releaseDate: typeof set.release_date === 'string' ? set.release_date : undefined,
-    }));
+  return ((data || []) as any[]).flatMap((set) =>
+    HIDDEN_SET_IDS.has(set.id)
+      ? []
+      : [
+          {
+            id: set.id,
+            ...getSetArtwork(set.id),
+            name: pickLocalizedText(set.name_json, 'en') || set.name_en || set.id,
+            seriesName: pickLocalizedText(set.tcg_series?.name_json, 'en') || set.tcg_series?.name_en || undefined,
+            officialCardCount: typeof set.official_card_count === 'number' ? set.official_card_count : undefined,
+            releaseDate: typeof set.release_date === 'string' ? set.release_date : undefined,
+          },
+        ],
+  );
 }
 
 export async function getRecentMirroredSets(asOfDate: string, limit = 6): Promise<TCGSetSummary[]> {
@@ -303,15 +309,19 @@ export async function getRecentMirroredSets(asOfDate: string, limit = 6): Promis
     throw error;
   }
 
-  const sets = ((data || []) as any[])
-    .filter((set) => !HIDDEN_SET_IDS.has(set.id))
-    .map((set) => ({
-      id: set.id,
-      name: pickLocalizedText(set.name_json, 'en') || set.name_en || set.id,
-      seriesName: pickLocalizedText(set.tcg_series?.name_json, 'en') || set.tcg_series?.name_en || undefined,
-      officialCardCount: typeof set.official_card_count === 'number' ? set.official_card_count : undefined,
-      releaseDate: typeof set.release_date === 'string' ? set.release_date : undefined,
-    }));
+  const sets = ((data || []) as any[]).flatMap((set) =>
+    HIDDEN_SET_IDS.has(set.id)
+      ? []
+      : [
+          {
+            id: set.id,
+            name: pickLocalizedText(set.name_json, 'en') || set.name_en || set.id,
+            seriesName: pickLocalizedText(set.tcg_series?.name_json, 'en') || set.tcg_series?.name_en || undefined,
+            officialCardCount: typeof set.official_card_count === 'number' ? set.official_card_count : undefined,
+            releaseDate: typeof set.release_date === 'string' ? set.release_date : undefined,
+          },
+        ],
+  );
 
   return selectRecentSetSummaries(sets, { asOfDate, limit });
 }
@@ -354,17 +364,21 @@ export async function getBrowsableMirroredSets(): Promise<TCGSetSummary[]> {
     release_date: unknown;
     tcg_series: { name_json: unknown; name_en: string | null } | null;
   };
-  return ((data || []) as unknown as BrowseSetRow[])
-    .filter((set) => !HIDDEN_SET_IDS.has(set.id))
-    .map((set): TCGSetSummary => ({
-      id: set.id,
-      name: pickLocalizedText(set.name_json, 'en') || set.name_en || set.id,
-      seriesName: pickLocalizedText(set.tcg_series?.name_json, 'en') || set.tcg_series?.name_en || undefined,
-      officialCardCount: typeof set.official_card_count === 'number' ? set.official_card_count : undefined,
-      releaseDate: typeof set.release_date === 'string' ? set.release_date : undefined,
-      ...(set.name_json && typeof set.name_json === 'object' ? { languages: Object.keys(set.name_json) } : {}),
-      ...getSetArtwork(set.id),
-    }));
+  return ((data || []) as unknown as BrowseSetRow[]).flatMap((set): TCGSetSummary[] =>
+    HIDDEN_SET_IDS.has(set.id)
+      ? []
+      : [
+          {
+            id: set.id,
+            name: pickLocalizedText(set.name_json, 'en') || set.name_en || set.id,
+            seriesName: pickLocalizedText(set.tcg_series?.name_json, 'en') || set.tcg_series?.name_en || undefined,
+            officialCardCount: typeof set.official_card_count === 'number' ? set.official_card_count : undefined,
+            releaseDate: typeof set.release_date === 'string' ? set.release_date : undefined,
+            ...(set.name_json && typeof set.name_json === 'object' ? { languages: Object.keys(set.name_json) } : {}),
+            ...getSetArtwork(set.id),
+          },
+        ],
+  );
 }
 
 export async function readSetCardPages<T>(
@@ -451,7 +465,8 @@ export async function getMirroredSetDexSlots(
 
   for (const card of rows) {
     const dexLinks = Array.isArray(card.tcg_card_dex_ids) ? card.tcg_card_dex_ids : [];
-    if (!card?.id || !card?.local_id || !card?.series_id || !card?.set_id || !card?.tcg_sets?.id) {
+    const set = card?.tcg_sets;
+    if (!card?.id || !card?.local_id || !card?.series_id || !card?.set_id || !set?.id) {
       continue;
     }
 
@@ -463,15 +478,11 @@ export async function getMirroredSetDexSlots(
       language,
     );
     const setSummary: TCGSetSummary = {
-      id: card.tcg_sets.id,
-      name: pickLocalizedText(card.tcg_sets.name_json, language) || card.tcg_sets.name_en || card.tcg_sets.id,
-      seriesName:
-        pickLocalizedText(card.tcg_sets.tcg_series?.name_json, language) ||
-        card.tcg_sets.tcg_series?.name_en ||
-        undefined,
-      officialCardCount:
-        typeof card.tcg_sets.official_card_count === 'number' ? card.tcg_sets.official_card_count : undefined,
-      releaseDate: typeof card.tcg_sets.release_date === 'string' ? card.tcg_sets.release_date : undefined,
+      id: set.id,
+      name: pickLocalizedText(set.name_json, language) || set.name_en || set.id,
+      seriesName: pickLocalizedText(set.tcg_series?.name_json, language) || set.tcg_series?.name_en || undefined,
+      officialCardCount: typeof set.official_card_count === 'number' ? set.official_card_count : undefined,
+      releaseDate: typeof set.release_date === 'string' ? set.release_date : undefined,
     };
     const slotCard: TCGSetSlotCard = {
       id: card.id,
@@ -509,7 +520,7 @@ export async function getMirroredSetDexSlots(
   return {
     selectedSet,
     cards,
-    slots: [...slotMap.values()].sort((left, right) => left.dexId - right.dexId),
+    slots: Array.from(slotMap.values()).sort((left, right) => left.dexId - right.dexId),
   };
 }
 
@@ -716,9 +727,9 @@ export async function searchMirroredCards(
   let correction: string | null = null;
   const candidates = [
     ...new Set(
-      cardSearchSetCandidates(query)
-        .map((candidate) => candidate.phrase)
-        .filter((phrase) => !phrase.includes(' ') && phrase.length >= 2),
+      cardSearchSetCandidates(query).flatMap(({ phrase }) =>
+        !phrase.includes(' ') && phrase.length >= 2 ? [phrase] : [],
+      ),
     ),
   ];
   if (candidates.length) {
@@ -730,9 +741,9 @@ export async function searchMirroredCards(
       )
       .limit(1000);
     if (catalog.error) throw catalog.error;
-    const sets = (catalog.data ?? [])
-      .filter((set) => !HIDDEN_SET_IDS.has(set.id))
-      .map((set) => ({ id: set.id, name: set.name_en ?? '' }));
+    const sets = (catalog.data ?? []).flatMap((set) =>
+      HIDDEN_SET_IDS.has(set.id) ? [] : [{ id: set.id, name: set.name_en ?? '' }],
+    );
     parsed = resolveCardSearchQuery(query, sets);
     correction = correctedCardSearchQuery(query, sets);
   }
@@ -783,9 +794,9 @@ export async function searchMirroredCards(
           .order('release_date', { ascending: false, nullsFirst: false })
           .limit(4);
         if (setMatches.error) return { data: null, error: setMatches.error };
-        const setIds = ((setMatches.data || []) as Array<{ id: string }>)
-          .map((set) => set.id)
-          .filter((id) => !HIDDEN_SET_IDS.has(id));
+        const setIds = ((setMatches.data || []) as Array<{ id: string }>).flatMap(({ id }) =>
+          HIDDEN_SET_IDS.has(id) ? [] : [id],
+        );
         if (setIds.length === 0) return { data: [], error: null };
         let bySet = admin.from('tcg_cards').select(select).in('set_id', setIds);
         if (numberCandidates) bySet = bySet.in('local_id', numberCandidates);

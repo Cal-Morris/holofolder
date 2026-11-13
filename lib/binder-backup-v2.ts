@@ -13,6 +13,7 @@ import type { WantedCard } from '@/lib/domain/cards';
 import { SLOT_LIMITS } from '@/lib/domain/slot-commands';
 import { getDefaultBinderSettings, normalizeBinderSettings, type BinderSettings } from '@/lib/settings';
 
+const CARD_IMAGE_HOSTS = new Set(['assets.tcgdex.net', 'assets.holofolder.com']);
 const PORTABLE_OWNER = 'portable';
 export type PortableItem = Omit<InventoryItem, 'ownerUserId'>;
 export type PortableCollection = Omit<StorageCollection, 'ownerUserId'>;
@@ -94,30 +95,36 @@ export function createBinderBackupV2(
     scope: input.scope,
     inventoryRevision: source.inventoryRevision,
     collections: collections.map(withoutOwner),
-    binders: source.binders
-      .filter((b) => selected.has(b.collectionId))
-      .map((b) => ({
-        ...withoutOwner(b),
-        slots: b.slots.map((s) => ({
-          ...withoutOwner(s),
-          wantedCards: s.wantedCards.map((w) => {
-            const { wanted_by, ...want } = w;
-            if (wanted_by?.some((id) => id !== source.ownerUserId && id !== input.partnerUserId))
-              invalid('Resolve wanted-person membership before export');
-            return {
-              ...want,
-              ...(wanted_by
-                ? {
-                    wantedRoles: wanted_by.map((id) =>
-                      id === source.ownerUserId ? ('owner' as const) : ('partner' as const),
-                    ),
-                  }
-                : {}),
-            };
-          }),
-        })),
-      })),
-    items: source.items.filter((i) => input.scope === 'all-inventory' || referenced.has(i.id)).map(withoutOwner),
+    binders: source.binders.flatMap((b) =>
+      !selected.has(b.collectionId)
+        ? []
+        : [
+            {
+              ...withoutOwner(b),
+              slots: b.slots.map((s) => ({
+                ...withoutOwner(s),
+                wantedCards: s.wantedCards.map((w) => {
+                  const { wanted_by, ...want } = w;
+                  if (wanted_by?.some((id) => id !== source.ownerUserId && id !== input.partnerUserId))
+                    invalid('Resolve wanted-person membership before export');
+                  return {
+                    ...want,
+                    ...(wanted_by
+                      ? {
+                          wantedRoles: wanted_by.map((id) =>
+                            id === source.ownerUserId ? ('owner' as const) : ('partner' as const),
+                          ),
+                        }
+                      : {}),
+                  };
+                }),
+              })),
+            },
+          ],
+    ),
+    items: source.items.flatMap((i) =>
+      input.scope === 'all-inventory' || referenced.has(i.id) ? [withoutOwner(i)] : [],
+    ),
     ...(input.layouts ? { layouts: structuredClone(input.layouts.filter((l) => selected.has(l.collectionId))) } : {}),
     placements,
     appearance: structuredClone((input.appearance ?? []).filter((a) => selected.has(a.collectionId))),
@@ -267,7 +274,7 @@ export function parseBinderBackupV2(text: string): BinderBackupV2 {
           }
           if (
             url.protocol !== 'https:' ||
-            !['assets.tcgdex.net', 'assets.holofolder.com'].includes(url.hostname) ||
+            !CARD_IMAGE_HOSTS.has(url.hostname) ||
             url.username ||
             url.password ||
             url.port ||

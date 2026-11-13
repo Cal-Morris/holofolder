@@ -38,7 +38,7 @@ export function prepareInventoryBulkAction(
     return prepareInventoryAction(snapshot, { kind: 'place', ...mapping }, context, catalog);
   });
   const collections = [
-    ...new Map(plans.flatMap((p) => p.intent.request.collections).map((c) => [c.collectionId, c])).values(),
+    ...new Map(plans.flatMap((p) => p.intent.request.collections.map((c) => [c.collectionId, c] as const))).values(),
   ];
   // The existing parser enforces command, work, collection and byte budgets for the whole selection.
   const intent = parseSlotIntent({

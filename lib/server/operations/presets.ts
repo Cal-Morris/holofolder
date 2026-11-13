@@ -66,7 +66,7 @@ export async function executePresetOperation(context: OperationContext, name: st
           const ids =
             query.presetId === 'selected-species'
               ? query.speciesIds
-              : POKEMON_CATALOG.filter((p) => !gen || (p.id >= gen.start && p.id <= gen.end)).map((p) => p.id);
+              : POKEMON_CATALOG.flatMap((p) => (!gen || (p.id >= gen.start && p.id <= gen.end) ? [p.id] : []));
           if (
             (query.presetId === 'selected-species' && (!ids || new Set(ids).size !== ids.length)) ||
             (query.presetId === 'selected-printings' && !query.printings)

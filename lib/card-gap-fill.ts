@@ -155,25 +155,29 @@ type Candidate = {
   ref: string;
 };
 function legacyCandidates(cards: GapLegacyCard[]): Candidate[] {
-  return cards
-    .filter((c) => parseSourceCardImageUrl(c.images?.large ?? c.images?.small ?? ''))
-    .map((c) => ({
-      key: c.id,
-      name: normalizeGapName(c.name),
-      number: normalizeGapNumber(c.number),
-      qualified: false,
-      finishOnly: true,
-      image: (c.images!.large ?? c.images!.small)!,
-      ref: `pokemontcg:${c.id}`,
-    }));
+  return cards.flatMap((c) =>
+    parseSourceCardImageUrl(c.images?.large ?? c.images?.small ?? '')
+      ? [
+          {
+            key: c.id,
+            name: normalizeGapName(c.name),
+            number: normalizeGapNumber(c.number),
+            qualified: false,
+            finishOnly: true,
+            image: (c.images!.large ?? c.images!.small)!,
+            ref: `pokemontcg:${c.id}`,
+          },
+        ]
+      : [],
+  );
 }
 function productCandidates(products: GapProduct[], hasImage: (pid: string) => boolean): Candidate[] {
-  return products
-    .filter((p) => hasImage(String(p.productId)))
-    .map((p) => {
-      const { base, qualifiers } = splitProductName(p.name);
-      const meaningful = qualifiers.filter((q) => !/^#\d+/.test(q));
-      return {
+  return products.flatMap((p) => {
+    if (!hasImage(String(p.productId))) return [];
+    const { base, qualifiers } = splitProductName(p.name);
+    const meaningful = qualifiers.filter((q) => !/^#\d+/.test(q));
+    return [
+      {
         key: String(p.productId),
         name: normalizeGapName(base),
         number: productNumber(p),
@@ -182,8 +186,9 @@ function productCandidates(products: GapProduct[], hasImage: (pid: string) => bo
         image: `https://product-images.tcgplayer.com/${p.productId}.jpg`,
         productId: String(p.productId),
         ref: `tcgcsv:${p.productId}`,
-      };
-    });
+      },
+    ];
+  });
 }
 function shopCandidates(setId: string, products: GapShopProduct[]): Candidate[] {
   const prefix = `pokemon-${setId}-`;
@@ -210,7 +215,7 @@ function choose(matches: Candidate[]) {
   const plain = matches.filter((m) => !m.qualified);
   if (plain.length === 1) return plain[0];
   if (matches.every((m) => m.finishOnly))
-    return [...matches].sort(
+    return matches.toSorted(
       (a, b) => Number(a.productId ?? 0) - Number(b.productId ?? 0) || a.key.localeCompare(b.key),
     )[0];
   return undefined;
@@ -269,7 +274,7 @@ export function currentFallbackImageUrl(card: GapCard): string | null {
   if (card.image_languages_json.length) return null;
   const url = readCatalogMetadata(card.external_ids_json).image ?? pickExternalCardImageUrl(card.external_ids_json);
   if (!url) return null;
-  return /^https:\/\/assets\.tcgdex\.net\//.test(url) && !/\.(?:webp|png|jpg)$/.test(url) ? `${url}/high.webp` : url;
+  return url.startsWith('https://assets.tcgdex.net/') && !/\.(?:webp|png|jpg)$/.test(url) ? `${url}/high.webp` : url;
 }
 
 export type GapImagePatch = { cardId: string; image: string; productId?: string; source: string };
@@ -429,10 +434,11 @@ export function planCardGapFill(input: {
     const seriesId = def.seriesId ?? GAP_SERIES_ID;
     // A product already imported into another set is the same printing; never import it twice.
     const elsewhere = new Set(
-      input.cards
-        .filter((c) => c.set_id !== def.id)
-        .map((c) => readCatalogMetadata(c.external_ids_json).productId)
-        .filter(Boolean),
+      input.cards.flatMap((c) => {
+        if (c.set_id === def.id) return [];
+        const productId = readCatalogMetadata(c.external_ids_json).productId;
+        return productId ? [productId] : [];
+      }),
     );
     const products = (input.tcgcsv[def.group] ?? []).filter((p) => {
       const d = productDetails(p);

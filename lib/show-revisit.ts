@@ -1,6 +1,8 @@
 import { parseRecentCards, type RecentCard } from '@/lib/recent-cards';
 import { DISPLAY_CURRENCIES, type DisplayCurrency } from '@/lib/pricing-region';
 
+const DISPLAY_CURRENCY_SET = new Set<unknown>(DISPLAY_CURRENCIES);
+
 export interface RevisitCard {
   card: RecentCard;
   askingPrice: number | null;
@@ -26,7 +28,7 @@ export function parseRevisitCards(raw: string | null | undefined): RevisitCard[]
       if (
         !card ||
         seen.has(revisitKey(card)) ||
-        !DISPLAY_CURRENCIES.includes(item.currency) ||
+        !DISPLAY_CURRENCY_SET.has(item.currency) ||
         !(
           item.askingPrice === null ||
           (typeof item.askingPrice === 'number' && Number.isFinite(item.askingPrice) && item.askingPrice > 0)

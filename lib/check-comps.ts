@@ -9,6 +9,7 @@ export const CHECK_COMPS_CONCURRENCY = 2;
 /** Most unchecked cards one Show run will check; the list is expected to come most-valuable first. */
 export const CHECK_COMPS_MAX_CARDS = 60;
 const BACKOFF_MS = [2_000, 8_000, 20_000];
+const SOLD_INDEX = PRICE_CHECK_SOURCES.indexOf('soldcomps');
 /** Runs needing this many sold comps calls or more ask confirmSpend before starting. */
 export const CHECK_COMPS_CONFIRM_AT = 15;
 
@@ -166,7 +167,7 @@ export async function runCheckComps(
       for (const source of PRICE_CHECK_SOURCES) results.push(await checkOne(target, source));
       if (signal.aborted) return;
       // A card counts by its sold check; asking is supporting evidence.
-      const sold = results[PRICE_CHECK_SOURCES.indexOf('soldcomps')];
+      const sold = results[SOLD_INDEX];
       const result =
         options.scope === 'collection'
           ? results.includes('failed')

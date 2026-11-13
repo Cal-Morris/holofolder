@@ -45,7 +45,7 @@ let defaultIndex: Map<string, number> | null = null;
 export function inferDexIdsFromCardName(cardName: string | null | undefined, index?: Map<string, number>) {
   if (!cardName) return [];
   const lookup = index ?? (defaultIndex ??= buildDexNameIndex());
-  const ids: number[] = [];
+  const ids = new Set<number>();
 
   for (const part of cardName.split(/\s*&\s*/)) {
     const words = part.split(/\s+/).filter(Boolean);
@@ -63,10 +63,8 @@ export function inferDexIdsFromCardName(cardName: string | null | undefined, ind
       }
     }
 
-    if (matched !== undefined && !ids.includes(matched)) {
-      ids.push(matched);
-    }
+    if (matched !== undefined) ids.add(matched);
   }
 
-  return ids;
+  return [...ids];
 }

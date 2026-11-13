@@ -99,7 +99,7 @@ export function getEditDistance(a: string, b: string, max = 3) {
   const rows = a.length + 1;
   const cols = b.length + 1;
   const dist: number[][] = Array.from({ length: rows }, (_, i) => {
-    const row = new Array<number>(cols).fill(0);
+    const row = Array.from({ length: cols }, () => 0);
     row[0] = i;
     return row;
   });
@@ -200,12 +200,10 @@ export function searchPokemonItems<T extends PokemonSearchItem>(query: string, i
   if (!query.trim()) return [];
 
   return items
-    .map((item): PokemonSearchScoredItem<T> => ({
-      ...item,
-      item,
-      score: scorePokemonSearchItem(query, item),
-    }))
-    .filter((item) => item.score > 0)
+    .flatMap((item): PokemonSearchScoredItem<T>[] => {
+      const score = scorePokemonSearchItem(query, item);
+      return score > 0 ? [{ ...item, item, score }] : [];
+    })
     .sort((a, b) => b.score - a.score || a.id - b.id)
     .slice(0, limit);
 }

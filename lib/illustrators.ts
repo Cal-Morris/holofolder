@@ -43,7 +43,10 @@ export function normalizeIllustratorText(value: string) {
 export function editDistance(a: string, b: string, max = Number.POSITIVE_INFINITY) {
   if (a === b) return 0;
   if (Math.abs(a.length - b.length) > max) return max + 1;
-  const rows: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array<number>(b.length).fill(0)]);
+  const rows: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [
+    i,
+    ...Array.from({ length: b.length }, () => 0),
+  ]);
   for (let j = 1; j <= b.length; j += 1) rows[0][j] = j;
   for (let i = 1; i <= a.length; i += 1) {
     let rowMin = Number.POSITIVE_INFINITY;
@@ -113,8 +116,10 @@ export function searchIllustrators(
 ): IllustratorSummary[] {
   if (normalizeIllustratorText(query).length < 2) return [];
   return directory
-    .map((entry) => ({ entry, score: scoreIllustratorMatch(entry.name, query) }))
-    .filter(({ score }) => score > 0)
+    .flatMap((entry) => {
+      const score = scoreIllustratorMatch(entry.name, query);
+      return score > 0 ? [{ entry, score }] : [];
+    })
     .sort(
       (a, b) => b.score - a.score || b.entry.cardCount - a.entry.cardCount || a.entry.name.localeCompare(b.entry.name),
     )
@@ -133,7 +138,7 @@ export function buildIllustratorDirectory(rows: Iterable<{ name: unknown; count?
     const existing = byName.get(name);
     byName.set(name, { name, cardCount: (existing?.cardCount ?? 0) + count });
   }
-  return [...byName.values()].sort((a, b) => b.cardCount - a.cardCount || a.name.localeCompare(b.name));
+  return Array.from(byName.values()).sort((a, b) => b.cardCount - a.cardCount || a.name.localeCompare(b.name));
 }
 
 export function isIllustratorDirectory(value: unknown): value is IllustratorSummary[] {
@@ -247,30 +252,25 @@ export function buildIllustratorEntries(
   }
 
   const needle = normalizeIllustratorText(text);
-  return [...cards]
-    .sort(compareIllustratorCards(sort, priceOf))
-    .map((card) => {
-      const ids = catalogCardIds(card);
-      return {
-        card,
-        owned: ids.some((id) => ownedIds.has(id)),
-        wanted: ids.some((id) => wantedIds.has(id)),
-        numberLabel: formatCardNumber(card),
-        variantLabels: getCardVariantLabels(card.variants),
-      };
-    })
-    .filter(
-      (entry) =>
-        filter === 'all' ||
-        (filter === 'owned' ? entry.owned : filter === 'wanted' ? entry.wanted && !entry.owned : !entry.owned),
-    )
-    .filter(
-      (entry) =>
-        !needle ||
-        [entry.card.name, entry.card.set.name, entry.card.set.id, entry.numberLabel, entry.card.rarity ?? ''].some(
-          (value) => normalizeIllustratorText(value).includes(needle),
-        ),
-    );
+  return cards.toSorted(compareIllustratorCards(sort, priceOf)).flatMap((card) => {
+    const ids = catalogCardIds(card);
+    const entry = {
+      card,
+      owned: ids.some((id) => ownedIds.has(id)),
+      wanted: ids.some((id) => wantedIds.has(id)),
+      numberLabel: formatCardNumber(card),
+      variantLabels: getCardVariantLabels(card.variants),
+    };
+    const shown =
+      filter === 'all' ||
+      (filter === 'owned' ? entry.owned : filter === 'wanted' ? entry.wanted && !entry.owned : !entry.owned);
+    const matches =
+      !needle ||
+      [card.name, card.set.name, card.set.id, entry.numberLabel, card.rarity ?? ''].some((value) =>
+        normalizeIllustratorText(value).includes(needle),
+      );
+    return shown && matches ? [entry] : [];
+  });
 }
 
 export function countIllustratorEntries(entries: readonly IllustratorCardEntry[]) {

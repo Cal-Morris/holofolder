@@ -63,7 +63,7 @@ export function previewInventoryCsv(input: {
   savedEntryRemaining: number;
   targets?: readonly BinderSlot[];
 }) {
-  if (/^\s*[\[{]/.test(input.text)) throw new Error('Use the JSON backup preview for arrangement files');
+  if (/^\s*[[{]/.test(input.text)) throw new Error('Use the JSON backup preview for arrangement files');
   if (!Number.isSafeInteger(input.savedEntryRemaining) || input.savedEntryRemaining < 0)
     throw new Error('Invalid billing evidence');
   const document = parseImportFile(input.text);
@@ -127,9 +127,9 @@ export function previewInventoryCsv(input: {
         : null;
       const candidate = item ? inventoryItemCandidate(item, input.resolveCatalog) : undefined;
       const compatibleSlotIds = candidate
-        ? (input.targets ?? [])
-            .filter((s) => s.inventoryItemId === null && matchesSlotTarget(candidate, s.target))
-            .map((s) => s.id)
+        ? (input.targets ?? []).flatMap((s) =>
+            s.inventoryItemId === null && matchesSlotTarget(candidate, s.target) ? [s.id] : [],
+          )
         : [];
       copies.push({
         row: index + 2,

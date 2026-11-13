@@ -10,6 +10,7 @@ export function verifiedCollectorInvoices(invoices: Stripe.Invoice[], subscripti
     periodEnd: string;
     renewal: boolean;
   }> = [];
+  const priceIds = new Set(prices);
   for (const invoice of invoices) {
     const reference = invoice.parent?.subscription_details?.subscription;
     const subscriptionId = typeof reference === 'string' ? reference : reference?.id;
@@ -25,7 +26,7 @@ export function verifiedCollectorInvoices(invoices: Stripe.Invoice[], subscripti
     const paidAt = invoice.status_transitions?.paid_at;
     const lines = invoice.lines.data.filter(
       (line) =>
-        prices.includes(line.pricing?.price_details?.price as string) &&
+        priceIds.has(line.pricing?.price_details?.price as string) &&
         line.amount > 0 &&
         line.period.end > line.period.start,
     );

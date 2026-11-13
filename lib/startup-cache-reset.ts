@@ -43,23 +43,23 @@ export async function resetStartupCaches() {
     clearOfflineRecords(),
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key.startsWith('binderdex-')).map((key) => caches.delete(key)))),
+      .then((keys) => Promise.all(keys.flatMap((key) => (key.startsWith('binderdex-') ? [caches.delete(key)] : [])))),
     navigator.serviceWorker
       ?.getRegistrations()
       .then((registrations) =>
         Promise.all(
-          registrations
-            .filter((registration) =>
-              isAppServiceWorker(
-                registration.active?.scriptURL ??
-                  registration.waiting?.scriptURL ??
-                  registration.installing?.scriptURL ??
-                  location.href,
-                registration.scope,
-                location.origin,
-              ),
+          registrations.flatMap((registration) =>
+            isAppServiceWorker(
+              registration.active?.scriptURL ??
+                registration.waiting?.scriptURL ??
+                registration.installing?.scriptURL ??
+                location.href,
+              registration.scope,
+              location.origin,
             )
-            .map((registration) => registration.unregister()),
+              ? [registration.unregister()]
+              : [],
+          ),
         ),
       ),
   ]);

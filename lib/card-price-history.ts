@@ -24,6 +24,7 @@ const SET_NAMES: Record<string, string> = {
   bwblackstarpromos: 'blackandwhitepromos',
   svpblackstarpromos: 'scarletvioletpromocards',
 };
+const HISTORY_FINISHES = new Set<unknown>(['normal', 'holo', 'reverse_holo']);
 const positive = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0;
 const validDate = (date: unknown): date is string =>
   typeof date === 'string' &&
@@ -62,7 +63,7 @@ export function normalizePriceHistory(value: unknown): CardPriceHistoryPoint[] {
       row.currency !== 'USD' ||
       row.source !== 'tcgplayer' ||
       !/^[1-9]\d*$/.test(String(row.productId)) ||
-      !['normal', 'holo', 'reverse_holo'].includes(row.finish)
+      !HISTORY_FINISHES.has(row.finish)
     )
       continue;
     const point: CardPriceHistoryPoint = {
@@ -76,7 +77,7 @@ export function normalizePriceHistory(value: unknown): CardPriceHistoryPoint[] {
     };
     points.set(`${point.date}:${point.productId}:${point.finish}`, point);
   }
-  return [...points.values()]
+  return Array.from(points.values())
     .sort((a, b) => a.date.localeCompare(b.date) || a.finish.localeCompare(b.finish))
     .slice(-PRICE_HISTORY_DAYS * 3);
 }

@@ -33,17 +33,21 @@ export function groupReferenceNavigation(folder: Folder, folderPath: string): Fo
       if (node.type !== 'folder') return [node];
       const groups = referenceGroups[node.$ref?.folder as keyof typeof referenceGroups];
       if (!groups) return [node];
-      const children = groups
-        .map((group) => ({
-          type: 'folder' as const,
-          name: group.name,
-          $id: `${node.$id}/${group.name}`,
-          defaultOpen: false,
-          children: node.children.filter(
-            (child) => child.type === 'page' && group.path.test(operationPaths.get(child.url.split('/').at(-1)!) ?? ''),
-          ),
-        }))
-        .filter((group) => group.children.length > 0);
+      const children = groups.flatMap((group) => {
+        const pages = node.children.filter(
+          (child) => child.type === 'page' && group.path.test(operationPaths.get(child.url.split('/').at(-1)!) ?? ''),
+        );
+        if (!pages.length) return [];
+        return [
+          {
+            type: 'folder' as const,
+            name: group.name,
+            $id: `${node.$id}/${group.name}`,
+            defaultOpen: false,
+            children: pages,
+          },
+        ];
+      });
       const grouped = new Set(children.flatMap((group) => group.children));
       // Keep newly added operations visible until their subject group is assigned.
       const remaining = node.children.filter((child) => !grouped.has(child));

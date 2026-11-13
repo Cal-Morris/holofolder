@@ -621,9 +621,10 @@ export function buildExternalIds(
 
   const detailedVariants = Array.isArray(card.variants) ? card.variants : card.variants_detailed;
   if (Array.isArray(detailedVariants)) {
-    const variantThirdParty = detailedVariants
-      .map((variant) => normalizeJsonObject(variant?.thirdParty))
-      .filter((thirdParty) => Object.keys(thirdParty).length > 0);
+    const variantThirdParty = detailedVariants.flatMap((variant) => {
+      const thirdParty = normalizeJsonObject(variant?.thirdParty);
+      return Object.keys(thirdParty).length > 0 ? [thirdParty] : [];
+    });
 
     if (variantThirdParty.length > 0) {
       externalIds.tcgdex = {
@@ -773,21 +774,19 @@ async function fetchAssetManifest(logger?: (message: string) => void): Promise<A
 }
 
 function getImageLanguages(assetManifest: AssetManifest, seriesId: string, setId: string, localId: string) {
-  return Object.entries(assetManifest)
-    .filter(([, seriesMap]) => {
-      const candidate = seriesMap?.[seriesId];
-      if (!candidate || typeof candidate !== 'object') {
-        return false;
-      }
+  return Object.entries(assetManifest).flatMap(([language, seriesMap]) => {
+    const candidate = seriesMap?.[seriesId];
+    if (!candidate || typeof candidate !== 'object') {
+      return [];
+    }
 
-      const setMap = candidate[setId];
-      if (!setMap || typeof setMap !== 'object') {
-        return false;
-      }
+    const setMap = candidate[setId];
+    if (!setMap || typeof setMap !== 'object') {
+      return [];
+    }
 
-      return typeof setMap[localId] === 'string';
-    })
-    .map(([language]) => language);
+    return typeof setMap[localId] === 'string' ? [language] : [];
+  });
 }
 
 type RestSetSink = {
@@ -989,8 +988,7 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
   const cardsById = new Map<string, MirrorCardRow>();
   const externalSourcesByCardId = new Map<string, MirrorCardExternalSourceRow>();
   const dexLinks = new Set<string>();
-  const assetManifest = await fetchAssetManifest(logger);
-  const pokemonTcgSets = await fetchPokemonTcgSets(logger);
+  const [assetManifest, pokemonTcgSets] = await Promise.all([fetchAssetManifest(logger), fetchPokemonTcgSets(logger)]);
   const pokemonTcgSetIndex = buildPokemonTcgSetIndex(pokemonTcgSets);
   const pokemonTcgCardsBySetId = new Map<string, Map<string, PokemonTcgCard>>();
   const matchedPokemonTcgSetIds = new Set<string>();
@@ -1130,10 +1128,7 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
   if (restSetCandidates.length > 0) {
     logWith(
       logger,
-      `Supplementing ${restSetCandidates.length} sets from live TCGdex REST data: ${restSetCandidates
-        .map((set) => set.id)
-        .filter(Boolean)
-        .join(', ')}`,
+      `Supplementing ${restSetCandidates.length} sets from live TCGdex REST data: ${restSetCandidates.flatMap((set) => (set.id ? [set.id] : [])).join(', ')}`,
     );
   }
 
@@ -1196,10 +1191,10 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
   }
 
   return {
-    series: [...seriesById.values()].sort((a, b) => a.id.localeCompare(b.id)),
-    sets: [...setsById.values()].sort((a, b) => a.id.localeCompare(b.id)),
-    cards: [...cardsById.values()].sort((a, b) => a.id.localeCompare(b.id)),
-    externalSources: [...externalSourcesByCardId.values()].sort((a, b) => a.card_id.localeCompare(b.card_id)),
+    series: Array.from(seriesById.values()).sort((a, b) => a.id.localeCompare(b.id)),
+    sets: Array.from(setsById.values()).sort((a, b) => a.id.localeCompare(b.id)),
+    cards: Array.from(cardsById.values()).sort((a, b) => a.id.localeCompare(b.id)),
+    externalSources: Array.from(externalSourcesByCardId.values()).sort((a, b) => a.card_id.localeCompare(b.card_id)),
     dexLinks: [...dexLinks]
       .map((key) => {
         const [cardId, dexId] = key.split(':');
@@ -1342,11 +1337,15 @@ async function fetchRestSetSummariesNewestFirst(logger?: (message: string) => vo
 
 async function fetchExcludedSeriesSetIds(logger?: (message: string) => void) {
   const excluded = new Set<string>();
-  for (const seriesId of EXCLUDED_SERIES_IDS) {
-    const series = await fetchJson<{ sets?: Array<{ id?: string }> }>(
-      `${TCGDEX_REST_BASE_URL}/series/${encodeURIComponent(seriesId)}`,
-      logger,
-    );
+  const allSeries = await Promise.all(
+    Array.from(EXCLUDED_SERIES_IDS, (seriesId) =>
+      fetchJson<{ sets?: Array<{ id?: string }> }>(
+        `${TCGDEX_REST_BASE_URL}/series/${encodeURIComponent(seriesId)}`,
+        logger,
+      ),
+    ),
+  );
+  for (const series of allSeries) {
     for (const set of series?.sets ?? []) {
       if (set.id) excluded.add(set.id);
     }

@@ -10,9 +10,11 @@ export async function loadProjectEnvFiles(projectRoot?: string) {
   const root = projectRoot || process.cwd();
   const envFiles = [path.join(root, '.env'), path.join(root, '.env.local')];
 
-  for (const filePath of envFiles) {
+  // Read together, apply in order: `.env` is applied first, so its values win.
+  const files = await Promise.all(envFiles.map((filePath) => readFile(filePath, 'utf8').catch(() => null)));
+  for (const contents of files) {
+    if (contents === null) continue;
     try {
-      const contents = await readFile(filePath, 'utf8');
       for (const line of contents.split(/\r?\n/)) {
         const trimmed = line.trim();
         if (!trimmed || trimmed.startsWith('#')) continue;

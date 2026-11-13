@@ -12,6 +12,9 @@ import type { SlotPrecondition } from '@/lib/domain/slot-commands';
 import type { SlotTarget } from '@/lib/domain/binder-slots';
 import { isCardFinish, type CardFinish, type WantedCard } from '@/lib/domain/cards';
 
+const MOVE_OCCUPIED = new Set(['cancel', 'unassign', 'swap']);
+const ASSIGN_OCCUPIED = new Set(['cancel', 'unassign']);
+
 export interface InventorySlotRef {
   collectionId: string;
   slot: SlotPrecondition;
@@ -294,7 +297,7 @@ export function parseInventoryCommand(value: unknown): InventoryCommandRequest {
             : ['kind', 'selection', 'destination', 'occupied', 'fulfillWant'],
         ) ||
         !checkSlot(c.destination) ||
-        !(c.kind === 'move' ? ['cancel', 'unassign', 'swap'] : ['cancel', 'unassign']).includes(c.occupied as string)
+        !(c.kind === 'move' ? MOVE_OCCUPIED : ASSIGN_OCCUPIED).has(c.occupied as string)
       )
         return invalid();
       affected +=
@@ -361,9 +364,10 @@ export function parseInventoryCommand(value: unknown): InventoryCommandRequest {
           return invalid();
       }
     } else if (c.kind === 'removeSlots') {
-      if (!exact(c, ['kind', 'slots']) || !Array.isArray(c.slots) || !c.slots.length || !c.slots.every(checkSlot))
+      const slots = c.slots;
+      if (!exact(c, ['kind', 'slots']) || !Array.isArray(slots) || !slots.length || !slots.every(checkSlot))
         return invalid();
-      affected += c.slots.length + c.slots.filter((s: InventorySlotRef) => s.slot.inventoryItemId !== null).length;
+      affected += slots.length + slots.filter((s: InventorySlotRef) => s.slot.inventoryItemId !== null).length;
     } else if (c.kind === 'deleteCollection') {
       if (
         !(

@@ -1223,7 +1223,7 @@ function average(values: number[]) {
 
 function percentile(values: number[], ratio: number) {
   if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
+  const sorted = values.toSorted((a, b) => a - b);
   const index = clamp(Math.round((sorted.length - 1) * ratio), 0, sorted.length - 1);
   return sorted[index];
 }
@@ -1577,10 +1577,11 @@ function refineOccupiedSlots(slots: BinderPageScanSlotResult[]) {
       continue;
     }
 
+    const { metrics } = slot;
     const strongPositive =
       slot.score > 1.92 ||
       slot.confidence > 2.3 ||
-      (slot.metrics.centerStrongEdgeRatio > 0.038 && slot.metrics.activeQuadrantRatio >= 0.75);
+      (metrics.centerStrongEdgeRatio > 0.038 && metrics.activeQuadrantRatio >= 0.75);
 
     if (strongPositive) {
       continue;
@@ -1589,14 +1590,14 @@ function refineOccupiedSlots(slots: BinderPageScanSlotResult[]) {
     const weakRelativeToPage = slot.score < adaptiveScoreFloor || slot.confidence < adaptiveConfidenceFloor;
 
     const looksMarginal =
-      slot.metrics.activeQuadrantRatio < 0.75 &&
-      slot.metrics.centerStrongEdgeRatio < 0.03 &&
-      slot.metrics.centerVividColorRatio < 0.08;
+      metrics.activeQuadrantRatio < 0.75 &&
+      metrics.centerStrongEdgeRatio < 0.03 &&
+      metrics.centerVividColorRatio < 0.08;
     const looksLikeBinderBack =
-      slot.metrics.neutralPixelRatio > 0.84 &&
-      slot.metrics.whitePixelRatio + slot.metrics.blackNeutralPixelRatio > 0.6 &&
-      slot.metrics.centerStrongEdgeRatio < 0.018;
-    const looksReflective = slotReflectionScore(slot.metrics) > 0.9;
+      metrics.neutralPixelRatio > 0.84 &&
+      metrics.whitePixelRatio + metrics.blackNeutralPixelRatio > 0.6 &&
+      metrics.centerStrongEdgeRatio < 0.018;
+    const looksReflective = slotReflectionScore(metrics) > 0.9;
 
     if ((weakRelativeToPage && looksMarginal) || looksLikeBinderBack || looksReflective) {
       slot.occupied = false;

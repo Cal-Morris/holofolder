@@ -14,6 +14,8 @@ import { buildTcgdexAssetImageUrl, pickImageLanguage } from '@/lib/tcgdex-shared
 import { isCardImageSourceUrl, pickCardImageUrl } from '@/lib/card-image-sources';
 import { isCardLanguage, type CardLanguage } from '@/lib/domain/cards';
 
+const KNOWN_GRADERS = new Set(['psa', 'ace', 'cgc', 'beckett']);
+
 type Row = Record<string, unknown>;
 const PAGE = 500;
 // Batched reads run in one wave for typical binders instead of queueing behind 4 at a time.
@@ -273,9 +275,10 @@ async function readPublicBinder(
         const direct = rows(
           (await run(db.from('tcg_cards').select(projection).in('id', batch).abortSignal(controller.signal))).data,
         );
+        const requested = new Set(batch);
         for (const row of direct) {
           const key = id(row.id);
-          if (!batch.includes(key) || catalogRows.has(key)) return fail();
+          if (!requested.has(key) || catalogRows.has(key)) return fail();
           catalogRows.set(key, row);
         }
       });
@@ -297,6 +300,7 @@ async function readPublicBinder(
       );
       const canonical = [...new Set([...catalogRows.values()].map((row) => id(row.id)))];
       await mapWithConcurrency(chunks(canonical, 100), PARALLEL, async (batch) => {
+        const requested = new Set(batch);
         for (let start = 0; ; start += PAGE) {
           const page = rows(
             (
@@ -315,7 +319,7 @@ async function readPublicBinder(
           for (const link of page) {
             const key = id(link.card_id);
             if (
-              !batch.includes(key) ||
+              !requested.has(key) ||
               typeof link.dex_id !== 'number' ||
               !Number.isSafeInteger(link.dex_id) ||
               link.dex_id <= 0
@@ -450,12 +454,13 @@ async function readPublicBinder(
         );
         itemPages.push(result);
         if (result.length !== ids.length) return fail();
+        const requested = new Set(ids);
         for (const row of result) {
           const identity = normalizeInventoryIdentity(row.identity);
           if (
             !identity ||
             row.owner_user_id !== owner ||
-            !ids.includes(id(row.id)) ||
+            !requested.has(id(row.id)) ||
             items.has(String(row.id)) ||
             !isSlotRevision(row.version)
           )
@@ -470,7 +475,7 @@ async function readPublicBinder(
           const provider =
             row.public_provider && typeof row.public_provider === 'object' ? (row.public_provider as Row) : null;
           const providerName =
-            provider?.kind === 'known' && ['psa', 'ace', 'cgc', 'beckett'].includes(String(provider.id))
+            provider?.kind === 'known' && KNOWN_GRADERS.has(String(provider.id))
               ? String(provider.id).toUpperCase()
               : provider?.kind === 'custom'
                 ? provider.name
@@ -502,10 +507,12 @@ async function readPublicBinder(
           }),
         ),
     );
+    // Slot ids are unique across placements (checked above).
+    const placementsBySlot = new Map(placements.map((p) => [p.slot_id, p]));
     for (const [index, row] of stored.entries()) {
       const target = normalizeSlotTarget(row.target);
       if (target === undefined) return fail();
-      const placement = placements.find((p) => p.slot_id === row.id);
+      const placement = placementsBySlot.get(row.id);
       if (!!placement !== (row.status === 'collected' || row.status === 'finalized')) return fail();
       const itemId = placement ? String(placement.inventory_item_id) : null;
       const identity = itemId ? items.get(itemId)! : target;

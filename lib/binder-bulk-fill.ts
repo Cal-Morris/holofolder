@@ -79,7 +79,7 @@ export function automaticBulkFillChoices(
   const choices: BulkFillChoices = {},
     used = new Set<string>();
   const binder = snapshot.binders.find((b) => b.collectionId === scope.collectionId)!;
-  const items = [...snapshot.items].sort((a, b) => a.id.localeCompare(b.id));
+  const items = snapshot.items.toSorted((a, b) => a.id.localeCompare(b.id));
   for (const { slot } of selection.slots) {
     if (slot.inventoryItemId || isFillSpacer(binder, slot)) {
       choices[slot.id] = null;
@@ -105,12 +105,12 @@ export function prepareBulkFillIntent(
   if (!preview.ready) throw new Error(preview.error ?? 'Review all copy and destination choices before filling.');
   const collection = snapshot.collections.find((c) => c.id === scope.collectionId)!;
   const binder = snapshot.binders.find((b) => b.collectionId === scope.collectionId)!;
-  const commands: InventoryCommand[] = preview.rows
-    .filter((r) => !r.skipped)
-    .map((row) => {
-      const slot = binder.slots.find((s) => s.id === row.slotId)!,
-        item = snapshot.items.find((i) => i.id === row.itemId)!;
-      return {
+  const commands = preview.rows.flatMap((row): InventoryCommand[] => {
+    if (row.skipped) return [];
+    const slot = binder.slots.find((s) => s.id === row.slotId)!,
+      item = snapshot.items.find((i) => i.id === row.itemId)!;
+    return [
+      {
         kind: 'assign',
         selection: { kind: 'existing', inventoryItemId: item.id, itemVersion: item.version },
         destination: {
@@ -125,8 +125,9 @@ export function prepareBulkFillIntent(
         },
         occupied: 'cancel',
         fulfillWant: null,
-      };
-    });
+      },
+    ];
+  });
   const intent = parseSlotIntent({
     kind: 'inventory',
     context,

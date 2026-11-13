@@ -55,20 +55,24 @@ export async function createBinderBackup(input: BinderBackupInput, now = new Dat
   });
   const artwork: Record<string, { mimeType: string; base64: string }> = {};
   const missingArtwork: string[] = [];
-  for (const id of new Set(
+  const ids = new Set(
     DESIGN_SURFACES.map((surface) => snapshot.design.surfaces[surface].artwork).filter((ref): ref is string =>
       Boolean(ref?.startsWith('upload:')),
     ),
-  )) {
-    const blob = input.uploads[id];
-    if (!blob) {
-      missingArtwork.push(id);
-      continue;
-    }
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    let binary = '';
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    artwork[id] = { mimeType: blob.type, base64: btoa(binary) };
+  );
+  const encoded = await Promise.all(
+    Array.from(ids, async (id) => {
+      const blob = input.uploads[id];
+      if (!blob) return [id, null] as const;
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let binary = '';
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return [id, { mimeType: blob.type, base64: btoa(binary) }] as const;
+    }),
+  );
+  for (const [id, entry] of encoded) {
+    if (entry) artwork[id] = entry;
+    else missingArtwork.push(id);
   }
   return { ...snapshot, artwork, missingArtwork };
 }

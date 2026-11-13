@@ -4,10 +4,10 @@ import { BILLING_PRICES } from '@/lib/billing';
 export function recognizedBillingPriceIds(current: { month: string; year: string }, legacy = '') {
   const ids = [
     ...Object.values(current),
-    ...legacy
-      .split(',')
-      .map((id) => id.trim())
-      .filter(Boolean),
+    ...legacy.split(',').flatMap((value) => {
+      const id = value.trim();
+      return id ? [id] : [];
+    }),
   ];
   if (legacy.length > 2048 || ids.length > 22 || ids.some((id) => !/^price_[A-Za-z0-9_]{1,100}$/.test(id)))
     throw new Error('Invalid subscription price configuration');
@@ -68,9 +68,10 @@ export function isHoloSubscription(subscription: Pick<Stripe.Subscription, 'meta
 }
 export function paidInvoiceThrough(invoice: Pick<Stripe.Invoice, 'status' | 'lines'>, prices: string[]) {
   if (invoice.status !== 'paid') return null;
-  const ends = invoice.lines.data
-    .filter((line) => prices.includes(line.pricing?.price_details?.price as string))
-    .map((line) => line.period.end)
-    .filter((end) => Number.isFinite(end) && end > 0);
+  const priceIds = new Set(prices);
+  const ends = invoice.lines.data.flatMap((line) => {
+    const end = line.period.end;
+    return priceIds.has(line.pricing?.price_details?.price as string) && Number.isFinite(end) && end > 0 ? [end] : [];
+  });
   return ends.length ? new Date(Math.max(...ends) * 1000).toISOString() : null;
 }

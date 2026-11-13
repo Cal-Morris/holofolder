@@ -36,6 +36,7 @@ export interface SlotCommandRequest {
   layoutRevision: number;
   commands: SlotCommand[];
 }
+const SLOT_LIST_KINDS = new Set(['clear', 'remove', 'move']);
 const uuid = (v: unknown): v is string =>
   typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 function invalid(): never {
@@ -84,28 +85,30 @@ export function parseSlotCommand(value: unknown): SlotCommandRequest {
     if (!isContractRecord(c, ['kind', 'ids', 'beforeSlotId', 'slots', 'slot', 'target', 'wantedCards']))
       return invalid();
     if (c.kind === 'create') {
+      const ids = c.ids;
       if (
         !isContractRecord(c, ['kind', 'ids', 'beforeSlotId']) ||
-        !Array.isArray(c.ids) ||
-        !c.ids.length ||
-        !Array.from(c.ids).every(isSlotContractId) ||
-        new Set(c.ids).size !== c.ids.length ||
+        !Array.isArray(ids) ||
+        !ids.length ||
+        !Array.from(ids).every(isSlotContractId) ||
+        new Set(ids).size !== ids.length ||
         !(c.beforeSlotId === null || isSlotContractId(c.beforeSlotId))
       )
         return invalid();
-      inserted += c.ids.length;
-      affected += c.ids.length;
-    } else if (['clear', 'remove', 'move'].includes(c.kind as string)) {
+      inserted += ids.length;
+      affected += ids.length;
+    } else if (SLOT_LIST_KINDS.has(c.kind as string)) {
+      const slots = c.slots;
       if (
         !isContractRecord(c, c.kind === 'move' ? ['kind', 'slots', 'beforeSlotId'] : ['kind', 'slots']) ||
-        !Array.isArray(c.slots) ||
-        !c.slots.length ||
-        !Array.from(c.slots).every(ref) ||
-        new Set(c.slots.map((s) => s.id)).size !== c.slots.length ||
+        !Array.isArray(slots) ||
+        !slots.length ||
+        !Array.from(slots).every(ref) ||
+        new Set(slots.map((s) => s.id)).size !== slots.length ||
         (c.kind === 'move' && !(c.beforeSlotId === null || isSlotContractId(c.beforeSlotId)))
       )
         return invalid();
-      affected += c.slots.length;
+      affected += slots.length;
     } else if (c.kind === 'update') {
       if (
         !isContractRecord(c, ['kind', 'slot', 'target', 'wantedCards']) ||

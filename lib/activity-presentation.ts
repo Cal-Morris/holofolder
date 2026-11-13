@@ -71,40 +71,41 @@ export function readableActivityChanges(event: ActivityEvent) {
     is_enabled: 'Sharing',
     position: 'Position',
   };
-  return event.changes
-    .filter((c) => !['inventory_owner_state', 'storage_collection_state'].includes(c.table))
-    .map((c) => {
-      const s = c.after ?? c.before;
-      const title =
-        c.table === 'binders' && c.before && c.after && c.before.name !== c.after.name
-          ? `Renamed ${name(c.before)} to ${name(c.after)}`
-          : `${verb(c)} ${name(s, c.table === 'binder_slots' ? 'a slot' : 'an item')}`;
-      const subtitle = [
-        text(s?.card_set),
-        number(s) ? `#${number(s)}` : null,
-        s?.card_finish ? human(s.card_finish) : null,
-        s?.card_language ? human(s.card_language) : null,
-      ]
-        .filter(Boolean)
-        .join(' · ');
-      const fields =
-        c.before && c.after
-          ? Object.entries(labels)
-              .filter(([key]) => JSON.stringify(c.before?.[key]) !== JSON.stringify(c.after?.[key]))
-              .map(([key, label]) => ({ label, before: human(c.before?.[key]), after: human(c.after?.[key]) }))
-          : [];
-      if (c.before && c.after && c.before.card_id !== c.after.card_id)
-        fields.unshift({ label: 'Printing', before: printing(c.before), after: printing(c.after) });
-      if (c.before && c.after && JSON.stringify(c.before.wanted_cards) !== JSON.stringify(c.after.wanted_cards)) {
-        const wants = (s: ActivityState) =>
-          Array.isArray(s.wanted_cards)
-            ? s.wanted_cards.map((v) => (record(v) ? (text(v.card_name) ?? 'Card') : 'Card')).join(', ') ||
-              'No wanted cards'
-            : 'No wanted cards';
-        fields.push({ label: 'Want list', before: wants(c.before), after: wants(c.after) });
-      }
-      return { title, subtitle, fields };
-    });
+  return event.changes.flatMap((c) => {
+    if (['inventory_owner_state', 'storage_collection_state'].includes(c.table)) return [];
+    const s = c.after ?? c.before;
+    const title =
+      c.table === 'binders' && c.before && c.after && c.before.name !== c.after.name
+        ? `Renamed ${name(c.before)} to ${name(c.after)}`
+        : `${verb(c)} ${name(s, c.table === 'binder_slots' ? 'a slot' : 'an item')}`;
+    const subtitle = [
+      text(s?.card_set),
+      number(s) ? `#${number(s)}` : null,
+      s?.card_finish ? human(s.card_finish) : null,
+      s?.card_language ? human(s.card_language) : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    const fields =
+      c.before && c.after
+        ? Object.entries(labels).flatMap(([key, label]) =>
+            JSON.stringify(c.before?.[key]) === JSON.stringify(c.after?.[key])
+              ? []
+              : [{ label, before: human(c.before?.[key]), after: human(c.after?.[key]) }],
+          )
+        : [];
+    if (c.before && c.after && c.before.card_id !== c.after.card_id)
+      fields.unshift({ label: 'Printing', before: printing(c.before), after: printing(c.after) });
+    if (c.before && c.after && JSON.stringify(c.before.wanted_cards) !== JSON.stringify(c.after.wanted_cards)) {
+      const wants = (s: ActivityState) =>
+        Array.isArray(s.wanted_cards)
+          ? s.wanted_cards.map((v) => (record(v) ? (text(v.card_name) ?? 'Card') : 'Card')).join(', ') ||
+            'No wanted cards'
+          : 'No wanted cards';
+      fields.push({ label: 'Want list', before: wants(c.before), after: wants(c.after) });
+    }
+    return [{ title, subtitle, fields }];
+  });
 }
 export function activitySummary(event: ActivityEvent, binders: readonly { id: string; name: string }[] = []) {
   const changes = event.changes;

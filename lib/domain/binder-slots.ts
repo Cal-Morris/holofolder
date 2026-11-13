@@ -146,7 +146,7 @@ function normalizeSlotWant(value: unknown): WantedCard | undefined {
     card_id: value.card_id,
     card_name: value.card_name,
     added_at: value.added_at,
-    ...Object.fromEntries(strings.filter((key) => key in value).map((key) => [key, value[key]])),
+    ...Object.fromEntries(strings.flatMap((key) => (key in value ? [[key, value[key]]] : []))),
     ...(isCardLanguage(value.card_language) ? { card_language: value.card_language } : {}),
     ...(isCardFinish(value.card_finish) ? { card_finish: value.card_finish } : {}),
     ...(typeof value.set_total === 'number' ? { set_total: value.set_total } : {}),

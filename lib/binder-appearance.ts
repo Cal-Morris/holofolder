@@ -15,7 +15,14 @@ export function binderArtworkPath(ownerId: string, id: string) {
   return `${ownerId}/${id.slice(7).toLowerCase()}`;
 }
 export function binderArtworkIds(design: BinderDesign) {
-  return [...new Set(DESIGN_SURFACES.map((surface) => design.surfaces[surface].artwork).filter(isBinderUploadId))];
+  return [
+    ...new Set(
+      DESIGN_SURFACES.flatMap((surface) => {
+        const artwork = design.surfaces[surface].artwork;
+        return isBinderUploadId(artwork) ? [artwork] : [];
+      }),
+    ),
+  ];
 }
 export function parseBinderAppearance(value: unknown): { design: BinderDesign; baseRevision: number } {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid appearance payload');

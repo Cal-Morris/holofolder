@@ -7,7 +7,7 @@ import type {
   PriceConfidence,
   SupportedCurrency,
 } from '@/lib/card-pricing';
-import type { DisplayCurrency, PricingRegion } from '@/lib/pricing-region';
+import { DISPLAY_CURRENCIES, type DisplayCurrency, type PricingRegion } from '@/lib/pricing-region';
 import { isStandardFinishVariantKey } from '@/lib/card-pricing';
 
 /**
@@ -164,7 +164,7 @@ export function regionalizeCardPrice<T extends CardPriceSnapshot>(
   );
 
   // Anchor on the native source nearest the regional price, preferring the region's own currency.
-  const anchor = [...native].sort((left, right) => {
+  const anchor = native.toSorted((left, right) => {
     const leftOrder = getSourceMarket(left) === nativeMarkets[0] ? 0 : 1;
     const rightOrder = getSourceMarket(right) === nativeMarkets[0] ? 0 : 1;
     return (
@@ -255,13 +255,23 @@ export function getGbpPerUnit(
   return null;
 }
 
-export function formatMoney(amount: number, currency: SupportedCurrency | DisplayCurrency) {
-  return new Intl.NumberFormat(currency === 'GBP' ? 'en-GB' : 'en-US', {
+const moneyFormat = (currency: DisplayCurrency, maximumFractionDigits: number) =>
+  new Intl.NumberFormat(currency === 'GBP' ? 'en-GB' : 'en-US', {
     style: 'currency',
     currency,
-    maximumFractionDigits: currency === 'JPY' ? 0 : amount >= 100 ? 0 : 2,
+    maximumFractionDigits,
     minimumFractionDigits: currency === 'JPY' ? 0 : undefined,
-  }).format(amount);
+  });
+const MONEY_FORMATS = Object.fromEntries(
+  DISPLAY_CURRENCIES.map((currency) => [
+    currency,
+    { whole: moneyFormat(currency, 0), pence: moneyFormat(currency, currency === 'JPY' ? 0 : 2) },
+  ]),
+) as Record<DisplayCurrency, { whole: Intl.NumberFormat; pence: Intl.NumberFormat }>;
+
+export function formatMoney(amount: number, currency: SupportedCurrency | DisplayCurrency) {
+  const formats = MONEY_FORMATS[currency];
+  return (amount >= 100 ? formats.whole : formats.pence).format(amount);
 }
 
 /** Converts a GBP amount for display; falls back to GBP when no rate is known. */

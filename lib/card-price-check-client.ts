@@ -80,8 +80,10 @@ export async function readSavedCardPriceChecks(
     )
       throw new Error('Invalid price check response.');
   }
-  for (const source of ['ebay', 'soldcomps'] as const) {
-    if (data[source]) await pinCardPriceCheck(cardId, finish, source, data[source]);
-  }
+  await Promise.all(
+    (['ebay', 'soldcomps'] as const).map((source) =>
+      data[source] ? pinCardPriceCheck(cardId, finish, source, data[source]) : undefined,
+    ),
+  );
   return data;
 }

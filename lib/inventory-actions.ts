@@ -62,36 +62,35 @@ export function inventoryActionDestinations(
   const item = snapshot.items.find((i) => i.id === itemId)!;
   const candidate = inventoryItemCandidate(item, catalog);
   return snapshot.binders.flatMap((b) =>
-    b.slots
-      .filter(
-        (s) =>
-          s.inventoryItemId !== itemId &&
-          s.ownerUserId === snapshot.ownerUserId &&
-          snapshot.collections.some((c) => c.id === b.collectionId && c.ownerUserId === snapshot.ownerUserId) &&
-          (s.target === null || (candidate && matchesSlotTarget(candidate, s.target))),
-      )
-      .flatMap((s) => {
-        const occupant =
-          s.inventoryItemId === null
-            ? null
-            : snapshot.items.find((i) => i.id === s.inventoryItemId && i.ownerUserId === snapshot.ownerUserId);
-        const placement = snapshot.placements.find(
-          (p) => p.inventoryItemId === s.inventoryItemId && p.collectionId === b.collectionId && p.slotId === s.id,
-        );
-        if (s.inventoryItemId !== null && (!occupant || !placement)) return [];
-        return [
-          {
-            collectionId: b.collectionId,
-            slot: {
-              id: s.id,
-              version: s.version,
-              inventoryItemId: s.inventoryItemId,
-              itemVersion: occupant?.version ?? null,
-              placementVersion: placement?.version ?? null,
-            },
+    b.slots.flatMap((s) => {
+      if (!(
+        s.inventoryItemId !== itemId &&
+        s.ownerUserId === snapshot.ownerUserId &&
+        snapshot.collections.some((c) => c.id === b.collectionId && c.ownerUserId === snapshot.ownerUserId) &&
+        (s.target === null || (candidate && matchesSlotTarget(candidate, s.target)))
+      ))
+        return [];
+      const occupant =
+        s.inventoryItemId === null
+          ? null
+          : snapshot.items.find((i) => i.id === s.inventoryItemId && i.ownerUserId === snapshot.ownerUserId);
+      const placement = snapshot.placements.find(
+        (p) => p.inventoryItemId === s.inventoryItemId && p.collectionId === b.collectionId && p.slotId === s.id,
+      );
+      if (s.inventoryItemId !== null && (!occupant || !placement)) return [];
+      return [
+        {
+          collectionId: b.collectionId,
+          slot: {
+            id: s.id,
+            version: s.version,
+            inventoryItemId: s.inventoryItemId,
+            itemVersion: occupant?.version ?? null,
+            placementVersion: placement?.version ?? null,
           },
-        ];
-      }),
+        },
+      ];
+    }),
   );
 }
 

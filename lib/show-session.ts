@@ -61,13 +61,21 @@ export function parseShowSession(raw: string | null | undefined, now: number): S
     const clearedAt =
       typeof value.clearedAt === 'number' && Number.isFinite(value.clearedAt) ? value.clearedAt : undefined;
     const purchases = Array.isArray(value.purchases)
-      ? value.purchases.filter(isPurchase).map((entry) => ({
-          ...entry,
-          language: typeof entry.language === 'string' ? entry.language : 'en',
-          finish: typeof entry.finish === 'string' ? entry.finish : 'normal',
-          marketPrice:
-            typeof entry.marketPrice === 'number' && Number.isFinite(entry.marketPrice) ? entry.marketPrice : null,
-        }))
+      ? value.purchases.flatMap((entry: unknown) =>
+          isPurchase(entry)
+            ? [
+                {
+                  ...entry,
+                  language: typeof entry.language === 'string' ? entry.language : 'en',
+                  finish: typeof entry.finish === 'string' ? entry.finish : 'normal',
+                  marketPrice:
+                    typeof entry.marketPrice === 'number' && Number.isFinite(entry.marketPrice)
+                      ? entry.marketPrice
+                      : null,
+                },
+              ]
+            : [],
+        )
       : [];
     return clearedAt === undefined ? { startedAt, purchases } : { startedAt, purchases, clearedAt };
   } catch {

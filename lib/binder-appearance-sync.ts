@@ -25,8 +25,8 @@ export function normalizeRemoteAppearance(value: unknown, owner: string): Remote
   return { ownerId: owner, revision: data.revision!, design: data.design ? normalizeBinderDesign(data.design) : null };
 }
 async function responseData(response: Response): Promise<unknown> {
-  const body = await response.json().catch(() => null);
   if (response.status === 409) throw new AppearanceConflict();
+  const body = await response.json().catch(() => null);
   if (!response.ok)
     throw new Error(typeof body?.error === 'string' ? body.error : 'Could not sync your binder appearance.');
   return body;

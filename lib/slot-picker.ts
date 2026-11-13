@@ -60,7 +60,7 @@ export function pickerChoices(
   const evidence = catalog(identity.cardId);
   if (!evidence) return [];
   const groups = new Map<string, { label: string; selection: InventorySelection }>();
-  for (const item of [...snapshot.items].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+  for (const item of snapshot.items.toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
     if (
       item.identity.kind !== 'card' ||
       item.identity.language !== identity.language ||
@@ -81,7 +81,7 @@ export function pickerChoices(
       selection: { kind: 'existing', inventoryItemId: item.id, itemVersion: item.version },
     });
   }
-  return [...groups.values()].sort((a, b) =>
+  return Array.from(groups.values()).sort((a, b) =>
     a.label === 'Raw' ? -1 : b.label === 'Raw' ? 1 : a.label.localeCompare(b.label),
   );
 }

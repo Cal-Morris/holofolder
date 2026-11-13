@@ -20,10 +20,9 @@ export function slabCollectionCopies(
   )
     return [];
   const items = new Map(read.evidence.snapshot.items.map((item) => [item.id, item]));
-  return index.rows
-    .filter((row) => row.location.kind === 'assigned' && row.location.intent.collectionId === collectionId)
-    .flatMap((row) => {
-      const item = items.get(row.itemId);
-      return item?.grading ? [{ itemId: row.itemId, slab: slabPresentation(row, item.grading) }] : [];
-    });
+  return index.rows.flatMap((row) => {
+    if (row.location.kind !== 'assigned' || row.location.intent.collectionId !== collectionId) return [];
+    const item = items.get(row.itemId);
+    return item?.grading ? [{ itemId: row.itemId, slab: slabPresentation(row, item.grading) }] : [];
+  });
 }
