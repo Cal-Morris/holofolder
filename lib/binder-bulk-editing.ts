@@ -47,6 +47,26 @@ export function savedPageSlotIds(snapshot: InventorySnapshot, scope: Scope, page
     .binder.slots.slice(page * rows * cols, (page + 1) * rows * cols)
     .map((s) => s.id);
 }
+/**
+ * Pages are one-based. Moves saved page `from` so it becomes page `to`, shifting the pages between by one. Only full
+ * pages move: a partial page would push every later page off its grid.
+ */
+export function pageMove(
+  snapshot: InventorySnapshot,
+  scope: Scope,
+  from: number,
+  to: number,
+  rows: number,
+  cols: number,
+): { ids: string[]; destination: BulkDestination } {
+  const ids = savedPageSlotIds(snapshot, scope, from - 1, rows, cols);
+  const target = savedPageSlotIds(snapshot, scope, to - 1, rows, cols);
+  if (from === to || ids.length !== rows * cols || target.length !== rows * cols) throw new Error('page-not-full');
+  return {
+    ids,
+    destination: to < from ? { kind: 'before', slotId: target[0] } : { kind: 'after', slotId: target.at(-1)! },
+  };
+}
 /** Keep evidence, not just IDs, so a partner's replacement cannot silently become selected. */
 export function captureBulkSelection(snapshot: InventorySnapshot, scope: Scope, ids: readonly string[]): BulkSelection {
   const { binder, collection } = layout(snapshot, scope);

@@ -52,8 +52,8 @@ test.describe('explicit stable-slot picker', () => {
   const pocketOptions = async (page: import('@playwright/test').Page, id: string) => {
     await pocket(page, id).click();
     await expect(pocket(page, id)).toHaveAttribute('aria-pressed', 'true');
-    await bar(page).getByRole('button', { name: 'More pocket options', exact: true }).click();
-    return bar(page).getByRole('menu', { name: 'Pocket options' });
+    await bar(page).getByRole('button', { name: 'More options', exact: true }).click();
+    return bar(page).getByRole('menu', { name: 'More options' });
   };
   /** A free pocket opens the same visual selector, searching every card. */
   const search = async (page: import('@playwright/test').Page, slotId: string, query: string) => {
@@ -251,7 +251,7 @@ test.describe('explicit stable-slot picker', () => {
       target: { kind: 'pokemon', pokemonId: 25 },
     });
     await expect(pocket(page, 'slot-e')).toHaveAccessibleName('Pikachu, Unfilled target');
-    await bar(page).getByRole('button', { name: 'More pocket options', exact: true }).click();
+    await bar(page).getByRole('button', { name: 'More options', exact: true }).click();
     await bar(page).getByRole('menuitem', { name: 'Let any card go here' }).click();
     await expect(count(page)).toHaveText('2');
     await expect(pocket(page, 'slot-e')).toHaveAccessibleName('Free slot, Empty spacer');
@@ -347,7 +347,7 @@ test.describe('explicit stable-slot picker', () => {
     await editLayout(page);
     await pocket(page, 'slot-e').click();
     const open = async () => {
-      await bar(page).getByRole('button', { name: 'More pocket options', exact: true }).click();
+      await bar(page).getByRole('button', { name: 'More options', exact: true }).click();
       await bar(page).getByRole('menuitem', { name: 'Change what goes here' }).click();
       const dialog = sheet(page, 'What goes in this pocket?');
       await expect(dialog).toBeVisible();

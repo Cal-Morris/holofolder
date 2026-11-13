@@ -49,6 +49,7 @@ export function layoutFailureMessage(cause: unknown): string {
   if (reason === 'layout-capacity') return 'This binder is at its 4,096-pocket limit, so nothing was added.';
   if (reason === 'selected-anchor') return "Tap a pocket that isn't selected.";
   if (reason === 'selection-limit') return 'You can change up to 256 pockets at once. Select fewer and try again.';
+  if (reason === 'page-not-full') return 'Only full pages can move. Fill the last page with empty pockets first.';
   if (reason === 'selection-required') return 'Select at least one pocket first.';
   return 'These pockets changed. Update the selection and try again.';
 }

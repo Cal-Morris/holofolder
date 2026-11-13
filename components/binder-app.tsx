@@ -1693,7 +1693,12 @@ function BinderAppSurface(props: BinderAppProps) {
       key={`${layoutScopeKey}:${layoutSession?.id ?? 'browse'}`}
       editing={editingLayout}
       boundary={layoutBoundary}
-      host={{ rows: settings.binderRows, cols: settings.binderCols }}
+      host={{
+        rows: settings.binderRows,
+        cols: settings.binderCols,
+        page: currentBinderPage,
+        onPage: setCurrentBinderPage,
+      }}
       start={layoutSession?.start}
       onTap={registerLayoutTap}
       onSelection={reportLayoutSelection}
