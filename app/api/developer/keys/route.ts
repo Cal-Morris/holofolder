@@ -37,6 +37,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
+    // oxlint-disable-next-line react-doctor/async-parallel -- ordered gates: callers without an entitlement must not spend write budget.
     const { user } = await requireDeveloperSettingsUser(request, true);
     await requireDeveloperEntitlement(user.id);
     await consumeDeveloperLimit(user.id, 'write');

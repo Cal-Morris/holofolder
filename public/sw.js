@@ -101,10 +101,7 @@ async function trimCache(cacheName, maxEntries) {
   const cache = await caches.open(cacheName);
   const keys = await cache.keys();
   // Cache keys come back in insertion order, so the oldest entries go first.
-  const excess = keys.length - maxEntries;
-  for (let index = 0; index < excess; index += 1) {
-    await cache.delete(keys[index]);
-  }
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - maxEntries)).map((key) => cache.delete(key)));
 }
 
 let imagePutsSinceTrim = 0;
@@ -121,6 +118,7 @@ async function saveForShow(url, response) {
 }
 
 async function putInCache(cache, cacheName, request, response) {
+  // oxlint-disable-next-line react-doctor/async-defer-await -- the write is the point; the guard only skips trimming.
   await cache.put(request, response);
   if (cacheName !== IMAGE_CACHE) return;
   // Listing a big cache isn't free, so trim every 25 new images rather than on every write.
@@ -184,6 +182,7 @@ async function legacyPublicCardImage(request) {
   if (!isPublicCardAsset(url)) return null;
   const identity = (path) => path?.replace(/\/(?:high|low)\.(webp|png|jpg)$/, '/image.$1');
   for (const name of [IMAGE_CACHE, SHOW_IMAGE_CACHE]) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- stops at the first cache with a match, in priority order.
     const cache = await caches.open(name);
     for (const key of await cache.keys()) {
       if (identity(publicCardAssetPath(key.url)) === identity(currentCardAssetPath(url.pathname)))
@@ -336,6 +335,7 @@ async function precacheLazyChunks(cache, scriptUrls) {
   for (let depth = 0; depth < 4 && level.length > 0 && seen.size < MAX_LAZY_CHUNKS + scriptUrls.length; depth += 1) {
     const next = [];
     for (const scriptUrl of level) {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- reads in order so the MAX_LAZY_CHUNKS budget keeps the same chunks.
       const cached = await cache.match(scriptUrl);
       if (!cached) continue;
       for (const chunkUrl of getReferencedChunkPaths(await cached.text(), search)) {
@@ -361,29 +361,28 @@ async function precacheAppShell() {
     throw new Error(`App shell request failed: ${response.status}`);
   }
 
-  const html = await response.clone().text();
-  const cache = await caches.open(APP_SHELL_CACHE);
+  const [html, cache] = await Promise.all([response.clone().text(), caches.open(APP_SHELL_CACHE)]);
   const assetUrls = getAppShellAssetUrls(html);
-  const missing = [];
-  for (const assetUrl of assetUrls) {
-    if (!(await cache.match(assetUrl))) missing.push(assetUrl);
-  }
-  await cache.addAll(missing);
+  await cache.addAll(await uncachedUrls(cache, assetUrls));
 
-  const fontUrls = [];
-  for (const cssUrl of assetUrls.filter((assetUrl) => /\.css(?:\?|$)/.test(assetUrl))) {
-    const css = await cache.match(cssUrl).then((cached) => (cached ? cached.text() : ''));
-    for (const fontUrl of getStylesheetFontUrls(css, cssUrl)) {
-      if (!(await cache.match(fontUrl))) fontUrls.push(fontUrl);
-    }
-  }
-  await cache.addAll([...new Set(fontUrls)]);
+  const cssUrls = assetUrls.filter((assetUrl) => /\.css(?:\?|$)/.test(assetUrl));
+  const stylesheets = await Promise.all(
+    cssUrls.map((cssUrl) => cache.match(cssUrl).then((cached) => (cached ? cached.text() : ''))),
+  );
+  const fontUrls = cssUrls.flatMap((cssUrl, index) => getStylesheetFontUrls(stylesheets[index], cssUrl));
+  // oxlint-disable-next-line react-doctor/async-parallel -- each step reads the previous step's cache writes; the shell HTML goes in last.
+  await cache.addAll(await uncachedUrls(cache, [...new Set(fontUrls)]));
   await precacheLazyChunks(
     cache,
     assetUrls.filter((assetUrl) => /\.js(?:\?|$)/.test(assetUrl)),
   ).catch(() => undefined);
   await cache.put(APP_SHELL_URL, response);
   lastAppShellRefreshAt = Date.now();
+}
+
+async function uncachedUrls(cache, urls) {
+  const cached = await Promise.all(urls.map((url) => cache.match(url)));
+  return urls.filter((_, index) => !cached[index]);
 }
 
 // After a deploy the shell HTML points at new chunks; re-fetch it now and then while online.
@@ -404,8 +403,7 @@ async function getOfflineAppShell() {
   // Cache eviction can remove a boot chunk while leaving the HTML. Do not strand
   // the user on a skeleton, and never try to repair this using private HTML/data.
   const assets = getAppShellAssetUrls(await shell.clone().text());
-  for (const url of assets) if (!(await cache.match(url))) return offlineStartupUnavailable();
-  return shell;
+  return (await uncachedUrls(cache, assets)).length > 0 ? offlineStartupUnavailable() : shell;
 }
 
 function offlineStartupUnavailable() {
@@ -470,6 +468,7 @@ async function runWithConcurrency(items, limit, worker) {
     while (nextIndex < items.length) {
       const item = items[nextIndex];
       nextIndex += 1;
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- each runner is one lane of a bounded worker pool.
       await worker(item).catch(() => undefined);
     }
   });
@@ -535,6 +534,7 @@ function warmCacheUrls(rawUrls) {
           const url = warmCacheQueue.shift();
           warmCacheInFlight.add(url);
           try {
+            // oxlint-disable-next-line react-doctor/async-await-in-loop -- each runner is one lane of a bounded worker pool.
             await warmCacheUrl(url);
           } catch {
             // Best effort; a later warm-up can retry a failed download.
@@ -568,9 +568,9 @@ self.addEventListener('activate', (event) => {
       .keys()
       .then((keys) =>
         Promise.all(
-          keys
-            .filter((key) => key.startsWith('binderdex-') && !KEEP_CACHES.includes(key))
-            .map((key) => caches.delete(key)),
+          keys.flatMap((key) =>
+            key.startsWith('binderdex-') && !KEEP_CACHES.includes(key) ? [caches.delete(key)] : [],
+          ),
         ),
       )
       .then(() => self.clients.claim()),

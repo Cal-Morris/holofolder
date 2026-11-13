@@ -26,6 +26,7 @@ export default function Error({ error, retry }: { error: unknown; retry: () => v
             Try again
           </button>
           {/* A full navigation, so the service worker can answer with the cached shell. */}
+          {/* oxlint-disable-next-line next/no-html-link-for-pages, react-doctor/nextjs-no-a-element -- must be a full navigation so the service worker serves the cached shell offline. */}
           <a href="/app/app-shell" className="border-border rounded-md border px-4 py-2 text-sm font-medium">
             Open binder
           </a>

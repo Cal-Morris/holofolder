@@ -10,6 +10,7 @@ import {
 } from '../lib/collection-navigation';
 import { completeInventoryBrowseFixture, inventoryBrowseLayouts } from './fixtures/inventory-browse';
 import { slabFixture, slabCatalog } from './fixtures/slabs';
+import { jsonRoundTrip } from './fixtures/json-round-trip';
 const scope = { sessionId: 'synthetic-session', accountUserId: 'synthetic-owner', ownerUserId: 'synthetic-owner' };
 async function read(): Promise<CollectionNavigationRead> {
   return {
@@ -101,7 +102,7 @@ describe('recorded slab presentation', () => {
     ])
       assert.deepEqual(slabCollectionCopies(next, r, 'alpha'), []);
     assert.deepEqual(slabCollectionCopies(scope, r, 'unknown'), []);
-    assert.deepEqual(slabCollectionCopies(scope, JSON.parse(JSON.stringify(r)), 'alpha'), []);
+    assert.deepEqual(slabCollectionCopies(scope, jsonRoundTrip(r), 'alpha'), []);
     r.scope = { ...scope, accountUserId: 'partner' };
     assert.equal(slabCollectionCopies(r.scope, r, 'alpha').length, 14);
     r.evidence = { kind: 'cached', snapshot: slabFixture() };

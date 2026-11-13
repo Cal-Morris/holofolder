@@ -7,6 +7,7 @@ import { fetchCurrentCollectionNavigationRead } from '../lib/collection/inventor
 import { navigationLocation, navigationIndex } from '../lib/collection-navigation';
 import { normalizeInventorySnapshot } from '../lib/domain/inventory';
 import { createBinderBackupV2, parseBinderBackupV2, hydrateBackupSnapshot } from '../lib/binder-backup-v2';
+import { jsonRoundTrip } from './fixtures/json-round-trip';
 
 const scope = {
   actorUserId: owner,
@@ -27,7 +28,7 @@ function metadata() {
 test('private location survives canonical normalization and JSON-v2', async () => {
   const f = metadata(),
     result = await readOwnerInventoryState(f.client);
-  const normalized = normalizeInventorySnapshot(JSON.parse(JSON.stringify(result.snapshot)))!;
+  const normalized = normalizeInventorySnapshot(jsonRoundTrip(result.snapshot))!;
   assert.equal(normalized.collections[0].location, 'Synthetic cupboard');
   const backup = createBinderBackupV2({ snapshot: normalized, completeness: 'complete-owner', scope: 'all-inventory' });
   const roundTrip = hydrateBackupSnapshot(parseBinderBackupV2(JSON.stringify(backup)), owner);

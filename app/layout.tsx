@@ -72,8 +72,10 @@ export default async function RootLayout({
     >
       <head>
         {/* Measures the iOS 26 installed-app dead band under the page before first paint (lib/ios-viewport-gap.ts). */}
+        {/* oxlint-disable-next-line react-doctor/nextjs-no-native-script -- must run inline before first paint; next/script defers it. */}
         <script dangerouslySetInnerHTML={{ __html: IOS_VIEWPORT_GAP_SCRIPT }} />
         {/* Keeps bottom chrome above the on-screen keyboard (lib/keyboard-inset.ts). */}
+        {/* oxlint-disable-next-line react-doctor/nextjs-no-native-script -- must run inline before first paint; next/script defers it. */}
         <script dangerouslySetInnerHTML={{ __html: KEYBOARD_INSET_SCRIPT }} />
       </head>
       <body className="bg-background text-foreground font-sans antialiased">

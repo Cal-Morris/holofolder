@@ -18,6 +18,7 @@ function setup() {
     }) as never,
   });
   const fire = () => {
+    // oxlint-disable-next-line unicorn/no-useless-spread -- snapshot the Map: callbacks schedule new timers that must wait for the next fire().
     for (const [id, timer] of [...timers]) {
       timers.delete(id);
       timer.callback();

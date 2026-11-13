@@ -3,8 +3,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getSessionUser } from '@/lib/supabase/session-user';
 import { normalizeComparisonJob } from '@/lib/comparison-jobs';
 
+const headers = { 'Cache-Control': 'private, no-store' };
+
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const headers = { 'Cache-Control': 'private, no-store' };
   const user = await getSessionUser(await createClient());
   if (!user) return Response.json({}, { status: 401, headers });
   const { id } = await context.params;

@@ -497,7 +497,7 @@ test('real IDB abort shows no acceptance and Try again persists the same confirm
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
   expect(JSON.parse(sent)).toEqual(JSON.parse(original!));
   const originalIntent = await page.evaluate(() => sessionStorage.getItem('synthetic-aborted-scan-intent'));
-  expect(((await record(page))?.receipts[0] as { intent: unknown }).intent).toEqual(JSON.parse(originalIntent!));
+  expect(((await record(page))?.receipts[0] as { intent: unknown } | undefined)?.intent).toEqual(JSON.parse(originalIntent!));
 });
 test('duplicate page copies keep distinct IDs through lost reply and exact durable retry', async ({ page }) => {
   const requests: {

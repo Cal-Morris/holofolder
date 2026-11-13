@@ -38,6 +38,7 @@ async function reloadAt(harness: Harness, width: number, height: number) {
 }
 
 test.describe('installed app', () => {
+  // oxlint-disable-next-line eslint/no-empty-pattern -- Playwright requires a destructured first argument.
   test.beforeEach(({}, testInfo) => {
     test.skip(
       !testInfo.project.metadata?.standalone || !testInfo.project.name.includes('390'),
@@ -84,7 +85,8 @@ for (const [label, height, gap] of [
 ] as const) {
   test.describe(`installed app, ${label}: sheets and dialogs`, () => {
     test.use({ signedIn: true });
-    test.beforeEach(({}, testInfo) => {
+    // oxlint-disable-next-line eslint/no-empty-pattern -- Playwright requires a destructured first argument.
+  test.beforeEach(({}, testInfo) => {
       test.skip(
         !testInfo.project.metadata?.standalone || !testInfo.project.name.includes('390'),
         'one installed-app run',
@@ -178,6 +180,7 @@ for (const [label, height, gap] of [
 }
 
 test.describe('browser tab', () => {
+  // oxlint-disable-next-line eslint/no-empty-pattern -- Playwright requires a destructured first argument.
   test.beforeEach(({}, testInfo) => {
     test.skip(
       Boolean(testInfo.project.metadata?.standalone) || !testInfo.project.name.includes('390'),

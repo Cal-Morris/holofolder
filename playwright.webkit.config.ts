@@ -5,11 +5,15 @@ import base from './playwright.config';
 export default defineConfig({
   ...base,
   testMatch: /show-hunt-rendering\.e2e\.ts$/,
-  projects: base
-    .projects!.filter((project) => !project.metadata?.standalone)
-    .map((project) => ({
-      ...project,
-      name: `webkit-${project.name}`,
-      use: { ...project.use, browserName: 'webkit', isMobile: false, hasTouch: false, launchOptions: {} },
-    })),
+  projects: base.projects!.flatMap((project) =>
+    project.metadata?.standalone
+      ? []
+      : [
+          {
+            ...project,
+            name: `webkit-${project.name}`,
+            use: { ...project.use, browserName: 'webkit', isMobile: false, hasTouch: false, launchOptions: {} },
+          },
+        ],
+  ),
 });

@@ -4,10 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getSessionUser } from '@/lib/supabase/session-user';
 
+const headers = { 'cache-control': 'private, no-store' };
+
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const headers = { 'cache-control': 'private, no-store' };
-  const user = await getSessionUser(await createClient());
-  const { id } = await context.params;
+  const [user, { id }] = await Promise.all([createClient().then(getSessionUser), context.params]);
   if (!user) return Response.json({}, { status: 401, headers });
   if (!/^[0-9a-f-]{36}$/i.test(id)) return Response.json({}, { status: 400, headers });
   const admin = createAdminClient();

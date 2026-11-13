@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     }
     const results = [];
     for (let i = 0; i < lookups.length; i += 3) {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- three lookups at a time caps load on the card mirror.
       const batch = await Promise.all(
         lookups
           .slice(i, i + 3)

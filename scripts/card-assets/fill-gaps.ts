@@ -89,7 +89,7 @@ async function playshopProducts(setIds: string[]): Promise<Record<string, GapSho
 function rest(base: string, key: string) {
   const headers = { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" }
   const call = async (pathAndQuery: string, init: RequestInit = {}) => {
-    const response = await fetch(`${base}/rest/v1/${pathAndQuery}`, { ...init, headers: { ...headers, ...(init.headers ?? {}) }, signal: AbortSignal.timeout(60_000) })
+    const response = await fetch(`${base}/rest/v1/${pathAndQuery}`, { ...init, headers: { ...headers, ...init.headers }, signal: AbortSignal.timeout(60_000) })
     if (!response.ok) throw new Error(`REST ${init.method ?? "GET"} ${pathAndQuery.split("?")[0]}: HTTP ${response.status} ${(await response.text()).slice(0, 300)}`)
     return response
   }
