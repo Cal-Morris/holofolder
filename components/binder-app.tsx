@@ -792,6 +792,14 @@ function BinderAppSurface(props: BinderAppProps) {
     readOnlyLayout: Boolean(browserSurface),
     hasRemoteSettings: initialHasStoredSettings,
   });
+  // The picture scanner downloads and prefers the fingerprints of the languages collected here.
+  useEffect(() => {
+    // Loaded lazily, with the scanners, so the matcher stays out of the binder's first-load JS.
+    void Promise.all([import('@/lib/card-picture-scanner'), import('@/lib/card-picture-match')]).then(
+      ([scanner, match]) =>
+        scanner.setPictureScannerLanguages(match.collectedCardLanguages(collection, settings.preferredCardLanguage)),
+    );
+  }, [collection, settings.preferredCardLanguage]);
   const binderAppearance = useBinderAppearance({
     owner: resolvedCollectionOwnerUserId,
     settings,

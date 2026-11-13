@@ -76,6 +76,19 @@ export function Credits() {
           are served from Holo Folder&apos;s CDN.
         </p>
       </Group>
+      <Group title="Card scanner">
+        <p>
+          <strong className="text-foreground font-semibold">Built with DINOv3.</strong> Picture matching runs
+          Meta&apos;s{' '}
+          <External href="https://huggingface.co/onnx-community/dinov3-vits16-pretrain-lvd1689m-ONNX">
+            DINOv3 ViT-S/16
+          </External>{' '}
+          model on your device, under the{' '}
+          <External href="https://ai.meta.com/resources/models-and-libraries/dinov3-license">DINOv3 License</External>,
+          a copy of which is published beside the model files. Text is read with{' '}
+          <External href="https://github.com/naptha/tesseract.js">Tesseract.js</External>.
+        </p>
+      </Group>
       <Group title="Copyright">
         <p>
           Pokémon and all card names, text and artwork are © The Pokémon Company, Nintendo, Creatures and GAME FREAK.

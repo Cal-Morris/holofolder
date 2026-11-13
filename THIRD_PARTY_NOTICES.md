@@ -41,6 +41,10 @@ Dependencies retain their own licenses and copyright notices. Install them from 
 
 The installed macOS dependency snapshot reviewed on 2026-11-08 includes MPL-2.0 packages (`web-push`, `lightningcss`, `axe-core`), LGPL-3.0-or-later libvips binaries used by `sharp`, and CC-BY-4.0 `caniuse-lite` data, alongside MIT, ISC, BSD and Apache packages. This is not a complete notice bundle for a distributable build. Review the actual target platform's dependency tree and include the required upstream notices before distributing binaries or containers.
 
+## Card scanner model
+
+Picture matching ("Built with DINOv3") uses Meta's DINOv3 ViT-S/16 image encoder, as the int8 ONNX export [`onnx-community/dinov3-vits16-pretrain-lvd1689m-ONNX`](https://huggingface.co/onnx-community/dinov3-vits16-pretrain-lvd1689m-ONNX), under the [DINOv3 License](https://ai.meta.com/resources/models-and-libraries/dinov3-license) (last updated 2025-08-14). The weights are not in this repository: the app downloads them from `assets.holofolder.com/pokemon/tcg/models/dinov3-vits16-q8/`, where a copy of the licence (`LICENSE.md`, from the model repository) sits beside them, as section 1.b.i requires of anyone distributing the DINO Materials. The card fingerprint index (`pokemon/tcg/fingerprints/`) is the model's output, not the weights. The model runs on [`onnxruntime-web`](https://github.com/microsoft/onnxruntime) (MIT), whose WASM binary is served from the same folder.
+
 ## External services
 
 Provider access and hosted infrastructure are not included with the source. Self-hosters need their own Supabase, Vercel/Workflow, Stripe, image storage and pricing-provider configuration as applicable. API access, pricing feeds and image redistribution may require separate terms or permission.
