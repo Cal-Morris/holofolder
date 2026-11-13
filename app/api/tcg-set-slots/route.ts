@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const pokemonNames = new Map(POKEMON_CATALOG.map((pokemon) => [pokemon.id, pokemon.name] as const));
     const sets =
       query.length >= 2 || requestedSetId
-        ? await searchMirroredSets(requestedSetId || query, requestedSetId ? 12 : SET_SEARCH_RESULT_LIMIT)
+        ? await searchMirroredSets(requestedSetId || query, requestedSetId ? 12 : SET_SEARCH_RESULT_LIMIT, language)
         : [];
     const selectedSetId = requestedSetId || null;
 

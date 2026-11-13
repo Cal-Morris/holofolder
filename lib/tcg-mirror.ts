@@ -3,6 +3,7 @@ import type { ImportLookup } from '@/lib/collection-import';
 import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
 import { getSetArtwork } from '@/lib/set-artwork';
 import { isSetYearQuery, rankSetMatches } from '@/lib/set-search';
+import { isSetInLanguage } from '@/lib/set-browse';
 import type { CardCatalogIdentity, CardLanguage } from '@/lib/domain/cards';
 import { cardLanguagesFromNames } from '@/lib/card-languages';
 import { deduplicateCatalogCards, readCatalogMetadata } from '@/lib/card-catalog';
@@ -179,7 +180,11 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
   return cards;
 }
 
-export async function searchMirroredSets(query: string, limit = 8): Promise<TCGSetSummary[]> {
+export async function searchMirroredSets(
+  query: string,
+  limit = 8,
+  language: MirrorLanguage = 'en',
+): Promise<TCGSetSummary[]> {
   'use cache: remote';
   cacheLife(MIRROR_CACHE_LIFE);
 
@@ -196,17 +201,22 @@ export async function searchMirroredSets(query: string, limit = 8): Promise<TCGS
     'tcg-sets',
     cacheSafeTag('set-query', trimmedQuery),
     cacheSafeTag('limit', limit),
+    cacheSafeTag('language', language),
   );
 
-  if (isSetYearQuery(trimmedQuery)) return rankSetMatches(await getBrowsableMirroredSets(), trimmedQuery, Infinity);
+  if (isSetYearQuery(trimmedQuery))
+    return rankSetMatches(
+      (await getBrowsableMirroredSets()).filter((set) => language !== 'en' || isSetInLanguage(set, 'en')),
+      trimmedQuery,
+      Infinity,
+    );
 
   if (trimmedQuery.length < 2) {
     return [];
   }
 
-  const { data, error } = await admin
-    .from('tcg_sets')
-    .select(
+  const { data, error } = await printedInEnglish(
+    admin.from('tcg_sets').select(
       `
       id,
       name_json,
@@ -219,7 +229,9 @@ export async function searchMirroredSets(query: string, limit = 8): Promise<TCGS
         name_en
       )
     `,
-    )
+    ),
+    language,
+  )
     .or(
       `id.ilike.%${trimmedQuery}%,name_en.ilike.%${trimmedQuery}%${setCode === trimmedQuery ? '' : `,id.eq.${setCode}`}`,
     )
