@@ -23,14 +23,20 @@ export const TRADING_CARD_CORNER_RADIUS = '4.76% / 3.41%';
 
 export const TRADING_CARD_INNER_CORNER_RADIUS = '4% / 2.86%';
 
+const slotRadiusStyle = { borderRadius: TRADING_CARD_CORNER_RADIUS };
+const previewRadiusStyle = { borderRadius: TRADING_CARD_INNER_CORNER_RADIUS };
+
+// oxlint-disable-next-line react-doctor/only-export-components -- imported by binder-app.tsx; moving it to lib/ touches files outside this pass
 export function clampGlareValue(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+// oxlint-disable-next-line react-doctor/only-export-components -- imported by binder-app.tsx; moving it to lib/ touches files outside this pass
 export function getPokemonOfficialArtworkUrl(pokemonId: number) {
   return getOfficialArtworkUrl(pokemonId);
 }
 
+// oxlint-disable-next-line react-doctor/only-export-components -- imported by lib/pokemon-search-preview.ts; moving it to lib/ touches files outside this pass
 export function getUsableImageSource(value?: string | null) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -39,11 +45,12 @@ export function getUsableImageSource(value?: string | null) {
 }
 
 /** The image URL a binder slot renders: its card image, else the Pokémon artwork at grid size. */
+// oxlint-disable-next-line react-doctor/only-export-components -- imported by binder-app.tsx; moving it to lib/ touches files outside this pass
 export function resolveSlotImageUrl(pokemonId: number, cardImage?: string | null) {
   return toCardImageSrc(getUsableImageSource(cardImage)) || getPokemonOfficialArtworkUrl(pokemonId);
 }
 
-export function getCardPreviewPose(seed: number) {
+function getCardPreviewPose(seed: number) {
   const rotate = (((seed * 37) % 100) / 100 - 0.5) * 0.9;
   const skewX = (((seed * 53) % 100) / 100 - 0.5) * 0.35;
   const translateX = (((seed * 61) % 100) / 100 - 0.5) * 1.1;
@@ -53,12 +60,12 @@ export function getCardPreviewPose(seed: number) {
   return `translate(${translateX.toFixed(2)}%, ${translateY.toFixed(2)}%) rotate(${rotate.toFixed(2)}deg) skewX(${skewX.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
 }
 
-export function hashSlotValue(seed: number, salt: number) {
+function hashSlotValue(seed: number, salt: number) {
   const value = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
   return value - Math.floor(value);
 }
 
-export function getSlotFinishGlint(baseGlint: { x: number; y: number; angle: number }, seed: number) {
+function getSlotFinishGlint(baseGlint: { x: number; y: number; angle: number }, seed: number) {
   const xMotionScale = 0.72 + hashSlotValue(seed, 1) * 0.64;
   const yMotionScale = 0.78 + hashSlotValue(seed, 2) * 0.52;
   const angleMotionScale = 0.82 + hashSlotValue(seed, 3) * 0.42;
@@ -85,7 +92,7 @@ export function getSlotFinishGlint(baseGlint: { x: number; y: number; angle: num
   };
 }
 
-export function getCardFinishEffectClass(finish: CardFinish) {
+function getCardFinishEffectClass(finish: CardFinish) {
   switch (finish) {
     case 'holo':
       return 'card-finish-holo';
@@ -315,8 +322,6 @@ export const PokemonSlot = memo(function PokemonSlot({
   const showStatusChip = Boolean(statusChip);
   const cardPreviewPose = hasCardPreview ? getCardPreviewPose(pokemon.id) : null;
   const previewSurfaceInsetClass = 'inset-[3px]';
-  const slotRadiusStyle = { borderRadius: TRADING_CARD_CORNER_RADIUS };
-  const previewRadiusStyle = { borderRadius: TRADING_CARD_INNER_CORNER_RADIUS };
   const effectiveCardFinish = cardFinish ?? 'normal';
   const slotCardFinishGlint = getSlotFinishGlint(cardFinishGlint, pokemon.id);
   const slotCardFinishEffectStyle = {
