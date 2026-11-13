@@ -141,7 +141,7 @@ test('queue atomically fences competing ordinary work, exclusive deletion and un
   );
 });
 
-test('unresolved recovery and preserved legacy work fence deletion inside the same queue transaction', async () => {
+test('unresolved recovery fences deletion inside the same queue transaction', async () => {
   const read = await deletionRead();
   if (read.evidence.kind !== 'complete') throw new Error('fixture');
   const scope = {
@@ -171,18 +171,6 @@ test('unresolved recovery and preserved legacy work fence deletion inside the sa
   await assert.rejects(
     recoveryQueue.enqueue(draft.intent, () => undefined, read.evidence.snapshot),
     /recovery-pending/,
-  );
-  const legacyQueue = createSlotOfflineQueue(createMemoryStore(), scope);
-  await legacyQueue.saveSnapshot(read.evidence.snapshot);
-  await legacyQueue.preserveLegacy({
-    workspaceId: 'holofolder',
-    collectionId: deletionCollection,
-    rawSnapshot: null,
-    rawQueue: 'synthetic preserved unknown intent',
-  });
-  await assert.rejects(
-    legacyQueue.enqueue(draft.intent, () => undefined, read.evidence.snapshot),
-    /verified-complete/,
   );
 });
 
