@@ -190,7 +190,7 @@ export default function BulkLayoutHarness() {
             key={`${sessionKey}:${grid}:${editing}`}
             editing={editing}
             onToggle={() => setEditing((n) => !n)}
-            host={{ rows, cols }}
+            host={{ rows, cols, page: currentPage + 1, onPage: (n) => setPage(n - 1) }}
             onTap={(tap) => {
               layoutTap.current = tap;
             }}

@@ -301,3 +301,18 @@ test.describe('bulk layout private durable boundary', () => {
     expect((await record(page)).receipts).toHaveLength(1);
   });
 });
+
+test('a whole page moves to another page number and the binder follows it', async ({ harness }) => {
+  const { page } = harness;
+  await open(page);
+  await page.getByLabel('Synthetic grid').selectOption('1x1');
+  for (let i = 0; i < 4; i++) await button(page, 'Next page').click();
+  await expect(page.getByText('Page 5 of 7')).toBeVisible();
+  await edit(page);
+  await bulk(page).getByRole('button', { name: 'More options', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Move page 5 to another page' }).click();
+  await page.getByLabel('Move page 5 to page').selectOption('3');
+  await bulk(page).getByRole('group', { name: 'Move page' }).getByRole('button', { name: 'Move', exact: true }).click();
+  await expect.poll(() => order(page)).toEqual(['slot-a', 'slot-b', 'slot-e', 'slot-c', 'slot-d', 'slot-f', 'slot-g']);
+  await expect(page.getByText('Page 3 of 7')).toBeVisible();
+});

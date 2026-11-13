@@ -6,6 +6,7 @@ import {
   prepareBulkLayoutIntent,
   preparePocketMoves,
   savedPageSlotIds,
+  pageMove,
 } from '@/lib/binder-bulk-editing';
 import { planPocketDrop } from '@/lib/pocket-drop';
 import { projectSlotIntent } from '@/lib/collection/slot-optimistic';
@@ -340,4 +341,22 @@ test('a dragged swap and a push with nowhere to go are one request each, project
     [id, 'slot-b', 'slot-a', 'slot-c', 'slot-d'],
   );
   assert.throws(() => preparePocketMoves(inventory, scope, [{ id: 'slot-z', before: null }], context, catalog));
+});
+
+test('a whole page moves to another page number in either direction, full pages only', () => {
+  const { inventory, scope, catalog } = setup();
+  // Synthetic 7 pockets on a 1x2 grid: [a,b] [c,d] [e,f] [g]
+  const moved = (from: number, to: number) => {
+    const { ids, destination } = pageMove(inventory, scope, from, to, 1, 2);
+    const selection = captureBulkSelection(inventory, scope, ids);
+    return prepareBulkLayoutIntent(inventory, scope, selection, { kind: 'move', destination }, context, catalog)
+      .preview.binders[0].slots.map((s) => s.id.replace('slot-', ''))
+      .join('');
+  };
+  assert.equal(moved(3, 1), 'efabcdg');
+  assert.equal(moved(1, 3), 'cdefabg');
+  assert.equal(moved(2, 3), 'abefcdg');
+  assert.throws(() => pageMove(inventory, scope, 4, 1, 1, 2), /page-not-full/);
+  assert.throws(() => pageMove(inventory, scope, 1, 4, 1, 2), /page-not-full/);
+  assert.throws(() => pageMove(inventory, scope, 2, 2, 1, 2), /page-not-full/);
 });

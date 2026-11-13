@@ -21,6 +21,7 @@ import {
   bulkSelectionState,
   prepareBulkLayoutIntent,
   preparePocketMoves,
+  pageMove,
   type BulkSelection,
   type BulkLayoutAction,
 } from '@/lib/binder-bulk-editing';
@@ -58,6 +59,9 @@ export type LayoutTap = (slotId: string, dropOn?: string, mode?: PocketDropMode)
 export interface LayoutEditHost {
   rows: number;
   cols: number;
+  /** The one-based page on screen, and how to show another, so a whole page can move. */
+  page?: number;
+  onPage?: (page: number) => void;
 }
 export interface LayoutSessionStart {
   ids: readonly string[];
@@ -167,6 +171,47 @@ function safeCapture(boundary: LayoutBoundary, ids: readonly string[]) {
   );
 }
 
+/** Pick where the page on screen goes. Only full pages are offered. */
+function PageMovePanel({
+  from,
+  pages,
+  disabled,
+  onMove,
+}: {
+  from: number;
+  pages: number;
+  disabled: boolean;
+  onMove: (from: number, to: number) => void;
+}) {
+  const [to, setTo] = useState(from > 1 ? from - 1 : 2);
+  return (
+    <div role="group" aria-label="Move page" className={cn(popover, 'flex items-center gap-2 px-3 py-2 sm:w-80')}>
+      <label htmlFor="layout-page-target" className="min-w-0 flex-1 text-sm font-medium">
+        Move page {from} to page
+      </label>
+      <select
+        id="layout-page-target"
+        value={to}
+        onChange={(event) => setTo(Number(event.target.value))}
+        className="border-border bg-background h-9 rounded-lg border px-2 text-sm"
+      >
+        {Array.from({ length: pages - 1 }, (_, i) => (i + 1 < from ? i + 1 : i + 2)).map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+      <LayoutButton
+        disabled={disabled}
+        onClick={() => onMove(from, to)}
+        className="bg-primary text-primary-foreground hover:bg-primary/90 px-3"
+      >
+        Move
+      </LayoutButton>
+    </div>
+  );
+}
+
 function LayoutBar({
   boundary,
   host,
@@ -187,7 +232,7 @@ function LayoutBar({
   const binder = snapshot.binders.find((b) => b.collectionId === scope.collectionId)!;
   const [selection, setSelection] = useState<BulkSelection>(() => safeCapture(boundary, start?.ids ?? []));
   const [moving, setMoving] = useState(() => Boolean(start?.moving && start.ids.length));
-  const [menu, setMenu] = useState<'add' | 'more' | null>(null);
+  const [menu, setMenu] = useState<'add' | 'more' | 'page' | null>(null);
   const [sheet, setSheet] = useState<'remove' | 'fill' | 'reserve' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const prepared = useRef<ReturnType<typeof prepareBulkLayoutIntent> | null>(null);
@@ -256,8 +301,8 @@ function LayoutBar({
     }
   };
   // A group move or an insert: these clear the Undo history.
-  const emit = (action: BulkLayoutAction) => {
-    if (unavailable) return;
+  const emit = (action: BulkLayoutAction, moved = selection) => {
+    if (unavailable) return false;
     setMenu(null);
     stepping.current = null;
     try {
@@ -265,7 +310,7 @@ function LayoutBar({
       prepared.current = prepareBulkLayoutIntent(
         snapshot,
         scope,
-        selection,
+        moved,
         action,
         {
           source: 'app',
@@ -277,8 +322,18 @@ function LayoutBar({
         catalog,
       );
       handoff({ scope: prepared.current.scope, intent: prepared.current.intent });
+      return true;
     } catch (cause) {
       stepping.current = null;
+      setError(layoutFailureMessage(cause));
+      return false;
+    }
+  };
+  const movePage = (from: number, to: number) => {
+    try {
+      const { ids: pageIds, destination } = pageMove(snapshot, scope, from, to, host.rows, host.cols);
+      if (emit({ kind: 'move', destination }, captureBulkSelection(snapshot, scope, pageIds))) host.onPage?.(to);
+    } catch (cause) {
       setError(layoutFailureMessage(cause));
     }
   };
@@ -408,6 +463,9 @@ function LayoutBar({
   const first = ordered[0]?.id,
     last = ordered[ordered.length - 1]?.id;
   const page = host.rows * host.cols;
+  const fullPages = Math.floor(binder.slots.length / page);
+  // The page on screen can move when it and at least one other page are full.
+  const pageToMove = host.page && host.onPage && host.page <= fullPages && fullPages > 1 ? host.page : null;
   const count = ids.length === 0 ? 'Tap pockets to select' : `${ids.length} selected`;
   const failure = error ?? (pending ? message : null) ?? pocket.failed;
   return (
@@ -531,9 +589,9 @@ function LayoutBar({
                 <span className="max-sm:hidden">Remove</span>
               </LayoutButton>
             )}
-            {single && (
+            {(single || pageToMove) && (
               <LayoutButton
-                aria-label="More pocket options"
+                aria-label="More options"
                 aria-haspopup="menu"
                 aria-expanded={menu === 'more'}
                 disabled={unavailable}
@@ -593,9 +651,14 @@ function LayoutBar({
           </button>
         </div>
       )}
-      {menu === 'more' && single && (
-        <div role="menu" aria-label="Pocket options" className={popover + ' sm:w-72'}>
-          {!single.inventoryItemId && (
+      {menu === 'more' && (single || pageToMove) && (
+        <div role="menu" aria-label="More options" className={popover + ' sm:w-72'}>
+          {pageToMove && (
+            <button type="button" role="menuitem" className={menuItem} onClick={() => setMenu('page')}>
+              Move page {pageToMove} to another page
+            </button>
+          )}
+          {single && !single.inventoryItemId && (
             <button
               type="button"
               role="menuitem"
@@ -608,7 +671,7 @@ function LayoutBar({
               {single.target ? 'Change what goes here' : 'Choose what goes here'}
             </button>
           )}
-          {single.target && !single.inventoryItemId && (
+          {single?.target && !single.inventoryItemId && (
             <button
               type="button"
               role="menuitem"
@@ -622,7 +685,7 @@ function LayoutBar({
               Let any card go here
             </button>
           )}
-          {single.inventoryItemId && (
+          {single?.inventoryItemId && (
             <button
               type="button"
               role="menuitem"
@@ -638,6 +701,9 @@ function LayoutBar({
             </button>
           )}
         </div>
+      )}
+      {menu === 'page' && pageToMove && (
+        <PageMovePanel from={pageToMove} pages={fullPages} disabled={unavailable} onMove={movePage} />
       )}
       {((state !== 'current' && !blocked) || failure) && (
         <div className="absolute inset-x-0 top-full z-40 mt-1 grid gap-1">
