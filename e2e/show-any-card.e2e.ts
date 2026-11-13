@@ -43,8 +43,8 @@ async function seed(harness: Harness, collection: SeedRow[] = HUNT_COLLECTION) {
   await seedCollection(page, collection);
   await mockCardPrices(page, {
     ...HUNT_PRICES,
-    'sv03.5-005': { market: 1.2, confidence: 'high' },
-    'sv03.5-007': { market: 0.8, confidence: 'high' },
+    'sv03.5-005': { finish: 'normal', market: 1.2, confidence: 'high' },
+    'sv03.5-007': { finish: 'normal', market: 0.8, confidence: 'high' },
   });
   await page.reload();
   await expect(harness.slot(1)).toBeVisible();
@@ -88,7 +88,7 @@ test.describe('Show mode: look up any card', () => {
     await charmeleon.click();
     const check = dialog.getByTestId('quick-card-check');
     await expect(check).toBeVisible();
-    await expect(check.getByTestId('quick-card-status')).toHaveText('Not in binder');
+    await expect(check.getByTestId('quick-card-status')).toHaveText('No exact saved match');
     await expect(check.getByTestId('quick-card-market-price')).toHaveText('£1.20');
     await expect(check).toContainText('Pay up to £1.32');
     const input = check.getByRole('textbox', { name: /price/i });
@@ -127,12 +127,12 @@ test.describe('Show mode: look up any card', () => {
     await dialog.getByRole('searchbox').fill('charmander');
     const cards = dialog.getByRole('region', { name: 'Cards' });
     await expect(cards).toContainText('on this device');
-    await expect(cardRows(dialog).first()).toHaveAccessibleName(/^Charmander, 151 004\/165, Wanted, £/);
+    await expect(cardRows(dialog).first()).toHaveAccessibleName(/^Charmander, 151 #004, Wanted ×1, £/);
     await expect(dialog.getByRole('button', { name: /^Charmander, Base Set .*46.*, Owned/ })).toBeVisible();
 
     // A printing whose price was never saved here says so, in the list and in the deal check.
     await dialog.getByRole('searchbox').fill('squirtle');
-    const unpriced = dialog.getByRole('button', { name: /^Squirtle, 30th Classic Collection .*, Wanted$/ });
+    const unpriced = dialog.getByRole('button', { name: /^Squirtle, 30th Classic Collection .*, Wanted ×1$/ });
     await expect(unpriced).toContainText('No price offline');
     await harness.expectNoHorizontalOverflow();
     await screenshot(harness, 'any-card-offline');

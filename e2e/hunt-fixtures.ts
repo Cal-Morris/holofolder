@@ -97,14 +97,15 @@ export const HUNT_COLLECTION = [
 ];
 
 export const HUNT_PRICES = {
-  'sv03.5-166': { market: 40, confidence: 'high' as const },
-  'me02-001': { market: 3, confidence: 'high' as const },
+  'sv03.5-166': { finish: 'holo' as const, market: 40, confidence: 'high' as const },
+  'me02-001': { finish: 'normal' as const, market: 3, confidence: 'high' as const },
   'sv03.5-004': {
+    finish: 'normal' as const,
     market: 1,
     confidence: 'high' as const,
     finishes: [{ finish: 'reverse_holo' as const, market: 2.5 }],
   },
-  'sv03.5-006': { market: 50, confidence: 'high' as const },
-  'sv03.5-001': { market: 0.5, confidence: 'high' as const },
-  'base1-44': { market: 12, confidence: 'high' as const },
+  'sv03.5-006': { finish: 'holo' as const, market: 50, confidence: 'high' as const },
+  'sv03.5-001': { finish: 'normal' as const, market: 0.5, confidence: 'high' as const },
+  'base1-44': { finish: 'normal' as const, market: 12, confidence: 'high' as const },
 };
