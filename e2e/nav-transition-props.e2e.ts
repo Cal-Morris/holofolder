@@ -53,7 +53,7 @@ test.describe('nav chrome transitions', () => {
   test('binder mode chips do not transition `all`', async ({ harness }) => {
     await harness.dock().getByRole('button', { name: 'Binder', exact: true }).click();
     await harness.page.getByTestId('app-header').getByRole('button', { name: 'View' }).click();
-    for (const group of ['Binder cards', 'Binder display']) {
+    for (const group of ['Binder display']) {
       const chips = harness.page.getByRole('group', { name: group }).filter({ visible: true }).getByRole('button');
       await expect(chips.first()).toBeVisible();
       const styles = await chips.evaluateAll((buttons) =>

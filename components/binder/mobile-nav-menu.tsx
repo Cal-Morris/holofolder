@@ -10,7 +10,6 @@ import type { ActiveMainView, CollectionViewFilter } from '@/components/binder/b
 
 export interface MobileNavMenuContext {
   activeMainView: ActiveMainView;
-  binderCardControls: JSX.Element;
   binderDisplayControls: JSX.Element;
   canFilterCollection: boolean;
   closeControlsSheet: () => void;
@@ -49,7 +48,6 @@ export interface MobileNavMenuContext {
 export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
   const {
     activeMainView,
-    binderCardControls,
     binderDisplayControls,
     canFilterCollection,
     closeControlsSheet,
@@ -120,10 +118,6 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
               <>
                 {activeMainView === 'binder' && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-muted-foreground text-xs font-medium">Cards</p>
-                      {binderCardControls}
-                    </div>
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-muted-foreground text-xs font-medium">Display</p>
                       {binderDisplayControls}

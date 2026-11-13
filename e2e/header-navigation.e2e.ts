@@ -15,7 +15,6 @@ for (const theme of ['light', 'dark']) {
       else await page.keyboard.press('Escape');
       const header = page.getByTestId('app-header');
       await expect(header.getByTestId('binder-switcher-trigger')).toContainText('My binder');
-      await expect(header.getByRole('group', { name: 'Binder cards' })).toHaveCount(0);
       await expect(harness.dock().getByRole('button', { name: 'Binder', exact: true })).toHaveAttribute(
         'aria-pressed',
         'true',
@@ -44,11 +43,7 @@ for (const theme of ['light', 'dark']) {
       await header.getByRole('button', { name: 'View', exact: true }).click();
       const view = page.getByRole('dialog', { name: 'View options' });
       await expect(view).toBeVisible();
-      await expect(view.getByRole('group', { name: 'Binder cards' })).toBeVisible();
       await expect(view.getByRole('group', { name: 'Binder display' })).toBeVisible();
-      await view.getByRole('button', { name: 'Owned', exact: true }).click();
-      await expect(view.getByRole('button', { name: 'Owned', exact: true })).toHaveAttribute('aria-pressed', 'true');
-      await view.getByRole('button', { name: 'Mixed', exact: true }).click();
       await harness.expectWithinSafeViewport(view.getByRole('button', { name: 'Close view options' }));
       await page.screenshot({ path: `/tmp/header-view-${info.project.name}-${theme}.png` });
       await harness.swipeDown(view);

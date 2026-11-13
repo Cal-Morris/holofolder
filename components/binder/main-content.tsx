@@ -29,7 +29,6 @@ import type { CardSelectorMode } from '@/components/card-selector';
 import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSummary } from '@/lib/tcg-set-slots';
 import type { PokemonEntry, PokemonSummary } from '@/lib/pokemon-catalog';
 import type { ChangeEvent, Dispatch, JSX, RefObject, SetStateAction } from 'react';
-import type { BinderCardDisplay } from '@/lib/selected-slot-card-display';
 import type { BinderDesign, SurfaceDesign } from '@/lib/binder-design';
 import type { WantedDashboardSummary } from '@/lib/wanted-dashboard';
 import { rememberBinderScope } from '@/lib/binders/all-binders';
@@ -73,7 +72,6 @@ export interface MainContentContext {
       { design: BinderDesign; uploads: Record<string, Blob>; revision: number; pending: boolean } | null | undefined
     >;
   };
-  binderCardDisplay: BinderCardDisplay;
   binderDimension: '2d' | '3d';
   binderFitSize: { width: number; height: number } | null;
   binderPageRef: RefObject<HTMLDivElement | null>;
@@ -180,7 +178,6 @@ export function renderMainContentView(ctx: MainContentContext) {
     activeJumpLabel,
     activeMainView,
     binderAppearance,
-    binderCardDisplay,
     binderDimension,
     binderFitSize,
     binderPageRef,
@@ -417,7 +414,6 @@ export function renderMainContentView(ctx: MainContentContext) {
             artwork={binderAppearance.artwork}
             loading={binderAppearance.loading}
             collection={collection}
-            cardDisplay={binderCardDisplay}
             enabled={Boolean(user) && !readOnlyMode}
           />
         ) : (

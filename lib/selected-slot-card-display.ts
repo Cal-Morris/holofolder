@@ -37,21 +37,18 @@ function getCurrentCard(item: SelectedSlotDisplayItem | null | undefined): Selec
 
 export function getSelectedSlotCardDisplay(
   item: SelectedSlotDisplayItem | null | undefined,
-  display: BinderCardDisplay,
   wantedCard?: WantedCard | null,
 ) {
   return {
-    primaryCard: getCurrentCard(wantedCard ?? getBinderDisplayCard(item, display)),
+    primaryCard: getCurrentCard(wantedCard ?? getBinderDisplayCard(item, 'mixed')),
     currentCard: getCurrentCard(getBinderDisplayCard(item, 'current')),
   };
 }
 
-export type BinderCardDisplay = 'mixed' | 'current' | 'wanted';
+/** Mixed shows a slot's want first, else its owned card; current shows only the owned card. */
+export type BinderCardDisplay = 'mixed' | 'current';
 
 export function getBinderDisplayCard(item: SelectedSlotDisplayItem | null | undefined, display: BinderCardDisplay) {
   if (display !== 'current' && item?.wanted_cards?.[0]) return item.wanted_cards[0];
-  return item?.card_id &&
-    (display === 'mixed' || (display === 'wanted' ? item.status === 'wishlisted' : item.status !== 'wishlisted'))
-    ? item
-    : null;
+  return item?.card_id && (display === 'mixed' || item.status !== 'wishlisted') ? item : null;
 }

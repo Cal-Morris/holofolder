@@ -94,11 +94,7 @@ import { getBinderColorPreset, type BinderColorId } from '@/lib/binder-colors';
 import { activeBinderEffects } from '@/lib/binder-effects';
 import { buildBinderShareUrl, shareManagementTarget } from '@/lib/binder-share';
 import { shouldClearSelectedPokemonForPage } from '@/lib/binder-selection-state';
-import {
-  getSelectedSlotCardDisplay,
-  getBinderDisplayCard,
-  type BinderCardDisplay,
-} from '@/lib/selected-slot-card-display';
+import { getSelectedSlotCardDisplay, getBinderDisplayCard } from '@/lib/selected-slot-card-display';
 import {
   OFFLINE_CACHE_WARMUP_MESSAGE_TYPE,
   buildOfflineCacheWarmupUrls,
@@ -691,7 +687,6 @@ function BinderAppSurface(props: BinderAppProps) {
   const isDesktopViewport = useMediaQuery('(min-width: 640px)');
   const isCompactViewport = useMediaQuery('(max-width: 767px)');
   const isWideBinderSpread = useMediaQuery('(min-width: 1280px)');
-  const [binderCardDisplay, setBinderCardDisplay] = useState<BinderCardDisplay>('mixed');
   const [binderDimension, setBinderDimension] = useState<'2d' | '3d'>('2d');
   const [isMobileSpreadPreview, setIsMobileSpreadPreview] = useState(false);
   const [slotGlareState, setSlotGlareState] = useState(DEFAULT_SLOT_GLARE_STATE);
@@ -2234,10 +2229,10 @@ function BinderAppSurface(props: BinderAppProps) {
   const getSlotCardImage = useCallback(
     (pokemonId: number) => {
       const item = collectionByPokemonId.get(pokemonId);
-      const displayCard = getBinderDisplayCard(item, binderCardDisplay);
+      const displayCard = getBinderDisplayCard(item, 'mixed');
       return displayCard?.card_image;
     },
-    [binderCardDisplay, collectionByPokemonId],
+    [collectionByPokemonId],
   );
 
   const [slotImages] = useState(() => new BinderSlotImages());
@@ -2247,14 +2242,14 @@ function BinderAppSurface(props: BinderAppProps) {
       pages.flatMap((page) =>
         orderedDisplayPages
           ? (orderedDisplayPages[page - 1] ?? []).flatMap((slot) => {
-              const url = slot && displaySlotImageUrl(slot, binderCardDisplay);
+              const url = slot && displaySlotImageUrl(slot);
               return url ? [url] : [];
             })
           : getPageSlots(page).flatMap((pokemon) =>
               pokemon ? [resolveSlotImageUrl(pokemon.id, getSlotCardImage(pokemon.id))] : [],
             ),
       ),
-    [binderCardDisplay, getPageSlots, getSlotCardImage, orderedDisplayPages],
+    [getPageSlots, getSlotCardImage, orderedDisplayPages],
   );
   const requestedBinderPage = useRef(currentBinderPage);
   useLayoutEffect(() => {
@@ -2324,10 +2319,10 @@ function BinderAppSurface(props: BinderAppProps) {
     () =>
       collection.flatMap((item) => {
         if (!visiblePagePokemonIds.has(item.pokemon_id)) return [];
-        const card = getBinderDisplayCard(item, binderCardDisplay);
+        const card = getBinderDisplayCard(item, 'mixed');
         return card ? [card] : [];
       }),
-    [binderCardDisplay, collection, visiblePagePokemonIds],
+    [collection, visiblePagePokemonIds],
   );
   const visiblePagePriceSummary = useMemo(
     () =>
@@ -3187,7 +3182,7 @@ function BinderAppSurface(props: BinderAppProps) {
       ? (collectionItem?.wanted_cards.find((card) => getWantedCardKey(card) === getWantedCardKey(wantedDetail.card)) ??
         null)
       : null;
-  const selectedSlotCardDisplay = getSelectedSlotCardDisplay(collectionItem, binderCardDisplay, explicitWanted);
+  const selectedSlotCardDisplay = getSelectedSlotCardDisplay(collectionItem, explicitWanted);
   const selectedPrimaryCardPreview = selectedSlotCardDisplay.primaryCard;
   // The illustrator of the card shown in the detail sheet. A wanted card saves it; otherwise it comes from the
   // Pokémon's card list (the same list the card selector uses, prefetched when the slot is pressed, so it is
@@ -3245,11 +3240,8 @@ function BinderAppSurface(props: BinderAppProps) {
   const selectedWantedCardPreview = explicitWanted ?? selectedWantedCards[0] ?? null;
   const selectedHasWantedCard =
     Boolean(explicitWanted) ||
-    (binderCardDisplay !== 'current' &&
-      Boolean(selectedPrimaryCardPreview) &&
-      (binderCardDisplay === 'wanted' ||
-        Boolean(collectionItem?.wanted_cards?.length) ||
-        collectionItem?.status === 'wishlisted'));
+    (Boolean(selectedPrimaryCardPreview) &&
+      (Boolean(collectionItem?.wanted_cards?.length) || collectionItem?.status === 'wishlisted'));
   const selectedAssignedPriceChipLabel =
     selectedCardPriceLabel ?? (isLoadingPrices && collectionItem?.card_id ? 'Loading price...' : null);
   const selectedDetailPriceSnapshot = selectedPrimaryCardPreview
@@ -3911,7 +3903,6 @@ function BinderAppSurface(props: BinderAppProps) {
           selectedUsesSoldGuide,
           onSelectedSoldCheck,
           activeJumpPokemonList,
-          binderCardDisplay,
           closeSelectedPokemon,
           collected,
           collectionItem,
@@ -4133,7 +4124,6 @@ function BinderAppSurface(props: BinderAppProps) {
               }
             : undefined,
           binderSlotImageSizes,
-          binderCardDisplay,
           cardFinishEffectStyle,
           cardFinishGlint,
           currentBinderPage,
@@ -4221,28 +4211,6 @@ function BinderAppSurface(props: BinderAppProps) {
       </button>
     </div>
   );
-  const binderCardControls = (
-    <div role="group" aria-label="Binder cards" className={dashboardStyles.toggle}>
-      <button type="button" aria-pressed={binderCardDisplay === 'mixed'} onClick={() => setBinderCardDisplay('mixed')}>
-        Mixed
-      </button>
-      <button
-        type="button"
-        aria-pressed={binderCardDisplay === 'current'}
-        onClick={() => setBinderCardDisplay('current')}
-      >
-        Owned
-      </button>
-      <button
-        type="button"
-        aria-pressed={binderCardDisplay === 'wanted'}
-        onClick={() => setBinderCardDisplay('wanted')}
-      >
-        Wanted
-      </button>
-    </div>
-  );
-
   // Native storage swaps List for Inventory in both the header and the dock.
   const inventoryNavigation = browserSurface
     ? {
@@ -4264,7 +4232,6 @@ function BinderAppSurface(props: BinderAppProps) {
       activeJumpLabel,
       activeJumpPokemonList,
       activeMainView,
-      binderCardControls,
       binderDimension,
       binderDisplayControls,
       binders,
@@ -4371,7 +4338,6 @@ function BinderAppSurface(props: BinderAppProps) {
       activeJumpLabel,
       activeMainView,
       binderAppearance,
-      binderCardDisplay,
       binderDimension,
       binderFitSize,
       binderPageRef,
@@ -4443,7 +4409,6 @@ function BinderAppSurface(props: BinderAppProps) {
     renderSearchOverlayView({
       nativeConsumer,
       history,
-      binderCardDisplay,
       closeSearch,
       collected,
       currentPagePokemon: publicIndex ? publicIndex.pageSpecies(currentBinderPage) : currentPagePokemon,
@@ -4478,7 +4443,6 @@ function BinderAppSurface(props: BinderAppProps) {
     renderMobileNavMenuView({
       pricingEnabled,
       activeMainView,
-      binderCardControls,
       binderDisplayControls,
       canFilterCollection,
       closeControlsSheet,
