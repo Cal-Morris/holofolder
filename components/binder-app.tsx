@@ -47,7 +47,8 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { CreditsNotice } from '@/components/credits';
 import type { SettingsPageId } from '@/components/settings-modal';
 import { useRouter } from 'next/navigation';
-import { Coins, WifiOff } from 'lucide-react';
+import { Coins, Grid3X3, Link2, Palette, WifiOff } from 'lucide-react';
+import type { StorageMenuAction } from '@/components/collection-navigation/storage-menu';
 import { type PokemonSearchResultMeta } from '@/components/pokemon-search';
 import {
   closeAllOverlays,
@@ -90,7 +91,7 @@ import {
   getPokemonSummary,
   type PokemonSummary,
 } from '@/lib/pokemon-catalog';
-import { getBinderColorPreset, type BinderColorId } from '@/lib/binder-colors';
+import { getBinderColorPreset, type BinderColor } from '@/lib/binder-colors';
 import { activeBinderEffects } from '@/lib/binder-effects';
 import { buildBinderShareUrl, shareManagementTarget } from '@/lib/binder-share';
 import { shouldClearSelectedPokemonForPage } from '@/lib/binder-selection-state';
@@ -986,7 +987,6 @@ function BinderAppSurface(props: BinderAppProps) {
   );
 
   const slotsPerPage = settings.binderRows * settings.binderCols;
-  const currentPageBinderColorId = settings.binderPageColors[String(currentBinderPage)] ?? settings.binderColorId;
   const isSpreadLayout = isWideBinderSpread || (isCompactViewport && isMobileSpreadPreview);
   const getBinderThemeForPage = useCallback(
     (pageNumber?: number | null) => {
@@ -2470,7 +2470,7 @@ function BinderAppSurface(props: BinderAppProps) {
   );
 
   const handleSetGlobalBinderColor = useCallback(
-    (binderColorId: BinderColorId) => {
+    (binderColorId: BinderColor) => {
       if (accountSettingsReadOnly) return;
       updateSettings({
         binderColorId,
@@ -2480,70 +2480,25 @@ function BinderAppSurface(props: BinderAppProps) {
     [accountSettingsReadOnly, updateSettings],
   );
 
-  const handleSetCurrentPageBinderColor = useCallback(
-    (binderColorId: BinderColorId) => {
-      if (accountSettingsReadOnly) return;
-      updateSettings(
-        {
-          binderPageColors: {
-            ...settings.binderPageColors,
-            [String(currentBinderPage)]: binderColorId,
-          },
-        },
-        {
-          ...binderAppearance.design.pageColors,
-          [String(currentBinderPage)]: getBinderColorPreset(binderColorId).swatch[0],
-        },
-      );
-    },
-    [
-      currentBinderPage,
-      accountSettingsReadOnly,
-      settings.binderPageColors,
-      updateSettings,
-      binderAppearance.design.pageColors,
-    ],
-  );
-
-  const handleSetBinderColorForPageRange = useCallback(
-    (binderColorId: BinderColorId, endPage: number) => {
-      if (accountSettingsReadOnly) return;
-
-      const safeEndPage = Math.min(Math.max(endPage, 1), totalBinderPages);
+  /** Sets (or with `null`, clears back to the binder colour) the colour of the given pages. */
+  const handleSetPagesBinderColor = useCallback(
+    (binderColorId: BinderColor | null, pages: number[]) => {
+      if (accountSettingsReadOnly || pages.length === 0) return;
       const nextPageColors = { ...settings.binderPageColors };
-
-      for (let page = 1; page <= safeEndPage; page += 1) {
-        nextPageColors[String(page)] = binderColorId;
-      }
-
       const appearancePageColors = { ...binderAppearance.design.pageColors };
-      for (let page = 1; page <= safeEndPage; page += 1)
-        appearancePageColors[String(page)] = getBinderColorPreset(binderColorId).swatch[0];
+      for (const page of pages) {
+        if (binderColorId === null) {
+          delete nextPageColors[String(page)];
+          delete appearancePageColors[String(page)];
+        } else {
+          nextPageColors[String(page)] = binderColorId;
+          appearancePageColors[String(page)] = getBinderColorPreset(binderColorId).swatch[0];
+        }
+      }
       updateSettings({ binderPageColors: nextPageColors }, appearancePageColors);
     },
-    [
-      accountSettingsReadOnly,
-      settings.binderPageColors,
-      totalBinderPages,
-      updateSettings,
-      binderAppearance.design.pageColors,
-    ],
+    [accountSettingsReadOnly, settings.binderPageColors, updateSettings, binderAppearance.design.pageColors],
   );
-
-  const handleClearCurrentPageBinderColor = useCallback(() => {
-    if (accountSettingsReadOnly) return;
-    const nextPageColors = { ...settings.binderPageColors };
-    delete nextPageColors[String(currentBinderPage)];
-    const appearancePageColors = { ...binderAppearance.design.pageColors };
-    delete appearancePageColors[String(currentBinderPage)];
-    updateSettings({ binderPageColors: nextPageColors }, appearancePageColors);
-  }, [
-    currentBinderPage,
-    accountSettingsReadOnly,
-    settings.binderPageColors,
-    updateSettings,
-    binderAppearance.design.pageColors,
-  ]);
 
   const {
     ref: binderRef,
@@ -3451,6 +3406,38 @@ function BinderAppSurface(props: BinderAppProps) {
     },
     [cancelPageNavigation],
   );
+  // The storage menu runs these after it has closed and left history, so nothing else needs closing.
+  const openSettingsPage = (page: SettingsPageId) => {
+    setRequestedSettingsPage(page);
+    setIsSettingsOpen(true);
+  };
+  // The binder's own settings, alongside its other options in the header menu.
+  const binderMenuActions: StorageMenuAction[] =
+    browserSurface?.surface.state.main === 'collection'
+      ? [
+          ...(!accountSettingsReadOnly
+            ? [
+                {
+                  label: 'Layout',
+                  icon: Grid3X3,
+                  separated: true,
+                  onSelect: () => openSettingsPage('layout'),
+                },
+                { label: 'Appearance', icon: Palette, onSelect: () => openSettingsPage('appearance') },
+              ]
+            : []),
+          ...(canManageShare
+            ? [
+                {
+                  label: 'Sharing',
+                  icon: Link2,
+                  separated: !!accountSettingsReadOnly,
+                  onSelect: () => openSettingsPage('sharing'),
+                },
+              ]
+            : []),
+        ]
+      : [];
 
   /** Switch main view (dock tab / desktop tab), closing any open overlay and card detail. */
   const switchMainView = useCallback(
@@ -4600,7 +4587,7 @@ function BinderAppSurface(props: BinderAppProps) {
               collectionViewFilter === 'all' &&
               selectedGen === 0 ? (
                 <NativeBinderScanner
-                  menu={(actions) => browserSurface.storageMenu?.(actions)}
+                  menu={(actions) => browserSurface.storageMenu?.([...actions, ...binderMenuActions])}
                   key={`${layoutScopeKey}:${currentBinderPage}`}
                   available={
                     browserSurface.scan.available &&
@@ -4627,7 +4614,7 @@ function BinderAppSurface(props: BinderAppProps) {
                   }}
                 />
               ) : (
-                browserSurface.storageMenu?.([])
+                browserSurface.storageMenu?.(binderMenuActions)
               )}
             </div>
           )}
@@ -4746,11 +4733,8 @@ function BinderAppSurface(props: BinderAppProps) {
             onUpdateSettings={updateSettings}
             currentBinderPage={currentBinderPage}
             totalBinderPages={totalBinderPages}
-            currentPageBinderColorId={currentPageBinderColorId}
             onSetGlobalBinderColor={handleSetGlobalBinderColor}
-            onSetCurrentPageBinderColor={handleSetCurrentPageBinderColor}
-            onSetBinderColorForPageRange={handleSetBinderColorForPageRange}
-            onClearCurrentPageBinderColor={handleClearCurrentPageBinderColor}
+            onSetPagesBinderColor={handleSetPagesBinderColor}
             isDarkMode={isDarkMode}
             onToggleDarkMode={toggleDarkMode}
             isSignedIn={Boolean(user)}

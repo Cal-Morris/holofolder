@@ -4,7 +4,7 @@ import { ImageResponse } from 'next/og';
 import sharp from 'sharp';
 import { loadPublicBinder } from '@/lib/server/public-binder';
 import { binderPreviewSummary } from '@/lib/binder-share-preview';
-import { BINDER_COLOR_PRESETS } from '@/lib/binder-colors';
+import { getBinderColorPreset } from '@/lib/binder-colors';
 
 const size = { width: 1200, height: 630 };
 const fonts = Promise.all(
@@ -41,9 +41,7 @@ export async function GET(_: Request, { params }: RouteContext<'/u/[username]/[b
   const pockets = await Promise.all(
     page.map(async (pocket) => ({ ...pocket, img: pocket.src ? await pngDataUri(pocket.src, !pocket.owned) : null })),
   );
-  const preset =
-    BINDER_COLOR_PRESETS.find((p) => p.id === binder.appearance.color) ??
-    BINDER_COLOR_PRESETS.find((p) => p.id === 'black')!;
+  const preset = getBinderColorPreset(binder.appearance.color);
   const glow = ['white', 'black', 'transparent', 'slate'].includes(preset.id) ? '#4a3f8c' : preset.swatch[0];
   const owner = binder.username ?? username;
   // Close-up: the page is sized past the canvas height so it bleeds off the top and bottom.

@@ -1,4 +1,4 @@
-import { test, expect, openSettingsPage } from './fixtures';
+import { test, expect, openSettingsPage, storageAction } from './fixtures';
 
 test('binder settings retain page colours and expose the 3D studio', async ({ harness }) => {
   await harness.page.locator('nav').first().getByRole('button', { name: 'More', exact: true }).click();
@@ -9,11 +9,15 @@ test('binder settings retain page colours and expose the 3D studio', async ({ ha
   await harness.expectMinTapTarget(studio);
   await harness.expectWithinSafeViewport(studio);
   await openSettingsPage(settings, 'Appearance');
+  await expect(settings.getByRole('button', { name: 'Page 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await settings.getByRole('button', { name: 'Ruby', exact: true }).click();
-  const apply = settings.getByRole('button', { name: 'Use for page 1', exact: true });
-  await apply.scrollIntoViewIfNeeded();
-  await apply.click();
-  await expect(settings.getByText(/Page 1 is currently using Ruby via a page override/)).toBeVisible();
+  await expect(settings.getByRole('button', { name: 'Page 1, own colour', exact: true })).toBeVisible();
+  const hex = settings.getByRole('textbox', { name: 'Hex colour' });
+  await hex.fill('#3366ff');
+  await hex.press('Enter');
+  await expect(hex).toHaveValue('#3366ff');
+  await settings.getByRole('button', { name: 'Reset to binder colour', exact: true }).click();
+  await expect(settings.getByRole('button', { name: 'Page 1', exact: true })).toBeVisible();
   await harness.expectNoHorizontalOverflow();
 });
 
@@ -36,14 +40,10 @@ test.describe('signed-in native binder', () => {
   test.use({ signedIn: true });
 
   test('owner can change binder colour and finish glints', async ({ harness }) => {
-    await harness.page.locator('nav').first().getByRole('button', { name: 'More', exact: true }).click();
-    await harness.page.getByRole('menuitem', { name: 'Settings' }).click();
-    const settings = await openSettingsPage(harness.page.getByRole('dialog', { name: /settings/i }), 'Appearance');
+    await (await storageAction(harness.page, 'Appearance')).click();
+    const settings = harness.page.getByRole('dialog', { name: /settings/i });
     await expect(settings.getByRole('switch', { name: 'Toggle card finish glints' })).toBeEnabled();
     await settings.getByRole('button', { name: 'Ruby', exact: true }).click();
-    const apply = settings.getByRole('button', { name: 'Use for page 1', exact: true });
-    await apply.scrollIntoViewIfNeeded();
-    await apply.click();
-    await expect(settings.getByText(/Page 1 is currently using Ruby via a page override/)).toBeVisible();
+    await expect(settings.getByRole('button', { name: 'Page 1, own colour', exact: true })).toBeVisible();
   });
 });

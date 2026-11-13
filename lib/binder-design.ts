@@ -1,6 +1,6 @@
 import { appPath } from '@/lib/app-path';
 import { isBinderGridSize } from '@/lib/binder-layout';
-import { BINDER_COLOR_PRESETS } from '@/lib/binder-colors';
+import { BINDER_COLOR_PRESETS, isCustomBinderColor } from '@/lib/binder-colors';
 import type { BinderSettings } from '@/lib/settings';
 
 export const DESIGN_SURFACES = ['cover', 'back', 'spine', 'lining'] as const;
@@ -92,7 +92,8 @@ export function isCardArtworkUrl(value: unknown): value is string {
   }
 }
 export function defaultBinderDesign(settings?: BinderSettings): BinderDesign {
-  const presetColor = (id: string) => BINDER_COLOR_PRESETS.find((p) => p.id === id)?.swatch[0] ?? '#222222';
+  const presetColor = (id: string) =>
+    isCustomBinderColor(id) ? id : (BINDER_COLOR_PRESETS.find((p) => p.id === id)?.swatch[0] ?? '#222222');
   const pageColors: Record<string, string> = {};
   for (const [page, id] of Object.entries(settings?.binderPageColors ?? {})) pageColors[page] = presetColor(id);
   return {
