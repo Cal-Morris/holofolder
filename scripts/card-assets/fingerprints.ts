@@ -185,7 +185,7 @@ export async function run() {
     ),
   );
   if (failures.length) process.exitCode = 1;
-  if (publish) await publishFiles(out, manifest, previous.manifest, r2!);
+  if (publish) await publishFiles(out, manifest, publicBase, r2!);
 }
 
 async function ensureDir(dir: string) {
@@ -317,14 +317,15 @@ async function writeLocal(out: string, manifest: FingerprintManifest, files: Rec
 async function publishFiles(
   out: string,
   manifest: FingerprintManifest,
-  published: FingerprintManifest | null,
+  publicBase: string,
   config: NonNullable<ReturnType<typeof getR2Config>>,
 ) {
   const deps = createR2Deps(config);
   const endpoint = `${getR2BucketEndpoint(config)}${FINGERPRINT_PREFIX}/`;
-  const already = new Set(
-    Object.values(published?.languages ?? {}).flatMap((files) => [files.vectors, files.ids, files.sources]),
-  );
+  // Ask the bucket, not a manifest: the previous manifest may come from the local build folder, which names files
+  // that were never uploaded. One HEAD (Class B) per file; content-hashed names make "exists" mean "identical".
+  const isPublished = async (name: string) =>
+    (await fetch(`${publicBase}${FINGERPRINT_PREFIX}/${name}`, { method: 'HEAD' })).ok;
   const put = async (name: string, cacheControl: string) => {
     const body = await readFile(path.join(out, name));
     const response = await deps.fetch(`${endpoint}${name}`, {
@@ -340,7 +341,7 @@ async function publishFiles(
   let writes = 0;
   for (const files of Object.values(manifest.languages))
     for (const name of [files.vectors, files.ids, files.sources])
-      if (!already.has(name)) {
+      if (!(await isPublished(name))) {
         await put(name, 'public, max-age=31536000, immutable');
         writes++;
       }
