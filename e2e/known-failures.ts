@@ -16,6 +16,16 @@ const entries = new Map(
   (data.tests as KnownFailure[]).map((entry) => [[entry.file, ...entry.title].join(' › '), entry]),
 );
 
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Playwright grep patterns for the listed tests (matched against file, describe and test titles, and tags). */
+export function knownFailurePatterns() {
+  return [...entries.values()].map(
+    ({ file, title }) =>
+      new RegExp(`(?:^| )${escape(file)} (?:@\\S+ )*${title.map(escape).join(' (?:@\\S+ )*')}(?: @\\S+)*$`),
+  );
+}
+
 /** The entry for a test, by its spec file (relative to e2e/) and title path, if it is listed for this project. */
 export function knownFailure(file: string, title: string[], project: string) {
   const entry = entries.get([file, ...title].join(' › '));

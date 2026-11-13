@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { knownFailurePatterns } from './e2e/known-failures';
 
 const PORT = Number(process.env.E2E_PORT || 3210);
 // The synthetic PostgREST gets its own port per run, derived from E2E_PORT so parallel runs never share one.
@@ -21,7 +22,22 @@ const viewports = [
 // browser-390x844 runs every test. The other five phone projects run only `@matrix` tests (layout, safe areas,
 // overflow, dock, sheets) unless E2E_MATRIX=1 (`bun run test:e2e:matrix`) runs everything everywhere.
 const PRIMARY = 'browser-390x844';
-const matrixOnly = process.env.E2E_MATRIX === '1' ? {} : { grep: /@matrix/ };
+const notMatrix = /^(?!.*@matrix)/;
+// Tests in e2e/known-failures.json already fail on main. The fast default run skips them;
+// E2E_KNOWN_FAILURES=only (`bun run test:e2e:known`) runs just them and fails if any now pass, =include runs all.
+const known = knownFailurePatterns();
+const knownMode = process.env.E2E_KNOWN_FAILURES;
+// Per project, since a project's grep and grepInvert replace the top-level ones.
+function filter(primary: boolean) {
+  const grepInvert = [
+    ...(primary || process.env.E2E_MATRIX === '1' ? [] : [notMatrix]),
+    ...(knownMode === 'include' || knownMode === 'only' ? [] : known),
+  ];
+  return {
+    ...(knownMode === 'only' ? { grep: known.length ? known : [/$^/] } : {}),
+    ...(grepInvert.length ? { grepInvert } : {}),
+  };
+}
 
 export default defineConfig({
   testDir: './e2e',
@@ -48,7 +64,7 @@ export default defineConfig({
       const name = `${standalone ? 'standalone' : 'browser'}-${viewport.name}`;
       return {
         name,
-        ...(name === PRIMARY ? {} : matrixOnly),
+        ...filter(name === PRIMARY),
         use: {
           ...iphone,
           browserName: 'chromium' as const,

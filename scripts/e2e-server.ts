@@ -36,10 +36,19 @@ function git(...args: string[]) {
   return result.stdout;
 }
 
-/** Everything the build reads: tracked and untracked source outside e2e/, plus the env baked into the bundle. */
+/** Everything the build reads: tracked and untracked app source, plus the env baked into the bundle. */
 function buildFingerprint() {
   const hash = createHash('sha256');
-  const scope = ['--', '.', ':(exclude)e2e'];
+  // Test-only files don't change the app, so editing specs or this runner never forces a rebuild.
+  const scope = [
+    '--',
+    '.',
+    ':(exclude)e2e',
+    ':(exclude)tests',
+    ':(exclude)playwright*.ts',
+    ':(exclude)scripts/e2e-*.ts',
+    ':(exclude,glob)**/*.md',
+  ];
   hash.update(git('ls-files', '-s', ...scope));
   hash.update(git('diff', '--binary', ...scope));
   for (const file of git('ls-files', '-o', '--exclude-standard', '-z', ...scope)
@@ -69,10 +78,13 @@ async function main() {
     existsSync(stampFile) &&
     readFileSync(stampFile, 'utf8') === fingerprint;
   if (built && process.env.E2E_REBUILD !== '1') {
-    console.log(`e2e build in ${distDir} matches the source, skipping the build (E2E_REBUILD=1 forces one)`);
+    // stderr: Playwright hides a web server's stdout.
+    console.error(`e2e build in ${distDir} matches the source, skipping the build (E2E_REBUILD=1 forces one)`);
   } else {
     // next build points next-env.d.ts at its distDir; keep the committed one pointing at `.next`.
     const nextEnv = readFileSync('next-env.d.ts', 'utf8');
+    console.error(`Building the e2e app into ${distDir}…`);
+    const started = Date.now();
     const build = spawnSync('bunx', ['next', 'build'], { stdio: 'inherit' });
     writeFileSync('next-env.d.ts', nextEnv);
     if (build.status !== 0) process.exit(build.status ?? 1);
@@ -81,6 +93,7 @@ async function main() {
       process.exit(1);
     }
     writeFileSync(stampFile, fingerprint);
+    console.error(`e2e build done in ${Math.round((Date.now() - started) / 1000)} s`);
   }
 
   const server = spawnSync('bunx', ['next', 'start', '-p', String(port)], { stdio: 'inherit' });

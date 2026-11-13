@@ -48,6 +48,7 @@ function playwright(cwd: string, testArgs: string[], tree: string, treePort: num
       ...env,
       E2E_PORT: String(treePort),
       E2E_BACKEND_PORT: '',
+      E2E_KNOWN_FAILURES: 'include',
       PLAYWRIGHT_JSON_OUTPUT_FILE: report,
     },
   });
