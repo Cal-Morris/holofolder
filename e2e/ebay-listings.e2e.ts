@@ -1,7 +1,23 @@
-import { test, expect } from './fixtures';
+import { test, expect, type Harness } from './fixtures';
 import { mockCardPrices } from './price-fixtures';
 
 test.use({ signedIn: true });
+
+/** Open Bulbasaur's details with its Price details disclosure (closed by default) expanded. Opening reads saved
+ * checks with a GET; unless `saved`, that read finds none, so only Check prices (POST) reaches the test's route. */
+async function openPriceDetails(harness: Harness, { saved = false } = {}) {
+  if (!saved)
+    await harness.page.route('**/app/api/card-price-checks?**', (route) =>
+      route.request().method() === 'GET'
+        ? route.fulfill({ json: { ebay: null, soldcomps: null, errors: {} } })
+        : route.fallback(),
+    );
+  const detail = await harness.openCardDetail();
+  const summary = detail.locator('summary').filter({ hasText: 'Price details' });
+  await summary.click();
+  await expect(summary.locator('..')).toHaveAttribute('open', '');
+  return detail;
+}
 
 // Synthetic independent asking and sold samples, not market data.
 const comparisonFixture = {
@@ -24,20 +40,20 @@ test('asking and sold comparisons load on demand and remain separate from the ca
   await harness.page.addInitScript(() => localStorage.removeItem('binderdex_card_price_cache_v7'));
   let lookups = 0;
   await harness.page.route('**/app/api/card-price-checks?**', async (route) => {
+    // Opening the card reads saved checks (GET, none here); only Check prices asks the providers (POST).
+    if (route.request().method() === 'GET') return route.fulfill({ json: { ebay: null, soldcomps: null, errors: {} } });
     lookups++;
-    expect(route.request().method()).toBe('POST');
     expect(new URL(route.request().url()).searchParams.get('cardId')).toBe('base1-44');
     await route.fulfill({ json: comparisonFixture });
   });
   await harness.page.reload();
-  const detail = await harness.openCardDetail();
+  const detail = await openPriceDetails(harness);
   const market = detail.getByText('Market', { exact: true }).locator('..');
   await expect(market).toContainText('£8.00');
   const indicator = detail.getByRole('region', { name: 'Price comparisons' });
   await expect(indicator.getByText(/Manual checks/)).toBeVisible();
   expect(lookups).toBe(0);
   const check = indicator.getByRole('button', { name: 'Check prices' });
-  await expect(detail.getByText('Price details', { exact: true }).locator('..')).toHaveAttribute('open', '');
   await detail.getByText('Price details', { exact: true }).click();
   await expect(check).toBeHidden();
   await detail.getByText('Price details', { exact: true }).click();
@@ -73,8 +89,11 @@ test('eBay lookup degrades clearly offline without making a request', async ({ h
     lookups++;
     await route.abort();
   });
-  const detail = await harness.openCardDetail();
+  await expect(harness.slot(1)).toBeVisible();
+  // Dropping the connection swaps in the device's saved binder, so open the card once offline.
   await context.setOffline(true);
+  await expect(harness.page.getByText('Offline · using saved cards and prices')).toBeVisible();
+  const detail = await openPriceDetails(harness);
   await detail.getByRole('button', { name: 'Check prices' }).click();
   await expect(detail.getByRole('status')).toHaveText('Connect to the internet to check prices.');
   expect(lookups).toBe(0);
@@ -101,7 +120,7 @@ test('eBay lookup failure and an empty sample do not invent a price', async ({ h
         },
       });
   });
-  const detail = await harness.openCardDetail();
+  const detail = await openPriceDetails(harness);
   const indicator = detail.getByRole('region', { name: 'Price comparisons' });
   await indicator.getByRole('button', { name: 'Check prices' }).click();
   await expect(indicator.getByRole('status').first()).toContainText('temporarily unavailable');
@@ -116,7 +135,7 @@ test('eBay lookup is available when the card has no market quote', async ({ harn
   await mockCardPrices(harness.page, {});
   await harness.page.addInitScript(() => localStorage.removeItem('binderdex_card_price_cache_v7'));
   await harness.page.reload();
-  const detail = await harness.openCardDetail();
+  const detail = await openPriceDetails(harness);
   await expect(detail.getByRole('button', { name: 'Check prices' })).toBeVisible();
   await expect(detail.getByRole('region', { name: 'Price comparisons' })).toContainText('Manual checks');
 });
@@ -187,7 +206,7 @@ for (const fast of ['ebay', 'soldcomps'] as const) {
       if (source === slow) await gate;
       await route.fulfill({ json: comparisonFixture });
     });
-    const detail = await harness.openCardDetail();
+    const detail = await openPriceDetails(harness);
     const comparison = detail.getByRole('region', { name: 'Price comparisons' });
     await comparison.getByRole('button', { name: 'Check prices', exact: true }).click();
     try {
@@ -282,7 +301,7 @@ test('card details updates its good-price band only after a user checks qualifyi
   await harness.page.addInitScript(() => localStorage.removeItem('binderdex_card_price_cache_v7'));
   await harness.page.route('**/app/api/card-price-checks?**', (route) => route.fulfill({ json: qualifyingFixture() }));
   await harness.page.reload();
-  const detail = await harness.openCardDetail();
+  const detail = await openPriceDetails(harness);
   await expect(detail.getByText('Fair range · sold', { exact: true })).toHaveCount(0);
   await detail.getByRole('button', { name: 'Check prices', exact: true }).click();
   await expect(detail.getByText('Fair range · sold', { exact: true })).toBeVisible();
@@ -304,7 +323,7 @@ test('card details compares sold evidence with the tracked finish quote', async 
   await harness.page.addInitScript(() => localStorage.removeItem('binderdex_card_price_cache_v7'));
   await harness.page.route('**/app/api/card-price-checks?**', (route) => route.fulfill({ json: qualifyingFixture() }));
   await harness.page.reload();
-  const detail = await harness.openCardDetail();
+  const detail = await openPriceDetails(harness);
   await detail.locator('summary').filter({ hasText: 'Card & variant' }).click();
   await detail.getByRole('button', { name: /^Reverse/ }).click();
   await expect(detail.getByText('Market', { exact: true }).locator('..')).toContainText('£20.00');
@@ -449,12 +468,12 @@ test('an old saved check survives reload and offline, only explicit refresh requ
       },
     });
   });
-  let detail = await harness.openCardDetail();
+  let detail = await openPriceDetails(harness);
   await detail.getByRole('button', { name: 'Check prices', exact: true }).click();
   await expect(detail.getByText(/£9.00.*median sold price/)).toBeVisible();
   expect(requests).toBe(2);
   await harness.page.reload();
-  detail = await harness.openCardDetail();
+  detail = await openPriceDetails(harness);
   const comparison = detail.getByRole('region', { name: 'Price comparisons' });
   await expect(comparison.getByText(/£9.00.*median sold price/)).toBeVisible();
   await expect(comparison.getByTestId('price-check-age-soldcomps')).toContainText('Last checked on 01/01/2025');
@@ -487,7 +506,7 @@ test('a saved source can be refreshed when the other provider is unavailable', a
       },
     });
   });
-  const detail = await harness.openCardDetail();
+  const detail = await openPriceDetails(harness);
   const comparison = detail.getByRole('region', { name: 'Price comparisons' });
   await comparison.getByRole('button', { name: 'Check prices', exact: true }).click();
   await expect(comparison.getByText(/£9.00.*median sold price/)).toBeVisible();

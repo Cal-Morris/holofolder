@@ -43,7 +43,7 @@ test.describe('deal checker', () => {
   test.use({ signedIn: true });
 
   test('the verdict follows the thresholds: great, good, fair, overpriced, walk away', async ({ harness }) => {
-    await mockCardPrices(harness.page, { 'sv03.5-006': { market: 10, confidence: 'high' } });
+    await mockCardPrices(harness.page, { 'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high' } });
     await openQuickInShowMode(harness);
     const check = await checkCard(harness, 'charizard', /^Charizard ex, 151 /);
     await expect(check.getByTestId('quick-card-market-price')).toHaveText('£10.00');
@@ -70,7 +70,10 @@ test.describe('deal checker', () => {
     await expect(verdict.getByTestId('deal-pay-up-to')).toHaveText('Pay up to £11.00');
 
     await typePrice(check, '7');
-    for (const name of ['Add owned', 'Want', 'Add to bundle']) {
+    // Native binders change ownership and wants from the binder and Inventory, not from the deal check.
+    for (const name of ['Add owned', 'Want'])
+      await expect(check.getByRole('button', { name, exact: true })).toHaveCount(0);
+    for (const name of ['Add to bundle']) {
       const button = check.getByRole('button', { name, exact: true });
       await harness.expectWithinSafeViewport(button);
       await harness.expectHittable(button);
@@ -85,8 +88,8 @@ test.describe('deal checker', () => {
 
   test('£6 in a binder for a £4 card is a walk away; £6 for a £10 card is great', async ({ harness }) => {
     await mockCardPrices(harness.page, {
-      'sv03.5-007': { market: 4, confidence: 'high' },
-      'sv03.5-006': { market: 10, confidence: 'high' },
+      'sv03.5-007': { finish: 'normal', market: 4, confidence: 'high' },
+      'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high' },
     });
     await openQuickInShowMode(harness);
     let check = await checkCard(harness, 'squirtle', /^Squirtle, 151 /);
@@ -102,7 +105,7 @@ test.describe('deal checker', () => {
 
   test('custom thresholds from Settings change the verdict', async ({ harness }) => {
     const { page } = harness;
-    await mockCardPrices(page, { 'sv03.5-006': { market: 10, confidence: 'high' } });
+    await mockCardPrices(page, { 'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high' } });
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings' }).click();
     const settings = page.getByRole('dialog', { name: /settings/i });
@@ -126,16 +129,17 @@ test.describe('deal checker', () => {
 
   test('thin data is flagged and a rising card gets a nudge', async ({ harness }) => {
     await mockCardPrices(harness.page, {
-      'sv03.5-007': { market: 4, confidence: 'low' },
-      'sv03.5-006': { market: 10, confidence: 'high', trend: { '7d': 8, Trend: 10 } },
+      'sv03.5-007': { finish: 'normal', market: 4, confidence: 'low' },
+      'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high', trend: { '7d': 8, Trend: 10 } },
     });
     await openQuickInShowMode(harness);
+    // A low-confidence quote never prices a native check, so there is no verdict to give.
     let check = await checkCard(harness, 'squirtle', /^Squirtle, 151 /);
-    await expect(check.getByTestId('deal-verdict')).toContainText('rough comparison');
+    await expect(check.getByTestId('deal-verdict')).toContainText('No market price for this card yet, so no verdict.');
     await expect(check.getByTestId('deal-verdict')).not.toContainText('Pay up to');
     await typePrice(check, '4');
     await expect(check.getByTestId('quick-pay-up-to')).toHaveText('Unknown');
-    await expect(check.getByTestId('deal-verdict')).toContainText('Thin price data');
+    await expect(check.getByTestId('deal-verdict')).not.toHaveAttribute('data-verdict', /./);
     await check.getByRole('button', { name: 'Back to results' }).click();
 
     check = await checkCard(harness, 'charizard', /^Charizard ex, 151 /);
@@ -158,7 +162,7 @@ test.describe('deal checker', () => {
     });
     await openQuickInShowMode(harness);
     const check = await checkCard(harness, 'charmeleon', /^Charmeleon, 151 /);
-    await expect(check.getByTestId('quick-card-status')).toHaveText('Not in binder');
+    await expect(check.getByTestId('quick-card-status')).toHaveText('No exact saved match');
     const variants = check.getByRole('radiogroup', { name: 'Variant' });
     await variants.getByRole('radio', { name: /normal/i }).click();
     await expect(check.getByTestId('quick-card-market-price')).toHaveText('£3.00');
@@ -172,7 +176,7 @@ test.describe('deal checker', () => {
 
   test('offline it still judges from the saved price and says how old it is', async ({ harness }) => {
     const { page } = harness;
-    await mockCardPrices(page, { 'sv03.5-006': { market: 10, confidence: 'high' } });
+    await mockCardPrices(page, { 'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high' } });
     await openQuickInShowMode(harness);
     const check = await checkCard(harness, 'charizard', /^Charizard ex, 151 /);
     await expect(check.getByTestId('quick-card-market-price')).toHaveText('£10.00');
@@ -191,8 +195,8 @@ test.describe('manual bundle price checks', () => {
     harness,
   }) => {
     await mockCardPrices(harness.page, {
-      'sv03.5-006': { market: 10, confidence: 'high' },
-      'sv03.5-007': { market: 4, confidence: 'high' },
+      'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high' },
+      'sv03.5-007': { finish: 'normal', market: 4, confidence: 'high' },
     });
     let calls = 0;
     let release: (() => void) | undefined;
@@ -301,7 +305,7 @@ test.describe('deal checker outside Show mode', () => {
 
   test("Quick mode checks a card's asking price without Show mode, and flags a rising price", async ({ harness }) => {
     await mockCardPrices(harness.page, {
-      'sv03.5-006': { market: 10, confidence: 'high', trend: { '7d': 8, Trend: 10 } },
+      'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high', trend: { '7d': 8, Trend: 10 } },
     });
     const dialog = await openPlainQuick(harness);
     await dialog.getByRole('searchbox').fill('charizard');
@@ -319,7 +323,6 @@ test.describe('deal checker outside Show mode', () => {
     await expect(check.getByText('Rising', { exact: true })).toBeVisible();
     // No Show mode: the keyboard doesn't jump up; Asking waits for a tap.
     await expect(check.getByRole('textbox', { name: 'Asking price' })).not.toBeFocused();
-    await expect(check.getByRole('button', { name: 'Want', exact: true })).toBeVisible();
     for (const [price, verdict] of [
       ['7', 'great'],
       ['8.5', 'good'],
@@ -333,9 +336,9 @@ test.describe('deal checker outside Show mode', () => {
     await typePrice(check, '12');
     await expect(check.getByTestId('deal-verdict')).toContainText('Rising: this price may be fair soon');
 
-    // Own / Want stay; Show's Bundle doesn't come along.
-    await expect(check.getByRole('button', { name: 'Add owned', exact: true })).toBeVisible();
-    await expect(check.getByRole('button', { name: 'Want', exact: true })).toBeVisible();
+    // Native binders own and want from the binder and Inventory; Show's Bundle doesn't come along either.
+    await expect(check.getByRole('button', { name: 'Add owned', exact: true })).toHaveCount(0);
+    await expect(check.getByRole('button', { name: 'Want', exact: true })).toHaveCount(0);
     await expect(check.getByRole('button', { name: 'Add to bundle', exact: true })).toHaveCount(0);
     await harness.expectNoHorizontalOverflow();
 
