@@ -3851,7 +3851,7 @@
       "file": "press-state.e2e.ts",
       "title": ["pressed state", "dock buttons scale and dim while held"],
       "projects": ["browser-390x844", "standalone-390x844"],
-      "cause": "stale-selector-or-flow",
+      "cause": "flaky",
       "batch": 3,
       "failure": "Error: expect(received).toBeLessThanOrEqual(expected) (only at these viewports, found by the full matrix)"
     },
@@ -3874,7 +3874,7 @@
         "standalone-390x844",
         "standalone-430x932"
       ],
-      "cause": "stale-selector-or-flow",
+      "cause": "flaky",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByTestId('binder-3d-stage') (only at these viewports, found by the full matrix)"
     },
@@ -3889,7 +3889,7 @@
         "standalone-390x844",
         "standalone-430x932"
       ],
-      "cause": "stale-selector-or-flow",
+      "cause": "flaky",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('button', { name: 'Pocket pages', exact: true }) (only at these viewports, found by the full matrix)"
     },
