@@ -92,7 +92,7 @@
 
 /* Binder startup skeleton only (components/binder-skeleton.tsx). The spread is fitted into its stage with
    the same sums as binderFitSize in binder-app.tsx (pocket gap 6px, page padding 8px or 16px from 640px with a 24px page-label gutter at the bottom,
-   a two-page spread with a 16px gutter from 1280px, 4px outline clearance), so the real page lands on it. */
+   a two-page spread with a 16px gutter from 1024px, 4px outline clearance), so the real page lands on it. */
 .binder-skeleton-stage {
   container-type: size;
 }
@@ -124,7 +124,7 @@
     --pad: 16px;
   }
 }
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
   .binder-skeleton-spread {
     --pages: 2;
     --gutter: 16px;
