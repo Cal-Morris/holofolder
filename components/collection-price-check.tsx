@@ -127,7 +127,7 @@ export function BackgroundPriceCheck({
             : running
               ? `Checking ${progress?.done ?? 0}/${progress?.total ?? targets.length} in background… You can close the app.`
               : job?.status === 'completed'
-                ? 'Finished. Checks saved on the server; Prepare for a show downloads them onto this device.'
+                ? 'Finished. Checks saved on the server; Settings → Offline & app downloads them onto this device.'
                 : job?.status === 'cancelled'
                   ? 'Stopped. Completed checks are saved.'
                   : job?.status === 'failed'

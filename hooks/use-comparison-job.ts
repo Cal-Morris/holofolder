@@ -151,7 +151,7 @@ export function useComparisonJob(targets: readonly CheckCompsTarget[], isOnline:
       if (!abort.signal.aborted) setSyncedJobId(job.id);
     })().catch(() => {
       if (!abort.signal.aborted)
-        setMessage('Checks finished on the server. Prepare for a show can retry saving them on this device.');
+        setMessage('Checks finished on the server. Settings → Offline & app can retry saving them on this device.');
     });
     return () => abort.abort();
   }, [job?.id, job?.status, cards, isOnline, syncedJobId]);
