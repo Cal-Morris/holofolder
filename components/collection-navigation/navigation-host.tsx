@@ -53,6 +53,8 @@ export interface CollectionNavigationHostProps {
   renderSurface?: (surface: NavigationSurface) => ReactNode;
   /** Why the shown collection may not be the very latest (still updating, offline, or the last update failed). */
   savedState?: InventorySavedState;
+  /** Inventory's owned bulk price check: the signed-in owner's or partner's session while online. */
+  checkPrices?: boolean;
   /** Shown as "New binder" in the collection picker. Receives the opener for the collection once it exists. */
   newCollection?: {
     disabled?: boolean;
@@ -105,6 +107,7 @@ function ScopedNavigation({
   ownership,
   newCollection,
   savedState,
+  checkPrices,
 }: CollectionNavigationHostProps & { scope: CollectionNavigationScope }) {
   const scrollElement = useCallback(() => {
     const container = scrollContainerId ? document.getElementById(scrollContainerId) : null;
@@ -528,6 +531,7 @@ function ScopedNavigation({
           evidence={index.kind === 'unavailable' ? { kind: 'unavailable' } : currentRead.evidence}
           ownership={ownership}
           savedState={savedState}
+          checkPrices={checkPrices}
           catalog={currentRead.catalog}
           layouts={currentRead.layouts}
           onEditGrading={onEditGrading}

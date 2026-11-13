@@ -1170,6 +1170,7 @@ function ScopedBrowserSession({
     <>
       <CollectionNavigationHost
         ownership={ownership}
+        checkPrices={online}
         onEditGrading={
           canEditGrading
             ? (itemId) => {

@@ -1,5 +1,6 @@
 import type { CollectedPokemon } from '@/lib/domain/cards';
 import type { CheckCompsTarget } from '@/lib/check-comps';
+import type { InventoryItem } from '@/lib/domain/inventory';
 
 /** Uses the current binder's full collection, independent of view/search filters. */
 export function collectionCompsTargets(
@@ -12,5 +13,12 @@ export function collectionCompsTargets(
       : collection.filter((item) => item.status !== 'wishlisted');
   return cards.flatMap((card) =>
     card.card_id ? [{ cardId: card.card_id, language: card.card_language, finish: card.card_finish }] : [],
+  );
+}
+
+/** Every owned copy in the native inventory, across all storage. Pokémon-only copies have no printing to check. */
+export function inventoryCompsTargets(items: readonly InventoryItem[]): CheckCompsTarget[] {
+  return items.flatMap(({ identity }) =>
+    identity.kind === 'card' ? [{ cardId: identity.cardId, language: identity.language, finish: identity.finish }] : [],
   );
 }

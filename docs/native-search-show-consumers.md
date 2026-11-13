@@ -58,7 +58,7 @@ The native Show and Quick deal check now shows the same paid Check prices contro
 
 ## Wanted bulk price check on native (parity)
 
-The native Wanted tab shows the existing want-list bulk price check (`CollectionPriceCheck`, the same background comparison job as Show's Hunting list) under its header, for the signed-in owner or partner in their own binders, never on a shared view. Its printings come from the native read's explicit wants (`nativeSpeciesCollection(...).rows`), with repeated wants checked once. Starting the job keeps its existing confirmation and billing rules. An owned bulk check on native (Inventory) is not built yet.
+The native Wanted tab shows the existing want-list bulk price check (`CollectionPriceCheck`, the same background comparison job as Show's Hunting list) under its header, for the signed-in owner or partner in their own binders, never on a shared view. Its printings come from the native read's explicit wants (`nativeSpeciesCollection(...).rows`), with repeated wants checked once. Starting the job keeps its existing confirmation and billing rules. The owned bulk check lives in Inventory, under its header: the same component and job (`BackgroundPriceCheck`, kind `owned`), fed every owned card copy in the native inventory across all storage (`inventoryCompsTargets`), with Pokémon-only copies skipped and duplicate printings checked once. It shows only in a signed-in owner or partner session while online, so a shared view or the offline startup never offers it.
 
 ## Sold band in native card details (parity)
 

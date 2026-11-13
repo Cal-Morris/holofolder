@@ -20,6 +20,12 @@ async function seedWants(harness: Harness, count: number) {
   ]);
 }
 
+/** Inventory, where the owned bulk check lives on native binders (the seeded binder's owned copies). */
+async function openInventory(harness: Harness) {
+  await harness.dock().getByRole('button', { name: 'Inventory', exact: true }).click();
+  await expect(harness.page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible();
+}
+
 test('wanted checks confirm once, survive leaving and reopening, and reconnect offline', async ({ harness }) => {
   const { page } = harness;
   // Synthetic jobs and evidence. No actual provider or workflow calls.
@@ -95,9 +101,7 @@ test('explicit Stop cancels the server job', async ({ harness }) => {
     if (route.request().method() === 'POST' && route.request().postDataJSON().action === 'stop') stopped = true;
     return route.fulfill({ json: { job: { ...job, status: stopped ? 'cancelled' : 'running' } } });
   });
-  await seedWants(harness, 2);
-  await harness.reload();
-  await harness.dock().getByRole('button', { name: 'Wanted', exact: true }).click();
+  await openInventory(harness);
   const batch = page.getByTestId('collection-price-check');
   const stop = batch.getByRole('button', { name: 'Stop checking prices' });
   await expect(stop).toBeVisible();
@@ -128,12 +132,10 @@ test('a slow initial inspection cannot erase a job started in the meantime', asy
     }
     return route.fulfill({ json: { job } });
   });
-  await seedWants(harness, 2);
-  await harness.reload();
-  await harness.dock().getByRole('button', { name: 'Wanted', exact: true }).click();
+  await openInventory(harness);
   await expect.poll(() => inspecting).toBe(true);
   const batch = page.getByTestId('collection-price-check');
-  await batch.getByRole('button', { name: 'Check wanted prices' }).click();
+  await batch.getByRole('button', { name: 'Check owned prices' }).click();
   await expect(batch).toContainText('You can close the app');
   const response = page.waitForResponse(
     (response) =>
@@ -148,3 +150,25 @@ test('a slow initial inspection cannot erase a job started in the meantime', asy
   );
   await expect(batch.getByRole('button', { name: 'Stop checking prices' })).toBeVisible();
 });
+
+test(
+  'Inventory offers the owned check under its header, only while online',
+  { tag: '@matrix' },
+  async ({ harness }, testInfo) => {
+    const { page } = harness;
+    await page.route('**/app/api/comparison-jobs**', (route) => route.fulfill({ json: { job: null, needed: 0 } }));
+    await openInventory(harness);
+    const batch = page.getByTestId('collection-price-check');
+    // The two synthetic owned copies of the seeded binder.
+    await expect(batch).toContainText('2 eligible printings in your inventory');
+    const start = batch.getByRole('button', { name: 'Check owned prices' });
+    await harness.expectMinTapTarget(start, 36);
+    await harness.expectWithinSafeViewport(start);
+    await harness.expectNoHorizontalOverflow();
+    await page.screenshot({ path: `/tmp/inventory-owned-check-${testInfo.project.name}.png` });
+    await page.context().setOffline(true);
+    await expect(batch).toHaveCount(0);
+    await page.context().setOffline(false);
+    await expect(batch).toBeVisible();
+  },
+);
