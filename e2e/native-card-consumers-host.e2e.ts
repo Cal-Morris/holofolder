@@ -161,6 +161,8 @@ for (const desktop of [false, true])
     await expect(wants).not.toContainText(raw);
     const h = new Harness(page, insets, true);
     const check = wants.locator('button[data-standing]').first();
+    // On a short phone the first row starts below the budget and filters, under the search bar.
+    await check.scrollIntoViewIfNeeded();
     await h.expectMinTapTarget(check);
     await h.expectHittable(check);
     await h.expectNoHorizontalOverflow();
