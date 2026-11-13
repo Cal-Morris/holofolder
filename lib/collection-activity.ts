@@ -173,46 +173,11 @@ export function activityActor(
   }
   return 'Unknown';
 }
-export function activitySource(source: string) {
-  return (
-    (
-      {
-        app: 'Website',
-        rest: 'REST API',
-        mcp: 'MCP',
-        direct: 'Direct database',
-        system: 'System',
-        import: 'Import',
-        unknown: 'Unknown',
-      } as Record<string, string>
-    )[source] ?? source
-  );
-}
 export function activityTime(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? 'Unknown server time'
     : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'medium' });
-}
-export function activityEntityName(event: Pick<ActivityEvent, 'changes'>) {
-  const state = event.changes[0]?.after ?? event.changes[0]?.before;
-  const identity = record(state?.identity) ? state.identity : record(state?.target) ? state.target : null;
-  return state?.card_name ?? state?.name ?? state?.card_id ?? identity?.cardId ?? null;
-}
-export function activityEntityKind(table: string) {
-  return (
-    (
-      {
-        inventory_items: 'Owned item',
-        inventory_placements: 'Placement',
-        binder_slots: 'Slot',
-        binders: 'Collection',
-        user_settings: 'Settings',
-        binder_appearances: 'Appearance',
-        binder_shares: 'Sharing',
-      } as Record<string, string>
-    )[table] ?? 'Recorded entity'
-  );
 }
 const labels: Record<string, string> = {
   is_default: 'Default collection',

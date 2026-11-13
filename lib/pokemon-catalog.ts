@@ -89,12 +89,7 @@ export function getPokemonById(id: number): PokemonEntry | undefined {
   return POKEMON_BY_ID.get(id);
 }
 
-export {
-  ARTWORK_DETAIL_WIDTH,
-  ARTWORK_GRID_WIDTH,
-  getOfficialArtworkSourceUrl,
-  getOfficialArtworkUrl,
-} from '@/lib/pokemon-artwork';
+export { ARTWORK_DETAIL_WIDTH, getOfficialArtworkUrl } from '@/lib/pokemon-artwork';
 
 export interface PokemonSummary extends PokemonEntry {
   sprites: {

@@ -10,7 +10,6 @@ export const WANT_COLLECTION = '22222222-2222-4222-8222-222222222222';
 export const LONG_COLLECTION = '33333333-3333-4333-8333-333333333333';
 export const WANT_TOTAL = 483;
 export const wantedEntry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${WANT_COLLECTION}`;
-export const longEntry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${LONG_COLLECTION}`;
 export const LONG_COLLECTION_NAME =
   'Synthetic collection with an extraordinarily long display name that has to wrap cleanly 火';
 

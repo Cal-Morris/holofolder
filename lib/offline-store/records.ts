@@ -46,15 +46,6 @@ export function selectWantlist(collection: CollectedPokemon[]): WantlistEntry[] 
   return entries;
 }
 
-/** `key`: the default binder's record unless given (other binders: `collection:<binderId>`, lib/binders/offline.ts). */
-export async function saveCollectionRecord(
-  store: OfflineKeyValueStore,
-  record: Omit<CollectionRecord, 'pendingOperations'> & { pendingOperations?: unknown[] },
-  key = COLLECTION_RECORD_KEY,
-) {
-  await store.set(key, record);
-}
-
 export async function loadCollectionRecord(
   store: OfflineKeyValueStore,
   key = COLLECTION_RECORD_KEY,

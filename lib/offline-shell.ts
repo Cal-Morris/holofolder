@@ -18,8 +18,6 @@ import {
   type StoredBinderSettings,
 } from '@/lib/settings';
 
-export const APP_SHELL_PATH = '/app/app-shell';
-
 export interface OfflineShellState {
   collection: CollectedPokemon[];
   collectionOwnerUserId: string | null;

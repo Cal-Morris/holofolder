@@ -1,8 +1,6 @@
 import { isSlotContractId, isSlotRevision } from '@/lib/domain/binder-slots';
 import { SLOT_LIMITS } from '@/lib/domain/slot-commands';
-export { SLOT_LIMITS, parseSlotCommand } from '@/lib/domain/slot-commands';
-export type { SlotPrecondition, SlotCommand, SlotCommandRequest } from '@/lib/domain/slot-commands';
-
+export { parseSlotCommand } from '@/lib/domain/slot-commands';
 const uuid = (v: unknown): v is string =>
   typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 function invalid(): never {

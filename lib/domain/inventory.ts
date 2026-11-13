@@ -63,9 +63,6 @@ export interface InventorySnapshot {
   collections: StorageCollection[];
   binders: BinderSnapshot[];
 }
-export interface InventoryDisplayReference {
-  inventoryItemId: string;
-}
 export type InventoryCatalogResolver = (cardId: string) => Extract<SlotTargetCandidate, { kind: 'card' }> | undefined;
 
 export function getStoragePresentationDefault(kind: StorageKind): StoragePresentation {

@@ -13,7 +13,6 @@ export type OperationContext = {
   memberIds: readonly string[];
   requestId: string;
 };
-export type Page<T> = { data: T[]; nextCursor: string | null };
 export type DeveloperKeyMetadata = {
   id: string;
   name: string;
