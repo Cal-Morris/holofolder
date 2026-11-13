@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, type RefObject } from 'react';
 import { useMachine } from '@/hooks/use-machine';
 import { Camera, Image as ImageIcon, Loader2, X } from 'lucide-react';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
@@ -46,7 +46,7 @@ export default function NativePageScanner({
   admission: NativePageScanAdmission;
   onClose: () => void;
 }) {
-  const panel = useRef<HTMLDivElement>(null),
+  const panel = useRef<HTMLDialogElement>(null),
     video = useRef<HTMLVideoElement>(null);
   const alive = useRef(true),
     saving = useRef(false);
@@ -153,7 +153,7 @@ export default function NativePageScanner({
     <div className="fixed inset-0 z-40">
       <div data-overlay-backdrop className="absolute inset-0 bg-black/55" onClick={close} />
       <div
-        ref={panel}
+        ref={panel as unknown as RefObject<HTMLDivElement | null>}
         tabIndex={-1}
         role="dialog"
         aria-modal="true"

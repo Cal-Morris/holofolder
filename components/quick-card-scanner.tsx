@@ -85,7 +85,7 @@ function NativeQuickCardScanner({
   const captured = useRef<ScanDestinationCapture | null>(null);
   const alive = useRef(true),
     saving = useRef(false);
-  const panel = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDialogElement>(null);
   const [review, setReview] = useState<{ capture: ScanDestinationCapture; cells: ScanReviewCell[] } | null>(null);
   useEffect(() => {
     alive.current = true;
@@ -119,7 +119,7 @@ function NativeQuickCardScanner({
     <QuickCardScannerCamera
       {...props}
       onClose={close}
-      managedContainerRef={panel}
+      managedContainerRef={panel as unknown as RefObject<HTMLDivElement | null>}
       onReadStarted={() => {
         captured.current = captureScanDestination(admission.snapshot, admission.view);
       }}

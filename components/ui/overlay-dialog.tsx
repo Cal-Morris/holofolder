@@ -23,6 +23,8 @@ const VARIANT_CLASSES = {
     'inset-x-0 top-auto bottom-0 mx-auto w-full max-w-md max-h-[85dvh] rounded-t-[1.6rem] border-t shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] sm:bottom-4 sm:rounded-[1.6rem] sm:border',
   centred:
     'inset-0 m-auto h-fit w-[calc(100%-2rem)] max-w-md max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-2rem)] rounded-[1.6rem] border shadow-[0_24px_64px_-32px_rgba(15,23,42,0.45)]',
+  fullscreen:
+    'inset-0 h-auto w-auto max-h-none rounded-none border-0 bg-transparent shadow-none backdrop:bg-transparent backdrop:backdrop-blur-none',
 } as const;
 
 const MODAL_CLASSES =
@@ -36,8 +38,19 @@ export type OverlayDialogVariant = keyof typeof VARIANT_CLASSES;
 interface OverlayDialogProps extends Omit<ComponentProps<'dialog'>, 'open' | 'onClose' | 'onCancel' | 'ref' | 'role'> {
   /** Called once for every way of closing: X (yours), backdrop, Escape, back, swipe, dock switch. */
   onClose: () => void;
-  /** `sheet` swipes down to dismiss (and, modal, sits on the bottom edge); `centred` floats mid-screen. */
+  /**
+   * `sheet` swipes down to dismiss (and, modal, sits on the bottom edge); `centred` floats mid-screen; `fullscreen`
+   * (modal) covers the screen with a clear `::backdrop`, for viewers that draw their own.
+   */
   variant?: OverlayDialogVariant;
+  /** Whether the grabber and body swipe it down to close. Defaults to `variant === 'sheet'`. */
+  swipe?: boolean;
+  /**
+   * Another `useOverlay` owns Escape, back, the stack, the focus trap and the scroll lock, with its `containerRef` on
+   * this dialog's `ref`. One overlay whose dialog is swapped between phases (a scanner's camera, then its review)
+   * keeps a single history entry that way.
+   */
+  managed?: boolean;
   /** Focus the dialog itself when it opens (default true). Pass false when a field focuses itself. */
   autoFocus?: boolean;
   /**
@@ -49,6 +62,11 @@ interface OverlayDialogProps extends Omit<ComponentProps<'dialog'>, 'open' | 'on
   backdropProps?: Omit<ComponentProps<'div'>, 'onClick'>;
   /** Non-modal: wrap backdrop and dialog in a `fixed inset-0` layer with these classes (its z-index). */
   layerClassName?: string;
+  /**
+   * Non-modal with `layerClassName`: rendered in the layer after the dialog, outside it. For an inner overlay (a card
+   * picker opened from the sheet) that shares the layer's stacking but must not bubble into the dialog's swipe.
+   */
+  layerChildren?: ReactNode;
   /** Render into `document.body` (default true). Pass false to keep it where it is in the tree. */
   portal?: boolean;
   ref?: Ref<HTMLDialogElement | null>;
@@ -74,16 +92,22 @@ function isOutside(element: Element, x: number, y: number) {
 export function OverlayDialog({
   onClose,
   variant = 'sheet',
+  swipe: swipeEnabled = variant === 'sheet',
+  managed = false,
   autoFocus = true,
   modal = true,
   backdropProps,
   layerClassName,
+  layerChildren,
   portal = true,
   ref,
   className,
   children,
   onClick,
   onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
   ...props
 }: OverlayDialogProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
@@ -98,8 +122,8 @@ export function OverlayDialog({
 
   // show()/showModal() and the focus below move focus before useOverlay's effect looks: hand it the opener.
   const openerRef = useRef<HTMLElement | null>(null);
-  useOverlay(true, onClose, { containerRef: dialogRef, autoFocus: false, openerRef });
-  const swipe = useSwipeToDismiss(dialogRef, onClose, variant === 'sheet');
+  useOverlay(!managed, onClose, { containerRef: dialogRef, autoFocus: false, openerRef });
+  const swipe = useSwipeToDismiss(dialogRef, onClose, swipeEnabled);
 
   useLayoutEffect(() => {
     const dialog = dialogRef.current;
@@ -174,9 +198,18 @@ export function OverlayDialog({
         className,
       )}
       onPointerDown={handlePointerDown}
-      onPointerMove={swipe.onPointerMove}
-      onPointerUp={swipe.onPointerUp}
-      onPointerCancel={swipe.onPointerCancel}
+      onPointerMove={(event) => {
+        onPointerMove?.(event);
+        swipe.onPointerMove(event);
+      }}
+      onPointerUp={(event) => {
+        onPointerUp?.(event);
+        swipe.onPointerUp(event);
+      }}
+      onPointerCancel={(event) => {
+        onPointerCancel?.(event);
+        swipe.onPointerCancel(event);
+      }}
       onClick={handleClick}
       onCancel={(event) => {
         // Escape is useOverlay's; any other close request (Android back via CloseWatcher) closes it here.
@@ -211,6 +244,7 @@ export function OverlayDialog({
         <div className={cn('fixed inset-0', layerClassName)}>
           {backdrop}
           {dialog}
+          {layerChildren}
         </div>
       );
   }
