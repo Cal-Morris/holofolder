@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ComponentProps, type ReactNode } from 'react';
 import { subscribeMembershipLifecycle } from '@/lib/collection/membership-lifecycle';
+// oxlint-disable-next-line react-doctor/no-flush-sync -- a membership change must hide the cached collection before it carries on, not on a later render
 import { flushSync } from 'react-dom';
 import { closeAllOverlays } from '@/hooks/use-overlay';
 import BinderApp from '@/components/binder-app';
@@ -30,6 +31,7 @@ export default function CachedNativeStartup({
 }) {
   const [saved, setSaved] = useState<Awaited<ReturnType<typeof readCachedNativeStartup>> | null>(null);
   const [notice, setNotice] = useState('');
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- the setters run in auth, storage and membership callbacks, not during the effect
   useEffect(() => {
     if (navigator.onLine && !whileChecking) return;
     // Old/legacy bootstrap has no native pointer, so it keeps its original startup.
@@ -137,6 +139,7 @@ export default function CachedNativeStartup({
         throw new Error('cached-startup-requires-checked-session');
       }}
       scrollContainerId="collection-browser-scroll"
+      // oxlint-disable-next-line react-doctor/no-render-prop-children -- CollectionNavigationHost's render-prop API, owned outside this file
       renderNationalDex={() => null}
       renderCollection={() => null}
       renderSurface={(surface) => {

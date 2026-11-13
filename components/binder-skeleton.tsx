@@ -149,6 +149,7 @@ export function BinderSkeleton({
           ))}
         </div>
       </div>
+      {/* oxlint-disable-next-line react-doctor/nextjs-no-native-script -- must run inline before hydration and reads document.currentScript; next/script can't */}
       {startGridFromCookie && <script dangerouslySetInnerHTML={{ __html: START_GRID_SCRIPT }} />}
     </main>
   );

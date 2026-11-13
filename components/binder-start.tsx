@@ -38,6 +38,7 @@ export function BinderStart({
 }) {
   // The last binder's pockets per page, so every skeleton on the way in has the grid the binder will have.
   const grid = (startGrid ? use(startGrid) : null) ?? undefined;
+  // oxlint-disable-next-line react-doctor/no-derived-useState -- keeps the first boot on purpose: only the first render races the device's saved binder
   const [firstBoot] = useState(serverBoot);
   const [start, setStart] = useState<{ source: 'local'; boot: LocalStart } | { source: 'server' } | null>(null);
 
@@ -113,12 +114,14 @@ export function BinderStart({
 }
 
 function ServerStartedBinder({ serverBoot, grid }: { serverBoot: Promise<ServerBinderBoot>; grid?: BinderGrid }) {
+  // oxlint-disable-next-line react-doctor/no-event-handler -- `signedOut` comes from the server boot, not a user event
   const boot = use(serverBoot);
   const router = useRouter();
   const signedOut = !boot.initialUser;
 
   useEffect(() => {
     // The proxy redirects signed-out visitors before this page; this covers a session that ended in between.
+    // oxlint-disable-next-line react-doctor/nextjs-no-client-side-redirect -- the proxy redirects on the server; this only covers a session that ended while the boot resolved
     if (signedOut) router.replace('/auth/login');
   }, [router, signedOut]);
 
