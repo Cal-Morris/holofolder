@@ -48,6 +48,7 @@ function EditorSession({
   onAcceptDraft,
   onCommit,
   onQueue,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent editor fields and status; one reducer would not read better
 }: GradingEditorProps) {
   const [record, setRecord] = useState<GradingRecord>(() => structuredClone(item.grading ?? emptyGradingRecord()));
   const [graded, setGraded] = useState(item.grading !== null);
@@ -117,7 +118,7 @@ function EditorSession({
   };
   return (
     <div className={styles.overlay}>
-      <div data-overlay-backdrop className={styles.backdrop} onClick={onClose} />
+      <div data-overlay-backdrop aria-hidden="true" className={styles.backdrop} onClick={onClose} />
       <div
         ref={ref}
         role="dialog"
@@ -239,6 +240,7 @@ function EditorSession({
                 inferred. Existing private asset references are retained.
               </p>
               {record.subgrades.map((subgrade, index) => (
+                // oxlint-disable-next-line react-doctor/no-array-index-as-key -- subgrades have no stored id; the inputs are controlled, so the position is the identity
                 <fieldset key={index}>
                   <legend>Subgrade {index + 1}</legend>
                   {(['name', 'grade'] as const).map((key) => (
