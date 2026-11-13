@@ -1,6 +1,6 @@
 import type { PricedCardFinish, PriceSource } from '../lib/card-pricing';
 import type { CardPriceHistoryPoint } from '../lib/card-price-history';
-import type { Page } from '@playwright/test';
+import type { Page, Request } from '@playwright/test';
 
 /**
  * TEST FIXTURES ONLY: synthetic price snapshots served from a mocked /app/api/card-prices.
@@ -11,6 +11,9 @@ export interface FixturePrice {
   history?: CardPriceHistoryPoint[];
   confidence: 'high' | 'medium' | 'low' | 'unknown';
   market: number;
+  /** The finish the headline `market` quotes. Native price checks only accept exact-finish rows, so this also
+   * serves the headline as that finish's row (unless `finishes` already quotes it). */
+  finish?: PricedCardFinish;
   /** Cardmarket-style trend points (label -> GBP), e.g. { "30d": 10, "7d": 11, Trend: 12 }. */
   trend?: Record<string, number>;
   finishes?: Array<{
@@ -48,13 +51,18 @@ export async function clearCardPriceCache(page: Page) {
   });
 }
 
+/** The card lookups a /app/api/card-prices request asks for: GET `?cards=` or a POST body (either may be absent). */
+export function requestedPriceCards(request: Request): Array<{ cardId: string; language?: string }> {
+  const body =
+    request.method() === 'GET'
+      ? { cards: JSON.parse(new URL(request.url()).searchParams.get('cards') ?? '[]') }
+      : (request.postDataJSON?.() ?? {});
+  return Array.isArray(body?.cards) ? body.cards : [];
+}
+
 export async function mockCardPrices(page: Page, byCardId: Record<string, FixturePrice>) {
   await page.route('**/app/api/card-prices**', async (route) => {
-    const body =
-      route.request().method() === 'GET'
-        ? { cards: JSON.parse(new URL(route.request().url()).searchParams.get('cards') ?? '[]') }
-        : (route.request().postDataJSON?.() ?? {});
-    const lookups: Array<{ cardId: string; language?: string }> = Array.isArray(body?.cards) ? body.cards : [];
+    const lookups = requestedPriceCards(route.request());
     const updatedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     await route.fulfill({
       json: {
@@ -85,28 +93,34 @@ export async function mockCardPrices(page: Page, byCardId: Record<string, Fixtur
             variantLabel: null,
             updatedAt: fixture ? updatedAt : null,
             fxDate: null,
-            finishPrices:
-              fixture?.finishes?.map((variant) => ({
-                cardId: lookup.cardId,
-                language: lookup.language ?? 'en',
-                finish: variant.finish,
-                variantKey: variant.finish,
-                variantLabel: variant.finish,
-                marketGbpAmount: variant.market,
-                gbpAmount: variant.market,
-                confidence: variant.confidence ?? fixture.confidence,
-                source: fixture.source ?? 'cardmarket',
-                sourcePrices: [],
-                updatedAt,
-                fxDate: null,
-                trendPoints: Object.entries(variant.trend ?? {}).map(([label, gbpAmount]) => ({
-                  label,
-                  source: fixture.source ?? 'cardmarket',
-                  gbpAmount,
-                  originalAmount: gbpAmount,
-                  originalCurrency: 'GBP',
-                })),
-              })) ?? [],
+            finishPrices: (
+              [
+                ...(fixture?.finish && !fixture.finishes?.some((variant) => variant.finish === fixture.finish)
+                  ? [{ finish: fixture.finish, market: fixture.market, trend: fixture.trend }]
+                  : []),
+                ...(fixture?.finishes ?? []),
+              ] as NonNullable<FixturePrice['finishes']>
+            ).map((variant) => ({
+              cardId: lookup.cardId,
+              language: lookup.language ?? 'en',
+              finish: variant.finish,
+              variantKey: variant.finish,
+              variantLabel: variant.finish,
+              marketGbpAmount: variant.market,
+              gbpAmount: variant.market,
+              confidence: variant.confidence ?? fixture!.confidence,
+              source: fixture!.source ?? 'cardmarket',
+              sourcePrices: [],
+              updatedAt,
+              fxDate: null,
+              trendPoints: Object.entries(variant.trend ?? {}).map(([label, gbpAmount]) => ({
+                label,
+                source: fixture!.source ?? 'cardmarket',
+                gbpAmount,
+                originalAmount: gbpAmount,
+                originalCurrency: 'GBP',
+              })),
+            })),
           };
         }),
       },
