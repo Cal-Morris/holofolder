@@ -15522,7 +15522,7 @@
       "get": {
         "operationId": "list_cards",
         "summary": "Search cards",
-        "description": "Browse all card printings, including Trainers and Energy, with pagination. q matches card names and collector nicknames (\"moonbreon\", \"gold star rayquaza\", \"umbreon alt art\"). Records declare game:pokemon; IDs are globally unique opaque application IDs, not provider-local keys.\n\nRequired permissions: `catalog:read`. MCP tool: `list_cards`.",
+        "description": "Browse all card printings, including Trainers and Energy, with pagination. q matches card names and collector nicknames (\"moonbreon\", \"gold star rayquaza\", \"umbreon alt art\"), and a rarity word at either end keeps that rarity (\"charizard sir\", \"full art lugia\"). Records declare game:pokemon; IDs are globally unique opaque application IDs, not provider-local keys.\n\nRequired permissions: `catalog:read`. MCP tool: `list_cards`.",
         "tags": [
           "Catalog"
         ],

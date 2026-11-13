@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import NICKNAMES from '../lib/card-nicknames.json';
-import { matchCardNicknames, normalizeNickname } from '../lib/card-nicknames';
+import { matchCardNicknames, matchRarityWords, normalizeNickname } from '../lib/card-nicknames';
 import { searchOfflineCards } from '../lib/offline-card-index';
 
 // Synthetic nickname table and cards; ids are catalog-shaped but nothing here is real price or card data.
@@ -27,12 +27,33 @@ describe('matchCardNicknames', () => {
   });
 });
 
+describe('matchRarityWords', () => {
+  test('a rarity word at either end keeps that rarity', () => {
+    assert.deepEqual(matchRarityWords('Charizard SIR'), { rarities: ['Special illustration rare'], rest: 'charizard' });
+    assert.deepEqual(matchRarityWords('full art lugia'), { rarities: ['Ultra Rare'], rest: 'lugia' });
+    assert.deepEqual(matchRarityWords('zard sir')?.rest, 'zard');
+  });
+  test('needs something else to search for, and loses to a nickname at the same end', () => {
+    assert.equal(matchRarityWords('sir'), null);
+    assert.equal(matchRarityWords('gold star rayquaza'), null);
+    assert.equal(matchRarityWords('shiny vault zard'), null);
+    assert.equal(matchRarityWords('golduck'), null);
+  });
+});
+
 describe('on-device search', () => {
   const set = { id: 'swsh7', name: 'Evolving Skies' };
   const cards = [
     { id: 'swsh7-95', name: 'Umbreon VMAX', localId: '95', set, dexIds: [197] },
     { id: 'swsh7-215', name: 'Umbreon VMAX', localId: '215', set, dexIds: [197] },
   ];
+  test('a rarity word keeps that rarity', () => {
+    const rare = cards.map((card) => ({ ...card, rarity: card.localId === '215' ? 'Secret Rare' : 'Holo Rare VMAX' }));
+    assert.deepEqual(
+      searchOfflineCards(rare, 'umbreon secret rare').map((card) => card.id),
+      ['swsh7-215'],
+    );
+  });
   test('a nickname finds its card first', () => {
     assert.deepEqual(
       searchOfflineCards(cards, 'moonbreon').map((card) => card.id),

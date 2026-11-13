@@ -34,6 +34,14 @@ const RULES: Array<{ nicknames: string[]; where: string }> = [
   { nicknames: ['gold star', 'goldstar'], where: `c.name_en LIKE '%☆%'` },
   { nicknames: ['delta species', 'delta'], where: `c.name_en LIKE '%δ%'` },
   { nicknames: ['amazing rare'], where: `c.rarity = 'Amazing Rare'` },
+  { nicknames: ['tag team', 'tag teams'], where: `c.name_en ~ '&.* GX$'` },
+  // XY Mega Evolutions are printed "M Charizard EX"; newer ones already say "Mega".
+  { nicknames: ['mega'], where: `c.name_en ~ '^M [A-Z]'` },
+  // The small shinies of the shiny-vault sets, not the GX, V or ex ones.
+  {
+    nicknames: ['baby shiny', 'baby shinies'],
+    where: `c.set_id IN ('sma', 'swsh4.5', 'swsh4.5sv', 'sv04.5') AND c.rarity = 'Shiny rare' AND c.name_en !~ ' (GX|V|VMAX|ex)$'`,
+  },
   { nicknames: ['shiny vault'], where: `c.set_id IN ('sma', 'swsh4.5', 'swsh4.5sv') AND c.local_id LIKE 'SV%'` },
   { nicknames: ['trainer gallery', 'tg'], where: `c.local_id LIKE 'TG%'` },
   { nicknames: ['galarian gallery', 'gg'], where: `c.local_id LIKE 'GG%'` },
