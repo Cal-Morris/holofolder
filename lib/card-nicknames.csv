@@ -1,0 +1,51 @@
+# Hand-picked card nicknames. One row per nickname and card; `name` is the card's English name in the mirror, so a
+# wrong id fails the build. Group nicknames (gold star, alt art, ...) are rules in scripts/card-nicknames.ts.
+# After editing, run `bun run card-nicknames` and commit both this file and lib/card-nicknames.json.
+nickname,card_id,name
+moonbreon,swsh7-215,Umbreon VMAX
+moon breon,swsh7-215,Umbreon VMAX
+bubble mew,sv04.5-232,Mew ex
+van gogh pikachu,svp-085,Pikachu with Grey Felt Hat
+van gogh,svp-085,Pikachu with Grey Felt Hat
+gray felt hat pikachu,svp-085,Pikachu with Grey Felt Hat
+chonkachu,swsh4-44,Pikachu VMAX
+chonkachu,swsh4-188,Pikachu VMAX
+chonkachu,swshp-SWSH062,Pikachu VMAX
+chonkachu,swshp-SWSH286,Pikachu VMAX
+chonkachu,swsh11-TG17,Pikachu VMAX
+chonkachu,swsh11-TG29,Pikachu VMAX
+chunky pikachu,swsh4-44,Pikachu VMAX
+chunky pikachu,swsh4-188,Pikachu VMAX
+chunky pikachu,swshp-SWSH062,Pikachu VMAX
+chunky pikachu,swshp-SWSH286,Pikachu VMAX
+chunky pikachu,swsh11-TG17,Pikachu VMAX
+chunky pikachu,swsh11-TG29,Pikachu VMAX
+fat pikachu,swsh4-44,Pikachu VMAX
+fat pikachu,swsh4-188,Pikachu VMAX
+fat pikachu,swshp-SWSH062,Pikachu VMAX
+fat pikachu,swshp-SWSH286,Pikachu VMAX
+fat pikachu,swsh11-TG17,Pikachu VMAX
+fat pikachu,swsh11-TG29,Pikachu VMAX
+birthday pikachu,basep-24,___________'s Pikachu
+birthday pikachu,cel25-24A,_____'s Pikachu
+birthday pikachu,cel25cc-CC008,_____'s Pikachu
+base zard,base1-4,Charizard
+base set zard,base1-4,Charizard
+base charizard,base1-4,Charizard
+base 2 zard,base4-4,Charizard
+tera zard,sv03-125,Charizard ex
+tera zard,sv03-215,Charizard ex
+tera zard,sv03-223,Charizard ex
+tera zard,sv03-228,Charizard ex
+tera charizard,sv03-125,Charizard ex
+tera charizard,sv03-215,Charizard ex
+tera charizard,sv03-223,Charizard ex
+tera charizard,sv03-228,Charizard ex
+champions path zard,swsh3.5-74,Charizard VMAX
+champions path zard,swsh3.5-79,Charizard V
+alt art,swsh8-245,Celebi V
+alt art,swsh8-270,Espeon VMAX
+alternate art,swsh8-245,Celebi V
+alternate art,swsh8-270,Espeon VMAX
+alt,swsh8-245,Celebi V
+alt,swsh8-270,Espeon VMAX

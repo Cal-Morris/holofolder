@@ -10,6 +10,7 @@ import { pickLocalizedText, buildTcgdexAssetImageUrl } from '@/lib/tcgdex-shared
 import { readCatalogMetadata } from '@/lib/card-catalog';
 import { pickCardImageUrl } from '@/lib/card-image-sources';
 import { parseCardSearchQuery } from '@/lib/pokemon-card-browse';
+import { matchCardNicknames } from '@/lib/card-nicknames';
 import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
 import { createDeveloperImageResolver, type DeveloperImageResolver } from '@/lib/server/developer-images';
 import { sanitizeDeveloperImages } from '@/lib/server/developer-image-fields';
@@ -148,8 +149,15 @@ export async function listCatalogCards(rawParams: string) {
     const sets = await listSetsForSearch(basic.text || q);
     const parsed = resolveCardSearchQuery(q, sets);
     correction = correctedCardSearchQuery(q, sets);
+    const nickname = matchCardNicknames(q);
     if (parsed.cardId) query = query.ilike('id', parsed.cardId);
-    else {
+    else if (nickname) {
+      // A nickname ("moonbreon", "gold star rayquaza") names its cards; cards whose name holds the words still match.
+      const value = JSON.stringify(`%${parsed.text || q}%`);
+      const ids = `id.in.(${nickname.ids.map((id) => JSON.stringify(id)).join(',')})`;
+      const named = nickname.rest ? `and(${ids},name_en.ilike.${JSON.stringify(`%${nickname.rest}%`)})` : ids;
+      query = query.or(`name_json->>${lang}.ilike.${value},name_en.ilike.${value},${named}`);
+    } else {
       if (parsed.setIds.length) query = query.in('set_id', parsed.setIds);
       if (parsed.text) {
         const value = JSON.stringify(`%${parsed.text}%`);
