@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
+import { useMachine } from '@/hooks/use-machine';
 import { Camera, Image as ImageIcon, Loader2, X } from 'lucide-react';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { useCameraStream } from '@/hooks/use-camera-stream';
@@ -14,7 +15,9 @@ import {
   type ScanDestinationCapture,
 } from '@/lib/scan-destinations';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
-import { identifyPocketCrop, type PocketRead } from '@/lib/card-scan-search';
+import { POCKET_READ_CONCURRENCY, identifyPocketCrop, type PocketRead } from '@/lib/card-scan-search';
+import { mapWithConcurrency } from '@/lib/card-db-sync-concurrency';
+import { AIMING_PAGE_SCAN, pageScanStatus, pageScanTransition, type PageScanSession } from '@/lib/page-scan-session';
 import { warmCardTextReader } from '@/lib/card-scan-ocr';
 import { getPictureScannerLanguages, matchCardPicture, warmPictureScanner } from '@/lib/card-picture-scanner';
 import ScanDestinationReview, { type ScanReviewCell } from '@/components/scan-destination-review';
@@ -34,6 +37,8 @@ const pageProblem = (cause: unknown) =>
     ? 'This page changed while scanning. Close this and try again.'
     : "Couldn't read that photo. Try again with the whole page in view and good light.";
 
+type PageReview = { capture: ScanDestinationCapture; cells: ScanReviewCell[] };
+
 export default function NativePageScanner({
   admission,
   onClose,
@@ -45,10 +50,9 @@ export default function NativePageScanner({
     video = useRef<HTMLVideoElement>(null);
   const alive = useRef(true),
     saving = useRef(false);
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState<string | null>(null);
-  const [reading, setReading] = useState<{ done: number; total: number } | null>(null);
-  const [review, setReview] = useState<{ capture: ScanDestinationCapture; cells: ScanReviewCell[] } | null>(null);
+  const [scan, send] = useMachine(pageScanTransition<PageReview>, AIMING_PAGE_SCAN as PageScanSession<PageReview>);
+  const busy = scan.kind === 'capturing' || scan.kind === 'reading';
+  const review = scan.kind === 'review' ? scan.review : null;
   const camera = useCameraStream(!review, video);
   // Fetch the card text reader while the page is lined up, so reading the pockets doesn't wait on the download.
   useEffect(() => {
@@ -69,10 +73,8 @@ export default function NativePageScanner({
   };
   useOverlay(true, close, { containerRef: panel });
   const swipe = useSwipeToDismiss(panel, close, !review);
+  /** Finds the pockets in a photo and reads each new card; the session must already be capturing. */
   const capture = async (file: File, captured: ScanDestinationCapture) => {
-    setBusy(true);
-    setError(null);
-    setReading(null);
     try {
       const cells = mapScanCells(
         captured,
@@ -85,33 +87,31 @@ export default function NativePageScanner({
       );
       // Read each new card's picture, name and number from its crop. Pockets already holding a card are left as they are.
       const toRead = cells.filter((c) => c.occupied && c.cardImageDataUrl && !(c.slotId && filled.has(c.slotId)));
-      setReading({ done: 0, total: toRead.length });
-      const reviewCells: ScanReviewCell[] = await Promise.all(
-        cells.map(async (c) => {
-          const crop = c.cardImageDataUrl;
-          if (!crop || !toRead.includes(c)) return { ...c, candidates: [], crop };
-          const found = await (admission.identifyPocket?.(crop) ??
-            identifyPocketCrop(crop, admission.getOfflineCards, {
-              matchPicture: matchCardPicture,
-              collected: getPictureScannerLanguages(),
-            }));
-          if (alive.current) setReading((r) => r && { ...r, done: r.done + 1 });
-          return { ...c, ...found, crop };
-        }),
-      );
-      if (alive.current) setReview({ capture: captured, cells: reviewCells });
+      if (alive.current) send({ type: 'detected', total: toRead.length });
+      const read = await mapWithConcurrency(toRead, POCKET_READ_CONCURRENCY, async (c) => {
+        const crop = c.cardImageDataUrl!;
+        const found = await (admission.identifyPocket?.(crop) ??
+          identifyPocketCrop(crop, admission.getOfflineCards, {
+            matchPicture: matchCardPicture,
+            collected: getPictureScannerLanguages(),
+          }));
+        if (alive.current) send({ type: 'pocket-read' });
+        return found;
+      });
+      const reviewCells: ScanReviewCell[] = cells.map((c) => {
+        const at = toRead.indexOf(c);
+        return { ...c, ...(at < 0 ? { candidates: [] } : read[at]), crop: c.cardImageDataUrl };
+      });
+      if (alive.current) send({ type: 'reviewed', review: { capture: captured, cells: reviewCells } });
     } catch (cause) {
-      if (alive.current) setError(pageProblem(cause));
-    } finally {
-      if (alive.current) setBusy(false);
+      if (alive.current) send({ type: 'failed', problem: pageProblem(cause) });
     }
   };
   const cameraCapture = async () => {
     try {
       // Freeze scope/order BEFORE awaiting camera encoding or detection.
       const captured = captureScanDestination(admission.snapshot, admission.view);
-      if (!video.current || !camera.ready || busy) return;
-      setBusy(true);
+      if (!video.current || !camera.ready || !send({ type: 'start' })) return;
       const canvas = document.createElement('canvas');
       canvas.width = video.current.videoWidth;
       canvas.height = video.current.videoHeight;
@@ -122,11 +122,17 @@ export default function NativePageScanner({
       if (!blob) throw new Error('Could not encode page');
       if (alive.current) await capture(new File([blob], 'page-scan.jpg', { type: 'image/jpeg' }), captured);
     } catch (cause) {
-      if (alive.current) {
-        setError(pageProblem(cause));
-        setBusy(false);
-      }
+      if (alive.current) send({ type: 'failed', problem: pageProblem(cause) });
     }
+  };
+  const choosePhoto = (file: File) => {
+    let captured: ScanDestinationCapture;
+    try {
+      captured = captureScanDestination(admission.snapshot, admission.view);
+    } catch (cause) {
+      return void send({ type: 'failed', problem: pageProblem(cause) });
+    }
+    if (send({ type: 'start' })) void capture(file, captured);
   };
   if (review)
     return (
@@ -187,19 +193,13 @@ export default function NativePageScanner({
           <CameraControls track={camera.track} />
         </div>
         <div className="shrink-0 space-y-2 pt-3">
-          {error ? (
+          {scan.kind === 'aiming' && scan.problem ? (
             <p role="alert" className="min-h-5 text-center text-sm text-red-300">
-              {error}
+              {scan.problem}
             </p>
           ) : (
             <p role="status" className="min-h-5 text-center text-sm text-white/75">
-              {busy
-                ? reading?.total
-                  ? `Reading cards ${reading.done} of ${reading.total}…`
-                  : 'Reading the page…'
-                : camera.error
-                  ? "The camera isn't available. Choose a photo of the page instead."
-                  : ''}
+              {pageScanStatus(scan, camera.error)}
             </p>
           )}
           <div className="flex gap-2">
@@ -215,12 +215,7 @@ export default function NativePageScanner({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   e.target.value = '';
-                  if (!file || busy) return;
-                  try {
-                    void capture(file, captureScanDestination(admission.snapshot, admission.view));
-                  } catch (cause) {
-                    setError(pageProblem(cause));
-                  }
+                  if (file) choosePhoto(file);
                 }}
               />
             </label>
