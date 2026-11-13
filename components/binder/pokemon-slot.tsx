@@ -1,19 +1,12 @@
 'use client';
 
 import { Check, Heart, Star, X } from 'lucide-react';
-import {
-  type CSSProperties,
-  type TouchEvent as ReactTouchEvent,
-  type SyntheticEvent,
-  memo,
-  useRef,
-  useState,
-} from 'react';
+import { type CSSProperties, type SyntheticEvent, memo, useState } from 'react';
 import CardImage from '@/components/card-image';
 import CardFinishShader from '@/components/card-finish-shader';
 import type { CardFinish, SlotStatus } from '@/lib/domain/cards';
 import { loadCardsForPokemon } from '@/hooks/use-tcgdex';
-import { getTouchGestureIntent } from '@/hooks/use-touch-gestures';
+import { useLongPress } from '@/hooks/use-long-press';
 import { getBinderSlotQuickActions } from '@/lib/binder-slot-actions';
 import { toCardImageSrc } from '@/lib/card-image-url';
 import { formatDexNumber, formatPokemonDisplayName, getOfficialArtworkUrl } from '@/lib/pokemon-catalog';
@@ -255,26 +248,8 @@ export const PokemonSlot = memo(function PokemonSlot({
   priority?: boolean;
   buttonRef?: (node: HTMLButtonElement | null) => void;
 }) {
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
-  const isLongPressTriggered = useRef(false);
-  const touchStartPosition = useRef({ x: 0, y: 0 });
-
-  const handleTouchStart = (event: ReactTouchEvent) => {
-    const touch = event.touches[0];
-    touchStartPosition.current = { x: touch.clientX, y: touch.clientY };
-    if (readOnly) return;
-    isLongPressTriggered.current = false;
-    longPressTimer.current = setTimeout(() => {
-      isLongPressTriggered.current = true;
-      onLongPress();
-    }, 400);
-  };
-
-  const clearLongPressTimer = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-    }
-  };
+  const longPress = useLongPress();
+  const press = longPress.bind(onLongPress, readOnly);
 
   const cardImageSource = getUsableImageSource(cardImage);
   const fallbackPreviewImage = getPokemonOfficialArtworkUrl(pokemon.id);
@@ -361,8 +336,9 @@ export const PokemonSlot = memo(function PokemonSlot({
         ref={buttonRef}
         data-dex-id={pokemon.id}
         aria-label={`${slotLabel} ${formatPokemonDisplayName(pokemon.name)} ${formatDexNumber(pokemon.id)}`}
+        {...press}
         onClick={(event) => {
-          if (event.detail !== 0 && isLongPressTriggered.current) {
+          if (longPress.suppressClick(event)) {
             event.preventDefault();
             event.stopPropagation();
             return;
@@ -370,30 +346,11 @@ export const PokemonSlot = memo(function PokemonSlot({
           onClick();
         }}
         onPointerDown={() => {
-          isLongPressTriggered.current = false;
+          press.onPointerDown();
           // Start loading the card's details (illustrator) as the finger goes down, before the sheet opens.
           if (hasAssignedCard) void loadCardsForPokemon(pokemon.id, 'en').catch(() => undefined);
         }}
         onDoubleClick={onDoubleClick}
-        onTouchStart={handleTouchStart}
-        onTouchMove={(event) => {
-          const touch = event.touches[0];
-          if (
-            getTouchGestureIntent(
-              touch.clientX - touchStartPosition.current.x,
-              touch.clientY - touchStartPosition.current.y,
-            ).movedEnough
-          ) {
-            clearLongPressTimer();
-          }
-        }}
-        onTouchEnd={clearLongPressTimer}
-        onTouchCancel={clearLongPressTimer}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          if (readOnly) return;
-          onLongPress();
-        }}
         className={`group relative isolate h-full w-full overflow-hidden transition-[transform,box-shadow] duration-150 ${
           isSelected
             ? 'ring-primary ring-offset-background z-10 scale-[1.03] ring-2 ring-offset-1'

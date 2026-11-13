@@ -4,6 +4,7 @@ import CardImage from '@/components/card-image';
 import { toCardImageSrc } from '@/lib/card-image-url';
 import { SINGLE_CARD_GUIDE, captureSingleCardFrame, delay } from '@/lib/camera-frame';
 import { useCameraStream } from '@/hooks/use-camera-stream';
+import { useLongPress } from '@/hooks/use-long-press';
 import CameraControls from '@/components/camera-controls';
 import { matchesCatalogCardId } from '@/lib/card-catalog';
 import { isCardLanguage } from '@/lib/domain/cards';
@@ -421,13 +422,13 @@ export default function CardSelector({
   const [picks, setPicks] = useState<CardSelectorPick[]>([]);
   const room = native?.many?.room ?? 0;
   const selectCard = useCallback(
-    (card: TCGCard, finish?: CardFinish) => {
+    (card: TCGCard, finish?: CardFinish, many = several) => {
       if (native) {
         const pick = {
           card: isAnyCard ? card : { ...card, language: fixedLanguage ?? card.language },
           finish: finish ?? recordedFinish ?? undefined,
         };
-        if (several) setPicks((current) => (current.length < room ? [...current, pick] : current));
+        if (many) setPicks((current) => (current.length < room ? [...current, pick] : current));
         else native.onPick(pick.card, pick.finish);
         return;
       }
@@ -454,12 +455,12 @@ export default function CardSelector({
     : [];
   /** Tapping a card picks it; a printing that comes in several finishes asks which one first. */
   const pickCard = useCallback(
-    (card: TCGCard) => {
-      if (several && picks.some((pick) => pick.card.id === card.id)) {
+    (card: TCGCard, many = several) => {
+      if (many && picks.some((pick) => pick.card.id === card.id)) {
         setPicks((current) => current.filter((pick) => pick.card.id !== card.id));
         return;
       }
-      if (several && picks.length >= room) return;
+      if (many && picks.length >= room) return;
       if (
         getCardPickerFinishChoices(
           card.variants,
@@ -471,9 +472,20 @@ export default function CardSelector({
         setPendingCard(card);
         return;
       }
-      selectCard(card);
+      selectCard(card, undefined, many);
     },
     [selectCard, variantChoice, pricesByCardId, priceLanguage, several, picks, room],
+  );
+  /** Holding a card turns on Pick several with that card as the first pick (a page needs 2+ empty pockets). */
+  const longPress = useLongPress();
+  const canPickSeveral = Boolean(native?.many) && room > 1;
+  const holdCard = useCallback(
+    (card: TCGCard) => {
+      // Picks are already empty while Pick several is off, so the held card becomes pick 1.
+      setSeveral(true);
+      pickCard(card, true);
+    },
+    [pickCard],
   );
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
   useEffect(() => {
@@ -1192,7 +1204,7 @@ export default function CardSelector({
                           : `${filteredCards.length} of ${cards.length} cards`}
                 </p>
               </div>
-              {native?.many && room > 1 && (
+              {canPickSeveral && (
                 <button
                   type="button"
                   aria-pressed={several}
@@ -1653,10 +1665,14 @@ export default function CardSelector({
                       <button
                         key={card.id}
                         type="button"
-                        onClick={() => pickCard(card)}
+                        {...(canPickSeveral ? longPress.bind(() => holdCard(card)) : {})}
+                        onClick={(event) => {
+                          if (longPress.suppressClick(event)) return;
+                          pickCard(card);
+                        }}
                         aria-label={`${isWishlistMode ? 'Want card' : several ? 'Pick card' : 'Add card'} ${card.name} from ${card.set.name}`}
                         aria-pressed={several ? pickNumber > 0 : undefined}
-                        className={`group/card bg-card focus-visible:ring-primary/70 relative flex flex-col justify-start overflow-hidden rounded-xl border-2 text-left transition-[background-color,border-color,transform,scale] focus-visible:ring-2 focus-visible:outline-none sm:hover:scale-[1.03] ${
+                        className={`group/card bg-card focus-visible:ring-primary/70 relative flex flex-col justify-start overflow-hidden rounded-xl border-2 text-left transition-[background-color,border-color,transform,scale] select-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:outline-none sm:hover:scale-[1.03] ${
                           isCurrent ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
                         }`}
                       >
