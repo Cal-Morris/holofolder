@@ -4,7 +4,7 @@ import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
-import type { CardLanguage } from '@/lib/domain/cards';
+import type { CardSearchLanguage } from '@/lib/card-languages';
 import { CARD_PICKER_SORTS, normalizeCardPickerSort, type CardPickerSort } from '@/lib/card-selector-sort';
 import { CARD_PICKER_LANGUAGES, CARD_PICKER_VARIANTS, type CardPickerVariantChoice } from '@/lib/card-picker-filters';
 import { Select } from '@/components/ui/select';
@@ -12,8 +12,10 @@ import { Select } from '@/components/ui/select';
 interface CardPickerFiltersSheetProps {
   sort: CardPickerSort;
   onSortChange: (sort: CardPickerSort) => void;
-  language: CardLanguage;
-  onLanguageChange: (language: CardLanguage) => void;
+  language: CardSearchLanguage;
+  onLanguageChange: (language: CardSearchLanguage) => void;
+  /** Card search only: offer "Any", every printing in its own language. */
+  allowAnyLanguage?: boolean;
   variant: CardPickerVariantChoice;
   onVariantChange: (variant: CardPickerVariantChoice) => void;
   pokemon?: number;
@@ -101,10 +103,15 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
           <fieldset className="space-y-1.5">
             <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">Card language</legend>
             <p className="text-muted-foreground text-[11px]">
-              Prices follow this language; card art stays on the English print.
+              {props.language === 'any'
+                ? 'Every printing, saved and priced in the language it was printed in.'
+                : 'Prices follow this language; card art stays on the English print.'}
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {CARD_PICKER_LANGUAGES.map((language) => (
+              {(props.allowAnyLanguage
+                ? [{ id: 'any' as const, label: 'Any language', shortLabel: 'Any' }, ...CARD_PICKER_LANGUAGES]
+                : CARD_PICKER_LANGUAGES
+              ).map((language) => (
                 <button
                   key={language.id}
                   type="button"

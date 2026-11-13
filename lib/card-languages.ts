@@ -20,6 +20,15 @@ export function cardLanguagesFromNames(names: unknown): CardLanguage[] {
   return CARD_LANGUAGES.filter((language) => found.has(language));
 }
 
+/** A card search's language: one language, or `any` for every printing in the language it was printed in. */
+export type CardSearchLanguage = CardLanguage | 'any';
+
+/** The language a printing is saved in when searching any language: English when it has an English print. */
+export function primaryCardLanguage(names: unknown): CardLanguage | undefined {
+  const languages = cardLanguagesFromNames(names);
+  return languages.includes('en') ? 'en' : languages[0];
+}
+
 /** A binder's saved languages in canonical order; null when nothing valid is saved (use the default). */
 export function normalizeBinderCardLanguages(value: unknown): CardLanguage[] | null {
   if (!Array.isArray(value)) return null;

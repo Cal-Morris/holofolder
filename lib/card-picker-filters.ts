@@ -6,6 +6,7 @@
  * printings that exist in it, and a finish (Normal, Holo, Reverse or a rarity finish such as IR) is what
  * gets recorded on the slot. "Any" leaves both to the picked card.
  */
+import type { CardSearchLanguage } from '@/lib/card-languages';
 import { isStandardFinishVariantKey, type CardFinishPrice } from '@/lib/card-pricing';
 import type { CardFilters } from '@/hooks/use-tcgdex';
 import type { CardFinish, CardLanguage, TCGCard } from '@/lib/domain/cards';
@@ -77,7 +78,7 @@ export function getPokemonFilterOptions(
 
 export interface CardPickerFilterState {
   filters: CardFilters;
-  language: CardLanguage;
+  language: CardSearchLanguage;
   defaultLanguage: CardLanguage;
   variant: CardPickerVariantChoice;
   sort: CardPickerSort;
@@ -104,7 +105,10 @@ export function getActiveFilterChips(
   if (state.language !== state.defaultLanguage) {
     chips.push({
       key: 'language',
-      label: CARD_PICKER_LANGUAGES.find((language) => language.id === state.language)?.label ?? state.language,
+      label:
+        state.language === 'any'
+          ? 'Any language'
+          : (CARD_PICKER_LANGUAGES.find((language) => language.id === state.language)?.label ?? state.language),
     });
   }
   if (state.variant !== 'any') {

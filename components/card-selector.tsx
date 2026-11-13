@@ -28,6 +28,7 @@ import {
   type CardPickerSort,
 } from '@/lib/card-selector-sort';
 import {
+  CARD_PICKER_LANGUAGES,
   getActiveFilterChips,
   getPokemonFilterOptions,
   getCardPickerFinishChoices,
@@ -68,7 +69,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { SelectorMenu } from '@/components/collection-navigation/selector-menu';
-import { cardMatchesLanguages } from '@/lib/card-languages';
+import { cardMatchesLanguages, type CardSearchLanguage } from '@/lib/card-languages';
 
 export type CardSelectorMode = 'collect' | 'wishlist';
 
@@ -253,7 +254,13 @@ export default function CardSelector({
   const [speciesCards, setCards] = useState<TCGCard[]>([]);
   const [filters, setFilters] = useState<CardFilters>(() => (anyCard?.query ? { searchQuery: anyCard.query } : {}));
   const [sort, setSort] = useState<CardPickerSort>(readCardPickerSort);
-  const [selectedCardLanguage, setSelectedCardLanguage] = useState<CardLanguage>(defaultCardLanguage ?? 'en');
+  const [selectedCardLanguage, setSelectedCardLanguage] = useState<CardSearchLanguage>(defaultCardLanguage ?? 'en');
+  // "Any" saves and prices each card in its own printing's language.
+  const fixedLanguage = selectedCardLanguage === 'any' ? undefined : selectedCardLanguage;
+  const priceLanguage = useCallback(
+    (card: TCGCard): CardLanguage => fixedLanguage ?? (isCardLanguage(card.language) ? card.language : 'en'),
+    [fixedLanguage],
+  );
   // Any-card mode searches the whole catalog as you type; a reserved printing is looked up by its own ID.
   const isAnyCard = Boolean(anyCard),
     reservedCardId = anyCard?.cardId;
@@ -285,9 +292,17 @@ export default function CardSelector({
                 ? card.language
                 : catalogSearch.offline
                   ? undefined
-                  : selectedCardLanguage,
+                  : fixedLanguage,
             })),
-    [isAnyCard, reservedCardId, catalogSearch.cards, catalogSearch.offline, selectedCardLanguage, speciesCards],
+    [
+      isAnyCard,
+      reservedCardId,
+      catalogSearch.cards,
+      catalogSearch.offline,
+      selectedCardLanguage,
+      fixedLanguage,
+      speciesCards,
+    ],
   );
   const isLoading = anyCard ? catalogSearch.loading : isLoadingSpecies;
   const error = anyCard ? null : speciesError;
@@ -321,8 +336,8 @@ export default function CardSelector({
     [recordedFinish],
   );
   const priceLookups = useMemo(
-    () => cards.map((card) => ({ cardId: card.id, language: selectedCardLanguage })),
-    [cards, selectedCardLanguage],
+    () => cards.map((card) => ({ cardId: card.id, language: priceLanguage(card) })),
+    [cards, priceLanguage],
   );
   const { pricesByCardId, isLoading: isLoadingPrices } = useRegionalCardPrices(
     priceLookups,
@@ -375,7 +390,7 @@ export default function CardSelector({
     (card: TCGCard, finish?: CardFinish) => {
       if (native) {
         const pick = {
-          card: isAnyCard ? card : { ...card, language: selectedCardLanguage },
+          card: isAnyCard ? card : { ...card, language: fixedLanguage ?? card.language },
           finish: finish ?? recordedFinish ?? undefined,
         };
         if (several) setPicks((current) => (current.length < room ? [...current, pick] : current));
@@ -384,25 +399,15 @@ export default function CardSelector({
       }
       completeCardSelectorSelection({
         onClose,
-        onSelect: () => onSelect({ ...card, language: selectedCardLanguage }, selectionMode, finish ?? finishFor(card)),
+        onSelect: () =>
+          onSelect({ ...card, language: fixedLanguage ?? card.language }, selectionMode, finish ?? finishFor(card)),
       });
     },
-    [
-      finishFor,
-      isAnyCard,
-      native,
-      onClose,
-      onSelect,
-      recordedFinish,
-      room,
-      selectedCardLanguage,
-      selectionMode,
-      several,
-    ],
+    [finishFor, isAnyCard, native, onClose, onSelect, recordedFinish, room, fixedLanguage, selectionMode, several],
   );
   const [pendingCard, setPendingCard] = useState<TCGCard | null>(null);
   const pendingSnapshot = pendingCard
-    ? pricesByCardId[getCardPriceKey(pendingCard.id, selectedCardLanguage)]
+    ? pricesByCardId[getCardPriceKey(pendingCard.id, priceLanguage(pendingCard))]
     : undefined;
   const pendingFinishPrices = getRegionalFinishPrices(pendingSnapshot, pricingRegion);
   const pendingChoices = pendingCard
@@ -426,7 +431,7 @@ export default function CardSelector({
           card.variants,
           inferCardFinish(card),
           variantChoice,
-          pricesByCardId[getCardPriceKey(card.id, selectedCardLanguage)]?.finishPrices,
+          pricesByCardId[getCardPriceKey(card.id, priceLanguage(card))]?.finishPrices,
         ).length > 0
       ) {
         setPendingCard(card);
@@ -434,7 +439,7 @@ export default function CardSelector({
       }
       selectCard(card);
     },
-    [selectCard, variantChoice, pricesByCardId, selectedCardLanguage, several, picks, room],
+    [selectCard, variantChoice, pricesByCardId, priceLanguage, several, picks, room],
   );
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
   useEffect(() => {
@@ -535,7 +540,8 @@ export default function CardSelector({
       ),
     [binderLanguageFilter, isAnyCard, cards, filters, filterCards, pokemonCardIds, variantFilter],
   );
-  const filtersMatchBinder = !targetLanguages || (matchBinder && targetLanguages.includes(selectedCardLanguage));
+  const filtersMatchBinder =
+    !targetLanguages || (matchBinder && fixedLanguage !== undefined && targetLanguages.includes(fixedLanguage));
   const scanRankById = useMemo(() => {
     return new Map(scanMatches.map((match, index) => [match.card.id, index + 1]));
   }, [scanMatches]);
@@ -556,7 +562,7 @@ export default function CardSelector({
         sort,
         (card) =>
           getCardPickerSortAmount(
-            pricesByCardId[getCardPriceKey(card.id, selectedCardLanguage)],
+            pricesByCardId[getCardPriceKey(card.id, priceLanguage(card))],
             finishFor(card),
             pricingRegion,
           ),
@@ -578,7 +584,7 @@ export default function CardSelector({
 
       return left.localId.localeCompare(right.localId, undefined, { numeric: true, sensitivity: 'base' });
     });
-  }, [filteredCards, pricesByCardId, pricingRegion, scanRankById, selectedCardLanguage, finishFor, likelyRank, sort]);
+  }, [filteredCards, pricesByCardId, pricingRegion, scanRankById, priceLanguage, finishFor, likelyRank, sort]);
 
   const uniqueSets = useMemo(() => {
     return [...new Map(cards.map((card) => [card.set.id, card.set])).values()]
@@ -1303,6 +1309,7 @@ export default function CardSelector({
               onSortChange={updateSort}
               language={selectedCardLanguage}
               onLanguageChange={setSelectedCardLanguage}
+              allowAnyLanguage={isAnyCard}
               variant={variantChoice}
               onVariantChange={setVariantChoice}
               pokemon={pokemonFilter}
@@ -1353,7 +1360,7 @@ export default function CardSelector({
                     {scanMatches.length > 0 && (
                       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         {scanMatches.map((match, index) => {
-                          const price = pricesByCardId[getCardPriceKey(match.card.id, selectedCardLanguage)];
+                          const price = pricesByCardId[getCardPriceKey(match.card.id, priceLanguage(match.card))];
                           const priceLabels = getCardSelectorPriceLabels(price, formatAmount);
 
                           return (
@@ -1516,7 +1523,7 @@ export default function CardSelector({
               ) : (
                 <div className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5">
                   {displayedCards.map((card) => {
-                    const price = pricesByCardId[getCardPriceKey(card.id, selectedCardLanguage)];
+                    const price = pricesByCardId[getCardPriceKey(card.id, priceLanguage(card))];
                     const priceLabels = getCardSelectorPriceLabels(price, formatAmount);
                     const pickNumber = several ? picks.findIndex((pick) => pick.card.id === card.id) + 1 : 0;
                     const isCurrent = pickNumber > 0 || matchesCatalogCardId(card, activeSelectedCardId);
@@ -1609,7 +1616,15 @@ export default function CardSelector({
                               .join(' · ')}
                           </p>
                           <div className="mt-1 flex items-center justify-between gap-1">
-                            <p className="text-muted-foreground text-[9px] sm:text-[10px]">#{card.localId}</p>
+                            <p className="text-muted-foreground text-[9px] sm:text-[10px]">
+                              #{card.localId}
+                              {selectedCardLanguage === 'any' && card.language && (
+                                <span className="ml-1 font-semibold uppercase">
+                                  {CARD_PICKER_LANGUAGES.find((language) => language.id === card.language)
+                                    ?.shortLabel ?? card.language}
+                                </span>
+                              )}
+                            </p>
                             <span
                               aria-hidden="true"
                               className={`flex items-center gap-0.5 text-[9px] font-bold uppercase sm:text-[10px] ${intentTextClass}`}

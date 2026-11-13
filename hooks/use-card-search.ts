@@ -4,7 +4,7 @@
 // mirror (grouped by Pokémon), falling back to the cards on this device when offline, plus fuzzy illustrator
 // matches from the directory (saved on the device after the first load) and set hits from the set search.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CardLanguage } from '@/lib/domain/cards';
+import type { CardSearchLanguage } from '@/lib/card-languages';
 import { trackGoogleEvent } from '@/lib/google-analytics';
 import { getPokemonSummary } from '@/lib/pokemon-catalog';
 import {
@@ -44,7 +44,7 @@ export function useCardSearch(
   query: string,
   enabled: boolean,
   getOfflineCards?: () => Promise<SearchCardResult[]>,
-  options?: { language?: CardLanguage; includeNonPokemon?: boolean },
+  options?: { language?: CardSearchLanguage; includeNonPokemon?: boolean },
 ) {
   const [state, setState] = useState<CardSearchState>({
     key: '',
@@ -76,7 +76,7 @@ export function useCardSearch(
       const eligible = cards.filter(
         (c) =>
           (includeNonPokemon || c.dexIds.length > 0) &&
-          (!language || c.language === undefined || c.language === language),
+          (!language || language === 'any' || c.language === undefined || c.language === language),
       );
       const result = searchOfflineCardsWithCorrection(eligible, searchText);
       return { cards: result.cards, groups: groupCards(result.cards), correction: result.correction };

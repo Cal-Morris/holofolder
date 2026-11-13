@@ -45,6 +45,10 @@ describe('card picker filters', () => {
       chips.map((chip) => chip.label),
       ['Price: high to low', 'Japanese', 'Holo', '151', 'Common'],
     );
+    assert.deepEqual(
+      getActiveFilterChips({ ...base, language: 'any' }, () => undefined).map((chip) => chip.label),
+      ['Any language'],
+    );
   });
 });
 

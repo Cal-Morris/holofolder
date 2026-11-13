@@ -156,6 +156,37 @@ test.describe('explicit stable-slot picker', () => {
     await harness.expectScrollUnlocked();
   });
 
+  test('searching any language finds a Japanese-only printing and saves it as Japanese', async ({ harness }) => {
+    const { page } = harness;
+    const { cards } = syntheticSlotPickerSnapshot();
+    const languages: (string | null)[] = [];
+    // A synthetic printing served as Japanese-only, returned only when the search asks for every language.
+    await page.route('**/app/api/tcg-card-search**', (route) => {
+      const language = new URL(route.request().url()).searchParams.get('language');
+      languages.push(language);
+      const japanese = { ...cards[3], language: 'ja' };
+      return route.fulfill({ json: { cards: language === 'any' ? [cards[0], japanese] : [cards[0]] } });
+    });
+    const dialog = await search(page, 'slot-g', 'snorlax');
+    await expect(tile(dialog, 'Snorlax A')).toBeVisible();
+    await expect(tile(dialog, 'Energy')).toHaveCount(0);
+    await dialog.getByRole('button', { name: /filters · sort/i }).click();
+    const filters = page.getByRole('dialog', { name: 'Filters and sort' });
+    await filters.getByRole('button', { name: 'Any language', exact: true }).click();
+    await filters.getByRole('button', { name: /^Show \d+ cards?$/ }).click();
+    await expect(filters).toHaveCount(0);
+    const japanese = tile(dialog, 'Energy');
+    await expect(japanese).toContainText('JA');
+    expect(languages).toContain('any');
+    await harness.expectNoHorizontalOverflow();
+    await japanese.click();
+    await variant(page)
+      .getByRole('button', { name: /^Add Normal/ })
+      .click();
+    await expect(count(page)).toHaveText('1');
+    expect(JSON.stringify(await draft(page))).toContain('"language":"ja"');
+  });
+
   test('a pocket kept for one printing shows that printing in the selector and saves it', async ({ harness }) => {
     const { page } = harness;
     await pocket(page, 'slot-f').click();
