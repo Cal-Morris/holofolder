@@ -113,8 +113,8 @@ export function buildBrowseEntries<TCard extends BrowseCard>(
     collectionItem && collectionItem.status !== 'wishlisted' ? (collectionItem.card_id ?? null) : null;
   const wantedIds = new Set((collectionItem?.wanted_cards ?? []).map((wanted) => wanted.card_id));
 
-  return [...cards]
-    .sort(compareBrowseCards)
+  return cards
+    .toSorted(compareBrowseCards)
     .map((card) => ({
       card,
       owned: matchesCatalogCardId(card, ownedCardId),
@@ -203,5 +203,5 @@ export function groupCardResultsByPokemon<TCard extends SearchCardResult>(
 
   return Array.from(groups.values())
     .slice(0, maxGroups)
-    .map((group) => ({ ...group, cards: [...group.cards].sort(compareBrowseCards).slice(0, maxCardsPerGroup) }));
+    .map((group) => ({ ...group, cards: group.cards.toSorted(compareBrowseCards).slice(0, maxCardsPerGroup) }));
 }

@@ -286,7 +286,7 @@ export async function recognizeCardTextSignalsFromImage(
   const tesseractSignals: Array<CardTextSignals | null> = [];
   const tesseractImages = options.regions
     ? ocrImages
-    : [...ocrImages].sort((left, right) => {
+    : ocrImages.toSorted((left, right) => {
         const order: Record<CardOcrRegion['key'], number> = {
           'number-left': 0,
           'number-right': 1,

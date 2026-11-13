@@ -20,7 +20,7 @@ const newestFirst = (left: TCGSetSummary, right: TCGSetSummary) =>
  */
 export function groupSetsBySeries(sets: readonly TCGSetSummary[]): SetSeriesGroup[] {
   const groups = new Map<string, TCGSetSummary[]>();
-  for (const set of [...sets].sort(newestFirst)) {
+  for (const set of sets.toSorted(newestFirst)) {
     const series = set.seriesName?.trim() || OTHER_SERIES;
     groups.set(series, [...(groups.get(series) ?? []), set]);
   }

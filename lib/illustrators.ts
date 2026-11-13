@@ -133,7 +133,7 @@ export function buildIllustratorDirectory(rows: Iterable<{ name: unknown; count?
     const existing = byName.get(name);
     byName.set(name, { name, cardCount: (existing?.cardCount ?? 0) + count });
   }
-  return [...byName.values()].sort((a, b) => b.cardCount - a.cardCount || a.name.localeCompare(b.name));
+  return Array.from(byName.values()).sort((a, b) => b.cardCount - a.cardCount || a.name.localeCompare(b.name));
 }
 
 export function isIllustratorDirectory(value: unknown): value is IllustratorSummary[] {
@@ -247,8 +247,8 @@ export function buildIllustratorEntries(
   }
 
   const needle = normalizeIllustratorText(text);
-  return [...cards]
-    .sort(compareIllustratorCards(sort, priceOf))
+  return cards
+    .toSorted(compareIllustratorCards(sort, priceOf))
     .map((card) => {
       const ids = catalogCardIds(card);
       return {

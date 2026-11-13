@@ -37,7 +37,7 @@ export function groupGlobalWanted(entries: readonly WantedDashboardEntry[]) {
       continue;
     }
     previous.locations!.push(...locations);
-    const ids = [...new Set([...(previous.card.wanted_by ?? []), ...(entry.card.wanted_by ?? [])])].sort();
+    const ids = Array.from(new Set([...(previous.card.wanted_by ?? []), ...(entry.card.wanted_by ?? [])])).sort();
     if (ids.length) previous.card.wanted_by = ids;
   }
   return [...grouped.values()];

@@ -1196,10 +1196,10 @@ async function buildMirrorPayload(projectRoot: string, logger?: (message: string
   }
 
   return {
-    series: [...seriesById.values()].sort((a, b) => a.id.localeCompare(b.id)),
-    sets: [...setsById.values()].sort((a, b) => a.id.localeCompare(b.id)),
-    cards: [...cardsById.values()].sort((a, b) => a.id.localeCompare(b.id)),
-    externalSources: [...externalSourcesByCardId.values()].sort((a, b) => a.card_id.localeCompare(b.card_id)),
+    series: Array.from(seriesById.values()).sort((a, b) => a.id.localeCompare(b.id)),
+    sets: Array.from(setsById.values()).sort((a, b) => a.id.localeCompare(b.id)),
+    cards: Array.from(cardsById.values()).sort((a, b) => a.id.localeCompare(b.id)),
+    externalSources: Array.from(externalSourcesByCardId.values()).sort((a, b) => a.card_id.localeCompare(b.card_id)),
     dexLinks: [...dexLinks]
       .map((key) => {
         const [cardId, dexId] = key.split(':');

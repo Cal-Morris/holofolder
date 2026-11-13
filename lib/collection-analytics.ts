@@ -92,7 +92,7 @@ function exactQuote(
       return (
         matching.map((price) => quoteFromSource(price, source, finish, true)).find((price) => price !== null) ?? null
       );
-    const preferred = [...matching].sort(
+    const preferred = matching.toSorted(
       (a, b) => Number(b.source === snapshot.source) - Number(a.source === snapshot.source),
     );
     return (
@@ -396,7 +396,7 @@ export function buildAnalyticsBreakdown(summary: ReturnType<typeof buildCollecti
     sets.set(name, set);
   }
   return {
-    sets: [...sets.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+    sets: Array.from(sets.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
     unpriced: owned.filter((card) => card.amount === null),
     topCards: owned
       .filter((card) => card.amount !== null)

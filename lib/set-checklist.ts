@@ -55,7 +55,7 @@ export function mergeSetSlots(groups: TCGSetDexSlot[][]): TCGSetDexSlot[] {
       });
     }
   }
-  return [...slots.values()].sort((left, right) => left.dexId - right.dexId);
+  return Array.from(slots.values()).sort((left, right) => left.dexId - right.dexId);
 }
 
 export function matchesSetSlotFilter(slot: TCGSetDexSlot, item: CollectedPokemon | undefined, filter: SetSlotFilter) {

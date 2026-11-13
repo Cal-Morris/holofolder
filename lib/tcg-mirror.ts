@@ -509,7 +509,7 @@ export async function getMirroredSetDexSlots(
   return {
     selectedSet,
     cards,
-    slots: [...slotMap.values()].sort((left, right) => left.dexId - right.dexId),
+    slots: Array.from(slotMap.values()).sort((left, right) => left.dexId - right.dexId),
   };
 }
 

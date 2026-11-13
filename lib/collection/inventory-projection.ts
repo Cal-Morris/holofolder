@@ -116,7 +116,7 @@ function summarizeInventoryProjection(
     wants,
     priceIdentities,
     priceRequests,
-    speciesIds: [...new Set(owned.flatMap((i) => i.pokemonIds ?? []))].sort((a, b) => a - b),
+    speciesIds: Array.from(new Set(owned.flatMap((i) => i.pokemonIds ?? []))).sort((a, b) => a - b),
     unknownSpeciesCopies: owned.filter((i) => i.pokemonIds === null).length,
   };
 }

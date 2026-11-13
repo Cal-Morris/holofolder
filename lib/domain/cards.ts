@@ -73,8 +73,8 @@ export interface WantedCard {
 
 export function normalizeWantedPeople(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
-  return [
-    ...new Set(
+  return Array.from(
+    new Set(
       value
         .filter(
           (id): id is string =>
@@ -82,7 +82,7 @@ export function normalizeWantedPeople(value: unknown): string[] | undefined {
         )
         .map((id) => id.toLowerCase()),
     ),
-  ]
+  )
     .sort()
     .slice(0, 2);
 }

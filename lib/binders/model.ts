@@ -69,7 +69,7 @@ export function binderFromRow(row: Record<string, unknown>): Binder | null {
 
 /** Default first, then sort order, then creation time: the order the switcher shows. */
 export function sortBinders(binders: readonly Binder[]) {
-  return [...binders].sort(
+  return binders.toSorted(
     (a, b) =>
       a.sortOrder - b.sortOrder || (a.createdAt ?? '').localeCompare(b.createdAt ?? '') || a.id.localeCompare(b.id),
   );

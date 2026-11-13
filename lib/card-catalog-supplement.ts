@@ -304,7 +304,7 @@ export function buildCatalogSupplement(input: {
     const tcgdexCardId = typeof base.raw_json.id === 'string' ? base.raw_json.id : base.id;
     const standardVariants = variants(base).filter((v) => v.size !== 'jumbo');
     const baseVariant = standardVariants.find((v) => !v.stamp?.length) ?? standardVariants[0];
-    const stampKey = (variant: Variant | undefined) => [...(variant?.stamp ?? [])].sort().join('|');
+    const stampKey = (variant: Variant | undefined) => (variant?.stamp ?? []).toSorted().join('|');
     const seenStamps = new Set([stampKey(baseVariant)]);
     for (const variant of standardVariants) {
       const pid = productId(variant.thirdParty?.tcgplayer);
@@ -320,8 +320,8 @@ export function buildCatalogSupplement(input: {
         unresolved.push({ source: 'tcgcsv', id: pid, reason: `Product identity does not match ${base.id}` });
         continue;
       }
-      const printingLabel = [...variant.stamp]
-        .sort()
+      const printingLabel = variant.stamp
+        .toSorted()
         .map((s) => STAMP_LABELS[s] ?? s.replaceAll('-', ' '))
         .join(', ');
       const id =

@@ -176,7 +176,7 @@ export function aggregatePageSlotScanMatches<TCard>(
 export function rerankAggregatedCardScanMatches<TCard>(
   matches: AggregatedCardScanMatch<TCard>[],
 ): AggregatedCardScanMatch<TCard>[] {
-  const ranked = [...matches].sort((left, right) => {
+  const ranked = matches.toSorted((left, right) => {
     if (right.similarity !== left.similarity) return right.similarity - left.similarity;
     if (right.confidence !== left.confidence) return right.confidence - left.confidence;
     if (right.appearances !== left.appearances) return right.appearances - left.appearances;

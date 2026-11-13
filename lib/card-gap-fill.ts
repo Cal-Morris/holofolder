@@ -210,7 +210,7 @@ function choose(matches: Candidate[]) {
   const plain = matches.filter((m) => !m.qualified);
   if (plain.length === 1) return plain[0];
   if (matches.every((m) => m.finishOnly))
-    return [...matches].sort(
+    return matches.toSorted(
       (a, b) => Number(a.productId ?? 0) - Number(b.productId ?? 0) || a.key.localeCompare(b.key),
     )[0];
   return undefined;

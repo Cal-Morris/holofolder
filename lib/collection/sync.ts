@@ -22,7 +22,7 @@ export function collectionFingerprint(item: Partial<CollectedPokemon> | null | u
     wanted: normalized.wanted_cards
       .map(
         (card) =>
-          `${wantedKey(card)}${card.wanted_by === undefined ? '' : `:wanted-by:${[...card.wanted_by].sort().join(',')}`}`,
+          `${wantedKey(card)}${card.wanted_by === undefined ? '' : `:wanted-by:${card.wanted_by.toSorted().join(',')}`}`,
       )
       .sort(),
   });

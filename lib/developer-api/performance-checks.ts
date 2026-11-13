@@ -32,7 +32,7 @@ export function readServerTiming(header: string | null, name: string): number | 
 }
 function median(values: number[]) {
   if (!values.length) return null;
-  const sorted = [...values].sort((a, b) => a - b),
+  const sorted = values.toSorted((a, b) => a - b),
     middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }

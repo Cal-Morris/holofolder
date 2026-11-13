@@ -164,7 +164,7 @@ export function regionalizeCardPrice<T extends CardPriceSnapshot>(
   );
 
   // Anchor on the native source nearest the regional price, preferring the region's own currency.
-  const anchor = [...native].sort((left, right) => {
+  const anchor = native.toSorted((left, right) => {
     const leftOrder = getSourceMarket(left) === nativeMarkets[0] ? 0 : 1;
     const rightOrder = getSourceMarket(right) === nativeMarkets[0] ? 0 : 1;
     return (

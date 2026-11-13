@@ -137,7 +137,7 @@ function finish(plan: Prepared): InventoryPlan {
     plan.snapshot.inventoryRevision++;
   }
   for (const key of ['inventoryItemIds', 'slotIds', 'collectionIds'] as const) {
-    plan.context.affectedEntities[key] = [...new Set(plan.context.affectedEntities[key])].sort();
+    plan.context.affectedEntities[key] = Array.from(new Set(plan.context.affectedEntities[key])).sort();
   }
   return plan;
 }

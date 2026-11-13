@@ -90,18 +90,18 @@ function buildSetChecklist(input: SetChecklistInput, preserveCapturedOrder: bool
       if (isPromo && !promoCardIds.includes(cardId)) promoCardIds.push(cardId);
     }
   }
-  const excludedCardIds = [
-    ...new Set(
+  const excludedCardIds = Array.from(
+    new Set(
       input.excludedCardIds.map((id) => {
         const canonical = aliases.get(id);
         if (!canonical) throw new Error('Unknown exclusion');
         return canonical;
       }),
     ),
-  ].sort();
+  ).sort();
   const cards = preserveCapturedOrder
     ? [...byId.values()]
-    : [...byId.values()].sort(
+    : Array.from(byId.values()).sort(
         (a, b) =>
           Number(promoCardIds.includes(a.cardId)) - Number(promoCardIds.includes(b.cardId)) ||
           compareCollectorNumbers(a.localId, b.localId) ||

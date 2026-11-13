@@ -180,13 +180,13 @@ export async function executeNativeDeveloperRead(context: OperationContext, name
         JSON.stringify({
           actor: context.principal.actorId,
           owner: context.ownerUserId,
-          members: [...context.memberIds].sort(),
+          members: context.memberIds.toSorted(),
           credential: context.principal.credentialId,
           transport: context.principal.transport,
-          permissions: [...context.principal.permissions].sort(),
+          permissions: context.principal.permissions.toSorted(),
           oauth: oauth ? { sessionId: oauth.sessionId, clientId: oauth.clientId, expiresAt: oauth.expiresAt } : null,
           name,
-          query: [...params].sort(),
+          query: Array.from(params).sort(),
         }),
       )
       .digest('hex');

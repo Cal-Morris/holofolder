@@ -29,7 +29,7 @@ export async function readPresetPrintings(
   check: () => void,
   account: (value: unknown) => void,
 ) {
-  const ids = [...new Set(printings.map((p) => p.cardId))].sort();
+  const ids = Array.from(new Set(printings.map((p) => p.cardId))).sort();
   if (!ids.length) return printingPreset([]);
   if (ids.length > limits.uniquePrintings)
     throw new DeveloperAccessError('preset_scope_too_large', 'Select at most 25 unique mirrored printings.', 400);

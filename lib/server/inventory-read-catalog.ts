@@ -36,7 +36,7 @@ export function buildInventoryCatalog({ cards, dex, sets }: InventoryCatalogRows
     )
       continue;
     const metadata = readCatalogMetadata(raw.external_ids_json);
-    const pokemonIds = [...new Set(dexByCard.get(raw.id) ?? [])].sort((a, b) => a - b);
+    const pokemonIds = Array.from(new Set(dexByCard.get(raw.id) ?? [])).sort((a, b) => a - b);
     const names = [
       ...new Set(
         (dexByCard.get(raw.id) ?? []).flatMap((id) => {

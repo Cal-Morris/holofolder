@@ -79,7 +79,7 @@ export function automaticBulkFillChoices(
   const choices: BulkFillChoices = {},
     used = new Set<string>();
   const binder = snapshot.binders.find((b) => b.collectionId === scope.collectionId)!;
-  const items = [...snapshot.items].sort((a, b) => a.id.localeCompare(b.id));
+  const items = snapshot.items.toSorted((a, b) => a.id.localeCompare(b.id));
   for (const { slot } of selection.slots) {
     if (slot.inventoryItemId || isFillSpacer(binder, slot)) {
       choices[slot.id] = null;

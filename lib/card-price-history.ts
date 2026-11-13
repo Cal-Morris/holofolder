@@ -76,7 +76,7 @@ export function normalizePriceHistory(value: unknown): CardPriceHistoryPoint[] {
     };
     points.set(`${point.date}:${point.productId}:${point.finish}`, point);
   }
-  return [...points.values()]
+  return Array.from(points.values())
     .sort((a, b) => a.date.localeCompare(b.date) || a.finish.localeCompare(b.finish))
     .slice(-PRICE_HISTORY_DAYS * 3);
 }

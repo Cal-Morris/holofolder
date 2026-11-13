@@ -1223,7 +1223,7 @@ function average(values: number[]) {
 
 function percentile(values: number[], ratio: number) {
   if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
+  const sorted = values.toSorted((a, b) => a - b);
   const index = clamp(Math.round((sorted.length - 1) * ratio), 0, sorted.length - 1);
   return sorted[index];
 }

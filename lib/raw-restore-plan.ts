@@ -80,7 +80,7 @@ export function planRawContentRestore(input: {
       ) ||
     backupContentKey(input.choices.slotIds) !== backupContentKey(binder.slots.map((s) => s.id)) ||
     backupContentKey(sourceBinder.slots.map((s) => s.id).sort()) !==
-      backupContentKey([...input.choices.slotIds].sort()) ||
+      backupContentKey(input.choices.slotIds.toSorted()) ||
     sourceBinder.slots.some(
       (s) =>
         backupContentKey(s.presetOrigin) !== backupContentKey(binder.slots.find((b) => b.id === s.id)?.presetOrigin),
@@ -94,7 +94,7 @@ export function planRawContentRestore(input: {
     ...current.placements.filter((p) => p.collectionId === collectionId).map((p) => p.inventoryItemId),
   ]);
   const items: RawRestoreCommand['items'] = [];
-  for (const id of [...touched].sort()) {
+  for (const id of Array.from(touched).sort()) {
     const item = current.items.find((i) => i.id === id),
       original = desired.items.find((i) => i.id === id);
     const placement = current.placements.find((p) => p.inventoryItemId === id);
@@ -126,7 +126,7 @@ export function planRawContentRestore(input: {
     });
   }
   const releases = items.filter((i) => i.placement && !desiredIds.has(i.itemId)).map((i) => i.itemId);
-  if (backupContentKey([...input.choices.releaseItemIds].sort()) !== backupContentKey(releases)) return fail();
+  if (backupContentKey(input.choices.releaseItemIds.toSorted()) !== backupContentKey(releases)) return fail();
   if (
     rawRestoreSavedEntries(desired.binders[0].slots) - rawRestoreSavedEntries(binder.slots) >
     input.savedEntryRemaining

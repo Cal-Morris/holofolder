@@ -248,7 +248,7 @@ export function parseRawRestoreCommand(value: unknown): RawRestoreCommand {
     .filter((r) => r.placement && !desired.has(r.itemId))
     .map((r) => r.itemId)
     .sort();
-  if (backupContentKey(releases) !== backupContentKey([...value.releaseItemIds].sort())) return invalid();
+  if (backupContentKey(releases) !== backupContentKey(value.releaseItemIds.toSorted())) return invalid();
   const slotPairs = value.slots;
   const binder = normalizeBinderSnapshot({
     ownerUserId: 'validation',
@@ -358,8 +358,8 @@ export function isRawRestoreReceipt(value: unknown): value is RawRestoreReceipt 
     ids(value.slotOrder.before, limits.slots) &&
     ids(value.slotOrder.after, limits.slots) &&
     backupContentKey(value.slotOrder.after) === backupContentKey(value.slotIds) &&
-    backupContentKey([...(value.slotOrder.before as string[])].sort()) ===
-      backupContentKey([...(value.slotOrder.after as string[])].sort()) &&
+    backupContentKey((value.slotOrder.before as string[]).toSorted()) ===
+      backupContentKey((value.slotOrder.after as string[]).toSorted()) &&
     ids(value.slotIds, limits.slots) &&
     ids(value.releasedItemIds, limits.items)
   );
