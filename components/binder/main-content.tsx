@@ -508,11 +508,6 @@ export function renderMainContentView(ctx: MainContentContext) {
               </div>
             )}
 
-            {(settings.binderRows > 4 || settings.binderCols > 4) && (
-              <p className="text-muted-foreground shrink-0 text-center text-xs">
-                Scroll inside the page to see every pocket. Use the arrows to turn pages.
-              </p>
-            )}
             {/* Binder Grid */}
             <div
               ref={setBinderStageRef}
