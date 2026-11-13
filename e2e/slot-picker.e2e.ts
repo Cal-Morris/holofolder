@@ -606,8 +606,9 @@ test.describe('explicit stable-slot picker', () => {
     await expect(tile(dialog, 'Kabigon')).toHaveCount(0);
     await expect(dialog.getByText('Your filters don’t match this binder’s settings.')).toHaveCount(0);
 
-    await dialog.getByRole('button', { name: 'Binder filter' }).click();
-    await page.getByRole('menuitemradio', { name: 'All cards' }).click();
+    await dialog.getByRole('button', { name: /^Filters/ }).click();
+    await page.getByRole('button', { name: 'Only this binder’s languages' }).click();
+    await page.getByRole('button', { name: 'Close filters' }).click();
     await expect(tile(dialog, 'Kabigon')).toBeVisible();
     await expect(dialog.getByText('Your filters don’t match this binder’s settings.')).toBeVisible();
     await harness.expectNoHorizontalOverflow();

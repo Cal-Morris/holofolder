@@ -67,7 +67,7 @@ export function getRecordedFinish(choice: CardPickerVariantChoice): CardFinish |
   return choice === 'any' || choice === 'first_edition' ? null : choice;
 }
 
-export type CardPickerFilterKey = 'language' | 'pokemon' | 'set' | 'rarity' | 'variant' | 'sort';
+export type CardPickerFilterKey = 'binder' | 'language' | 'pokemon' | 'set' | 'rarity' | 'variant' | 'sort';
 
 /** Pokémon featured in search results, by name, so "mew" can drop the MEW (151) set hits. */
 export function getPokemonFilterOptions(
