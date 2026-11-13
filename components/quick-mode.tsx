@@ -82,9 +82,10 @@ import { MomentumSortChips } from '@/components/momentum-sort-chips';
 import { applyMomentumSort, type MomentumSort } from '@/lib/momentum-sort';
 const QuickCardCheck = dynamic(() => import('@/components/quick-card-check'), { ssr: false });
 const QuickBundle = dynamic(() => import('@/components/quick-bundle'), { ssr: false });
+const NO_HIDDEN_DESTINATIONS: readonly QuickDestinationId[] = [];
 
 /** What to tell him when a scan lands in the search field instead of a deal check. */
-export function scanNoticeFor(result: CardScanResult): string | null {
+function scanNoticeFor(result: CardScanResult): string | null {
   const { outcome } = result;
   if (outcome.kind === 'match') return null;
   if (outcome.kind === 'choose') {
@@ -217,7 +218,7 @@ function QuickMode({
   formatPrice,
   pricingRegion = DEFAULT_PRICING_REGION,
   isOnline,
-  hiddenDestinations = [],
+  hiddenDestinations = NO_HIDDEN_DESTINATIONS,
   showModeOn = false,
   cardCheck,
   showTools = true,
@@ -225,6 +226,7 @@ function QuickMode({
   lookupOnly = false,
   cardStanding,
   offlineBinder,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: QuickModeProps) {
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
   const revisit = useShowRevisit(cardCheck?.revisitKey ?? null);
@@ -284,13 +286,15 @@ function QuickMode({
   const trimmed = query.trim();
   const destinations = useMemo(() => {
     const visible = (list: readonly QuickDestination[]) =>
-      list
-        .filter((entry) => !hiddenDestinations.includes(entry.id))
-        .map((entry) =>
-          entry.id === 'show-mode' && showModeOn
-            ? { ...entry, label: 'Exit Show mode', hint: 'Show mode is on' }
-            : entry,
-        );
+      list.flatMap((entry) =>
+        hiddenDestinations.includes(entry.id)
+          ? []
+          : [
+              entry.id === 'show-mode' && showModeOn
+                ? { ...entry, label: 'Exit Show mode', hint: 'Show mode is on' }
+                : entry,
+            ],
+      );
     return trimmed ? visible(matchQuickDestinations(trimmed)).slice(0, 3) : visible(matchQuickDestinations(''));
   }, [hiddenDestinations, showModeOn, trimmed]);
   const pokemonResults = useMemo(
@@ -522,7 +526,8 @@ function QuickMode({
         onAddToBundle={(entry) =>
           updateBundle((current) =>
             nativeConsumer
-              ? [...current, { ...entry, key: crypto.randomUUID() }]
+              ? // oxlint-disable-next-line react-doctor/rendering-hydration-mismatch-time -- runs in an event handler, never during render
+                [...current, { ...entry, key: crypto.randomUUID() }]
               : [...current.filter((item) => item.key !== entry.key), entry],
           )
         }
@@ -665,14 +670,19 @@ function QuickMode({
   );
 
   return (
-    <div className="fixed inset-0 z-[55] bg-black/60 sm:backdrop-blur-sm" data-overlay-backdrop onClick={onClose}>
+    <div className="fixed inset-0 z-[55]">
+      <div
+        data-overlay-backdrop
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 bg-black/60 sm:backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Quick mode"
         tabIndex={-1}
-        onClick={(event) => event.stopPropagation()}
         // While the phone's keyboard is up the dialog fits the visible part of the page (app/globals.css).
         data-keyboard-fit
         className={
@@ -758,6 +768,7 @@ function QuickMode({
                   nativeConsumer={
                     nativeConsumer && show?.readOnly ? { ...nativeConsumer, editingAvailable: false } : nativeConsumer
                   }
+                  // oxlint-disable-next-line react-doctor/jsx-no-jsx-as-prop -- the slot follows Quick mode's state on every render; ShowHunt memoises its heavy list sections separately
                   recentCards={
                     <>
                       {show.budgetKey && !show.readOnly && (

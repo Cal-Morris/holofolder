@@ -42,6 +42,13 @@ function chipClass(selected: boolean) {
  * Sort and filters for the want list in one bottom sheet, on the shared overlay primitive
  * (Escape/back closes it, focus is trapped and returned, swipe down to dismiss).
  */
+const group = (legend: string, children: React.ReactNode) => (
+  <fieldset className="space-y-1.5">
+    <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">{legend}</legend>
+    <div className="flex flex-wrap gap-1.5">{children}</div>
+  </fieldset>
+);
+
 export default function WantedFiltersSheet(props: WantedFiltersSheetProps) {
   const { onClose, filters, onFiltersChange } = props;
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -50,22 +57,20 @@ export default function WantedFiltersSheet(props: WantedFiltersSheetProps) {
 
   if (typeof document === 'undefined') return null;
 
-  const group = (legend: string, children: React.ReactNode) => (
-    <fieldset className="space-y-1.5">
-      <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">{legend}</legend>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
-    </fieldset>
-  );
-
   return createPortal(
-    <div data-overlay-backdrop className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-[2px]" onClick={onClose}>
+    <div className="fixed inset-0 z-[60]">
+      <div
+        data-overlay-backdrop
+        aria-hidden="true"
+        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
       <div
         ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-label="Sort and filter want list"
         className="border-border/65 bg-card absolute inset-x-0 bottom-0 mx-auto flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-[1.6rem] border-t pt-3 pr-[calc(env(safe-area-inset-right)+1rem)] pb-[calc(var(--safe-bottom)+0.75rem)] pl-[calc(env(safe-area-inset-left)+1rem)] shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] outline-none sm:bottom-4 sm:rounded-[1.6rem] sm:border"
-        onClick={(event) => event.stopPropagation()}
       >
         <div data-sheet-grabber className="-mx-4 -mt-3 shrink-0 px-4 pt-3" {...swipe}>
           <div aria-hidden="true" className="bg-muted-foreground/30 mx-auto mb-2 h-1.5 w-10 rounded-full" />
@@ -111,19 +116,21 @@ export default function WantedFiltersSheet(props: WantedFiltersSheetProps) {
 
           {group(
             'Price',
-            props.priceBands
-              .filter((band) => band.count > 0)
-              .map((band) => (
-                <button
-                  key={band.id}
-                  type="button"
-                  aria-pressed={filters.bands.includes(band.id)}
-                  onClick={() => onFiltersChange(toggleWantedFilter(filters, 'bands', band.id))}
-                  className={chipClass(filters.bands.includes(band.id))}
-                >
-                  {band.label} <span className="tabular-nums opacity-70">{band.count}</span>
-                </button>
-              )),
+            props.priceBands.flatMap((band) =>
+              band.count > 0
+                ? [
+                    <button
+                      key={band.id}
+                      type="button"
+                      aria-pressed={filters.bands.includes(band.id)}
+                      onClick={() => onFiltersChange(toggleWantedFilter(filters, 'bands', band.id))}
+                      className={chipClass(filters.bands.includes(band.id))}
+                    >
+                      {band.label} <span className="tabular-nums opacity-70">{band.count}</span>
+                    </button>,
+                  ]
+                : [],
+            ),
           )}
 
           {props.risingCount > 0 || props.dropCount > 0 || filters.risingOnly || filters.dropsOnly

@@ -45,6 +45,7 @@ export default function QuickBundle({
   onRemove,
   onClear,
   onSoldCheck,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: QuickBundleProps) {
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
   const billing = useBillingContext();
@@ -97,12 +98,14 @@ export default function QuickBundle({
     setChecking(true);
     const abort = new AbortController();
     controller.current = abort;
+    const { signal } = abort;
     const supported = entries.filter((entry) => (entry.card.language ?? 'en') === 'en' && entry.finish !== 'jumbo');
     setPending(Object.fromEntries(supported.map((entry) => [entry.key, { ebay: true, soldcomps: true }])));
     let cursor = 0;
     async function worker() {
-      while (cursor < supported.length && !abort.signal.aborted) {
+      while (cursor < supported.length && !signal.aborted) {
         const entry = supported[cursor++];
+        // oxlint-disable-next-line react-doctor/async-await-in-loop -- bounded worker pool: each worker checks one card at a time on purpose
         await Promise.all(
           (['ebay', 'soldcomps'] as const).map(async (source) => {
             try {
@@ -111,9 +114,9 @@ export default function QuickBundle({
                 entry.card.language ?? 'en',
                 entry.finish,
                 source,
-                abort.signal,
+                signal,
               );
-              if (abort.signal.aborted) return;
+              if (signal.aborted) return;
               setChecks((previous) => ({
                 ...previous,
                 [entry.key]: {
@@ -124,7 +127,7 @@ export default function QuickBundle({
               }));
               if (source === 'soldcomps' && check) onSoldCheck(entry.key, check);
             } catch (failure) {
-              if (abort.signal.aborted) return;
+              if (signal.aborted) return;
               const message =
                 failure instanceof Error && failure.name !== 'TimeoutError'
                   ? failure.message
@@ -137,7 +140,7 @@ export default function QuickBundle({
                 },
               }));
             } finally {
-              if (!abort.signal.aborted)
+              if (!signal.aborted)
                 setPending((previous) => ({ ...previous, [entry.key]: { ...previous[entry.key], [source]: false } }));
             }
           }),
@@ -145,7 +148,7 @@ export default function QuickBundle({
       }
     }
     await Promise.all([worker(), worker()]);
-    if (!abort.signal.aborted) setChecking(false);
+    if (!signal.aborted) setChecking(false);
   }
   const verdictEmptyText =
     nativeConsumer && !guide.complete

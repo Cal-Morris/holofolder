@@ -1,7 +1,7 @@
 'use client';
 
 import { useBillingContext } from '@/hooks/use-billing';
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { X, UserPlus, Users, Check, XIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ interface PartnerModalProps {
 export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProps) {
   const billing = useBillingContext();
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const inviteEmailId = useId();
   const [email, setEmail] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -75,7 +76,12 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
 
   return (
     <div className="fixed inset-0 z-50">
-      <div data-overlay-backdrop className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} />
+      <div
+        data-overlay-backdrop
+        aria-hidden="true"
+        className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div
         ref={dialogRef}
         role="dialog"
@@ -97,6 +103,7 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
             <h2 className="text-lg font-semibold">Partner Mode</h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Close partner mode"
             className="hover:bg-muted/70 mr-0.5 flex h-10 w-10 items-center justify-center rounded-full transition-colors"
@@ -149,12 +156,15 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
               ) : (
                 <>
                   <div>
-                    <label className="mb-2 block text-sm font-medium">Invite a Partner</label>
+                    <label htmlFor={inviteEmailId} className="mb-2 block text-sm font-medium">
+                      Invite a Partner
+                    </label>
                     <p className="text-muted-foreground mb-3 text-xs">
                       Share your Pokedex collection with someone. You&apos;ll both be able to mark Pokemon as collected.
                     </p>
                     <div className="flex gap-2">
                       <Input
+                        id={inviteEmailId}
                         type="email"
                         placeholder="partner@email.com"
                         value={email}
@@ -174,7 +184,7 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
 
                   {pendingInvites.length > 0 && (
                     <div>
-                      <label className="mb-2 block text-sm font-medium">Pending Invites</label>
+                      <h3 className="mb-2 block text-sm font-medium">Pending Invites</h3>
                       <div className="space-y-2">
                         {pendingInvites.map((invite) => (
                           <div
@@ -191,7 +201,7 @@ export default function PartnerModal({ isOpen, onClose, user }: PartnerModalProp
 
                   {receivedInvites.length > 0 && (
                     <div>
-                      <label className="mb-2 block text-sm font-medium">Received Invites</label>
+                      <h3 className="mb-2 block text-sm font-medium">Received Invites</h3>
                       <div className="space-y-2">
                         {receivedInvites.map((invite) => (
                           <div

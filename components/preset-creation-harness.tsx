@@ -1,37 +1,41 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import SetPopulationView from '@/components/set-population-view';
 import { syntheticPromoHostSet } from '@/tests/fixtures/set-preset';
 import { SetChecklistScopePreview } from '@/components/set-preset-picker';
 import { parseSetChecklist } from '@/lib/set-preset';
 import BinderSwitcherSheet from '@/components/binder-switcher-sheet';
 import { BinderGoalProgress } from '@/components/binder-goal-progress';
-import { instantiatePreset } from '@/lib/domain/binder-presets';
+import { instantiatePreset, type PresetDefinition } from '@/lib/domain/binder-presets';
 import { closeAllOverlays } from '@/hooks/use-overlay';
 import type { BinderCreationDraft } from '@/lib/binder-creation-draft';
 import { syntheticSlotPickerSnapshot } from '@/tests/fixtures/slot-picker';
 import { pickerCandidate } from '@/lib/slot-picker';
 import type { Binder } from '@/lib/binders/model';
 
+function subscribeOnline(onChange: () => void) {
+  window.addEventListener('online', onChange);
+  window.addEventListener('offline', onChange);
+  return () => {
+    window.removeEventListener('online', onChange);
+    window.removeEventListener('offline', onChange);
+  };
+}
+
 /** Synthetic UI evidence only. No executor, durable state, audit event or queue ACK. */
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 export default function PresetCreationHarness() {
   const [browseSet, setBrowseSet] = useState(false);
   const [open, setOpen] = useState(false);
-  const [online, setOnline] = useState(true);
   const [draft, setDraft] = useState<BinderCreationDraft | null>(null);
   const [data, setData] = useState(syntheticSlotPickerSnapshot);
   const [worstCase, setWorstCase] = useState(false);
-  useEffect(() => {
-    const sync = () => setOnline(navigator.onLine);
-    sync();
-    window.addEventListener('online', sync);
-    window.addEventListener('offline', sync);
-    return () => {
-      window.removeEventListener('online', sync);
-      window.removeEventListener('offline', sync);
-    };
-  }, []);
+  const online = useSyncExternalStore(
+    subscribeOnline,
+    () => navigator.onLine,
+    () => true,
+  );
   const ownerUserId = data.inventory.ownerUserId;
   const binders: Binder[] = [
     {
@@ -50,7 +54,7 @@ export default function PresetCreationHarness() {
   const receive = (next: BinderCreationDraft) => {
     setDraft(next);
     const binder = instantiatePreset(
-      JSON.parse(JSON.stringify(next.manifest)),
+      structuredClone(next.manifest) as PresetDefinition,
       { ownerUserId, collectionId: data.binder.collectionId },
       next.manifest.entries.map((_, i) => `synthetic-draft-slot-${i}`),
     )!;
@@ -64,10 +68,10 @@ export default function PresetCreationHarness() {
     <main className="mx-auto max-w-md space-y-4 px-4 pt-[calc(var(--top-inset)+1rem)] pb-[var(--dock-clearance)]">
       <h1 className="text-lg font-semibold">Synthetic preset preview</h1>
       <p className="text-sm">Internal draft demo. Nothing here is saved.</p>
-      <button className="min-h-11 rounded-xl border px-3" onClick={() => setWorstCase((v) => !v)}>
+      <button type="button" className="min-h-11 rounded-xl border px-3" onClick={() => setWorstCase((v) => !v)}>
         {worstCase ? 'Demo data' : 'Worst case'}
       </button>
-      <button className="min-h-11 rounded-xl border px-3" onClick={() => setBrowseSet((v) => !v)}>
+      <button type="button" className="min-h-11 rounded-xl border px-3" onClick={() => setBrowseSet((v) => !v)}>
         Browse synthetic set
       </button>
       {browseSet && (
@@ -95,7 +99,7 @@ export default function PresetCreationHarness() {
       {draft?.setChecklist && (
         <SetChecklistScopePreview
           binder={data.binder}
-          checklist={parseSetChecklist(JSON.parse(JSON.stringify(draft.setChecklist)))}
+          checklist={parseSetChecklist(structuredClone(draft.setChecklist))}
         />
       )}
       <output aria-label="Prepared creation draft" className="block text-xs break-words">
@@ -110,6 +114,7 @@ export default function PresetCreationHarness() {
           'Append Energy target',
         ].map((label, index) => (
           <button
+            type="button"
             key={label}
             className="min-h-10 rounded-xl border px-3 text-sm"
             onClick={() =>
@@ -142,10 +147,10 @@ export default function PresetCreationHarness() {
         aria-label="Main navigation"
         className="bg-card fixed inset-x-3 bottom-[var(--dock-inset)] z-[60] mx-auto flex h-[var(--dock-bar)] max-w-md items-center justify-around rounded-2xl shadow-lg"
       >
-        <button className="min-h-11 px-4" onClick={() => setOpen(true)}>
+        <button type="button" className="min-h-11 px-4" onClick={() => setOpen(true)}>
           Binders
         </button>
-        <button className="min-h-11 px-4" onClick={() => closeAllOverlays()}>
+        <button type="button" className="min-h-11 px-4" onClick={() => closeAllOverlays()}>
           List
         </button>
       </nav>

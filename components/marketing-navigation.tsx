@@ -97,7 +97,7 @@ export function MarketingNavigation() {
       </button>
       {open ? (
         <div className={styles.overlay}>
-          <div data-overlay-backdrop className={styles.backdrop} onClick={close} />
+          <div data-overlay-backdrop aria-hidden="true" className={styles.backdrop} onClick={close} />
           <div
             id="marketing-features"
             ref={panel}

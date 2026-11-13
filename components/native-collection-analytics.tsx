@@ -18,8 +18,8 @@ type Props = {
   collectionId?: string;
   region?: PricingRegion;
 };
-const money = (n: number | null) =>
-  n === null ? 'Unknown' : new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
+const GBP = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
+const money = (n: number | null) => (n === null ? 'Unknown' : GBP.format(n));
 
 export default function NativeCollectionAnalytics(props: Props) {
   return <ScopedAnalytics key={JSON.stringify([props.scope, props.collectionId])} {...props} />;
@@ -158,12 +158,12 @@ function ScopedAnalytics({ scope, read, collectionId, region = 'UK' }: Props) {
           </ul>
           <div className="flex gap-4 py-2">
             {currentPage > 0 && (
-              <button className="min-h-9 underline" onClick={() => setPage(currentPage - 1)}>
+              <button type="button" className="min-h-9 underline" onClick={() => setPage(currentPage - 1)}>
                 Previous
               </button>
             )}
             {summary.rows.length > (currentPage + 1) * 40 && (
-              <button className="min-h-9 underline" onClick={() => setPage(currentPage + 1)}>
+              <button type="button" className="min-h-9 underline" onClick={() => setPage(currentPage + 1)}>
                 Next
               </button>
             )}

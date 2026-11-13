@@ -5,6 +5,7 @@ import { readPushMembership } from '@/lib/partner-push';
 
 export function PartnerPushPrompt({ userId, onOpen }: { userId: string; onOpen(): void }) {
   const [visible, setVisible] = useState(false);
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect -- one-shot client load with abort/cancel handling; the app has no data-fetching layer
   useEffect(() => {
     let active = true;
     const check = async () => {
@@ -41,6 +42,7 @@ export function PartnerPushPrompt({ userId, onOpen }: { userId: string; onOpen()
     >
       <p className="min-w-0 flex-1">Hear when your partner finds a card. Enable notifications on this device.</p>
       <button
+        type="button"
         className="border-border min-h-9 shrink-0 rounded-lg border px-2 font-semibold"
         onClick={() => {
           dismiss();
@@ -49,7 +51,7 @@ export function PartnerPushPrompt({ userId, onOpen }: { userId: string; onOpen()
       >
         Set up
       </button>
-      <button className="min-h-9 shrink-0 rounded-lg px-2" onClick={dismiss}>
+      <button type="button" className="min-h-9 shrink-0 rounded-lg px-2" onClick={dismiss}>
         Not now
       </button>
     </section>

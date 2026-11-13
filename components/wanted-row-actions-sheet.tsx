@@ -44,14 +44,19 @@ export default function WantedRowActionsSheet(props: WantedRowActionsSheetProps)
     'flex min-h-12 w-full items-center gap-3 border-b border-border/50 px-4 text-left text-sm font-semibold last:border-b-0 active:bg-muted/60 dark:border-white/10';
 
   return createPortal(
-    <div data-overlay-backdrop className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-[2px]" onClick={onClose}>
+    <div className="fixed inset-0 z-[60]">
+      <div
+        data-overlay-backdrop
+        aria-hidden="true"
+        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
       <div
         ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Actions for ${props.cardName}`}
         className="border-border/65 bg-card absolute inset-x-0 bottom-[var(--dock-clearance)] mx-auto max-h-[calc(100dvh-env(safe-area-inset-top)-var(--dock-clearance)-1rem)] w-full max-w-md overflow-y-auto rounded-t-[1.6rem] border-t pt-3 pr-[calc(env(safe-area-inset-right)+1rem)] pb-[calc(var(--safe-bottom)+0.75rem)] pl-[calc(env(safe-area-inset-left)+1rem)] shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] outline-none sm:rounded-[1.6rem] sm:border md:bottom-4"
-        onClick={(event) => event.stopPropagation()}
       >
         <div data-sheet-grabber className="bg-card sticky top-0 z-10 -mx-4 -mt-3 px-4 pt-3" {...swipe}>
           <div aria-hidden="true" className="bg-muted-foreground/30 mx-auto mb-2 h-1.5 w-10 rounded-full" />
@@ -110,8 +115,8 @@ export default function WantedRowActionsSheet(props: WantedRowActionsSheetProps)
                   key={choice.label}
                   type="button"
                   aria-pressed={
-                    JSON.stringify([...(props.assignment?.selected ?? [])].sort()) ===
-                    JSON.stringify([...choice.ids].sort())
+                    JSON.stringify((props.assignment?.selected ?? []).toSorted()) ===
+                    JSON.stringify(choice.ids.toSorted())
                   }
                   onClick={() => props.assignment?.onChange(choice.ids)}
                   className="aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground min-h-10 rounded-full border px-3 text-sm"

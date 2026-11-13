@@ -64,6 +64,8 @@ const SET_SLOT_FILTERS: Array<{ id: SetSlotFilter; label: string }> = [
   { id: 'wanted', label: 'Wanted' },
   { id: 'multiple', label: 'Variants' },
 ];
+/** The card printings view has no "Variants" filter. */
+const CARD_SLOT_FILTERS = SET_SLOT_FILTERS.filter((filter) => filter.id !== 'multiple');
 
 /** Logo, else symbol, else a monogram; an image that fails to load (offline, missing asset) falls through. */
 function SetArtwork({ set }: { set: TCGSetSummary }) {
@@ -137,16 +139,19 @@ export default function SetPopulationView({
   readOnly,
   initialSet = null,
   stagedCreation,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: SetPopulationViewProps) {
   const [presetSet, setPresetSet] = useState<TCGSetSummary | null>(null);
   const [query, setQuery] = useState('');
   const heading = useCollapseOnScroll();
+  // oxlint-disable-next-line react-doctor/no-event-handler -- the payload loader follows whichever sets are selected, including the initial set
   const [selectedSets, setSelectedSets] = useState<TCGSetSummary[]>(() => (initialSet ? [initialSet] : []));
   const [payloadsBySetId, setPayloadsBySetId] = useState<Record<string, TCGSetSlotsResponse>>({});
   const [pokemonQuery, setPokemonQuery] = useState('');
   const [matchedPokemonIds, setMatchedPokemonIds] = useState<number[]>([]);
   const [sets, setSets] = useState<TCGSetSummary[]>([]);
   const payloads = useMemo(
+    // oxlint-disable-next-line react-doctor/no-event-handler -- the payload loader follows whichever sets are selected, including the initial set
     () => selectedSets.flatMap((set) => (payloadsBySetId[set.id] ? [payloadsBySetId[set.id]] : [])),
     [selectedSets, payloadsBySetId],
   );
@@ -191,6 +196,7 @@ export default function SetPopulationView({
 
   const [isShowingSavedSets, setIsShowingSavedSets] = useState(false);
 
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect -- one-shot client load with abort/cancel handling; the app has no data-fetching layer
   useEffect(() => {
     const controller = new AbortController();
 
@@ -206,6 +212,7 @@ export default function SetPopulationView({
       .catch(async () => {
         if (controller.signal.aborted) return;
         // Offline: the last saved list, else whatever sets this device has saved data for.
+        // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
         const saved = offlineStore ? await loadSetQuery(offlineStore, 'all=1').catch(() => null) : null;
         const fallback = saved?.sets.length ? saved.sets : await readOfflineSets().catch(() => []);
         if (controller.signal.aborted) return;
@@ -216,6 +223,7 @@ export default function SetPopulationView({
     return () => controller.abort();
   }, []);
 
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect -- one-shot client load with abort/cancel handling; the app has no data-fetching layer
   useEffect(() => {
     const trimmedQuery = query.trim();
     // With no set open, the browse grid filters the full list on the device instead.
@@ -244,6 +252,7 @@ export default function SetPopulationView({
     };
   }, [query, allSets, isBrowsing]);
 
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect -- one-shot client load with abort/cancel handling; the app has no data-fetching layer
   useEffect(() => {
     const controller = new AbortController();
     const missing = selectedSets.filter((set) => !payloadsBySetId[set.id]);
@@ -262,6 +271,7 @@ export default function SetPopulationView({
           if (offlineStore) void saveSetQuery(offlineStore, queryString, payload).catch(() => undefined);
         } catch {
           if (controller.signal.aborted) return;
+          // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
           const saved = offlineStore ? await loadSetQuery(offlineStore, queryString).catch(() => null) : null;
           if (controller.signal.aborted) return;
           if (!saved) {
@@ -285,6 +295,7 @@ export default function SetPopulationView({
     const validDexIds = new Set(slots.map((slot) => slot.dexId));
     const validCardIdsByDexId = new Map(slots.map((slot) => [slot.dexId, new Set(slot.cards.flatMap(catalogCardIds))]));
 
+    // oxlint-disable-next-line react-doctor/no-derived-state -- prunes the user's picks when the sets change; deriving would bring old picks back when a set is re-added
     setSelectedCardIdsByDexId((current) => {
       const next: Record<number, string> = {};
 
@@ -298,6 +309,7 @@ export default function SetPopulationView({
       return next;
     });
 
+    // oxlint-disable-next-line react-doctor/no-derived-state -- prunes the user's picks when the sets change; deriving would bring old picks back when a set is re-added
     setSelectedDexIds((current) => {
       const next = new Set<number>();
       for (const dexId of current) {
@@ -433,10 +445,10 @@ export default function SetPopulationView({
 
   const selectedBulkCards = useMemo(
     () =>
-      filteredSlots
-        .filter((slot) => selectedDexIds.has(slot.dexId))
-        .map((slot) => ({ slot, card: getSelectedSetCard(slot, selectedCardIdsByDexId) }))
-        .filter((entry): entry is { slot: TCGSetDexSlot; card: TCGSetSlotCard } => Boolean(entry.card)),
+      filteredSlots.flatMap((slot) => {
+        const card = selectedDexIds.has(slot.dexId) ? getSelectedSetCard(slot, selectedCardIdsByDexId) : null;
+        return card ? [{ slot, card }] : [];
+      }),
     [filteredSlots, selectedCardIdsByDexId, selectedDexIds],
   );
 
@@ -804,39 +816,37 @@ export default function SetPopulationView({
               aria-label={checklistView === 'pokemon' ? 'Filter by Holo Folder state' : 'Filter card printings'}
               className="flex flex-wrap gap-1.5"
             >
-              {SET_SLOT_FILTERS.filter((filter) => checklistView === 'pokemon' || filter.id !== 'multiple').map(
-                (filter) => {
-                  const isActive = slotFilter === filter.id;
-                  const count = checklistView === 'cards' ? cardCounts[filter.id] : filterCounts[filter.id];
+              {(checklistView === 'pokemon' ? SET_SLOT_FILTERS : CARD_SLOT_FILTERS).map((filter) => {
+                const isActive = slotFilter === filter.id;
+                const count = checklistView === 'cards' ? cardCounts[filter.id] : filterCounts[filter.id];
 
-                  return (
-                    <button
-                      key={filter.id}
-                      type="button"
-                      onClick={() => setSlotFilter(filter.id)}
-                      aria-pressed={isActive}
-                      className={`min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
-                        isActive
-                          ? 'border-primary/45 bg-primary text-primary-foreground'
-                          : 'border-border/55 bg-background/45 text-muted-foreground hover:bg-background/75 hover:text-foreground dark:border-white/10'
-                      }`}
-                    >
-                      {checklistView === 'pokemon'
-                        ? {
-                            all: 'All',
-                            open: 'Missing from binder',
-                            owned: 'Already have',
-                            wanted: 'Wanted',
-                            multiple: 'Multiple printings',
-                          }[filter.id]
-                        : filter.id === 'open'
-                          ? 'Missing'
-                          : filter.label}{' '}
-                      <span className="tabular-nums opacity-75">{count}</span>
-                    </button>
-                  );
-                },
-              )}
+                return (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setSlotFilter(filter.id)}
+                    aria-pressed={isActive}
+                    className={`min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                      isActive
+                        ? 'border-primary/45 bg-primary text-primary-foreground'
+                        : 'border-border/55 bg-background/45 text-muted-foreground hover:bg-background/75 hover:text-foreground dark:border-white/10'
+                    }`}
+                  >
+                    {checklistView === 'pokemon'
+                      ? {
+                          all: 'All',
+                          open: 'Missing from binder',
+                          owned: 'Already have',
+                          wanted: 'Wanted',
+                          multiple: 'Multiple printings',
+                        }[filter.id]
+                      : filter.id === 'open'
+                        ? 'Missing'
+                        : filter.label}{' '}
+                    <span className="tabular-nums opacity-75">{count}</span>
+                  </button>
+                );
+              })}
             </div>
             {checklistView === 'pokemon' && !readOnly && selectedDexIds.size > 0 ? (
               <div className="border-primary/20 bg-primary/8 flex flex-wrap items-center gap-2 rounded-2xl border px-3 py-2">
@@ -1088,6 +1098,7 @@ export default function SetPopulationView({
                   ) : null}
                   <div className="trading-card border-border/45 bg-muted/45 relative flex w-12 shrink-0 items-center justify-center border">
                     {primaryCard?.image ? (
+                      // oxlint-disable-next-line nextjs/no-img-element -- card image from assets.holofolder.com or the image proxy, cached by the service worker for offline use; next/image would bypass that cache
                       <img
                         src={toCardImageSrc(primaryCard.image) ?? undefined}
                         alt={primaryCard.name}

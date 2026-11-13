@@ -23,6 +23,7 @@ const initialScope = {
   ownerUserId: seed.inventory.ownerUserId,
 };
 
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 export default function SlotDurableSessionHarness(props: ComponentProps<typeof BinderApp>) {
   const [identity, setIdentity] = useState<{ scope: SlotOfflineScope; epoch: number }>({
     scope: initialScope,
@@ -194,6 +195,7 @@ export default function SlotDurableSessionHarness(props: ComponentProps<typeof B
       {(adapter.error || failure) && <p role="alert">{adapter.error ?? failure}</p>}
       {adapter.error && (
         <button
+          type="button"
           className="min-h-10 rounded-xl border px-3 text-sm"
           onClick={() => {
             void adapter.refresh().catch(() => setFailure('Refresh unavailable, saved intent retained'));

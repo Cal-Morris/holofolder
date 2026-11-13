@@ -67,6 +67,7 @@ export default function NativeWantedEntries({
   card?: SearchCardResult;
   finish?: CardFinish;
   onCheck?: (card: SearchCardResult, finish?: CardFinish) => void;
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }) {
   const isWanted = presentation === 'wanted';
   const model = nativeCardConsumers(binding);
@@ -435,6 +436,7 @@ export default function NativeWantedEntries({
                                     language: entry.card.language,
                                     finish: entry.finish,
                                   },
+                                  // oxlint-disable-next-line react-doctor/rendering-hydration-mismatch-time -- runs in an event handler, never during render
                                   newItemId: crypto.randomUUID(),
                                 }
                               : null);

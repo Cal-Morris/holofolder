@@ -35,9 +35,11 @@ export default function ShowOfflinePrep({
   );
 }
 
+const NO_SETS: readonly TCGSetSummary[] = [];
+
 /** Find sets by name or code and save them for offline use (Quick mode's show prep and Settings). */
 export function OfflineSetPicker({
-  seedSets = [],
+  seedSets = NO_SETS,
   isOnline,
 }: {
   seedSets?: readonly TCGSetSummary[];
@@ -72,6 +74,7 @@ export function OfflineSetPicker({
   };
   return (
     <>
+      {/* oxlint-disable-next-line react-doctor/no-prevent-default -- client-only form that works on the device; there is no server action to post to */}
       <form
         onSubmit={(event) => {
           event.preventDefault();

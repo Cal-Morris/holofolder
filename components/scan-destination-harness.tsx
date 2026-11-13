@@ -74,6 +74,7 @@ const catalog = (id: string) => {
   return card ? pickerCandidate(card) : undefined;
 };
 
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 export default function ScanDestinationHarness() {
   const queue = useSlotOfflineQueue(scope, 'synthetic-session');
   const latest = useRef(queue);
@@ -170,10 +171,10 @@ export default function ScanDestinationHarness() {
   return (
     <main className="mx-auto max-w-lg space-y-3 px-3 pt-[var(--top-inset)] pb-[var(--dock-clearance)]">
       <h1>Synthetic scan destinations</h1>
-      <button className="min-h-11 rounded-xl border p-3" onClick={() => setOpened('page')}>
+      <button type="button" className="min-h-11 rounded-xl border p-3" onClick={() => setOpened('page')}>
         Page scan
       </button>{' '}
-      <button className="min-h-11 rounded-xl border p-3" onClick={() => setOpened('card')}>
+      <button type="button" className="min-h-11 rounded-xl border p-3" onClick={() => setOpened('card')}>
         Card scan
       </button>
       <p>

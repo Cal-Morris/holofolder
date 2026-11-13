@@ -12,7 +12,12 @@ import type React from 'react';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Search, ArrowRight, Star, MapPinned, Layers3, Loader2, Palette, History } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { POKEMON_CATALOG, formatPokemonDisplayName, getPokemonSummary } from '@/lib/pokemon-catalog';
+import {
+  POKEMON_CATALOG,
+  formatPokemonDisplayName,
+  getPokemonSummary,
+  type PokemonSummary,
+} from '@/lib/pokemon-catalog';
 import {
   getInitialPokemonSearchFilter,
   getPokemonSearchPageJump,
@@ -57,7 +62,7 @@ export interface PokemonSearchResultMeta {
 interface PokemonSearchProps {
   nativeConsumer?: NativeConsumerBinding;
   history: BinderHistory;
-  onSelect: (pokemon: any) => void;
+  onSelect: (pokemon: PokemonSummary) => void;
   pokemonList?: { id: number; name: string }[];
   getResultMeta?: (pokemon: { id: number; name: string }) => PokemonSearchResultMeta | null;
   currentPagePokemonList?: { id: number; name: string }[];
@@ -98,6 +103,7 @@ const SEARCH_FILTERS: Array<{
 /** Rows mounted at first and per step (fewer while typing, so card hits stay close): every match stays reachable without mounting the whole dex. */
 const RESULT_STEP = 60;
 const QUERY_RESULT_STEP = 40;
+const NO_POKEMON: { id: number; name: string }[] = [];
 
 export default function PokemonSearch({
   nativeConsumer,
@@ -105,7 +111,7 @@ export default function PokemonSearch({
   onSelect,
   pokemonList: propPokemonList,
   getResultMeta,
-  currentPagePokemonList = [],
+  currentPagePokemonList = NO_POKEMON,
   totalPages = 0,
   onJumpToPage,
   onBrowseCards,
@@ -128,20 +134,15 @@ export default function PokemonSearch({
     [query, rememberSearch, saveRecentCard],
   );
   const clearRecentCards = () => history.clear('card');
-  const [activeFilter, setActiveFilter] = useState<SearchStateFilter>(getInitialPokemonSearchFilter);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [chosenFilter, setActiveFilter] = useState<SearchStateFilter>(getInitialPokemonSearchFilter);
+  // The current-page filter falls back to all Pokémon while the page has none.
+  const activeFilter = chosenFilter === 'current' && currentPagePokemonList.length === 0 ? 'all' : chosenFilter;
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const pokemonList = propPokemonList || POKEMON_CATALOG;
   const currentPagePokemonIds = useMemo(
     () => new Set(currentPagePokemonList.map((pokemon) => pokemon.id)),
     [currentPagePokemonList],
   );
-
-  useEffect(() => {
-    if (activeFilter === 'current' && currentPagePokemonList.length === 0) {
-      setActiveFilter('all');
-    }
-  }, [activeFilter, currentPagePokemonList.length]);
 
   useEffect(() => {
     const frameId = window.requestAnimationFrame(() => {
@@ -194,6 +195,15 @@ export default function PokemonSearch({
       setShownResults({ key: resultsKey, count: Math.max(shownCount + resultStep, atLeast) });
     },
     [resultsKey, resultStep, shownCount],
+  );
+  // Keyboard selection belongs to one result list: a new list starts on its only match, or on nothing.
+  const autoSelectedIndex = visibleResults.length === 1 && query.trim() ? 0 : -1;
+  const [selection, setSelection] = useState({ results: visibleResults, query, index: autoSelectedIndex });
+  const selectedIndex =
+    selection.results === visibleResults && selection.query === query ? selection.index : autoSelectedIndex;
+  const setSelectedIndex = useCallback(
+    (index: number) => setSelection({ results: visibleResults, query, index }),
+    [visibleResults, query],
   );
   const listRef = useRef<HTMLDivElement | null>(null);
   const moreResultsRef = useRef<HTMLButtonElement | null>(null);
@@ -251,15 +261,6 @@ export default function PokemonSearch({
     return getPokemonSearchPageJump(query, totalPages);
   }, [onJumpToPage, query, totalPages]);
 
-  useEffect(() => {
-    if (visibleResults.length === 1 && query.trim()) {
-      setSelectedIndex(0);
-      return;
-    }
-
-    setSelectedIndex(-1);
-  }, [visibleResults, query]);
-
   const handleSelectPokemon = useCallback(
     (pokemon: { id: number; name: string }) => {
       const summary = getPokemonSummary(pokemon.id);
@@ -270,7 +271,7 @@ export default function PokemonSearch({
       setQuery('');
       setSelectedIndex(-1);
     },
-    [onSelect, query, rememberSearch],
+    [onSelect, query, rememberSearch, setSelectedIndex],
   );
 
   const handleJumpToPage = useCallback(
@@ -280,7 +281,7 @@ export default function PokemonSearch({
       setQuery('');
       setSelectedIndex(-1);
     },
-    [onJumpToPage],
+    [onJumpToPage, setSelectedIndex],
   );
 
   const handleKeyDown = useCallback(
@@ -298,7 +299,7 @@ export default function PokemonSearch({
         case 'ArrowUp':
           if (visibleResults.length === 0) return;
           e.preventDefault();
-          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+          setSelectedIndex(selectedIndex > 0 ? selectedIndex - 1 : -1);
           break;
         case 'Enter':
           e.preventDefault();
@@ -328,6 +329,7 @@ export default function PokemonSearch({
       query,
       shownCount,
       showMoreResults,
+      setSelectedIndex,
     ],
   );
 
@@ -439,6 +441,7 @@ export default function PokemonSearch({
                         key={card.id}
                         type="button"
                         onClick={() => {
+                          // oxlint-disable-next-line react-doctor/rendering-hydration-mismatch-time -- runs in an event handler, never during render
                           rememberCard({ ...card, viewedAt: new Date().toISOString() });
                           onBrowseCards?.({ id: card.dexId, name: card.pokemonName }, card.id);
                         }}
@@ -488,6 +491,7 @@ export default function PokemonSearch({
                       <div className="relative h-14 w-14 shrink-0">
                         <div className="from-muted to-muted/30 flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br">
                           {meta?.previewImage ? (
+                            // oxlint-disable-next-line nextjs/no-img-element -- card image from assets.holofolder.com or the image proxy, cached by the service worker for offline use; next/image would bypass that cache
                             <img
                               src={meta.previewImage}
                               alt={displayName}
@@ -499,6 +503,7 @@ export default function PokemonSearch({
                         </div>
                         {meta?.cardPreviewImage ? (
                           <div className="trading-card border-card bg-background absolute -right-1 -bottom-1 w-7 border-2 shadow-md">
+                            {/* oxlint-disable-next-line nextjs/no-img-element -- card image from assets.holofolder.com or the image proxy, cached by the service worker for offline use; next/image would bypass that cache */}
                             <img
                               src={meta.cardPreviewImage}
                               alt={`${displayName} card preview`}

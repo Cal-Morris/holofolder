@@ -100,11 +100,11 @@ export interface QuickCardCheckProps {
   showTools?: boolean;
 }
 
-export function bundleKey(card: SearchCardResult, finish: string) {
+function bundleKey(card: SearchCardResult, finish: string) {
   return `${card.id}:${card.language ?? 'en'}:${finish}`;
 }
 
-export function formatPriceAge(fetchedAt: number | undefined, now: number) {
+function formatPriceAge(fetchedAt: number | undefined, now: number) {
   if (!fetchedAt) return null;
   const minutes = Math.max(0, Math.round((now - fetchedAt) / 60_000));
   if (minutes < 2) return 'just now';
@@ -138,6 +138,7 @@ export default function QuickCardCheck({
   isInBundle,
   onAddToBundle,
   showTools = true,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: QuickCardCheckProps) {
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
   const trackGoogleEvent = useGoogleAnalytics();
@@ -159,6 +160,7 @@ export default function QuickCardCheck({
   const snapshot = pricesByCardId[getCardPriceKey(card.id, language)];
   const fxRates = fxRatesProp ?? hookRates ?? null;
   const context = useMemo(() => ({ currency, fxRates }), [currency, fxRates]);
+  // oxlint-disable-next-line react-doctor/prefer-use-sync-external-store -- a ticking clock has no stable snapshot for useSyncExternalStore
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const refresh = () => setNow(Date.now());
@@ -574,6 +576,7 @@ export default function QuickCardCheck({
           </div>
         )}
         {/* Show is about the asking price: the field is ready to type in as soon as the card opens. */}
+        {/* oxlint-disable-next-line jsx-a11y/no-autofocus -- deliberate: in Show mode the asking-price field is the whole point of the sheet */}
         <DealPriceInput value={input} onChange={setInput} autoFocus={showTools && !(nativeConsumer && readOnly)} />
         {(showTools || !readOnly) && (
           <div
