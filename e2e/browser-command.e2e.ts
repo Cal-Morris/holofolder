@@ -392,6 +392,11 @@ test('terminal rejection persists through reload and refresh failure, then expli
     if (await check.isVisible()) await check.click();
     await expect(applyAgain).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 15_000 });
+  // Closing the dialog decides nothing: the change waits behind a line that reopens it.
+  await page.keyboard.press('Escape');
+  await expect(applyAgain).not.toBeVisible();
+  expect((await record(page))?.pending[0]?.status).toBe('conflict');
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
   const useCurrent = page.getByRole('button', { name: 'Keep my collection as it is' });
   await expect(useCurrent).toBeVisible();
   const h = new Harness(page, insets, true);

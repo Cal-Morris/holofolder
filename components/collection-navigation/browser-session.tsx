@@ -15,6 +15,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { DatabaseBackup, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { StorageMenu, type StorageMenuAction } from './storage-menu';
 import dynamic from 'next/dynamic';
+import { toast } from '@/components/ui/toast';
 import type { InventorySnapshot } from '@/lib/domain/inventory';
 import type { SlotOfflineIntent } from '@/lib/collection/slot-optimistic';
 import { inventoryGradingReference, prepareInventoryGradingIntent } from '@/lib/grading/inventory-edit';
@@ -56,6 +57,7 @@ const NativeCollectionDeletion = dynamic(() => import('@/components/native-colle
 const NativeBackup = dynamic(() => import('@/components/native-backup'), { ssr: false });
 const NativeBinderCreation = dynamic(() => import('@/components/native-binder-creation'), { ssr: false });
 
+const ChangeConflictDialog = dynamic(() => import('./change-conflict-dialog'), { ssr: false });
 const GradingEditor = dynamic(() => import('@/components/grading/grading-editor'), { ssr: false });
 
 /** How long a parked edit waits before another round of tries when nothing else prompts one. */
@@ -235,6 +237,8 @@ function ScopedBrowserSession({
   const onboarding = useBinderOnboarding(scope.actorUserId);
 
   const [notice, setNotice] = useState('');
+  // The rejected change whose dialog was closed without deciding; a line in the header reopens it.
+  const [conflictClosed, setConflictClosed] = useState<string | null>(null);
   // The last update did not go through, so what is shown is what this device last saved.
   const [updateFailed, setUpdateFailed] = useState(false);
   // Cards picked in this session that the last read does not know yet: display only, until a read includes them.
@@ -633,10 +637,11 @@ function ScopedBrowserSession({
       }
     } catch {
       if (valid())
-        setNotice(
+        toast(
           head.intent.kind === 'creation'
             ? "Couldn't discard that just now. Check your connection and try again."
             : "That change can't be applied on top of the newer changes. You can keep your collection as it is, then make the change again.",
+          'error',
         );
     } finally {
       refreshing.current--;
@@ -1418,48 +1423,28 @@ function ScopedBrowserSession({
                       {head &&
                         head.intent.kind !== 'creation' &&
                         head.intent.kind !== 'raw-restore' &&
-                        head.conflict?.rejected && (
-                          <div className="px-4 text-sm">
-                            <p>
-                              Your last change wasn&apos;t applied because your collection had changed. What would you
-                              like to do?
-                            </p>
-                            {head.conflict.current ? (
-                              <>
-                                <button
-                                  type="button"
-                                  className="min-h-9 pr-4 underline"
-                                  onClick={() => {
-                                    void reviewConflict('keep-remote');
-                                  }}
-                                >
-                                  Keep my collection as it is
-                                </button>
-                                {queue.record?.pending.length === 1 && (
-                                  <button
-                                    type="button"
-                                    className="min-h-9 pr-4 underline"
-                                    onClick={() => {
-                                      void reviewConflict('rebase');
-                                    }}
-                                  >
-                                    Apply my change again
-                                  </button>
-                                )}
-                              </>
-                            ) : (
-                              <button
-                                type="button"
-                                className="min-h-9 pr-4 underline"
-                                onClick={() => {
-                                  void reviewConflict();
-                                }}
-                              >
-                                Check my collection
-                              </button>
-                            )}
-                          </div>
-                        )}
+                        head.conflict?.rejected &&
+                        (conflictClosed === head.intent.request.operationId ? (
+                          <p role="status" className="px-4 text-sm">
+                            Your last change wasn&apos;t applied and is waiting for you to decide.
+                            <button
+                              type="button"
+                              className="ml-2 min-h-9 underline"
+                              onClick={() => setConflictClosed(null)}
+                            >
+                              Review
+                            </button>
+                          </p>
+                        ) : (
+                          <ChangeConflictDialog
+                            checked={!!head.conflict.current}
+                            canApplyAgain={queue.record?.pending.length === 1}
+                            onKeep={() => void reviewConflict('keep-remote')}
+                            onApplyAgain={() => void reviewConflict('rebase')}
+                            onCheck={() => void reviewConflict()}
+                            onClose={() => setConflictClosed(head.intent.request.operationId)}
+                          />
+                        ))}
                       {read.evidence.kind === 'complete' && !read.evidence.snapshot.collections.length && (
                         <div className="border-border/60 bg-card/70 mx-4 my-2 rounded-2xl border p-4 text-center">
                           <p className="text-sm font-semibold">Start your first binder</p>
