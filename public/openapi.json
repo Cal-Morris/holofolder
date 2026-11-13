@@ -3049,7 +3049,7 @@
       "post": {
         "operationId": "execute_slot_commands",
         "summary": "Execute slot commands",
-        "description": "A committed terminal ledger rejection returns REST 409 storage_command_rejected or MCP isError with the same error.rejection: outcome, original operationId, known code and inventoryRevision. Other conflicts/timeouts are not rejection proof. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors. Atomic stable-ID slot insert/update/clear/remove/reorder. Requires exact inventory, collection, layout, slot/item/placement revisions and retry-stable operationId. Clear/remove release copies to Unassigned; neither deletes ownership. Set privateFields=preserve for create/reorder/target-only updates without replacing hidden wants; omitted or replace retains legacy full-replacement semantics.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `execute_slot_commands`.",
+        "description": "A committed terminal ledger rejection returns REST 409 storage_command_rejected or MCP isError with the same error.rejection: outcome, original operationId, known code and inventoryRevision. Other conflicts/timeouts are not rejection proof. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors. Atomic stable-ID slot insert/update/clear/remove/reorder, plus layout (the binder's rows × columns grid, migration 118; prefer set_binder_layout, which reviews it first). Requires exact inventory, collection, layout, slot/item/placement revisions and retry-stable operationId. Clear/remove release copies to Unassigned; neither deletes ownership. Set privateFields=preserve for create/reorder/target-only updates without replacing hidden wants; omitted or replace retains legacy full-replacement semantics.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `execute_slot_commands`.",
         "tags": [
           "Collection"
         ],
@@ -3559,6 +3559,31 @@
                           "required": [
                             "kind",
                             "slot"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "layout"
+                            },
+                            "rows": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 8
+                            },
+                            "cols": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 8
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "rows",
+                            "cols"
                           ],
                           "additionalProperties": false
                         }
@@ -20905,6 +20930,124 @@
                   }
                 },
                 "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
+    "/binders/{id}/layout": {
+      "patch": {
+        "operationId": "set_binder_layout",
+        "summary": "Set binder layout",
+        "description": "Change a binder’s page grid (rows × columns, 1–8 each; grids other than 1×1, 2×2, 3×3, 3×4, 4×3 and 4×4 need Premium). Pockets are an ordered list paged by the grid, so no card leaves its pocket and nothing is removed: cards keep their order and only move between pages and spots. Send dryRun:true first to get the consequences (cards changing page or spot, page counts, plain-language summary) and the preconditions, then apply with those preconditions and a retry-stable operationId. A retry with the same body returns the stored receipt; anything that changed in between returns 409 to review again. Recorded in Activity and undoable.\n\nRequired permissions: `collection:read`, `binders:read`, `collection:write`, `binders:write`. MCP tool: `set_binder_layout`.",
+        "tags": [
+          "Collection"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "rows": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  },
+                  "cols": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  },
+                  "dryRun": {
+                    "description": "true reviews the change and returns preconditions without changing anything.",
+                    "type": "boolean"
+                  },
+                  "operationId": {
+                    "description": "Required to apply. Keep it across retries.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 100
+                  },
+                  "inventoryRevision": {
+                    "description": "Required to apply, from the dry run.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "collectionVersion": {
+                    "description": "Required to apply, from the dry run.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "layoutRevision": {
+                    "description": "Required to apply: the binder’s current layout revision, from the dry run.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "rows",
+                  "cols"
+                ],
                 "additionalProperties": false
               }
             }

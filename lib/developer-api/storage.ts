@@ -100,6 +100,11 @@ const slotCommand = z.discriminatedUnion('kind', [
     target: identity.nullable().optional(),
     wantedCards: z.array(want).max(100).optional(),
   }),
+  z.strictObject({
+    kind: z.literal('layout'),
+    rows: z.number().int().min(1).max(8),
+    cols: z.number().int().min(1).max(8),
+  }),
 ]);
 const inventoryCommand = z.discriminatedUnion('kind', [
   z.strictObject({
@@ -192,9 +197,10 @@ export const nativeSlotSchema = z
         (command) =>
           command.kind === 'create' ||
           command.kind === 'move' ||
+          command.kind === 'layout' ||
           (command.kind === 'update' && !('wantedCards' in command)),
       ),
-    'Private-preserving mode supports slot creation, reorder and target-only updates. Wants patches require transactional executor support.',
+    'Private-preserving mode supports slot creation, reorder, layout and target-only updates. Wants patches require transactional executor support.',
   )
   .refine(
     (input) => input.privateFields !== 'preserve' || input.expectedOwnerUserId !== undefined,
@@ -530,7 +536,7 @@ const operations: readonly DeveloperOperation[] = [
     path: '/storage/slots/commands',
     description:
       terminalDescription +
-      ' Atomic stable-ID slot insert/update/clear/remove/reorder. Requires exact inventory, collection, layout, slot/item/placement revisions and retry-stable operationId. Clear/remove release copies to Unassigned; neither deletes ownership. Set privateFields=preserve for create/reorder/target-only updates without replacing hidden wants; omitted or replace retains legacy full-replacement semantics.',
+      " Atomic stable-ID slot insert/update/clear/remove/reorder, plus layout (the binder's rows × columns grid, migration 118; prefer set_binder_layout, which reviews it first). Requires exact inventory, collection, layout, slot/item/placement revisions and retry-stable operationId. Clear/remove release copies to Unassigned; neither deletes ownership. Set privateFields=preserve for create/reorder/target-only updates without replacing hidden wants; omitted or replace retains legacy full-replacement semantics.",
     permissions,
     write: true,
     schema: nativeSlotSchema,

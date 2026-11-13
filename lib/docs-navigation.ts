@@ -9,7 +9,7 @@ const operationPaths = new Map(
 
 const referenceGroups = {
   'reference/collection': [
-    { name: 'Binders', path: /^\/binders(?:\/\{id\}|\/order)?$/ },
+    { name: 'Binders', path: /^\/binders(?:\/\{id\}(?:\/layout)?|\/order)?$/ },
     { name: 'History & recovery', path: /^\/collection\/(audit|recovery)(\/|$)/ },
     { name: 'Sharing & appearance', path: /^\/(binders\/\{binderId\}\/(identity|sharing)|appearance|artwork)(\/|$)/ },
     { name: 'Show purchases', path: /^\/show-purchases(\/|$)/ },

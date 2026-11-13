@@ -54,7 +54,7 @@ const want = (w: WantedCard) => ({
 });
 
 /** Declared authenticated projection of one scoped inventory_snapshot_v2 part, never the private planner transport. */
-function project(doc: Row, owner: string, settings: Row | null) {
+export function projectNativeRead(doc: Row, owner: string, settings: Row | null) {
   if (doc.revision !== null && !isSlotRevision(doc.revision))
     throw new InventoryReadError('inventory_read_unavailable', 503);
   const placements = new Map(
@@ -157,7 +157,7 @@ export async function executeNativeDeveloperRead(context: OperationContext, name
       collectionId,
       itemId: name === 'get_inventory_item' ? (query.id as string) : undefined,
     });
-    const data = project(read.snapshot!, read.owner, read.settings);
+    const data = projectNativeRead(read.snapshot!, read.owner, read.settings);
     // One snapshot of exactly this query's scope: a cursor goes stale only when what it pages changed.
     const readRevision = hash(data);
     const envelope = {

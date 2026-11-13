@@ -219,6 +219,17 @@ async function main() {
     await call('update_binder', { id: binderId, name: 'Synthetic renamed performance binder' });
     const binderRows = [...((listed.binders ?? []) as Array<{ id: string }>).map((b) => b.id), binderId];
     await call('reorder_binders', { order: binderRows.reverse() });
+    // Review, apply and replay a grid change on the synthetic binder; nothing leaves a pocket.
+    const layoutReview = await call('set_binder_layout', { id: binderId, rows: 3, cols: 3, dryRun: true });
+    const layoutApply = {
+      id: binderId,
+      rows: 3,
+      cols: 3,
+      operationId: `layout-${runId}`,
+      ...record(layoutReview.preconditions),
+    };
+    const applied = await call('set_binder_layout', layoutApply);
+    assert.deepEqual(await call('set_binder_layout', layoutApply), applied, 'A retried layout must replay its receipt');
     const settings = await read('get_settings', { binderId: defaultBinder });
     const settingsInput = {
       ...record(settings.settings),

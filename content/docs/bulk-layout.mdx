@@ -19,6 +19,12 @@ Select pockets and choose **Fill**. **Fill pockets from spare cards** lists each
 
 Select pockets and choose **Remove**. The review lists the pockets that will go, their targets and explicit wants, and the owned cards that become spare. Every owned card keeps its identity, grading and source details. The pockets after them close up and everything else keeps its order. This does not delete the binder or any owned card, and it can't be undone with one tap: add pockets back and place the cards again, or use [Activity](/docs/collection-history) recovery where it's supported.
 
+## Change the grid
+
+**Settings → Layout** changes how many pockets a page shows: the presets (1×1 to 4×4), or any grid from 1 to 8 rows and columns with Premium. Before anything changes, a warning says what the new grid does to your cards, for example "12 cards on pages 3–4 will move to pages 4–6" and how many pages the binder will have. Pockets are one ordered list, so no card leaves its pocket and nothing is removed: cards, empty pockets and wants keep their order and only move between pages and spots. Choose **Change layout** to apply it or **Keep** to leave the binder as it is.
+
+The change queues on the device like any other layout edit and syncs when online. It's recorded in [Activity](/docs/collection-history), where it can be undone.
+
 ## Saving, conflicts and limits
 
 Each action is one atomic request, never several partial saves. A request that is too large is refused whole, so select fewer pockets. If the pockets change while selected, choose **Update selection**. Fill and Remove need a connection, a complete current read and no unsynced edits.
@@ -26,5 +32,26 @@ Each action is one atomic request, never several partial saves. A request that i
 Edits save on the device first and sync when online, keeping the original operation ID through retries. A lost reply is retried with the same request, and an unknown outcome can't be silently replaced. Device-save failures show **Try again** and **Discard**. **Done** exits editing without discarding accepted edits.
 
 ## API
+
+Grid changes use `set_binder_layout` (`PATCH /app/api/v1/binders/{id}/layout`). Send `dryRun: true` first: the response has the same consequences the app's warning shows (`consequences`, a plain-language `summary`) and the `preconditions` to apply with:
+
+```json
+{ "rows": 3, "cols": 3, "dryRun": true }
+```
+
+Then apply with those preconditions and a retry-stable `operationId`:
+
+```json
+{
+  "rows": 3,
+  "cols": 3,
+  "operationId": "layout-00000000-0000-4000-8000-000000000000",
+  "inventoryRevision": 12,
+  "collectionVersion": 4,
+  "layoutRevision": 2
+}
+```
+
+A retry with the same body returns the stored receipt. If anything in the collection changed since the dry run, the apply returns 409; run the dry run again and review it. Grids other than the presets need Premium (402 `premium_required`). It needs `collection:read`, `binders:read`, `collection:write` and `binders:write`, and is also an MCP tool.
 
 Moves, inserts and removals use `execute_slot_commands` (`POST /app/api/v1/storage/slots/commands`); fill uses `execute_inventory_commands`. Both are available over REST and MCP with `collection:write` and `binders:write`. See [native storage](/docs/native-storage).

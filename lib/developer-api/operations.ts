@@ -236,6 +236,61 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       }),
   },
   {
+    name: 'set_binder_layout',
+    method: 'PATCH',
+    path: '/binders/{id}/layout',
+    description:
+      'Change a binder’s page grid (rows × columns, 1–8 each; grids other than 1×1, 2×2, 3×3, 3×4, 4×3 and 4×4 need Premium). Pockets are an ordered list paged by the grid, so no card leaves its pocket and nothing is removed: cards keep their order and only move between pages and spots. Send dryRun:true first to get the consequences (cards changing page or spot, page counts, plain-language summary) and the preconditions, then apply with those preconditions and a retry-stable operationId. A retry with the same body returns the stored receipt; anything that changed in between returns 409 to review again. Recorded in Activity and undoable.',
+    permissions: ['collection:read', 'binders:read', 'collection:write', 'binders:write'],
+    write: true,
+    schema: z
+      .strictObject({
+        id: binderId,
+        rows: z.number().int().min(1).max(8),
+        cols: z.number().int().min(1).max(8),
+        dryRun: z
+          .boolean()
+          .optional()
+          .describe('true reviews the change and returns preconditions without changing anything.'),
+        operationId: z
+          .string()
+          .min(8)
+          .max(100)
+          .refine((v) => v.trim() === v)
+          .optional()
+          .describe('Required to apply. Keep it across retries.'),
+        inventoryRevision: z
+          .number()
+          .int()
+          .min(0)
+          .max(Number.MAX_SAFE_INTEGER)
+          .optional()
+          .describe('Required to apply, from the dry run.'),
+        collectionVersion: z
+          .number()
+          .int()
+          .min(0)
+          .max(Number.MAX_SAFE_INTEGER)
+          .optional()
+          .describe('Required to apply, from the dry run.'),
+        layoutRevision: z
+          .number()
+          .int()
+          .min(0)
+          .max(Number.MAX_SAFE_INTEGER)
+          .optional()
+          .describe('Required to apply: the binder’s current layout revision, from the dry run.'),
+      })
+      .refine(
+        (input) =>
+          input.dryRun === true ||
+          [input.operationId, input.inventoryRevision, input.collectionVersion, input.layoutRevision].every(
+            (value) => value !== undefined,
+          ),
+        { message: 'Apply needs operationId and the preconditions from a dry run.' },
+      ),
+  },
+  {
     name: 'reorder_binders',
     method: 'PUT',
     path: '/binders/order',

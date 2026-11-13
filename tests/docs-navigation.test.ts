@@ -45,7 +45,7 @@ test('long reference sections become one level of small, collapsed subject group
   const { groups } = await referencePromise;
   const counts = Object.fromEntries(groups.map((group) => [group.name, group.children.length]));
   assert.deepEqual(counts, {
-    Binders: 5,
+    Binders: 6,
     'History & recovery': 2,
     'Sharing & appearance': 8,
     'Show purchases': 3,
