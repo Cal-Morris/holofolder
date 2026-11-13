@@ -72,6 +72,7 @@ import type { BinderHistory } from '@/hooks/use-binder-history';
 import RecentSearches from '@/components/recent-searches';
 import ShowRecentCards from '@/components/show-recent-cards';
 import ShowHunt, { PokemonSprite } from '@/components/show-hunt';
+import type { ShowTally } from '@/components/show-bought';
 import ShowPokemonCards from '@/components/show-pokemon-cards';
 // Also bundled, so Scan opens offline at a show without fetching its code.
 import QuickCardScanner, { type CardScanResult } from '@/components/quick-card-scanner';
@@ -129,6 +130,8 @@ export interface QuickCardCheckOptions {
   currency: DisplayCurrency;
   fxRates?: DisplayFxRates | null;
   readOnly?: boolean;
+  /** Show mode's purchase tally (signed in, not a shared view); Bought works offline. */
+  tally?: ShowTally;
   getCardState: (card: SearchCardResult, pokemon: { id: number; name: string }, finish?: CardFinish) => QuickCardState;
   onAction: (
     action: QuickCardAction,
@@ -502,6 +505,7 @@ function QuickMode({
         isOnline={isOnline}
         readOnly={cardCheck.readOnly}
         showTools={Boolean(show)}
+        tally={show ? cardCheck.tally : undefined}
         initialFinish={checking.finish}
         onBack={() => {
           setChecking(null);
@@ -539,6 +543,7 @@ function QuickMode({
         entries={bundle}
         nativeConsumer={nativeConsumer}
         budgetKey={nativeConsumer ? undefined : show.budgetKey}
+        tally={show.tally}
         currency={show.currency}
         onBack={() => setIsBundleOpen(false)}
         onRemove={(key) => updateBundle(bundle.filter((entry) => entry.key !== key))}

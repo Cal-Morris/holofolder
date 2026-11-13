@@ -11,6 +11,8 @@ import {
 import { useBillingContext } from '@/hooks/use-billing';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Trash2, X } from 'lucide-react';
+import { ShowBought, type ShowTally } from '@/components/show-bought';
+import { splitBundlePrice } from '@/lib/show-session';
 import ShowBudget from '@/components/show-budget';
 import { checkBundle, parseAskingPrice, readDealThresholds } from '@/lib/deal-check';
 import { requestCardPriceCheck } from '@/lib/card-price-check-client';
@@ -22,7 +24,7 @@ import { formatMoney } from '@/lib/regional-price';
 import { formatCardNumber } from '@/lib/pokemon-card-browse';
 import { formatCardFinishLabel } from '@/lib/card-labels';
 import type { DisplayCurrency } from '@/lib/pricing-region';
-import { DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from '@/components/deal-keypad';
+import { DEAL_HIDE_WHILE_TYPING, DealPriceInput, DealVerdictPanel, PinnedDealVerdict } from '@/components/deal-keypad';
 import type { QuickBundleEntry } from '@/components/quick-card-check';
 
 export interface QuickBundleProps {
@@ -34,6 +36,8 @@ export interface QuickBundleProps {
   onRemove: (key: string) => void;
   onClear: () => void;
   onSoldCheck: (key: string, check: CardPriceCheck) => void;
+  /** Show mode's purchase tally: Bought bundle logs the total, split across the cards by market price. */
+  tally?: ShowTally;
 }
 
 export default function QuickBundle({
@@ -45,6 +49,7 @@ export default function QuickBundle({
   onRemove,
   onClear,
   onSoldCheck,
+  tally,
   // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: QuickBundleProps) {
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
@@ -325,7 +330,66 @@ export default function QuickBundle({
         />
         {!nativeConsumer && budgetKey && <ShowBudget compact storageKey={budgetKey} currency={moneyCurrency} />}
         <DealPriceInput value={input} onChange={setInput} label="Bundle price" />
+        <BundleBought
+          {...{ tally, entries: pricedEntries, total: askingTotal, currency: moneyCurrency }}
+          onLogged={onClear}
+          resetInput={setInput}
+        />
       </div>
     </section>
+  );
+}
+
+/** Bought bundle: the total split across its cards by market price (evenly when none is priced), as one bundle. */
+function BundleBought({
+  tally,
+  entries,
+  total,
+  currency,
+  onLogged,
+  resetInput,
+}: {
+  /** Without a tally (signed out, a shared view or plain Quick mode) there is nothing to log. */
+  tally?: ShowTally;
+  entries: ReadonlyArray<QuickBundleEntry>;
+  total: number | null;
+  currency: QuickBundleEntry['currency'];
+  onLogged: () => void;
+  resetInput: (value: string) => void;
+}) {
+  const purchases = () => {
+    if (!total || entries.length === 0) return null;
+    const bundleId = crypto.randomUUID();
+    const prices = splitBundlePrice(
+      total,
+      entries.map((entry) => entry.marketPrice),
+    );
+    return {
+      entries: entries.map((entry, index) => ({
+        cardId: entry.card.id,
+        cardName: entry.card.name,
+        language: entry.card.language ?? 'en',
+        finish: entry.finish,
+        price: prices[index],
+        marketPrice: entry.marketPrice,
+        currency,
+        bundleId,
+      })),
+      message: `Bought ${entries.length} card${entries.length === 1 ? '' : 's'} for ${formatMoney(total, currency)}`,
+    };
+  };
+  if (!tally) return null;
+  return (
+    <ShowBought
+      tally={tally}
+      label="Bought bundle"
+      disabled={entries.length === 0 || !total}
+      className={`bg-primary text-primary-foreground flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-bold disabled:opacity-45 ${DEAL_HIDE_WHILE_TYPING}`}
+      purchases={purchases}
+      onLogged={() => {
+        resetInput('');
+        onLogged();
+      }}
+    />
   );
 }

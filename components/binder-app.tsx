@@ -593,6 +593,8 @@ function BinderAppSurface(props: BinderAppProps) {
   const { isShowModeOn, setShowMode } = useShowMode();
   const [slotLabelsOn] = useSlotLabels();
   const showSession = useShowSession();
+  const { logPurchases, removePurchases } = showSession;
+  const showPurchaseTally = useMemo(() => ({ logPurchases, removePurchases }), [logPurchases, removePurchases]);
   const quickPressTimerRef = useRef<number | null>(null);
   const quickPressFiredRef = useRef(false);
   const [isPriceMode, setIsPriceMode] = useState(pricingEnabled && initialPriceMode);
@@ -795,7 +797,8 @@ function BinderAppSurface(props: BinderAppProps) {
 
   // Show purchases go to the collection owner's account (queued while offline), so a partner sees them too.
   useShowPurchaseSync({
-    ownerUserId: user && !readOnlyMode ? (resolvedCollectionOwnerUserId ?? null) : null,
+    // Native binders are read-only to the legacy path; only a shared view keeps someone else's tally out.
+    ownerUserId: user && !accountSettingsReadOnly ? (resolvedCollectionOwnerUserId ?? null) : null,
     isOnline,
     isShowModeOn,
   });
@@ -3791,6 +3794,7 @@ function BinderAppSurface(props: BinderAppProps) {
       currency: pricingPreferences.currency,
       fxRates,
       readOnly: nativeReadOnly,
+      tally: user?.id && !accountSettingsReadOnly ? showPurchaseTally : undefined,
       destinationName: activeBinder?.name ?? 'this binder',
       revisitKey: revisitStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null),
       budgetKey: showBudgetStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null),
@@ -3802,6 +3806,8 @@ function BinderAppSurface(props: BinderAppProps) {
     }),
     [
       nativeHunt,
+      accountSettingsReadOnly,
+      showPurchaseTally,
       nativeReadOnly,
       activeBinder?.name,
       collection,

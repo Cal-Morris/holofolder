@@ -15,6 +15,7 @@ import { useBillingContext } from '@/hooks/use-billing';
 import { useGoogleAnalytics } from '@/components/google-analytics';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, ChevronDown, ExternalLink, Heart, Layers, Plus, TrendingUp, WifiOff } from 'lucide-react';
+import { ShowBought, type ShowTally } from '@/components/show-bought';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { getCardPriceKey } from '@/hooks/use-card-prices';
 import { CardThumbnail } from '@/components/card-thumbnail';
@@ -98,6 +99,8 @@ export interface QuickCardCheckProps {
   onAddToBundle: (entry: QuickBundleEntry) => void;
   /** Show mode's extras: the bundle and the price tools. */
   showTools?: boolean;
+  /** Show mode's purchase tally: Bought logs the asking price (queued offline, synced to the collection owner). */
+  tally?: ShowTally;
 }
 
 function bundleKey(card: SearchCardResult, finish: string) {
@@ -138,6 +141,7 @@ export default function QuickCardCheck({
   isInBundle,
   onAddToBundle,
   showTools = true,
+  tally,
   // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: QuickCardCheckProps) {
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
@@ -289,6 +293,7 @@ export default function QuickCardCheck({
       : 'bg-muted text-muted-foreground';
   const bigButton =
     'flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-2xl px-3 text-base font-bold disabled:opacity-45';
+  const showBought = showTools && Boolean(tally);
 
   return (
     <section
@@ -583,8 +588,35 @@ export default function QuickCardCheck({
         <DealPriceInput value={input} onChange={setInput} autoFocus={showTools && !(nativeConsumer && readOnly)} />
         {(showTools || !readOnly) && (
           <div
-            className={`grid ${readOnly || nativeConsumer ? 'grid-cols-1' : 'grid-cols-2'} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}
+            className={`grid ${(readOnly || nativeConsumer) && !showBought ? 'grid-cols-1' : 'grid-cols-2'} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}
           >
+            {showBought && tally && (
+              <ShowBought
+                tally={tally}
+                label="Bought"
+                disabled={!askingPrice}
+                className={`${bigButton} bg-primary text-primary-foreground`}
+                purchases={() =>
+                  askingPrice
+                    ? {
+                        entries: [
+                          {
+                            cardId: card.id,
+                            cardName: card.name,
+                            language,
+                            finish,
+                            price: askingPrice,
+                            marketPrice: market?.amount ?? null,
+                            currency: moneyCurrency,
+                          },
+                        ],
+                        message: `Bought ${card.name} for ${money(askingPrice)}`,
+                      }
+                    : null
+                }
+                onLogged={() => setInput('')}
+              />
+            )}
             {!readOnly &&
               !nativeConsumer &&
               (state.wanted && !state.owned ? (

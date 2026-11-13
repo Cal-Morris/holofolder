@@ -562,13 +562,6 @@
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' }).getByRole('region', { name: 'Prices' })"
     },
     {
-      "file": "show-mode.e2e.ts",
-      "title": ["show mode", "the header's tally fits on a narrow phone, offline too"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show purchase recording (the header tally) is not wired for native binders."
-    },
-    {
       "file": "studio-navigation.e2e.ts",
       "title": ["Studio opens from Binders without the overlay undoing navigation"],
       "cause": "stale-selector-or-flow",
@@ -2267,13 +2260,6 @@
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Test timeout of 20000ms exceeded. || Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
-    },
-    {
-      "file": "show-purchase-sync.e2e.ts",
-      "title": ["show purchases on the account", "a fresh install or a partner's phone shows the show's purchases"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show purchase recording is not wired for native binders (docs/native-search-show-consumers.md)."
     },
     {
       "file": "show-recents.e2e.ts",
