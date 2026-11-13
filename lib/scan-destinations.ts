@@ -157,6 +157,9 @@ export function prepareScanDraft(
     slots = new Set<string>(),
     copies = new Set<string>();
   const commands: InventoryCommand[] = [];
+  const binderSlots = new Map(binder.slots.map((s) => [s.id, s]));
+  const items = new Map(snapshot.items.map((i) => [i.id, i]));
+  const placements = new Map(snapshot.placements.map((p) => [p.inventoryItemId, p]));
   const resolve: InventoryCatalogResolver = (id) => {
     const card = choices.find((c) => matchesCatalogCardId(c.card, id))?.card;
     return card ? pickerCandidate(card) : catalog(id);
@@ -170,18 +173,19 @@ export function prepareScanDraft(
     if (choice.slotId !== null) slots.add(choice.slotId);
     if (choice.slotId === null && choice.append !== 'free' && choice.append !== 'card') return fail('scan-unconfirmed');
     const candidate = { ...pickerCandidate(choice.card), ...(choice.finish ? { finish: choice.finish } : {}) };
+    const replaced = choice.slotId !== null && choice.replace ? binderSlots.get(choice.slotId) : undefined;
     const slot =
       choice.slotId === null
         ? null
         : choice.replace
-          ? (binder.slots.find(
-              (s) =>
-                s.id === choice.slotId &&
-                s.ownerUserId === view.ownerUserId &&
-                s.inventoryItemId !== null &&
-                matchesSlotTarget(candidate, s.target),
-            ) ?? fail('target-mismatch'))
-          : (scanDestinations(snapshot, view, choice.card, choice.finish).find((s) => s.id === choice.slotId) ??
+          ? replaced &&
+            replaced.ownerUserId === view.ownerUserId &&
+            replaced.inventoryItemId !== null &&
+            matchesSlotTarget(candidate, replaced.target)
+            ? replaced
+            : fail('target-mismatch')
+          : // oxlint-disable-next-line react-doctor/js-index-maps -- one lookup in the destinations computed for this card
+            (scanDestinations(snapshot, view, choice.card, choice.finish).find((s) => s.id === choice.slotId) ??
             fail('target-mismatch'));
     const identity = {
       kind: 'card' as const,
@@ -194,6 +198,7 @@ export function prepareScanDraft(
       // Existing matching copies keep the command contract authoritative.
       const available = { ...snapshot, items: snapshot.items.filter((i) => !copies.has(i.id)) };
       const eligible = pickerChoices(available, identity, resolve);
+      // oxlint-disable-next-line react-doctor/js-index-maps -- the first raw choice, in picker order
       const raw = eligible.find((c) => c.label === 'Raw')?.selection;
       if (raw?.kind === 'existing') selection = raw;
       else {
@@ -210,7 +215,8 @@ export function prepareScanDraft(
       }
     } else {
       const selectedCopy = choice.copy;
-      const selectedItem = snapshot.items.find((i) => i.id === selectedCopy.inventoryItemId);
+      const selectedItem = items.get(selectedCopy.inventoryItemId);
+      // oxlint-disable-next-line react-doctor/js-index-maps -- the picker offers this one item's choices
       const existing = pickerChoices(
         { ...snapshot, items: selectedItem ? [selectedItem] : [] },
         identity,
@@ -253,9 +259,9 @@ export function prepareScanDraft(
             id: slot.id,
             version: slot.version,
             inventoryItemId: slot.inventoryItemId,
-            itemVersion: snapshot.items.find((i) => i.id === slot.inventoryItemId)?.version ?? null,
+            itemVersion: slot.inventoryItemId === null ? null : (items.get(slot.inventoryItemId)?.version ?? null),
             placementVersion:
-              snapshot.placements.find((p) => p.inventoryItemId === slot.inventoryItemId)?.version ?? null,
+              slot.inventoryItemId === null ? null : (placements.get(slot.inventoryItemId)?.version ?? null),
           },
         },
         occupied: choice.replace ? 'unassign' : 'cancel',

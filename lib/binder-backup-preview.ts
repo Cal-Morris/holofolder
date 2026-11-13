@@ -17,6 +17,8 @@ import { matchesSlotTarget, isSlotContractId } from '@/lib/domain/binder-slots';
 import { getPokemonById } from '@/lib/pokemon-catalog';
 import { parseInventoryCommand, type InventoryCommandRequest } from '@/lib/domain/inventory-commands';
 
+const OWNED_STATUSES = new Set(['collected', 'finalized']);
+
 export type BackupImportMode = 'restore-current-owner' | 'arrangement' | 'additional-copies';
 export type BackupCopyDecision = { sourceItemId: string } & (
   { kind: 'add-copy' } | { kind: 'use-existing'; itemId: string }
@@ -170,15 +172,17 @@ export function previewBinderBackupImport(input: {
     throw new Error('Additional-copy import only accepts explicit add-copy decisions');
   const selected = new Map<string, string>();
   const existing = new Set<string>();
+  const decisionsBySource = new Map(decisions.map((d) => [d.sourceItemId, d]));
+  const currentItems = new Map(current.items.map((i) => [i.id, i]));
   proposed.items = [];
   for (const item of backup.items) {
-    const decision = decisions.find((d) => d.sourceItemId === item.id);
+    const decision = decisionsBySource.get(item.id);
     if (!decision) {
       if (input.mode === 'additional-copies') unresolved.push(`Choose add-copy explicitly for ${item.id}`);
       continue;
     }
     if (decision.kind === 'use-existing') {
-      const owned = current.items.find((i) => i.id === decision.itemId);
+      const owned = currentItems.get(decision.itemId);
       if (!owned || existing.has(owned.id)) throw new Error('Select each trusted existing copy at most once');
       // Equality checks compatibility only; it never establishes ownership identity.
       if (
@@ -213,16 +217,19 @@ export function previewBinderBackupImport(input: {
     if (!destination) throw new Error('Destination must be in trusted current-owner inventory');
     proposed.collections = [structuredClone(destination)];
     proposed.placements = [];
+    const destinationLayoutRevision = current.binders.find((c) => c.collectionId === destination.id)!.layoutRevision;
+    const proposedItems = new Map(proposed.items.map((i) => [i.id, i]));
+    const currentPlacements = new Map(current.placements.map((p) => [p.inventoryItemId, p]));
     for (const b of proposed.binders) {
       b.collectionId = destination.id;
-      b.layoutRevision = current.binders.find((c) => c.collectionId === destination.id)!.layoutRevision;
+      b.layoutRevision = destinationLayoutRevision;
       for (const slot of b.slots) {
         const sourceItemId = slot.inventoryItemId;
         slot.id = allocate();
         slot.collectionId = destination.id;
         slot.version = 0;
         slot.inventoryItemId = sourceItemId === null ? null : (selected.get(sourceItemId) ?? null);
-        if (slot.inventoryItemId === null && ['collected', 'finalized'].includes(slot.status ?? '')) slot.status = null;
+        if (slot.inventoryItemId === null && OWNED_STATUSES.has(slot.status ?? '')) slot.status = null;
         addedWants +=
           Math.max(slot.wantedCards.length, slot.status === 'wishlisted' ? 1 : 0) +
           (slot.status === 'considering' ? 1 : 0);
@@ -234,13 +241,11 @@ export function previewBinderBackupImport(input: {
         for (const want of slot.wantedCards)
           if (!input.resolveCatalog(want.card_id)) unresolved.push(`Resolve wanted printing for ${slot.id}`);
         if (slot.inventoryItemId !== null) {
-          const item =
-            proposed.items.find((i) => i.id === slot.inventoryItemId) ??
-            current.items.find((i) => i.id === slot.inventoryItemId)!;
+          const item = proposedItems.get(slot.inventoryItemId) ?? currentItems.get(slot.inventoryItemId)!;
           const candidate = inventoryItemCandidate(item, input.resolveCatalog);
           if (!candidate || !matchesSlotTarget(candidate, slot.target))
             unresolved.push(`Resolve target match for ${slot.id}`);
-          const from = current.placements.find((p) => p.inventoryItemId === item.id);
+          const from = currentPlacements.get(item.id);
           if (existing.has(item.id)) moves.push({ itemId: item.id, from: from?.slotId ?? null, to: slot.id });
           proposed.placements.push({
             inventoryItemId: item.id,
@@ -307,13 +312,17 @@ export function previewBinderBackupImport(input: {
         operationId: input.operationId,
         inventoryRevision: current.inventoryRevision,
         destinationCollectionId: destination.collectionId,
-        collections: current.collections
-          .filter((c) => collectionIds.has(c.id))
-          .map((c) => ({
-            collectionId: c.id,
-            version: c.version,
-            layoutRevision: current.binders.find((b) => b.collectionId === c.id)!.layoutRevision,
-          })),
+        collections: current.collections.flatMap((c) =>
+          collectionIds.has(c.id)
+            ? [
+                {
+                  collectionId: c.id,
+                  version: c.version,
+                  layoutRevision: current.binders.find((b) => b.collectionId === c.id)!.layoutRevision,
+                },
+              ]
+            : [],
+        ),
         emptyDestinationSlots: destination.slots.map((s) => ({
           id: s.id,
           version: s.version,
