@@ -25,6 +25,7 @@ export function usePartnerPush(userId: string | null, enabled = true, showMode =
     };
   }, [userId, enabled, showMode]);
 
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect -- a fire-and-forget POST that nudges the server; no response is rendered.
   useEffect(() => {
     if (!enabled) return;
     let stopped = false;

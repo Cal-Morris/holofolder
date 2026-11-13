@@ -98,8 +98,8 @@ export function useTCGdex() {
 
       setIsLoading(false);
       return cards;
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch cards');
+    } catch (err) {
+      setError((err as Error).message || 'Failed to fetch cards');
       setIsLoading(false);
       return [];
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { hasOpenOverlays } from '@/hooks/use-overlay';
 import {
   classifyEdgeDrag,
@@ -31,7 +31,7 @@ export function useEdgeSwipeBack<View extends string>(
   homeView: View,
   enabled = true,
 ) {
-  const stackRef = useRef(new ViewBackStack<View>());
+  const [stack] = useState(() => new ViewBackStack<View>());
   const previousViewRef = useRef(view);
   const latest = useRef({ view, goToView, homeView, enabled });
 
@@ -40,9 +40,9 @@ export function useEdgeSwipeBack<View extends string>(
   }, [enabled, goToView, homeView, view]);
 
   useEffect(() => {
-    stackRef.current.visit(previousViewRef.current, view);
+    stack.visit(previousViewRef.current, view);
     previousViewRef.current = view;
-  }, [view]);
+  }, [stack, view]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -57,20 +57,20 @@ export function useEdgeSwipeBack<View extends string>(
           return;
         }
         // Nothing in-app to go back to: leave Cmd+[ to the browser.
-        if (stackRef.current.peek() === undefined) return;
+        if (stack.peek() === undefined) return;
         event.preventDefault();
-        go(stackRef.current.back(current)!);
+        go(stack.back(current)!);
         return;
       }
       if (hasOpenOverlays()) return;
-      const next = stackRef.current.forward(current);
+      const next = stack.forward(current);
       if (next === undefined) return;
       event.preventDefault();
       go(next);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [stack]);
 
   useEffect(() => {
     if (!isStandalone()) return;
@@ -88,7 +88,7 @@ export function useEdgeSwipeBack<View extends string>(
       if (!on) return false;
       if (hasOpenOverlays()) return true;
       // On the binder itself, sideways swipes turn pages; only other views swipe back.
-      return current !== home && stackRef.current.peek() !== undefined;
+      return current !== home && stack.peek() !== undefined;
     };
     const clearIndicator = () => {
       delete root.dataset.edgeBack;
@@ -151,7 +151,7 @@ export function useEdgeSwipeBack<View extends string>(
         window.history.back();
         return;
       }
-      const previous = stackRef.current.back(latest.current.view);
+      const previous = stack.back(latest.current.view);
       if (previous) latest.current.goToView(previous);
     };
     const onCancel = (event: PointerEvent) => {
@@ -171,5 +171,5 @@ export function useEdgeSwipeBack<View extends string>(
       window.removeEventListener('pointercancel', onCancel, { capture: true });
       clearIndicator();
     };
-  }, []);
+  }, [stack]);
 }

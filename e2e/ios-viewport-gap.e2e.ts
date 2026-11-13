@@ -86,7 +86,7 @@ for (const [label, height, gap] of [
   test.describe(`installed app, ${label}: sheets and dialogs`, () => {
     test.use({ signedIn: true });
     // oxlint-disable-next-line eslint/no-empty-pattern -- Playwright requires a destructured first argument.
-  test.beforeEach(({}, testInfo) => {
+    test.beforeEach(({}, testInfo) => {
       test.skip(
         !testInfo.project.metadata?.standalone || !testInfo.project.name.includes('390'),
         'one installed-app run',

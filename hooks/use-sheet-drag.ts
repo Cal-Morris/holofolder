@@ -265,6 +265,7 @@ export function useSheetDrag(sheetRef: RefObject<HTMLElement | null>, onDismiss:
     };
 
     document.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
+    // oxlint-disable-next-line react-doctor/client-passive-event-listeners -- onTouchMove calls preventDefault while the sheet is being dragged.
     document.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
     document.addEventListener('touchend', onTouchEnd, { capture: true, passive: true });
     document.addEventListener('touchcancel', onTouchEnd, { capture: true, passive: true });

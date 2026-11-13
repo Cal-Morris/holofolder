@@ -65,6 +65,7 @@ export function useCardSearch(
     offlineCardsRef.current = null;
   }, [getOfflineCards]);
 
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect -- debounced search with an AbortController per key; results for an aborted key are dropped.
   useEffect(() => {
     if (!key) return;
     const controller = new AbortController();
@@ -84,6 +85,7 @@ export function useCardSearch(
     const trackSearch = (resultCount: number, offline: boolean) =>
       trackGoogleEvent('search', { search_term: searchText.slice(0, 100), result_count: resultCount, offline });
     const showOffline = async () => {
+      // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
       const result = await searchOnDevice();
       if (controller.signal.aborted) return;
       trackSearch(result?.cards.length ?? 0, true);
@@ -192,6 +194,7 @@ export function useSetSearch(query: string, enabled: boolean, limit?: number) {
   const [state, setState] = useState<SetSearchState>({ key: '', sets: [] });
   const key = enabled && isSetSearchQuery(query) ? query.trim().replace(/\s+/g, ' ').toLowerCase() : '';
 
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect -- set search with an AbortController per key; results for an aborted key are dropped.
   useEffect(() => {
     if (!key) return;
     const controller = new AbortController();

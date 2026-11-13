@@ -23,6 +23,8 @@ interface Options {
   legacyKey?: string;
 }
 const eventName = 'binderdex-appearance-updated';
+const SETTLED: Promise<unknown> = Promise.resolve();
+
 export function useBinderAppearance({ owner, settings, enabled = true, legacyKey }: Options) {
   const initial = useMemo(() => defaultBinderDesign(settings), [settings]);
   const defaults = useRef(initial);
@@ -41,7 +43,7 @@ export function useBinderAppearance({ owner, settings, enabled = true, legacyKey
   const urls = useRef<Record<string, string>>({});
   const generation = useRef(0);
   const conflict = useRef(false);
-  const serial = useRef<Promise<unknown>>(Promise.resolve());
+  const serial = useRef<Promise<unknown>>(SETTLED);
   const key = owner ? `owner:${owner}` : 'guest-demo';
   const enqueue = useCallback(
     <T>(operation: () => Promise<T>): Promise<T> => {
@@ -82,6 +84,7 @@ export function useBinderAppearance({ owner, settings, enabled = true, legacyKey
           install(null);
         }
         if (next?.pending) {
+          // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
           const remote = await syncBinderAppearance(owner, next);
           if (token !== generation.current) return;
           next = { ...next, revision: remote.revision, pending: false };
@@ -90,9 +93,11 @@ export function useBinderAppearance({ owner, settings, enabled = true, legacyKey
           setMessage('Appearance synced.');
           return;
         }
+        // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
         const remote = await fetchBinderAppearance(owner);
         if (token !== generation.current) return;
         if (remote.design && (!next || remote.revision !== next.revision)) {
+          // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
           const blobs = await fetchArtwork(owner, remote.design);
           if (token !== generation.current) return;
           next = { design: remote.design, uploads: blobs, revision: remote.revision, pending: false };
@@ -108,6 +113,7 @@ export function useBinderAppearance({ owner, settings, enabled = true, legacyKey
           next = { ...next, revision: 0, pending: true };
           await saveBinderDesign(key, next.design, next.uploads, next);
           record.current = next;
+          // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
           const saved = await syncBinderAppearance(owner, next);
           if (token !== generation.current) return;
           next = { ...next, revision: saved.revision, pending: false };
@@ -140,6 +146,7 @@ export function useBinderAppearance({ owner, settings, enabled = true, legacyKey
         return;
       }
       try {
+        // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
         const cached = (await readBinderDesign(key)) ?? (legacyKey ? await readBinderDesign(legacyKey) : null);
         if (token !== generation.current) return;
         install(cached);
@@ -192,6 +199,7 @@ export function useBinderAppearance({ owner, settings, enabled = true, legacyKey
             JSON.stringify(cached.design) !== JSON.stringify(next.design)
           )
             throw new AppearanceConflict();
+          // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
           await saveBinderDesign(key, next.design, next.uploads, next);
           if (token !== generation.current) throw new Error('Your account changed. Reopen the binder before saving.');
           install(next);
@@ -203,6 +211,7 @@ export function useBinderAppearance({ owner, settings, enabled = true, legacyKey
             setMessage('Saved on this device. Will sync when you’re online.');
             return { synced: false, revision: next.revision };
           }
+          // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
           const remote = await syncBinderAppearance(owner, next);
           if (token !== generation.current) throw new Error('Your account changed. Reopen the binder before saving.');
           next = { ...next, revision: remote.revision, pending: false };
@@ -238,6 +247,7 @@ export function useBinderAppearance({ owner, settings, enabled = true, legacyKey
       const cached = await readBinderDesign(key);
       if (cached?.pending && JSON.stringify(cached.design) !== JSON.stringify(record.current?.design))
         throw new Error('Another tab has an unsynced appearance. Sync it before loading the account appearance.');
+      // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
       const remote = await fetchBinderAppearance(owner);
       const next = remote.design
         ? {

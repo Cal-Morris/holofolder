@@ -128,6 +128,7 @@ export function normalizeCardPriceLookups(cardLookups: Array<string | CardPriceL
     byKey.set(getCardPriceKey(cardId, language), { cardId, language });
   }
 
+  // oxlint-disable-next-line react-doctor/js-tosorted-immutable -- the spread turns a Map iterator into an array; it isn't a copy.
   return [...byKey.values()].sort((left, right) => {
     const cardComparison = left.cardId.localeCompare(right.cardId);
     return cardComparison === 0
@@ -226,8 +227,10 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
     return () => window.removeEventListener('online', handleOnline);
   }, [enabled]);
 
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state, react-doctor/no-fetch-in-effect -- shows cached prices at once, then fetches with a cancel flag; the updates land in separate ticks.
   useEffect(() => {
     if (!enabled || stableLookups.length === 0) {
+      // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-adjust-state-on-prop-change -- clears loading when the lookups go away; the fetch below owns the flag otherwise.
       setIsLoading(false);
       return;
     }
@@ -236,6 +239,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
     const quickPrices = buildCardPriceFetchPlan(stableLookups, cache, { isOnline: false }).cachedPrices;
     let cancelled = false;
     setPricesByCardId((current) => mergeCardPriceState(current, quickPrices));
+    // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- paints cached prices before the network round.
     setIsLoading(true);
 
     void loadPriceEvidence(stableLookups)
@@ -387,6 +391,7 @@ const PRICE_EVIDENCE_BATCH_SIZE = 100;
 async function persistPriceEvidence(prices: CardPriceSnapshot[], store = getOfflineStore()) {
   if (!store) throw new Error('Offline price storage is unavailable on this device');
   for (let offset = 0; offset < prices.length; offset += PRICE_EVIDENCE_BATCH_SIZE) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- 100 keys per IndexedDB write keeps transactions small; batches run in order.
     await store.setMany(
       prices
         .slice(offset, offset + PRICE_EVIDENCE_BATCH_SIZE)
@@ -403,6 +408,7 @@ export async function loadPriceEvidence(
   const results: CardPriceSnapshot[] = [];
   for (let offset = 0; offset < lookups.length; offset += PRICE_EVIDENCE_BATCH_SIZE) {
     const batch = lookups.slice(offset, offset + PRICE_EVIDENCE_BATCH_SIZE);
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- 100 keys per IndexedDB read keeps transactions small; batches run in order.
     const savedPrices = await store.getMany<CardPriceSnapshot>(
       batch.map((lookup) => `price-evidence:${getCardPriceKey(lookup.cardId, lookup.language)}`),
     );

@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, use, useCallback, useEffect, useState } from 'react';
 import { resolveBillingAccess, type BillingAccess } from '@/lib/billing';
 import { BILLING_CHANGED, readBillingCache, writeBillingCache } from '@/lib/billing-cache';
 
@@ -139,5 +139,5 @@ export function useBilling(accountId: string | null, ownerId: string | null, onU
 export type BillingState = ReturnType<typeof useBilling>;
 export const BillingContext = createContext<BillingState | null>(null);
 export function useBillingContext() {
-  return useContext(BillingContext);
+  return use(BillingContext);
 }

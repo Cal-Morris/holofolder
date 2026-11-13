@@ -74,6 +74,7 @@ export function usePartner({ user }: UsePartnerOptions) {
       setError(null);
       try {
         // Load partnerships
+        // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
         const { data: partnership, error: partnershipError } = await supabase
           .from('partnerships')
           .select('*')
@@ -92,6 +93,7 @@ export function usePartner({ user }: UsePartnerOptions) {
           let partnerEmail = 'Partner';
 
           if (currentUserIsInviter) {
+            // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
             const { data: acceptedInvite, error: inviteLookupError } = await supabase
               .from('partner_invites')
               .select('invitee_email')
@@ -108,6 +110,7 @@ export function usePartner({ user }: UsePartnerOptions) {
 
             partnerEmail = acceptedInvite?.invitee_email || partnerEmail;
           } else {
+            // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
             const { data: acceptedInvite, error: inviteLookupError } = await supabase
               .from('partner_invites')
               .select('inviter_email')
@@ -136,6 +139,7 @@ export function usePartner({ user }: UsePartnerOptions) {
 
         // Load pending invites received
         if (currentUser.email) {
+          // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
           const { data: received } = await supabase
             .from('partner_invites')
             .select('*')
@@ -156,6 +160,7 @@ export function usePartner({ user }: UsePartnerOptions) {
         }
 
         // Load sent invites
+        // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
         const { data: sent } = await supabase
           .from('partner_invites')
           .select('*')
@@ -183,6 +188,7 @@ export function usePartner({ user }: UsePartnerOptions) {
   );
 
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- loads partner data when the account changes; the sync reset only runs on sign-out.
     void loadPartnerData(user);
   }, [loadPartnerData, user]);
 
@@ -211,6 +217,7 @@ export function usePartner({ user }: UsePartnerOptions) {
       loadSequence.current++;
       setIsLoading(false);
       try {
+        // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
         await changeMembership(() => changePartner('accept', { inviteId }));
         if (account.current !== user.id || mutation.current !== request)
           return { error: 'Account changed. Reopen partner settings.' };
@@ -251,6 +258,7 @@ export function usePartner({ user }: UsePartnerOptions) {
     loadSequence.current++;
     setIsLoading(false);
     try {
+      // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after it checks whether this request went stale while the await ran, so it can't move above the await.
       await changeMembership(() => changePartner('disconnect'));
       if (account.current !== user.id || mutation.current !== request)
         return { error: 'Account changed. Reopen partner settings.' };

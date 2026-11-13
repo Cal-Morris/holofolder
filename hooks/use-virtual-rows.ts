@@ -29,7 +29,7 @@ export function useVirtualRows({
   const [viewportHeight, setViewportHeight] = useState(initialViewportHeight);
   // Measured heights: collected in a ref by the observer, published as state once per frame.
   const [heights, setHeights] = useState<ReadonlyMap<string, number>>(() => new Map());
-  const heightsRef = useRef(new Map<string, number>());
+  const [measured] = useState(() => new Map<string, number>());
   const rowObserverRef = useRef<ResizeObserver | null>(null);
   const scrollFrameRef = useRef<number | null>(null);
   const measureFrameRef = useRef<number | null>(null);
@@ -77,31 +77,34 @@ export function useVirtualRows({
   }, [keys, gap, estimatedRowHeight, scrollTop, viewportHeight, overscanPx, heights]);
 
   /** Ref callback for each rendered row (needs `data-virtual-key`). */
-  const measureRow = useCallback((element: HTMLElement | null) => {
-    if (!element || typeof ResizeObserver === 'undefined') return;
-    if (!rowObserverRef.current) {
-      rowObserverRef.current = new ResizeObserver((entries) => {
-        let changed = false;
-        for (const entry of entries) {
-          const row = entry.target as HTMLElement;
-          const key = row.dataset.virtualKey;
-          const height = row.offsetHeight;
-          if (key === undefined || height <= 0 || heightsRef.current.get(key) === height) continue;
-          heightsRef.current.set(key, height);
-          changed = true;
-        }
-        if (changed && measureFrameRef.current === null) {
-          measureFrameRef.current = requestAnimationFrame(() => {
-            measureFrameRef.current = null;
-            setHeights(new Map(heightsRef.current));
-          });
-        }
-      });
-    }
-    const observer = rowObserverRef.current;
-    observer.observe(element);
-    return () => observer.unobserve(element);
-  }, []);
+  const measureRow = useCallback(
+    (element: HTMLElement | null) => {
+      if (!element || typeof ResizeObserver === 'undefined') return;
+      if (!rowObserverRef.current) {
+        rowObserverRef.current = new ResizeObserver((entries) => {
+          let changed = false;
+          for (const entry of entries) {
+            const row = entry.target as HTMLElement;
+            const key = row.dataset.virtualKey;
+            const height = row.offsetHeight;
+            if (key === undefined || height <= 0 || measured.get(key) === height) continue;
+            measured.set(key, height);
+            changed = true;
+          }
+          if (changed && measureFrameRef.current === null) {
+            measureFrameRef.current = requestAnimationFrame(() => {
+              measureFrameRef.current = null;
+              setHeights(new Map(measured));
+            });
+          }
+        });
+      }
+      const observer = rowObserverRef.current;
+      observer.observe(element);
+      return () => observer.unobserve(element);
+    },
+    [measured],
+  );
 
   return { range, attachScroller, onScroll, measureRow };
 }

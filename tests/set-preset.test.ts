@@ -102,7 +102,7 @@ describe('copied set checklist', () => {
     cards[0].name = 'changed later';
     assert.notEqual(result.scope.cards[0].name, cards[0].name);
     assert.ok(Object.isFrozen(result.scope.cards[0]));
-    const reordered = jsonRoundTrip(result);
+    const reordered = jsonRoundTrip<{ scope: object }>(result);
     reordered.scope = Object.fromEntries(Object.entries(reordered.scope).reverse());
     assert.deepEqual(parseSetChecklist(reordered), result);
     const draft = parseBinderCreationDraft({
