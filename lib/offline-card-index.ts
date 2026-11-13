@@ -13,7 +13,7 @@ import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
 // data the service worker cached: set coverage, per-Pokémon card lists and earlier search results), matched
 // with the same query rules as /app/api/tcg-card-search (name, set name/id, "44/102" numbers, card ids).
 import type { CollectedPokemon } from '@/lib/domain/cards';
-import { normalizeLocalId, type SearchCardResult } from '@/lib/pokemon-card-browse';
+import { normalizeLocalId, parseCardSearchQuery, type SearchCardResult } from '@/lib/pokemon-card-browse';
 import type { TCGSetSummary } from '@/lib/tcg-set-slots';
 
 export const CACHED_CARD_API_PREFIXES = [
@@ -245,6 +245,10 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
     results.push(card);
     if (results.length >= limit) break;
   }
+  // "mario pikachu": a word that partly names a set but finds nothing there is a card name, like the server search.
+  const literal = parseCardSearchQuery(query);
+  if (!results.length && setIds.size && literal.text && !literal.number)
+    return cards.filter((card) => card.name.toLowerCase().includes(literal.text)).slice(0, limit);
   return results;
 }
 

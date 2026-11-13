@@ -31,6 +31,7 @@ const RULES: Array<{ nicknames: string[]; where: string }> = [
   { nicknames: ['gold star', 'goldstar'], where: `c.name_en LIKE '%☆%'` },
   { nicknames: ['delta species', 'delta'], where: `c.name_en LIKE '%δ%'` },
   { nicknames: ['amazing rare'], where: `c.rarity = 'Amazing Rare'` },
+  { nicknames: ['poncho'], where: `c.name_en LIKE 'Poncho-wearing %'` },
   { nicknames: ['tag team', 'tag teams'], where: `c.name_en ~ '&.* GX$'` },
   // XY Mega Evolutions are printed "M Charizard EX"; newer ones already say "Mega".
   { nicknames: ['mega'], where: `c.name_en ~ '^M [A-Z]'` },
