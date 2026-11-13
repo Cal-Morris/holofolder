@@ -12,6 +12,7 @@ Make the smallest dependency change that resolves the demonstrated issue. Use [A
 - Read the upstream advisory and release/runtime compatibility notes. Record the affected package, vulnerable range, first fixed version and actual call sites. An advisory is not evidence that this app was exploited.
 - Inspect both `package.json` and `bun.lock`. A direct bump can leave a vulnerable framework-transitive copy. Verify the resolved graph and which copy a consumer actually loads, not just the manifest line.
 - Before removing a dependency, search static imports, dynamic imports, scripts, tests, configuration, generated entry points and string-built module names. A static-import grep alone cannot establish that a package is unused.
+- `bun run knip` (CI runs it) reports unused and unlisted dependencies. A dependency loaded only by name at runtime (for example `@workflow/world-postgres` via `WORKFLOW_TARGET_WORLD`) belongs in `ignoreDependencies` in `knip.jsonc` with a comment saying why; anything else knip flags gets removed, with `bun.lock` updated in the same change.
 - Pin baseline failures to their source revision. Reproduce an apparent regression against unchanged main when ownership is unclear. Keep unrelated fixes and upgrades in separate PRs.
 
 ## Validate the contract

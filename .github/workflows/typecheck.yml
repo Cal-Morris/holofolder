@@ -31,6 +31,8 @@ jobs:
         run: bun run test
       - name: Lint
         run: bun run lint
+      - name: Knip
+        run: bun run knip
       # Replaces the Vercel preview build as the PR build gate (previews are off in vercel.json)
       - name: Build
         run: bun run build
