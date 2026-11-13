@@ -56,6 +56,13 @@ export const catalogCardSchema = z
     attribution: z.string(),
   })
   .strict();
+const similarEntrySchema = z.strictObject({ similarity: z.number().min(-1).max(1), card: catalogCardSchema });
+export const similarCardsSchema = z.strictObject({
+  cardId: catalogId,
+  language: z.string(),
+  sameArtwork: z.array(similarEntrySchema),
+  similarLook: z.array(similarEntrySchema),
+});
 export const catalogPageSchema = (row: z.ZodType) =>
   z.object({ data: z.array(row), nextCursor: z.string().nullable() }).passthrough();
 export type DeveloperCatalogCard = z.infer<typeof catalogCardSchema>;

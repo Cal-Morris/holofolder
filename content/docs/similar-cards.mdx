@@ -1,0 +1,35 @@
+---
+title: Similar cards
+description: Find other printings of a card's artwork and cards with a similar look.
+---
+
+A card's details end with two rows of cards picked by their picture. **Same artwork** lists other printings of the same
+illustration: reprints such as Base Set 2, Legendary Collection or Celebrations Classic Collection, Trainer Gallery
+duplicates, and the same card printed in Japanese. **Similar look** lists the next closest cards by colour and
+composition. Tap a card to open its details.
+
+The rows use public catalogue data, so they work signed out and on shared binders. They stay hidden while offline, when
+the lookup fails and for cards that have no picture fingerprint yet (a card needs a mirrored image first).
+
+Pictures are compared with a DINOv3 fingerprint of each card's image. A neighbour counts as the same artwork only when
+it shows the same subject (the same Pokédex number, or for Trainers and Energy the same name or illustrator), and its
+illustrator matches with a similarity of at least 0.78, or the pictures are at least 0.92 similar. Template full arts
+of different Pokémon can look alike, so they appear under Similar look, never Same artwork.
+
+## REST and MCP
+
+`GET /app/api/v1/cards/{id}/similar?language=en` and MCP `get_similar_cards` with `{"id":"base1-4"}` return:
+
+```json
+{
+  "cardId": "base1-4",
+  "language": "en",
+  "sameArtwork": [{ "similarity": 0.922, "card": { "id": "base4-4", "name": "Charizard", "…": "…" } }],
+  "similarLook": [{ "similarity": 0.805, "card": { "id": "dp3-16", "name": "Raikou", "…": "…" } }]
+}
+```
+
+Each `card` is the same record `get_card` returns, in the language of the matching print, so Japanese prints come back
+with Japanese names. `similarity` is the cosine similarity of the two pictures, from 0 to 1. Both lists are empty when
+the card has no fingerprint yet, and an unknown card ID returns `404 not_found`. Same artwork returns at most 24 cards
+and Similar look at most 12.

@@ -1,4 +1,10 @@
-import { catalogCardSchema, catalogGroupSchema, catalogGroupDetailSchema, catalogPageSchema } from './catalog';
+import {
+  catalogCardSchema,
+  catalogGroupSchema,
+  catalogGroupDetailSchema,
+  catalogPageSchema,
+  similarCardsSchema,
+} from './catalog';
 import { PRESET_OPERATIONS } from './presets';
 import { NATIVE_READ_OPERATIONS } from './native-read';
 import { DISPLAY_CURRENCIES, PRICING_REGIONS } from '@/lib/pricing-region';
@@ -61,6 +67,18 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     permissions: ['catalog:read'],
     write: false,
     schema: z.object({ id, language }).strict(),
+  },
+  {
+    name: 'get_similar_cards',
+    idempotent: true,
+    responseSchema: similarCardsSchema,
+    method: 'GET',
+    path: '/cards/{id}/similar',
+    description:
+      'Cards whose picture looks like this printing, from image fingerprints. sameArtwork lists other printings of the same artwork (reprints, other languages, Japanese prints), most similar first; similarLook lists the next nearest cards by colour and composition. similarity is the cosine similarity of the two pictures, 0 to 1. Both lists are empty when the card has no fingerprint yet.',
+    permissions: ['catalog:read'],
+    write: false,
+    schema: z.strictObject({ id, language }),
   },
   {
     name: 'list_sets',

@@ -13,6 +13,7 @@ import { parseCardSearchQuery } from '@/lib/pokemon-card-browse';
 import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
 import { createDeveloperImageResolver, type DeveloperImageResolver } from '@/lib/server/developer-images';
 import { sanitizeDeveloperImages } from '@/lib/server/developer-image-fields';
+import { getSimilarCardNeighbours } from '@/lib/tcg-mirror';
 
 const CARD_COLUMNS =
   'raw_json,id,series_id,set_id,local_id,name_json,category,rarity,hp,illustrator,types_json,image_languages_json,external_ids_json,variants_json,tcg_sets(id,name_json,official_card_count,release_date)';
@@ -232,4 +233,38 @@ export async function getCatalogGroup(kind: 'tcg_sets' | 'tcg_series', id: strin
     .maybeSingle();
   if (error) throw new Error('Catalog lookup unavailable');
   return data ? sanitizeDeveloperImages({ ...record(data), game: CATALOG_GAME }) : null;
+}
+/** Similar cards by picture (get_similar_cards): other printings of the same artwork, then cards with a similar look. */
+export async function getCatalogSimilarCards(id: string, lang: CardLanguage) {
+  'use cache: remote';
+  cacheLife({ stale: 60, revalidate: 60, expire: 120 });
+  cacheTag('tcg-mirror');
+  const split = await getSimilarCardNeighbours(id, lang);
+  const neighbours = [...split.sameArtwork, ...split.similarLook];
+  const ids = neighbours.length ? neighbours.map((n) => n.cardId) : [id];
+  const { data, error } = await createAdminClient().from('tcg_cards').select(CARD_COLUMNS).in('id', ids);
+  if (error) throw new Error('Similar cards unavailable');
+  const rows = new Map((data ?? []).map((row) => [String(record(row).id), row]));
+  if (!neighbours.length) return rows.size ? { cardId: id, language: lang, sameArtwork: [], similarLook: [] } : null;
+  const serialized = new Map<string, unknown>();
+  await Promise.all(
+    [...new Set(neighbours.map((n) => n.lang))].map(async (language) => {
+      const group = neighbours.filter((n) => n.lang === language && rows.has(n.cardId));
+      const cards = await cardPage(
+        group.map((n) => rows.get(n.cardId)),
+        language,
+      );
+      group.forEach((n, index) => serialized.set(n.cardId, cards[index]));
+    }),
+  );
+  const toEntries = (group: typeof neighbours) =>
+    group.flatMap((n) =>
+      serialized.has(n.cardId) ? [{ similarity: Number(n.similarity.toFixed(3)), card: serialized.get(n.cardId) }] : [],
+    );
+  return {
+    cardId: id,
+    language: lang,
+    sameArtwork: toEntries(split.sameArtwork),
+    similarLook: toEntries(split.similarLook),
+  };
 }
