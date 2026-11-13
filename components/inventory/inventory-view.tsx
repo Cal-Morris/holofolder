@@ -34,6 +34,9 @@ import type { PricingRegion } from '@/lib/pricing-region';
 import type { InventoryOwnershipBinding } from '@/lib/inventory-actions';
 import styles from './inventory.module.css';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BackgroundPriceCheck } from '@/components/collection-price-check';
+import { checkCompsTargets, type CheckCompsTarget } from '@/lib/check-comps';
+import { inventoryCompsTargets } from '@/lib/collection-comps';
 
 const InventoryBulkReview = dynamic(
   () => import('./inventory-ownership').then((module) => module.InventoryBulkReview),
@@ -60,6 +63,8 @@ export interface InventoryViewProps {
   onOpenLocation?: (intent: InventoryLocationIntent) => void;
   /** Why this may not be the very latest: still loading the latest, offline, or the last update failed. */
   savedState?: InventorySavedState;
+  /** The owner's or partner's own session while online: the owned bulk price check under the header. */
+  checkPrices?: boolean;
 }
 export type InventorySavedState = 'updating' | 'offline' | 'last-saved';
 export default function InventoryView({
@@ -74,6 +79,7 @@ export default function InventoryView({
   ownership,
   pricingRegion = 'UK',
   savedState,
+  checkPrices = false,
 }: InventoryViewProps) {
   const index = useMemo(
     () => buildInventoryBrowseIndex(scope, evidence, catalog, layouts),
@@ -97,12 +103,21 @@ export default function InventoryView({
       card: (identity) => describeIdentity(identity, namer),
     };
   }, [evidence, catalog, layouts]);
+  const ownedTargets = useMemo(
+    () =>
+      checkPrices && evidence.kind !== 'unavailable'
+        ? checkCompsTargets(inventoryCompsTargets(evidence.snapshot.items), 'collection')
+        : undefined,
+    [checkPrices, evidence],
+  );
   return (
     <InventoryResults
       key={index.key}
       index={index}
       labels={labels}
       savedState={savedState}
+      ownedTargets={ownedTargets}
+      ownerId={scope.ownerUserId}
       ownership={activeOwnership}
       pricingRegion={pricingRegion}
       onOpenLocation={onOpenLocation}
@@ -132,6 +147,8 @@ function InventoryResults({
   initialBrowseState,
   onBrowseStateChange,
   ownership,
+  ownedTargets,
+  ownerId,
 }: Pick<
   InventoryViewProps,
   | 'ownership'
@@ -141,8 +158,13 @@ function InventoryResults({
   | 'initialBrowseState'
   | 'onBrowseStateChange'
   | 'savedState'
+> & {
+  index: InventoryBrowseIndex;
+  labels?: InventoryLabels;
+  ownedTargets?: readonly CheckCompsTarget[];
+  ownerId: string;
   // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent browse controls; one reducer would not read better
-> & { index: InventoryBrowseIndex; labels?: InventoryLabels }) {
+}) {
   const [initial] = useState(() => {
     const state = normalizeInventoryViewState(initialBrowseState);
     if (state.query.assignment === 'assigned') state.query.assignment = 'all';
@@ -279,6 +301,15 @@ function InventoryResults({
           )}
         </div>
       </header>
+      {ownedTargets && count > 0 && (
+        <BackgroundPriceCheck
+          targets={ownedTargets}
+          kind="owned"
+          ownerId={ownerId}
+          isOnline
+          scopeLabel="your inventory"
+        />
+      )}
       {index.kind === 'unavailable' ? (
         <div role="status" className={styles.notice}>
           <h2>Your cards couldn&apos;t be loaded</h2>
