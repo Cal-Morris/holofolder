@@ -1339,7 +1339,7 @@ export default function CardSelector({
               rarity={filters.rarity}
               rarities={uniqueRarities}
               onRarityChange={(rarity) => setFilters((f) => ({ ...f, rarity }))}
-              resultCount={filteredCards.length}
+              resultCount={cards.length ? filteredCards.length : null}
               onReset={resetFilters}
               onClose={() => setIsFiltersOpen(false)}
             />

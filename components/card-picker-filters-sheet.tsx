@@ -25,7 +25,8 @@ interface CardPickerFiltersSheetProps {
   rarity?: string;
   rarities: string[];
   onRarityChange: (rarity: string | undefined) => void;
-  resultCount: number;
+  /** Cards the filters leave, or null before there are any results to filter (no search yet). */
+  resultCount: number | null;
   onReset: () => void;
   onClose: () => void;
 }
@@ -206,7 +207,9 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
           onClick={onClose}
           className="bg-primary text-primary-foreground h-11 rounded-2xl px-4 text-sm font-semibold"
         >
-          Show {props.resultCount} {props.resultCount === 1 ? 'card' : 'cards'}
+          {props.resultCount === null
+            ? 'Done'
+            : `Show ${props.resultCount} ${props.resultCount === 1 ? 'card' : 'cards'}`}
         </button>
       </div>
     </OverlayDialog>
