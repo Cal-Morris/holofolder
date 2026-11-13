@@ -122,6 +122,21 @@ export const API_SMOKE_ASSERTIONS: Record<string, Check> = {
       catalog(object(row.card), input);
     }
   },
+  identify_card: (value, input) => {
+    assert.ok(['confirmed', 'high', 'medium', 'low', 'none'].includes(String(value.confidence)));
+    const candidates = array(value.candidates).map(object);
+    assert.ok(candidates.length > 0, 'Expected picture candidates');
+    for (const row of candidates) {
+      assert.ok(typeof row.similarity === 'number' && row.similarity <= 1, 'Expected a similarity up to 1');
+      catalog(object(row.card), input);
+    }
+    // The smoke sends a reference picture with its own number, so the rule must confirm exactly that card.
+    assert.equal(value.confidence, 'confirmed');
+    assert.deepEqual(
+      candidates.filter((row) => row.confirmed === true).map((row) => object(row.card).id),
+      ['base1-4'],
+    );
+  },
   list_illustrators: page,
   list_binders: binders,
   create_binder: (value, input) => {

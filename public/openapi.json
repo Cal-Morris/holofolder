@@ -17717,6 +17717,738 @@
         }
       }
     },
+    "/cards/identify": {
+      "post": {
+        "operationId": "identify_card",
+        "summary": "Identify card",
+        "description": "Identify a card from a photo. Send the picture as base64 (JPEG, PNG or WebP, at most 3 MB; a card cropped to about 500-1000 px works best), optionally with the name and collector number you read from it. Returns the closest cards by picture, most similar first, with a confidence label. It never picks a card for you: confidence is \"confirmed\" only when your number and set total agree with one of the top five candidates and no other agrees as well, which is then marked confirmed. language limits the search to that print language's pictures (Japanese prints have their own; other languages share the English picture). Limited to 20 requests per minute per API key or connection.\n\nRequired permissions: `catalog:read`. MCP tool: `identify_card`.",
+        "tags": [
+          "Catalog"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "x-max-body-bytes": 4100000,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4100000,
+                    "description": "The photo, base64 (a data: URL prefix is allowed)."
+                  },
+                  "name": {
+                    "description": "The card name as read, e.g. \"Charizard ex\".",
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "number": {
+                    "description": "The collector number as printed, e.g. \"025/165\" or \"TG05\".",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "language": {
+                    "type": "string",
+                    "enum": [
+                      "en",
+                      "fr",
+                      "de",
+                      "es",
+                      "it",
+                      "pt-br",
+                      "ja",
+                      "ko"
+                    ]
+                  },
+                  "limit": {
+                    "description": "Candidates to return (default 5).",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20
+                  }
+                },
+                "required": [
+                  "image"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "description": "The picture model the fingerprints come from."
+                    },
+                    "confidence": {
+                      "type": "string",
+                      "enum": [
+                        "confirmed",
+                        "high",
+                        "medium",
+                        "low",
+                        "none"
+                      ],
+                      "description": "confirmed: the number and set total hints agree with one of the top five candidates, and no other agrees as well. Otherwise the picture alone: high and medium were right about 92% and 86% of the time for the first candidate on real binder photos; low means choose from the list. none: no candidates."
+                    },
+                    "candidates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "similarity": {
+                            "type": "number",
+                            "minimum": -1,
+                            "maximum": 1
+                          },
+                          "card": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                              },
+                              "game": {
+                                "type": "string",
+                                "const": "pokemon"
+                              },
+                              "canonicalId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                              },
+                              "aliasIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200,
+                                  "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                                }
+                              },
+                              "localId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "names": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "language": {
+                                "type": "string"
+                              },
+                              "set": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200,
+                                    "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                                  },
+                                  "game": {
+                                    "type": "string",
+                                    "const": "pokemon"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "officialCardCount": {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  },
+                                  "releaseDate": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "game",
+                                  "name",
+                                  "officialCardCount",
+                                  "releaseDate"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "seriesId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "description": "Globally unique opaque application ID, never a reusable provider-local key."
+                              },
+                              "category": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "rarity": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "hp": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "illustrator": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "types": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "variants": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "externalIds": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "description": "Provider-local IDs keyed by source, scoped to this record game. Not application IDs or aliases."
+                              },
+                              "details": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "artworkRef": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "image": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "imageAvailability": {
+                                "type": "string",
+                                "enum": [
+                                  "available",
+                                  "missing",
+                                  "unavailable"
+                                ]
+                              },
+                              "imageLanguage": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "attribution": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "game",
+                              "canonicalId",
+                              "aliasIds",
+                              "localId",
+                              "name",
+                              "names",
+                              "language",
+                              "set",
+                              "seriesId",
+                              "category",
+                              "rarity",
+                              "hp",
+                              "illustrator",
+                              "types",
+                              "variants",
+                              "externalIds",
+                              "details",
+                              "artworkRef",
+                              "image",
+                              "imageAvailability",
+                              "imageLanguage",
+                              "attribution"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "agrees": {
+                            "description": "Present when hints were sent: whether each agrees with this card, null for a hint not sent.",
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": [
+                                  "boolean",
+                                  "null"
+                                ]
+                              },
+                              "number": {
+                                "type": [
+                                  "boolean",
+                                  "null"
+                                ]
+                              },
+                              "setTotal": {
+                                "type": [
+                                  "boolean",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "number",
+                              "setTotal"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "confirmed": {
+                            "description": "The candidate the hints confirm.",
+                            "type": "boolean",
+                            "const": true
+                          }
+                        },
+                        "required": [
+                          "similarity",
+                          "card"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "model",
+                    "confidence",
+                    "candidates"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "See the API conventions page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sets": {
       "get": {
         "operationId": "list_sets",

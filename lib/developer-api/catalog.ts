@@ -63,6 +63,26 @@ export const similarCardsSchema = z.strictObject({
   sameArtwork: z.array(similarEntrySchema),
   similarLook: z.array(similarEntrySchema),
 });
+const hintFlag = z.boolean().nullable();
+export const identifyCardSchema = z.strictObject({
+  model: z.string().describe('The picture model the fingerprints come from.'),
+  confidence: z
+    .enum(['confirmed', 'high', 'medium', 'low', 'none'])
+    .describe(
+      'confirmed: the number and set total hints agree with one of the top five candidates, and no other agrees as well. Otherwise the picture alone: high and medium were right about 92% and 86% of the time for the first candidate on real binder photos; low means choose from the list. none: no candidates.',
+    ),
+  candidates: z.array(
+    z.strictObject({
+      similarity: z.number().min(-1).max(1),
+      card: catalogCardSchema,
+      agrees: z
+        .strictObject({ name: hintFlag, number: hintFlag, setTotal: hintFlag })
+        .optional()
+        .describe('Present when hints were sent: whether each agrees with this card, null for a hint not sent.'),
+      confirmed: z.literal(true).optional().describe('The candidate the hints confirm.'),
+    }),
+  ),
+});
 export const catalogPageSchema = (row: z.ZodType) =>
   z.object({ data: z.array(row), nextCursor: z.string().nullable() }).passthrough();
 export type DeveloperCatalogCard = z.infer<typeof catalogCardSchema>;

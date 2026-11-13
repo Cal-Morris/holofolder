@@ -1,0 +1,87 @@
+---
+title: Identify a card from a photo
+description: Send a card photo and get the closest cards by picture, with a confidence label.
+---
+
+`POST /app/api/v1/cards/identify` and the MCP tool `identify_card` compare a photo of a card with the picture of every
+card in the catalogue and return the closest ones. It is the same picture matcher the app's scanner uses: a DINOv3
+fingerprint of the photo, computed with the same model and code as on a phone, then a nearest-neighbour search over
+the stored fingerprints of about 26,000 card prints.
+
+It suggests cards, it never picks one for you. A photo can look a lot like a card that isn't in the catalogue, or like
+a reprint, so the response is a list to choose from unless the collector number you send settles it.
+
+## Request
+
+```json
+{
+  "image": "<base64 JPEG, PNG or WebP>",
+  "name": "Pikachu",
+  "number": "058/102",
+  "language": "en",
+  "limit": 5
+}
+```
+
+- `image` (required): the photo as base64, or a `data:image/jpeg;base64,…` URL. At most 3 MB after decoding, because
+  requests are capped at 4.5 MB. Crop to the card and resize to about 500-1000 px on the long side: it is faster to
+  send, and larger pictures are shrunk to 1024 px anyway.
+- `name` and `number` (optional): what you read on the card. `number` is the collector number as printed, with the
+  set total after a slash when the card has one (`058/102`, `TG05/TG30`, `SVP 085`).
+- `language` (optional): the print language you expect. Japanese prints have their own pictures; every other
+  language shares the English print's picture, so `fr` searches the English pictures and returns French card records.
+  Without it, every language is searched.
+- `limit` (optional): how many candidates to return, 1 to 20, default 5.
+
+## Response
+
+```json
+{
+  "model": "dinov3-vits16-q8",
+  "confidence": "confirmed",
+  "candidates": [
+    {
+      "similarity": 0.8123,
+      "card": { "id": "base2-60", "name": "Pikachu", "localId": "60", "…": "…" },
+      "agrees": { "name": true, "number": false, "setTotal": false }
+    },
+    {
+      "similarity": 0.8011,
+      "card": { "id": "base1-58", "name": "Pikachu", "localId": "58", "…": "…" },
+      "agrees": { "name": true, "number": true, "setTotal": true },
+      "confirmed": true
+    }
+  ]
+}
+```
+
+Candidates are in picture order, most similar first, and each `card` is the record `get_card` returns. `similarity`
+is the cosine similarity of the two pictures. `agrees` is present when you sent `name` or `number`, with `null` for a
+hint you didn't send.
+
+`confidence` is one of:
+
+- `confirmed`: your number and set total agree with one of the top five candidates and no other agrees as well. That
+  candidate is marked `"confirmed": true` and is always included, even past `limit`. This is the rule the app uses
+  before it offers a card.
+- `high` or `medium`: no hint settled it, but the first candidate is clearly ahead (similarity at least 0.78 or 0.76,
+  and 0.03 ahead of the second). On real binder photos the first candidate was right about 92% and 86% of the time at
+  these levels.
+- `low`: choose from the list. On real binder photos the right card was among the top five about 60% of the time.
+- `none`: nothing to compare against.
+
+A name alone never confirms a card: reprints and other cards of the same Pokémon look alike, and when we tried it on
+real photos, every card it would have offered was wrong.
+
+## Limits and errors
+
+Each request runs the picture model on our servers, so it has its own budget of 20 per minute per API key or MCP
+connection, on top of the usual read limit. Over it, REST returns `429` with `Retry-After`.
+
+- `400 invalid_image`: not base64, too large, or not a picture we can read.
+- `400 invalid_input`: an unknown field, or `limit` out of range.
+- `413 body_too_large`: the request is over the size cap.
+- `503`: the matcher is temporarily unavailable.
+
+Holo, reverse holo and other finishes look the same in the reference pictures, so the finish is always yours to
+choose.
