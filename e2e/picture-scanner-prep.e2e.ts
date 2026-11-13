@@ -1,6 +1,6 @@
 import { test, expect, openSettingsPage, type Harness } from './fixtures';
 
-// Show mode's offline prep: "Download scanner for offline" fetches the picture scanner's model, runtime and
+// Settings → Offline & app: "Download scanner for offline" fetches the picture scanner's model, runtime and
 // fingerprint index into IndexedDB, shows progress and size, and can be removed. The files are synthetic stand-ins
 // (a few bytes each) routed in place of assets.holofolder.com; no real model runs here.
 
@@ -32,7 +32,7 @@ async function mockScannerAssets(harness: Harness) {
   return requests;
 }
 
-/** Settings → Offline & app, which every binder reaches (Show mode's Prepare offline carries the same switch). */
+/** Settings → Offline & app, which every binder reaches. */
 async function openPrep(harness: Harness) {
   const { page } = harness;
   await page.locator('nav').first().getByRole('button', { name: 'More', exact: true }).click();

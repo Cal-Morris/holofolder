@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/rules-of-hooks -- Playwright fixtures use `use`. */
 import { test as base, expect } from '@playwright/test';
-import { Harness, SAFE_AREA, emulateStandalone, mockBackends } from './fixtures';
+import { Harness, SAFE_AREA, emulateStandalone, mockBackends, openSettingsPage } from './fixtures';
 
 const test = base.extend<{ harness: Harness }>({
   serviceWorkers: 'allow',
@@ -88,10 +88,9 @@ function price(cardId: string, language: string) {
 }
 async function openPrep(harness: Harness) {
   const { page } = harness;
-  const show = page.getByRole('region', { name: 'Show mode' });
-  if (!(await show.isVisible())) await page.getByRole('button', { name: 'Show mode', exact: true }).click();
-  await harness.dock().getByRole('button', { name: 'Search', exact: true }).click();
-  await page.getByRole('button', { name: 'Prepare offline', exact: true }).click();
+  await page.locator('nav').first().getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+  await openSettingsPage(page.getByRole('dialog', { name: /settings/i }), 'Offline & app');
   return page.getByRole('region', { name: 'Prepare this binder', exact: true });
 }
 

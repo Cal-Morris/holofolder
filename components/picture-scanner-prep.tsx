@@ -12,7 +12,7 @@ import { CHECKING_PICTURE_PREP, picturePrepAction, picturePrepTransition } from 
 
 const megabytes = (bytes: number) => `${Math.max(1, Math.round(bytes / 1_000_000))} MB`;
 
-/** Show mode's offline prep: the "Download scanner for offline" switch for the picture scanner. */
+/** Settings → Offline & app: the "Download scanner for offline" switch for the picture scanner. */
 export default function PictureScannerPrep({ isOnline }: { isOnline: boolean }) {
   const [state, send] = useMachine(picturePrepTransition, CHECKING_PICTURE_PREP);
   const refresh = useCallback(

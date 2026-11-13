@@ -7,6 +7,7 @@ import {
   Harness,
   collectionPicker,
   chooseCollection,
+  openSettingsPage,
 } from './fixtures';
 import {
   inventoryBrowseFixture,
@@ -216,21 +217,25 @@ test("after a partner signs out, the offline app shows nothing of the owner's bi
   ).toBe(E2E_USER.id);
 });
 
-test("Show mode's binder prep counts the cards this device saved for that binder", async ({ page }, info) => {
+test("Settings' binder prep counts the cards this device saved for that binder", async ({ page }, info) => {
   test.setTimeout(120_000);
   const standalone = Boolean(info.project.metadata?.standalone);
   await openOnline(page, TRADES);
   const openPrep = async (target: Page) => {
-    const show = target.getByRole('region', { name: 'Show mode' });
-    if (!(await show.isVisible())) await target.getByRole('button', { name: 'Show mode', exact: true }).click();
-    await harnessFor(target, standalone).dock().getByRole('button', { name: 'Search', exact: true }).click();
-    await target.getByRole('button', { name: 'Prepare offline', exact: true }).click();
+    await target
+      .getByRole('navigation', { name: 'Binder navigation' })
+      .getByRole('button', { name: 'More', exact: true })
+      .click();
+    await target.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+    await openSettingsPage(target.getByRole('dialog', { name: /settings/i }), 'Offline & app');
     return target.getByRole('region', { name: 'Prepare this binder', exact: true });
   };
   const prep = await openPrep(page);
   // Trades holds one synthetic base1-4 holo copy.
   await expect(prep).toContainText('All 1 owned and wanted printings');
   await expect(prep.getByLabel('Binder download coverage')).toContainText('Cards 1/1');
+  await prep.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `/tmp/settings-binder-prep-${info.project.name}.png` });
 
   const reopened = await relaunchOffline(page, standalone, `/app?binder=${TRADES}`);
   await expect(collectionPicker(reopened)).toContainText('Trades', { timeout: 30_000 });

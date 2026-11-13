@@ -317,7 +317,16 @@ test.describe('offline search and card show prep', () => {
     await expect(cards.getByRole('button', { name: /lugia 003\/3 legends showcase/i })).toBeVisible();
   });
 
-  test('Show finder prepares offline without opening Sets, then inspects partial saved data offline', async ({
+  /** Settings → Offline & app's "Offline sets" section, where sets are saved for offline use. */
+  const openOfflineSets = async (page: Page) => {
+    await page.locator('nav').first().getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+    const settings = page.getByRole('dialog', { name: /settings/i });
+    await openSettingsPage(settings, 'Offline & app');
+    return { settings, sets: settings.getByRole('region', { name: 'Offline sets' }) };
+  };
+
+  test('set prep without opening Sets keeps partial saved data, then inspects it offline', async ({
     harness,
     context,
   }, testInfo) => {
@@ -326,43 +335,25 @@ test.describe('offline search and card show prep', () => {
     await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
     await page.reload();
     await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
-    // Synthetic native OCR prevents any external OCR download in this focused test.
-    await page.evaluate(() => {
-      Object.defineProperty(window, 'TextDetector', {
-        configurable: true,
-        value: class {
-          detect() {
-            return Promise.resolve([]);
-          }
-        },
-      });
-    });
-    await page.getByRole('button', { name: 'Show mode', exact: true }).click();
-    await harness.dock().getByRole('button', { name: 'Search', exact: true }).click();
-    const quick = page.getByRole('dialog', { name: 'Quick mode' });
-    const entry = quick.getByRole('button', { name: 'Prepare offline', exact: true });
-    await harness.expectMinTapTarget(entry, 36);
-    await entry.click();
-    await expect(quick.getByRole('heading', { name: 'Prepare offline', exact: true })).toBeVisible();
-    await expect(quick.getByText('No saved set data found.')).toBeVisible();
+    const { settings, sets } = await openOfflineSets(page);
+    await expect(sets.getByText('No saved set data found.')).toBeVisible();
     expect(network.proxyImages).toHaveLength(0);
     await harness.expectNoHorizontalOverflow();
-    await harness.expectWithinSafeViewport(quick.getByRole('button', { name: 'Close quick mode' }));
     await page.screenshot({ path: `/tmp/prepare-offline-${testInfo.project.name}.png` });
-    await quick.getByRole('searchbox', { name: 'Find sets to save' }).fill('Legends');
-    await quick.getByRole('button', { name: 'Find', exact: true }).click();
-    await quick.getByRole('checkbox', { name: /Legends Showcase/ }).check();
-    await quick.getByRole('button', { name: 'Check download size' }).click();
-    await expect(quick.getByRole('status').filter({ hasText: 'card images' })).toContainText('3 card images');
+    await sets.getByRole('searchbox', { name: 'Find sets to save' }).fill('Legends');
+    await sets.getByRole('button', { name: 'Find', exact: true }).click();
+    await sets.getByRole('checkbox', { name: /Legends Showcase/ }).check();
+    await sets.getByRole('button', { name: 'Check download size' }).click();
+    await expect(sets.getByRole('status').filter({ hasText: 'card images' })).toContainText('3 card images');
     // Price batches fail, then one image is evicted. Saved coverage and other images remain useful.
     await page.route('**/app/api/card-prices**', (route) =>
       route.fulfill({ status: 503, body: 'synthetic unavailable' }),
     );
-    await quick.getByRole('button', { name: 'Download for offline' }).click();
-    await expect(quick.getByRole('status').filter({ hasText: 'Download finished' })).toContainText(
+    await sets.getByRole('button', { name: 'Download for offline' }).click();
+    await expect(sets.getByRole('status').filter({ hasText: 'Download finished' })).toContainText(
       '3 price downloads failed',
     );
-    await expect(quick.getByRole('button', { name: 'Resume / retry download' })).toBeVisible();
+    await expect(sets.getByRole('button', { name: 'Resume / retry download' })).toBeVisible();
     await expect
       .poll(() =>
         page.evaluate(
@@ -379,42 +370,38 @@ test.describe('offline search and card show prep', () => {
         for (const request of await cache.keys()) if (request.url.includes('show1%2F001')) await cache.delete(request);
       }
     });
-    await quick.getByRole('button', { name: 'Close quick mode' }).click();
+    await page.keyboard.press('Escape');
+    await expect(settings).toBeHidden();
     await expect
       .poll(() => page.evaluate(async () => Boolean(await caches.match('/app/app-shell'))), { timeout: 30_000 })
       .toBe(true);
     await goOffline(page, network);
     await page.reload();
     await expect(harness.dock()).toBeVisible();
-    await harness.dock().getByRole('button', { name: 'Search', exact: true }).click();
-    await quick.getByRole('button', { name: 'Prepare offline', exact: true }).click();
-    await expect(quick.getByRole('region', { name: 'Saved on this device' })).toContainText(
+    const offline = await openOfflineSets(page);
+    await expect(offline.sets.getByRole('region', { name: 'Saved on this device' })).toContainText(
       'Legends Showcase: set data saved, 2/3 images, 0/3 available prices.',
     );
-    await expect(quick.getByText("You're offline. Connect to download sets.")).toBeVisible();
-    await expect(quick.getByRole('button', { name: 'Check download size' })).toBeDisabled();
-    await expect(quick.getByRole('button', { name: 'Find', exact: true })).toBeDisabled();
-    await expect(quick.getByText(/Ready offline/)).toHaveCount(0);
+    await expect(offline.sets.getByText("You're offline. Connect to download sets.")).toBeVisible();
+    await expect(offline.sets.getByRole('button', { name: 'Check download size' })).toBeDisabled();
+    await expect(offline.sets.getByRole('button', { name: 'Find', exact: true })).toBeDisabled();
+    await expect(offline.sets.getByText(/Ready offline/)).toHaveCount(0);
     await page.screenshot({ path: `/tmp/prepare-offline-saved-${testInfo.project.name}.png` });
     await page.keyboard.press('Escape');
-    await expect(quick).toBeHidden();
+    await expect(offline.settings).toBeHidden();
     await harness.expectScrollUnlocked();
   });
 
-  test('wanted sets are offered directly and stopping a size check keeps the panel usable', async ({
-    harness,
-    context,
-  }) => {
+  test('stopping a size check keeps the set panel usable', async ({ harness, context }) => {
     const { page } = harness;
     await mockNetwork(context, page);
     await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
     await page.reload();
     await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
-    await page.getByRole('button', { name: 'Show mode', exact: true }).click();
-    await harness.dock().getByRole('button', { name: 'Search', exact: true }).click();
-    const quick = page.getByRole('dialog', { name: 'Quick mode' });
-    await quick.getByRole('button', { name: 'Prepare offline', exact: true }).click();
-    await quick.getByRole('checkbox', { name: 'Base Set', exact: true }).check();
+    const { sets } = await openOfflineSets(page);
+    await sets.getByRole('searchbox', { name: 'Find sets to save' }).fill('Legends');
+    await sets.getByRole('button', { name: 'Find', exact: true }).click();
+    await sets.getByRole('checkbox', { name: /Legends Showcase/ }).check();
     let release!: () => void;
     const pending = new Promise<void>((resolve) => {
       release = resolve;
@@ -424,28 +411,16 @@ test.describe('offline search and card show prep', () => {
       await route.abort().catch(() => undefined);
     });
     try {
-      await quick.getByRole('button', { name: 'Check download size' }).click();
-      await expect(quick.getByRole('status').filter({ hasText: 'Checking download size…' })).toHaveText(
+      await sets.getByRole('button', { name: 'Check download size' }).click();
+      await expect(sets.getByRole('status').filter({ hasText: 'Checking download size…' })).toHaveText(
         'Checking download size…',
       );
-      await quick.getByRole('button', { name: 'Stop', exact: true }).click();
-      await expect(quick.getByText('Stopped. Anything already saved stays on this device.')).toBeVisible();
-      await expect(quick.getByRole('button', { name: 'Check download size' })).toBeEnabled();
+      await sets.getByRole('button', { name: 'Stop', exact: true }).click();
+      await expect(sets.getByText('Stopped. Anything already saved stays on this device.')).toBeVisible();
+      await expect(sets.getByRole('button', { name: 'Check download size' })).toBeEnabled();
     } finally {
       release();
     }
-    await page.goBack();
-    await expect(quick).toBeHidden();
-    await harness.expectScrollUnlocked();
-    await harness.dock().getByRole('button', { name: 'Search', exact: true }).click();
-    await quick.getByRole('button', { name: 'Prepare offline', exact: true }).click();
-    const title = quick.getByRole('heading', { name: 'Prepare offline', exact: true });
-    const box = (await title.boundingBox())!;
-    await page.mouse.move(box.x + 10, box.y + 10);
-    await page.mouse.down();
-    await page.mouse.move(box.x + 10, box.y + 220, { steps: 8 });
-    await page.mouse.up();
-    await expect(quick).toBeHidden();
   });
 
   test("offline search finds the user's own cards without any saved sets", async ({ harness, context }) => {
