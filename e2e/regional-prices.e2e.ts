@@ -160,7 +160,7 @@ test.describe('list prices (UK)', () => {
       }),
     );
     await harness.dock().getByRole('button', { name: 'Browse', exact: true }).click();
-    await harness.page.getByRole('textbox', { name: 'Search sets by name or code' }).fill('fixture');
+    await harness.page.getByRole('textbox', { name: 'Search sets by name, code or year' }).fill('fixture');
     await harness.page
       .getByRole('button', { name: /Fixture Set/ })
       .first()
@@ -262,7 +262,7 @@ test.describe('card picker price sort (UK)', () => {
     await harness.open();
 
     const openSquirtle = async () => {
-      await page.locator('button[data-dex-id="7"]').first().click();
+      await harness.slot(7).click();
       const detail = page.getByRole('dialog', { name: /squirtle details/i });
       await expect(detail).toBeVisible();
       return detail;

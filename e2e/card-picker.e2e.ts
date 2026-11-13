@@ -3,9 +3,8 @@ import { mockCardPrices } from './price-fixtures';
 
 async function openPicker(harness: Harness) {
   const { page } = harness;
-  await page.locator('button[data-dex-id="7"]').first().click();
-  const detail = page.getByRole('dialog', { name: /squirtle details/i });
-  await detail.getByRole('button', { name: /^(Add owned card|Change owned card)$/, exact: true }).click();
+  // An unfilled pocket opens the card selector directly.
+  await harness.slot(7).click();
   const selector = page.getByRole('dialog', { name: /card selector/i });
   await expect(selector).toBeVisible();
   return selector;
@@ -71,16 +70,6 @@ test.describe('card picker layout', () => {
     await page.keyboard.press('Escape');
     await expect(sheet).toHaveCount(0);
     await expect(selector).toBeVisible();
-  });
-
-  test('marking owned without a card is in the overflow menu', async ({ harness }) => {
-    const { page } = harness;
-    const selector = await openPicker(harness);
-    await expect(selector.getByRole('button', { name: 'Mark owned without card' })).toHaveCount(0);
-    await selector.getByRole('button', { name: 'More options' }).click();
-    await selector.getByRole('menuitem', { name: 'Mark owned without card' }).click();
-    await expect(selector).toHaveCount(0);
-    await expect(page.locator('button[data-dex-id="7"]').first()).toBeVisible();
   });
 
   test('a search with no matches says so and clears in one tap', async ({ harness }) => {

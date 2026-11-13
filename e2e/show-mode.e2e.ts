@@ -51,10 +51,10 @@ test.describe('show mode', () => {
     await expect(headerButton(harness)).toHaveAttribute('aria-pressed', 'false');
     // Used once, the binder stops offering it; the header button is how to turn it back on.
     await harness.dock().getByRole('button', { name: 'Binder', exact: true }).click();
-    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expect(harness.slot(1)).toBeVisible();
     await expect(offer(harness)).toHaveCount(0);
     await page.reload();
-    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expect(harness.slot(1)).toBeVisible();
     await expect(offer(harness)).toHaveCount(0);
     await expect(headerButton(harness)).toBeVisible();
   });
@@ -71,7 +71,7 @@ test.describe('show mode', () => {
     await expect(banner(harness)).toBeVisible();
     await seed(5);
     await page.reload();
-    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expect(harness.slot(1)).toBeVisible();
     await expect(banner(harness)).toHaveCount(0);
     await expect(headerButton(harness)).toHaveAttribute('aria-pressed', 'false');
     expect(await page.evaluate(() => window.localStorage.getItem('binderdex:show-mode:v1'))).toContain('"on":false');
@@ -81,12 +81,15 @@ test.describe('show mode', () => {
     harness,
   }) => {
     const { page } = harness;
-    for (const view of ['Binder', 'List', 'Wanted', 'Browse']) {
+    for (const view of ['Binder', 'Inventory', 'Wanted', 'Browse']) {
       await harness.dock().getByRole('button', { name: view, exact: true }).click();
       const button = headerButton(harness);
-      await harness.expectWithinSafeViewport(button);
-      await harness.expectHittable(button);
-      await harness.expectMinTapTarget(button, 36);
+      // The header re-renders as each view mounts; measure once it has settled.
+      await expect(async () => {
+        await harness.expectWithinSafeViewport(button);
+        await harness.expectHittable(button);
+        await harness.expectMinTapTarget(button, 36);
+      }).toPass({ timeout: 5_000 });
       await expect(button).toContainText('Show');
       await harness.expectNoHorizontalOverflow();
     }
@@ -142,7 +145,7 @@ test.describe('show mode', () => {
     const { page } = harness;
     await expect(offer(harness)).toHaveCount(0);
     await page.reload();
-    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expect(harness.slot(1)).toBeVisible();
     await expect(offer(harness)).toHaveCount(0);
 
     await page.context().setOffline(true);

@@ -302,7 +302,7 @@ test.describe('offline search and card show prep', () => {
     await goOffline(page, network);
 
     // Sets view offline: find the saved set by name and open it with its card thumbnails.
-    const search = page.getByRole('textbox', { name: 'Search sets by name or code' });
+    const search = page.getByRole('textbox', { name: 'Search sets by name, code or year' });
     await search.fill('legends');
     await page
       .getByRole('button', { name: /^Legends Showcase/ })
