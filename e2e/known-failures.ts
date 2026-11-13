@@ -18,12 +18,14 @@ const entries = new Map(
 
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Playwright grep patterns for the listed tests (matched against file, describe and test titles, and tags). */
-export function knownFailurePatterns() {
-  return [...entries.values()].map(
-    ({ file, title }) =>
-      new RegExp(`(?:^| )${escape(file)} (?:@\\S+ )*${title.map(escape).join(' (?:@\\S+ )*')}(?: @\\S+)*$`),
-  );
+/** Grep patterns for the tests listed for a project (matched against file, describe and test titles, and tags). */
+export function knownFailurePatterns(project: string) {
+  return [...entries.values()]
+    .filter((entry) => !entry.projects || entry.projects.includes(project))
+    .map(
+      ({ file, title }) =>
+        new RegExp(`(?:^| )${escape(file)} (?:@\\S+ )*${title.map(escape).join(' (?:@\\S+ )*')}(?: @\\S+)*$`),
+    );
 }
 
 /** The entry for a test, by its spec file (relative to e2e/) and title path, if it is listed for this project. */

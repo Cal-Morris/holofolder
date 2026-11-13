@@ -25,10 +25,11 @@ const PRIMARY = 'browser-390x844';
 const notMatrix = /^(?!.*@matrix)/;
 // Tests in e2e/known-failures.json already fail on main. The fast default run skips them;
 // E2E_KNOWN_FAILURES=only (`bun run test:e2e:known`) runs just them and fails if any now pass, =include runs all.
-const known = knownFailurePatterns();
 const knownMode = process.env.E2E_KNOWN_FAILURES;
 // Per project, since a project's grep and grepInvert replace the top-level ones.
-function filter(primary: boolean) {
+function filter(project: string) {
+  const primary = project === PRIMARY;
+  const known = knownFailurePatterns(project);
   const grepInvert = [
     ...(primary || process.env.E2E_MATRIX === '1' ? [] : [notMatrix]),
     ...(knownMode === 'include' || knownMode === 'only' ? [] : known),
@@ -64,7 +65,7 @@ export default defineConfig({
       const name = `${standalone ? 'standalone' : 'browser'}-${viewport.name}`;
       return {
         name,
-        ...filter(name === PRIMARY),
+        ...filter(name),
         use: {
           ...iphone,
           browserName: 'chromium' as const,
