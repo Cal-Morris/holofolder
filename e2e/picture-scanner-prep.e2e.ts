@@ -1,15 +1,17 @@
-import { test, expect, type Harness } from './fixtures';
+import { test, expect, openSettingsPage, type Harness } from './fixtures';
 
 // Show mode's offline prep: "Download scanner for offline" fetches the picture scanner's model, runtime and
 // fingerprint index into IndexedDB, shows progress and size, and can be removed. The files are synthetic stand-ins
 // (a few bytes each) routed in place of assets.holofolder.com; no real model runs here.
+
+test.use({ signedIn: true });
 
 const ASSETS = 'https://assets.holofolder.com/pokemon/tcg';
 const DIM = 384;
 
 async function mockScannerAssets(harness: Harness) {
   const requests: string[] = [];
-  await harness.page.context().route(`${ASSETS}/**`, (route) => {
+  await harness.page.route(`${ASSETS}/**`, (route) => {
     const url = route.request().url();
     requests.push(url.slice(ASSETS.length));
     if (url.endsWith('/manifest.json'))
@@ -30,12 +32,12 @@ async function mockScannerAssets(harness: Harness) {
   return requests;
 }
 
+/** Settings → Offline & app, which every binder reaches (Show mode's Prepare offline carries the same switch). */
 async function openPrep(harness: Harness) {
   const { page } = harness;
-  const show = page.getByRole('region', { name: 'Show mode' });
-  if (!(await show.isVisible())) await page.getByRole('button', { name: 'Show mode', exact: true }).click();
-  await harness.dock().getByRole('button', { name: 'Search', exact: true }).click();
-  await page.getByRole('button', { name: 'Prepare offline', exact: true }).click();
+  await page.locator('nav').first().getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+  await openSettingsPage(page.getByRole('dialog', { name: /settings/i }), 'Offline & app');
   return page.getByRole('region', { name: 'Picture scanner', exact: true });
 }
 
@@ -63,11 +65,13 @@ test('downloads the picture scanner for the collected languages, then removes it
 });
 
 test('a failed download says so and leaves the switch off', async ({ harness }) => {
-  await harness.page.context().route(`${ASSETS}/**`, (route) => route.fulfill({ status: 503, body: '' }));
+  await harness.page.route(`${ASSETS}/**`, (route) => route.fulfill({ status: 503, body: '' }));
   await harness.open();
   const section = await openPrep(harness);
   const toggle = section.getByRole('switch', { name: 'Download scanner for offline' });
+  await harness.expectMinTapTarget(toggle);
   await toggle.click();
   await expect(section.getByRole('status')).toContainText('isn’t available');
   await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await harness.expectNoHorizontalOverflow();
 });

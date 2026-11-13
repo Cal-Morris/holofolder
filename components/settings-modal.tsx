@@ -56,6 +56,9 @@ const OfflineSetPicker = dynamic(
   () => import('@/components/show-offline-prep').then((module) => module.OfflineSetPicker),
   { loading: () => <p className="text-muted-foreground text-xs">Loading offline tools…</p> },
 );
+const PictureScannerPrep = dynamic(() => import('@/components/picture-scanner-prep'), {
+  loading: () => <p className="text-muted-foreground text-xs">Loading scanner settings…</p>,
+});
 const DeveloperSettings = dynamic(() => import('@/components/developer-settings'), {
   loading: () => <p className="text-muted-foreground text-sm">Loading developer access…</p>,
 });
@@ -833,6 +836,7 @@ export default function SettingsModal({
               </div>
               <OfflineSetPicker isOnline={isOnline} />
             </section>
+            <PictureScannerPrep isOnline={isOnline} />
           </div>
         );
       case 'backup':

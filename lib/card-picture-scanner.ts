@@ -101,8 +101,8 @@ export async function getPictureScannerStatus(): Promise<PictureScannerStatus> {
 async function fetchManifest() {
   const response = await fetch(`${PICTURE_INDEX_BASE_URL}manifest.json`, { cache: 'no-cache' });
   if (!response.ok) throw new Error(`The scanner index isn’t available (${response.status}).`);
-  const manifest: unknown = await response.json();
-  if (!isManifest(manifest)) throw new Error('The scanner index is not one this app understands.');
+  const manifest: unknown = await response.json().catch(() => null);
+  if (!isManifest(manifest)) throw new Error('The scanner index isn’t available right now.');
   return manifest;
 }
 
