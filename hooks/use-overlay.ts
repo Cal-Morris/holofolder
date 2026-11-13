@@ -136,6 +136,8 @@ export interface UseOverlayOptions {
   history?: boolean;
   /** Move focus into the overlay when it opens (default true). */
   autoFocus?: boolean;
+  /** What had focus before the overlay took it, when the overlay focuses itself before this hook's effect runs. */
+  openerRef?: RefObject<HTMLElement | null>;
 }
 
 let lastPressedControl: HTMLElement | null = null;
@@ -169,14 +171,15 @@ export function useOverlay(open: boolean, onClose: () => void, options: UseOverl
     trapFocus = true,
     history: useHistory = true,
     autoFocus = true,
+    openerRef,
   } = options;
   const onCloseRef = useRef(onClose);
   // Options that may change while the overlay is open are read through a ref so that toggling
   // them never re-registers the overlay (which would reorder the stack and the history entries).
-  const liveOptionsRef = useRef({ containerRef, trapFocus, autoFocus });
+  const liveOptionsRef = useRef({ containerRef, trapFocus, autoFocus, openerRef });
   useLayoutEffect(() => {
     onCloseRef.current = onClose;
-    liveOptionsRef.current = { containerRef, trapFocus, autoFocus };
+    liveOptionsRef.current = { containerRef, trapFocus, autoFocus, openerRef };
   });
 
   const isScrollLocked = open && shouldLockScroll;
@@ -188,12 +191,13 @@ export function useOverlay(open: boolean, onClose: () => void, options: UseOverl
 
   useEffect(() => {
     if (!open || typeof window === 'undefined') return;
-    const { containerRef, autoFocus } = liveOptionsRef.current;
+    const { containerRef, autoFocus, openerRef } = liveOptionsRef.current;
 
     installFocusOriginTracker();
     // An `autoFocus` field inside the overlay may already have taken focus by the time effects
     // run, so fall back to the control the user last pressed to open it.
-    const activeAtOpen = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusedAtOpen = openerRef?.current ?? document.activeElement;
+    const activeAtOpen = focusedAtOpen instanceof HTMLElement ? focusedAtOpen : null;
     const openedContainer = containerRef?.current ?? null;
     const isOutside = (element: HTMLElement | null) =>
       Boolean(element && element !== document.body && !(openedContainer && openedContainer.contains(element)));
