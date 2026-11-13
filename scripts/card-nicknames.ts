@@ -28,9 +28,6 @@ const SWSH_MAIN_SETS = String.raw`c.set_id ~ '^swsh([5-9]|1[0-2])$'`;
 
 /** Group nicknames: every Pokémon card matching `where` (SQL over tcg_cards c) gets each of `nicknames`. */
 const RULES: Array<{ nicknames: string[]; where: string }> = [
-  // Short names collectors use that aren't the start of the Pokémon's name ("char" already finds Charizard).
-  { nicknames: ['zard', 'zards'], where: `c.name_en ILIKE '%charizard%'` },
-  { nicknames: ['ttar'], where: `c.name_en ILIKE '%tyranitar%'` },
   { nicknames: ['gold star', 'goldstar'], where: `c.name_en LIKE '%☆%'` },
   { nicknames: ['delta species', 'delta'], where: `c.name_en LIKE '%δ%'` },
   { nicknames: ['amazing rare'], where: `c.rarity = 'Amazing Rare'` },

@@ -1,7 +1,13 @@
 import { isSetYearQuery, rankSetMatches } from '@/lib/set-search';
 import { appPath } from '@/lib/app-path';
 import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
-import { hasRarity, matchCardNicknames, matchesNicknameRest, matchRarityWords } from '@/lib/card-nicknames';
+import {
+  expandSearchAliases,
+  hasRarity,
+  matchCardNicknames,
+  matchesNicknameRest,
+  matchRarityWords,
+} from '@/lib/card-nicknames';
 import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
 // Offline card search: an index built from what is already on the device (the user's own cards and the card
 // data the service worker cached: set coverage, per-Pokémon card lists and earlier search results), matched
@@ -180,6 +186,9 @@ export function mergeSearchCards(lists: SearchCardResult[][]): SearchCardResult[
 
 /** Same rules as the server search: card id, or name / set name / set id containing the text, optionally a number. */
 export function searchOfflineCards(cards: SearchCardResult[], query: string, limit = 60): SearchCardResult[] {
+  // "zard", "mr mime": search for the name as printed, like the server search.
+  const expanded = expandSearchAliases(query);
+  if (expanded !== query.trim()) return searchOfflineCards(cards, expanded, limit);
   // "charizard sir": the search without the rarity word, kept to that rarity, like the server search.
   const rarity = matchRarityWords(query);
   if (rarity)

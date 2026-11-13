@@ -10,7 +10,7 @@ import { pickLocalizedText, buildTcgdexAssetImageUrl } from '@/lib/tcgdex-shared
 import { readCatalogMetadata } from '@/lib/card-catalog';
 import { pickCardImageUrl } from '@/lib/card-image-sources';
 import { parseCardSearchQuery } from '@/lib/pokemon-card-browse';
-import { matchCardNicknames, matchRarityWords } from '@/lib/card-nicknames';
+import { expandSearchAliases, matchCardNicknames, matchRarityWords } from '@/lib/card-nicknames';
 import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
 import { createDeveloperImageResolver, type DeveloperImageResolver } from '@/lib/server/developer-images';
 import { sanitizeDeveloperImages } from '@/lib/server/developer-image-fields';
@@ -115,9 +115,10 @@ export async function listCatalogCards(rawParams: string) {
   const params = new URLSearchParams(rawParams),
     page = decodePage(params),
     lang = language(params);
-  // "charizard sir": the rest of q, kept to that rarity.
-  const rarity = matchRarityWords(params.get('q') ?? '');
-  const q = rarity?.rest ?? params.get('q') ?? '';
+  // "zard sir": Charizard, kept to that rarity.
+  const search = expandSearchAliases(params.get('q') ?? '');
+  const rarity = matchRarityWords(search);
+  const q = rarity?.rest ?? search;
   if (q.length > 80)
     throw new DeveloperAccessError('invalid_query', 'Search queries must be at most 80 characters.', 400);
   const admin = createAdminClient();

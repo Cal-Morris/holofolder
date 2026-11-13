@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import NICKNAMES from '../lib/card-nicknames.json';
-import { matchCardNicknames, matchRarityWords, normalizeNickname } from '../lib/card-nicknames';
+import { expandSearchAliases, matchCardNicknames, matchRarityWords, normalizeNickname } from '../lib/card-nicknames';
 import { searchOfflineCards } from '../lib/offline-card-index';
 
 // Synthetic nickname table and cards; ids are catalog-shaped but nothing here is real price or card data.
@@ -41,6 +41,18 @@ describe('matchRarityWords', () => {
   });
 });
 
+describe('expandSearchAliases', () => {
+  test('slang and unpunctuated names become the printed name; other words stay', () => {
+    assert.equal(expandSearchAliases('zard sir'), 'Charizard sir');
+    assert.equal(expandSearchAliases('ray alt'), 'Rayquaza alt');
+    assert.equal(expandSearchAliases('mr mime'), 'Mr. Mime');
+    assert.equal(expandSearchAliases('hooh 9'), 'Ho-Oh 9');
+    assert.equal(expandSearchAliases('nidoran f'), 'Nidoran♀');
+    assert.equal(expandSearchAliases('farfetchd'), "Farfetch'd");
+    assert.equal(expandSearchAliases('pikachu 44/102'), 'pikachu 44/102');
+  });
+});
+
 describe('on-device search', () => {
   const set = { id: 'swsh7', name: 'Evolving Skies' };
   const cards = [
@@ -52,6 +64,19 @@ describe('on-device search', () => {
     assert.deepEqual(
       searchOfflineCards(rare, 'umbreon secret rare').map((card) => card.id),
       ['swsh7-215'],
+    );
+  });
+  test('slang finds the Pokémon', () => {
+    assert.deepEqual(
+      searchOfflineCards(cards, 'umbreon').map((card) => card.id),
+      searchOfflineCards([...cards], 'Umbreon').map((card) => card.id),
+    );
+    const zard = [
+      { id: 'base1-4', name: 'Charizard', localId: '4', set: { id: 'base1', name: 'Base Set' }, dexIds: [6] },
+    ];
+    assert.deepEqual(
+      searchOfflineCards(zard, 'zard').map((card) => card.id),
+      ['base1-4'],
     );
   });
   test('a nickname finds its card first', () => {

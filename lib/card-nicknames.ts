@@ -4,6 +4,7 @@
  * the rules in scripts/card-nicknames.ts. Pure, shared by the server search and the on-device search.
  */
 import NICKNAMES from './card-nicknames.json';
+import { formatPokemonDisplayName, POKEMON_CATALOG } from './pokemon-catalog';
 
 const TABLE: Readonly<Record<string, readonly string[]>> = NICKNAMES;
 const KEYS = Object.keys(TABLE);
@@ -108,4 +109,51 @@ export function hasRarity(card: { rarity?: string | null }, rarities: readonly s
 /** True when a card's name holds the rest of a nickname query (accents and punctuation ignored). */
 export function matchesNicknameRest(name: string, rest: string) {
   return !rest || normalizeNickname(name).includes(rest);
+}
+
+/** Short names collectors use for a Pokémon ("zard sir", "ray alt"). */
+const POKEMON_SLANG: Readonly<Record<string, string>> = {
+  zard: 'Charizard',
+  zards: 'Charizard',
+  ttar: 'Tyranitar',
+  chomp: 'Garchomp',
+  dnite: 'Dragonite',
+  pult: 'Dragapult',
+  ray: 'Rayquaza',
+  karp: 'Magikarp',
+  mew2: 'Mewtwo',
+  gardy: 'Gardevoir',
+  // Printed names the Pokédex catalog spells without their punctuation.
+  farfetchd: "Farfetch'd",
+  sirfetchd: "Sirfetch'd",
+  flabebe: 'Flabébé',
+};
+
+/**
+ * Search words → the name as printed: the slang above, plus every Pokémon whose printed name has punctuation, typed
+ * with spaces or run together ("mr mime", "mrmime", "ho oh", "hooh", "type null").
+ */
+const NAME_ALIASES = new Map<string, string>();
+for (const name of [
+  ...POKEMON_CATALOG.map((entry) => formatPokemonDisplayName(entry.name)),
+  ...Object.values(POKEMON_SLANG),
+])
+  if (/[^A-Za-z ]/.test(name)) {
+    const key = normalizeNickname(name.replace('♀', ' f').replace('♂', ' m'));
+    NAME_ALIASES.set(key, name).set(key.replaceAll(' ', ''), name);
+  }
+for (const [slang, name] of Object.entries(POKEMON_SLANG)) NAME_ALIASES.set(slang, name);
+
+/** A search with Pokémon slang and unpunctuated names written as printed ("zard sir" → "Charizard sir"). */
+export function expandSearchAliases(query: string) {
+  const words = query.trim().split(/\s+/);
+  const out: string[] = [];
+  for (let i = 0; i < words.length; i++) {
+    const pair = i + 1 < words.length ? NAME_ALIASES.get(normalizeNickname(`${words[i]} ${words[i + 1]}`)) : undefined;
+    if (pair) {
+      out.push(pair);
+      i++;
+    } else out.push(NAME_ALIASES.get(normalizeNickname(words[i])) ?? words[i]);
+  }
+  return out.join(' ');
 }
