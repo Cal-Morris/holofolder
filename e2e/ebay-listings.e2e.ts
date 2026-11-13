@@ -1,4 +1,4 @@
-import { test, expect, type Harness } from './fixtures';
+import { test, expect, SEEDED_COLLECTION, type Harness } from './fixtures';
 import { mockCardPrices } from './price-fixtures';
 
 test.use({ signedIn: true });
@@ -319,28 +319,38 @@ test('card details updates its good-price band only after a user checks qualifyi
   await harness.expectNoHorizontalOverflow();
 });
 
-test('card details compares sold evidence with the tracked finish quote', async ({ harness }) => {
-  await mockCardPrices(harness.page, {
-    'base1-44': {
-      market: 10,
-      confidence: 'high',
-      finishes: [
-        { finish: 'normal', market: 10 },
-        { finish: 'reverse_holo', market: 20 },
-      ],
-    },
+test.describe('a reverse holo copy', () => {
+  // A native copy is one exact printing, so its details price that finish (no Card & variant switcher).
+  // A function, as an array here would read as Playwright's [value, options] fixture tuple.
+  test.use({
+    collection: async ({ signedIn: _signedIn }, provide) =>
+      provide([{ ...SEEDED_COLLECTION[0], card_finish: 'reverse_holo' }, SEEDED_COLLECTION[1]]),
   });
-  await harness.page.addInitScript(() => localStorage.removeItem('binderdex_card_price_cache_v7'));
-  await harness.page.route('**/app/api/card-price-checks?**', (route) => route.fulfill({ json: qualifyingFixture() }));
-  await harness.page.reload();
-  const detail = await openPriceDetails(harness);
-  await detail.locator('summary').filter({ hasText: 'Card & variant' }).click();
-  await detail.getByRole('button', { name: /^Reverse/ }).click();
-  await expect(detail.getByText('Market', { exact: true }).locator('..')).toContainText('£20.00');
-  await detail.getByRole('button', { name: 'Check prices', exact: true }).click();
-  await detail.getByText('Evidence', { exact: true }).click();
-  await expect(detail.getByText(/sold and catalogue buying ranges do not overlap/)).toBeVisible();
-  await expect(detail.getByText('Fair range · sold', { exact: true })).toHaveCount(0);
+
+  test('card details compares sold evidence with the tracked finish quote', async ({ harness }) => {
+    await mockCardPrices(harness.page, {
+      'base1-44': {
+        market: 10,
+        confidence: 'high',
+        finishes: [
+          { finish: 'normal', market: 10 },
+          { finish: 'reverse_holo', market: 20 },
+        ],
+      },
+    });
+    await harness.page.addInitScript(() => localStorage.removeItem('binderdex_card_price_cache_v7'));
+    await harness.page.route('**/app/api/card-price-checks?**', (route) =>
+      route.fulfill({ json: qualifyingFixture() }),
+    );
+    await harness.reload();
+    const detail = await openPriceDetails(harness);
+    await expect(detail.getByText('Market', { exact: true }).locator('..')).toContainText('£20.00');
+    await detail.getByRole('button', { name: 'Check prices', exact: true }).click();
+    await detail.getByText('Evidence', { exact: true }).click();
+    // Sold around £9.80 against a £20 reverse holo quote: the ranges don't overlap, so no sold band.
+    await expect(detail.getByText(/sold and catalogue buying ranges do not overlap/)).toBeVisible();
+    await expect(detail.getByText('Fair range · sold', { exact: true })).toHaveCount(0);
+  });
 });
 
 test('switching finishes cancels the old check before it can overwrite new evidence', async ({ harness }) => {
