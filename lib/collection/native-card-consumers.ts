@@ -13,7 +13,9 @@ import type { BrowseCard, SearchCardResult } from '@/lib/pokemon-card-browse';
 import { prepareSlotPickerIntent } from '@/lib/slot-picker';
 import type { InventorySelection } from '@/lib/inventory-plans';
 import type { OperationIntentContext } from '@/lib/domain/audit-context';
-import type { SlotCommandSink } from '@/lib/binder-slot-editing';
+import type { SlotCommandSink, StagedSlotCommandIntent } from '@/lib/binder-slot-editing';
+import type { InventorySnapshot } from '@/lib/domain/inventory';
+import { parseSlotIntent } from '@/lib/collection/slot-optimistic';
 import type { HuntSourceItem } from '@/lib/show-hunt';
 
 export interface NativeWantedDestination {
@@ -324,4 +326,110 @@ export function nativeHuntItems(
     }
   }
   return [...items.values()];
+}
+
+/**
+ * The open binder's pocket a new want for this printing goes in: a pocket reserved for exactly this card, else its
+ * Pokémon's pocket. Null when there is no open binder or it has no pocket for the card (wants live on pockets).
+ */
+export function nativeWantPocket(
+  snapshot: InventorySnapshot,
+  collectionId: string | undefined,
+  card: SearchCardResult,
+) {
+  const slots = snapshot.binders.find((b) => b.collectionId === collectionId)?.slots ?? [];
+  return (
+    slots.find(
+      (s) =>
+        s.target?.kind === 'card' &&
+        matchesCatalogCardId(card, s.target.cardId) &&
+        (!s.target.language || s.target.language === card.language),
+    ) ??
+    slots.find((s) => s.target?.kind === 'pokemon' && card.dexIds.includes(s.target.pokemonId)) ??
+    null
+  );
+}
+
+function wantsUpdate(
+  snapshot: InventorySnapshot,
+  collectionId: string,
+  slotId: string,
+  wantedCards: (current: readonly WantedCard[]) => WantedCard[],
+  context: OperationIntentContext,
+): StagedSlotCommandIntent {
+  const binder = snapshot.binders.find((b) => b.collectionId === collectionId);
+  const collection = snapshot.collections.find((c) => c.id === collectionId);
+  const slot = binder?.slots.find((s) => s.id === slotId);
+  if (!binder || !collection || !slot) throw new Error('want-pocket-changed');
+  const item = snapshot.items.find((i) => i.id === slot.inventoryItemId);
+  const placement = snapshot.placements.find((p) => p.inventoryItemId === slot.inventoryItemId);
+  const ref = {
+    id: slot.id,
+    version: slot.version,
+    inventoryItemId: slot.inventoryItemId,
+    itemVersion: item?.version ?? null,
+    placementVersion: placement?.version ?? null,
+  };
+  return {
+    scope: { ownerUserId: snapshot.ownerUserId, collectionId, slotId },
+    intent: parseSlotIntent({
+      kind: 'slots',
+      context,
+      request: {
+        operationId: context.operationId,
+        inventoryRevision: snapshot.inventoryRevision,
+        collectionId,
+        collectionVersion: collection.version,
+        layoutRevision: binder.layoutRevision,
+        commands: [{ kind: 'update', slot: ref, wantedCards: wantedCards(slot.wantedCards) }],
+      },
+    }),
+  };
+}
+
+/** Append this exact printing to its pocket's wants. Null when the open binder has no pocket for it. */
+export function planNativeAddWant(
+  snapshot: InventorySnapshot,
+  collectionId: string | undefined,
+  card: SearchCardResult,
+  finish: CardFinish,
+  context: OperationIntentContext,
+  addedAt: string,
+) {
+  const pocket = nativeWantPocket(snapshot, collectionId, card);
+  if (!pocket || !collectionId || !isCardLanguage(card.language)) return null;
+  const want: WantedCard = {
+    card_id: card.canonicalId ?? card.id,
+    card_name: card.name,
+    card_language: card.language,
+    card_finish: finish,
+    card_set: card.set.name,
+    local_id: card.localId,
+    added_at: addedAt,
+    ...(card.image ? { card_image: card.image } : {}),
+    ...(card.rarity ? { rarity: card.rarity } : {}),
+    ...(card.set.officialCardCount ? { set_total: card.set.officialCardCount } : {}),
+    ...(card.illustrator ? { illustrator: card.illustrator } : {}),
+  };
+  return wantsUpdate(snapshot, collectionId, pocket.id, (current) => [...current, want], context);
+}
+
+/** Remove one explicit want, refusing if the pocket's want at that index is no longer the one shown. */
+export function planNativeRemoveWant(
+  snapshot: InventorySnapshot,
+  destination: Pick<NativeWantedDestination, 'collectionId' | 'slotId' | 'wantedIndex' | 'expectedPublic'>,
+  context: OperationIntentContext,
+) {
+  return wantsUpdate(
+    snapshot,
+    destination.collectionId,
+    destination.slotId,
+    (current) => {
+      const at = current[destination.wantedIndex];
+      if (!at || JSON.stringify(publicWant(at)) !== JSON.stringify(destination.expectedPublic))
+        throw new Error('want-changed');
+      return current.filter((_, i) => i !== destination.wantedIndex);
+    },
+    context,
+  );
 }
