@@ -43,6 +43,18 @@ tests/card-assets.test.ts        unit tests, including parity with the app's ima
 
 Every command needs `POSTGRES_URL_NON_POOLING` (or `DATABASE_URL`) in `.env.local`. `plan`, `verify`, `discover`, `atlas` and `fingerprints` (without `--publish`) only read the database and write local files; `publish`, `renditions`, the `mirror-*` commands, `fill-gaps --apply`, `inventory` and `migrate-bucket --apply` write to R2 and/or the database.
 
+## What we hold: check, don't assume
+
+The catalogue and the bucket hold more than the English sets the app mostly shows. Before saying a card, set or language has no image, or planning work around a gap, check the real state. Several plans went wrong by assuming instead.
+
+- **Catalogue:** `tcg_cards` holds every language TCGdex has, not just English (for example about 13k Japanese cards across about 125 sets, including old PMCG, e-series, VS and Sun & Moon). `image_languages_json` says which languages TCGdex has a print for.
+- **Bucket (`holofolder-assets`):** card prints under `pokemon/tcg/cards/<lang>/<set>/<localId>/` for `en`, `ja`, `de`, `fr`, `id` and `it`, plus fallback sources under `pokemon/tcg/cards/src/<source>/`: `malie` (the largest store, game-client renders, English), `pokemoncom`, `pokemontcg`, `scrydex`, `limitless`, `playshop` and `tcgplayer`. The non-English folders other than `ja` are small fallbacks for cards with no English image.
+- **How to check:**
+  - What's stored: `card_image_inventory` (`bucket`, `object_key`) is the record of the bucket. Group by `split_part(object_key, '/', 4)` for language and `split_part(object_key, '/', 5)` for set or source. If the record might be stale, rebuild it with `bun run card-assets inventory`, which LISTs the bucket.
+  - Coverage per language and set: `bun run card-assets fingerprints --report` writes `coverage.json`, with cards that have a mirrored image, cards on TCGdex but not mirrored yet (fix with `mirror-tcgdex --lang <l> --set <ids>`), and cards with no image from any allowed source.
+  - Allowed sources: `sources.csv`. A source with permission `needed` or `forbidden` isn't available, however good its images are (for example `pcgsearch`, Japanese 1996-2006 scans).
+- **State on 2026-11-13:** English is nearly complete (52 cards have no image anywhere). Japanese is complete only where TCGdex has prints. The S and SV-era sets were mirrored on 2026-11-13. Old Japanese sets, the Sun & Moon era, S5-S8 and the MEGA sets have no image from any allowed source. Re-run `--report` for current numbers rather than trusting these.
+
 ## `sources.csv`
 
 One row per image source.
