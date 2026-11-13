@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useLayoutEffect, useReducer, useRef, useState, type RefObject } from 'react';
 import { X } from 'lucide-react';
 import CardImage from '@/components/card-image';
 import { CardSelector } from '@/components/binder/lazy-views';
@@ -18,7 +18,6 @@ import {
 import { pickerChoices, pickerCandidate, pickerFinishes, speciesSelectorCard } from '@/lib/slot-picker';
 import { matchesCatalogCardId } from '@/lib/card-catalog';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
-import type { CardFinish } from '@/lib/domain/cards';
 import { isCardLanguage } from '@/lib/domain/cards';
 import type { InventoryCatalogResolver } from '@/lib/domain/inventory';
 import type { StagedSlotCommandIntent } from '@/lib/binder-slot-editing';
@@ -26,6 +25,7 @@ import { formatCardFinishLabel } from '@/lib/card-labels';
 import { describeIdentity, pocketPlace } from '@/lib/pocket-labels';
 import { slotDraftFailureMessage } from '@/lib/slot-draft-failure';
 import { Select } from '@/components/ui/select';
+import { initialScanReview, pocketChoice, pocketReviewStatus, scanReviewTransition } from '@/lib/scan-review-state';
 
 /** One thing the scan found: a filled pocket on the page (with its photo crop), or a single scanned card. */
 export interface ScanReviewCell {
@@ -38,15 +38,6 @@ export interface ScanReviewCell {
   query?: string;
   /** `candidates[0]` is a confident picture match, pre-selected as a suggestion; the rest are the other choices. */
   suggested?: boolean;
-}
-interface CellChoice {
-  card?: SearchCardResult;
-  finish?: CardFinish;
-  copy?: string;
-  destination?: string;
-  skip?: boolean;
-  /** The pocket already holds a card; you chose to put this one there instead. */
-  replace?: boolean;
 }
 const cardKey = (card: SearchCardResult) => `${card.id}:${card.language ?? 'unknown'}`;
 const unusedLegacySelect = () => {};
@@ -96,15 +87,8 @@ export default function ScanDestinationReview({
   useLayoutEffect(() => {
     latest.current = admission;
   }, [admission]);
-  // A single clear match, or a confident picture suggestion, is offered as the card; anything less waits for you.
-  const [choices, setChoices] = useState<Partial<Record<number, CellChoice>>>(() =>
-    Object.fromEntries(
-      cells
-        .filter((c) => c.occupied && (c.candidates.length === 1 || (c.suggested && c.candidates.length)))
-        .map((c) => [c.index, { card: c.candidates[0] }]),
-    ),
-  );
-  const [choosing, setChoosing] = useState<number | null>(null);
+  // Each pocket's choice (lib/scan-review-state.ts); the picker and every button below dispatch to it.
+  const [review, send] = useReducer(scanReviewTransition, cells, initialScanReview);
   const [error, setError] = useState<string | null>(null);
   const acceptance = useSlotDraftAcceptance<StagedSlotCommandIntent>(
     async (draft) => {
@@ -143,10 +127,8 @@ export default function ScanDestinationReview({
     return at < 0 ? 'A pocket in this binder' : pocketPlace(at, capture.rows, capture.cols);
   };
   const found = cells.filter((c) => c.occupied);
-  const update = (index: number, patch: CellChoice) =>
-    setChoices((previous) => ({ ...previous, [index]: { ...previous[index], ...patch } }));
   const rows = found.map((cell) => {
-    const choice = choices[cell.index] ?? {};
+    const choice = pocketChoice(review.pockets[cell.index]);
     const slot = cell.slotId ? binder?.slots.find((s) => s.id === cell.slotId) : undefined;
     const recordedItem = slot?.inventoryItemId
       ? admission.snapshot.items.find((i) => i.id === slot.inventoryItemId)
@@ -242,7 +224,7 @@ export default function ScanDestinationReview({
       setError(scanProblem(cause));
     }
   };
-  const picking = rows.find((r) => r.cell.index === choosing);
+  const picking = rows.find((r) => r.cell.index === review.picking);
   const pickingSpecies = picking?.slot?.target?.kind === 'pokemon' ? picking.slot.target.pokemonId : null;
   const pickingReserved = picking?.slot?.target?.kind === 'card' ? picking.slot.target : null;
   const locked = stale || acceptance.busy || Boolean(acceptance.pending);
@@ -360,13 +342,7 @@ export default function ScanDestinationReview({
                           type="button"
                           className={differs ? `${small} border-primary/50 bg-primary/15 text-primary` : small}
                           disabled={locked}
-                          onClick={() =>
-                            update(cell.index, {
-                              replace: true,
-                              skip: false,
-                              ...(differs ? {} : { card: undefined }),
-                            })
-                          }
+                          onClick={() => send({ type: 'replace', index: cell.index, keepCard: differs })}
                         >
                           {differs ? 'Replace it' : 'Wrong card? Replace it'}
                         </button>
@@ -378,7 +354,7 @@ export default function ScanDestinationReview({
                           type="button"
                           className={small}
                           disabled={locked}
-                          onClick={() => update(cell.index, { skip: false })}
+                          onClick={() => send({ type: 'include', index: cell.index })}
                         >
                           Include
                         </button>
@@ -386,7 +362,7 @@ export default function ScanDestinationReview({
                     ) : !card ? (
                       <>
                         <p className="text-sm font-semibold">Which card is this?</p>
-                        {cell.candidates.length > 1 && cell.candidates.length <= 6 && (
+                        {pocketReviewStatus(cell, review.pockets[cell.index]) === 'choices' && (
                           <div role="group" aria-label="Possible matches" className="flex gap-1.5 overflow-x-auto pb-1">
                             {cell.candidates.map((option) => (
                               <button
@@ -394,14 +370,7 @@ export default function ScanDestinationReview({
                                 type="button"
                                 disabled={locked}
                                 aria-label={`${option.name}, ${option.set.name} #${option.localId}`}
-                                onClick={() =>
-                                  update(cell.index, {
-                                    card: option,
-                                    finish: undefined,
-                                    copy: undefined,
-                                    destination: undefined,
-                                  })
-                                }
+                                onClick={() => send({ type: 'pick-choice', index: cell.index, card: option })}
                                 className="trading-card border-border/60 bg-muted relative w-12 shrink-0 overflow-hidden rounded border"
                               >
                                 {option.image && (
@@ -416,7 +385,7 @@ export default function ScanDestinationReview({
                             type="button"
                             className={`${small} border-primary/50 bg-primary/15 text-primary`}
                             disabled={locked}
-                            onClick={() => setChoosing(cell.index)}
+                            onClick={() => send({ type: 'choose', index: cell.index })}
                           >
                             Choose card
                           </button>
@@ -424,7 +393,7 @@ export default function ScanDestinationReview({
                             type="button"
                             className={small}
                             disabled={locked}
-                            onClick={() => update(cell.index, replacing ? { replace: false } : { skip: true })}
+                            onClick={() => send({ type: replacing ? 'keep-current' : 'skip', index: cell.index })}
                           >
                             {replacing ? 'Keep current card' : 'Skip'}
                           </button>
@@ -438,7 +407,7 @@ export default function ScanDestinationReview({
                           {card.localId ? ` · #${card.localId}` : ''}
                           {finish ? ` · ${formatCardFinishLabel(finish)}` : ''}
                         </p>
-                        {cell.suggested && card === cell.candidates[0] && (
+                        {pocketReviewStatus(cell, review.pockets[cell.index]) === 'photo' && (
                           <p className="text-muted-foreground text-xs font-medium">Matched from photo</p>
                         )}
                         {finishes.length > 1 && (
@@ -449,9 +418,7 @@ export default function ScanDestinationReview({
                                 type="button"
                                 disabled={locked}
                                 aria-pressed={finish === option.finish}
-                                onClick={() =>
-                                  update(cell.index, { finish: option.finish, copy: undefined, destination: undefined })
-                                }
+                                onClick={() => send({ type: 'finish', index: cell.index, finish: option.finish })}
                                 className={`${small} aria-pressed:border-primary/50 aria-pressed:bg-primary/15`}
                               >
                                 {option.label}
@@ -466,7 +433,7 @@ export default function ScanDestinationReview({
                                 type="button"
                                 disabled={locked}
                                 aria-pressed={copy === 'raw'}
-                                onClick={() => update(cell.index, { copy: 'raw' })}
+                                onClick={() => send({ type: 'copy', index: cell.index, copy: 'raw' })}
                                 className={`${small} aria-pressed:border-primary/50 aria-pressed:bg-primary/15`}
                               >
                                 An ungraded copy
@@ -481,7 +448,9 @@ export default function ScanDestinationReview({
                                     disabled={locked}
                                     aria-pressed={copy === `copy:${option.selection.inventoryItemId}`}
                                     onClick={() =>
-                                      update(cell.index, {
+                                      send({
+                                        type: 'copy',
+                                        index: cell.index,
                                         copy: `copy:${option.selection.kind === 'existing' ? option.selection.inventoryItemId : ''}`,
                                       })
                                     }
@@ -513,7 +482,13 @@ export default function ScanDestinationReview({
                               aria-label={`Pocket for ${card.name}`}
                               disabled={locked}
                               value={destination ?? ''}
-                              onChange={(event) => update(cell.index, { destination: event.target.value || undefined })}
+                              onChange={(event) =>
+                                send({
+                                  type: 'destination',
+                                  index: cell.index,
+                                  destination: event.target.value || undefined,
+                                })
+                              }
                               className="mt-1 w-full"
                             >
                               <option value="">Choose a pocket</option>
@@ -532,17 +507,8 @@ export default function ScanDestinationReview({
                             type="button"
                             className={small}
                             disabled={locked}
-                            onClick={() =>
-                              // A photo suggestion goes back to its other picture matches first.
-                              cell.suggested && cell.candidates.length > 1
-                                ? update(cell.index, {
-                                    card: undefined,
-                                    finish: undefined,
-                                    copy: undefined,
-                                    destination: undefined,
-                                  })
-                                : setChoosing(cell.index)
-                            }
+                            // A photo suggestion goes back to its other picture matches first, else the picker opens.
+                            onClick={() => send({ type: 'change', index: cell.index })}
                           >
                             Change card
                           </button>
@@ -550,7 +516,7 @@ export default function ScanDestinationReview({
                             type="button"
                             className={small}
                             disabled={locked}
-                            onClick={() => update(cell.index, replacing ? { replace: false } : { skip: true })}
+                            onClick={() => send({ type: replacing ? 'keep-current' : 'skip', index: cell.index })}
                           >
                             {replacing ? 'Keep current card' : 'Skip'}
                           </button>
@@ -602,7 +568,7 @@ export default function ScanDestinationReview({
           pokemonId={pickingSpecies ?? 0}
           pokemonName={pickingSpecies ? describeIdentity({ kind: 'pokemon', pokemonId: pickingSpecies }).name : ''}
           onSelect={unusedLegacySelect}
-          onClose={() => setChoosing(null)}
+          onClose={() => send({ type: 'close-picker' })}
           defaultCardLanguage={pickingReserved?.language}
           anyCard={
             pickingSpecies
@@ -612,18 +578,15 @@ export default function ScanDestinationReview({
                 : { title: 'Which card is this?', query: picking.cell.query }
           }
           native={{
-            onPick: (card, finish) => {
-              update(picking.cell.index, {
+            onPick: (card, finish) =>
+              send({
+                type: 'picked',
+                index: picking.cell.index,
                 card: pickingSpecies
                   ? speciesSelectorCard(card, pickingSpecies)
                   : ({ ...card, dexIds: card.dexIds ?? [] } as SearchCardResult),
                 finish,
-                copy: undefined,
-                destination: undefined,
-                skip: false,
-              });
-              setChoosing(null);
-            },
+              }),
           }}
         />
       )}
