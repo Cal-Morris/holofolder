@@ -9,129 +9,91 @@
   "tests": [
     {
       "file": "card-picker.e2e.ts",
-      "title": [
-        "card picker layout",
-        "opens on search with cards above the fold and one compact filters control"
-      ],
+      "title": ["card picker layout", "opens on search with cards above the fold and one compact filters control"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
     },
     {
       "file": "card-picker.e2e.ts",
-      "title": [
-        "card picker layout",
-        "filters apply from the sheet and show as removable chips"
-      ],
+      "title": ["card picker layout", "filters apply from the sheet and show as removable chips"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
     },
     {
       "file": "card-picker.e2e.ts",
-      "title": [
-        "card picker layout",
-        "marking owned without a card is in the overflow menu"
-      ],
+      "title": ["card picker layout", "marking owned without a card is in the overflow menu"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
     },
     {
       "file": "card-picker.e2e.ts",
-      "title": [
-        "card picker layout",
-        "a search with no matches says so and clears in one tap"
-      ],
+      "title": ["card picker layout", "a search with no matches says so and clears in one tap"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
     },
     {
       "file": "card-picker.e2e.ts",
-      "title": [
-        "card picker layout",
-        "provider-confirmed reverse is offered when catalogue flags omit it"
-      ],
+      "title": ["card picker layout", "provider-confirmed reverse is offered when catalogue flags omit it"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
     },
     {
       "file": "card-picker.e2e.ts",
-      "title": [
-        "card picker layout",
-        "keeps unpriced Normal and suggests the most expensive quoted variant"
-      ],
+      "title": ["card picker layout", "keeps unpriced Normal and suggests the most expensive quoted variant"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
     },
     {
       "file": "card-picker.e2e.ts",
-      "title": [
-        "card picker layout",
-        "unpriced variants stay selectable without a likely badge"
-      ],
+      "title": ["card picker layout", "unpriced variants stay selectable without a likely badge"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
     },
     {
       "file": "card-picker.e2e.ts",
-      "title": [
-        "card picker layout",
-        "a single-finish card is picked in one tap"
-      ],
+      "title": ["card picker layout", "a single-finish card is picked in one tap"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
     },
     {
       "file": "collection-list.e2e.ts",
-      "title": [
-        "selecting a row, by artwork or anywhere on the row, selects that exact slot"
-      ],
+      "title": ["selecting a row, by artwork or anywhere on the row, selects that exact slot"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('dialog', { name: /details$/ })"
     },
     {
       "file": "deal-cardmarket.e2e.ts",
-      "title": [
-        "deal scale geometry",
-        "labels and actions fit phone"
-      ],
+      "title": ["deal scale geometry", "labels and actions fit phone"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.evaluate: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('figure', { name: 'Buying range' }).locator('svg')"
     },
     {
       "file": "deal-cardmarket.e2e.ts",
-      "title": [
-        "deal scale geometry",
-        "labels and actions fit 1238x500"
-      ],
+      "title": ["deal scale geometry", "labels and actions fit 1238x500"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.evaluate: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('figure', { name: 'Buying range' }).locator('svg')"
     },
     {
       "file": "deal-cardmarket.e2e.ts",
-      "title": [
-        "deal scale geometry",
-        "labels and actions fit 667x375"
-      ],
+      "title": ["deal scale geometry", "labels and actions fit 667x375"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.evaluate: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('figure', { name: 'Buying range' }).locator('svg')"
     },
     {
       "file": "deal-cardmarket.e2e.ts",
-      "title": [
-        "deal scale geometry",
-        "labels and actions fit 844x300"
-      ],
+      "title": ["deal scale geometry", "labels and actions fit 844x300"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.evaluate: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('figure', { name: 'Buying range' }).locator('svg')"
@@ -178,20 +140,14 @@
     },
     {
       "file": "deal-cardmarket.e2e.ts",
-      "title": [
-        "Cardmarket catalog in the deal checker",
-        "catalog GBP attribution stays explicit with EUR display"
-      ],
+      "title": ["Cardmarket catalog in the deal checker", "catalog GBP attribution stays explicit with EUR display"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "TypeError: Cannot read properties of null (reading 'cards')"
     },
     {
       "file": "deal-cardmarket.e2e.ts",
-      "title": [
-        "Cardmarket catalog in the deal checker",
-        "catalog GBP attribution stays explicit with USD display"
-      ],
+      "title": ["Cardmarket catalog in the deal checker", "catalog GBP attribution stays explicit with USD display"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "TypeError: Cannot read properties of null (reading 'cards')"
@@ -208,118 +164,91 @@
     },
     {
       "file": "deal-cardmarket.e2e.ts",
-      "title": [
-        "Cardmarket catalog in the deal checker",
-        "other providers are not labelled Cardmarket trend"
-      ],
+      "title": ["Cardmarket catalog in the deal checker", "other providers are not labelled Cardmarket trend"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('region', { name: 'Catalog price sources' })"
     },
     {
       "file": "docs.e2e.ts",
-      "title": [
-        "docs search finds setup guides and keeps direct-origin navigation working"
-      ],
+      "title": ["docs search finds setup guides and keeps direct-origin navigation working"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('button', { name: /Search/ }).first()"
     },
     {
       "file": "docs.e2e.ts",
-      "title": [
-        "reference sidebar has compact subject groups and preserves saved operation links"
-      ],
+      "title": ["reference sidebar has compact subject groups and preserves saved operation links"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — locator('#nd-sidebar-mobile').getByRole('button', { name: 'Collection', exact: true })"
     },
     {
       "file": "docs.e2e.ts",
-      "title": [
-        "desktop reference sidebar uses the same subject groups"
-      ],
+      "title": ["desktop reference sidebar uses the same subject groups"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('#nd-sidebar').getByRole('link', { name: /Preview collection recovery/ })"
     },
     {
       "file": "header-navigation.e2e.ts",
-      "title": [
-        "compact header and discoverable navigation, light"
-      ],
+      "title": ["compact header and discoverable navigation, light"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByTestId('app-header').getByTestId('binder-switcher-trigger')"
     },
     {
       "file": "header-navigation.e2e.ts",
-      "title": [
-        "compact header and discoverable navigation, dark"
-      ],
+      "title": ["compact header and discoverable navigation, dark"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByTestId('app-header').getByTestId('binder-switcher-trigger')"
     },
     {
       "file": "header-navigation.e2e.ts",
-      "title": [
-        "desktop 1280 light"
-      ],
+      "title": ["desktop 1280 light"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "header-navigation.e2e.ts",
-      "title": [
-        "desktop 1280 dark"
-      ],
+      "title": ["desktop 1280 dark"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "header-navigation.e2e.ts",
-      "title": [
-        "desktop 1440 light"
-      ],
+      "title": ["desktop 1440 light"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "header-navigation.e2e.ts",
-      "title": [
-        "desktop 1440 dark"
-      ],
+      "title": ["desktop 1440 dark"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "ios-safe-area.e2e.ts",
-      "title": [
-        "the More menu holds the extra header actions as full-size rows"
-      ],
+      "title": ["the More menu holds the extra header actions as full-size rows"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "ios-safe-area.e2e.ts",
-      "title": [
-        "the binder does not spend safe-area space on a show promotion"
-      ],
+      "title": ["the binder does not spend safe-area space on a show promotion"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "ios-top-edge.e2e.ts",
-      "title": [
-        "nothing sits in or just below the status bar: loaded, in Show mode, and scrolled"
-      ],
+      "title": ["nothing sits in or just below the status bar: loaded, in Show mode, and scrolled"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
@@ -426,188 +355,133 @@
     },
     {
       "file": "keyboard-avoidance.e2e.ts",
-      "title": [
-        "on-screen keyboard",
-        "Show mode bundle check: the verdict pins above the bundle price while typing"
-      ],
+      "title": ["on-screen keyboard", "Show mode bundle check: the verdict pins above the bundle price while typing"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-bundle').getByTestId('bundle-verdict-pinned')"
     },
     {
       "file": "keyboard-avoidance.e2e.ts",
-      "title": [
-        "on-screen keyboard",
-        "a shortcut-bar-sized change while typing (hardware keyboard) keeps the dock"
-      ],
+      "title": ["on-screen keyboard", "a shortcut-bar-sized change while typing (hardware keyboard) keeps the dock"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
     },
     {
       "file": "mobile-layout.e2e.ts",
-      "title": [
-        "desktop attribution reserves space below the whole binder"
-      ],
+      "title": ["desktop attribution reserves space below the whole binder"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('footer').filter({ hasText: 'Data:' })"
     },
     {
       "file": "mobile-layout.e2e.ts",
-      "title": [
-        "binder controls stay reachable and cards keep their full proportions"
-      ],
+      "title": ["binder controls stay reachable and cards keep their full proportions"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveCSS(expected) failed — locator('button[data-dex-id=\"1\"] img').first()"
     },
     {
       "file": "mobile-layout.e2e.ts",
-      "title": [
-        "binder header pager (signed in)",
-        "is not shown outside the binder view"
-      ],
+      "title": ["binder header pager (signed in)", "is not shown outside the binder view"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "light",
-        "settings: clipped sections scroll, last controls and close stay reachable"
-      ],
+      "title": ["light", "settings: clipped sections scroll, last controls and close stay reachable"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "light",
-        "all cards: artwork, text, ends, header, focus, reopening and tab return"
-      ],
+      "title": ["light", "all cards: artwork, text, ends, header, focus, reopening and tab return"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "light",
-        "all cards: native touch moves both ways without moving the background"
-      ],
+      "title": ["light", "all cards: native touch moves both ways without moving the background"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "light",
-        "selector scroll survives nested filters and variant dismissal"
-      ],
+      "title": ["light", "selector scroll survives nested filters and variant dismissal"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "light",
-        "illustrator grid scrolls over cards and reaches both ends"
-      ],
+      "title": ["light", "illustrator grid scrolls over cards and reaches both ends"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "light",
-        "search highlight and breakout jumps remain scrollable, keyboard keeps controls visible"
-      ],
+      "title": ["light", "search highlight and breakout jumps remain scrollable, keyboard keeps controls visible"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "light",
-        "secondary sheets: More, Partner, want filters and actions"
-      ],
+      "title": ["light", "secondary sheets: More, Partner, want filters and actions"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "dark",
-        "settings: clipped sections scroll, last controls and close stay reachable"
-      ],
+      "title": ["dark", "settings: clipped sections scroll, last controls and close stay reachable"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "dark",
-        "all cards: artwork, text, ends, header, focus, reopening and tab return"
-      ],
+      "title": ["dark", "all cards: artwork, text, ends, header, focus, reopening and tab return"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "dark",
-        "all cards: native touch moves both ways without moving the background"
-      ],
+      "title": ["dark", "all cards: native touch moves both ways without moving the background"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "dark",
-        "selector scroll survives nested filters and variant dismissal"
-      ],
+      "title": ["dark", "selector scroll survives nested filters and variant dismissal"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "dark",
-        "illustrator grid scrolls over cards and reaches both ends"
-      ],
+      "title": ["dark", "illustrator grid scrolls over cards and reaches both ends"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "dark",
-        "search highlight and breakout jumps remain scrollable, keyboard keeps controls visible"
-      ],
+      "title": ["dark", "search highlight and breakout jumps remain scrollable, keyboard keeps controls visible"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "modal-scroll.e2e.ts",
-      "title": [
-        "dark",
-        "secondary sheets: More, Partner, want filters and actions"
-      ],
+      "title": ["dark", "secondary sheets: More, Partner, want filters and actions"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
@@ -625,168 +499,119 @@
     },
     {
       "file": "native-toolbar-typography.e2e.ts",
-      "title": [
-        "native toolbar inherits the app font and compact control hierarchy"
-      ],
+      "title": ["native toolbar inherits the app font and compact control hierarchy"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('status').filter({ hasText: /^Editing layout$/ })"
     },
     {
       "file": "native-toolbar-typography.e2e.ts",
-      "title": [
-        "native toolbar keeps desktop typography and controls"
-      ],
+      "title": ["native toolbar keeps desktop typography and controls"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('status').filter({ hasText: /^Editing layout$/ })"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "search",
-        "closes when tapping the backdrop"
-      ],
+      "title": ["search", "closes when tapping the backdrop"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: No backdrop area found outside the dialog"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "card selector",
-        "fits the safe viewport with a reachable close control"
-      ],
+      "title": ["card selector", "fits the safe viewport with a reachable close control"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: /change owned card|add owned card/i }).first()"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "card selector",
-        "closes with the close button and returns focus"
-      ],
+      "title": ["card selector", "closes with the close button and returns focus"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: /change owned card|add owned card/i }).first()"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "card selector",
-        "closes with Escape"
-      ],
+      "title": ["card selector", "closes with Escape"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: /change owned card|add owned card/i }).first()"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "card selector",
-        "closes with the browser back button without leaving the page"
-      ],
+      "title": ["card selector", "closes with the browser back button without leaving the page"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: /change owned card|add owned card/i }).first()"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "card selector",
-        "closes when tapping the backdrop"
-      ],
+      "title": ["card selector", "closes when tapping the backdrop"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: /change owned card|add owned card/i }).first()"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "card selector",
-        "closes with swipe down on the grabber"
-      ],
+      "title": ["card selector", "closes with swipe down on the grabber"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: /change owned card|add owned card/i }).first()"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "card selector",
-        "closes with a touch pull down on its body from the top"
-      ],
+      "title": ["card selector", "closes with a touch pull down on its body from the top"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: /change owned card|add owned card/i }).first()"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "bottom navigation",
-        "every main view has no horizontal overflow and keeps the dock usable"
-      ],
+      "title": ["bottom navigation", "every main view has no horizontal overflow and keeps the dock usable"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "bottom navigation",
-        "switching tabs with card detail open closes it and keeps one overlay at most"
-      ],
+      "title": ["bottom navigation", "switching tabs with card detail open closes it and keeps one overlay at most"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "bottom navigation",
-        "switching tabs with search open closes it and keeps one overlay at most"
-      ],
+      "title": ["bottom navigation", "switching tabs with search open closes it and keeps one overlay at most"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: element should not be covered by another layer"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "bottom navigation",
-        "switching tabs with view options open closes it and keeps one overlay at most"
-      ],
+      "title": ["bottom navigation", "switching tabs with view options open closes it and keeps one overlay at most"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('nav').first().getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "bottom navigation",
-        "switching tabs with all cards view open closes it and keeps one overlay at most"
-      ],
+      "title": ["bottom navigation", "switching tabs with all cards view open closes it and keeps one overlay at most"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: element should not be covered by another layer"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "bottom navigation",
-        "opening view options replaces the card detail"
-      ],
+      "title": ["bottom navigation", "opening view options replaces the card detail"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.dispatchEvent: Timeout 5000ms exceeded. — locator('nav').first().getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "bottom navigation",
-        "card detail Prev/Next moves between slots without closing"
-      ],
+      "title": ["bottom navigation", "card detail Prev/Next moves between slots without closing"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: /^next/i })"
@@ -823,18 +648,14 @@
     },
     {
       "file": "public-binder-compat.e2e.ts",
-      "title": [
-        "wide 3x8 light page and long recorded grading stay inside the phone: /app/share/synthetic-stress"
-      ],
+      "title": ["wide 3x8 light page and long recorded grading stay inside the phone: /app/share/synthetic-stress"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' })"
     },
     {
       "file": "public-binder-compat.e2e.ts",
-      "title": [
-        "wide 3x8 light page and long recorded grading stay inside the phone: /app/u/synthetic-owner/stress"
-      ],
+      "title": ["wide 3x8 light page and long recorded grading stay inside the phone: /app/u/synthetic-owner/stress"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' })"
@@ -877,30 +698,21 @@
     },
     {
       "file": "show-mode.e2e.ts",
-      "title": [
-        "show mode",
-        "the header's tally fits on a narrow phone, offline too"
-      ],
+      "title": ["show mode", "the header's tally fits on a narrow phone, offline too"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('region', { name: 'Show mode' })"
     },
     {
       "file": "show-mode.e2e.ts",
-      "title": [
-        "show mode",
-        "the header shows the active mode without an extra row, and Exit turns it off"
-      ],
+      "title": ["show mode", "the header shows the active mode without an extra row, and Exit turns it off"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "show-mode.e2e.ts",
-      "title": [
-        "show mode",
-        "Show mode left on lapses when the app is reopened hours later"
-      ],
+      "title": ["show mode", "Show mode left on lapses when the app is reopened hours later"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
@@ -917,28 +729,21 @@
     },
     {
       "file": "show-mode.e2e.ts",
-      "title": [
-        "show mode",
-        "the binder stays free of promotions offline too"
-      ],
+      "title": ["show mode", "the binder stays free of promotions offline too"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "studio-navigation.e2e.ts",
-      "title": [
-        "Studio opens from Binders without the overlay undoing navigation"
-      ],
+      "title": ["Studio opens from Binders without the overlay undoing navigation"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('binder-switcher-trigger')"
     },
     {
       "file": "studio-navigation.e2e.ts",
-      "title": [
-        "Studio opens from Settings without the overlay undoing navigation"
-      ],
+      "title": ["Studio opens from Settings without the overlay undoing navigation"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('link', { name: /Binder Studio/ })"
@@ -955,10 +760,7 @@
     },
     {
       "file": "account-identity.e2e.ts",
-      "title": [
-        "account identity",
-        "shows invalid and taken usernames and allows retry after a failed name save"
-      ],
+      "title": ["account identity", "shows invalid and taken usernames and allows retry after a failed name save"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Account', exact: true })"
@@ -975,19 +777,14 @@
     },
     {
       "file": "binder-3d-interactions.e2e.ts",
-      "title": [
-        "staged 3D slots preserve copy identity, target labels and sparse/zero spreads"
-      ],
+      "title": ["staged 3D slots preserve copy identity, target labels and sparse/zero spreads"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: /Snorlax B.*details/ })"
     },
     {
       "file": "binder-3d-interactions.e2e.ts",
-      "title": [
-        "3D binder gestures",
-        "appearance refresh keeps settled 3D slots tappable"
-      ],
+      "title": ["3D binder gestures", "appearance refresh keeps settled 3D slots tappable"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
@@ -1014,10 +811,7 @@
     },
     {
       "file": "binder-3d-interactions.e2e.ts",
-      "title": [
-        "3D binder gestures",
-        "2D swipes survive returning from 3D and ignore multi-touch"
-      ],
+      "title": ["3D binder gestures", "2D swipes survive returning from 3D and ignore multi-touch"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
@@ -1034,73 +828,56 @@
     },
     {
       "file": "binder-creation.e2e.ts",
-      "title": [
-        "actual creation rejects auth spoof without discard"
-      ],
+      "title": ["actual creation rejects auth spoof without discard"],
       "cause": "flaky",
       "batch": 1,
       "failure": "Error: apiResponse.json: Response has been disposed"
     },
     {
       "file": "binder-designer.e2e.ts",
-      "title": [
-        "studio retains artwork framing, supports cancel and page colours"
-      ],
+      "title": ["studio retains artwork framing, supports cancel and page colours"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByLabel('Artwork zoom', { exact: true })"
     },
     {
       "file": "binder-designer.e2e.ts",
-      "title": [
-        "valid upload survives reload and storage failure preserves draft"
-      ],
+      "title": ["valid upload survives reload and storage failure preserves draft"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — getByLabel('Artwork zoom', { exact: true })"
     },
     {
       "file": "binder-designer.e2e.ts",
-      "title": [
-        "physical page turns settle on paired faces and respect reduced motion"
-      ],
+      "title": ["physical page turns settle on paired faces and respect reduced motion"],
       "cause": "flaky",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — locator('.studio-stage')"
     },
     {
       "file": "binder-designer.e2e.ts",
-      "title": [
-        "clicking a page turns its spread while orbit dragging does not"
-      ],
+      "title": ["clicking a page turns its spread while orbit dragging does not"],
       "cause": "flaky",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — locator('.studio-stage')"
     },
     {
       "file": "binder-designer.e2e.ts",
-      "title": [
-        "curated presets preserve page settings and support undo and device saving"
-      ],
+      "title": ["curated presets preserve page settings and support undo and device saving"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByLabel('This page colour', { exact: true })"
     },
     {
       "file": "binder-designer.e2e.ts",
-      "title": [
-        "cover artwork search finds cards beyond the featured list"
-      ],
+      "title": ["cover artwork search finds cards beyond the featured list"],
       "cause": "flaky",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('button', { name: 'Save appearance', exact: true })"
     },
     {
       "file": "binder-display.e2e.ts",
-      "title": [
-        "binder printing display",
-        "each mode uses its own printing and missing slots stay artwork"
-      ],
+      "title": ["binder printing display", "each mode uses its own printing and missing slots stay artwork"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
@@ -1117,104 +894,77 @@
     },
     {
       "file": "binder-display.e2e.ts",
-      "title": [
-        "staged stable-slot display",
-        "mixed targets open distinct copy details without browse mutations"
-      ],
+      "title": ["staged stable-slot display", "mixed targets open distinct copy details without browse mutations"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toHaveAccessibleName(expected) failed — locator('button[data-slot-id]').nth(4)"
     },
     {
       "file": "binder-image-loading.e2e.ts",
-      "title": [
-        "prepares the whole next page while keeping the current page visible"
-      ],
+      "title": ["prepares the whole next page while keeping the current page visible"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: all 16 next-page cards start preloading while responses remain pending"
     },
     {
       "file": "binder-image-loading.e2e.ts",
-      "title": [
-        "a pending page change can cancel without applying a late result"
-      ],
+      "title": ["a pending page change can cancel without applying a late result"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(received).toBe(expected) // Object.is equality"
     },
     {
       "file": "binder-image-loading.e2e.ts",
-      "title": [
-        "a pending page change can skip ahead without applying a late result"
-      ],
+      "title": ["a pending page change can skip ahead without applying a late result"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(received).toBe(expected) // Object.is equality"
     },
     {
       "file": "binder-image-loading.e2e.ts",
-      "title": [
-        "a pending page change can switch tab without applying a late result"
-      ],
+      "title": ["a pending page change can switch tab without applying a late result"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(received).toBe(expected) // Object.is equality"
     },
     {
       "file": "binder-image-loading.e2e.ts",
-      "title": [
-        "a pending page change can open card without applying a late result"
-      ],
+      "title": ["a pending page change can open card without applying a late result"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(received).toBe(expected) // Object.is equality"
     },
     {
       "file": "binder-offline-prep.e2e.ts",
-      "title": [
-        "binder download reads all saved evidence, retries missing images, then cold boots offline"
-      ],
+      "title": ["binder download reads all saved evidence, retries missing images, then cold boots offline"],
       "cause": "harness-or-fixture",
       "batch": 1,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('[data-slot-id=\"synthetic-dex-1\"]')"
     },
     {
       "file": "binder-presets.e2e.ts",
-      "title": [
-        "staged preset creation",
-        "Blank and Kanto previews copy targets without a write or padding slots"
-      ],
+      "title": ["staged preset creation", "Blank and Kanto previews copy targets without a write or padding slots"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByLabel('Prepared creation draft')"
     },
     {
       "file": "binder-start.e2e.ts",
-      "title": [
-        "binder start",
-        "paints the saved binder without waiting for the server"
-      ],
+      "title": ["binder start", "paints the saved binder without waiting for the server"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "binder-start.e2e.ts",
-      "title": [
-        "binder start",
-        "a first visit shows the skeleton until the server's binder arrives"
-      ],
+      "title": ["binder start", "a first visit shows the skeleton until the server's binder arrives"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "binders.e2e.ts",
-      "title": [
-        "multiple binders",
-        "the switcher fits the phone, closes every way and switches binders"
-      ],
+      "title": ["multiple binders", "the switcher fits the phone, closes every way and switches binders"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByTestId('binder-switcher-trigger')"
@@ -1231,37 +981,28 @@
     },
     {
       "file": "binders.e2e.ts",
-      "title": [
-        "multiple binders",
-        "a partner sees the owner's binders"
-      ],
+      "title": ["multiple binders", "a partner sees the owner's binders"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByTestId('binder-switcher-trigger')"
     },
     {
       "file": "browser-command.e2e.ts",
-      "title": [
-        "owner teardown during in-flight command retains lease and rejects late response"
-      ],
+      "title": ["owner teardown during in-flight command retains lease and rejects late response"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('alert').filter({ hasText: 'Could not open storage' })"
     },
     {
       "file": "browser-host.e2e.ts",
-      "title": [
-        "online startup 503 resets once and reports the second failure"
-      ],
+      "title": ["online startup 503 resets once and reports the second failure"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Test timeout of 20000ms exceeded. || Error: expect(locator).toHaveText(expected) failed — getByRole('alert').filter({ hasText: 'Could not open storage:' })"
     },
     {
       "file": "browser-host.e2e.ts",
-      "title": [
-        "pending real IDB edits survive Edit layout teardown, view changes and failed refresh"
-      ],
+      "title": ["pending real IDB edits survive Edit layout teardown, view changes and failed refresh"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Test timeout of 20000ms exceeded. || Error: expect(locator).toBeVisible() failed — getByRole('alert').filter({ hasText: 'Could not open storage:' })"
@@ -1278,37 +1019,28 @@
     },
     {
       "file": "card-display.e2e.ts",
-      "title": [
-        "Binder card display",
-        "owned never promotes a wanted-only printing into an owned slot"
-      ],
+      "title": ["Binder card display", "owned never promotes a wanted-only printing into an owned slot"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "card-image-viewer.e2e.ts",
-      "title": [
-        "unavailable image explains the failure and stays dismissible in dark mode"
-      ],
+      "title": ["unavailable image explains the failure and stays dismissible in dark mode"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Charmander full screen', exact: true }).getByRole('status')"
     },
     {
       "file": "card-image-viewer.e2e.ts",
-      "title": [
-        "expanded owned and wanted images each open their own printing"
-      ],
+      "title": ["expanded owned and wanted images each open their own printing"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).locator('summary').filter({ hasText: 'Card & variant' })"
     },
     {
       "file": "card-scroll.e2e.ts",
-      "title": [
-        "card picker stays opaque and open while scrolling"
-      ],
+      "title": ["card picker stays opaque and open while scrolling"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: /change owned card|add owned card/i }).first()"
@@ -1365,20 +1097,14 @@
     },
     {
       "file": "collection-activity.e2e.ts",
-      "title": [
-        "collection Activity",
-        "membership change and logout discard private pages and an old async response"
-      ],
+      "title": ["collection Activity", "membership change and logout discard private pages and an old async response"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('binder-switcher-trigger')"
     },
     {
       "file": "collection-analytics.e2e.ts",
-      "title": [
-        "collection export",
-        "exports the collection as a CSV, offline too"
-      ],
+      "title": ["collection export", "exports the collection as a CSV, offline too"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('heading', { name: 'Analytics', exact: true })"
@@ -1395,27 +1121,21 @@
     },
     {
       "file": "collection-price-check.e2e.ts",
-      "title": [
-        "wanted checks confirm once, survive leaving and reopening, and reconnect offline"
-      ],
+      "title": ["wanted checks confirm once, survive leaving and reopening, and reconnect offline"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByTestId('collection-price-check')"
     },
     {
       "file": "collection-price-check.e2e.ts",
-      "title": [
-        "explicit Stop cancels the server job"
-      ],
+      "title": ["explicit Stop cancels the server job"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
     },
     {
       "file": "collection-price-check.e2e.ts",
-      "title": [
-        "a slow initial inspection cannot erase a job started in the meantime"
-      ],
+      "title": ["a slow initial inspection cannot erase a job started in the meantime"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
@@ -1432,20 +1152,14 @@
     },
     {
       "file": "custom-binder-layout.e2e.ts",
-      "title": [
-        "custom binder layouts",
-        "free accounts keep presets and get the custom layout upgrade action"
-      ],
+      "title": ["custom binder layouts", "free accounts keep presets and get the custom layout upgrade action"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: /settings/i }).getByRole('button', { name: 'Upgrade for custom layouts' })"
     },
     {
       "file": "custom-binder-layout.e2e.ts",
-      "title": [
-        "custom layout persistence",
-        "offline layout edits stay on the device and sync after reconnect"
-      ],
+      "title": ["custom layout persistence", "offline layout edits stay on the device and sync after reconnect"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: /settings/i }).getByRole('spinbutton', { name: 'Rows', exact: true })"
@@ -1462,10 +1176,7 @@
     },
     {
       "file": "custom-binder-layout.e2e.ts",
-      "title": [
-        "queued layout ordering",
-        "an older rejected write cannot remove a newer offline layout"
-      ],
+      "title": ["queued layout ordering", "an older rejected write cannot remove a newer offline layout"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: /settings/i }).getByRole('spinbutton', { name: 'Rows', exact: true })"
@@ -1491,9 +1202,7 @@
     },
     {
       "file": "custom-storage-scope.e2e.ts",
-      "title": [
-        "retained legacy work arriving during Custom review fences confirmation and survives reload"
-      ],
+      "title": ["retained legacy work arriving during Custom review fences confirmation and survives reload"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Storage', exact: true }).getByRole('button', { name: 'New storage', exact: true })"
@@ -1510,10 +1219,7 @@
     },
     {
       "file": "dashboard-binder.e2e.ts",
-      "title": [
-        "Dashboard binder appearance",
-        "2D and 3D share navigation, layout and the saved page"
-      ],
+      "title": ["Dashboard binder appearance", "2D and 3D share navigation, layout and the saved page"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
@@ -1530,20 +1236,14 @@
     },
     {
       "file": "dashboard-binder.e2e.ts",
-      "title": [
-        "Dashboard binder appearance",
-        "collection refresh keeps the shared page with a status filter"
-      ],
+      "title": ["Dashboard binder appearance", "collection refresh keeps the shared page with a status filter"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "dashboard-binder.e2e.ts",
-      "title": [
-        "Dashboard binder appearance",
-        "3D failure keeps collection editing accessible in 2D"
-      ],
+      "title": ["Dashboard binder appearance", "3D failure keeps collection editing accessible in 2D"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
@@ -1570,60 +1270,42 @@
     },
     {
       "file": "deal-check.e2e.ts",
-      "title": [
-        "deal checker",
-        "the verdict follows the thresholds: great, good, fair, overpriced, walk away"
-      ],
+      "title": ["deal checker", "the verdict follows the thresholds: great, good, fair, overpriced, walk away"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('quick-card-market-price')"
     },
     {
       "file": "deal-check.e2e.ts",
-      "title": [
-        "deal checker",
-        "£6 in a binder for a £4 card is a walk away; £6 for a £10 card is great"
-      ],
+      "title": ["deal checker", "£6 in a binder for a £4 card is a walk away; £6 for a £10 card is great"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('quick-card-market-price')"
     },
     {
       "file": "deal-check.e2e.ts",
-      "title": [
-        "deal checker",
-        "custom thresholds from Settings change the verdict"
-      ],
+      "title": ["deal checker", "custom thresholds from Settings change the verdict"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('deal-verdict')"
     },
     {
       "file": "deal-check.e2e.ts",
-      "title": [
-        "deal checker",
-        "thin data is flagged and a rising card gets a nudge"
-      ],
+      "title": ["deal checker", "thin data is flagged and a rising card gets a nudge"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('deal-verdict')"
     },
     {
       "file": "deal-check.e2e.ts",
-      "title": [
-        "deal checker",
-        "the variant toggle switches the market price"
-      ],
+      "title": ["deal checker", "the variant toggle switches the market price"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('quick-card-status')"
     },
     {
       "file": "deal-check.e2e.ts",
-      "title": [
-        "deal checker",
-        "offline it still judges from the saved price and says how old it is"
-      ],
+      "title": ["deal checker", "offline it still judges from the saved price and says how old it is"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('quick-card-market-price')"
@@ -1650,172 +1332,133 @@
     },
     {
       "file": "developer-access.e2e.ts",
-      "title": [
-        "developer docs stay within the phone viewport with searchable mobile navigation"
-      ],
+      "title": ["developer docs stay within the phone viewport with searchable mobile navigation"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('heading', { name: 'Build with your collection' })"
     },
     {
       "file": "developer-settings.e2e.ts",
-      "title": [
-        "personal API keys are shown once and revocable, and MCP connections disconnect separately"
-      ],
+      "title": ["personal API keys are shown once and revocable, and MCP connections disconnect separately"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Account', exact: true })"
     },
     {
       "file": "developer-settings.e2e.ts",
-      "title": [
-        "an interrupted MCP disconnect stays retryable after reopening Settings"
-      ],
+      "title": ["an interrupted MCP disconnect stays retryable after reopening Settings"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Account', exact: true })"
     },
     {
       "file": "docs-desktop.e2e.ts",
-      "title": [
-        "desktop docs reserve a left sidebar and load the full Fumadocs typography"
-      ],
+      "title": ["desktop docs reserve a left sidebar and load the full Fumadocs typography"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('#nd-sidebar')"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "asking and sold comparisons load on demand and remain separate from the card valuation"
-      ],
+      "title": ["asking and sold comparisons load on demand and remain separate from the card valuation"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(received).toBe(expected) // Object.is equality — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('region', { name: 'Price comparisons' }).getByText(/Manual checks/)"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "eBay lookup degrades clearly offline without making a request"
-      ],
+      "title": ["eBay lookup degrades clearly offline without making a request"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: 'Check prices' })"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "eBay lookup failure and an empty sample do not invent a price"
-      ],
+      "title": ["eBay lookup failure and an empty sample do not invent a price"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('region', { name: 'Price comparisons' }).getByRole('button', { name: 'Check prices' })"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "eBay lookup is available when the card has no market quote"
-      ],
+      "title": ["eBay lookup is available when the card has no market quote"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: 'Check prices' })"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "Show mode checks both sources on tap and resets comparisons when the finish changes"
-      ],
+      "title": ["Show mode checks both sources on tap and resets comparisons when the finish changes"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('button', { name: 'Check prices', exact: true })"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "ebay appears independently while the other source is pending"
-      ],
+      "title": ["ebay appears independently while the other source is pending"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('region', { name: 'Price comparisons' }).getByRole('button', { name: 'Check prices', e"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "soldcomps appears independently while the other source is pending"
-      ],
+      "title": ["soldcomps appears independently while the other source is pending"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('region', { name: 'Price comparisons' }).getByRole('button', { name: 'Check prices', e"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "qualified sold guide changes Show mode verdict, plots an overlay and resets on finish change"
-      ],
+      "title": ["qualified sold guide changes Show mode verdict, plots an overlay and resets on finish change"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('quick-card-market-price')"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "card details updates its good-price band only after a user checks qualifying sold evidence"
-      ],
+      "title": ["card details updates its good-price band only after a user checks qualifying sold evidence"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: 'Check prices', exact: true })"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "card details compares sold evidence with the tracked finish quote"
-      ],
+      "title": ["card details compares sold evidence with the tracked finish quote"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).locator('summary').filter({ hasText: 'Card & variant' })"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "switching finishes cancels the old check before it can overwrite new evidence"
-      ],
+      "title": ["switching finishes cancels the old check before it can overwrite new evidence"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('button', { name: 'Check prices', exact: true })"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "fair market bands, quick eBay link and individually verifiable source records"
-      ],
+      "title": ["fair market bands, quick eBay link and individually verifiable source records"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('button', { name: 'Check prices', exact: true })"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "an old saved check survives reload and offline, only explicit refresh requests new evidence"
-      ],
+      "title": ["an old saved check survives reload and offline, only explicit refresh requests new evidence"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: 'Check prices', exact: true })"
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": [
-        "a saved source can be refreshed when the other provider is unavailable"
-      ],
+      "title": ["a saved source can be refreshed when the other provider is unavailable"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('region', { name: 'Price comparisons' }).getByRole('button', { name: 'Check prices', e"
     },
     {
       "file": "first-use.e2e.ts",
-      "title": [
-        "signed-in first use",
-        "empty binder prioritizes adding a card and keeps Show mode in More"
-      ],
+      "title": ["signed-in first use", "empty binder prioritizes adding a card and keeps Show mode in More"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — getByText('Tap a pocket to add your first card')"
@@ -1831,28 +1474,21 @@
     },
     {
       "file": "grading-edit.e2e.ts",
-      "title": [
-        "safe local URL parsing, provider mismatch and lookup fallback, no provider fetch"
-      ],
+      "title": ["safe local URL parsing, provider mismatch and lookup fallback, no provider fetch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Edit copy grading' }).getByRole('status')"
     },
     {
       "file": "grading-edit.e2e.ts",
-      "title": [
-        "pending persistence freezes submitted grading fields and keeps dismissal available"
-      ],
+      "title": ["pending persistence freezes submitted grading fields and keeps dismissal available"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: 'Edit copy grading' }).getByRole('status').filter({ hasText: 'Waiting for persisted confirmation' })"
     },
     {
       "file": "illustrator-browse.e2e.ts",
-      "title": [
-        "browse by illustrator",
-        "sorts and filters by owned, wanted and missing"
-      ],
+      "title": ["browse by illustrator", "sorts and filters by owned, wanted and missing"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /all bulbasaur cards/i }).getByRole('button', { name: /^want bulbasaur 166\\/165/i })"
@@ -1869,109 +1505,84 @@
     },
     {
       "file": "illustrator-browse.e2e.ts",
-      "title": [
-        "browse by illustrator",
-        "closes with the backdrop, a swipe and a tab switch"
-      ],
+      "title": ["browse by illustrator", "closes with the backdrop, a swipe and a tab switch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: /^illustrator mitsuhiro arita/i })"
     },
     {
       "file": "inside-cover.e2e.ts",
-      "title": [
-        "inside cover keeps collection progress and value readable on phones"
-      ],
+      "title": ["inside cover keeps collection progress and value readable on phones"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "inside-cover.e2e.ts",
-      "title": [
-        "desktop cover shows real progress, price caveats and works offline in light mode"
-      ],
+      "title": ["desktop cover shows real progress, price caveats and works offline in light mode"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('region', { name: 'Inside cover', exact: true }).getByRole('progressbar', { name: 'Collection completion' })"
     },
     {
       "file": "inventory-bulk.e2e.ts",
-      "title": [
-        "bulk confirmation fences changed membership before dispatch"
-      ],
+      "title": ["bulk confirmation fences changed membership before dispatch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeHidden() failed — getByRole('dialog', { name: 'Move selected cards', exact: true })"
     },
     {
       "file": "inventory-bulk.e2e.ts",
-      "title": [
-        "bulk confirmation fences changed session before dispatch"
-      ],
+      "title": ["bulk confirmation fences changed session before dispatch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeHidden() failed — getByRole('dialog', { name: 'Move selected cards', exact: true })"
     },
     {
       "file": "inventory-bulk.e2e.ts",
-      "title": [
-        "bulk confirmation fences changed incomplete before dispatch"
-      ],
+      "title": ["bulk confirmation fences changed incomplete before dispatch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeHidden() failed — getByRole('dialog', { name: 'Move selected cards', exact: true })"
     },
     {
       "file": "inventory-grading.e2e.ts",
-      "title": [
-        "actual private copy edit closes at device acceptance, ACK needs matching receipt and fresh read"
-      ],
+      "title": ["actual private copy edit closes at device acceptance, ACK needs matching receipt and fresh read"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Edit grading', exact: true })"
     },
     {
       "file": "inventory-grading.e2e.ts",
-      "title": [
-        "IDB abort retries the same allocated draft and lost remote reply replays identical bytes"
-      ],
+      "title": ["IDB abort retries the same allocated draft and lost remote reply replays identical bytes"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Edit grading', exact: true })"
     },
     {
       "file": "inventory-grading.e2e.ts",
-      "title": [
-        "offline device acceptance is pending, reconnect syncs; cached startup stays read-only"
-      ],
+      "title": ["offline device acceptance is pending, reconnect syncs; cached startup stays read-only"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Edit grading', exact: true })"
     },
     {
       "file": "inventory-grading.e2e.ts",
-      "title": [
-        "signout teardown retains accepted command and blocks late private ACK"
-      ],
+      "title": ["signout teardown retains accepted command and blocks late private ACK"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Edit grading', exact: true })"
     },
     {
       "file": "inventory-grading.e2e.ts",
-      "title": [
-        "account teardown retains accepted command and blocks late private ACK"
-      ],
+      "title": ["account teardown retains accepted command and blocks late private ACK"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Edit grading', exact: true })"
     },
     {
       "file": "inventory-grading.e2e.ts",
-      "title": [
-        "owner teardown retains accepted command and blocks late private ACK"
-      ],
+      "title": ["owner teardown retains accepted command and blocks late private ACK"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Edit grading', exact: true })"
@@ -1987,207 +1598,161 @@
     },
     {
       "file": "inventory-grading.e2e.ts",
-      "title": [
-        "real host overlay dismissals keep unsent drafts out of IDB and fit all phones"
-      ],
+      "title": ["real host overlay dismissals keep unsent drafts out of IDB and fit all phones"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Edit grading', exact: true })"
     },
     {
       "file": "inventory-grading.e2e.ts",
-      "title": [
-        "scope teardown before local acceptance reply retains committed work without closing a new scope"
-      ],
+      "title": ["scope teardown before local acceptance reply retains committed work without closing a new scope"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Edit grading', exact: true })"
     },
     {
       "file": "inventory-grading.e2e.ts",
-      "title": [
-        "current partner edits the selected owner's private copy through trusted HTTP scope"
-      ],
+      "title": ["current partner edits the selected owner's private copy through trusted HTTP scope"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Edit grading', exact: true })"
     },
     {
       "file": "inventory-grading.e2e.ts",
-      "title": [
-        "retained Activity recovery blocks a new grading editor in the shared host"
-      ],
+      "title": ["retained Activity recovery blocks a new grading editor in the shared host"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('status').filter({ hasText: 'Recovery saved on this device' })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "duplicate-aware add, exact assign/move/unassign/remove and current-read ACK"
-      ],
+      "title": ["duplicate-aware add, exact assign/move/unassign/remove and current-read ACK"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.fill: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Add owned raw copy' }).getByRole('textbox', { name: 'Search slot catalog' })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "assigned removal previews exact consequences and composes existing Activity recovery"
-      ],
+      "title": ["assigned removal previews exact consequences and composes existing Activity recovery"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Remove owned copy', exact: true })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "unknown identity can move only to free slots and remains unknown after unassign"
-      ],
+      "title": ["unknown identity can move only to free slots and remains unknown after unassign"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Owned copy details' })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "committed add with lost reply survives cached reload with exact original intent"
-      ],
+      "title": ["committed add with lost reply survives cached reload with exact original intent"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.fill: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Add owned raw copy' }).getByRole('textbox', { name: 'Search slot catalog' })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "409 retains exact raw intent and fences new actions"
-      ],
+      "title": ["409 retains exact raw intent and fences new actions"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Unassign copy', exact: true })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "402 retains exact raw intent and fences new actions"
-      ],
+      "title": ["402 retains exact raw intent and fences new actions"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Unassign copy', exact: true })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "403 retains exact raw intent and fences new actions"
-      ],
+      "title": ["403 retains exact raw intent and fences new actions"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Unassign copy', exact: true })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "503 retains exact raw intent and fences new actions"
-      ],
+      "title": ["503 retains exact raw intent and fences new actions"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Unassign copy', exact: true })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "signout teardown retains in-flight raw command and lease without late ACK"
-      ],
+      "title": ["signout teardown retains in-flight raw command and lease without late ACK"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Unassign copy', exact: true })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "account teardown retains in-flight raw command and lease without late ACK"
-      ],
+      "title": ["account teardown retains in-flight raw command and lease without late ACK"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Unassign copy', exact: true })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "owner teardown retains in-flight raw command and lease without late ACK"
-      ],
+      "title": ["owner teardown retains in-flight raw command and lease without late ACK"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Unassign copy', exact: true })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "local IDB failure retries the same add ID, operation and preview"
-      ],
+      "title": ["local IDB failure retries the same add ID, operation and preview"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.fill: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Add owned raw copy' }).getByRole('textbox', { name: 'Search slot catalog' })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "add and copy review use shared sheet dismissals, safe targets and dock clearance"
-      ],
+      "title": ["add and copy review use shared sheet dismissals, safe targets and dock clearance"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: 'Add owned raw copy' })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "current partner authority edits the resolved owner's exact raw copy"
-      ],
+      "title": ["current partner authority edits the resolved owner's exact raw copy"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Unassign copy', exact: true })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "pending creation fences Inventory ownership without changing the creation lane"
-      ],
+      "title": ["pending creation fences Inventory ownership without changing the creation lane"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Storage', exact: true }).getByRole('button', { name: 'New storage', exact: true })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "two real tabs preserve the first copy command and lease while stale confirmation cannot replace it"
-      ],
+      "title": ["two real tabs preserve the first copy command and lease while stale confirmation cannot replace it"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Unassign copy', exact: true })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "a synchronized add reopens from IDB when all fresh inventory reads fail and remains read-only"
-      ],
+      "title": ["a synchronized add reopens from IDB when all fresh inventory reads fail and remains read-only"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.fill: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Add owned raw copy' }).getByRole('textbox', { name: 'Search slot catalog' })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "occupied unassign reviews both copies, cancels safely and ACK links exact Activity"
-      ],
+      "title": ["occupied unassign reviews both copies, cancels safely and ACK links exact Activity"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "occupied swap reviews both copies, cancels safely and ACK links exact Activity"
-      ],
+      "title": ["occupied swap reviews both copies, cancels safely and ACK links exact Activity"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
@@ -2203,285 +1768,217 @@
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "occupied graded destination swap retains private copy metadata"
-      ],
+      "title": ["occupied graded destination swap retains private copy metadata"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "occupied graded destination unassign retains private copy metadata"
-      ],
+      "title": ["occupied graded destination unassign retains private copy metadata"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "occupied synthetic-raw-copy-1 confirmation fences changed revision before dispatch"
-      ],
+      "title": ["occupied synthetic-raw-copy-1 confirmation fences changed revision before dispatch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "occupied synthetic-raw-copy-1 confirmation fences changed membership before dispatch"
-      ],
+      "title": ["occupied synthetic-raw-copy-1 confirmation fences changed membership before dispatch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "occupied synthetic-raw-copy-1 confirmation fences changed session before dispatch"
-      ],
+      "title": ["occupied synthetic-raw-copy-1 confirmation fences changed session before dispatch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "occupied synthetic-raw-copy-1 confirmation fences changed incomplete before dispatch"
-      ],
+      "title": ["occupied synthetic-raw-copy-1 confirmation fences changed incomplete before dispatch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "occupied synthetic-raw-copy-2 confirmation fences changed revision before dispatch"
-      ],
+      "title": ["occupied synthetic-raw-copy-2 confirmation fences changed revision before dispatch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "occupied synthetic-raw-copy-2 confirmation fences changed membership before dispatch"
-      ],
+      "title": ["occupied synthetic-raw-copy-2 confirmation fences changed membership before dispatch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "occupied synthetic-raw-copy-2 confirmation fences changed session before dispatch"
-      ],
+      "title": ["occupied synthetic-raw-copy-2 confirmation fences changed session before dispatch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "occupied synthetic-raw-copy-2 confirmation fences changed incomplete before dispatch"
-      ],
+      "title": ["occupied synthetic-raw-copy-2 confirmation fences changed incomplete before dispatch"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "selected graded swap preserves private fields"
-      ],
+      "title": ["selected graded swap preserves private fields"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "selected graded unassign preserves private fields"
-      ],
+      "title": ["selected graded unassign preserves private fields"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: /^(Assign|Move) copy$/ })"
     },
     {
       "file": "inventory-ownership.e2e.ts",
-      "title": [
-        "selected graded unassign, lost committed assignment, cached reload and exact replay need fresh ACK"
-      ],
+      "title": ["selected graded unassign, lost committed assignment, cached reload and exact replay need fresh ACK"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Owned copy details' })"
     },
     {
       "file": "inventory.e2e.ts",
-      "title": [
-        "list grows on scroll beyond 1000, reset on query and new evidence"
-      ],
+      "title": ["list grows on scroll beyond 1000, reset on query and new evidence"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(received).toBe(expected) // Object.is equality"
     },
     {
       "file": "ios-focus-zoom.e2e.ts",
-      "title": [
-        "search fields do not trigger iOS focus zoom",
-        "List search"
-      ],
+      "title": ["search fields do not trigger iOS focus zoom", "List search"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
     },
     {
       "file": "ios-focus-zoom.e2e.ts",
-      "title": [
-        "search fields do not trigger iOS focus zoom",
-        "Sets search, Pokémon match and checklist filter"
-      ],
+      "title": ["search fields do not trigger iOS focus zoom", "Sets search, Pokémon match and checklist filter"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: Set search — getByRole('textbox', { name: 'Search sets by name or code' })"
     },
     {
       "file": "ios-focus-zoom.e2e.ts",
-      "title": [
-        "search fields do not trigger iOS focus zoom",
-        "Pokémon catalogue search and a species' card filter"
-      ],
+      "title": ["search fields do not trigger iOS focus zoom", "Pokémon catalogue search and a species' card filter"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: Species card filter — getByRole('dialog', { name: 'All Bulbasaur cards', exact: true }).getByRole('searchbox', { name: 'Filter by set, number or variant' })"
     },
     {
       "file": "ios-focus-zoom.e2e.ts",
-      "title": [
-        "search fields do not trigger iOS focus zoom",
-        "card picker search"
-      ],
+      "title": ["search fields do not trigger iOS focus zoom", "card picker search"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
     },
     {
       "file": "ios-focus-zoom.e2e.ts",
-      "title": [
-        "search fields do not trigger iOS focus zoom",
-        "generation picker in the controls sheet"
-      ],
+      "title": ["search fields do not trigger iOS focus zoom", "generation picker in the controls sheet"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View' })"
     },
     {
       "file": "ios-focus-zoom.e2e.ts",
-      "title": [
-        "search fields do not trigger iOS focus zoom",
-        "binder switcher new-name and rename fields"
-      ],
+      "title": ["search fields do not trigger iOS focus zoom", "binder switcher new-name and rename fields"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('binder-switcher-trigger')"
     },
     {
       "file": "listing-links.e2e.ts",
-      "title": [
-        "detail has listing links before checks, offline and after saved results"
-      ],
+      "title": ["detail has listing links before checks, offline and after saved results"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('region', { name: 'Price comparisons' }).getByRole('link', { name: 'View open listings' })"
     },
     {
       "file": "listing-links.e2e.ts",
-      "title": [
-        "analytics has listing links before checks, offline and after saved results"
-      ],
+      "title": ["analytics has listing links before checks, offline and after saved results"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByText('Current price evidence', { exact: true })"
     },
     {
       "file": "listing-links.e2e.ts",
-      "title": [
-        "Show has listing links before checks, offline and after saved results"
-      ],
+      "title": ["Show has listing links before checks, offline and after saved results"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('region', { name: 'Price comparisons' }).getByRole('link', { name: 'View open listings' })"
     },
     {
       "file": "listing-links.e2e.ts",
-      "title": [
-        "Quick has listing links before checks, offline and after saved results"
-      ],
+      "title": ["Quick has listing links before checks, offline and after saved results"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('region', { name: 'Price comparisons' }).getByRole('link', { name: 'View open listings' })"
     },
     {
       "file": "listing-links.e2e.ts",
-      "title": [
-        "Pokémon Center identity stays stamped through holo and reverse searches"
-      ],
+      "title": ["Pokémon Center identity stays stamped through holo and reverse searches"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('region', { name: 'Price comparisons' }).getByRole('link', { nam"
     },
     {
       "file": "listing-links.e2e.ts",
-      "title": [
-        "Classic Collection links use printed numbers before checks, after old saved results and offline"
-      ],
+      "title": ["Classic Collection links use printed numbers before checks, after old saved results and offline"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('region', { name: 'Price comparisons' }).getByRole('link', { nam"
     },
     {
       "file": "named-binder-shares.e2e.ts",
-      "title": [
-        "owner explicitly saves account username and binder slug, then gets the saved public address"
-      ],
+      "title": ["owner explicitly saves account username and binder slug, then gets the saved public address"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Settings', exact: true }).getByRole('button', { name: /^Sharing(,|$)/ })"
     },
     {
       "file": "named-binder-shares.e2e.ts",
-      "title": [
-        "partner sees owner address but cannot rename it, unavailable schema preserves token sharing"
-      ],
+      "title": ["partner sees owner address but cannot rename it, unavailable schema preserves token sharing"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Settings', exact: true }).getByRole('button', { name: /^Sharing(,|$)/ })"
     },
     {
       "file": "named-binder-shares.e2e.ts",
-      "title": [
-        "share pricing defaults off and owner can enable and disable it"
-      ],
+      "title": ["share pricing defaults off and owner can enable and disable it"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Settings', exact: true }).getByRole('button', { name: /^Sharing(,|$)/ })"
     },
     {
       "file": "named-binder-shares.e2e.ts",
-      "title": [
-        "shared binder without pricing cannot load prices or expose price details"
-      ],
+      "title": ["shared binder without pricing cannot load prices or expose price details"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('[data-slot-id=\"synthetic-dex-1\"]')"
     },
     {
       "file": "named-binder-shares.e2e.ts",
-      "title": [
-        "shared binder with pricing enabled retains the pricing view"
-      ],
+      "title": ["shared binder with pricing enabled retains the pricing view"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('[data-slot-id=\"synthetic-dex-1\"]')"
@@ -2497,9 +1994,7 @@
     },
     {
       "file": "native-analytics.e2e.ts",
-      "title": [
-        "weak saved prices remain unknown and never produce a zero or graded value"
-      ],
+      "title": ["weak saved prices remain unknown and never produce a zero or graded value"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('region', { name: 'Collection analytics', exact: true })"
@@ -2515,165 +2010,126 @@
     },
     {
       "file": "native-backup.e2e.ts",
-      "title": [
-        "offline, pending IDB edits and unsupported assets refuse export"
-      ],
+      "title": ["offline, pending IDB edits and unsupported assets refuse export"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('button', { name: 'Insert free slot before', exact: true })"
     },
     {
       "file": "native-backup.e2e.ts",
-      "title": [
-        "pending native creation blocks export and file preview in the combined host"
-      ],
+      "title": ["pending native creation blocks export and file preview in the combined host"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Storage', exact: true }).getByRole('button', { name: 'New storage', exact: true })"
     },
     {
       "file": "native-pocket-presentation.e2e.ts",
-      "title": [
-        "native pocket presentation phone"
-      ],
+      "title": ["native pocket presentation phone"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('button', { name: 'Charizard, Owned', exact: true })"
     },
     {
       "file": "native-pocket-presentation.e2e.ts",
-      "title": [
-        "native pocket presentation desktop"
-      ],
+      "title": ["native pocket presentation desktop"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('button', { name: 'Charizard, Owned', exact: true })"
     },
     {
       "file": "native-printing-cover.e2e.ts",
-      "title": [
-        "native printing images and cover totals phone"
-      ],
+      "title": ["native printing images and cover totals phone"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('button', { name: 'bulbasaur, Unfilled target', exact: true })"
     },
     {
       "file": "native-printing-cover.e2e.ts",
-      "title": [
-        "native printing images and cover totals desktop"
-      ],
+      "title": ["native printing images and cover totals desktop"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('button', { name: 'bulbasaur, Unfilled target', exact: true })"
     },
     {
       "file": "native-scanner-host.e2e.ts",
-      "title": [
-        "duplicate page copies keep distinct IDs through lost reply and exact durable retry"
-      ],
+      "title": ["duplicate page copies keep distinct IDs through lost reply and exact durable retry"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(received).toEqual(expected) // deep equality"
     },
     {
       "file": "native-startup.e2e.ts",
-      "title": [
-        "previously cached native pending layout survives genuine page close and offline shell relaunch"
-      ],
+      "title": ["previously cached native pending layout survives genuine page close and offline shell relaunch"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toBeVisible() failed — getByText(/Saved storage is paused/)"
     },
     {
       "file": "native-startup.e2e.ts",
-      "title": [
-        "offline cached inventory closes before reconnect can reuse stale owner scope"
-      ],
+      "title": ["offline cached inventory closes before reconnect can reuse stale owner scope"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).not.toBeVisible() failed — getByRole('button', { name: 'Collection', exact: true })"
     },
     {
       "file": "native-startup.e2e.ts",
-      "title": [
-        "cached auth account change closes the old private surface immediately"
-      ],
+      "title": ["cached auth account change closes the old private surface immediately"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('status').filter({ hasText: /Saved storage is paused/ })"
     },
     {
       "file": "native-wanted-host.e2e.ts",
-      "title": [
-        "actual native host Wanted shows card rows and exact repeated destinations phone"
-      ],
+      "title": ["actual native host Wanted shows card rows and exact repeated destinations phone"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('region', { name: 'Wanted cards', exact: true }).getByRole('combobox')"
     },
     {
       "file": "native-wanted-host.e2e.ts",
-      "title": [
-        "actual native host Wanted shows card rows and exact repeated destinations desktop"
-      ],
+      "title": ["actual native host Wanted shows card rows and exact repeated destinations desktop"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('region', { name: 'Wanted cards', exact: true }).getByRole('combobox')"
     },
     {
       "file": "native-wanted-preview.e2e.ts",
-      "title": [
-        "native wanted preview dimming phone"
-      ],
+      "title": ["native wanted preview dimming phone"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('button', { name: 'venusaur, Unfilled target', exact: true })"
     },
     {
       "file": "native-wanted-preview.e2e.ts",
-      "title": [
-        "native wanted preview dimming desktop"
-      ],
+      "title": ["native wanted preview dimming desktop"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('button', { name: 'venusaur, Unfilled target', exact: true })"
     },
     {
       "file": "nav-transition-props.e2e.ts",
-      "title": [
-        "nav chrome transitions",
-        "dock tabs only transition the properties that change"
-      ],
+      "title": ["nav chrome transitions", "dock tabs only transition the properties that change"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.evaluate: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
     },
     {
       "file": "nav-transition-props.e2e.ts",
-      "title": [
-        "nav chrome transitions",
-        "controls sheet buttons only transition colours"
-      ],
+      "title": ["nav chrome transitions", "controls sheet buttons only transition colours"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View' })"
     },
     {
       "file": "nav-transition-props.e2e.ts",
-      "title": [
-        "nav chrome transitions",
-        "binder mode chips do not transition `all`"
-      ],
+      "title": ["nav chrome transitions", "binder mode chips do not transition `all`"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View' })"
     },
     {
       "file": "oauth-callback.e2e.ts",
-      "title": [
-        "remote approval retains the exact callback and copies it without navigating"
-      ],
+      "title": ["remote approval retains the exact callback and copies it without navigating"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveText(expected) failed — getByRole('status')"
@@ -2710,30 +2166,21 @@
     },
     {
       "file": "offline.e2e.ts",
-      "title": [
-        "offline",
-        "reloading offline opens the binder from the cached app shell and saved collection"
-      ],
+      "title": ["offline", "reloading offline opens the binder from the cached app shell and saved collection"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('[data-slot-id=\"synthetic-dex-1\"]')"
     },
     {
       "file": "offline.e2e.ts",
-      "title": [
-        "offline",
-        "opening the app offline at / or another page also lands in the binder"
-      ],
+      "title": ["offline", "opening the app offline at / or another page also lands in the binder"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('[data-slot-id=\"synthetic-dex-1\"]')"
     },
     {
       "file": "offline.e2e.ts",
-      "title": [
-        "offline",
-        "card lists fetched online are still there offline after a reload"
-      ],
+      "title": ["offline", "card lists fetched online are still there offline after a reload"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('[data-slot-id=\"synthetic-dex-1\"]')"
@@ -2750,157 +2197,119 @@
     },
     {
       "file": "offline.e2e.ts",
-      "title": [
-        "offline",
-        "after a first visit on slow 3G the app still opens offline"
-      ],
+      "title": ["offline", "after a first visit on slow 3G the app still opens offline"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: page.goto: Timeout 10000ms exceeded."
     },
     {
       "file": "page-image-handoff.e2e.ts",
-      "title": [
-        "page turns never wait for images, reduced motion false"
-      ],
+      "title": ["page turns never wait for images, reduced motion false"],
       "cause": "harness-or-fixture",
       "batch": 1,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — locator('[data-dex-id=\"1\"] img')"
     },
     {
       "file": "page-image-handoff.e2e.ts",
-      "title": [
-        "page turns never wait for images, reduced motion true"
-      ],
+      "title": ["page turns never wait for images, reduced motion true"],
       "cause": "harness-or-fixture",
       "batch": 1,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — locator('[data-dex-id=\"1\"] img')"
     },
     {
       "file": "page-image-handoff.e2e.ts",
-      "title": [
-        "a missing resized image retries the original card before falling back to artwork"
-      ],
+      "title": ["a missing resized image retries the original card before falling back to artwork"],
       "cause": "harness-or-fixture",
       "batch": 1,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — locator('[data-dex-id=\"1\"] img')"
     },
     {
       "file": "page-turn.e2e.ts",
-      "title": [
-        "binder page turn",
-        "prefetches and decodes the next page's slot images before the turn"
-      ],
+      "title": ["binder page turn", "prefetches and decodes the next page's slot images before the turn"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(received).toContain(expected) // indexOf"
     },
     {
       "file": "page-turn.e2e.ts",
-      "title": [
-        "binder page turn",
-        "bounds adjacent image decoding and retries after a failed prefetch"
-      ],
+      "title": ["binder page turn", "bounds adjacent image decoding and retries after a failed prefetch"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(received).toBeLessThanOrEqual(expected)"
     },
     {
       "file": "partner-billing-startup.e2e.ts",
-      "title": [
-        "lapsed owner plan opens the partner's own storage, keeps shared intent on device, and recovers"
-      ],
+      "title": ["lapsed owner plan opens the partner's own storage, keeps shared intent on device, and recovers"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Owned copy details' }).getByRole('button', { name: 'Edit grading', exact: true })"
     },
     {
       "file": "passkeys.e2e.ts",
-      "title": [
-        "passkeys",
-        "registers a passkey, lists it and removes it without overflowing on phones"
-      ],
+      "title": ["passkeys", "registers a passkey, lists it and removes it without overflowing on phones"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Account', exact: true })"
     },
     {
       "file": "pokemon-search-results.e2e.ts",
-      "title": [
-        "arrow keys move past the first 60 rows, keep the active row in view, and Enter selects it"
-      ],
+      "title": ["arrow keys move past the first 60 rows, keep the active row in view, and Enter selects it"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: 'Search Pokemon' }).locator('[data-result-index]').nth(60).getByRole('button', { name: 'Go to page 16' })"
     },
     {
       "file": "premium-app.e2e.ts",
-      "title": [
-        "binder settings retain page colours and expose the 3D studio"
-      ],
+      "title": ["binder settings retain page colours and expose the 3D studio"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('dialog', { name: /settings/i }).getByRole('link', { name: /customise binder/i })"
     },
     {
       "file": "premium-trial.e2e.ts",
-      "title": [
-        "signup trial shows its terms and expires offline without losing the collection"
-      ],
+      "title": ["signup trial shows its terms and expires offline without losing the collection"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /settings/i }).getByRole('button', { name: 'Account', exact: true })"
     },
     {
       "file": "price-loading.e2e.ts",
-      "title": [
-        "a failed stale batch keeps the successful missing-card batch"
-      ],
+      "title": ["a failed stale batch keeps the successful missing-card batch"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('[data-slot-id=\"synthetic-dex-1\"]')"
     },
     {
       "file": "price-loading.e2e.ts",
-      "title": [
-        "an offline price lookup retries when the connection returns"
-      ],
+      "title": ["an offline price lookup retries when the connection returns"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('[data-slot-id=\"synthetic-dex-1\"]')"
     },
     {
       "file": "price-loading.e2e.ts",
-      "title": [
-        "fresh IndexedDB-only prices display without another catalogue request"
-      ],
+      "title": ["fresh IndexedDB-only prices display without another catalogue request"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('[data-slot-id=\"synthetic-dex-1\"]')"
     },
     {
       "file": "price-loading.e2e.ts",
-      "title": [
-        "legacy IndexedDB prices refresh missing history"
-      ],
+      "title": ["legacy IndexedDB prices refresh missing history"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('[data-slot-id=\"synthetic-dex-1\"]')"
     },
     {
       "file": "public-assets.e2e.ts",
-      "title": [
-        "card images use the asset domain and remain cached offline"
-      ],
+      "title": ["card images use the asset domain and remain cached offline"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"] img').first()"
     },
     {
       "file": "public-assets.e2e.ts",
-      "title": [
-        "asset requests can reuse a pre-upgrade proxy image while offline"
-      ],
+      "title": ["asset requests can reuse a pre-upgrade proxy image while offline"],
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('[data-slot-id=\"synthetic-dex-1\"]')"
@@ -2934,87 +2343,63 @@
     },
     {
       "file": "raw-restore.e2e.ts",
-      "title": [
-        "actual IDB transaction failure prevents delivery and retains no half-restored state"
-      ],
+      "title": ["actual IDB transaction failure prevents delivery and retains no half-restored state"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Collection data backup', exact: true }).getByRole('button', { name: 'Review raw collection locally' })"
     },
     {
       "file": "raw-restore.e2e.ts",
-      "title": [
-        "a competing current edit invalidates confirmation before enqueue, no refreshed-ID or plan retry"
-      ],
+      "title": ["a competing current edit invalidates confirmation before enqueue, no refreshed-ID or plan retry"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Collection data backup', exact: true }).getByRole('button', { name: 'Review raw collection locally' })"
     },
     {
       "file": "raw-restore.e2e.ts",
-      "title": [
-        "proof persistence failure keeps original IDB intent through reload and replays before fresh ACK"
-      ],
+      "title": ["proof persistence failure keeps original IDB intent through reload and replays before fresh ACK"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Collection data backup', exact: true }).getByRole('button', { name: 'Review raw collection locally' })"
     },
     {
       "file": "regional-prices.e2e.ts",
-      "title": [
-        "UK locale",
-        "shows UK prices and the Prices control in GBP only"
-      ],
+      "title": ["UK locale", "shows UK prices and the Prices control in GBP only"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View' })"
     },
     {
       "file": "regional-prices.e2e.ts",
-      "title": [
-        "UK locale",
-        "the card selector prices each printing for the UK"
-      ],
+      "title": ["UK locale", "the card selector prices each printing for the UK"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: /change owned card|add owned card/i }).first()"
     },
     {
       "file": "regional-prices.e2e.ts",
-      "title": [
-        "variant prices (UK)",
-        "each variant chip on the card detail shows its own UK price"
-      ],
+      "title": ["variant prices (UK)", "each variant chip on the card detail shows its own UK price"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).locator('summary').filter({ hasText: 'Card & variant' })"
     },
     {
       "file": "regional-prices.e2e.ts",
-      "title": [
-        "list prices (UK)",
-        "all-cards browse and set checklists use the UK price"
-      ],
+      "title": ["list prices (UK)", "all-cards browse and set checklists use the UK price"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('textbox', { name: 'Search sets by name or code' })"
     },
     {
       "file": "regional-prices.e2e.ts",
-      "title": [
-        "US locale",
-        "leads with the TCGplayer price in USD"
-      ],
+      "title": ["US locale", "leads with the TCGplayer price in USD"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: /bulbasaur.* details/i }).getByText('Market', { exact: true }).locator('..')"
     },
     {
       "file": "regional-prices.e2e.ts",
-      "title": [
-        "US locale",
-        "the card selector prices each printing in USD"
-      ],
+      "title": ["US locale", "the card selector prices each printing in USD"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: /change owned card|add owned card/i }).first()"
@@ -3041,20 +2426,14 @@
     },
     {
       "file": "scroll-blur-freeze.e2e.ts",
-      "title": [
-        "sticky blur freezes while scrolling",
-        "List view scrolling freezes the dock too"
-      ],
+      "title": ["sticky blur freezes while scrolling", "List view scrolling freezes the dock too"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
     },
     {
       "file": "set-browse.e2e.ts",
-      "title": [
-        "Sets browse",
-        "browses sets by series with artwork, searches, and opens a set"
-      ],
+      "title": ["Sets browse", "browses sets by series with artwork, searches, and opens a set"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(received).toEqual(expected) // deep equality"
@@ -3071,40 +2450,28 @@
     },
     {
       "file": "set-checklist.e2e.ts",
-      "title": [
-        "set checklists",
-        "legacy saved payload is partial and cards without Pokémon remain browseable"
-      ],
+      "title": ["set checklists", "legacy saved payload is partial and cards without Pokémon remain browseable"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('textbox', { name: 'Search sets by name or code' })"
     },
     {
       "file": "set-checklist.e2e.ts",
-      "title": [
-        "set checklists",
-        "read-only browsing retains exact state without collection mutations"
-      ],
+      "title": ["set checklists", "read-only browsing retains exact state without collection mutations"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('textbox', { name: 'Search sets by name or code' })"
     },
     {
       "file": "set-checklist.e2e.ts",
-      "title": [
-        "set checklists",
-        "exact saved set data opens when the lookup fails"
-      ],
+      "title": ["set checklists", "exact saved set data opens when the lookup fails"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('textbox', { name: 'Search sets by name or code' })"
     },
     {
       "file": "set-checklist.e2e.ts",
-      "title": [
-        "set checklists",
-        "selected sets show how much of the set the binder holds"
-      ],
+      "title": ["set checklists", "selected sets show how much of the set the binder holds"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('textbox', { name: 'Search sets by name or code' })"
@@ -3121,30 +2488,21 @@
     },
     {
       "file": "set-matching.e2e.ts",
-      "title": [
-        "multi-set matching",
-        "quick filters follow binder state even when wants are in other sets"
-      ],
+      "title": ["multi-set matching", "quick filters follow binder state even when wants are in other sets"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('button', { name: 'Select mareep', exact: true })"
     },
     {
       "file": "set-matching.e2e.ts",
-      "title": [
-        "multi-set matching",
-        "a failed set does not hide loaded matches and can be retried"
-      ],
+      "title": ["multi-set matching", "a failed set does not hide loaded matches and can be retried"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('button', { name: 'Select mareep', exact: true })"
     },
     {
       "file": "set-matching.e2e.ts",
-      "title": [
-        "multi-set matching",
-        "both saved sets reopen offline after temporary selections are discarded"
-      ],
+      "title": ["multi-set matching", "both saved sets reopen offline after temporary selections are discarded"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('button', { name: 'Select mareep', exact: true })"
@@ -3191,10 +2549,7 @@
     },
     {
       "file": "shared-history.e2e.ts",
-      "title": [
-        "same-origin history transactions",
-        "binder switch ignores the old hook's delayed response"
-      ],
+      "title": ["same-origin history transactions", "binder switch ignores the old hook's delayed response"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(received).toBe(expected) // Object.is equality"
@@ -3211,20 +2566,14 @@
     },
     {
       "file": "show-any-card.e2e.ts",
-      "title": [
-        "Show mode: look up any card",
-        "finds any card, wanted first, labelled Wanted / Owned / Not in binder"
-      ],
+      "title": ["Show mode: look up any card", "finds any card, wanted first, labelled Wanted / Owned / Not in binder"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "show-any-card.e2e.ts",
-      "title": [
-        "Show mode: look up any card",
-        "searches by illustrator too"
-      ],
+      "title": ["Show mode: look up any card", "searches by illustrator too"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
@@ -3241,10 +2590,7 @@
     },
     {
       "file": "show-any-card.e2e.ts",
-      "title": [
-        "want list: check any card's price",
-        "a search with no wanted match offers the same lookup"
-      ],
+      "title": ["want list: check any card's price", "a search with no wanted match offers the same lookup"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
@@ -3331,20 +2677,14 @@
     },
     {
       "file": "show-hunt.e2e.ts",
-      "title": [
-        "Show mode finder",
-        "Check comps bakes sold comps for the Hunting cards, dearest first, with progress"
-      ],
+      "title": ["Show mode finder", "Check comps bakes sold comps for the Hunting cards, dearest first, with progress"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "show-hunt.e2e.ts",
-      "title": [
-        "Show mode finder",
-        "Check comps big run: in-app confirm Cancel aborts, Check now proceeds"
-      ],
+      "title": ["Show mode finder", "Check comps big run: in-app confirm Cancel aborts, Check now proceeds"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
@@ -3361,50 +2701,35 @@
     },
     {
       "file": "show-hunt.e2e.ts",
-      "title": [
-        "Show mode finder",
-        "no Good pickups strip when nothing on the want list has dropped"
-      ],
+      "title": ["Show mode finder", "no Good pickups strip when nothing on the want list has dropped"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "show-hunt.e2e.ts",
-      "title": [
-        "Show mode finder",
-        "era, set and illustrator filters narrow the Hunting list"
-      ],
+      "title": ["Show mode finder", "era, set and illustrator filters narrow the Hunting list"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "show-hunt.e2e.ts",
-      "title": [
-        "Show mode finder",
-        "search by Pokémon: wanted first with what to pay, the rest, owned dimmed last"
-      ],
+      "title": ["Show mode finder", "search by Pokémon: wanted first with what to pay, the rest, owned dimmed last"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "show-hunt.e2e.ts",
-      "title": [
-        "Show mode finder",
-        "works offline from the want list on this device"
-      ],
+      "title": ["Show mode finder", "works offline from the want list on this device"],
       "cause": "harness-or-fixture",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
       "file": "show-purchase-sync.e2e.ts",
-      "title": [
-        "show purchases on the account",
-        "a fresh install or a partner's phone shows the show's purchases"
-      ],
+      "title": ["show purchases on the account", "a fresh install or a partner's phone shows the show's purchases"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('region', { name: 'Show mode' })"
@@ -3441,38 +2766,28 @@
     },
     {
       "file": "show-revisit.e2e.ts",
-      "title": [
-        "Revisit deals",
-        "saves an asking price and stall note, reopens offline and removes it"
-      ],
+      "title": ["Revisit deals", "saves an asking price and stall note, reopens offline and removes it"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('textbox', { name: 'Stall or condition note' })"
     },
     {
       "file": "show-revisit.e2e.ts",
-      "title": [
-        "Revisit deals",
-        "reports blocked storage and leaves the note editable"
-      ],
+      "title": ["Revisit deals", "reports blocked storage and leaves the note editable"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('textbox', { name: 'Stall or condition note' })"
     },
     {
       "file": "show-scroll.e2e.ts",
-      "title": [
-        "long Hunting list does not read layout on every touch move"
-      ],
+      "title": ["long Hunting list does not read layout on every touch move"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByTestId('show-hunt').getByRole('heading', { name: /Hunting · 500 cards/ })"
     },
     {
       "file": "show-scroll.e2e.ts",
-      "title": [
-        "touch guard keeps axis changes, headers and native controls working"
-      ],
+      "title": ["touch guard keeps axis changes, headers and native controls working"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByTestId('show-hunt')"
@@ -3499,248 +2814,182 @@
     },
     {
       "file": "show-workspace.e2e.ts",
-      "title": [
-        "Show workspace light",
-        "471-card hunt stays usable, with detail only on selection"
-      ],
+      "title": ["Show workspace light", "471-card hunt stays usable, with detail only on selection"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('show-hunt').getByRole('heading', { name: /471 cards/ })"
     },
     {
       "file": "show-workspace.e2e.ts",
-      "title": [
-        "Show workspace dark",
-        "471-card hunt stays usable, with detail only on selection"
-      ],
+      "title": ["Show workspace dark", "471-card hunt stays usable, with detail only on selection"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('show-hunt').getByRole('heading', { name: /471 cards/ })"
     },
     {
       "file": "slabs.e2e.ts",
-      "title": [
-        "provider gallery uses explicit variants, raw fallback, readable detail and no private DOM"
-      ],
+      "title": ["provider gallery uses explicit variants, raw fallback, readable detail and no private DOM"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('list', { name: 'Collection copies' }).getByRole('button')"
     },
     {
       "file": "slabs.e2e.ts",
-      "title": [
-        "view switches, back, reload and new page restore presentation without rewriting copies"
-      ],
+      "title": ["view switches, back, reload and new page restore presentation without rewriting copies"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('list', { name: 'Collection copies' }).getByRole('button')"
     },
     {
       "file": "slabs.e2e.ts",
-      "title": [
-        "cached offline display works with no photo/import and scope changes remove private detail"
-      ],
+      "title": ["cached offline display works with no photo/import and scope changes remove private detail"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('list', { name: 'Collection copies' }).getByRole('button')"
     },
     {
       "file": "slabs.e2e.ts",
-      "title": [
-        "actual BinderApp renders the staged gallery from its checked navigation host"
-      ],
+      "title": ["actual BinderApp renders the staged gallery from its checked navigation host"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByRole('list', { name: 'Collection copies' }).getByRole('button')"
     },
     {
       "file": "theme-cookie.e2e.ts",
-      "title": [
-        "the theme cookie is only written when the user switches theme"
-      ],
+      "title": ["the theme cookie is only written when the user switches theme"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveClass(expected) failed — locator('html')"
     },
     {
       "file": "toolbar-layout.e2e.ts",
-      "title": [
-        "desktop toolbar fits at 768px without scrolling"
-      ],
+      "title": ["desktop toolbar fits at 768px without scrolling"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "toolbar-layout.e2e.ts",
-      "title": [
-        "desktop toolbar fits at 1024px without scrolling"
-      ],
+      "title": ["desktop toolbar fits at 1024px without scrolling"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "toolbar-layout.e2e.ts",
-      "title": [
-        "desktop toolbar fits at 1280px without scrolling"
-      ],
+      "title": ["desktop toolbar fits at 1280px without scrolling"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "toolbar-layout.e2e.ts",
-      "title": [
-        "desktop toolbar fits at 1440px without scrolling"
-      ],
+      "title": ["desktop toolbar fits at 1440px without scrolling"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
       "file": "view-scroll-restore.e2e.ts",
-      "title": [
-        "per-view scroll restoration",
-        "List keeps its place across a tab switch and opening a card"
-      ],
+      "title": ["per-view scroll restoration", "List keeps its place across a tab switch and opening a card"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
     },
     {
       "file": "view-scroll-restore.e2e.ts",
-      "title": [
-        "per-view scroll restoration",
-        "each view remembers its own position"
-      ],
+      "title": ["per-view scroll restoration", "each view remembers its own position"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
     },
     {
       "file": "view-scroll-restore.e2e.ts",
-      "title": [
-        "per-view scroll restoration",
-        "Wanted keeps its place after leaving the page and coming back"
-      ],
+      "title": ["per-view scroll restoration", "Wanted keeps its place after leaving the page and coming back"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByTestId('wanted-list')"
     },
     {
       "file": "wanted-list.e2e.ts",
-      "title": [
-        "want list on mobile",
-        "one summary line, plain rows and Insights collapsed"
-      ],
+      "title": ["want list on mobile", "one summary line, plain rows and Insights collapsed"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByTestId('wanted-row')"
     },
     {
       "file": "wanted-list.e2e.ts",
-      "title": [
-        "want list on mobile",
-        "search by name, Pokémon, set, number and illustrator"
-      ],
+      "title": ["want list on mobile", "search by name, Pokémon, set, number and illustrator"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByTestId('wanted-row')"
     },
     {
       "file": "wanted-list.e2e.ts",
-      "title": [
-        "want list on mobile",
-        "sort from the sheet, and the choice is remembered"
-      ],
+      "title": ["want list on mobile", "sort from the sheet, and the choice is remembered"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByTestId('wanted-row')"
     },
     {
       "file": "wanted-list.e2e.ts",
-      "title": [
-        "want list on mobile",
-        "filters from the sheet show as removable chips"
-      ],
+      "title": ["want list on mobile", "filters from the sheet show as removable chips"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByTestId('wanted-row')"
     },
     {
       "file": "wanted-list.e2e.ts",
-      "title": [
-        "want list on mobile",
-        "the row menu offers removal and shows the card in the binder"
-      ],
+      "title": ["want list on mobile", "the row menu offers removal and shows the card in the binder"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByTestId('wanted-row')"
     },
     {
       "file": "wanted-price-drops.e2e.ts",
-      "title": [
-        "want list price drops",
-        "a dropped card gets a badge, the summary a small count"
-      ],
+      "title": ["want list price drops", "a dropped card gets a badge, the summary a small count"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByTestId('wanted-row')"
     },
     {
       "file": "wanted-price-drops.e2e.ts",
-      "title": [
-        "want list price drops",
-        "the Price drops quick filter narrows the list and clears from its chip"
-      ],
+      "title": ["want list price drops", "the Price drops quick filter narrows the list and clears from its chip"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByTestId('wanted-row')"
     },
     {
       "file": "wanted-price-drops.e2e.ts",
-      "title": [
-        "want list price drops",
-        "with no drops there is no count and no Price drops chip"
-      ],
+      "title": ["want list price drops", "with no drops there is no count and no Price drops chip"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveCount(expected) failed — getByTestId('wanted-row')"
     },
     {
       "file": "wanted-to-owned.e2e.ts",
-      "title": [
-        "sharing the want list",
-        "Share list hands over the want list as text, grouped by set"
-      ],
+      "title": ["sharing the want list", "Share list hands over the want list as text, grouped by set"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('button', { name: 'Share list', exact: true })"
     },
     {
       "file": "binder-creation.e2e.ts",
-      "title": [
-        "custom blank copies targets, private location and List default while presentation stays editable"
-      ],
+      "title": ["custom blank copies targets, private location and List default while presentation stays editable"],
       "cause": "flaky",
       "batch": 1,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — Collection view is 'binder', expected 'list' (passed in one full run, fails consistently since, also on origin/main)"
     },
     {
       "file": "binder-creation.e2e.ts",
-      "title": [
-        "custom species copies targets, private location and List default while presentation stays editable"
-      ],
+      "title": ["custom species copies targets, private location and List default while presentation stays editable"],
       "cause": "flaky",
       "batch": 1,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — Collection view is 'binder', expected 'list' (passed in one full run, fails consistently since, also on origin/main)"
     },
     {
       "file": "studio-workspace.e2e.ts",
-      "title": [
-        "editing keeps the binder and save action in view"
-      ],
+      "title": ["editing keeps the binder and save action in view"],
       "projects": [
         "browser-375x667",
         "browser-430x932",
@@ -3754,95 +3003,62 @@
     },
     {
       "file": "binder-appearance-sync.e2e.ts",
-      "title": [
-        "two independent devices share artwork, placement and coordinated appearance"
-      ],
+      "title": ["two independent devices share artwork, placement and coordinated appearance"],
       "cause": "flaky",
       "batch": 1,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded (fails intermittently, passes on retry)"
     },
     {
       "file": "binder-appearance-sync.e2e.ts",
-      "title": [
-        "another tab cannot replace an unsynced device appearance"
-      ],
+      "title": ["another tab cannot replace an unsynced device appearance"],
       "cause": "flaky",
       "batch": 1,
       "failure": "fails intermittently, passes on retry"
     },
     {
       "file": "binder-appearance-sync.e2e.ts",
-      "title": [
-        "offline saves survive reload and resume syncing without replacing the draft"
-      ],
-      "projects": [
-        "browser-430x932",
-        "standalone-430x932"
-      ],
+      "title": ["offline saves survive reload and resume syncing without replacing the draft"],
+      "projects": ["browser-430x932", "standalone-430x932"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('button', { name: 'Save appearance', exact: true }) (only at these viewports, found by the full matrix)"
     },
     {
       "file": "binder-appearance-sync.e2e.ts",
-      "title": [
-        "accepting an empty account appearance cannot resurrect a discarded pending save"
-      ],
-      "projects": [
-        "browser-430x932",
-        "standalone-375x667",
-        "standalone-430x932"
-      ],
+      "title": ["accepting an empty account appearance cannot resurrect a discarded pending save"],
+      "projects": ["browser-430x932", "standalone-375x667", "standalone-430x932"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('button', { name: 'Save appearance', exact: true }) (only at these viewports, found by the full matrix)"
     },
     {
       "file": "binder-bulk-fill.e2e.ts",
-      "title": [
-        "signout teardown retains an in-flight accepted fill and rejects late reply"
-      ],
-      "projects": [
-        "standalone-390x844"
-      ],
+      "title": ["signout teardown retains an in-flight accepted fill and rejects late reply"],
+      "projects": ["standalone-390x844"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "TimeoutError: route.fetch: Timeout 5000ms exceeded. (only at these viewports, found by the full matrix)"
     },
     {
       "file": "home-page.e2e.ts",
-      "title": [
-        "homepage offers a compact interactive 3D binder preview"
-      ],
-      "projects": [
-        "browser-430x932",
-        "standalone-375x667"
-      ],
+      "title": ["homepage offers a compact interactive 3D binder preview"],
+      "projects": ["browser-430x932", "standalone-375x667"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('group', { name: 'Interactive Binder Studio preview' }).getByRole('button', { name: 'Inside', exact: true }) (only at these viewports, found by the full matrix)"
     },
     {
       "file": "inventory-bulk.e2e.ts",
-      "title": [
-        "selection crosses explicit pages and filters, clear resets all, overlay dismissal never dispatches"
-      ],
-      "projects": [
-        "browser-430x932",
-        "standalone-430x932"
-      ],
+      "title": ["selection crosses explicit pages and filters, clear resets all, overlay dismissal never dispatches"],
+      "projects": ["browser-430x932", "standalone-430x932"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('navigation', { name: 'Inventory pages', exact: true }).getByRole('button', { name: 'Show more', exact: true }) (only at these viewports, found by the full matrix)"
     },
     {
       "file": "inventory-bulk.e2e.ts",
-      "title": [
-        "lost bulk reply retains original bytes and ID through cached reload until a fresh complete ACK"
-      ],
-      "projects": [
-        "standalone-375x667"
-      ],
+      "title": ["lost bulk reply retains original bytes and ID through cached reload until a fresh complete ACK"],
+      "projects": ["standalone-375x667"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('button', { name: 'Try now' }) (only at these viewports, found by the full matrix)"
@@ -3853,58 +3069,38 @@
         "offline search and card show prep",
         "offline search finds the user's own cards without any saved sets"
       ],
-      "projects": [
-        "standalone-430x932"
-      ],
+      "projects": ["standalone-430x932"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: /search pokemon/i }).getByRole('region', { name: /card results/i }).getByRole('button', { name: /bulbasaur 44\\/\\d* ?base s (only at these viewports, found by the full matrix)"
     },
     {
       "file": "overlays.e2e.ts",
-      "title": [
-        "sign in",
-        "closes with a touch pull down on its body from the top"
-      ],
-      "projects": [
-        "browser-430x932"
-      ],
+      "title": ["sign in", "closes with a touch pull down on its body from the top"],
+      "projects": ["browser-430x932"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(locator).toBeHidden() failed — getByRole('dialog', { name: /welcome|sign in/i }) (only at these viewports, found by the full matrix)"
     },
     {
       "file": "press-state.e2e.ts",
-      "title": [
-        "pressed state",
-        "dock buttons scale and dim while held"
-      ],
-      "projects": [
-        "browser-390x844",
-        "standalone-390x844"
-      ],
+      "title": ["pressed state", "dock buttons scale and dim while held"],
+      "projects": ["browser-390x844", "standalone-390x844"],
       "cause": "flaky",
       "batch": 3,
       "failure": "Error: expect(received).toBeLessThanOrEqual(expected) (only at these viewports, found by the full matrix)"
     },
     {
       "file": "startup-refresh.e2e.ts",
-      "title": [
-        "desktop",
-        "refocus while starting never shows an account-check page or bounces the binder"
-      ],
-      "projects": [
-        "browser-375x667"
-      ],
+      "title": ["desktop", "refocus while starting never shows an account-check page or bounces the binder"],
+      "projects": ["browser-375x667"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: expect(received).toEqual(expected) // deep equality (only at these viewports, found by the full matrix)"
     },
     {
       "file": "studio-workspace.e2e.ts",
-      "title": [
-        "appearance edits avoid offscreen GPU readback and retain the model"
-      ],
+      "title": ["appearance edits avoid offscreen GPU readback and retain the model"],
       "projects": [
         "browser-375x667",
         "browser-390x844",
@@ -3919,9 +3115,7 @@
     },
     {
       "file": "studio-workspace.e2e.ts",
-      "title": [
-        "3D pages support keyboard navigation and fitting the view"
-      ],
+      "title": ["3D pages support keyboard navigation and fitting the view"],
       "projects": [
         "browser-375x667",
         "browser-390x844",
@@ -3936,9 +3130,7 @@
     },
     {
       "file": "studio-workspace.e2e.ts",
-      "title": [
-        "artwork adjustment stays tucked away until requested"
-      ],
+      "title": ["artwork adjustment stays tucked away until requested"],
       "projects": [
         "browser-375x667",
         "browser-430x932",
@@ -3952,12 +3144,8 @@
     },
     {
       "file": "ux-controls.e2e.ts",
-      "title": [
-        "list actions meet the minimum target size without overflowing"
-      ],
-      "projects": [
-        "standalone-375x667"
-      ],
+      "title": ["list actions meet the minimum target size without overflowing"],
+      "projects": ["standalone-375x667"],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "Error: element should not be covered by another layer (only at these viewports, found by the full matrix)"
