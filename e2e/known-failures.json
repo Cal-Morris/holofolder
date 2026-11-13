@@ -1032,20 +1032,6 @@
       "failure": "Error: expect(locator).toBeVisible() failed — locator('#nd-sidebar')"
     },
     {
-      "file": "ebay-listings.e2e.ts",
-      "title": ["card details updates its good-price band only after a user checks qualifying sold evidence"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: native card details have no sold-price band (only the legacy selected-pokemon-quick-panel has it)."
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
-      "title": ["card details compares sold evidence with the tracked finish quote"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: native card details have no Card & variant switcher or sold-price band."
-    },
-    {
       "file": "first-use.e2e.ts",
       "title": ["signed-in first use", "empty binder prioritizes adding a card and keeps Show mode in More"],
       "cause": "stale-selector-or-flow",

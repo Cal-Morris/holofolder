@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronDown } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { CardPriceComparison } from '@/components/card-price-comparison';
 import { CardPriceEvidence } from '@/components/card-price-evidence';
 import { getCardPriceKey } from '@/hooks/use-card-prices';
@@ -13,6 +13,11 @@ import type { CardPriceSnapshot } from '@/hooks/use-card-prices';
 import type { CardFinish, CardLanguage } from '@/lib/domain/cards';
 import type { PricingRegion } from '@/lib/pricing-region';
 import { getRegionalFinishPrices, regionalizeCardPrices } from '@/lib/regional-price';
+import { useBillingContext } from '@/hooks/use-billing';
+import { buildSoldPriceGuide } from '@/lib/sold-price-guide';
+import { readDealThresholds } from '@/lib/deal-check';
+import { nativeSoldEvidenceAllowed } from '@/lib/native-price-evidence';
+import type { CardPriceCheck } from '@/lib/card-price-checks';
 
 export interface NativeCardPricing {
   region: PricingRegion;
@@ -73,7 +78,24 @@ export default function NativeCardPrice({
       (finish === 'reverse_holo' ? undefined : snapshot))
     : snapshot;
   const missing = isLoading ? valueSkeleton : saved.status === 'unavailable' ? 'Unavailable' : 'No price';
-  const low = pricing.formatAmount(price?.goodGbpAmount, snapshot);
+  // A qualifying sold check (the one just run in Price details) replaces Low with the fair range it supports, as the
+  // deal check does. Same native gate: a known English printing on a normal, holo or reverse finish.
+  const billing = useBillingContext();
+  const [sold, setSold] = useState<{ key: string; check: CardPriceCheck } | null>(null);
+  const soldKey = `${cardId}:${language}:${finish}`;
+  const soldGuide =
+    billing?.premium && finish && nativeSoldEvidenceAllowed({ language }, finish, Boolean(price))
+      ? buildSoldPriceGuide(
+          sold?.key === soldKey ? sold.check : null,
+          price?.marketGbpAmount ?? price?.gbpAmount,
+          finish,
+          readDealThresholds(typeof window === 'undefined' ? undefined : window.localStorage),
+        )
+      : null;
+  const fairSold = soldGuide?.referenceGbp != null ? soldGuide.fairBand : null;
+  const low = fairSold
+    ? pricing.formatRange(fairSold.low, fairSold.high, snapshot)
+    : pricing.formatAmount(price?.goodGbpAmount, snapshot);
   const market = pricing.formatAmount(price?.marketGbpAmount ?? price?.gbpAmount, snapshot);
   const range = pricing.formatRange(price?.lowGbpAmount, price?.highGbpAmount, snapshot);
   const confidence = formatPriceConfidenceLabel(snapshot);
@@ -86,7 +108,9 @@ export default function NativeCardPrice({
     >
       <div className="grid grid-cols-2 gap-2">
         <div className="border-border/50 bg-background/45 rounded-xl border px-3 py-2 dark:border-white/10 dark:bg-white/[0.04]">
-          <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.14em] uppercase">Low</p>
+          <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.14em] uppercase">
+            {fairSold ? 'Fair range · sold' : 'Low'}
+          </p>
           <p className="mt-0.5 text-sm font-bold text-emerald-600 tabular-nums dark:text-emerald-300">
             {low ?? missing}
           </p>
@@ -134,6 +158,7 @@ export default function NativeCardPrice({
           language={language}
           finish={finish}
           catalogMarketGbp={price?.marketGbpAmount ?? price?.gbpAmount ?? null}
+          onSoldCheck={(check) => setSold({ key: soldKey, check })}
         />
         <CardPriceEvidence price={snapshot} />
       </details>

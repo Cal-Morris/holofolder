@@ -59,3 +59,7 @@ The native Show and Quick deal check now shows the same paid Check prices contro
 ## Wanted bulk price check on native (parity)
 
 The native Wanted tab shows the existing want-list bulk price check (`CollectionPriceCheck`, the same background comparison job as Show's Hunting list) under its header, for the signed-in owner or partner in their own binders, never on a shared view. Its printings come from the native read's explicit wants (`nativeSpeciesCollection(...).rows`), with repeated wants checked once. Starting the job keeps its existing confirmation and billing rules. An owned bulk check on native (Inventory) is not built yet.
+
+## Sold band in native card details (parity)
+
+After Check prices in a native card's Price details, a qualifying sold check (enough recent, concentrated sales that agree with the catalogue quote for the copy's own finish) turns the Low tile into "Fair range · sold" with the fair band it supports, as the deal check does. Same native gate (known English, normal/holo/reverse) and premium rule; otherwise Low stays the catalogue's good price. A native copy is one exact printing, so there is no Card & variant switcher: its details price the copy's recorded finish.
