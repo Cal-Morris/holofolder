@@ -30,6 +30,7 @@ export async function startPendingPartnerPush(actorId: string) {
   let started = 0;
   for (const event of events) {
     try {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- each workflow is started and marked before the next
       await start(partnerAcquisitionPush, [event.id]);
       const { error: markError } = await admin
         .from('partner_acquisitions')

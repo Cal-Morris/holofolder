@@ -25,8 +25,8 @@ export function normalizeRemoteAppearance(value: unknown, owner: string): Remote
   return { ownerId: owner, revision: data.revision!, design: data.design ? normalizeBinderDesign(data.design) : null };
 }
 async function responseData(response: Response): Promise<unknown> {
-  const body = await response.json().catch(() => null);
   if (response.status === 409) throw new AppearanceConflict();
+  const body = await response.json().catch(() => null);
   if (!response.ok)
     throw new Error(typeof body?.error === 'string' ? body.error : 'Could not sync your binder appearance.');
   return body;
@@ -69,6 +69,7 @@ export async function syncBinderAppearance(
   for (const id of binderArtworkIds(snapshot.design)) {
     const blob = snapshot.uploads[id];
     if (!blob) throw new Error('Artwork is missing. Re-upload it before saving.');
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- uploads go one at a time and stop at the first failure
     const response = await fetch('/app/api/binder-appearance/upload', {
       method: 'POST',
       credentials: 'same-origin',

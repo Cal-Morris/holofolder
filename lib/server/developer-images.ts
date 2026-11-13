@@ -41,6 +41,7 @@ export async function createDeveloperImageResolver(value: unknown): Promise<Deve
   if (keys.length) {
     const admin = createAdminClient();
     for (let n = 0; n < keys.length; n += 500) {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- batches go one at a time to bound database load
       const { data, error } = await admin
         .from('card_image_inventory')
         .select('object_key')

@@ -32,6 +32,7 @@ export async function readDeveloperJson(
   const chunks: Uint8Array[] = [];
   try {
     while (true) {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- a stream is read one chunk at a time
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;

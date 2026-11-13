@@ -76,6 +76,7 @@ export function createPrivateArtworkStore(config: ArtworkConfig, fetchImpl: type
       let size = 0;
       try {
         while (true) {
+          // oxlint-disable-next-line react-doctor/async-await-in-loop -- a stream is read one chunk at a time
           const chunk = await reader.read();
           if (chunk.done) break;
           size += chunk.value.byteLength;

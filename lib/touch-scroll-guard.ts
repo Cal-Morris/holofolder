@@ -84,6 +84,7 @@ export function installTouchScrollGuard() {
   installed = true;
   document.documentElement.dataset.scrollLocked = '';
   document.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
+  // oxlint-disable-next-line react-doctor/client-passive-event-listeners -- the guard calls preventDefault to stop the page scrolling
   document.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
 }
 

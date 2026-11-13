@@ -94,6 +94,7 @@ async function cardPage(rows: unknown[], lang: CardLanguage) {
   const resolve = await createDeveloperImageResolver([rows, rows.map((row) => cardSource(row, lang))]);
   const cards = [];
   for (let i = 0; i < rows.length; i += 8)
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- deliberate chunks of 8 bound concurrent image lookups
     cards.push(...(await Promise.all(rows.slice(i, i + 8).map((row) => serializeCard(row, lang, resolve)))));
   return cards;
 }

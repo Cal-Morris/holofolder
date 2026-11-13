@@ -12,14 +12,17 @@ export async function serializeDeveloperAppearance<T extends { design: BinderDes
   const design = structuredClone(value.design) as DeveloperDesign | null;
   if (!design) return { ...value, design: null };
   resolve ??= await createDeveloperImageResolver(design.surfaces);
-  for (const surface of DESIGN_SURFACES) {
-    const entry = design.surfaces[surface];
-    if (!entry.artwork || entry.artwork.startsWith('upload:')) continue;
-    const source = developerImageSource(entry.artwork),
-      reference = developerArtworkReference(source);
-    entry.artwork = reference;
-    entry.artworkImage = reference ? await resolve(source) : { url: null, availability: 'missing' };
-  }
+  const resolveImage = resolve;
+  await Promise.all(
+    DESIGN_SURFACES.map(async (surface) => {
+      const entry = design.surfaces[surface];
+      if (!entry.artwork || entry.artwork.startsWith('upload:')) return;
+      const source = developerImageSource(entry.artwork),
+        reference = developerArtworkReference(source);
+      entry.artwork = reference;
+      entry.artworkImage = reference ? await resolveImage(source) : { url: null, availability: 'missing' };
+    }),
+  );
   return { ...value, design };
 }
 

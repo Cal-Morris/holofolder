@@ -32,13 +32,15 @@ function register(env: RegistrationEnvironment) {
       // A previous root worker could otherwise keep answering Framer's marketing pages offline.
       // Keep binder.cal.gg's root registration for its existing installed app and queued edits.
       if (env.location?.hostname !== 'holofolder.com') return;
-      for (const registration of (await env.navigator.serviceWorker?.getRegistrations?.()) ?? []) {
-        if (
+      const registrations = (await env.navigator.serviceWorker?.getRegistrations?.()) ?? [];
+      await Promise.all(
+        registrations.map((registration) =>
           registration.scope === 'https://holofolder.com/' &&
           registration.active?.scriptURL === 'https://holofolder.com/sw.js'
-        )
-          await registration.unregister();
-      }
+            ? registration.unregister()
+            : undefined,
+        ),
+      );
     })
     .catch((error: unknown) => {
       console.error('[holofolder] Failed to register service worker:', error);

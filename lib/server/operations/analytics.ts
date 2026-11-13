@@ -1,8 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function readDeveloperPriceHistory(input: Record<string, unknown>) {
-  const { decodePage, encodeCursor } = await import('@/lib/developer-api/pagination');
-  const { DeveloperAccessError } = await import('@/lib/developer-api/permissions');
+  const [{ decodePage, encodeCursor }, { DeveloperAccessError }] = await Promise.all([
+    import('@/lib/developer-api/pagination'),
+    import('@/lib/developer-api/permissions'),
+  ]);
   const params = new URLSearchParams(
     Object.entries(input)
       .filter(([, v]) => v !== undefined)
