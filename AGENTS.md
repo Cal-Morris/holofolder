@@ -163,6 +163,7 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 - **Mobile-first.** Verify at **375×667, 390×844 and 430×932**, in both a normal browser tab and **standalone PWA** mode with safe-area insets (59 px top, 34 px bottom in the e2e harness).
   - Tap targets are at least 36 px. No horizontal overflow.
   - Nothing goes under the dock: position against `--dock-inset`, `--dock-bar` and `--dock-clearance` in `globals.css`.
+- **Build UI from small reusable primitives.** Find the reference implementation on the site first, then reuse its components and styles (`OverlayDialog`, `toast()`, `Button` and `holo-action`, `OptionRow`, the `components/ui/` inputs, the `holo-*` surfaces and `globals.css` tokens). Extract a shared component once a pattern appears in 2–3 places, and extend a primitive (a prop or variant) rather than forking it. When the right pattern is ambiguous, ask Cal rather than ship a one-off. See [`building-ui`](.agents/skills/building-ui/SKILL.md).
 - **Every overlay uses the shared primitive** (`useOverlay`, plus `useSwipeToDismiss` for bottom sheets).
   - It must be dismissible by the X button (36 px or larger), a backdrop tap (`data-overlay-backdrop`), Escape, browser or Android back, and swipe-down.
   - It needs `role="dialog"` and an accessible name.
@@ -239,6 +240,7 @@ UI craft skills from [Emil Kowalski](.agents/skills/EMIL-SOURCE.md) are vendored
 | [writing-e2e-tests](.agents/skills/writing-e2e-tests/SKILL.md)                     | Adding Playwright coverage (harness, mocks, viewports, offline)                                                                     |
 | [pricing-signal-changes](.agents/skills/pricing-signal-changes/SKILL.md)           | Touching providers, confidence, Rising or Breakout                                                                                  |
 | [offline-and-caching](.agents/skills/offline-and-caching/SKILL.md)                 | Touching `sw.js`, IndexedDB or the offline queue                                                                                    |
+| [building-ui](.agents/skills/building-ui/SKILL.md)                                 | Any visible UI: reuse primitives and reference implementations, no one-off surfaces                                                 |
 | [mobile-ui-verification](.agents/skills/mobile-ui-verification/SKILL.md)           | Any UI change                                                                                                                       |
 | [task-progress](.agents/skills/task-progress/SKILL.md)                             | Starting, progressing or completing issues: project status, acceptance evidence and parent/dependency reconciliation                |
 | [feature-api-docs](.agents/skills/feature-api-docs/SKILL.md)                       | Every feature delivery: shared API parity, generated references and current help docs                                               |
