@@ -16,6 +16,7 @@ import {
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 import { identifyPocketCrop } from '@/lib/card-scan-search';
 import { warmCardTextReader } from '@/lib/card-scan-ocr';
+import { getPictureScannerLanguages, matchCardPicture, warmPictureScanner } from '@/lib/card-picture-scanner';
 import ScanDestinationReview, { type ScanReviewCell } from '@/components/scan-destination-review';
 import CameraControls from '@/components/camera-controls';
 
@@ -52,6 +53,7 @@ export default function NativePageScanner({
   // Fetch the card text reader while the page is lined up, so reading the pockets doesn't wait on the download.
   useEffect(() => {
     void warmCardTextReader();
+    warmPictureScanner();
   }, []);
   useEffect(() => {
     alive.current = true;
@@ -81,14 +83,18 @@ export default function NativePageScanner({
           .find((b) => b.collectionId === captured.collectionId)
           ?.slots.flatMap((s) => (s.inventoryItemId ? [s.id] : [])),
       );
-      // Read each new card's name and number from its crop. Pockets already holding a card are left as they are.
+      // Read each new card's picture, name and number from its crop. Pockets already holding a card are left as they are.
       const toRead = cells.filter((c) => c.occupied && c.cardImageDataUrl && !(c.slotId && filled.has(c.slotId)));
       setReading({ done: 0, total: toRead.length });
       const reviewCells: ScanReviewCell[] = await Promise.all(
         cells.map(async (c) => {
           const crop = c.cardImageDataUrl;
           if (!crop || !toRead.includes(c)) return { ...c, candidates: [], crop };
-          const found = await (admission.identifyPocket?.(crop) ?? identifyPocketCrop(crop, admission.getOfflineCards));
+          const found = await (admission.identifyPocket?.(crop) ??
+            identifyPocketCrop(crop, admission.getOfflineCards, {
+              matchPicture: matchCardPicture,
+              collected: getPictureScannerLanguages(),
+            }));
           if (alive.current) setReading((r) => r && { ...r, done: r.done + 1 });
           return { ...c, ...found, crop };
         }),

@@ -75,6 +75,7 @@ import ShowHunt, { PokemonSprite } from '@/components/show-hunt';
 import ShowPokemonCards from '@/components/show-pokemon-cards';
 // Also bundled, so Scan opens offline at a show without fetching its code.
 import QuickCardScanner, { type CardScanResult } from '@/components/quick-card-scanner';
+import { lookupPokemon } from '@/lib/card-scan-search';
 
 import { PriceRisingBadge } from '@/components/price-rising-badge';
 import { MomentumSortChips } from '@/components/momentum-sort-chips';
@@ -262,6 +263,8 @@ function QuickMode({
   const [query, setQuery] = useState(initialQuery);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
+  // Cards the scanned picture looked like, when the read didn't settle which one it is.
+  const [scanChoices, setScanChoices] = useState<SearchCardResult[]>([]);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const prepSwipe = useSwipeToDismiss(dialogRef, onClose, preparingOffline || Boolean(nativeConsumer && isBundleOpen));
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -419,6 +422,7 @@ function QuickMode({
         if (outcome.kind === 'match') rememberSearch(outcome.query);
       }
       setScanNotice(scanNoticeFor(result));
+      setScanChoices(result.pictureChoices ?? []);
       if (outcome.kind === 'match') {
         rememberCard(outcome.card, outcome.pokemon);
         setChecking({ card: outcome.card, pokemon: outcome.pokemon });
@@ -592,6 +596,28 @@ function QuickMode({
         >
           {scanNotice}
         </p>
+      )}
+      {scanChoices.length > 0 && (
+        <div role="group" aria-label="Looks like" className="mb-2" data-testid="scan-picture-choices">
+          <p className="text-muted-foreground mb-1 text-xs font-medium">Looks like</p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {scanChoices.map((card) => (
+              <button
+                key={`${card.id}:${card.language ?? 'en'}`}
+                type="button"
+                aria-label={`${card.name}, ${card.set.name} ${formatCardNumber(card)}`}
+                onClick={() => {
+                  setScanChoices([]);
+                  const dexId = card.dexIds[0];
+                  pickCard(card, (dexId !== undefined ? lookupPokemon(dexId) : null) ?? { id: 0, name: card.name });
+                }}
+                className="trading-card bg-muted/50 relative w-14 shrink-0 overflow-hidden"
+              >
+                <CardThumbnail image={card.image} lazy />
+              </button>
+            ))}
+          </div>
+        </div>
       )}
       <div className="flex items-center gap-2">
         <label className="relative block min-w-0 flex-1">

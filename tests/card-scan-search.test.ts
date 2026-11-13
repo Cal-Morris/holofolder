@@ -80,4 +80,50 @@ describe('identifyPocketCrop', () => {
       query: '',
     });
   });
+
+  describe('with the picture scanner', () => {
+    const MEW = card('dd-151', 'Mew', '151', 165, [151]);
+    const picture =
+      (...ids: string[]) =>
+      async () => ({
+        matches: ids.map((id, i) => ({ id, language: 'en', score: 0.8 - i * 0.01 })),
+      });
+    const serveIds = (cards: SearchCardResult[]) => {
+      globalThis.fetch = (async (url: string) => {
+        const ids = new URL(url, 'http://x').searchParams.get('ids')?.split(',') ?? [];
+        return new Response(JSON.stringify({ cards: cards.filter((c) => ids.includes(c.id)) }));
+      }) as unknown as typeof fetch;
+    };
+
+    test('offers the picture match the name read agrees with', async () => {
+      serveIds([MEW, PIKACHU_B]);
+      const found = await identifyPocketCrop('crop', noOfflineCards, {
+        recognize: readText('Pikachu'),
+        matchPicture: picture('dd-151', 'bb-058'),
+      });
+      assert.deepEqual(found.candidates, [PIKACHU_B]);
+      assert.equal(found.query, 'Pikachu');
+    });
+
+    test('without agreement, offers the pictures as choices and keeps the read for the picker', async () => {
+      serveIds([MEW, PIKACHU_A, PIKACHU_B]);
+      const found = await identifyPocketCrop('crop', noOfflineCards, {
+        recognize: readText('Eevee'),
+        matchPicture: picture('dd-151', 'aa-025', 'bb-058'),
+      });
+      assert.deepEqual(found.candidates, [MEW, PIKACHU_A, PIKACHU_B]);
+      assert.equal(found.query, 'Eevee');
+    });
+
+    test('offline, resolves picture matches from the cards on the device', async () => {
+      globalThis.fetch = (async () => {
+        throw new TypeError('offline');
+      }) as unknown as typeof fetch;
+      const found = await identifyPocketCrop('crop', async () => [PIKACHU_A, MEW], {
+        recognize: readText('Mew 151/165'),
+        matchPicture: picture('zz-001', 'dd-151', 'aa-025'),
+      });
+      assert.deepEqual(found.candidates, [MEW]);
+    });
+  });
 });

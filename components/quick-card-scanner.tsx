@@ -14,7 +14,21 @@ import { mergeCardTextSignals, type CardTextSignals } from '@/lib/card-scan-text
 import { recognizeCardTextSignalsFromImage, warmCardTextReader } from '@/lib/card-scan-ocr';
 import { trackGoogleEvent } from '@/lib/google-analytics';
 import { decideScanOutcome, isScanReadComplete, readScannedCard, type CardScanOutcome } from '@/lib/card-scan-identify';
-import { SCAN_REGIONS, lookupPokemon, searchCards } from '@/lib/card-scan-search';
+import {
+  SCAN_REGIONS,
+  lookupPokemon,
+  pictureMatchOutcome,
+  resolvePictureCandidates,
+  searchCards,
+} from '@/lib/card-scan-search';
+import { decidePictureScan } from '@/lib/card-picture-match';
+import {
+  getPictureScannerLanguages,
+  getPictureScannerStatus,
+  matchCardPicture,
+  warmPictureScanner,
+  type PictureScan,
+} from '@/lib/card-picture-scanner';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 
 import {
@@ -53,6 +67,10 @@ export interface CardScanResult {
   offline: boolean;
   /** Native review candidates, absent from legacy callbacks. */
   candidates?: SearchCardResult[];
+  /** Up to five cards the picture looked like, to tap when the read didn't settle it. */
+  pictureChoices?: SearchCardResult[];
+  /** The picture scanner isn't on this device yet, so only the text was read. */
+  pictureUnavailable?: boolean;
 }
 
 export interface QuickCardScannerProps {
@@ -140,11 +158,19 @@ function QuickCardScannerCamera({
   const [destinationError, setDestinationError] = useState<string | null>(null);
   const busy = phase !== 'idle';
   const camera = useCameraStream(true, videoRef);
+  const [pictureReady, setPictureReady] = useState(true);
+  useEffect(() => {
+    void getPictureScannerStatus().then(
+      (status) => setPictureReady(status.ready),
+      () => setPictureReady(false),
+    );
+  }, []);
 
-  // Fetch the reader while he lines the card up (and so it's cached for offline use later).
+  // Fetch the reader and the picture scanner while the card is lined up (and so they're kept for offline use).
   useEffect(() => {
     if (!isOnline) return;
     void warmCardTextReader();
+    warmPictureScanner();
   }, [isOnline]);
 
   const closeSafely = useCallback(() => {
@@ -188,13 +214,17 @@ function QuickCardScannerCamera({
       setPhase('reading');
       const frames: Array<CardTextSignals | null> = [];
       let readerFailures = 0;
+      let picture: Promise<PictureScan | null> | null = null;
       try {
         for (let index = 0; index < count; index += 1) {
           setFrame(index + 1);
           try {
+            const image = await nextFrame(index);
+            // The picture is matched once, on the first frame, in its own worker while the text is read.
+            picture ??= matchCardPicture(image).catch(() => null);
             frames.push(
               await withTimeout(
-                recognizeCardTextSignalsFromImage(await nextFrame(index), {
+                recognizeCardTextSignalsFromImage(image, {
                   regions: SCAN_REGIONS,
                   isEnough: isScanReadComplete,
                 }),
@@ -211,13 +241,45 @@ function QuickCardScannerCamera({
 
         const scanned = readScannedCard(mergeCardTextSignals(frames));
         setPhase('matching');
+        const pictured = picture ? await picture : null;
+        const readerUnavailable = frames.length === 0 && readerFailures > 0;
+        if (pictured?.matches.length) {
+          const decision = decidePictureScan(
+            await resolvePictureCandidates(pictured.matches, getPictureScannerLanguages(), getOfflineCards),
+            scanned,
+          );
+          const offline = !isOnline;
+          if (decision.kind === 'match') {
+            trackGoogleEvent('card_scanned', { outcome: 'match', offline });
+            onResult({
+              outcome: pictureMatchOutcome(decision.card, scanned),
+              ...(onReadStarted ? { candidates: [decision.card] } : {}),
+              readerUnavailable,
+              offline,
+            });
+            return;
+          }
+          if (decision.candidates.length) {
+            const query = scanned.pokemon?.name ?? scanned.query;
+            trackGoogleEvent('card_scanned', { outcome: 'choose', offline });
+            onResult({
+              outcome: query ? { kind: 'choose', query } : { kind: 'unread', query },
+              ...(onReadStarted ? { candidates: decision.candidates } : {}),
+              pictureChoices: decision.candidates,
+              readerUnavailable,
+              offline,
+            });
+            return;
+          }
+        }
         const { cards, offline } = await searchCards(scanned.query, isOnline, getOfflineCards, !!onReadStarted);
         const outcome = decideScanOutcome(cards, scanned, lookupPokemon);
         trackGoogleEvent('card_scanned', { outcome: outcome.kind, offline });
         onResult({
           outcome,
           ...(onReadStarted ? { candidates: cards } : {}),
-          readerUnavailable: frames.length === 0 && readerFailures > 0,
+          readerUnavailable,
+          pictureUnavailable: !pictured,
           offline,
         });
       } catch (error) {
@@ -336,9 +398,9 @@ function QuickCardScannerCamera({
                         ? 'Looking it up…'
                         : 'Looking it up on this device…'
                       : camera.ready
-                        ? isOnline
-                          ? 'Hold steady, then tap Read card.'
-                          : 'Offline: reads the card and looks it up on this device.'
+                        ? `${isOnline ? 'Hold steady, then tap Read card.' : 'Offline: reads the card and looks it up on this device.'}${
+                            pictureReady ? '' : ' Picture scanner not downloaded, so only the name and number are read.'
+                          }`
                         : '')}
             </p>
             <div className="flex gap-2">
