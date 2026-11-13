@@ -594,7 +594,11 @@ function BinderAppSurface(props: BinderAppProps) {
   const [currentBinderPage, setCurrentBinderPage] = useState(browserSurface?.surface.collection?.state.page ?? 1);
   const [pageNavigation, setPageNavigation] = useState<{ page: number; direction: 'left' | 'right' } | null>(null);
   const pendingBinderPage = pageNavigation?.page ?? null;
-  const [pageInputValue, setPageInputValue] = useState('1');
+  const [pageInputValue, setPageInputValue] = useState(() =>
+    String(browserSurface?.surface.collection?.state.page ?? 1),
+  );
+  // The page the input and pending navigation were last reset for.
+  const [pageInputPage, setPageInputPage] = useState(() => browserSurface?.surface.collection?.state.page ?? 1);
   const [collectionViewFilter, setCollectionViewFilter] = useState<CollectionViewFilter>('all');
   const [isMobileNavExpanded, setIsMobileNavExpanded] = useState(false);
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false);
@@ -671,7 +675,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const quickPanelRef = useRef<HTMLDivElement | null>(null);
   const binderStageRef = useRef<HTMLDivElement | null>(null);
   const binderPageRef = useRef<HTMLDivElement | null>(null);
-  const slotButtonRefs = useRef(new Map<number, HTMLButtonElement>());
+  const [slotButtons] = useState(() => new Map<number, HTMLButtonElement>());
   const shellNavRef = useRef<HTMLElement | null>(null);
   const motionSensorsEnabledRef = useRef(false);
   const hasAutoRequestedMotionPermissionRef = useRef(false);
@@ -1090,6 +1094,15 @@ function BinderAppSurface(props: BinderAppProps) {
     }
   }, [motionGlintEffectsEnabled]);
 
+  const requestMotionFromGesture = useEffectEvent(() => {
+    if (hasAutoRequestedMotionPermissionRef.current) {
+      return;
+    }
+
+    hasAutoRequestedMotionPermissionRef.current = true;
+    void handleRequestMotionGlint();
+  });
+
   useEffect(() => {
     if (
       typeof window === 'undefined' ||
@@ -1110,23 +1123,16 @@ function BinderAppSurface(props: BinderAppProps) {
       return;
     }
 
-    const requestFromGesture = () => {
-      if (hasAutoRequestedMotionPermissionRef.current) {
-        return;
-      }
-
-      hasAutoRequestedMotionPermissionRef.current = true;
-      void handleRequestMotionGlint();
-    };
+    const requestFromGesture = () => requestMotionFromGesture();
 
     window.addEventListener('click', requestFromGesture, { capture: true, once: true });
-    window.addEventListener('touchend', requestFromGesture, { capture: true, once: true });
+    window.addEventListener('touchend', requestFromGesture, { capture: true, once: true, passive: true });
 
     return () => {
       window.removeEventListener('click', requestFromGesture, true);
       window.removeEventListener('touchend', requestFromGesture, true);
     };
-  }, [handleRequestMotionGlint, motionGlintStatus, motionGlintEffectsEnabled]);
+  }, [motionGlintStatus, motionGlintEffectsEnabled]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -1475,10 +1481,12 @@ function BinderAppSurface(props: BinderAppProps) {
     window.history.replaceState(window.history.state, '', url);
   }, [localBrowserHost, browserSurface, currentBinderPage]);
 
-  useEffect(() => {
+  // A new current page resets the page input and ends any pending page navigation.
+  if (pageInputPage !== currentBinderPage) {
+    setPageInputPage(currentBinderPage);
     setPageInputValue(String(currentBinderPage));
     setPageNavigation(null);
-  }, [currentBinderPage]);
+  }
 
   const orderedDisplayPages = useMemo(
     () =>
@@ -1562,9 +1570,9 @@ function BinderAppSurface(props: BinderAppProps) {
     queueMicrotask(() => {
       setLayoutSession(null);
       setPocketMenu(null);
-      closeSlotDetail();
+      setSelectedSlotId(null);
     });
-  }, [layoutScopeKey, layoutPlace, closeSlotDetail]);
+  }, [layoutScopeKey, layoutPlace]);
   const layoutBoundary =
     canEditLayout && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent
       ? {
@@ -1640,10 +1648,9 @@ function BinderAppSurface(props: BinderAppProps) {
     queueMicrotask(() => {
       const pending = pendingPublicSlotRef.current;
       pendingPublicSlotRef.current = null;
-      if (pending) setSelectedSlotId(pending);
-      else closeSlotDetail();
+      setSelectedSlotId(pending || null);
     });
-  }, [currentBinderPage, binderDimension, activeMainView, collectionViewFilter, selectedGen, closeSlotDetail]);
+  }, [currentBinderPage, binderDimension, activeMainView, collectionViewFilter, selectedGen]);
   // The next start's skeleton shows this binder's grid. Only an owner's binder on screen counts.
   const binderGridShown =
     !shareViewToken &&
@@ -1979,11 +1986,8 @@ function BinderAppSurface(props: BinderAppProps) {
     () => buildWantedDashboardSummary(wantedCardEntries, pricesByCardId),
     [pricesByCardId, wantedCardEntries],
   );
-  useEffect(() => {
-    if (!hasTrackedCards && isPriceMode) {
-      setIsPriceMode(false);
-    }
-  }, [hasTrackedCards, isPriceMode]);
+  // Price mode needs tracked cards; losing the last one turns it off.
+  if (!hasTrackedCards && isPriceMode) setIsPriceMode(false);
 
   const neededPokemonList = useMemo(
     () => generationFilteredPokemonList.filter((pokemon) => !isCollected(pokemon.id)),
@@ -2729,28 +2733,28 @@ function BinderAppSurface(props: BinderAppProps) {
     handleJumpBetweenTargets('prev');
   }, [handleJumpBetweenTargets]);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (isSearchOpen) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
+  const onJumpKey = useEffectEvent((event: KeyboardEvent) => {
+    if (isSearchOpen) return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
 
-      const target = event.target as HTMLElement | null;
-      if (target?.isContentEditable) return;
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.isContentEditable) return;
+    if (target && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)) return;
 
-      if (event.key.toLowerCase() === 'n') {
-        event.preventDefault();
-        if (event.shiftKey) {
-          handleJumpToPreviousNeeded();
-        } else {
-          handleJumpToNextNeeded();
-        }
+    if (event.key.toLowerCase() === 'n') {
+      event.preventDefault();
+      if (event.shiftKey) {
+        handleJumpToPreviousNeeded();
+      } else {
+        handleJumpToNextNeeded();
       }
-    };
-
+    }
+  });
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => onJumpKey(event);
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleJumpToNextNeeded, handleJumpToPreviousNeeded, isSearchOpen]);
+  }, []);
 
   const handleSlotClick = (pokemon: { id: number; name: string }) => {
     if (isSwiping || didSwipe()) return;
@@ -3188,14 +3192,17 @@ function BinderAppSurface(props: BinderAppProps) {
   const selectedCollectedDateLabel =
     collectionItem?.status !== 'wishlisted' ? formatCollectedDate(collectionItem?.collected_at) : null;
 
-  const registerSlotButtonRef = useCallback((pokemonId: number, node: HTMLButtonElement | null) => {
-    if (node) {
-      slotButtonRefs.current.set(pokemonId, node);
-      return;
-    }
+  const registerSlotButtonRef = useCallback(
+    (pokemonId: number, node: HTMLButtonElement | null) => {
+      if (node) {
+        slotButtons.set(pokemonId, node);
+        return;
+      }
 
-    slotButtonRefs.current.delete(pokemonId);
-  }, []);
+      slotButtons.delete(pokemonId);
+    },
+    [slotButtons],
+  );
 
   const updateQuickPanelPosition = useCallback(() => {
     if (typeof window === 'undefined' || !selectedPokemon || isSearchOpen) {
@@ -3208,7 +3215,7 @@ function BinderAppSurface(props: BinderAppProps) {
       return;
     }
 
-    const slotButton = slotButtonRefs.current.get(selectedPokemon.id);
+    const slotButton = slotButtons.get(selectedPokemon.id);
     const quickPanelNode = quickPanelRef.current;
 
     if (!slotButton || !quickPanelNode) {
@@ -3254,7 +3261,8 @@ function BinderAppSurface(props: BinderAppProps) {
 
       return { top, left, maxHeight };
     });
-  }, [isDesktopViewport, isSearchOpen, selectedPokemon]);
+  }, [isDesktopViewport, isSearchOpen, selectedPokemon, slotButtons]);
+  const layoutQuickPanel = useEffectEvent(() => updateQuickPanelPosition());
 
   useEffect(() => {
     if (!selectedPokemon || isSearchOpen || typeof window === 'undefined') {
@@ -3267,32 +3275,30 @@ function BinderAppSurface(props: BinderAppProps) {
       return;
     }
 
-    const frame = window.requestAnimationFrame(() => {
-      updateQuickPanelPosition();
-    });
+    const update = () => layoutQuickPanel();
+    const frame = window.requestAnimationFrame(update);
 
-    const observer = new ResizeObserver(updateQuickPanelPosition);
+    const observer = new ResizeObserver(update);
     if (quickPanelRef.current) observer.observe(quickPanelRef.current);
-    window.addEventListener('resize', updateQuickPanelPosition, { passive: true });
-    window.addEventListener('scroll', updateQuickPanelPosition, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
+    window.addEventListener('scroll', update, { passive: true });
 
     return () => {
       window.cancelAnimationFrame(frame);
       observer.disconnect();
-      window.removeEventListener('resize', updateQuickPanelPosition);
-      window.removeEventListener('scroll', updateQuickPanelPosition);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update);
     };
   }, [
     collectionItem?.card_name,
     collected,
     isDesktopViewport,
     isSearchOpen,
-    selectedPokemon?.id,
+    selectedPokemon,
     selectedCurrentCardPreview?.cardId,
     selectedHasWantedCard,
     selectedPokemonHasAssignedCard,
     selectedPokemonIsFavorite,
-    updateQuickPanelPosition,
     wishlisted,
   ]);
 
@@ -3544,9 +3550,11 @@ function BinderAppSurface(props: BinderAppProps) {
         item.identity.kind === 'card' ? [{ card_id: item.identity.cardId, status: 'collected' }] : [],
       ),
       ...snapshot.binders.flatMap((binder) =>
-        binder.slots
-          .filter((slot) => slot.wantedCards.length > 0)
-          .map((slot) => ({ wanted_cards: slot.wantedCards.map((want) => ({ card_id: want.card_id })) })),
+        binder.slots.flatMap((slot) =>
+          slot.wantedCards.length > 0
+            ? [{ wanted_cards: slot.wantedCards.map((want) => ({ card_id: want.card_id })) }]
+            : [],
+        ),
       ),
     ];
   }, [illustratorBrowser, nativeRead, collection]);
@@ -3851,31 +3859,32 @@ function BinderAppSurface(props: BinderAppProps) {
       setSelectedPokemon,
     });
 
+  const onPageKey = useEffectEvent((e: KeyboardEvent) => {
+    if (isSearchOpen) return;
+    if (e.key === 'ArrowLeft') {
+      if (isSpreadLayout) {
+        goToPrevSpread();
+      } else {
+        goToPrevPage();
+      }
+    }
+    if (e.key === 'ArrowRight') {
+      if (isSpreadLayout) {
+        goToNextSpread();
+      } else {
+        goToNextPage();
+      }
+    }
+    if (e.key === 'Escape') {
+      setSelectedPokemon(null);
+      setLongPressedPokemon(null);
+    }
+  });
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isSearchOpen) return;
-      if (e.key === 'ArrowLeft') {
-        if (isSpreadLayout) {
-          goToPrevSpread();
-        } else {
-          goToPrevPage();
-        }
-      }
-      if (e.key === 'ArrowRight') {
-        if (isSpreadLayout) {
-          goToNextSpread();
-        } else {
-          goToNextPage();
-        }
-      }
-      if (e.key === 'Escape') {
-        setSelectedPokemon(null);
-        setLongPressedPokemon(null);
-      }
-    };
+    const handleKeyDown = (e: KeyboardEvent) => onPageKey(e);
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, isSearchOpen, isSpreadLayout]);
+  }, []);
 
   useEffect(() => {
     if (!longPressedPokemon || !isDesktopViewport) return;
