@@ -152,6 +152,17 @@ function validateScope(scope: SlotOfflineScope) {
   )
     fail('invalid-scope');
 }
+/** The server refused this change outright, so retrying can't save it: only discarding it clears the queue.
+ * A 401 or 403 is a sign-in problem instead, which signing in again and retrying can fix. Creations and restores keep
+ * their own proof-backed discard paths. */
+export function blockedDiscardable(p: Pick<PendingSlotIntent, 'status' | 'conflict' | 'intent'>) {
+  return (
+    p.status === 'blocked' &&
+    (p.intent.kind === 'inventory' || p.intent.kind === 'slots') &&
+    /^http-4\d\d$/.test(p.conflict?.reason ?? '') &&
+    !['http-401', 'http-403'].includes(p.conflict!.reason)
+  );
+}
 export function offlineScopeKey(scope: SlotOfflineScope) {
   validateScope(scope);
   return `slot-intent:v1:${JSON.stringify([scope.deviceId, scope.workspaceId, scope.accountId, scope.ownerUserId])}`;
@@ -1404,6 +1415,43 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           /* The retained proof and original intent remain reviewable after a later fresh read. */
         }
       }
+    },
+    /** Explicitly drop a change the server refused outright (a 4xx other than a sign-in problem), which no retry can
+     * save. Changes queued behind it were planned on top of it, so they go with it, as with keep-remote. */
+    async discardBlocked(
+      operationId: string,
+      readCurrent: () => Promise<unknown>,
+      activeScope: () => SlotOfflineScope | null,
+    ) {
+      const active = () => sameValue(activeScope(), scope);
+      const fence = captureCompleteInventoryReadFence();
+      const fresh = await readCurrent();
+      const raw =
+        fresh && typeof fresh === 'object' && 'snapshot' in fresh && 'navigation' in fresh ? fresh.snapshot : fresh;
+      if (!active() || !isCompleteInventoryReadAfter(raw, fence)) fail('fresh-scoped-read-required');
+      const current = scopedSnapshot(raw, scope);
+      await update((record) => {
+        const p = record.pending[0];
+        if (
+          !active() ||
+          !p ||
+          p.lease ||
+          !blockedDiscardable(p) ||
+          p.intent.request.operationId !== operationId ||
+          record.pending.some((later) => later.lease || later.status === 'acknowledged')
+        )
+          fail('reconciliation-required');
+        if (current.inventoryRevision < record.snapshot!.inventoryRevision) fail('stale-snapshot');
+        for (const dropped of record.pending)
+          record.receipts.push({
+            operationId: dropped.intent.request.operationId,
+            intent: dropped.intent,
+            outcome: 'cancelled',
+          });
+        record.pending = [];
+        record.snapshot = current;
+        record.optimistic = current;
+      });
     },
     /** A human decision can retain remote state or supply a newly reviewed full intent.
      * Unknown outcomes cannot be cancelled or rewritten until their original ID is resolved. */

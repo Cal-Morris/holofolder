@@ -41,6 +41,7 @@ import type { SlotDisplayInput } from '@/lib/binder-display-model';
 import type { SlotCommandSink } from '@/lib/binder-slot-editing';
 import { isSlotContractId } from '@/lib/domain/binder-slots';
 import { sendStorageCommand } from '@/lib/collection/storage-command-browser';
+import { blockedDiscardable } from '@/lib/collection/slot-offline-queue';
 import type { NativePageScanAdmission } from '@/components/native-page-scanner';
 import type { ScanDestinationAdmission } from '@/lib/scan-destinations';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
@@ -615,6 +616,38 @@ function ScopedBrowserSession({
             ? "Couldn't discard that just now. Check your connection and try again."
             : "That change can't be applied on top of the newer changes. You can keep your collection as it is, then make the change again.",
         );
+    } finally {
+      refreshing.current--;
+    }
+  };
+  const discardBlocked = async () => {
+    const q = latest.current.queue.queue,
+      head = (await q?.read())?.pending[0];
+    if (!q || !head || !blockedDiscardable(head) || !valid() || sending.current) return;
+    refreshing.current++;
+    try {
+      await q.discardBlocked(
+        head.intent.request.operationId,
+        async () => {
+          const fresh = await readCurrentCollectionNavigation(
+            () => (valid() ? latest.current.currentScope() : null),
+            localHarness,
+          );
+          if (!valid() || fresh.evidence.kind !== 'complete') throw new Error('fresh-scoped-read-required');
+          setRead(fresh);
+          return fresh.evidence.snapshot;
+        },
+        () =>
+          valid()
+            ? { deviceId, workspaceId: 'holofolder', accountId: scope.actorUserId, ownerUserId: scope.ownerUserId }
+            : null,
+      );
+      if (valid()) {
+        await latest.current.queue.refresh();
+        setNotice('That change was discarded. Your collection is as it was.');
+      }
+    } catch {
+      if (valid()) setNotice("Couldn't discard that just now. Check your connection and try again.");
     } finally {
       refreshing.current--;
     }
@@ -1285,11 +1318,25 @@ function ScopedBrowserSession({
                             ? 'Your collection changed somewhere else, so your latest change is on hold. Nothing is lost.'
                             : head.status === 'billing'
                               ? 'Syncing is paused until your plan is active again. Your change is saved on this device.'
-                              : "Syncing is paused. Your change is saved on this device. Check you're signed in to the right account."}
+                              : blockedDiscardable(head)
+                                ? "This change couldn't be saved. Discard it, then make it again."
+                                : "Syncing is paused. Your change is saved on this device. Check you're signed in to the right account."}
                           {/* A paused change is never sent again by itself: it waits for this, with the same request as before. */}
                           <button type="button" className="ml-2 min-h-9 underline" onClick={retryWaiting}>
                             Try again
                           </button>
+                          {blockedDiscardable(head) && (
+                            <button
+                              type="button"
+                              className="ml-2 min-h-9 underline"
+                              disabled={!online}
+                              onClick={() => void discardBlocked()}
+                            >
+                              {queue.record!.pending.length > 1
+                                ? `Discard it and ${queue.record!.pending.length - 1} later change${queue.record!.pending.length > 2 ? 's' : ''}`
+                                : 'Discard'}
+                            </button>
+                          )}
                         </p>
                       )}
                       {head?.intent.kind === 'raw-restore' &&

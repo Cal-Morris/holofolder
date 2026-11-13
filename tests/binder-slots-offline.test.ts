@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createMemoryStore } from '@/lib/offline-store/kv';
-import { createSlotOfflineQueue, offlineScopeKey } from '@/lib/collection/slot-offline-queue';
+import { blockedDiscardable, createSlotOfflineQueue, offlineScopeKey } from '@/lib/collection/slot-offline-queue';
 import { readCompleteInventorySnapshot } from '@/lib/collection/slot-snapshot';
 import { projectSlotIntent } from '@/lib/collection/slot-optimistic';
 import type { InventorySnapshot } from '@/lib/domain/inventory';
@@ -431,6 +431,49 @@ describe('staged durable slot intent', () => {
       );
       assert.deepEqual((await q.read()).pending[0].intent, intent());
       await assert.rejects(q.reconcile('operation-one', { kind: 'keep-remote' }, catalog), /reconciliation/);
+    }
+  });
+  test('a change the server refused can be discarded with what was queued on it; a sign-in block cannot', async () => {
+    for (const status of [400, 422, 401, 403]) {
+      const q = createSlotOfflineQueue(createMemoryStore(), scope);
+      await q.saveSnapshot(await complete(snapshot()));
+      const next = intent('operation-two');
+      next.request.inventoryRevision = 2;
+      next.request.collectionVersion = 2;
+      next.request.layoutRevision = 2;
+      next.request.commands = [{ kind: 'create', ids: ['new-slot'], beforeSlotId: null }];
+      await q.enqueue(intent(), catalog);
+      await q.enqueue(next, catalog);
+      await q.replay(
+        async () => ({ status }),
+        () => scope,
+        0,
+      );
+      const head = (await q.read()).pending[0];
+      assert.equal(head.status, 'blocked');
+      const discardable = status !== 401 && status !== 403;
+      assert.equal(blockedDiscardable(head), discardable);
+      const discard = q.discardBlocked(
+        'operation-one',
+        () => complete(snapshot()),
+        () => scope,
+      );
+      if (!discardable) {
+        await assert.rejects(discard, /reconciliation/);
+        assert.equal((await q.read()).pending.length, 2);
+        continue;
+      }
+      await discard;
+      const record = await q.read();
+      assert.equal(record.pending.length, 0);
+      assert.deepEqual(
+        record.receipts.map((r) => [r.operationId, r.outcome]),
+        [
+          ['operation-one', 'cancelled'],
+          ['operation-two', 'cancelled'],
+        ],
+      );
+      assert.deepEqual(record.optimistic, record.snapshot);
     }
   });
   test('non-overlapping target edit may explicitly rebase, retaining original provenance and rejected request', async () => {
