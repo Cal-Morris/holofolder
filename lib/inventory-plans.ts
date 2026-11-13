@@ -71,6 +71,7 @@ export type InventoryPlan =
 type Prepared = Extract<InventoryPlan, { ok: true }>;
 const fail = (error: InventoryPlanError): Extract<InventoryPlan, { ok: false }> => ({ ok: false, error });
 const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const MOVE_OCCUPIED = new Set<unknown>(['cancel', 'unassign', 'swap']);
 
 function prepare(snapshot: InventorySnapshot, input: InventoryPlanInput): InventoryPlan {
   const copy = normalizeInventorySnapshot(snapshot);
@@ -358,21 +359,22 @@ export function previewInventoryMoves(
     seenItems = new Set<string>();
   const pairings: Extract<InventoryMovePreview, { ok: true }>['pairings'] = [];
   let affected = 0;
+  // `prepare` hands back a normalized copy with unique ids, and the loop only reads it.
+  const slotsByCollection = new Map(
+    prepared.snapshot.binders.map((b) => [b.collectionId, new Map(b.slots.map((s) => [s.id, s]))]),
+  );
+  const items = new Map(prepared.snapshot.items.map((i) => [i.id, i]));
+  const placements = new Map(prepared.snapshot.placements.map((p) => [p.inventoryItemId, p]));
   for (const move of input.moves) {
-    if (!['cancel', 'unassign', 'swap'].includes(move.occupied) || move.source.slotId === move.destination.slotId)
-      return { ok: false, error: 'invalid-batch' };
-    const destination = prepared.snapshot.binders
-      .find((b) => b.collectionId === move.destination.collectionId)
-      ?.slots.find((s) => s.id === move.destination.slotId);
+    const { occupied, source: from, destination: to } = move;
+    if (!MOVE_OCCUPIED.has(occupied) || from.slotId === to.slotId) return { ok: false, error: 'invalid-batch' };
+    const destination = slotsByCollection.get(to.collectionId)?.get(to.slotId);
     if (!destination) return fail('invalid-destination');
     const displaced = destination.inventoryItemId;
-    if (displaced !== null && move.occupied === 'cancel') return { ok: false, error: 'destination-occupied' };
-    if (displaced === null && move.occupied === 'swap') return { ok: false, error: 'invalid-batch' };
+    if (displaced !== null && occupied === 'cancel') return { ok: false, error: 'destination-occupied' };
+    if (displaced === null && occupied === 'swap') return { ok: false, error: 'invalid-batch' };
     const itemIds = [move.inventoryItemId, ...(displaced === null ? [] : [displaced])];
-    if (
-      itemIds.some((id) => seenItems.has(id)) ||
-      [move.source.slotId, move.destination.slotId].some((id) => seenSlots.has(id))
-    )
+    if (itemIds.some((id) => seenItems.has(id)) || [from.slotId, to.slotId].some((id) => seenSlots.has(id)))
       return { ok: false, error: 'invalid-batch' };
     affected += 2 + itemIds.length;
     if (affected > 256) return { ok: false, error: 'invalid-batch' };
@@ -382,9 +384,9 @@ export function previewInventoryMoves(
       resolveCatalog,
     );
     if (!forward.ok) return forward;
-    if (move.occupied === 'swap' && displaced !== null) {
-      const item = prepared.snapshot.items.find((i) => i.id === displaced)!;
-      const placement = prepared.snapshot.placements.find((p) => p.inventoryItemId === displaced)!;
+    if (occupied === 'swap' && displaced !== null) {
+      const item = items.get(displaced)!;
+      const placement = placements.get(displaced)!;
       const reverse = planMoveInventory(
         prepared.snapshot,
         {
@@ -393,22 +395,22 @@ export function previewInventoryMoves(
           inventoryItemId: displaced,
           itemVersion: item.version,
           placementVersion: placement.version,
-          source: move.destination,
-          destination: move.source,
+          source: to,
+          destination: from,
         },
         resolveCatalog,
       );
       if (!reverse.ok) return reverse;
     }
     itemIds.forEach((id) => seenItems.add(id));
-    seenSlots.add(move.source.slotId);
-    seenSlots.add(move.destination.slotId);
+    seenSlots.add(from.slotId);
+    seenSlots.add(to.slotId);
     pairings.push({
       inventoryItemId: move.inventoryItemId,
-      sourceSlotId: move.source.slotId,
-      destinationSlotId: move.destination.slotId,
+      sourceSlotId: from.slotId,
+      destinationSlotId: to.slotId,
       displacedInventoryItemId: displaced,
-      occupied: move.occupied,
+      occupied: occupied,
     });
   }
   return { ok: true, pairings };
