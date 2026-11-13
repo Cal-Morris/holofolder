@@ -1,7 +1,12 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { InventorySnapshot } from '@/lib/domain/inventory';
-import { pageSuggestionSeeds, rankPageSuggestions, type SuggestionTraits } from '@/lib/page-card-suggestions';
+import {
+  pageSuggestionSeeds,
+  rankPageSuggestions,
+  rankVisualSuggestions,
+  type SuggestionTraits,
+} from '@/lib/page-card-suggestions';
 
 // Synthetic fixtures: ids and traits are made up, not real catalog data.
 const card = (id: string, traits: Partial<SuggestionTraits> = {}): SuggestionTraits => ({
@@ -77,5 +82,22 @@ describe('pageSuggestionSeeds', () => {
   test('an empty page has nothing to suggest from', () => {
     assert.equal(pageSuggestionSeeds(snapshot, 'b1', 's3', 1), null);
     assert.equal(pageSuggestionSeeds(snapshot, 'b1', 'missing', 4), null);
+  });
+});
+
+describe('rankVisualSuggestions', () => {
+  test('a card that looks like several page cards beats the single closest match, and page cards are left out', () => {
+    const ranked = rankVisualSuggestions(
+      [
+        [
+          { cardId: 'close-to-one', similarity: 0.95 },
+          { cardId: 'like-both', similarity: 0.6 },
+          { cardId: 'page-b', similarity: 0.9 },
+        ],
+        [{ cardId: 'like-both', similarity: 0.6 }],
+      ],
+      ['page-a', 'page-b'],
+    );
+    assert.deepEqual(ranked, ['like-both', 'close-to-one']);
   });
 });

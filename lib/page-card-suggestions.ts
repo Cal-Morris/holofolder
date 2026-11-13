@@ -63,3 +63,19 @@ export function rankPageSuggestions<T extends SuggestionTraits>(
     .slice(0, limit)
     .map((s) => s.card);
 }
+
+/**
+ * Picture neighbour lists (one per page card) as card ids, most similar first: a card's similarities add up across the
+ * lists, so one that looks like several page cards beats one that looks like a single card. Page cards are left out.
+ */
+export function rankVisualSuggestions(
+  lists: ReadonlyArray<ReadonlyArray<{ cardId: string; similarity: number }>>,
+  pageCardIds: readonly string[],
+): string[] {
+  const page = new Set(pageCardIds);
+  const scores = new Map<string, number>();
+  for (const list of lists)
+    for (const { cardId, similarity } of list)
+      if (!page.has(cardId)) scores.set(cardId, (scores.get(cardId) ?? 0) + similarity);
+  return [...scores].toSorted((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([id]) => id);
+}
