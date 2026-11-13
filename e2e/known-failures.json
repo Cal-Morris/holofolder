@@ -1033,15 +1033,6 @@
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
-      "file": "binder-collection-filter.e2e.ts",
-      "title": [
-        "binder filter bar shows owned, wanted and missing pockets and resets per binder"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('group', { name: 'Show pockets', exact: true }).getByRole('button', { name: 'All', exact: true })"
-    },
-    {
       "file": "binder-creation.e2e.ts",
       "title": [
         "actual creation rejects auth spoof without discard"
