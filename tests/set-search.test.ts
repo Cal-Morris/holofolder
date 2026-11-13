@@ -83,3 +83,22 @@ test('year lookup returns every release in that year, newest first, with no thre
   assert.deepEqual(rankSetMatches(releases, '2016'), []);
   assert.equal(rankSetMatches(releases, '2017', 2).length, 2);
 });
+
+// Synthetic sets: a year narrowed by a set code, a set name or a series name.
+test('a year with a set or series name keeps only that year’s matching releases', () => {
+  const dated: TCGSetSummary[] = [
+    { id: 'zz9', name: 'Fixture Siege', seriesName: 'Zed Zone', releaseDate: '2016-08-03' },
+    { id: 'zz8', name: 'Fixture Fates', seriesName: 'Zed Zone', releaseDate: '2016-05-02' },
+    { id: 'zz7', name: 'Fixture Roar', seriesName: 'Zed Zone', releaseDate: '2015-11-04' },
+    { id: 'sm1', name: 'Fixture Sun', seriesName: 'Sun & Moon', releaseDate: '2017-02-03' },
+    { id: 'other', name: 'Other Fixture', seriesName: 'Other', releaseDate: '2016-01-01' },
+  ];
+  const ids = (query: string) => rankSetMatches(dated, query).map((set) => set.id);
+  assert.deepEqual(ids('zz 2016'), ['zz9', 'zz8']);
+  assert.deepEqual(ids('2016 zz'), ['zz9', 'zz8']);
+  assert.deepEqual(ids('zed zone 2016'), ['zz9', 'zz8']);
+  assert.deepEqual(ids('sun moon 2017'), ['sm1']);
+  assert.deepEqual(ids('siege 2016'), ['zz9']);
+  assert.deepEqual(ids('2016'), ['zz9', 'zz8', 'other']);
+  assert.deepEqual(ids('zz 2014'), []);
+});

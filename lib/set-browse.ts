@@ -1,4 +1,4 @@
-import { isSetYearQuery } from '@/lib/set-search';
+import { matchesSetYearQuery, parseSetYearQuery } from '@/lib/set-search';
 import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
 import type { CardLanguage } from '@/lib/domain/cards';
 import type { TCGSetSummary } from '@/lib/tcg-set-slots';
@@ -49,14 +49,15 @@ export function filterSetGroups(
   { series, query }: { series: string | null; query: string },
 ) {
   const text = resolveSetSearchAlias(query);
+  const year = parseSetYearQuery(query);
   return groupSetsBySeries(sets)
     .filter((group) => !series || group.series === series)
     .map((group) => ({
       ...group,
       sets: text
         ? group.sets.filter((set) =>
-            isSetYearQuery(text)
-              ? set.releaseDate?.startsWith(`${text}-`)
+            year
+              ? matchesSetYearQuery(set, year)
               : [set.name, set.id, group.series].some((value) => value.toLowerCase().includes(text)),
           )
         : group.sets,

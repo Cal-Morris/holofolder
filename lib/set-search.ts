@@ -19,8 +19,36 @@ export function isSetSearchQuery(query: string) {
   return normalize(query).length >= 2;
 }
 
+/** "2016", "xy 2016" or "2016 xy": a release year, optionally narrowed by a set or series name. */
+export function parseSetYearQuery(query: string): { year: string; text: string } | null {
+  const trimmed = normalize(query);
+  const match = /^(?:(.+?) )?((?:19|20)\d{2})$/.exec(trimmed) ?? /^((?:19|20)\d{2}) (.+)$/.exec(trimmed);
+  if (!match) return null;
+  return /^(?:19|20)\d{2}$/.test(match[2])
+    ? { year: match[2], text: match[1] ?? '' }
+    : { year: match[1], text: match[2] };
+}
+
 export function isSetYearQuery(query: string) {
-  return /^(19|20)\d{2}$/.test(query.trim());
+  return parseSetYearQuery(query) !== null;
+}
+
+const words = (value: string) =>
+  normalize(value)
+    .replace(/[^\p{L}\p{N} ]/gu, ' ')
+    .replace(/ +/g, ' ')
+    .trim();
+
+/** Whether a set released in the query's year, and (with text) the set or its series matches that text. */
+export function matchesSetYearQuery(set: TCGSetSummary, query: { year: string; text: string }) {
+  if (!set.releaseDate?.startsWith(`${query.year}-`)) return false;
+  if (!query.text) return true;
+  const code = normalize(resolveSetSearchAlias(query.text));
+  return (
+    matchScore(set, query.text) > 0 ||
+    (code !== query.text && matchScore(set, code) > 0) ||
+    (Boolean(set.seriesName) && ` ${words(set.seriesName!)} `.includes(` ${words(query.text)}`))
+  );
 }
 
 function matchScore(set: TCGSetSummary, needle: string) {
@@ -46,7 +74,7 @@ export function rankSetMatches(
 ): TCGSetSummary[] {
   const needle = normalize(query);
   const code = normalize(resolveSetSearchAlias(query));
-  const year = isSetYearQuery(needle);
+  const year = parseSetYearQuery(needle);
   if (needle.length < 2) return [];
   const seen = new Set<string>();
   const scored: Array<{ set: TCGSetSummary; score: number; index: number }> = [];
@@ -54,9 +82,7 @@ export function rankSetMatches(
     if (!set?.id || !set.name || seen.has(set.id)) return;
     // A printed code ("MEW") ranks its set first without hiding sets whose names start with the same letters.
     const score = year
-      ? set.releaseDate?.startsWith(`${needle}-`)
-        ? 1
-        : 0
+      ? Number(matchesSetYearQuery(set, year))
       : Math.max(matchScore(set, needle), code === needle ? 0 : matchScore(set, code));
     if (!score) return;
     seen.add(set.id);
