@@ -26,6 +26,12 @@ export const SCAN_REGIONS = ['name', 'number-left', 'number-right', 'bottom'] as
 const MAX_POCKET_CHOICES = 6;
 /** A pocket still unread by now (reader download or search stuck on dead Wi-Fi) is left for you to choose. */
 const POCKET_READ_TIMEOUT_MS = 30_000;
+/**
+ * Pockets read at once. The text reader and the picture worker each take one crop at a time, so reading every pocket
+ * at once left later pockets queued behind the others while their 30-second limit ran, and a full page could time out
+ * pockets that were never stuck. Two at a time keeps the limit about each pocket's own read.
+ */
+export const POCKET_READ_CONCURRENCY = 2;
 
 export function lookupPokemon(id: number) {
   const entry = getPokemonById(id);

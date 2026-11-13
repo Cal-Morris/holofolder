@@ -42,6 +42,8 @@ import type { SlotCommandSink } from '@/lib/binder-slot-editing';
 import { isSlotContractId } from '@/lib/domain/binder-slots';
 import { sendStorageCommand } from '@/lib/collection/storage-command-browser';
 import { blockedDiscardable } from '@/lib/collection/slot-offline-queue';
+import { IDLE_QUEUE_DISCARD, queueDiscardTransition, queueHeadNotice } from '@/lib/collection/queue-head-notice';
+import { useMachine } from '@/hooks/use-machine';
 import type { NativePageScanAdmission } from '@/components/native-page-scanner';
 import type { ScanDestinationAdmission } from '@/lib/scan-destinations';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
@@ -240,6 +242,7 @@ function ScopedBrowserSession({
   const setupPending = useRef(false);
   const [ready, setReady] = useState(false);
   const [online, setOnline] = useState(true);
+  const [discard, sendDiscard] = useMachine(queueDiscardTransition, IDLE_QUEUE_DISCARD);
   const alive = useRef(false),
     sequence = useRef(0),
     refreshing = useRef(0),
@@ -620,14 +623,31 @@ function ScopedBrowserSession({
       refreshing.current--;
     }
   };
-  const discardBlocked = async () => {
+  const discardBlocked = async (operationId: string) => {
+    // One discard at a time: a second tap is turned away here, before anything is read.
+    if (!sendDiscard({ type: 'discard', operationId })) return;
+    try {
+      await discardRefused(operationId);
+    } finally {
+      sendDiscard({ type: 'settled' });
+    }
+  };
+  const discardRefused = async (operationId: string) => {
     const q = latest.current.queue.queue,
       head = (await q?.read())?.pending[0];
-    if (!q || !head || !blockedDiscardable(head) || !valid() || sending.current) return;
+    if (
+      !q ||
+      !head ||
+      head.intent.request.operationId !== operationId ||
+      !blockedDiscardable(head) ||
+      !valid() ||
+      sending.current
+    )
+      return;
     refreshing.current++;
     try {
       await q.discardBlocked(
-        head.intent.request.operationId,
+        operationId,
         async () => {
           const fresh = await readCurrentCollectionNavigation(
             () => (valid() ? latest.current.currentScope() : null),
@@ -1200,9 +1220,10 @@ function ScopedBrowserSession({
           const display = snapshot && binder && layout ? slotDisplay(snapshot, binder) : undefined;
           const head = queue.record?.pending[0];
           // The first change that has not been accepted yet. Accepted ones ahead of it are already saved.
-          const waiting = queue.record?.pending.find((p) => p.status !== 'acknowledged');
+          const headNotice = queueHeadNotice(queue.record?.pending, online);
           // Sends that change again as the exact request it already is: same bytes, same operation ID.
           const retryWaiting = () => {
+            if (discard.kind !== 'idle') return;
             const current = latest.current.queue.record?.pending.find((p) => p.status !== 'acknowledged');
             if (!current || !valid()) return;
             void latest.current.queue.queue
@@ -1295,49 +1316,52 @@ function ScopedBrowserSession({
                       )}
                       {/* A change that is on its way needs no line. Only say something when it is waiting on something. */}
                       {/* An accepted change is saved: it stays queued only until a read covers it, and needs no line either. */}
-                      {waiting &&
-                        !waiting.conflict?.rejected &&
-                        !['conflict', 'blocked', 'billing'].includes(waiting.status) &&
-                        (!online ? (
-                          <p role="status" data-sync-state="offline" className="text-muted-foreground px-4 text-sm">
-                            Saved on this device. It&apos;ll sync when you&apos;re back online.
-                          </p>
-                        ) : (
-                          waiting.status === 'unavailable' && (
-                            <p role="status" data-sync-state="retrying" className="text-muted-foreground px-4 text-sm">
-                              Couldn&apos;t save your latest change yet. Trying again…
-                              <button type="button" className="ml-2 min-h-9 underline" onClick={retryWaiting}>
-                                Try now
-                              </button>
-                            </p>
-                          )
-                        ))}
-                      {head && ['conflict', 'blocked', 'billing'].includes(head.status) && !head.conflict?.rejected && (
-                        <p role="status" className="px-4 text-sm">
-                          {head.status === 'conflict'
-                            ? 'Your collection changed somewhere else, so your latest change is on hold. Nothing is lost.'
-                            : head.status === 'billing'
-                              ? 'Syncing is paused until your plan is active again. Your change is saved on this device.'
-                              : blockedDiscardable(head)
-                                ? "This change couldn't be saved. Discard it, then make it again."
-                                : "Syncing is paused. Your change is saved on this device. Check you're signed in to the right account."}
-                          {/* A paused change is never sent again by itself: it waits for this, with the same request as before. */}
+                      {headNotice.kind === 'offline' ? (
+                        <p role="status" data-sync-state="offline" className="text-muted-foreground px-4 text-sm">
+                          Saved on this device. It&apos;ll sync when you&apos;re back online.
+                        </p>
+                      ) : headNotice.kind === 'retrying' ? (
+                        <p role="status" data-sync-state="retrying" className="text-muted-foreground px-4 text-sm">
+                          Couldn&apos;t save your latest change yet. Trying again…
                           <button type="button" className="ml-2 min-h-9 underline" onClick={retryWaiting}>
-                            Try again
+                            Try now
                           </button>
-                          {blockedDiscardable(head) && (
+                        </p>
+                      ) : (
+                        headNotice.kind !== 'none' && (
+                          <p role="status" className="px-4 text-sm">
+                            {headNotice.kind === 'on-hold'
+                              ? 'Your collection changed somewhere else, so your latest change is on hold. Nothing is lost.'
+                              : headNotice.kind === 'billing'
+                                ? 'Syncing is paused until your plan is active again. Your change is saved on this device.'
+                                : headNotice.kind === 'refused'
+                                  ? "This change couldn't be saved. Discard it, then make it again."
+                                  : "Syncing is paused. Your change is saved on this device. Check you're signed in to the right account."}
+                            {/* A paused change is never sent again by itself: it waits for this, with the same request as before. */}
                             <button
                               type="button"
                               className="ml-2 min-h-9 underline"
-                              disabled={!online}
-                              onClick={() => void discardBlocked()}
+                              disabled={discard.kind !== 'idle'}
+                              onClick={retryWaiting}
                             >
-                              {queue.record!.pending.length > 1
-                                ? `Discard it and ${queue.record!.pending.length - 1} later change${queue.record!.pending.length > 2 ? 's' : ''}`
-                                : 'Discard'}
+                              Try again
                             </button>
-                          )}
-                        </p>
+                            {headNotice.kind === 'refused' && (
+                              <button
+                                type="button"
+                                className="ml-2 min-h-9 underline"
+                                disabled={!online || discard.kind !== 'idle'}
+                                onClick={() => void discardBlocked(headNotice.operationId)}
+                              >
+                                {discard.kind === 'discarding'
+                                  ? 'Discarding…'
+                                  : headNotice.later
+                                    ? `Discard it and ${headNotice.later} later change${headNotice.later > 1 ? 's' : ''}`
+                                    : 'Discard'}
+                              </button>
+                            )}
+                          </p>
+                        )
                       )}
                       {head?.intent.kind === 'raw-restore' &&
                         head.conflict?.rejected &&

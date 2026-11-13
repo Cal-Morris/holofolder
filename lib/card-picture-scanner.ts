@@ -6,6 +6,12 @@ import { getOfflineStore, type OfflineKeyValueStore } from '@/lib/offline-store/
 import { pictureIndexLanguages, type PictureMatch } from '@/lib/card-picture-match';
 import type { PictureWorkerRequest, PictureWorkerResponse } from '@/lib/card-picture-worker';
 import { PICTURE_MODEL_BASE_URL, PICTURE_MODEL_FILES } from '@/lib/card-picture-fingerprint';
+import {
+  pictureWorkerTransition,
+  type PictureDownload,
+  type PictureWorkerEvent,
+  type PictureWorkerLifecycle,
+} from '@/lib/picture-scanner-state';
 
 const ASSETS = 'https://assets.holofolder.com/pokemon/tcg';
 export { ONNX_RUNTIME_VERSION, PICTURE_MODEL_BASE_URL, PICTURE_MODEL_FILES } from '@/lib/card-picture-fingerprint';
@@ -112,12 +118,25 @@ async function fetchBytes(url: string, onBytes: (bytes: number) => void) {
 }
 
 let download: Promise<void> | null = null;
+let downloadState: PictureDownload = { kind: 'idle' };
+const downloadListeners = new Set<(state: PictureDownload) => void>();
+function publishDownload(state: PictureDownload) {
+  downloadState = state;
+  for (const listener of downloadListeners) listener(state);
+}
+
+/** Follows any download's progress, including one already running (told straight away). Returns the unsubscribe. */
+export function subscribePictureDownload(listener: (state: PictureDownload) => void) {
+  downloadListeners.add(listener);
+  if (downloadState.kind === 'downloading') listener(downloadState);
+  return () => void downloadListeners.delete(listener);
+}
 
 /**
  * Fetches whatever isn't on the device yet (the model once, then an index per collected language, replaced when a
- * newer one is published). `onProgress` gets bytes so far and the expected total.
+ * newer one is published). Progress (bytes so far and the expected total) goes to `subscribePictureDownload`.
  */
-export function downloadPictureScanner(onProgress?: (loaded: number, total: number) => void) {
+export function downloadPictureScanner() {
   download ??= (async () => {
     const offline = store();
     const manifest = await fetchManifest();
@@ -134,8 +153,9 @@ export function downloadPictureScanner(onProgress?: (loaded: number, total: numb
       (files.length ? PICTURE_MODEL_BYTES : 0) +
       indexes.reduce((sum, language) => sum + manifest.languages[language].bytes, 0);
     let loaded = 0;
-    const onBytes = (bytes: number) => onProgress?.((loaded += bytes), Math.max(total, loaded));
-    onProgress?.(0, total);
+    const onBytes = (bytes: number) =>
+      publishDownload({ kind: 'downloading', loaded: (loaded += bytes), total: Math.max(total, loaded) });
+    publishDownload({ kind: 'downloading', loaded: 0, total });
     const saveFile = async (name: (typeof FILE_NAMES)[number]) =>
       offline.set(`${KEY}${name}`, await fetchBytes(`${PICTURE_MODEL_BASE_URL}${PICTURE_MODEL_FILES[name]}`, onBytes));
     const saveIndex = async (language: string) => {
@@ -154,6 +174,7 @@ export function downloadPictureScanner(onProgress?: (loaded: number, total: numb
     if (indexes.length || files.length) stopWorker();
   })().finally(() => {
     download = null;
+    publishDownload({ kind: 'idle' });
   });
   return download;
 }
@@ -168,27 +189,50 @@ export function warmPictureScanner() {
 }
 
 export async function removePictureScanner() {
+  // A download still running would write the files back after they're removed.
+  await download?.catch(() => undefined);
   stopWorker();
   const offline = store();
   const keys = await offline.keys(KEY);
   await Promise.all(keys.map((key) => offline.delete(key)));
 }
 
-let worker: Worker | null = null;
-let ready: Promise<boolean> | null = null;
+// The matching worker (lifecycle in lib/picture-scanner-state.ts). Requests wait in `pending` for the worker's reply;
+// stopping the worker or a crash fails them, so a scan never waits on a worker that's gone.
+let lifecycle: PictureWorkerLifecycle<Worker> = { kind: 'stopped', generation: 0 };
+let starting: Promise<boolean> | null = null;
 let queue: Promise<unknown> = Promise.resolve();
 let nextId = 0;
 const pending = new Map<number, (response: PictureWorkerResponse) => void>();
 
+function sendWorker(event: PictureWorkerEvent<Worker>) {
+  const before = lifecycle;
+  lifecycle = pictureWorkerTransition(lifecycle, event);
+  if (before.kind === 'ready' && lifecycle.kind === 'stopped') {
+    before.worker.terminate();
+    failPending('The picture scanner stopped.');
+  }
+  if (lifecycle.kind === 'stopped' || lifecycle.kind === 'unavailable') starting = null;
+  return lifecycle !== before;
+}
+
+function failPending(message: string) {
+  for (const [id, settle] of pending) settle({ type: 'error', id, message });
+}
+
 function stopWorker() {
-  worker?.terminate();
-  worker = null;
-  ready = null;
+  sendWorker({ type: 'stop' });
 }
 
 /** Loads the cached model and index into the worker; false when the scanner isn't downloaded. */
 function startWorker() {
-  ready ??= (async () => {
+  if (lifecycle.kind === 'ready') return Promise.resolve(true);
+  if (lifecycle.kind === 'unavailable') return Promise.resolve(false);
+  if (starting) return starting;
+  sendWorker({ type: 'start' });
+  const { generation } = lifecycle;
+  let created: Worker | null = null;
+  starting = (async () => {
     const offline = getOfflineStore();
     if (!offline || typeof Worker === 'undefined') return false;
     const indexKeys = await offline.keys(`${KEY}index:`);
@@ -197,15 +241,22 @@ function startWorker() {
       offline.getMany<StoredIndex>(indexKeys),
     ]);
     if (![runtime, model, modelData].every((file) => file instanceof ArrayBuffer) || !indexes.length) return false;
+    // Stopped while reading the files (a download replaced them): leave it to the next start.
+    if (lifecycle.kind !== 'starting' || lifecycle.generation !== generation) return false;
     const languages = indexKeys.map((key) => key.slice(`${KEY}index:`.length));
-    worker = new Worker(new URL('./card-picture-worker.ts', import.meta.url), { type: 'module' });
+    const worker = (created = new Worker(new URL('./card-picture-worker.ts', import.meta.url), { type: 'module' }));
     const loaded = new Promise<boolean>((resolve, reject) => {
-      worker!.onmessage = ({ data }: MessageEvent<PictureWorkerResponse>) => {
+      worker.onmessage = ({ data }: MessageEvent<PictureWorkerResponse>) => {
         if (data.type === 'ready') resolve(true);
         else if (data.type === 'error' && data.id === undefined) reject(new Error(data.message));
         else if ('id' in data && data.id !== undefined) pending.get(data.id)?.(data);
       };
-      worker!.onerror = (event) => reject(new Error(event.message || 'The picture scanner failed to start.'));
+      worker.onerror = (event) => {
+        const error = new Error(event.message || 'The picture scanner failed to start.');
+        reject(error);
+        // A crash after it started: stop it, so waiting matches fail and the next scan starts a fresh one.
+        if (lifecycle.kind === 'ready' && lifecycle.worker === worker) stopWorker();
+      };
     });
     const request: PictureWorkerRequest = {
       type: 'init',
@@ -215,13 +266,21 @@ function startWorker() {
       indexes: indexes.map((index, at) => ({ language: languages[at], ids: index!.ids, vectors: index!.data })),
     };
     worker.postMessage(request, [runtime!, model!, modelData!, ...indexes.map((index) => index!.data)]);
-    return loaded;
-  })().catch((error) => {
-    console.info('[holofolder] Picture scanner unavailable:', error);
-    stopWorker();
-    return false;
-  });
-  return ready;
+    // A stop while it loaded makes this start stale: it isn't kept, and the next scan starts afresh.
+    return (await loaded) && sendWorker({ type: 'started', generation, worker });
+  })()
+    .catch((error) => {
+      console.info('[holofolder] Picture scanner unavailable:', error);
+      return false;
+    })
+    .then((ok) => {
+      if (!ok) {
+        if (lifecycle.kind !== 'ready' || lifecycle.worker !== created) created?.terminate();
+        sendWorker({ type: 'failed', generation });
+      }
+      return ok;
+    });
+  return starting;
 }
 
 const ONLINE_LANGUAGES = ['en', 'ja'];
@@ -260,7 +319,8 @@ export interface PictureScan {
  */
 export async function matchCardPicture(image: string | Blob): Promise<PictureScan | null> {
   const blob = typeof image === 'string' ? await (await fetch(image)).blob() : image;
-  if (!(await startWorker()) || !worker) return matchCardPictureOnline(blob);
+  if (!(await startWorker()) || lifecycle.kind !== 'ready') return matchCardPictureOnline(blob);
+  const { worker } = lifecycle;
   // One crop at a time: the WASM session runs one inference at a time anyway.
   const run = queue.then(
     () =>
@@ -271,7 +331,10 @@ export async function matchCardPicture(image: string | Blob): Promise<PictureSca
           if (data.type === 'result') resolve({ matches: data.matches ?? [], ms: data.ms });
           else reject(new Error(data.type === 'error' ? data.message : 'Unexpected scanner reply'));
         });
-        worker!.postMessage({ type: 'match', id, image: blob } satisfies PictureWorkerRequest);
+        // Stopped while this waited its turn: fail now rather than post to a terminated worker.
+        if (lifecycle.kind !== 'ready' || lifecycle.worker !== worker)
+          pending.get(id)?.({ type: 'error', id, message: 'The picture scanner stopped.' });
+        else worker.postMessage({ type: 'match', id, image: blob } satisfies PictureWorkerRequest);
       }),
   );
   queue = run.catch(() => undefined);

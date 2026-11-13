@@ -6,6 +6,7 @@
 // the lookup uses the card search online and the cards saved on this device offline. When it can't be
 // sure, Quick mode gets the text it read so the search field can finish the job.
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useMachine } from '@/hooks/use-machine';
 import { Camera, ImageIcon, Keyboard, Loader2, X } from 'lucide-react';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { useCameraStream } from '@/hooks/use-camera-stream';
@@ -13,14 +14,15 @@ import { SINGLE_CARD_GUIDE, captureSingleCardFrame, delay } from '@/lib/camera-f
 import { mergeCardTextSignals, type CardTextSignals } from '@/lib/card-scan-text';
 import { recognizeCardTextSignalsFromImage, warmCardTextReader } from '@/lib/card-scan-ocr';
 import { trackGoogleEvent } from '@/lib/google-analytics';
-import { decideScanOutcome, isScanReadComplete, readScannedCard, type CardScanOutcome } from '@/lib/card-scan-identify';
+import { decideScanOutcome, isScanReadComplete, readScannedCard } from '@/lib/card-scan-identify';
+import { SCAN_REGIONS, lookupPokemon, resolvePictureCandidates, searchCards } from '@/lib/card-scan-search';
 import {
-  SCAN_REGIONS,
-  lookupPokemon,
-  pictureMatchOutcome,
-  resolvePictureCandidates,
-  searchCards,
-} from '@/lib/card-scan-search';
+  IDLE_CARD_SCAN,
+  cardScanStatus,
+  cardScanTransition,
+  pictureScanResult,
+  type CardScanResult,
+} from '@/lib/card-scan-session';
 import { confidentPicture, decidePictureScan } from '@/lib/card-picture-match';
 import {
   getPictureScannerLanguages,
@@ -43,6 +45,7 @@ const SCAN_FRAMES = 3;
 const SCAN_FRAME_GAP_MS = 300;
 /** A first read can include downloading the reader on show Wi-Fi; past this, fall back to typing. */
 const SCAN_FRAME_TIMEOUT_MS = 20_000;
+const destinationProblem = 'The scan destination changed. Close and reopen the scanner.';
 
 function withTimeout<T>(promise: Promise<T>, ms: number) {
   return new Promise<T>((resolve, reject) => {
@@ -60,20 +63,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number) {
   });
 }
 
-export interface CardScanResult {
-  outcome: CardScanOutcome;
-  /** The text reader couldn't run (usually offline before it was ever downloaded). */
-  readerUnavailable: boolean;
-  offline: boolean;
-  /** Native review candidates, absent from legacy callbacks. */
-  candidates?: SearchCardResult[];
-  /** Up to five cards the picture looked like, to tap when the read didn't settle it. */
-  pictureChoices?: SearchCardResult[];
-  /** `candidates[0]` is a confident picture match, pre-selected as a suggestion. */
-  suggested?: boolean;
-  /** The picture scanner isn't on this device yet, so only the text was read. */
-  pictureUnavailable?: boolean;
-}
+export type { CardScanResult };
 
 export interface QuickCardScannerProps {
   nativeAdmission?: ScanDestinationAdmission;
@@ -158,10 +148,8 @@ function QuickCardScannerCamera({
   const containerRef = managedContainerRef ?? ownContainerRef;
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [phase, setPhase] = useState<'idle' | 'reading' | 'matching'>('idle');
-  const [frame, setFrame] = useState(0);
-  const [destinationError, setDestinationError] = useState<string | null>(null);
-  const busy = phase !== 'idle';
+  const [scan, send] = useMachine(cardScanTransition, IDLE_CARD_SCAN);
+  const busy = scan.kind !== 'idle';
   const camera = useCameraStream(true, videoRef);
   const [pictureReady, setPictureReady] = useState(true);
   useEffect(() => {
@@ -185,19 +173,19 @@ function QuickCardScannerCamera({
 
   const swipe = useSwipeToDismiss(containerRef, closeSafely, !!managedContainerRef);
 
-  const beginCapture = useCallback(() => {
+  /** Freezes the scan's destination as the read begins; false when it can't be. */
+  const captureDestination = useCallback(() => {
     try {
       onReadStarted?.();
-      setDestinationError(null);
       return true;
     } catch {
-      setDestinationError('The scan destination changed. Close and reopen the scanner.');
       return false;
     }
   }, [onReadStarted]);
 
   const typeInstead = useCallback(() => {
-    if (!beginCapture()) return;
+    if (busy) return;
+    if (!captureDestination()) return void send({ type: 'refused', problem: destinationProblem });
     if (onReadStarted) {
       void getOfflineCards()
         .catch(() => [])
@@ -210,19 +198,20 @@ function QuickCardScannerCamera({
           }),
         );
     } else onResult({ outcome: { kind: 'unread', query: '' }, readerUnavailable: false, offline: !isOnline });
-  }, [isOnline, onResult, onReadStarted, getOfflineCards, beginCapture]);
+  }, [busy, isOnline, onResult, onReadStarted, getOfflineCards, captureDestination, send]);
 
   /** Reads up to `count` frames from `nextFrame` (camera captures or one chosen photo), then looks the card up. */
   const readFrames = useCallback(
     async (count: number, nextFrame: (index: number) => Promise<string>) => {
-      if (!beginCapture()) return;
-      setPhase('reading');
+      // Turned away while another read runs (a double tap, or a photo chosen mid-read).
+      if (!send({ type: 'start', frames: count })) return;
+      if (!captureDestination()) return void send({ type: 'refused', problem: destinationProblem });
       const frames: Array<CardTextSignals | null> = [];
       let readerFailures = 0;
       let picture: Promise<PictureScan | null> | null = null;
       try {
         for (let index = 0; index < count; index += 1) {
-          setFrame(index + 1);
+          send({ type: 'frame', frame: index + 1 });
           try {
             const image = await nextFrame(index);
             // The picture is matched once, on the first frame, in its own worker while the text is read.
@@ -245,7 +234,7 @@ function QuickCardScannerCamera({
         }
 
         const scanned = readScannedCard(mergeCardTextSignals(frames));
-        setPhase('matching');
+        send({ type: 'match' });
         const pictured = picture ? await picture : null;
         const readerUnavailable = frames.length === 0 && readerFailures > 0;
         if (pictured?.matches.length) {
@@ -255,31 +244,10 @@ function QuickCardScannerCamera({
             confidentPicture(pictured.matches),
           );
           const offline = !isOnline;
-          // A confident picture opens like a clear match; in the binder review it is marked as a suggestion.
-          if (decision.kind !== 'choose') {
+          const result = pictureScanResult(decision, scanned, { native: !!onReadStarted, readerUnavailable, offline });
+          if (result) {
             trackGoogleEvent('card_scanned', { outcome: decision.kind, offline });
-            onResult({
-              outcome: pictureMatchOutcome(decision.card, scanned),
-              ...(onReadStarted
-                ? decision.kind === 'suggest'
-                  ? { candidates: decision.candidates, suggested: true }
-                  : { candidates: [decision.card] }
-                : {}),
-              readerUnavailable,
-              offline,
-            });
-            return;
-          }
-          if (decision.candidates.length) {
-            const query = scanned.pokemon?.name ?? scanned.query;
-            trackGoogleEvent('card_scanned', { outcome: 'choose', offline });
-            onResult({
-              outcome: query ? { kind: 'choose', query } : { kind: 'unread', query },
-              ...(onReadStarted ? { candidates: decision.candidates } : {}),
-              pictureChoices: decision.candidates,
-              readerUnavailable,
-              offline,
-            });
+            onResult(result);
             return;
           }
         }
@@ -301,22 +269,21 @@ function QuickCardScannerCamera({
           offline: !isOnline,
         });
       } finally {
-        setPhase('idle');
+        send({ type: 'done' });
       }
     },
-    [getOfflineCards, isOnline, onResult, onReadStarted, beginCapture],
+    [getOfflineCards, isOnline, onResult, onReadStarted, captureDestination, send],
   );
 
   const read = useCallback(async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || !camera.ready || busy) return;
+    if (!video || !canvas || !camera.ready) return;
     await readFrames(SCAN_FRAMES, async (index) => (await captureSingleCardFrame(video, canvas, index)).previewUrl);
-  }, [busy, camera.ready, readFrames]);
+  }, [camera.ready, readFrames]);
 
   const readPhoto = useCallback(
     async (file: File) => {
-      if (busy) return;
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result));
@@ -325,7 +292,7 @@ function QuickCardScannerCamera({
       });
       await readFrames(1, async () => dataUrl);
     },
-    [busy, readFrames],
+    [readFrames],
   );
 
   return (
@@ -399,22 +366,12 @@ function QuickCardScannerCamera({
 
           <div className="shrink-0 space-y-2 pt-3">
             <p role="status" className="min-h-5 text-center text-sm text-white/75" data-testid="card-scan-status">
-              {destinationError ??
-                (camera.error
-                  ? `${camera.error} Choose a photo of the card instead.`
-                  : phase === 'reading'
-                    ? `Reading the card… ${frame}/${SCAN_FRAMES}`
-                    : phase === 'matching'
-                      ? isOnline
-                        ? 'Looking it up…'
-                        : 'Looking it up on this device…'
-                      : camera.ready
-                        ? `${isOnline ? 'Hold steady, then tap Read card.' : 'Offline: reads the card and looks it up on this device.'}${
-                            pictureReady || isOnline
-                              ? ''
-                              : ' Picture scanner not downloaded, so only the name and number are read.'
-                          }`
-                        : '')}
+              {cardScanStatus(scan, {
+                cameraReady: camera.ready,
+                cameraError: camera.error,
+                isOnline,
+                pictureReady,
+              })}
             </p>
             <div className="flex gap-2">
               <button
