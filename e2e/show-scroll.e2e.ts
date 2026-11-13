@@ -1,4 +1,4 @@
-import { test, expect, SUPABASE_URL } from './fixtures';
+import { test, expect, seedCollection } from './fixtures';
 import { HUNT_COLLECTION } from './hunt-fixtures';
 
 // Synthetic long want list: repeated printings across 100 Pokémon.
@@ -11,15 +11,22 @@ const collection = Array.from({ length: 100 }, (_, index) => ({
     ...HUNT_COLLECTION[0].wanted_cards[0],
     card_id: `scroll-${index}-${card}`,
   })),
-}));
+})); // The synthetic printings in the seeded card mirror, so each want keeps its Pokémon.
+const syntheticCards = collection.flatMap((row) =>
+  row.wanted_cards.map((card) => ({
+    id: card.card_id,
+    localId: card.local_id,
+    name: card.card_name,
+    set: { id: card.card_id.slice(0, card.card_id.lastIndexOf('-')), name: card.card_set },
+    dexIds: [row.pokemon_id],
+  })),
+);
 
 test.use({ signedIn: true });
 test('long Hunting list does not read layout on every touch move', async ({ harness }) => {
   const { page } = harness;
-  await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-    route.request().method() === 'GET' ? route.fulfill({ json: collection }) : route.fallback(),
-  );
-  await page.reload();
+  await seedCollection(page, collection, syntheticCards);
+  await harness.reload();
   await page.getByRole('button', { name: 'Show mode', exact: true }).click();
   await page.keyboard.press('Control+k');
   await expect(page.getByRole('dialog', { name: 'Quick mode' }).locator('..')).toHaveCSS('backdrop-filter', 'none');

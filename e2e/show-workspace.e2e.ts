@@ -1,4 +1,4 @@
-import { test, expect, SUPABASE_URL } from './fixtures';
+import { test, expect, seedCollection } from './fixtures';
 import { HUNT_COLLECTION } from './hunt-fixtures';
 import { mockCardPrices } from './price-fixtures';
 
@@ -13,16 +13,23 @@ const collection = Array.from({ length: 157 }, (_, i) => ({
     card_id: `${j === 1 ? 'me02' : 'sv03.5'}-${1000 + i * 3 + j}`,
     local_id: String(1000 + i * 3 + j),
   })),
-}));
+})); // The synthetic printings in the seeded card mirror, so each want keeps its Pokémon.
+const syntheticCards = collection.flatMap((row) =>
+  row.wanted_cards.map((card) => ({
+    id: card.card_id,
+    localId: card.local_id,
+    name: card.card_name,
+    set: { id: card.card_id.slice(0, card.card_id.lastIndexOf('-')), name: card.card_set },
+    dexIds: [row.pokemon_id],
+  })),
+);
 
 for (const theme of ['light', 'dark']) {
   test.describe(`Show workspace ${theme}`, () => {
     test.use({ signedIn: true });
     test('471-card hunt stays usable, with detail only on selection', async ({ harness }, testInfo) => {
       const { page } = harness;
-      await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-        route.request().method() === 'GET' ? route.fulfill({ json: collection }) : route.fallback(),
-      );
+      await seedCollection(page, collection, syntheticCards);
       await mockCardPrices(
         page,
         Object.fromEntries(
@@ -31,7 +38,7 @@ for (const theme of ['light', 'dark']) {
           ),
         ),
       );
-      await page.reload();
+      await harness.reload();
       await page.getByRole('button', { name: 'Show mode', exact: true }).click();
       await page.getByRole('button', { name: 'Search', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: 'Quick mode' });
@@ -63,7 +70,6 @@ for (const theme of ['light', 'dark']) {
       const pane = (await check.boundingBox())!;
       for (const control of [
         check.getByRole('textbox', { name: 'Asking price' }),
-        check.getByRole('button', { name: 'Add owned', exact: true }),
         check.getByRole('button', { name: 'Add to bundle' }),
       ]) {
         await harness.expectWithinSafeViewport(control);
@@ -80,7 +86,8 @@ for (const theme of ['light', 'dark']) {
       });
       await check.getByRole('button', { name: 'Back to results' }).click();
       await expect(hunt).toBeVisible();
-      await expect(hunt.locator('button[data-standing]')).toHaveCount(472);
+      // The Hunting list is intact after Back (recently viewed cards are covered by show-recents).
+      await expect(hunt.locator('button[data-standing]')).toHaveCount(471);
       await page.keyboard.press('Escape');
       await expect(dialog).toBeHidden();
     });

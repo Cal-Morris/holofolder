@@ -765,9 +765,6 @@ function QuickMode({
                 />
               ) : show && !trimmed ? (
                 <ShowHunt
-                  nativeConsumer={
-                    nativeConsumer && show?.readOnly ? { ...nativeConsumer, editingAvailable: false } : nativeConsumer
-                  }
                   // oxlint-disable-next-line react-doctor/jsx-no-jsx-as-prop -- the slot follows Quick mode's state on every render; ShowHunt memoises its heavy list sections separately
                   recentCards={
                     <>

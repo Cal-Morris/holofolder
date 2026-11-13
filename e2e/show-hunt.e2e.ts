@@ -16,8 +16,7 @@ async function seedHuntList(harness: Harness) {
   const { page } = harness;
   await seedCollection(page, HUNT_COLLECTION);
   await mockCardPrices(page, HUNT_PRICES);
-  await page.reload();
-  await expect(harness.slot(1)).toBeVisible();
+  await harness.reload();
 }
 
 async function openShowMode(harness: Harness) {
@@ -28,6 +27,8 @@ async function openShowMode(harness: Harness) {
   await expect(dialog).toBeVisible();
   return dialog;
 }
+
+const byCard = (cards: { cardId: string }[]) => cards.toSorted((a, b) => a.cardId.localeCompare(b.cardId));
 
 const groupNames = (hunt: ReturnType<Harness['page']['getByTestId']>) =>
   hunt
@@ -53,10 +54,7 @@ test.describe('Show mode finder', () => {
     // The keyboard stays down so the list can be read against a dealer's binder.
     await expect(dialog.getByRole('searchbox')).not.toBeFocused();
     await expect(hunt.getByRole('heading', { name: /Hunting · 4 cards/ })).toBeVisible();
-    await expect
-      .poll(() => groupNames(hunt))
-      .toEqual(['Hunting Bulbasaur', 'Hunting Charizard', 'Hunting Charmander', 'Hunting Squirtle']);
-    await expect(hunt.getByRole('region', { name: 'Hunting Squirtle' })).toContainText('any card');
+    await expect.poll(() => groupNames(hunt)).toEqual(['Hunting Bulbasaur', 'Hunting Charmander', 'Hunting Charizard']);
 
     const bulbasaur = hunt.getByRole('region', { name: 'Hunting Bulbasaur' });
     const topCard = bulbasaur.getByRole('button', { name: /^Bulbasaur, 151 166\/165/ });
@@ -70,9 +68,7 @@ test.describe('Show mode finder', () => {
     );
 
     await hunt.getByRole('combobox', { name: 'Sort' }).selectOption('value');
-    await expect
-      .poll(() => groupNames(hunt))
-      .toEqual(['Hunting Charizard', 'Hunting Bulbasaur', 'Hunting Charmander', 'Hunting Squirtle']);
+    await expect.poll(() => groupNames(hunt)).toEqual(['Hunting Charizard', 'Hunting Bulbasaur', 'Hunting Charmander']);
     await harness.expectNoHorizontalOverflow();
     await screenshot(harness, 'show-hunt');
 
@@ -100,8 +96,7 @@ test.describe('Show mode finder', () => {
       'sv03.5-166': { ...HUNT_PRICES['sv03.5-166'], trend: { Trend: 40, '7d': 50 } },
       'me02-001': { ...HUNT_PRICES['me02-001'], trend: { Trend: 3, '7d': 3.15 } },
     });
-    await page.reload();
-    await expect(harness.slot(1)).toBeVisible();
+    await harness.reload();
     const dialog = await openShowMode(harness);
     const pickups = dialog.getByRole('region', { name: 'Good pickups' });
     await pickups.locator('summary').click();
@@ -142,8 +137,7 @@ test.describe('Show mode finder', () => {
       'sv03.5-166': { ...HUNT_PRICES['sv03.5-166'], trend: { Trend: 40, '7d': 50 } },
       'me02-001': { ...HUNT_PRICES['me02-001'], trend: { Trend: 4.5, '7d': 3 } },
     });
-    await page.reload();
-    await expect(harness.slot(1)).toBeVisible();
+    await harness.reload();
     const dialog = await openShowMode(harness);
     const hunt = dialog.getByTestId('show-hunt');
     const sort = hunt.getByRole('combobox', { name: 'Sort' });
@@ -151,14 +145,10 @@ test.describe('Show mode finder', () => {
     await harness.expectNoHorizontalOverflow();
 
     await sort.selectOption('falling');
-    await expect
-      .poll(() => groupNames(hunt))
-      .toEqual(['Hunting Charmander', 'Hunting Charizard', 'Hunting Bulbasaur', 'Hunting Squirtle']);
+    await expect.poll(() => groupNames(hunt)).toEqual(['Hunting Charmander', 'Hunting Charizard', 'Hunting Bulbasaur']);
     await screenshot(harness, 'hunt-sort-down');
     await sort.selectOption('rising');
-    await expect
-      .poll(() => groupNames(hunt))
-      .toEqual(['Hunting Bulbasaur', 'Hunting Charizard', 'Hunting Charmander', 'Hunting Squirtle']);
+    await expect.poll(() => groupNames(hunt)).toEqual(['Hunting Bulbasaur', 'Hunting Charizard', 'Hunting Charmander']);
     await expect(
       hunt.getByRole('region', { name: 'Hunting Bulbasaur' }).locator('button[data-standing]').first(),
     ).toHaveAccessibleName(/^Bulbasaur, Phantasmal Flames/);
@@ -189,7 +179,7 @@ test.describe('Show mode finder', () => {
       .getByRole('radiogroup', { name: 'Price move' })
       .getByRole('radio', { name: 'Biggest price drop first' })
       .click();
-    await expect(found.first()).toHaveAccessibleName(/^Bulbasaur, 151 166/);
+    await expect(found.first()).toHaveAccessibleName(/^Bulbasaur, 151 #?166/);
     await harness.expectNoHorizontalOverflow();
   });
 
@@ -324,8 +314,7 @@ test.describe('Show mode finder', () => {
     );
     await seedCollection(page, collection);
     await mockCardPrices(page, prices);
-    await page.reload();
-    await expect(harness.slot(1)).toBeVisible();
+    await harness.reload();
 
     const dialog = await openShowMode(harness);
     const comps = dialog.getByTestId('show-check-comps');
@@ -396,7 +385,8 @@ test.describe('Show mode finder', () => {
     await page.route('**/app/api/comparison-jobs**', async (route) => {
       if (route.request().method() === 'GET') return route.fulfill({ json: { job: job() } });
       const body = route.request().postDataJSON();
-      expect(body.cards).toEqual(targets);
+      // The native want list keeps its own order; the job covers the same printings.
+      expect(byCard(body.cards)).toEqual(byCard(targets));
       if (body.action === 'inspect')
         return route.fulfill({ json: { job: started ? job() : null, needed: finished ? 0 : 65 } });
       if (!body.confirmed) return route.fulfill({ status: 409, json: { needsConfirmation: true, needed: 65 } });
@@ -412,8 +402,7 @@ test.describe('Show mode finder', () => {
         },
       });
     });
-    await page.reload();
-    await expect(harness.slot(1)).toBeVisible();
+    await harness.reload();
     let dialog = await openShowMode(harness);
     await dialog.getByRole('combobox', { name: 'Era' }).selectOption({ label: 'Mega Evolution (1)' });
     const checks = dialog.getByTestId('collection-price-check');
@@ -430,8 +419,7 @@ test.describe('Show mode finder', () => {
     await harness.expectNoHorizontalOverflow();
     await dialog.getByRole('button', { name: 'Close quick mode' }).click();
     finished = true;
-    await page.reload();
-    await expect(harness.slot(1)).toBeVisible();
+    await harness.reload();
     dialog = await openShowMode(harness);
     await expect(dialog.getByTestId('collection-price-check').getByRole('status')).toContainText(
       'Finished. Checks saved on the server',
@@ -459,7 +447,7 @@ test.describe('Show mode finder', () => {
     await eras.selectOption('');
 
     await hunt.getByRole('combobox', { name: 'Set' }).selectOption({ label: '151 (3)' });
-    await expect.poll(() => groupNames(hunt)).toEqual(['Hunting Charizard', 'Hunting Bulbasaur', 'Hunting Charmander']);
+    await expect.poll(() => groupNames(hunt)).toEqual(['Hunting Bulbasaur', 'Hunting Charmander', 'Hunting Charizard']);
     await hunt.getByRole('combobox', { name: 'Set' }).selectOption('');
 
     await hunt.getByRole('combobox', { name: 'Illustrator' }).selectOption('Mitsuhiro Arita');
@@ -468,9 +456,9 @@ test.describe('Show mode finder', () => {
     await expect(hunt.getByRole('button', { name: /^Bulbasaur, 151 166/ })).toBeVisible();
     // The want list's own illustrator counts too (Charizard), alongside the directory's cards (Charmander).
     await hunt.getByRole('combobox', { name: 'Illustrator' }).selectOption('5ban Graphics');
-    await expect.poll(() => groupNames(hunt)).toEqual(['Hunting Charizard', 'Hunting Charmander']);
+    await expect.poll(() => groupNames(hunt)).toEqual(['Hunting Charmander', 'Hunting Charizard']);
     await hunt.getByRole('combobox', { name: 'Illustrator' }).selectOption('');
-    await expect.poll(() => groupNames(hunt)).toHaveLength(4);
+    await expect.poll(() => groupNames(hunt)).toHaveLength(3);
   });
 
   test('search by Pokémon: wanted first with what to pay, the rest, owned dimmed last', async ({ harness }) => {
@@ -527,7 +515,7 @@ test.describe('Show mode finder', () => {
     dialog = await openShowMode(harness);
     const hunt = dialog.getByTestId('show-hunt');
     await expect(hunt.getByRole('heading', { name: /Hunting · 4 cards · offline/ })).toBeVisible();
-    await expect.poll(() => groupNames(hunt)).toHaveLength(4);
+    await expect.poll(() => groupNames(hunt)).toHaveLength(3);
     await hunt.getByRole('button', { name: 'Charmander: all cards' }).click();
     const view = dialog.getByTestId('show-pokemon-cards');
     await expect(view).toBeVisible();

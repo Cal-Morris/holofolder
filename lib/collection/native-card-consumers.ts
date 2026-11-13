@@ -14,6 +14,7 @@ import { prepareSlotPickerIntent } from '@/lib/slot-picker';
 import type { InventorySelection } from '@/lib/inventory-plans';
 import type { OperationIntentContext } from '@/lib/domain/audit-context';
 import type { SlotCommandSink } from '@/lib/binder-slot-editing';
+import type { HuntSourceItem } from '@/lib/show-hunt';
 
 export interface NativeWantedDestination {
   scope: CollectionNavigationScope;
@@ -285,4 +286,33 @@ export function nativeSpeciesCollection(binding: Pick<NativeConsumerBinding, 'sc
     });
   });
   return { bySpecies, rows };
+}
+
+/** Pokémon id of the Hunting group for wanted printings with no species (Trainers, Energy). */
+export const NO_SPECIES_HUNT_ID = 0;
+
+/**
+ * Show mode's Hunting list source from the native read: one item per species with its explicit wants, plus
+ * one item for wants with no species. Never invents species-only "any card" wants: native has none.
+ */
+export function nativeHuntItems(
+  binding: Pick<NativeConsumerBinding, 'scope' | 'read' | 'collectionId'>,
+): HuntSourceItem[] | null {
+  const model = nativeCardConsumers(binding);
+  if (!model) return null;
+  const items = new Map<number, HuntSourceItem & { wanted_cards: WantedCard[] }>();
+  for (const want of model.wants) {
+    const ids = want.card?.dexIds.length ? want.card.dexIds : [NO_SPECIES_HUNT_ID];
+    for (const id of ids) {
+      const item = items.get(id) ?? {
+        pokemon_id: id,
+        pokemon_name: id === NO_SPECIES_HUNT_ID ? 'Trainers & Energy' : (getPokemonSummary(id)?.name ?? `#${id}`),
+        status: 'wishlisted',
+        wanted_cards: [],
+      };
+      item.wanted_cards.push(want.want);
+      items.set(id, item);
+    }
+  }
+  return [...items.values()];
 }

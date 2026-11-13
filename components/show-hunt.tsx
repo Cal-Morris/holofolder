@@ -3,8 +3,7 @@
 // Show mode's home: the "Hunting" list. The want list grouped by Pokémon (most wanted or dearest first), with
 // era/set and illustrator filters to match how a dealer's binder is sorted. Every card shows what to pay up to;
 // one tap opens the deal check. Built from the collection on this device, so it works offline.
-import NativeWantedEntries from '@/components/native-wanted-entries';
-import type { NativeConsumerBinding } from '@/lib/collection/native-card-consumers';
+import { NO_SPECIES_HUNT_ID } from '@/lib/collection/native-card-consumers';
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ChevronRight, Heart, Target, TrendingDown } from 'lucide-react';
 import { PriceDropBadge } from '@/components/price-drop-badge';
@@ -39,7 +38,7 @@ import {
 } from '@/lib/show-hunt';
 import { Select } from '@/components/ui/select';
 
-type Money = { amount: number; currency: Parameters<typeof formatMoney>[1] };
+type Money = { amount: number; currency: Parameters<typeof formatMoney>[1]; confident?: boolean };
 
 function payUpTo(market: number, thresholds: DealThresholds) {
   return Math.round(market * (1 + thresholds.fairPct / 100) * 100) / 100;
@@ -84,7 +83,7 @@ export function HuntCardRow({
   showStanding?: boolean;
   onPick: () => void;
 }) {
-  const limit = market ? formatMoney(payUpTo(market.amount, thresholds), market.currency) : null;
+  const limit = market?.confident ? formatMoney(payUpTo(market.amount, thresholds), market.currency) : null;
   const tone = standing === 'owned' ? 'border-border/40 opacity-55' : 'border-border/60 bg-card';
   const finishLabel = finish && finish !== 'normal' ? formatCardFinishLabel(finish) : null;
   return (
@@ -170,7 +169,7 @@ const GoodPickups = memo(function GoodPickups({
           {pickups.map((pickup) => {
             const { wanted } = pickup.card;
             const market = marketOf(wanted);
-            const limit = market ? formatMoney(payUpTo(market.amount, thresholds), market.currency) : null;
+            const limit = market?.confident ? formatMoney(payUpTo(market.amount, thresholds), market.currency) : null;
             const drop = formatMomentumChange(pickup.momentum.change).replace('-', '');
             return (
               <button
@@ -513,7 +512,7 @@ const HuntGroupSection = memo(function HuntGroupSection({
   onPickPokemon: ShowHuntProps['onPickPokemon'];
 }) {
   const pokemon = { id: group.pokemonId, name: group.pokemonName };
-  const name = formatPokemonDisplayName(group.pokemonName);
+  const name = group.pokemonId === NO_SPECIES_HUNT_ID ? group.pokemonName : formatPokemonDisplayName(group.pokemonName);
   return (
     <section
       aria-label={`Hunting ${name}`}
@@ -521,24 +520,29 @@ const HuntGroupSection = memo(function HuntGroupSection({
       // Remember each group's measured height when the browser can safely skip its contents.
       style={{ containIntrinsicBlockSize: `auto ${3.5 + group.cards.length * 6.4}rem` }}
     >
-      <button
-        type="button"
-        onClick={() => onPickPokemon(pokemon)}
-        aria-label={`${name}: all cards`}
-        className="active:bg-muted flex min-h-14 w-full items-center gap-3 rounded-2xl px-1 text-left"
-      >
-        <PokemonSprite id={group.pokemonId} />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-base font-bold">{name}</span>
-          <span className="text-muted-foreground block text-xs">
-            #{String(group.pokemonId).padStart(4, '0')} · {group.anyCard ? 'any card' : `${group.cards.length} wanted`}
+      {group.pokemonId === NO_SPECIES_HUNT_ID ? (
+        <h4 className="flex min-h-10 items-center px-1 text-base font-bold">{group.pokemonName}</h4>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onPickPokemon(pokemon)}
+          aria-label={`${name}: all cards`}
+          className="active:bg-muted flex min-h-14 w-full items-center gap-3 rounded-2xl px-1 text-left"
+        >
+          <PokemonSprite id={group.pokemonId} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-base font-bold">{name}</span>
+            <span className="text-muted-foreground block text-xs">
+              #{String(group.pokemonId).padStart(4, '0')} ·{' '}
+              {group.anyCard ? 'any card' : `${group.cards.length} wanted`}
+            </span>
           </span>
-        </span>
-        <span className="text-primary flex shrink-0 items-center gap-0.5 text-xs font-semibold">
-          All cards
-          <ChevronRight className="h-4 w-4" aria-hidden />
-        </span>
-      </button>
+          <span className="text-primary flex shrink-0 items-center gap-0.5 text-xs font-semibold">
+            All cards
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </span>
+        </button>
+      )}
       {group.cards.map((entry) => {
         const card = wantedToSearchCard(entry.wanted, group.pokemonId);
         return (
@@ -558,18 +562,4 @@ const HuntGroupSection = memo(function HuntGroupSection({
   );
 });
 
-export default memo(function ShowHuntConsumer(props: ShowHuntProps & { nativeConsumer?: NativeConsumerBinding }) {
-  if (props.nativeConsumer)
-    return (
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        {props.recentCards && <div className="px-3">{props.recentCards}</div>}
-        <NativeWantedEntries
-          binding={props.nativeConsumer}
-          onCheck={(card, finish) =>
-            props.onPickCard(card, { id: card.dexIds?.[0] ?? 0, name: card.name }, finish ?? null)
-          }
-        />
-      </div>
-    );
-  return <ShowHunt {...props} />;
-});
+export default memo(ShowHunt);

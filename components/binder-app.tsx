@@ -7,7 +7,11 @@ import {
   STARTUP_RESET_KEY,
 } from '@/lib/startup-cache-reset';
 
-import { nativeSpeciesCollection, type NativeConsumerBinding } from '@/lib/collection/native-card-consumers';
+import {
+  nativeHuntItems,
+  nativeSpeciesCollection,
+  type NativeConsumerBinding,
+} from '@/lib/collection/native-card-consumers';
 
 import { CollectionActivityProvider } from '@/components/collection-activity-context';
 
@@ -3574,6 +3578,14 @@ function BinderAppSurface(props: BinderAppProps) {
         : null,
     [nativeSpeciesView, nativeScope, nativeRead, nativeCollectionId],
   );
+  // Show mode's Hunting list: the native want list by species. Only built while Quick mode is open.
+  const nativeHunt = useMemo(
+    () =>
+      isQuickModeOpen && nativeScope && nativeRead
+        ? nativeHuntItems({ scope: nativeScope, read: nativeRead, collectionId: nativeCollectionId })
+        : null,
+    [isQuickModeOpen, nativeScope, nativeRead, nativeCollectionId],
+  );
   // Shares have no browser session: species views use the public index, same shape as nativeSpeciesCollection.
   const speciesCollection = nativeSpecies ?? (publicIndex && nativeSpeciesView ? publicIndex.species : null);
 
@@ -3786,9 +3798,10 @@ function BinderAppSurface(props: BinderAppProps) {
       onAction: handleQuickCardAction,
       onChangeCard: handleQuickChangeCard,
       onRemoveOwned: handleQuickRemoveOwned,
-      huntItems: collection,
+      huntItems: nativeHunt ?? collection,
     }),
     [
+      nativeHunt,
       nativeReadOnly,
       activeBinder?.name,
       collection,
