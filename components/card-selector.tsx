@@ -64,14 +64,12 @@ import {
   Loader2,
   Camera,
   Heart,
-  ListFilter,
   MoreHorizontal,
   SlidersHorizontal,
   Sparkles,
   WifiOff,
 } from 'lucide-react';
 import { usePageCardSuggestions, type PageSuggestionSeeds } from '@/hooks/use-page-card-suggestions';
-import { SelectorMenu } from '@/components/collection-navigation/selector-menu';
 import { cardMatchesLanguages, type CardSearchLanguage } from '@/lib/card-languages';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -1289,46 +1287,20 @@ export default function CardSelector({
                   </button>
                 )}
               </div>
-              {targetLanguages && (
-                <SelectorMenu
-                  label="Binder filter"
-                  heading="Show"
-                  menuLabel="Choose which cards to show"
-                  width={200}
-                  className="shrink-0"
-                  icon={
-                    <>
-                      <ListFilter className={`h-4 w-4 ${matchBinder ? 'text-primary' : ''}`} aria-hidden />
-                      {matchBinder && (
-                        <span className="bg-primary absolute top-1.5 right-1.5 h-2 w-2 rounded-full" aria-hidden />
-                      )}
-                    </>
-                  }
-                  value={matchBinder ? 'binder' : 'all'}
-                  valueLabel={matchBinder ? 'Binder settings' : 'All cards'}
-                  options={[
-                    { value: 'binder', label: 'Binder settings' },
-                    { value: 'all', label: 'All cards' },
-                  ]}
-                  onSelect={(value) => setMatchBinder(value === 'binder')}
-                />
-              )}
               <button
                 type="button"
                 onClick={() => setIsFiltersOpen(true)}
                 aria-haspopup="dialog"
-                className={`flex h-11 shrink-0 items-center gap-1.5 rounded-2xl border px-3 text-xs font-semibold transition-colors ${
+                aria-label={
                   activeFilterChips.length > 0
-                    ? 'border-primary/45 bg-primary/12 text-primary'
-                    : 'border-border/60 bg-background/85 text-foreground hover:bg-muted/60'
-                }`}
+                    ? `Filters and sort, ${activeFilterChips.length} active`
+                    : 'Filters and sort'
+                }
+                className="text-muted-foreground hover:bg-muted/70 hover:text-foreground relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
               >
-                <SlidersHorizontal className="h-4 w-4" />
-                <span>Filters · Sort</span>
+                <SlidersHorizontal className={`h-4 w-4 ${activeFilterChips.length > 0 ? 'text-primary' : ''}`} />
                 {activeFilterChips.length > 0 && (
-                  <span className="bg-primary text-primary-foreground flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px]">
-                    {activeFilterChips.length}
-                  </span>
+                  <span className="bg-primary absolute top-2 right-2 h-2 w-2 rounded-full" aria-hidden />
                 )}
               </button>
             </div>
@@ -1399,6 +1371,8 @@ export default function CardSelector({
               language={selectedCardLanguage}
               onLanguageChange={setSelectedCardLanguage}
               allowAnyLanguage={isAnyCard}
+              matchBinder={targetLanguages ? matchBinder : undefined}
+              onMatchBinderChange={setMatchBinder}
               variant={variantChoice}
               onVariantChange={setVariantChoice}
               pokemon={pokemonFilter}

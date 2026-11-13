@@ -268,7 +268,7 @@ test.describe('card picker price sort (UK)', () => {
       return detail;
     };
     const selector = page.getByRole('dialog', { name: /card selector/i });
-    const filtersButton = selector.getByRole('button', { name: /filters · sort/i });
+    const filtersButton = selector.getByRole('button', { name: /filters and sort/i });
     const sheet = page.getByRole('dialog', { name: 'Filters and sort' });
     const sortSelect = sheet.getByRole('combobox', { name: 'Sort cards' });
     const order = () =>

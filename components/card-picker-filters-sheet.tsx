@@ -12,6 +12,9 @@ interface CardPickerFiltersSheetProps {
   onSortChange: (sort: CardPickerSort) => void;
   language: CardSearchLanguage;
   onLanguageChange: (language: CardSearchLanguage) => void;
+  /** Binder pickers only: limit results to the binder's settings, or show every card. */
+  matchBinder?: boolean;
+  onMatchBinderChange?: (matchBinder: boolean) => void;
   /** Card search only: offer "Any", every printing in its own language. */
   allowAnyLanguage?: boolean;
   variant: CardPickerVariantChoice;
@@ -74,6 +77,28 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-2">
+        {props.matchBinder !== undefined && (
+          <fieldset className="space-y-1.5">
+            <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">Show</legend>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { id: true, label: 'Binder settings' },
+                { id: false, label: 'All cards' },
+              ].map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  aria-pressed={props.matchBinder === option.id}
+                  onClick={() => props.onMatchBinderChange?.(option.id)}
+                  className={chipClass(props.matchBinder === option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
         <label className="block space-y-1.5">
           <span className="text-muted-foreground text-xs font-semibold">Sort</span>
           <Select

@@ -211,7 +211,7 @@ for (const theme of ['light', 'dark'] as const) {
       const body = scrollBody(selector);
       await expect(selector.getByText('35 of 35 cards')).toBeVisible();
       await ends(page, selector);
-      await selector.getByRole('button', { name: /filters · sort/i }).click();
+      await selector.getByRole('button', { name: /filters and sort/i }).click();
       const filters = page.getByRole('dialog', { name: 'Filters and sort', exact: true });
       await expect(filters).toBeVisible();
       const lowerTop = await top(body);

@@ -170,7 +170,7 @@ test.describe('explicit stable-slot picker', () => {
     const dialog = await search(page, 'slot-g', 'snorlax');
     await expect(tile(dialog, 'Snorlax A')).toBeVisible();
     await expect(tile(dialog, 'Energy')).toHaveCount(0);
-    await dialog.getByRole('button', { name: /filters · sort/i }).click();
+    await dialog.getByRole('button', { name: /filters and sort/i }).click();
     const filters = page.getByRole('dialog', { name: 'Filters and sort' });
     await filters.getByRole('button', { name: 'Any language', exact: true }).click();
     await filters.getByRole('button', { name: /^Show \d+ cards?$/ }).click();
@@ -587,8 +587,10 @@ test.describe('explicit stable-slot picker', () => {
     await expect(tile(dialog, 'Kabigon')).toHaveCount(0);
     await expect(dialog.getByText('Your filters don’t match this binder’s settings.')).toHaveCount(0);
 
-    await dialog.getByRole('button', { name: 'Binder filter' }).click();
-    await page.getByRole('menuitemradio', { name: 'All cards' }).click();
+    await dialog.getByRole('button', { name: /Filters and sort/ }).click();
+    const filters = page.getByRole('dialog', { name: 'Filters and sort' });
+    await filters.getByRole('button', { name: 'All cards' }).click();
+    await filters.getByRole('button', { name: 'Close filters' }).click();
     await expect(tile(dialog, 'Kabigon')).toBeVisible();
     await expect(dialog.getByText('Your filters don’t match this binder’s settings.')).toBeVisible();
     await harness.expectNoHorizontalOverflow();

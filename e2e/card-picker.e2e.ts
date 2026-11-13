@@ -29,7 +29,7 @@ test.describe('card picker layout', () => {
       // Language, variant, set, rarity and sort live behind one button, not stacked rows.
       await expect(selector.getByRole('button', { name: 'Japanese' })).toHaveCount(0);
       await expect(selector.getByRole('combobox')).toHaveCount(0);
-      const filtersButton = selector.getByRole('button', { name: /filters · sort/i });
+      const filtersButton = selector.getByRole('button', { name: /filters and sort/i });
       await harness.expectMinTapTarget(filtersButton, 36);
       await harness.expectNoHorizontalOverflow();
 
@@ -44,7 +44,7 @@ test.describe('card picker layout', () => {
   test('filters apply from the sheet and show as removable chips', async ({ harness }) => {
     const { page } = harness;
     const selector = await openPicker(harness);
-    await selector.getByRole('button', { name: /filters · sort/i }).click();
+    await selector.getByRole('button', { name: /filters and sort/i }).click();
     const sheet = page.getByRole('dialog', { name: 'Filters and sort' });
     await expect(sheet).toBeVisible();
     await sheet.getByRole('button', { name: 'Japanese', exact: true }).click();
@@ -65,7 +65,7 @@ test.describe('card picker layout', () => {
     await expect(selector.getByText('3 of 3 cards')).toBeVisible();
 
     // Escape closes only the sheet, then the picker.
-    await selector.getByRole('button', { name: /filters · sort/i }).click();
+    await selector.getByRole('button', { name: /filters and sort/i }).click();
     await expect(sheet).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(sheet).toHaveCount(0);
