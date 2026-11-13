@@ -201,16 +201,20 @@ function CardSelectorImage({
   alt,
   className,
   fallbackClassName = 'flex h-full w-full items-center justify-center bg-muted',
+  shimmer = false,
 }: {
   src?: string;
   sizes?: string;
   alt: string;
   className: string;
   fallbackClassName?: string;
+  /** Holo shimmer behind the image until it loads; the parent must be positioned. */
+  shimmer?: boolean;
 }) {
   // Remembers which src failed, so a new src gets a fresh try.
   const [failedSrc, setFailedSrc] = useState<string>();
   const failed = failedSrc !== undefined && failedSrc === src;
+  const [loadedSrc, setLoadedSrc] = useState<string>();
   const imageSrc = toCardImageSrc(src);
 
   if (!imageSrc || failed) {
@@ -222,15 +226,22 @@ function CardSelectorImage({
   }
 
   // The original URL, not the CDN one: CardImage falls back to the proxy (which mirrors the miss) only from the original.
+  // The holo shimmer shows until the image arrives, then goes so hundreds of tiles don't keep animating.
   return (
-    <CardImage
-      sizes={sizes}
-      src={src!}
-      alt={alt}
-      className={className}
-      loading="lazy"
-      onError={() => setFailedSrc(src)}
-    />
+    <>
+      {shimmer && loadedSrc !== src && (
+        <div aria-hidden="true" className="holo-loading absolute inset-0 rounded-[inherit]" />
+      )}
+      <CardImage
+        sizes={sizes}
+        src={src!}
+        alt={alt}
+        className={className}
+        loading="lazy"
+        onLoad={() => setLoadedSrc(src)}
+        onError={() => setFailedSrc(src)}
+      />
+    </>
   );
 }
 
@@ -272,6 +283,11 @@ export default function CardSelector({
     language: selectedCardLanguage,
     includeNonPokemon: true,
   });
+  // While the next search loads, the last results stay up (dimmed) instead of flashing skeletons on every keystroke.
+  const [lastSearchCards, setLastSearchCards] = useState(catalogSearch.cards);
+  if (!catalogSearch.loading && catalogSearch.cards.length > 0 && catalogSearch.cards !== lastSearchCards)
+    setLastSearchCards(catalogSearch.cards);
+  const searchCards = catalogSearch.loading ? lastSearchCards : catalogSearch.cards;
   const cards = useMemo<TCGCard[]>(
     () =>
       !isAnyCard
@@ -280,7 +296,7 @@ export default function CardSelector({
           // in English that means no English print (a Japanese-only card), so it is dropped unless it is the reserved
           // printing. Other languages price English prints, so their unset cards stay. One found on this device with no
           // language recorded stays unknown rather than being guessed.
-          catalogSearch.cards.flatMap((card) => {
+          searchCards.flatMap((card) => {
             if (reservedCardId && !matchesCatalogCardId(card, reservedCardId)) return [];
             if (
               !reservedCardId &&
@@ -300,15 +316,7 @@ export default function CardSelector({
               },
             ];
           }),
-    [
-      isAnyCard,
-      reservedCardId,
-      catalogSearch.cards,
-      catalogSearch.offline,
-      selectedCardLanguage,
-      fixedLanguage,
-      speciesCards,
-    ],
+    [isAnyCard, reservedCardId, searchCards, catalogSearch.offline, selectedCardLanguage, fixedLanguage, speciesCards],
   );
   const isLoading = anyCard ? catalogSearch.loading : isLoadingSpecies;
   const error = anyCard ? null : speciesError;
@@ -1121,7 +1129,11 @@ export default function CardSelector({
                     ? 'Any card, Trainer or Energy'
                     : several
                       ? `${picks.length} of ${room} empty pocket${room === 1 ? '' : 's'} on this page`
-                      : `${filteredCards.length} of ${cards.length} cards`}
+                      : isLoading
+                        ? anyCard
+                          ? 'Searching…'
+                          : 'Loading cards…'
+                        : `${filteredCards.length} of ${cards.length} cards`}
                 </p>
               </div>
               {native?.many && room > 1 && (
@@ -1541,7 +1553,10 @@ export default function CardSelector({
                   </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5">
+                <div
+                  aria-busy={isLoading}
+                  className={`grid grid-cols-2 gap-2 transition-opacity min-[400px]:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5 ${isLoading ? 'opacity-50' : ''}`}
+                >
                   {displayedCards.map((card) => {
                     const price = pricesByCardId[getCardPriceKey(card.id, priceLanguage(card))];
                     const priceLabels = getCardSelectorPriceLabels(price, formatAmount);
@@ -1569,7 +1584,8 @@ export default function CardSelector({
                           <CardSelectorImage
                             src={card.image}
                             alt={card.name}
-                            className="bg-muted absolute inset-0 h-full w-full object-cover"
+                            className="absolute inset-0 h-full w-full object-cover"
+                            shimmer
                           />
                           {pickNumber > 0 ? (
                             <div className="absolute top-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white tabular-nums">
