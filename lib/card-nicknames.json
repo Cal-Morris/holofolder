@@ -1727,7 +1727,6 @@
     "swshp-SWSH144"
   ],
   "gray felt hat pikachu": ["svp-085"],
-  "kanazawa pikachu": ["tcgplayer-597343", "tcgplayer-597346"],
   "mega": [
     "30th-c-023",
     "cel25-76A",
@@ -1820,30 +1819,10 @@
     "xyp-XY200",
     "xyp-XY200a"
   ],
-  "mega tokyo pikachu": ["tcgplayer-602003", "tcgplayer-602108"],
   "moon breon": ["swsh7-215"],
   "moonbreon": ["swsh7-215"],
   "munch": ["tcgplayer-598363", "tcgplayer-598364", "tcgplayer-598365", "tcgplayer-598366", "tcgplayer-598367"],
   "munch scream": ["tcgplayer-598363", "tcgplayer-598364", "tcgplayer-598365", "tcgplayer-598366", "tcgplayer-598367"],
-  "poncho": [
-    "tcgplayer-598114",
-    "tcgplayer-598115",
-    "tcgplayer-598214",
-    "tcgplayer-598215",
-    "tcgplayer-598216",
-    "tcgplayer-598217",
-    "tcgplayer-598218",
-    "tcgplayer-598219",
-    "tcgplayer-598220",
-    "tcgplayer-598221",
-    "tcgplayer-602107",
-    "tcgplayer-602111",
-    "tcgplayer-602112",
-    "tcgplayer-602134",
-    "tcgplayer-602135",
-    "tcgplayer-602178",
-    "tcgplayer-602179"
-  ],
   "scream": ["tcgplayer-598363", "tcgplayer-598364", "tcgplayer-598365", "tcgplayer-598366", "tcgplayer-598367"],
   "shiny vault": [
     "sma-SV1",
@@ -2621,7 +2600,6 @@
     "swsh12tg-TG30"
   ],
   "the scream": ["tcgplayer-598363", "tcgplayer-598364", "tcgplayer-598365", "tcgplayer-598366", "tcgplayer-598367"],
-  "tokyo pikachu": ["tcgplayer-602003", "tcgplayer-602108"],
   "trainer gallery": [
     "swsh9-TG01",
     "swsh9-TG02",
@@ -2821,6 +2799,5 @@
     "swsh12tg-TG30"
   ],
   "van gogh": ["svp-085"],
-  "van gogh pikachu": ["svp-085"],
-  "yokohama pikachu": ["tcgplayer-598357", "tcgplayer-598358", "tcgplayer-598359", "tcgplayer-598360"]
+  "van gogh pikachu": ["svp-085"]
 }

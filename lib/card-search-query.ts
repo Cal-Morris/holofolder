@@ -121,6 +121,29 @@ export function correctedCardSearchQuery(raw: string, sets: SearchSet[]) {
  * card, and returns hundreds of unrelated ones. Longer or non-Latin text matches anywhere in the name.
  */
 export function cardNameSearchFilter(text: string) {
-  const patterns = /^[a-z0-9]{2}$/i.test(text) ? [`${text}%`, `% ${text}%`, `%-${text}%`] : [`%${text}%`];
+  const inOrder = wordOrderPattern(text);
+  const patterns = /^[a-z0-9]{2}$/i.test(text)
+    ? [`${text}%`, `% ${text}%`, `%-${text}%`]
+    : [`%${text}%`, ...(inOrder ? [`%${inOrder}%`] : [])];
   return patterns.map((pattern) => `name_en.ilike.${JSON.stringify(pattern)}`).join(',');
+}
+
+/**
+ * Several words also match in order with anything between, and a trailing "s" may be a possessive: "blaines charizard"
+ * finds Blaine's Charizard, "poncho pikachu" Poncho-wearing Pikachu, "mr mime" Mr. Mime. An ilike pattern, or null.
+ */
+function wordOrderPattern(text: string) {
+  const words = text.split(' ').filter(Boolean);
+  if (words.length < 2) return null;
+  return words.map((word) => (word.length > 3 && word.endsWith('s') ? `${word.slice(0, -1)}%s` : word)).join('%');
+}
+
+/** The on-device version of the name search above (text is lowercase). */
+export function matchesCardName(name: string, text: string) {
+  const lower = name.toLowerCase();
+  if (lower.includes(text)) return true;
+  const inOrder = wordOrderPattern(text);
+  if (!inOrder) return false;
+  const parts = inOrder.split('%').map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return new RegExp(parts.join('.*')).test(lower);
 }
