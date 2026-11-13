@@ -9,7 +9,7 @@ The suite lives in `e2e/*.e2e.ts`. `playwright.config.ts` defines 6 projects: **
 
 Every test runs on `browser-390x844`. The other five projects run only tests tagged **`@matrix`**: the ones whose assertions depend on the viewport or standalone mode (safe areas, overflow, dock clearance, sheet and toolbar geometry, keyboard avoidance), or that skip outside standalone. Tag a test or describe with `{ tag: '@matrix' }` only for that; a flow that merely opens a sheet doesn't qualify. `bun run test:e2e:matrix` runs every test on all six.
 
-Defaults are 20 s per test and 5 s per `expect`. A test that genuinely needs longer says so with `test.slow()` or `test.setTimeout()`.
+Defaults are 20 s per test, 5 s per `expect` and per action (click, fill), and 10 s per navigation, so a click on a control that no longer exists fails in 5 s instead of hanging the test. A test that genuinely needs longer says so with `test.slow()`, `test.setTimeout()` or a per-call `timeout`.
 
 ## How it runs
 
@@ -22,8 +22,8 @@ Defaults are 20 s per test and 5 s per `expect`. A test that genuinely needs lon
 - **Did my change break anything?** Run `bun run test:e2e:compare e2e/<affected>.e2e.ts [--project …]`. It runs the specs here with one retry; if anything fails, it checks out `origin/main` in a reusable worktree under the system temp folder, builds and serves it on `E2E_PORT`+1, and reruns the failing files there. It prints only tests that fail here but pass on main, new failing tests and flaky ones, and exits 1 on a regression. Don't hand-roll baseline comparisons.
 - **Known failures** (`e2e/known-failures.json`) is a temporary quarantine for tests that already fail on a clean main, triaged in `/Users/cal/dev/plans/holofolder-card-recognition-2026-11-12/e2e-triage.md`. It must be empty once the three fix batches land. The rules:
   1. Every entry names its `cause` (`stale-selector-or-flow`, `harness-or-fixture`, `flaky`, `environment`, `app-bug`), its fix `batch` (1–3, from the triage file) and the `failure` it shows.
-  2. Listed tests still run. `e2e/known-failures-reporter.ts` reports a listed failure on its own and doesn't fail the run for it, but a listed test that passes **fails the run** with "remove from known-failures", so the list only shrinks. `flaky` entries may pass.
-  3. `test:e2e:compare` and any CI smoke step report known failures separately and never count them as passes.
+  2. The fast default run skips listed tests. `bun run test:e2e:known` runs only them (on every project they fail on), and `e2e/known-failures-reporter.ts` reports each listed failure on its own; a listed test that passes **fails that run** with "remove from known-failures", so the list only shrinks. `flaky` entries may pass. Run it when you touch an area with listed tests.
+  3. `test:e2e:compare` always runs listed tests (`E2E_KNOWN_FAILURES=include`) and, like any CI smoke step, reports known failures separately and never counts them as passes; it also flags listed tests that now pass.
   4. Add an entry only for a test that also fails on a clean main (prove it with `bun run test:e2e:compare`). Never add one to make your own change green; fix the test or the app instead. When you fix one, delete its entry in the same PR.
 - Tests drive `/e2e-harness`, a seeded `BinderApp` that returns 404 unless `HOLOFOLDER_E2E=1`. `?signedIn=1` plants a fake session. `?binders=1` gives the owner two binders ("My binder" and "Trades", which holds only Charmander), `?binder=<id>` opens one and `?partner=1` makes the signed-in user the owner's partner; see `e2e/binders.e2e.ts` for a fake `/api/binders`.
 - `mockBackends()` mocks Supabase, the collection, settings, card data, prices and `/api/card-image-proxy`. **Tests never hit the internet or a real database.**
