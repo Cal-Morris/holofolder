@@ -927,27 +927,6 @@
       "failure": "Error: expect(locator).toBeVisible() failed — getByRole('heading', { name: 'Analytics', exact: true })"
     },
     {
-      "file": "collection-price-check.e2e.ts",
-      "title": ["wanted checks confirm once, survive leaving and reopening, and reconnect offline"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the wanted and owned bulk price checks are not shown for native binders (main-content hides it for nativeWanted; native analytics replaces the owned check's host)."
-    },
-    {
-      "file": "collection-price-check.e2e.ts",
-      "title": ["explicit Stop cancels the server job"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the wanted and owned bulk price checks are not shown for native binders (main-content hides it for nativeWanted; native analytics replaces the owned check's host)."
-    },
-    {
-      "file": "collection-price-check.e2e.ts",
-      "title": ["a slow initial inspection cannot erase a job started in the meantime"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the wanted and owned bulk price checks are not shown for native binders (main-content hides it for nativeWanted; native analytics replaces the owned check's host)."
-    },
-    {
       "file": "custom-storage-scope.e2e.ts",
       "title": [
         "partner creates Custom under shared owner without changing existing graded copies, targets or placements"

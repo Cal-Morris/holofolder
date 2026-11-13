@@ -44,6 +44,8 @@ import { formatCardFinishLabel, formatCardLanguageLabel } from '@/lib/card-label
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 import type { CardFinish } from '@/lib/domain/cards';
 import { Select } from '@/components/ui/select';
+import CollectionPriceCheck from '@/components/collection-price-check';
+import type { CollectedPokemon } from '@/lib/domain/cards';
 
 /** Explicit wanted entries, not species groups or a second inventory store. Used by Wanted, Hunting and card details. */
 export default function NativeWantedEntries({
@@ -54,8 +56,11 @@ export default function NativeWantedEntries({
   presentation = 'lookup',
   pricing,
   onShare,
+  priceCheck,
 }: {
   presentation?: 'lookup' | 'wanted';
+  /** The Wanted tab only: the want list's bulk price check, under the header (as in Show's Hunting list). */
+  priceCheck?: { ownerId: string | null; rows: readonly CollectedPokemon[]; isOnline: boolean };
   /** The Wanted tab only: how saved prices are weighted and written for this person. */
   pricing?: {
     region: PricingRegion;
@@ -219,6 +224,14 @@ export default function NativeWantedEntries({
               </button>
             )}
           </div>
+          {entries.length > 0 && priceCheck && (
+            <CollectionPriceCheck
+              ownerId={priceCheck.ownerId}
+              collection={priceCheck.rows}
+              kind="wanted"
+              isOnline={priceCheck.isOnline}
+            />
+          )}
           {entries.length > 0 && (
             <ListControls>
               <ListSearch
