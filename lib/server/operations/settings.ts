@@ -1,3 +1,4 @@
+import { expirePublicBinders } from '@/lib/server/public-binder-cache';
 import { settingsFingerprint } from '@/lib/developer-api/settings';
 import type { User } from '@supabase/supabase-js';
 import { isBinderId } from '@/lib/binders/model';
@@ -207,6 +208,7 @@ export async function saveCollectionSettings(
       if (error) throw error;
       if (!data || data.conflict)
         return NextResponse.json({ error: 'Settings changed. Reload before saving again.' }, { status: 409 });
+      expirePublicBinders(settingsOwnerUserId);
       return getCollectionSettings(request, actor, true, verifiedOwnerId);
     }
     if (binderId && layoutChanged) {
@@ -253,6 +255,7 @@ export async function saveCollectionSettings(
       return NextResponse.json({ error: error.message || 'Failed to save settings' }, { status: 500 });
     }
 
+    expirePublicBinders(settingsOwnerUserId);
     return NextResponse.json({ settings: nextSettings });
   } catch (error) {
     if (error instanceof BinderAccessError) return NextResponse.json({ error: error.message }, { status: 404 });

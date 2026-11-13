@@ -1,3 +1,4 @@
+import { expirePublicBinders } from '@/lib/server/public-binder-cache';
 import { getFirstPartyUser } from '@/lib/supabase/session-user';
 import { createClient } from '@/lib/supabase/server';
 import { getSessionUser } from '@/lib/supabase/session-user';
@@ -43,6 +44,7 @@ export async function PATCH(request: Request) {
     if (error?.code === '23505')
       return Response.json({ error: 'That username is already taken.' }, { status: 409, headers });
     if (error || data !== username) return unavailable();
+    expirePublicBinders(user.id, { links: true });
     return Response.json({ username }, { headers });
   } catch {
     return unavailable();

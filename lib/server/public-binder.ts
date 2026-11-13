@@ -13,6 +13,7 @@ import { mapWithConcurrency } from '@/lib/card-db-sync-concurrency';
 import { buildTcgdexAssetImageUrl, pickImageLanguage } from '@/lib/tcgdex-shared';
 import { isCardImageSourceUrl, pickCardImageUrl } from '@/lib/card-image-sources';
 import { isCardLanguage, type CardLanguage } from '@/lib/domain/cards';
+import { MISSING_PUBLIC_BINDER_TAG, publicBinderTag } from '@/lib/server/public-binder-cache';
 
 const KNOWN_GRADERS = new Set(['psa', 'ace', 'cgc', 'beckett']);
 
@@ -45,8 +46,13 @@ export class PublicBinderUnavailable extends Error {
     super('Public binder unavailable');
   }
 }
+/** No enabled share answers to this address: safe to cache as a 404, unlike a failed read. */
+class PublicBinderMissing extends PublicBinderUnavailable {}
 const fail = (): never => {
   throw new PublicBinderUnavailable();
+};
+const missing = (): never => {
+  throw new PublicBinderMissing();
 };
 const object = (v: unknown): Row => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Row) : fail());
 const rows = (v: unknown): Row[] => (Array.isArray(v) ? v.map(object) : fail());
@@ -74,6 +80,28 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
   }
 }
 
+/** Named shares (`/@username/slug`) skip the stamp: the payload is cached until the owner's next write expires
+ * `publicBinderTag` (lib/server/public-binder-cache.ts), so the page itself can be served from cache. */
+export async function loadNamedPublicBinder(username: string, binderSlug: string): Promise<PublicBinder | null> {
+  'use cache: remote';
+  // Card names and images come from the mirror, which a card sync revalidates.
+  cacheTag('tcg-mirror');
+  try {
+    if (normalizeUsername(username) !== username || normalizeBinderSlug(binderSlug) !== binderSlug) missing();
+    const db = (await import('@/lib/supabase/admin')).createAdminClient();
+    const read = await readPublicBinder({ username, binderSlug }, db);
+    cacheLife('days');
+    cacheTag(publicBinderTag(read.owner!));
+    return read.binder!;
+  } catch (error) {
+    // Failed reads throw and are never cached. A missing share is cached briefly, until a share or name changes.
+    if (!(error instanceof PublicBinderMissing)) throw error;
+    cacheLife('minutes');
+    cacheTag(MISSING_PUBLIC_BINDER_TAG);
+    return null;
+  }
+}
+
 async function cachedPublicBinder(identity: PublicShareIdentity, stamp: string): Promise<PublicBinder> {
   'use cache: remote';
   cacheLife('days');
@@ -92,7 +120,7 @@ async function readPublicBinder(
   identity: PublicShareIdentity,
   db: SupabaseClient,
   stampOnly = false,
-): Promise<{ stamp: string; binder?: PublicBinder }> {
+): Promise<{ stamp: string; owner?: string; binder?: PublicBinder }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
   let requests = 0;
@@ -120,14 +148,14 @@ async function readPublicBinder(
           .maybeSingle(),
       );
       const share = result.data as BinderShareRecord | null;
-      if (!share?.is_enabled || share.token !== identity.token || !share.owner_user_id) return fail();
+      if (!share?.is_enabled || share.token !== identity.token || !share.owner_user_id) return missing();
       return share;
     }
     if (
       normalizeUsername(identity.username) !== identity.username ||
       normalizeBinderSlug(identity.binderSlug) !== identity.binderSlug
     )
-      return fail();
+      return missing();
     const result = await run(
       db
         .rpc('resolve_named_binder_share', {
@@ -138,7 +166,7 @@ async function readPublicBinder(
         .maybeSingle(),
     );
     const share = result.data as BinderShareRecord | null;
-    if (!share?.is_enabled || !share.binder_id || !share.owner_user_id || !share.token) return fail();
+    if (!share?.is_enabled || !share.binder_id || !share.owner_user_id || !share.token) return missing();
     // RPC can grow independently. Retain only the permission fields in the server fence.
     return {
       owner_user_id: share.owner_user_id,
@@ -156,8 +184,8 @@ async function readPublicBinder(
       let query = db.from('binders').select(BINDER).eq('owner_user_id', owner);
       query = share.binder_id ? query.eq('id', share.binder_id) : query.eq('is_default', true);
       const result = await run(query.abortSignal(controller.signal).maybeSingle());
-      const value = object(result.data);
-      if (value.owner_user_id !== owner || (share.binder_id && value.id !== share.binder_id)) return fail();
+      const value = object(result.data ?? missing());
+      if (value.owner_user_id !== owner || (share.binder_id && value.id !== share.binder_id)) return missing();
       return value;
     }
     const initialBinder = await binder(),
@@ -585,8 +613,9 @@ async function readPublicBinder(
       revision().then((final) => same(rev, final)),
       permission().then((final) => same(share, final)),
     ]);
-    return { stamp, binder: { ...base, prices: share.show_prices === true, slots } };
-  } catch {
+    return { stamp, owner, binder: { ...base, prices: share.show_prices === true, slots } };
+  } catch (error) {
+    if (error instanceof PublicBinderMissing) throw error;
     return fail();
   } finally {
     clearTimeout(timer);

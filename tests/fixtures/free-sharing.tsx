@@ -90,8 +90,22 @@ async function run() {
   mock.module('next/server', () => ({ connection: async () => undefined }));
   // The client BinderApp needs the Next runtime; this subprocess checks the server payload boundary only.
   mock.module('../../components/public-binder', () => ({ default: () => null }));
+  const expired: string[] = [];
+  const cacheTags = await import('../../lib/server/public-binder-cache');
+  mock.module('../../lib/server/public-binder-cache', () => ({
+    ...cacheTags,
+    expirePublicBinders: (ownerUserId: string) => void expired.push(ownerUserId),
+  }));
   const { loadPublicBinder: realLoad } = await import('../../lib/server/public-binder');
   mock.module('../../lib/server/public-binder', () => ({
+    // Named pages are cached: a missing or foreign share resolves to null (a 404), never a stale payload.
+    loadNamedPublicBinder: async (username: string, binderSlug: string) => {
+      if (!share?.is_enabled || !named || username !== 'synthetic' || binderSlug !== 'binder' || wrongBinder)
+        return null;
+      const db = syntheticPublicDatabase({ prices: share.show_prices });
+      for (const table of ['binder_shares', 'resolve_named_binder_share']) db.tables[table][0].token = share.token;
+      return realLoad({ username, binderSlug }, db.client);
+    },
     loadPublicBinder: async (identity: { token: string } | { username: string; binderSlug: string }) => {
       if (
         !share ||
@@ -185,6 +199,7 @@ async function run() {
     new Request(`https://synthetic.test/app/api/binder-share?binderId=${binderId}`, { method: 'DELETE' }),
   );
   assert.equal(disabled.status, 200);
+  assert.equal(expired.at(-1), owner, 'disabling a share expires its cached named page');
   await assert.rejects(generateTokenMetadata({ params: Promise.resolve({ token }) }), /NOT_FOUND/);
   await assert.rejects(
     generateNamedMetadata({ params: Promise.resolve({ username: 'synthetic', binderSlug: 'binder' }) }),

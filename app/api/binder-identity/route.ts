@@ -1,3 +1,4 @@
+import { expirePublicBinders } from '@/lib/server/public-binder-cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isBinderId } from '@/lib/binders/model';
 import { isMissingIdentitySchema, normalizeBinderSlug } from '@/lib/public-binder-identity';
@@ -59,6 +60,7 @@ export async function PATCH(request: Request) {
       requested_slug: slug,
     });
     if (error) throw error;
+    expirePublicBinders(user.id, { links: true });
     return identityJson({ ...(await readBinderIdentity(user.id, body.binderId)), canEdit: true, available: true });
   } catch (error) {
     return identityFailure(error, 'Binder slug');
