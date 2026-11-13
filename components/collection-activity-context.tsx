@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, use, useCallback, useEffect, useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { History } from 'lucide-react';
 import { closeAllOverlays } from '@/hooks/use-overlay';
@@ -21,7 +21,7 @@ export type ActivityInitialFilter = { pokemonId?: number; inventoryItemId?: stri
 const ActivityContext = createContext<((filter: ActivityInitialFilter) => void) | null>(null);
 
 /** Opens Collection Activity, or null where Activity is unavailable. */
-export const useActivityOpener = () => useContext(ActivityContext);
+export const useActivityOpener = () => use(ActivityContext);
 
 export function ActivityButton({
   pokemonId,
@@ -34,7 +34,7 @@ export function ActivityButton({
   filter?: ActivityInitialFilter;
   label?: string;
 }) {
-  const open = useContext(ActivityContext);
+  const open = use(ActivityContext);
   if (!open) return null;
   return (
     <button
@@ -76,6 +76,7 @@ export function CollectionActivityProvider({
 }) {
   const [scope, setScope] = useState<ActivityScope | null>(null);
   const [opened, setOpened] = useState<ActivityInitialFilter | null>(null);
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- `revision` re-runs the scope check effect
   const [revision, setRevision] = useState(0);
   const close = useCallback(() => setOpened(null), []);
   const invalidate = useCallback(() => {
@@ -83,6 +84,7 @@ export function CollectionActivityProvider({
     setScope(null);
     setOpened(null);
   }, []);
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect -- verifies the cached history scope for this account; aborted and timed out on change
   useEffect(() => {
     let cancelled = false;
     const abort = new AbortController();
@@ -141,6 +143,7 @@ export function CollectionActivityProvider({
       window.clearTimeout(timeout);
     };
   }, [accountId, ownerId, isOnline, revision, invalidate, opened]);
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- the setters run in focus, visibility and storage listeners, not during the effect
   useEffect(() => {
     const refresh = () => {
       if (opened && document.visibilityState === 'visible') setRevision((v) => v + 1);
