@@ -235,7 +235,7 @@ test('opening a read-only binder preserves this device’s signed-in notificatio
     });
   }, E2E_USER.id);
   await page.goto('/app/e2e-harness?readOnly=1');
-  await expect(page.getByText('Shared binder', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Holo Folder: back to shared binder', exact: true })).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(

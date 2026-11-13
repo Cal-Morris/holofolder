@@ -14,7 +14,7 @@ for (const shared of [false, true]) {
       await harness.expectWithinSafeViewport(join);
       await harness.expectHittable(join);
       await harness.expectNoHorizontalOverflow();
-      const title = header.getByText(shared ? 'Shared binder' : 'Holo Folder', { exact: true });
+      const title = header.getByText('Holo Folder', { exact: true });
       expect(await title.evaluate((el) => el.scrollWidth <= el.clientWidth), 'binder title fits beside Join now').toBe(
         true,
       );

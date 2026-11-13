@@ -65,7 +65,7 @@ for (const path of paths('token', 'mixed')) {
       'Free slot, Empty spacer',
       'Free slot, Empty spacer',
     ]);
-    await expect(page.getByText('Shared binder', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Holo Folder: back to shared binder', exact: true })).toBeVisible();
     await phone.expectNoHorizontalOverflow();
     // Card details from a pocket, read-only and without a price.
     await page.getByRole('button', { name: 'Synthetic Snorlax, Owned' }).first().click();

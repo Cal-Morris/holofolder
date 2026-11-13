@@ -251,7 +251,7 @@ test('read-only share brand stays in its own binder and writes nothing', async (
   await page.goto('/app/e2e-harness?readOnly=1');
   const home = page
     .getByTestId('app-header')
-    .getByRole('button', { name: 'Shared binder: back to binder', exact: true });
+    .getByRole('button', { name: 'Holo Folder: back to shared binder', exact: true });
   await expect(home).toBeVisible();
   // The mark must not push header controls onto a second row on narrow phones.
   const more = page.getByTestId('app-header').getByRole('button', { name: 'More', exact: true });
@@ -279,6 +279,21 @@ test('Inventory and Binder dock tabs are mutually exclusive and Binder returns t
   await expect(page.locator(`[data-slot-id="${slotId(9)}"]`)).toBeVisible();
   await expect(pressed).toHaveCount(1);
   await expect(pressed).toHaveAccessibleName('Binder');
+});
+
+test('desktop read-only share shows the binder only, with no destinations row', async ({ browser, baseURL }, info) => {
+  test.skip(info.project.name !== 'browser-390x844', 'desktop runs once');
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' });
+  const page = await context.newPage();
+  await mockBackends(page, context, { signedIn: false, baseURL });
+  await page.goto(`${baseURL}/app/e2e-harness?readOnly=1`);
+  const header = page.getByTestId('app-header');
+  await expect(header.getByRole('button', { name: 'Holo Folder: back to shared binder', exact: true })).toBeVisible();
+  await expect(header.getByText('Holo Folder', { exact: true })).toBeVisible();
+  for (const name of ['Binder', 'List', 'Inventory', 'Wanted', 'Browse', 'Search'])
+    await expect(header.getByRole('button', { name, exact: true })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('desktop-share-header.png') });
+  await context.close();
 });
 
 for (const width of [1280, 1440])
@@ -330,20 +345,6 @@ for (const width of [1280, 1440])
     await page.screenshot({ path: info.outputPath(`desktop-${width}-binder.png`) });
     await context.close();
   });
-
-test('desktop read-only share header keeps its List destination', async ({ browser, baseURL }, info) => {
-  test.skip(info.project.name !== 'browser-390x844', 'desktop runs once');
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' });
-  const page = await context.newPage();
-  await mockBackends(page, context, { signedIn: false, baseURL });
-  await page.goto(`${baseURL}/app/e2e-harness?readOnly=1`);
-  const header = page.getByTestId('app-header');
-  await expect(header.getByRole('button', { name: 'Inventory', exact: true })).toHaveCount(0);
-  await header.getByRole('button', { name: 'List', exact: true }).click();
-  await expect(header.locator('button[aria-pressed="true"]')).toHaveAccessibleName('List');
-  await page.screenshot({ path: info.outputPath('desktop-share-list.png') });
-  await context.close();
-});
 
 test("the collection's List presentation keeps Binder as the one pressed dock tab", async ({ page }, info) => {
   await page.goto(`${entry}&binder=${alpha}&view=list`);

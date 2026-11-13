@@ -207,12 +207,12 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             </button>
           ) : (
             // Brand is home: back to this scope's binder (a share stays in its own read-only binder).
-            <div className="flex min-w-0 flex-1 xl:flex-none">
+            <div className={`flex min-w-0 flex-1 ${readOnlyMode ? '' : 'xl:flex-none'}`}>
               <button
                 type="button"
                 data-testid="header-brand-home"
                 onClick={() => void switchMainView('binder')}
-                aria-label={`${readOnlyMode ? 'Shared binder' : 'Holo Folder'}: back to binder`}
+                aria-label={readOnlyMode ? 'Holo Folder: back to shared binder' : 'Holo Folder: back to binder'}
                 className={`hover:bg-muted/60 focus-visible:ring-ring flex min-h-11 min-w-0 items-center gap-1.5 rounded-xl text-left focus-visible:ring-2 focus-visible:outline-none ${ctx.user ? 'px-1.5' : 'md:px-1.5'}`}
               >
                 {/* A signed-out visitor's header also carries Join now. Under 390px the shared title only fits without the mark. */}
@@ -224,38 +224,41 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
                   unoptimized
                   className={`h-5 w-5 shrink-0 ${readOnlyMode && !ctx.user ? 'max-[389px]:hidden' : ''}`}
                 />
-                <span className="truncate text-sm font-semibold">{readOnlyMode ? 'Shared binder' : 'Holo Folder'}</span>
+                <span className="truncate text-sm font-semibold">Holo Folder</span>
               </button>
             </div>
           )}
 
-          <div className="border-border/40 order-last hidden w-full items-center gap-1 border-t pt-1 md:flex xl:order-none xl:w-auto xl:flex-1 xl:border-0 xl:pt-0">
-            {destinations.map(({ id, label, icon: Icon }) => (
+          {/* A share is just the binder: no destinations row. */}
+          {!readOnlyMode && (
+            <div className="border-border/40 order-last hidden w-full items-center gap-1 border-t pt-1 md:flex xl:order-none xl:w-auto xl:flex-1 xl:border-0 xl:pt-0">
+              {destinations.map(({ id, label, icon: Icon }) => (
+                <button
+                  type="button"
+                  key={id}
+                  onClick={() => {
+                    if (id === 'inventory') inventory?.open();
+                    else void switchMainView(id === 'sets' ? ctx.lastBrowseViewRef.current : id);
+                  }}
+                  aria-pressed={isActive(id)}
+                  className={`flex min-h-9 items-center gap-1.5 rounded-full px-2 text-xs font-medium ${isActive(id) ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'}`}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden />
+                  {label}
+                </button>
+              ))}
               <button
                 type="button"
-                key={id}
-                onClick={() => {
-                  if (id === 'inventory') inventory?.open();
-                  else void switchMainView(id === 'sets' ? ctx.lastBrowseViewRef.current : id);
-                }}
-                aria-pressed={isActive(id)}
-                className={`flex min-h-9 items-center gap-1.5 rounded-full px-2 text-xs font-medium ${isActive(id) ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'}`}
+                onClick={isShowModeOn ? openQuickMode : openSearch}
+                aria-label="Search"
+                aria-pressed={isSearchOpen}
+                className="text-muted-foreground hover:bg-muted/60 hover:text-foreground flex min-h-9 items-center gap-1.5 rounded-full px-2 text-xs font-medium"
               >
-                <Icon className="h-3.5 w-3.5" aria-hidden />
-                {label}
+                <SearchIcon className="h-3.5 w-3.5" aria-hidden />
+                Search
               </button>
-            ))}
-            <button
-              type="button"
-              onClick={isShowModeOn ? openQuickMode : openSearch}
-              aria-label="Search"
-              aria-pressed={isSearchOpen}
-              className="text-muted-foreground hover:bg-muted/60 hover:text-foreground flex min-h-9 items-center gap-1.5 rounded-full px-2 text-xs font-medium"
-            >
-              <SearchIcon className="h-3.5 w-3.5" aria-hidden />
-              Search
-            </button>
-          </div>
+            </div>
+          )}
 
           {activeMainView === 'binder' && binderDimension === '2d' && inventory?.binderOpen !== false && (
             <div data-testid="mobile-header-pager" className="flex shrink-0 items-center">
