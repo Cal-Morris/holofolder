@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { binderCameraFrame } from '@/lib/binder-camera';
+import { PUBLIC_CARD_IMAGE_BASE } from '@/lib/card-image-url';
 import { createBinderTapTracker, createBinderSwipeTracker } from '@/lib/binder-pointer';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -244,17 +245,20 @@ export function createBinderRenderer(
     });
   }
   const imageCache = new Map<string, Promise<HTMLImageElement | null>>();
-  function image(src?: string | null) {
+  function image(src?: string | null, fallback?: string): Promise<HTMLImageElement | null> {
     if (!src) return Promise.resolve(null);
     if (!imageCache.has(src))
       imageCache.set(
         src,
         new Promise((resolve) => {
           const im = new Image();
+          // Public assets are CORS-readable, so they can be drawn into WebGL and share the 2D binder's offline cache.
+          if (src.startsWith(PUBLIC_CARD_IMAGE_BASE)) im.crossOrigin = 'anonymous';
+          im.decoding = 'async';
           im.onload = () => resolve(im);
           im.onerror = () => {
             imageCache.delete(src);
-            resolve(null);
+            resolve(fallback ? image(fallback) : null);
           };
           im.src = src;
         }),
@@ -464,7 +468,9 @@ export function createBinderRenderer(
       const slot = card.slot ?? i;
       return slot >= start && slot < start + count ? [{ card, slot }] : [];
     });
-    const loaded = await Promise.all(cards.map(async (c) => ({ ...c, image: await image(c.card.image) })));
+    const loaded = await Promise.all(
+      cards.map(async (c) => ({ ...c, image: await image(c.card.image, c.card.fallback) })),
+    );
     if (disposed || token !== modelRevision) return;
     parent.userData.cardCount = cards.length;
     parent.userData.loadedCardCount = loaded.filter((card) => card.image).length;

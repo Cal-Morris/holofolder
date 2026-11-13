@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { loadViewport } from '@/components/binder-designer/load-viewport';
 
 // Loaders shared by the dynamic views below and the preload helpers at the end of this file.
 // With Turbopack, an inline import() inside dynamic() gets its own chunk copy, so a separate
@@ -19,7 +20,15 @@ const loadPokemonBrowseView = () => import('@/components/pokemon-browse-view');
 // import: it renders inside the card detail sheet, and loading it late shifts the sheet's
 // actions on phones. Its chart is the exception: it loads in its own chunk behind a
 // placeholder of the same height (see card-price-evidence.tsx).
-export const DashboardBinderPreview = dynamic(() => import('@/components/dashboard-binder-preview'), {
+// Offline before the 3D chunks were ever fetched: say so instead of throwing to the error page.
+const importBinderPreview = () => import('@/components/dashboard-binder-preview');
+const loadBinderPreview = () =>
+  importBinderPreview().catch(() => () => (
+    <p role="status" className="text-muted-foreground p-4 text-sm">
+      3D needs a connection the first time. Your binder is still here in 2D.
+    </p>
+  ));
+export const DashboardBinderPreview = dynamic(loadBinderPreview, {
   ssr: false,
   loading: () => (
     <p role="status" className="text-muted-foreground p-4 text-sm">
@@ -90,6 +99,11 @@ export function scheduleIdleViewPreload(): () => void {
     () => preloadTabView('pokemon'),
     () => preloadTabView('analytics'),
     preloadCardSelector,
+    // Last, and skipped on Save-Data: three.js is large, but warming it here is what lets 3D open offline.
+    () => {
+      if (!(navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData)
+        preloadOnce('binder-3d', () => Promise.all([importBinderPreview(), loadViewport()]));
+    },
   ];
   let idleHandle: number | null = null;
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;

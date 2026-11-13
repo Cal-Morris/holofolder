@@ -10,6 +10,7 @@ import {
   BINDER_PAGE,
   pageTurnPoint,
   binderFill,
+  cardTextureSources,
   defaultBinderDesign,
   isCardArtworkUrl,
   normalizeBinderDesign,
@@ -207,4 +208,13 @@ test('pockets and cards stay inside both mirrored cover footprints through a lea
       assert.ok(Math.abs(front.y - back.y) < 1e-9);
       assert.ok(Math.abs(front.x + back.x - (BINDER_PAGE.width + 2 * BINDER_PAGE.inset)) < 1e-9);
     }
+});
+
+test('3D card textures use the public asset with a proxy fallback and drop anything that would taint WebGL', () => {
+  assert.deepEqual(cardTextureSources('https://assets.tcgdex.net/en/base/base1/44/high.webp'), {
+    image: 'https://assets.holofolder.com/pokemon/tcg/cards/en/base1/44/high.webp',
+    fallback: `/app/api/card-image-proxy?url=${encodeURIComponent('https://assets.tcgdex.net/en/base/base1/44/high.webp')}`,
+  });
+  assert.deepEqual(cardTextureSources('https://example.com/card.png'), { image: '' });
+  assert.deepEqual(cardTextureSources(undefined), { image: '' });
 });

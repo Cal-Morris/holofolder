@@ -1,4 +1,5 @@
 import { appPath } from '@/lib/app-path';
+import { PUBLIC_CARD_IMAGE_BASE, toCardImageProxySrc, toCardImageSrc } from '@/lib/card-image-url';
 import { isBinderGridSize } from '@/lib/binder-layout';
 import { BINDER_COLOR_PRESETS } from '@/lib/binder-colors';
 import type { BinderSettings } from '@/lib/settings';
@@ -43,6 +44,8 @@ export interface StudioCard {
   id: string;
   name: string;
   image: string;
+  /** Same-origin proxy copy, tried when the public asset is missing. */
+  fallback?: string;
   slot?: number;
   presentation?: 'owned' | 'target' | 'spacer';
 }
@@ -69,6 +72,19 @@ export function normalizeArtworkFrame(value: unknown): ArtworkFrame {
     x: number(v.x, 0, -1, 1),
     y: number(v.y, 0, -1, 1),
   };
+}
+/**
+ * The 2D binder's card image (public asset, CORS-readable) plus its proxy fallback, both safe to draw into WebGL.
+ * Anything else would taint the canvas, so it's dropped.
+ */
+export function cardTextureSources(value: unknown): { image: string; fallback?: string } {
+  const image = toCardImageSrc(value),
+    proxy = toCardImageProxySrc(value);
+  const drawable = (src: string | null) =>
+    src && (src.startsWith(PUBLIC_CARD_IMAGE_BASE) || src.startsWith('/app/api/card-image-proxy?')) ? src : null;
+  const primary = drawable(image) ?? drawable(proxy);
+  const fallback = drawable(proxy);
+  return primary ? { image: primary, ...(fallback && fallback !== primary ? { fallback } : {}) } : { image: '' };
 }
 export function isCardArtworkUrl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
