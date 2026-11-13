@@ -47,7 +47,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import type { BinderSettings } from '@/hooks/use-settings';
-import { BINDER_COLOR_PRESETS, type BinderColorId } from '@/lib/binder-colors';
+import type { BinderColor } from '@/lib/binder-colors';
+import { BinderPageColors } from '@/components/binder-page-colors';
 import { buildBinderShareUrl } from '@/lib/binder-share';
 import { trackGoogleEvent } from '@/lib/google-analytics';
 import type { User } from '@supabase/supabase-js';
@@ -106,11 +107,9 @@ interface SettingsModalProps {
   onUpdateSettings: (settings: Partial<BinderSettings>) => void | Promise<void>;
   currentBinderPage: number;
   totalBinderPages: number;
-  currentPageBinderColorId: BinderColorId;
-  onSetGlobalBinderColor: (binderColorId: BinderColorId) => void;
-  onSetCurrentPageBinderColor: (binderColorId: BinderColorId) => void;
-  onSetBinderColorForPageRange: (binderColorId: BinderColorId, endPage: number) => void;
-  onClearCurrentPageBinderColor: () => void;
+  onSetGlobalBinderColor: (binderColorId: BinderColor) => void;
+  /** `null` resets the pages to the binder colour. */
+  onSetPagesBinderColor: (binderColorId: BinderColor | null, pages: number[]) => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   isSignedIn: boolean;
@@ -147,9 +146,6 @@ interface SettingsModalProps {
 const PANE =
   'absolute inset-0 overflow-y-auto overscroll-contain transition-[translate,opacity,visibility] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none';
 const PANE_STYLE = { WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' } as const;
-const appearanceColorName = (color: string) =>
-  BINDER_COLOR_PRESETS.find((preset) => preset.swatch[0].toLowerCase() === color.toLowerCase())?.label ??
-  'a custom colour';
 
 function SettingsGroup({ label, quiet = false, children }: { label: string; quiet?: boolean; children: ReactNode }) {
   return (
@@ -180,11 +176,8 @@ export default function SettingsModal({
   onUpdateSettings,
   currentBinderPage,
   totalBinderPages,
-  currentPageBinderColorId,
   onSetGlobalBinderColor,
-  onSetCurrentPageBinderColor,
-  onSetBinderColorForPageRange,
-  onClearCurrentPageBinderColor,
+  onSetPagesBinderColor,
   isDarkMode,
   onToggleDarkMode,
   isSignedIn,
@@ -222,9 +215,6 @@ export default function SettingsModal({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const backRef = useRef<HTMLButtonElement | null>(null);
   const focusAfterNavigation = useRef(false);
-  // oxlint-disable-next-line react-doctor/no-derived-useState -- seeded from the prop and re-synced on open and page changes below
-  const [selectedBinderColorId, setSelectedBinderColorId] = useState<BinderColorId>(currentPageBinderColorId);
-  const [pageRangeInput, setPageRangeInput] = useState(String(currentBinderPage));
   const pageScrollRef = useRef<HTMLDivElement | null>(null);
   // oxlint-disable-next-line react-doctor/no-event-handler -- the focus-after-navigation effect has to run after the pane commits
   const [page, setPage] = useState<SettingsPageId | null>(isOpen ? (initialPage ?? null) : null);
@@ -232,7 +222,7 @@ export default function SettingsModal({
   // oxlint-disable-next-line react-doctor/no-event-handler -- the focus-after-navigation effect has to run after the pane commits
   const [shownPage, setShownPage] = useState<SettingsPageId | null>(page);
   // Opening resets the pane and the page fields; while open, the page fields follow the binder page.
-  const openKey = isOpen ? `${currentBinderPage}:${currentPageBinderColorId}` : null;
+  const openKey = isOpen ? String(currentBinderPage) : null;
   // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- React's store-the-previous-value pattern for resetting when the modal opens
   const [syncedOpenKey, setSyncedOpenKey] = useState(openKey);
   if (syncedOpenKey !== openKey) {
@@ -242,8 +232,6 @@ export default function SettingsModal({
         setPage(initialPage ?? null);
         setShownPage(initialPage ?? null);
       }
-      setSelectedBinderColorId(currentPageBinderColorId);
-      setPageRangeInput(String(currentBinderPage));
       setBackupMessage(null);
     }
   }
@@ -376,9 +364,6 @@ export default function SettingsModal({
     return onUpdateSettings({ binderRows: rows, binderCols: cols });
   };
 
-  const hasPageColorOverride = appearance
-    ? Boolean(appearance.pageColors[String(currentBinderPage)])
-    : Boolean(settings.binderPageColors[String(currentBinderPage)]);
   const fullShareUrl =
     sharePath && typeof window !== 'undefined' ? buildBinderShareUrl(window.location.origin, sharePath) : sharePath;
 
@@ -393,10 +378,6 @@ export default function SettingsModal({
       toast('Could not copy the share link', 'error');
     }
   };
-  const parsedPageRangeEnd = Number.parseInt(pageRangeInput, 10);
-  const safePageRangeEnd = Number.isInteger(parsedPageRangeEnd)
-    ? Math.min(Math.max(parsedPageRangeEnd, 1), totalBinderPages)
-    : currentBinderPage;
   const motionGlintStatusLabel =
     motionGlintStatus === 'active'
       ? 'Active'
@@ -467,7 +448,19 @@ export default function SettingsModal({
       case 'appearance':
         return (
           <div className="space-y-4">
-            <div className="border-border/40 flex items-center justify-between gap-4 border-b py-3">
+            <BinderPageColors
+              key={currentBinderPage}
+              totalPages={totalBinderPages}
+              currentPage={currentBinderPage}
+              binderColor={appearance ? (appearance.pageColor as BinderColor) : settings.binderColorId}
+              pageColors={
+                appearance ? (appearance.pageColors as Record<string, BinderColor>) : settings.binderPageColors
+              }
+              disabled={isAccountReadOnly}
+              onSetBinderColor={onSetGlobalBinderColor}
+              onSetPagesColor={onSetPagesBinderColor}
+            />
+            <div className="border-border/40 mt-2 flex items-center justify-between gap-4 border-y py-3">
               <div className="space-y-1">
                 <p className="text-sm font-medium">Dark mode</p>
               </div>
@@ -541,117 +534,6 @@ export default function SettingsModal({
                 aria-label="Toggle card finish glints"
                 disabled={isAccountReadOnly}
               />
-            </div>
-            <div className="pt-2">
-              <div className="flex items-center gap-2">
-                <Palette className="text-primary h-4 w-4" />
-                <div>
-                  <p className="text-sm font-medium">Binder color</p>
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                {BINDER_COLOR_PRESETS.map((preset) => {
-                  const isSelected = selectedBinderColorId === preset.id;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => setSelectedBinderColorId(preset.id)}
-                      disabled={isAccountReadOnly}
-                      className={`rounded-2xl border p-2 text-left transition-colors ${
-                        isSelected
-                          ? 'border-primary bg-primary/10 shadow-sm'
-                          : 'border-border/50 bg-background/45 hover:border-primary/40'
-                      }`}
-                    >
-                      <div
-                        className="h-10 rounded-xl"
-                        style={{
-                          background: `linear-gradient(135deg, ${preset.swatch[0]} 0%, ${preset.swatch[1]} 100%)`,
-                        }}
-                      />
-                      <p className="mt-2 text-xs font-medium">{preset.label}</p>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => onSetGlobalBinderColor(selectedBinderColorId)}
-                  disabled={isAccountReadOnly}
-                >
-                  Use for all pages
-                </Button>
-                <Button
-                  type="button"
-                  className="w-full"
-                  onClick={() => onSetCurrentPageBinderColor(selectedBinderColorId)}
-                  disabled={isAccountReadOnly}
-                >
-                  Use for page {currentBinderPage}
-                </Button>
-              </div>
-              <div className="border-border/40 mt-4 border-t pt-4">
-                <p className="text-xs font-medium">Apply to page range</p>
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="border-border/40 bg-muted/35 text-muted-foreground rounded-xl border px-3 py-2 text-sm font-medium">
-                    1-
-                  </span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={totalBinderPages}
-                    inputMode="numeric"
-                    value={pageRangeInput}
-                    disabled={isAccountReadOnly}
-                    onChange={(event) => setPageRangeInput(event.target.value)}
-                    onBlur={() => setPageRangeInput(String(safePageRangeEnd))}
-                    className="border-border/50 bg-background/80 h-10 w-20 rounded-xl border px-3 text-base font-medium tabular-nums md:text-sm"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1"
-                    disabled={isAccountReadOnly}
-                    onClick={() => {
-                      onSetBinderColorForPageRange(selectedBinderColorId, safePageRangeEnd);
-                      setPageRangeInput(String(safePageRangeEnd));
-                    }}
-                  >
-                    Use for pages 1-{safePageRangeEnd}
-                  </Button>
-                </div>
-              </div>
-              <div className="border-border/40 bg-background/45 mt-3 rounded-2xl border px-3 py-2.5">
-                <p className="text-xs font-medium">
-                  Default:{' '}
-                  {appearance
-                    ? appearanceColorName(appearance.pageColor)
-                    : (BINDER_COLOR_PRESETS.find((preset) => preset.id === settings.binderColorId)?.label ?? 'Binder')}
-                </p>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  Page {currentBinderPage} is currently using{' '}
-                  {appearance
-                    ? appearanceColorName(appearance.pageColors[String(currentBinderPage)] ?? appearance.pageColor)
-                    : (BINDER_COLOR_PRESETS.find((preset) => preset.id === currentPageBinderColorId)?.label ??
-                      'the default color')}
-                  {hasPageColorOverride ? ' via a page override.' : ' from the global default.'}
-                </p>
-                {hasPageColorOverride && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="text-muted-foreground hover:text-foreground mt-2 h-8 px-0 text-xs"
-                    onClick={onClearCurrentPageBinderColor}
-                    disabled={isAccountReadOnly}
-                  >
-                    Clear page {currentBinderPage} override
-                  </Button>
-                )}
-              </div>
             </div>
           </div>
         );

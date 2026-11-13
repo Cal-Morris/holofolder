@@ -5,7 +5,7 @@ import type { PublicBinder, PublicDisplaySlot, PublicShareIdentity } from '@/lib
 import { normalizeUsername, normalizeBinderSlug, isMissingIdentitySchema } from '@/lib/public-binder-identity';
 import { isSlotRevision, normalizeSlotTarget } from '@/lib/domain/binder-slots';
 import { normalizeInventoryIdentity, type InventoryIdentity } from '@/lib/domain/inventory';
-import { BINDER_COLOR_PRESETS, DEFAULT_BINDER_COLOR_ID, type BinderColorId } from '@/lib/binder-colors';
+import { DEFAULT_BINDER_COLOR_ID, normalizeBinderColor, type BinderColor } from '@/lib/binder-colors';
 import { isBinderGridSize } from '@/lib/binder-layout';
 import { normalizeBinderName } from '@/lib/binders/model';
 import { getPokemonSummary } from '@/lib/pokemon-catalog';
@@ -56,8 +56,7 @@ const same = (a: unknown, b: unknown) => {
 };
 const chunks = <T>(values: T[], size: number) =>
   Array.from({ length: Math.ceil(values.length / size) }, (_, i) => values.slice(i * size, i * size + size));
-const color = (v: unknown): BinderColorId =>
-  BINDER_COLOR_PRESETS.find((p) => p.id === v)?.id ?? DEFAULT_BINDER_COLOR_ID;
+const color = (v: unknown): BinderColor => normalizeBinderColor(v) ?? DEFAULT_BINDER_COLOR_ID;
 
 /** The only production entry accepts a public identity, never a caller's owner or collection scope.
  * Injected client is a trusted server/test dependency and is never cached. Otherwise a cheap uncached read of
@@ -240,7 +239,7 @@ async function readPublicBinder(
     const stamp = JSON.stringify([share, initialBinder, initialState, settings.data ?? null, publicUsername, rev]);
     if (stampOnly) return { stamp };
     const appearanceRow: Row = settings.data ? object(settings.data) : {};
-    const pageColors: Record<string, BinderColorId> = {};
+    const pageColors: Record<string, BinderColor> = {};
     if (appearanceRow.binder_page_colors && typeof appearanceRow.binder_page_colors === 'object') {
       for (const [page, value] of Object.entries(appearanceRow.binder_page_colors))
         if (/^[1-9]\d{0,6}$/.test(page)) pageColors[page] = color(value);

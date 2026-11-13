@@ -4,6 +4,7 @@ import {
   BINDER_COLOR_PRESETS,
   DEFAULT_BINDER_COLOR_ID,
   getBinderColorPreset,
+  normalizeBinderColor,
   type BinderColorId,
 } from '../lib/binder-colors';
 
@@ -44,4 +45,22 @@ test('getBinderColorPreset finds presets and falls back to the configured defaul
   assert.equal(getBinderColorPreset(null).id, DEFAULT_BINDER_COLOR_ID);
   assert.equal(getBinderColorPreset(undefined).id, DEFAULT_BINDER_COLOR_ID);
   assert.equal(getBinderColorPreset('nope' as BinderColorId).id, DEFAULT_BINDER_COLOR_ID);
+});
+
+test('custom hex colours get a generated theme of plain hex colours', () => {
+  const preset = getBinderColorPreset('#1C6B43');
+  assert.equal(preset.id, '#1c6b43');
+  assert.equal(preset.swatch[0], '#1c6b43');
+  assert.match(preset.swatch[1], /^#[0-9a-f]{6}$/);
+  assert.match(preset.dark.border, /^#[0-9a-f]{6}$/);
+  assert.ok(preset.dark.background.includes('#1c6b43'));
+  assert.equal(getBinderColorPreset('#12345').id, DEFAULT_BINDER_COLOR_ID);
+});
+
+test('normalizeBinderColor keeps presets and valid hex, drops anything else', () => {
+  assert.equal(normalizeBinderColor('ruby'), 'ruby');
+  assert.equal(normalizeBinderColor('#ABCDEF'), '#abcdef');
+  assert.equal(normalizeBinderColor('#abc'), undefined);
+  assert.equal(normalizeBinderColor('red'), undefined);
+  assert.equal(normalizeBinderColor(42), undefined);
 });

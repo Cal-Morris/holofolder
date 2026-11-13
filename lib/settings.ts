@@ -1,6 +1,6 @@
 // Binder settings: one set of defaults and one mapping between the `user_settings`
 // row (snake_case) and the BinderSettings shape used by pages, API routes and the hook.
-import { DEFAULT_BINDER_COLOR_ID, type BinderColorId } from '@/lib/binder-colors';
+import { DEFAULT_BINDER_COLOR_ID, type BinderColor } from '@/lib/binder-colors';
 import { isBinderGridSize } from '@/lib/binder-layout';
 import type { CardLanguage } from '@/lib/card-pricing';
 import {
@@ -14,8 +14,8 @@ import {
 export interface BinderSettings {
   binderRows: number;
   binderCols: number;
-  binderColorId: BinderColorId;
-  binderPageColors: Record<string, BinderColorId>;
+  binderColorId: BinderColor;
+  binderPageColors: Record<string, BinderColor>;
   binderSlotGlareEnabled: boolean;
   cardFinishEffectsEnabled: boolean;
   darkMode: boolean;
@@ -79,7 +79,7 @@ export interface UserSettingsRow {
   binder_rows?: number | null;
   binder_cols?: number | null;
   binder_color_id?: string | null;
-  binder_page_colors?: Record<string, BinderColorId> | null;
+  binder_page_colors?: Record<string, BinderColor> | null;
   binder_slot_glare_enabled?: boolean | null;
   card_finish_effects_enabled?: boolean | null;
   dark_mode?: boolean | null;
@@ -97,9 +97,9 @@ function readGridSize(value: unknown, fallback: number) {
   return isBinderGridSize(value) ? value : fallback;
 }
 
-function readPageColors(value: unknown, fallback: Record<string, BinderColorId>) {
+function readPageColors(value: unknown, fallback: Record<string, BinderColor>) {
   return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, BinderColorId>)
+    ? (value as Record<string, BinderColor>)
     : fallback;
 }
 
@@ -110,7 +110,7 @@ export function settingsFromRow(row: UserSettingsRow | null | undefined): Binder
   return {
     binderRows: readGridSize(row?.binder_rows, defaults.binderRows),
     binderCols: readGridSize(row?.binder_cols, defaults.binderCols),
-    binderColorId: (row?.binder_color_id as BinderColorId | null | undefined) || defaults.binderColorId,
+    binderColorId: (row?.binder_color_id as BinderColor | null | undefined) || defaults.binderColorId,
     binderPageColors: readPageColors(row?.binder_page_colors, defaults.binderPageColors),
     binderSlotGlareEnabled: row?.binder_slot_glare_enabled ?? defaults.binderSlotGlareEnabled,
     cardFinishEffectsEnabled: row?.card_finish_effects_enabled ?? defaults.cardFinishEffectsEnabled,

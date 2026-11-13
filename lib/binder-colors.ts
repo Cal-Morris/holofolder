@@ -1,6 +1,9 @@
 export type BinderColorId =
   'emerald' | 'ocean' | 'ruby' | 'violet' | 'amber' | 'slate' | 'black' | 'white' | 'transparent';
 
+/** A page colour: one of the presets, or a custom `#rrggbb`. */
+export type BinderColor = BinderColorId | `#${string}`;
+
 export type BinderColorTheme = {
   background: string;
   border: string;
@@ -207,7 +210,43 @@ export const BINDER_COLOR_PRESETS: BinderColorPreset[] = [
   },
 ];
 
-export function getBinderColorPreset(colorId: BinderColorId | null | undefined) {
+const HEX = /^#[0-9a-f]{6}$/i;
+
+export const isCustomBinderColor = (value: unknown): value is `#${string}` =>
+  typeof value === 'string' && HEX.test(value);
+
+/** A preset id or custom hex, else undefined. */
+export const normalizeBinderColor = (value: unknown): BinderColor | undefined =>
+  isCustomBinderColor(value)
+    ? (value.toLowerCase() as BinderColor)
+    : BINDER_COLOR_PRESETS.find((preset) => preset.id === value)?.id;
+
+/** Mixes two `#rrggbb` colours; `amount` is how much of `to` (0–1). Plain hex so image renderers can draw it. */
+function mixHex(from: string, to: string, amount: number) {
+  const channel = (hex: string, i: number) => Number.parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  return `#${[0, 1, 2]
+    .map((i) =>
+      Math.round(channel(from, i) + (channel(to, i) - channel(from, i)) * amount)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+}
+
+function customPreset(hex: string): Omit<BinderColorPreset, 'id'> & { id: BinderColor } {
+  const deep = mixHex(hex, '#000000', 0.45);
+  const theme: BinderColorTheme = {
+    background: `linear-gradient(145deg, ${hex} 0%, ${mixHex(hex, '#000000', 0.2)} 55%, ${deep} 100%)`,
+    border: mixHex(hex, '#ffffff', 0.35),
+    activeOutline: mixHex(hex, '#000000', 0.3),
+    shadow: `0 24px 60px ${deep}66`,
+    gloss: 'linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.02) 32%, rgba(255,255,255,0) 100%)',
+  };
+  return { id: hex as BinderColor, label: hex.toUpperCase(), swatch: [hex, deep], dark: theme, light: theme };
+}
+
+export function getBinderColorPreset(colorId: BinderColor | string | null | undefined) {
+  if (isCustomBinderColor(colorId)) return customPreset(colorId.toLowerCase());
   return (
     BINDER_COLOR_PRESETS.find((preset) => preset.id === colorId) ??
     BINDER_COLOR_PRESETS.find((preset) => preset.id === DEFAULT_BINDER_COLOR_ID)!

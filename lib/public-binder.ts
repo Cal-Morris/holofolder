@@ -1,5 +1,5 @@
 import type { CardFinish, CardLanguage } from '@/lib/domain/cards';
-import type { BinderColorId } from '@/lib/binder-colors';
+import type { BinderColor } from '@/lib/binder-colors';
 import type { DisplayCatalogCard } from '@/lib/binder-display-model';
 
 /** Dedicated public projection, never an owner InventorySnapshot or a private display input. */
@@ -29,7 +29,7 @@ export interface PublicBinder {
   username?: string;
   rows: number;
   cols: number;
-  appearance: { dark: boolean; color: BinderColorId; pageColors: Record<string, BinderColorId>; glare: boolean };
+  appearance: { dark: boolean; color: BinderColor; pageColors: Record<string, BinderColor>; glare: boolean };
   /** The share's own "show prices" switch: the viewer's app may look up public card prices only when true. */
   prices: boolean;
   slots: PublicDisplaySlot[];
