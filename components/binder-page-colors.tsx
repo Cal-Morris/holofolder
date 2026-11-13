@@ -6,6 +6,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { BINDER_COLOR_PRESETS, getBinderColorPreset, isCustomBinderColor, type BinderColor } from '@/lib/binder-colors';
 
+/** Extra quick picks, close to common zip-binder colours. Saved as custom hex, so they need no preset theme. */
+const EXTRA_SWATCHES: Array<{ label: string; hex: BinderColor }> = [
+  { label: 'Red', hex: '#c4262e' },
+  { label: 'Orange', hex: '#e8742a' },
+  { label: 'Pastel yellow', hex: '#f3e29a' },
+  { label: 'Mint', hex: '#8fd6b8' },
+  { label: 'Teal', hex: '#0f7c80' },
+  { label: 'Pastel blue', hex: '#a9cbea' },
+  { label: 'Navy', hex: '#1f2a4d' },
+  { label: 'Purple', hex: '#6a3fb0' },
+  { label: 'Pink', hex: '#e86a9a' },
+  { label: 'Neon pink', hex: '#ff3fa4' },
+  { label: 'Neon orange', hex: '#ff6a1a' },
+  { label: 'Neon blue', hex: '#1e9bff' },
+];
+
 const swatchHex = (color: BinderColor) => getBinderColorPreset(color).swatch[0].toLowerCase();
 /** Dark text on light pages, light text on dark ones. */
 const inkFor = (hex: string) => {
@@ -172,21 +188,34 @@ export function BinderPageColors({
       <div className="border-border/40 space-y-3 border-t pt-4">
         <p className="text-sm font-medium">{target}</p>
         <div role="group" aria-label="Colours" className="flex flex-wrap gap-2">
-          {BINDER_COLOR_PRESETS.map((preset) => {
-            const isActive = activeHex === preset.swatch[0].toLowerCase();
+          {[
+            ...BINDER_COLOR_PRESETS.map((preset) => ({
+              id: preset.id as BinderColor,
+              label: preset.label,
+              hex: preset.swatch[0].toLowerCase(),
+              background: `linear-gradient(135deg, ${preset.swatch[0]} 0%, ${preset.swatch[1]} 100%)`,
+            })),
+            ...EXTRA_SWATCHES.map((swatch) => ({
+              id: swatch.hex,
+              label: swatch.label,
+              hex: swatch.hex,
+              background: swatch.hex,
+            })),
+          ].map((swatch) => {
+            const isActive = activeHex === swatch.hex;
             return (
               <button
-                key={preset.id}
+                key={swatch.id}
                 type="button"
-                aria-label={preset.label}
+                aria-label={swatch.label}
                 aria-pressed={isActive}
-                title={preset.label}
+                title={swatch.label}
                 disabled={disabled}
-                onClick={() => apply(preset.id)}
-                style={{ background: `linear-gradient(135deg, ${preset.swatch[0]} 0%, ${preset.swatch[1]} 100%)` }}
+                onClick={() => apply(swatch.id)}
+                style={{ background: swatch.background }}
                 className="ring-border/50 flex size-10 items-center justify-center rounded-full ring-1 disabled:opacity-40"
               >
-                {isActive && <Check className="size-4" style={{ color: inkFor(preset.swatch[0]) }} aria-hidden />}
+                {isActive && <Check className="size-4" style={{ color: inkFor(swatch.hex) }} aria-hidden />}
               </button>
             );
           })}
