@@ -10,10 +10,13 @@ import {
 import {
   buildPictureIndex,
   collectedCardLanguages,
+  confidentPicture,
   decidePictureScan,
   findPictureMatches,
   orderByLanguage,
   pictureIndexLanguages,
+  PICTURE_SUGGEST_MARGIN,
+  PICTURE_SUGGEST_SIMILARITY,
   type PictureCandidate,
 } from '../lib/card-picture-match';
 import { readScannedCard } from '../lib/card-scan-identify';
@@ -182,6 +185,37 @@ describe('decidePictureScan', () => {
     assert.equal(decision.kind, 'choose');
     assert.equal(decision.kind === 'choose' && decision.candidates.length, 5);
     assert.deepEqual(decidePictureScan(pictures(MEW), read('')), { kind: 'choose', candidates: [] });
+  });
+
+  test('pre-selects a sure top picture as a suggestion, the other pictures behind it', () => {
+    const scored: PictureCandidate[] = [MEW, EEVEE, SNORLAX].map((c, i) => ({ card: c, score: [0.82, 0.78, 0.7][i] }));
+    const sure = confidentPicture(scored.map(({ card, score }) => ({ id: card.id, language: 'en', score })));
+    assert.deepEqual(decidePictureScan(scored, read(''), sure), {
+      kind: 'suggest',
+      card: MEW,
+      candidates: [MEW, EEVEE, SNORLAX],
+    });
+    // The read still wins when its full number agrees with another picture.
+    assert.deepEqual(decidePictureScan(scored, read('Snorlax\n143/165'), sure), { kind: 'match', card: SNORLAX });
+    // A confident picture that couldn't be looked up suggests nothing.
+    assert.equal(decidePictureScan(scored.slice(1), read(''), sure).kind, 'choose');
+  });
+});
+
+describe('confidentPicture', () => {
+  const match = (score: number, id = `m-${score}`) => ({ id, language: 'en', score });
+  const S = PICTURE_SUGGEST_SIMILARITY;
+  const M = PICTURE_SUGGEST_MARGIN;
+
+  test('needs the similarity and the margin over the runner-up', () => {
+    assert.equal(confidentPicture([match(S + 0.01), match(S + 0.01 - M - 0.001)])?.score, S + 0.01);
+    assert.equal(confidentPicture([match(S - 0.001), match(0.5)]), null);
+    assert.equal(confidentPicture([match(S + 0.01), match(S + 0.01 - M + 0.005)]), null);
+  });
+
+  test('a card missing from the gallery (about 0.70) never clears it, nor does no picture', () => {
+    assert.equal(confidentPicture([match(0.7), match(0.6)]), null);
+    assert.equal(confidentPicture([]), null);
   });
 });
 

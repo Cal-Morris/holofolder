@@ -21,7 +21,7 @@ import {
   resolvePictureCandidates,
   searchCards,
 } from '@/lib/card-scan-search';
-import { decidePictureScan } from '@/lib/card-picture-match';
+import { confidentPicture, decidePictureScan } from '@/lib/card-picture-match';
 import {
   getPictureScannerLanguages,
   getPictureScannerStatus,
@@ -69,6 +69,8 @@ export interface CardScanResult {
   candidates?: SearchCardResult[];
   /** Up to five cards the picture looked like, to tap when the read didn't settle it. */
   pictureChoices?: SearchCardResult[];
+  /** `candidates[0]` is a confident picture match, pre-selected as a suggestion. */
+  suggested?: boolean;
   /** The picture scanner isn't on this device yet, so only the text was read. */
   pictureUnavailable?: boolean;
 }
@@ -135,7 +137,10 @@ function NativeQuickCardScanner({
         if (!alive.current) return;
         const capture = captured.current ?? captureScanDestination(admission.snapshot, admission.view);
         const candidates = result.candidates ?? (result.outcome.kind === 'match' ? [result.outcome.card] : []);
-        setReview({ capture, cells: [{ index: 0, slotId: null, occupied: true, candidates }] });
+        setReview({
+          capture,
+          cells: [{ index: 0, slotId: null, occupied: true, candidates, suggested: result.suggested }],
+        });
       }}
     />
   );
@@ -247,13 +252,19 @@ function QuickCardScannerCamera({
           const decision = decidePictureScan(
             await resolvePictureCandidates(pictured.matches, getPictureScannerLanguages(), getOfflineCards),
             scanned,
+            confidentPicture(pictured.matches),
           );
           const offline = !isOnline;
-          if (decision.kind === 'match') {
-            trackGoogleEvent('card_scanned', { outcome: 'match', offline });
+          // A confident picture opens like a clear match; in the binder review it is marked as a suggestion.
+          if (decision.kind !== 'choose') {
+            trackGoogleEvent('card_scanned', { outcome: decision.kind, offline });
             onResult({
               outcome: pictureMatchOutcome(decision.card, scanned),
-              ...(onReadStarted ? { candidates: [decision.card] } : {}),
+              ...(onReadStarted
+                ? decision.kind === 'suggest'
+                  ? { candidates: decision.candidates, suggested: true }
+                  : { candidates: [decision.card] }
+                : {}),
               readerUnavailable,
               offline,
             });

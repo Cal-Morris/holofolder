@@ -26,7 +26,7 @@ export interface GoogleEvents extends Record<CollectionEvent, { count: number }>
   price_check_viewed: Record<string, never>;
   binder_opened: { read_only: boolean };
   search: { search_term: string; result_count: number; offline: boolean };
-  card_scanned: { outcome: 'match' | 'choose' | 'unread'; offline: boolean };
+  card_scanned: { outcome: 'match' | 'suggest' | 'choose' | 'unread'; offline: boolean };
   show_mode_toggled: { on: boolean };
   show_purchase_logged: { count: number };
   share_link_copied: { surface: 'binder' | 'settings' };

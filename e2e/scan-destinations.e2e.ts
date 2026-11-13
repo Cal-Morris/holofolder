@@ -46,6 +46,8 @@ async function mockSearch(page: Page) {
   await page.route('**/app/api/tcg-card-search**', (route: Route) => {
     const url = new URL(route.request().url());
     calls.push(url);
+    const ids = url.searchParams.get('ids')?.split(',');
+    if (ids) return route.fulfill({ json: { cards: syntheticCards.filter((c) => ids.includes(c.id as string)) } });
     const words = (url.searchParams.get('q') ?? '').split(/\s+/).filter((w) => /^[a-z]{2,}$/.test(w));
     const cards = words.length
       ? syntheticCards.filter((c) => words.every((w) => (c.name as string).toLowerCase().includes(w)))
@@ -140,6 +142,57 @@ test.describe('page scan review, synthetic device only', () => {
     await expect(page.getByText('slot-b: empty', { exact: true })).toBeVisible();
     await page.reload();
     await expect(pending(page)).toHaveText('1');
+  });
+
+  test('a confident picture match is pre-selected and can be skipped or changed, a close one still offers choices', async ({
+    harness,
+  }) => {
+    const { page } = harness;
+    await mockSearch(page);
+    await open(page);
+    // Text after `||` is the synthetic picture match list (cardId@similarity, best first).
+    await photo(page, [
+      { index: 0, text: '||synthetic-snorlax-a@0.84,synthetic-snorlax-b@0.79,synthetic-trainer@0.6' },
+      { index: 2, text: '||synthetic-tandemaus@0.8,synthetic-maushold@0.79' },
+      { index: 3, text: '||synthetic-maushold@0.85,synthetic-snorlax-b@0.7' },
+    ]);
+    await expect(review(page)).toBeVisible();
+
+    // Sure and well ahead: pre-selected in the pocket it was photographed in, marked as from the photo, not saved.
+    for (const [n, name] of [
+      [1, 'Snorlax A'],
+      [4, 'Maushold'],
+    ] as const) {
+      await expect(pocket(page, n)).toContainText(name);
+      await expect(pocket(page, n)).toContainText('Matched from photo');
+      await expect(pocket(page, n)).toContainText(`Goes in Page 1 · Pocket ${n}`);
+    }
+    // Too close to the runner-up: still a choice.
+    await expect(pocket(page, 3)).toContainText('Which card is this?');
+    await expect(pocket(page, 3).getByRole('group', { name: 'Possible matches' }).getByRole('button')).toHaveCount(2);
+    await expect(addButton(page)).toHaveText('Add 2 cards');
+    await expect(pending(page)).toHaveText('0');
+
+    await pocket(page, 4).getByRole('button', { name: 'Skip', exact: true }).click();
+    await expect(pocket(page, 4)).toContainText('Skipped');
+    await expect(addButton(page)).toHaveText('Add 1 card');
+
+    // Change card goes back to the other picture matches first.
+    await pocket(page, 1).getByRole('button', { name: 'Change card', exact: true }).click();
+    const matches = pocket(page, 1).getByRole('group', { name: 'Possible matches' });
+    await expect(matches.getByRole('button')).toHaveCount(3);
+    await expect(addButton(page)).toHaveText('Choose a card to add');
+    await matches.getByRole('button', { name: 'Snorlax B, Synthetic set #1', exact: true }).click();
+    await expect(pocket(page, 1)).toContainText('Snorlax B');
+    await expect(pocket(page, 1)).not.toContainText('Matched from photo');
+    await expect(addButton(page)).toHaveText('Add 1 card');
+
+    await harness.expectNoHorizontalOverflow();
+    await addButton(page).click();
+    await expect(review(page)).toHaveCount(0);
+    await expect(pending(page)).toHaveText('1');
+    await expect(page.getByText('slot-a: empty', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('slot-d: empty', { exact: true })).toBeVisible();
   });
 
   test('a pocket that fails or never answers is left for you without holding up the others', async ({ harness }) => {

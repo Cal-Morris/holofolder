@@ -36,6 +36,8 @@ export interface ScanReviewCell {
   crop?: string;
   /** What was read off the card (its name), so the picker opens already searched for it. */
   query?: string;
+  /** `candidates[0]` is a confident picture match, pre-selected as a suggestion; the rest are the other choices. */
+  suggested?: boolean;
 }
 interface CellChoice {
   card?: SearchCardResult;
@@ -94,10 +96,12 @@ export default function ScanDestinationReview({
   useLayoutEffect(() => {
     latest.current = admission;
   }, [admission]);
-  // A single clear match is offered as the card; anything less clear waits for you to choose.
+  // A single clear match, or a confident picture suggestion, is offered as the card; anything less waits for you.
   const [choices, setChoices] = useState<Partial<Record<number, CellChoice>>>(() =>
     Object.fromEntries(
-      cells.filter((c) => c.occupied && c.candidates.length === 1).map((c) => [c.index, { card: c.candidates[0] }]),
+      cells
+        .filter((c) => c.occupied && (c.candidates.length === 1 || (c.suggested && c.candidates.length)))
+        .map((c) => [c.index, { card: c.candidates[0] }]),
     ),
   );
   const [choosing, setChoosing] = useState<number | null>(null);
@@ -434,6 +438,9 @@ export default function ScanDestinationReview({
                           {card.localId ? ` · #${card.localId}` : ''}
                           {finish ? ` · ${formatCardFinishLabel(finish)}` : ''}
                         </p>
+                        {cell.suggested && card === cell.candidates[0] && (
+                          <p className="text-muted-foreground text-xs font-medium">Matched from photo</p>
+                        )}
                         {finishes.length > 1 && (
                           <div role="group" aria-label="Which version?" className="flex flex-wrap gap-1.5">
                             {finishes.map((option) => (
@@ -525,7 +532,17 @@ export default function ScanDestinationReview({
                             type="button"
                             className={small}
                             disabled={locked}
-                            onClick={() => setChoosing(cell.index)}
+                            onClick={() =>
+                              // A photo suggestion goes back to its other picture matches first.
+                              cell.suggested && cell.candidates.length > 1
+                                ? update(cell.index, {
+                                    card: undefined,
+                                    finish: undefined,
+                                    copy: undefined,
+                                    destination: undefined,
+                                  })
+                                : setChoosing(cell.index)
+                            }
                           >
                             Change card
                           </button>
