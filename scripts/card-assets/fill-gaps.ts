@@ -33,6 +33,9 @@ async function cachedJson<T>(name: string, url: string): Promise<T> {
   return value
 }
 
+const UPSERT_BATCH = 100
+/** Rows per read: the REST role has an 8 s statement timeout, and card rows carry their external ids JSON. */
+const PAGE = 500
 const SCRYDEX = "https://images.scrydex.com/"
 /** Scrydex answers unknown card ids with 200 and a stock "image not found" picture; its ETag identifies it. */
 async function scrydexPlaceholderEtag() {
@@ -95,16 +98,20 @@ function rest(base: string, key: string) {
   }
   return {
     async all<T>(table: string, select: string): Promise<T[]> {
+      // Keyset pages (id > last): deep offsets over the whole card table can pass the statement timeout.
       const rows: T[] = []
-      for (let offset = 0; ; offset += 1000) {
-        const page = await (await call(`${table}?select=${select}&order=id&limit=1000&offset=${offset}`)).json() as T[]
+      for (let after: string | null = null; ; ) {
+        const from = after === null ? "" : `&id=gt.${encodeURIComponent(after)}`
+        const page = await (await call(`${table}?select=${select}&order=id&limit=${PAGE}${from}`)).json() as Array<T & { id: string }>
         rows.push(...page)
-        if (page.length < 1000) return rows
+        if (page.length < PAGE) return rows
+        after = page[page.length - 1].id
       }
     },
     async upsert(table: string, rows: unknown[], onConflict: string) {
-      for (let i = 0; i < rows.length; i += 500) {
-        await call(`${table}?on_conflict=${onConflict}`, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows.slice(i, i + 500)) })
+      // 100 rows a request: 500 card rows (with their raw JSON) can pass the database's statement timeout.
+      for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
+        await call(`${table}?on_conflict=${onConflict}`, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows.slice(i, i + UPSERT_BATCH)) })
       }
     },
     async patch(table: string, id: string, values: unknown) {
