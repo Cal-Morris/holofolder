@@ -71,7 +71,10 @@ async function main() {
   if (built && process.env.E2E_REBUILD !== '1') {
     console.log(`e2e build in ${distDir} matches the source, skipping the build (E2E_REBUILD=1 forces one)`);
   } else {
+    // next build points next-env.d.ts at its distDir; keep the committed one pointing at `.next`.
+    const nextEnv = readFileSync('next-env.d.ts', 'utf8');
     const build = spawnSync('bunx', ['next', 'build'], { stdio: 'inherit' });
+    writeFileSync('next-env.d.ts', nextEnv);
     if (build.status !== 0) process.exit(build.status ?? 1);
     if (!existsSync(path.join(distDir, 'BUILD_ID'))) {
       console.error(`next build did not write ${distDir}; next.config.mjs must honour NEXT_DIST_DIR`);
