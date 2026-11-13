@@ -26,7 +26,7 @@ import {
 } from '@/lib/domain/cards';
 import { cardMatchesLanguages, DEFAULT_BINDER_CARD_LANGUAGES, parseLanguageSearch } from '@/lib/card-languages';
 import CardsBrowserSheet from '@/components/cards-browser-sheet';
-import { useTCGdex, type TCGCard } from '@/hooks/use-tcgdex';
+import { peekCardsForPokemon, useTCGdex, type TCGCard } from '@/hooks/use-tcgdex';
 import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { DEFAULT_PRICING_REGION, type PricingRegion } from '@/lib/pricing-region';
@@ -60,6 +60,8 @@ export interface PokemonCardsBrowserProps {
   /** Optional secondary actions; the view itself never enters the edit flow. */
   onWantCard?: (card: TCGCard, isWanted: boolean, wanted?: WantedCard) => void | Promise<void>;
   onAddCard?: (card: TCGCard) => void | Promise<void>;
+  /** Tapping a card opens its own details (native binders want and add from there). */
+  onOpenCard?: (card: TCGCard) => void;
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null;
   /** The user's pricing region; printing prices are weighted for it. */
   pricingRegion?: PricingRegion;
@@ -91,6 +93,7 @@ export default function PokemonCardsBrowser({
   onClose,
   onWantCard,
   onAddCard,
+  onOpenCard,
   formatPrice,
   pricingRegion = DEFAULT_PRICING_REGION,
   cardLanguages,
@@ -108,7 +111,10 @@ export default function PokemonCardsBrowser({
             language: isCardLanguage(cardDetails.card.language) ? cardDetails.card.language : undefined,
           },
         ]
-      : null,
+      : // Already loaded (the slot previews and card selector share this cache): paint it now, not a spinner.
+        pokemon
+        ? peekCardsForPokemon(pokemon.id)
+        : null,
   );
   const [loadError, setLoadError] = useState(false);
   const [filter, setFilter] = useState<BrowseCardFilter>('all');
@@ -532,7 +538,9 @@ export default function PokemonCardsBrowser({
                     key={card.id}
                     data-card-id={card.id}
                     aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${nativeConsumer ? `, ${nativeCardLabel(nativeCardState(nativeModel, card))}` : ''}${entry.owned ? ', owned' : ''}${entry.wanted ? ', wanted' : ''}`}
-                    className={`bg-background/60 flex min-w-0 flex-col overflow-hidden rounded-2xl border ${
+                    className={`bg-background/60 relative flex min-w-0 flex-col overflow-hidden rounded-2xl border ${
+                      onOpenCard ? 'focus-within:border-primary/60 hover:border-primary/45 transition-colors ' : ''
+                    }${
                       isHighlighted
                         ? 'border-primary/70 ring-primary/40 ring-2'
                         : entry.owned
@@ -542,6 +550,15 @@ export default function PokemonCardsBrowser({
                             : 'border-border/50'
                     }`}
                   >
+                    {/* One button over the whole tile, so the exact card tapped is the one that opens. */}
+                    {onOpenCard ? (
+                      <button
+                        type="button"
+                        aria-label={`Open ${card.name}, ${card.set.name} ${entry.numberLabel}`}
+                        onClick={() => onOpenCard(card)}
+                        className="focus-visible:ring-primary/70 absolute inset-0 z-[1] rounded-2xl focus-visible:ring-2 focus-visible:outline-none"
+                      />
+                    ) : null}
                     <div className="trading-card bg-muted/40 relative w-full">
                       {image ? (
                         <CardImage

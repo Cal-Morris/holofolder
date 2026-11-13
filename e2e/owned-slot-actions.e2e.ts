@@ -234,3 +234,23 @@ test('an edit made while the background read is failing still saves instead of s
   await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(1);
   expect((await record(page))!.receipts[0].outcome).toBe('acknowledged');
 });
+
+test('All cards from an owned pocket opens another printing with its want controls, and closing returns to the grid', async ({
+  page,
+}) => {
+  await page.goto(entry);
+  await page.locator('[data-slot-id="synthetic-slot-0"]').click();
+  const detail = page.getByRole('dialog', { name: /details$/ });
+  await detail.getByRole('button', { name: /^All .* cards$/ }).click();
+  const all = page.getByRole('dialog', { name: /^All Bulbasaur cards$/ });
+  const printing = all.getByRole('button', { name: /^Open Bulbasaur, 151 166\/165$/ });
+  await printing.click();
+  const card = page
+    .getByRole('dialog', { name: /^All Bulbasaur cards$/ })
+    .filter({ has: page.getByRole('region', { name: 'On your want list' }) });
+  await expect(card).toHaveCount(1);
+  await expect(detail).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('region', { name: 'On your want list' })).toHaveCount(0);
+  await expect(printing).toBeVisible();
+});
