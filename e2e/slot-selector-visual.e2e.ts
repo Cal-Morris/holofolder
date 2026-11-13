@@ -149,3 +149,41 @@ for (const suite of suites) {
     });
   });
 }
+
+test.describe('any-card search with many results', () => {
+  test.use({
+    signedIn: true,
+    harness: async ({ page, context, standalone, insets, baseURL }, provide) => {
+      if (standalone) await emulateStandalone(page, insets);
+      await mockBackends(page, context, { signedIn: true, baseURL });
+      await provide(new Harness(page, insets, true));
+    },
+  });
+
+  test('mounts tiles in batches as the list scrolls', async ({ harness }) => {
+    const { page } = harness;
+    // 150 synthetic results, more than one batch of tiles.
+    const [base] = syntheticSlotPickerSnapshot().cards;
+    const many = Array.from({ length: 150 }, (_, index) => ({
+      ...base,
+      id: `synthetic-many-${index}`,
+      name: `Synthetic ${index}`,
+    }));
+    await routeCards(page);
+    await page.route('**/app/api/tcg-card-search**', (route) => route.fulfill({ json: { cards: many } }));
+    await page.goto('/app/e2e-harness?signedIn=1&slots=picker&rows=2&cols=4');
+    await slot(page, 'slot-g').click();
+    const dialog = selector(page);
+    await dialog.getByRole('searchbox', { name: 'Search cards' }).fill('synthetic');
+    const tiles = dialog.getByRole('button', { name: /^Add card Synthetic \d+ from / });
+    await expect(dialog.getByText('150 of 150 cards')).toBeVisible();
+    await expect(tiles).toHaveCount(60);
+    const more = dialog.getByRole('button', { name: 'Show more cards', exact: true });
+    await more.scrollIntoViewIfNeeded();
+    await expect(tiles).toHaveCount(120);
+    await more.scrollIntoViewIfNeeded();
+    await expect(tiles).toHaveCount(150);
+    await expect(more).toHaveCount(0);
+    await harness.expectNoHorizontalOverflow();
+  });
+});
