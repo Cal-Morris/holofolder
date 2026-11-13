@@ -5,6 +5,8 @@ import { isBinderId } from '@/lib/binders/model';
 import { isContractRecord, isSlotContractId, isSlotRevision, normalizeBinderSnapshot } from '@/lib/domain/binder-slots';
 import type { BackupArrangementCommand } from '@/lib/domain/backup-import-command';
 
+const CARD_IMAGE_HOSTS = new Set(['assets.tcgdex.net', 'assets.holofolder.com']);
+
 export const RAW_RESTORE_V2_LIMITS = {
   bytes: 1835008,
   graphBytes: 2621440,
@@ -207,36 +209,35 @@ export function parseRawRestoreCommand(value: unknown): RawRestoreCommand {
     desired = new Set<string>(),
     required = new Set<string>();
   for (const pair of value.slots) {
+    if (!isContractRecord(pair, ['before', 'after']) || Object.keys(pair).length !== 2) return invalid();
+    const { before, after } = pair;
     if (
-      !isContractRecord(pair, ['before', 'after']) ||
-      Object.keys(pair).length !== 2 ||
-      !isContractRecord(pair.after, ['id', 'target', 'status', 'wantedCards', 'inventoryItemId', 'presetOrigin']) ||
-      !isContractRecord(pair.before, ['id', 'version', 'inventoryItemId', 'itemVersion', 'placementVersion']) ||
-      pair.before.id !== pair.after.id ||
-      !isSlotContractId(pair.before.id) ||
-      beforeIds.has(pair.before.id)
+      !isContractRecord(after, ['id', 'target', 'status', 'wantedCards', 'inventoryItemId', 'presetOrigin']) ||
+      !isContractRecord(before, ['id', 'version', 'inventoryItemId', 'itemVersion', 'placementVersion']) ||
+      before.id !== after.id ||
+      !isSlotContractId(before.id) ||
+      beforeIds.has(before.id)
     )
       return invalid();
     const parsed = parseInventoryCommand({
       operationId: value.operationId,
       inventoryRevision: value.inventoryRevision,
       collections: [collection],
-      commands: [{ kind: 'removeSlots', slots: [{ collectionId: collection.collectionId, slot: pair.before }] }],
+      commands: [{ kind: 'removeSlots', slots: [{ collectionId: collection.collectionId, slot: before }] }],
     });
     if (parsed.commands[0].kind !== 'removeSlots') return invalid();
-    beforeIds.add(pair.before.id);
-    if (pair.before.inventoryItemId !== null) {
-      const ref = refs.get(pair.before.inventoryItemId as string);
+    beforeIds.add(before.id);
+    if (before.inventoryItemId !== null) {
+      const ref = refs.get(before.inventoryItemId as string);
       if (
         !ref ||
-        backupContentKey(ref.placement) !==
-          backupContentKey({ collectionId: collection.collectionId, slot: pair.before })
+        backupContentKey(ref.placement) !== backupContentKey({ collectionId: collection.collectionId, slot: before })
       )
         return invalid();
       required.add(ref.itemId);
     }
-    if (pair.after.inventoryItemId !== null) {
-      const id = pair.after.inventoryItemId as string;
+    if (after.inventoryItemId !== null) {
+      const id = after.inventoryItemId as string;
       if (!refs.has(id) || desired.has(id)) return invalid();
       desired.add(id);
       required.add(id);
@@ -244,9 +245,8 @@ export function parseRawRestoreCommand(value: unknown): RawRestoreCommand {
   }
   if (required.size !== refs.size || [...refs.values()].some((r) => r.placement && !beforeIds.has(r.placement.slot.id)))
     return invalid();
-  const releases = [...refs.values()]
-    .filter((r) => r.placement && !desired.has(r.itemId))
-    .map((r) => r.itemId)
+  const releases = Array.from(refs.values())
+    .flatMap((r) => (r.placement && !desired.has(r.itemId) ? [r.itemId] : []))
     .sort();
   if (backupContentKey(releases) !== backupContentKey(value.releaseItemIds.toSorted())) return invalid();
   const slotPairs = value.slots;
@@ -279,7 +279,7 @@ export function parseRawRestoreCommand(value: unknown): RawRestoreCommand {
         const url = new URL(want.card_image);
         if (
           url.protocol !== 'https:' ||
-          !['assets.tcgdex.net', 'assets.holofolder.com'].includes(url.hostname) ||
+          !CARD_IMAGE_HOSTS.has(url.hostname) ||
           url.username ||
           url.password ||
           url.port ||

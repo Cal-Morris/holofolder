@@ -50,19 +50,17 @@ export function filterSetGroups(
 ) {
   const text = resolveSetSearchAlias(query);
   const year = parseSetYearQuery(query);
-  return groupSetsBySeries(sets)
-    .filter((group) => !series || group.series === series)
-    .map((group) => ({
-      ...group,
-      sets: text
-        ? group.sets.filter((set) =>
-            year
-              ? matchesSetYearQuery(set, year)
-              : [set.name, set.id, group.series].some((value) => value.toLowerCase().includes(text)),
-          )
-        : group.sets,
-    }))
-    .filter((group) => group.sets.length > 0);
+  return groupSetsBySeries(sets).flatMap((group) => {
+    if (series && group.series !== series) return [];
+    const matching = text
+      ? group.sets.filter((set) =>
+          year
+            ? matchesSetYearQuery(set, year)
+            : [set.name, set.id, group.series].some((value) => value.toLowerCase().includes(text)),
+        )
+      : group.sets;
+    return matching.length > 0 ? [{ ...group, sets: matching }] : [];
+  });
 }
 
 /** Up to three letters standing in for a set without a symbol or logo ("Perfect Order" → "PO"). */

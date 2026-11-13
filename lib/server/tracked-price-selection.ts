@@ -60,13 +60,11 @@ export async function selectTrackedPriceLookups(db: SupabaseClient, ownerUserId:
       return output;
     }
     async function metadata() {
-      const roots = await read('inventory_owner_state', 'owner_user_id,inventory_revision', 'owner_user_id');
-      const states = await read(
-        'storage_collection_state',
-        'collection_id,owner_user_id,version,layout_revision',
-        'collection_id',
-      );
-      const binders = await read('binders', 'id,owner_user_id', 'id');
+      const [roots, states, binders] = await Promise.all([
+        read('inventory_owner_state', 'owner_user_id,inventory_revision', 'owner_user_id'),
+        read('storage_collection_state', 'collection_id,owner_user_id,version,layout_revision', 'collection_id'),
+        read('binders', 'id,owner_user_id', 'id'),
+      ]);
       if (roots.some((r) => !isSlotRevision(r.inventory_revision))) return unavailable();
       const bindersById = new Map(binders.map((b) => [b.id, b]));
       const owners = new Set(roots.map((r) => r.owner_user_id));

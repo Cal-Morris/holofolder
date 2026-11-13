@@ -58,9 +58,10 @@ function project(doc: Row, owner: string, settings: Row | null) {
   if (doc.revision !== null && !isSlotRevision(doc.revision))
     throw new InventoryReadError('inventory_read_unavailable', 503);
   const placements = new Map(
-    rows(doc.placements)
-      .map(toPlacement)
-      .map((p) => [p.inventoryItemId, p]),
+    rows(doc.placements).map((row) => {
+      const p = toPlacement(row);
+      return [p.inventoryItemId, p];
+    }),
   );
   const placedIn = new Map([...placements.values()].map((p) => [p.slotId, p.inventoryItemId]));
   const itemRecords = rows(doc.items).map((r) => toItem(r, owner));
@@ -166,9 +167,7 @@ export async function executeNativeDeveloperRead(context: OperationContext, name
       readRevision,
     };
     const params = new URLSearchParams(
-      Object.entries(query)
-        .filter(([key]) => key !== 'cursor')
-        .map(([key, value]) => [key, String(value)]),
+      Object.entries(query).flatMap(([key, value]) => (key === 'cursor' ? [] : [[key, String(value)]])),
     );
     const { limit } = decodePage(params);
     const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;

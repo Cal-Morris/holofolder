@@ -677,15 +677,19 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     schema: z.strictObject({ id: z.uuid() }),
   },
 ] as const;
+const isTemplated = (operation: DeveloperOperation) => operation.path.includes('{');
+/** Literal paths are tried before templated ones; sorted once, stable within each group. */
+const OPERATIONS_BY_SPECIFICITY = DEVELOPER_OPERATIONS.toSorted(
+  (a, b) => Number(isTemplated(a)) - Number(isTemplated(b)),
+);
 export function matchRestOperation(method: string, path: string) {
-  for (const operation of DEVELOPER_OPERATIONS.filter((op) => op.method === method).sort(
-    (a, b) => Number(a.path.includes('{')) - Number(b.path.includes('{')),
-  )) {
+  for (const operation of OPERATIONS_BY_SPECIFICITY) {
+    if (operation.method !== method) continue;
     const expected = operation.path.split('/').filter(Boolean),
       actual = path.split('/').filter(Boolean),
       params: Record<string, string> = {};
-    if (expected.length !== actual.length) continue;
     if (
+      expected.length === actual.length &&
       expected.every((part, index) => {
         if (part.startsWith('{')) {
           params[part.slice(1, -1)] = actual[index];

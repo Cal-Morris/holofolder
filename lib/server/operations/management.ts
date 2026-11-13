@@ -153,7 +153,9 @@ export async function developerAppearance(context: OperationContext, input: Reco
   const current = await readAppearance(admin, owner);
   if (payload.baseRevision !== current.revision)
     throw new DeveloperAccessError('conflict', 'Appearance changed on another device. Reload before retrying.', 409);
-  for (const id of binderArtworkIds(payload.design)) await loadBinderArtwork(admin, owner, id);
+  for (const id of binderArtworkIds(payload.design))
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- checked in order so the first missing artwork is reported
+    await loadBinderArtwork(admin, owner, id);
   const saved = await writeAppearance(admin, owner, payload.design, payload.baseRevision);
   if (!saved)
     throw new DeveloperAccessError('conflict', 'Appearance changed on another device. Reload before retrying.', 409);
@@ -175,6 +177,7 @@ export async function developerArtwork(context: OperationContext, input: Record<
       input.size > MAX_BINDER_ARTWORK_BYTES
     )
       throw new DeveloperAccessError('invalid_artwork', 'Choose a PNG, JPEG or WebP image under 5 MB.', 400);
+    // oxlint-disable-next-line react-doctor/async-defer-await -- confirms the owner's appearance is readable before touching the store
     await readAppearance(admin, context.ownerUserId);
     if (await store.exists(context.ownerUserId, id)) return { id: input.id, artworkRef: id, exists: true };
     return {
