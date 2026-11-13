@@ -114,9 +114,6 @@
   font-size: 12px;
 }
 .binder-studio .studio-primary {
-  background-color: var(--primary);
-  color: var(--primary-foreground);
-  border-color: var(--primary);
   min-width: 76px;
 }
 .studio-title {

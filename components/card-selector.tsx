@@ -1800,7 +1800,7 @@ export default function CardSelector({
                 </p>
               )}
               <Button
-                className="min-h-11 w-full rounded-2xl"
+                className="w-full sm:ml-auto sm:flex sm:w-auto"
                 disabled={!picks.length || native.many.busy}
                 onClick={() => native.many?.onAdd(picks)}
               >
