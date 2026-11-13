@@ -9,7 +9,7 @@ export const instant = false;
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const query = (searchParams.get('q') ?? '').slice(0, 80);
-  const language = normalizeCardLanguage(searchParams.get('language'));
+  const language = searchParams.get('language') === 'any' ? 'any' : normalizeCardLanguage(searchParams.get('language'));
 
   try {
     // Every match, not a sample: an illustrator like Nishida has ~700 cards. 1000 is PostgREST's row cap per query.

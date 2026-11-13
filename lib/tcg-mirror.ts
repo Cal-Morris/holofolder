@@ -5,7 +5,8 @@ import { getSetArtwork } from '@/lib/set-artwork';
 import { isSetYearQuery, rankSetMatches } from '@/lib/set-search';
 import { isSetInLanguage } from '@/lib/set-browse';
 import type { CardCatalogIdentity, CardLanguage } from '@/lib/domain/cards';
-import { cardLanguagesFromNames } from '@/lib/card-languages';
+import { cardLanguagesFromNames, primaryCardLanguage, type CardSearchLanguage } from '@/lib/card-languages';
+import { formatPokemonDisplayName, POKEMON_CATALOG } from '@/lib/pokemon-catalog';
 import { deduplicateCatalogCards, readCatalogMetadata } from '@/lib/card-catalog';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
@@ -592,7 +593,7 @@ export function toSearchCardResult(
  */
 function printedInEnglish<T extends { not: (column: string, operator: string, value: null) => T }>(
   query: T,
-  language: MirrorLanguage,
+  language: MirrorLanguage | 'any',
 ) {
   return language === 'en' ? query.not('name_json->>en', 'is', null) : query;
 }
@@ -660,7 +661,7 @@ export async function findMirroredImportCandidates(lookup: ImportLookup): Promis
  */
 export async function searchMirroredCards(
   query: string,
-  language: MirrorLanguage = 'en',
+  language: CardSearchLanguage = 'en',
   limit = 60,
   includeNonPokemon = false,
 ): Promise<{ cards: SearchCardResult[]; correction: string | null }> {
@@ -722,6 +723,20 @@ export async function searchMirroredCards(
     if (numberCandidates) byName = byName.in('local_id', numberCandidates);
     requests.push(byName.limit(limit));
 
+    // Japanese and Korean printings keep their own name in `name_en`, so outside English a Pokémon's name also finds
+    // every printing linked to it.
+    const pokemon =
+      language !== 'en'
+        ? POKEMON_CATALOG.find(
+            (entry) => entry.name === parsed.text || formatPokemonDisplayName(entry.name).toLowerCase() === parsed.text,
+          )
+        : undefined;
+    if (pokemon) {
+      let byPokemon = admin.from('tcg_cards').select(CARD_SEARCH_SELECT).eq('tcg_card_dex_ids.dex_id', pokemon.id);
+      if (numberCandidates) byPokemon = byPokemon.in('local_id', numberCandidates);
+      requests.push(byPokemon.limit(limit));
+    }
+
     // Illustrator ("arita", "5ban"): newest first, so a dealer's recent cards show up.
     if (parsed.text.length >= 3) {
       let byIllustrator = admin.from('tcg_cards').select(select).ilike('illustrator', `%${parsed.text}%`);
@@ -755,7 +770,11 @@ export async function searchMirroredCards(
     if (response.error) throw response.error;
   }
   for (const row of deduplicateCatalogCards(responses.flatMap((response) => response.data || []))) {
-    const card = toSearchCardResult(row, language, includeNonPokemon);
+    const card = toSearchCardResult(
+      row,
+      language === 'any' ? (primaryCardLanguage(row.name_json) ?? 'en') : language,
+      includeNonPokemon,
+    );
     if (card && !results.has(card.id)) results.set(card.id, card);
   }
 

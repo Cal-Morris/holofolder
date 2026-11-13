@@ -5,6 +5,7 @@ import {
   cardMatchesLanguages,
   normalizeBinderCardLanguages,
   parseLanguageSearch,
+  primaryCardLanguage,
 } from '@/lib/card-languages';
 
 describe('card languages', () => {
@@ -37,4 +38,13 @@ describe('card languages', () => {
     assert.equal(cardMatchesLanguages({ languages: ['ja'] }, ['en']), false);
     assert.equal(cardMatchesLanguages({}, ['en']), true);
   });
+});
+
+// Synthetic TCGdex name maps.
+test('searching any language saves a printing in English when it has an English print, else its own language', () => {
+  assert.equal(primaryCardLanguage({ fr: 'Mew', en: 'Mew', de: 'Mew' }), 'en');
+  assert.equal(primaryCardLanguage({ ja: 'ミュウex', th: 'มิวex', 'zh-tw': '夢幻ex', id: 'Mew ex' }), 'ja');
+  assert.equal(primaryCardLanguage({ ko: '뮤' }), 'ko');
+  assert.equal(primaryCardLanguage({ th: 'มิว' }), undefined);
+  assert.equal(primaryCardLanguage(null), undefined);
 });
