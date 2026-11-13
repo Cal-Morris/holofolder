@@ -5,13 +5,10 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Share2 } from 'lucide-react';
 import { ListClearButton, ListControls, ListFiltersButton, ListSearch, ListSelect } from '@/components/list-controls';
-import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices';
+import type { CardPriceSnapshot } from '@/hooks/use-card-prices';
 import { useInventoryPriceState } from '@/hooks/use-inventory-prices';
-import { applyPriceStaleness } from '@/lib/price-freshness';
-import { isCardLanguage } from '@/lib/domain/cards';
 import { getPokemonSummary } from '@/lib/pokemon-catalog';
 import type { PricingRegion } from '@/lib/pricing-region';
-import { regionalizeCardPrices } from '@/lib/regional-price';
 import {
   applyWantedFilters,
   buildWantedDashboardSummary,
@@ -24,6 +21,8 @@ import {
   wantedCompletionTotal,
   WANTED_SORTS,
   WANTED_VIEW_STORAGE_KEY,
+  wantedPriceLookups,
+  wantedPricesByKey,
   type WantedDashboardCard,
   type WantedDashboardSort,
 } from '@/lib/wanted-dashboard';
@@ -104,34 +103,10 @@ export default function NativeWantedEntries({
       /* Storage full or blocked: the choice still applies for this visit. */
     }
   }, [isWanted, view]);
-  const lookups = isWanted
-    ? [
-        ...new Map(
-          entries.flatMap((e) =>
-            isCardLanguage(e.want.card_language)
-              ? [
-                  [
-                    getCardPriceKey(e.want.card_id, e.want.card_language),
-                    { cardId: e.want.card_id, language: e.want.card_language },
-                  ] as const,
-                ]
-              : [],
-          ),
-        ).values(),
-      ]
-    : [];
+  const lookups = isWanted ? wantedPriceLookups(entries.map((e) => e.want)) : [];
   // Saved prices only: the want list never asks for a refresh by itself.
   const saved = useInventoryPriceState(lookups);
   const region = pricing?.region ?? 'UK';
-  const regional = regionalizeCardPrices(
-    Object.fromEntries(
-      saved.prices.map((price) => [
-        getCardPriceKey(price.cardId, price.language),
-        { ...price, ...applyPriceStaleness(price, price.fetchedAt) },
-      ]),
-    ),
-    region,
-  );
   const summary = buildWantedDashboardSummary(
     isWanted
       ? entries.map((e) => {
@@ -146,7 +121,7 @@ export default function NativeWantedEntries({
           };
         })
       : [],
-    Object.fromEntries(Object.values(regional).map((price) => [`${price.cardId}::${price.language}`, price])),
+    wantedPricesByKey(saved.prices, region),
   );
   const shown = isWanted
     ? sortWantedDashboardEntries(

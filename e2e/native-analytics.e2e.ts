@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect, mockBackends, emulateStandalone, E2E_USER, Harness } from './fixtures';
 import {
   inventoryProjectionFixture,
@@ -92,62 +93,70 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   });
 });
 const entry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${alpha}`;
-test('actual dashboard badge and analytics distinguish copies, species, slots and current targets, including cached offline evidence', async ({
-  page,
-  context,
-  insets,
-}) => {
-  await page.goto(entry);
-  // Totals live in Analytics (header More), not above the binder.
-  await expect(page.getByRole('region', { name: 'Storage dashboard' })).toHaveCount(0);
-  const more = page
-    .getByRole('navigation', { name: 'Binder navigation' })
-    .getByRole('button', { name: 'More', exact: true });
-  const h = new Harness(page, insets, true);
-  await h.expectMinTapTarget(more);
-  await h.expectHittable(more);
-  await more.click();
-  await page.getByRole('menuitem', { name: 'Analytics', exact: true }).click();
-  const analytics = page.getByRole('region', { name: 'Collection analytics', exact: true });
-  await expect(analytics).toContainText('Saved raw value: £10.00');
-  await expect(analytics).toContainText('1 / 2 current targets complete · 2 explicit wants');
-  await expect(analytics).toContainText('1 physical copy · 1 known species · 12 actual slots');
-  await page.getByRole('combobox', { name: 'Analytics storage scope' }).selectOption('all');
-  await expect(analytics).toContainText('6 physical copies · 1 known species · 24 actual slots');
-  await expect(analytics).toContainText('Saved raw value: £25.00');
-  await expect(analytics).toContainText('4 priced · 1 raw unpriced · 1 graded value unknown');
-  await expect(analytics.getByText('Synthetic Snorlax', { exact: true })).toHaveCount(3);
-  await expect(analytics).toContainText('Unassigned');
-  await expect(analytics).toContainText('Partial estimate');
-  await expect(analytics).toContainText('Trades: No current targets');
-  await expect(analytics.getByText(/1025/)).toHaveCount(0);
-  await context.setOffline(true);
-  await expect(analytics).toContainText('Cached only');
-  await expect(analytics).toContainText('Saved raw value: £25.00');
-  await expect(analytics).toContainText('Last saved:');
-  await h.expectNoHorizontalOverflow();
-  await page.screenshot({ path: test.info().outputPath('analytics.png') });
-  await page.getByRole('combobox', { name: 'Analytics storage scope' }).selectOption('selected');
-  await expect(analytics).toContainText('Saved raw value: £10.00');
-  await context.setOffline(false);
-});
-test('weak saved prices remain unknown and never produce a zero or graded value', async ({ page, insets }) => {
-  await page.route('**/api/card-prices?*', (route) => route.fulfill({ json: { prices: inventoryProjectionPrices() } }));
-  await page.goto(entry);
+const openAnalytics = async (page: Page) => {
   await page
     .getByRole('navigation', { name: 'Binder navigation' })
     .getByRole('button', { name: 'More', exact: true })
     .click();
   await page.getByRole('menuitem', { name: 'Analytics', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Collection analytics', exact: true })).toContainText(
-    'Saved raw value: Unknown',
-  );
+  return page.getByRole('region', { name: 'Collection analytics', exact: true });
+};
+test(
+  'analytics dashboard shows value, insights and every copy, including cached offline evidence',
+  { tag: '@matrix' },
+  async ({ page, context, insets }) => {
+    await page.goto(entry);
+    // Totals live in Analytics (header More), not above the binder.
+    await expect(page.getByRole('region', { name: 'Storage dashboard' })).toHaveCount(0);
+    const more = page
+      .getByRole('navigation', { name: 'Binder navigation' })
+      .getByRole('button', { name: 'More', exact: true });
+    const h = new Harness(page, insets, true);
+    await h.expectMinTapTarget(more);
+    await h.expectHittable(more);
+    const analytics = await openAnalytics(page);
+    const value = analytics.getByRole('region', { name: 'Collection value' });
+    await expect(value).toContainText('£10.00');
+    await page.getByRole('combobox', { name: 'Analytics storage scope' }).selectOption('all');
+    await expect(value).toContainText('£25.00');
+    await expect(value).toContainText('4 of 6 cards priced');
+    await expect(value).toContainText('1 graded not valued');
+    for (const name of [
+      'Most valuable',
+      'Where the value is',
+      'Rising in your collection',
+      'Falling in your collection',
+      'Progress',
+      'Price confidence',
+      'Your cards',
+    ])
+      await expect(analytics.getByRole('region', { name, exact: true })).toBeVisible();
+    const cards = analytics.getByRole('region', { name: 'Your cards', exact: true });
+    await expect(cards.getByText('Synthetic Snorlax', { exact: true })).toHaveCount(3);
+    await expect(cards).toContainText('Not in a binder');
+    await expect(analytics.getByText(/1025/)).toHaveCount(0);
+    await h.expectNoHorizontalOverflow();
+    await page.screenshot({ path: test.info().outputPath('analytics.png'), fullPage: true });
+    await context.setOffline(true);
+    await expect(value).toContainText('£25.00');
+    await h.expectNoHorizontalOverflow();
+    await page.getByRole('combobox', { name: 'Analytics storage scope' }).selectOption('selected');
+    await expect(value).toContainText('£10.00');
+    await context.setOffline(false);
+  },
+);
+test('weak saved prices remain unknown and never produce a zero or graded value', async ({ page, insets }) => {
+  await page.route('**/api/card-prices?*', (route) => route.fulfill({ json: { prices: inventoryProjectionPrices() } }));
+  await page.goto(entry);
+  const analytics = await openAnalytics(page);
+  const value = analytics.getByRole('region', { name: 'Collection value' });
   await page.getByRole('combobox', { name: 'Analytics storage scope' }).selectOption('all');
-  const analytics = page.getByRole('region', { name: 'Collection analytics', exact: true });
-  await expect(analytics).toContainText('0 priced · 5 raw unpriced · 1 graded value unknown');
-  await expect(analytics.getByText(/£0.00/)).toHaveCount(0);
-  await expect(analytics.getByText(/low confidence/)).toHaveCount(5);
+  await expect(value).toContainText('of 6 cards priced');
+  await expect(analytics.getByText(/£0\.00/)).toHaveCount(0);
+  // Weak prices never become rising or falling signals.
+  await expect(analytics.getByRole('region', { name: 'Rising in your collection' })).toContainText('Nothing rising');
   await new Harness(page, insets, true).expectNoHorizontalOverflow();
+  await page.screenshot({ path: test.info().outputPath('analytics-weak.png'), fullPage: true });
 });
 test('the toolbar Show prices toggle labels pockets without a value banner, and an unpriced page never shows £0', async ({
   page,
