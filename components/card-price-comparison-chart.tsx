@@ -96,7 +96,7 @@ export default function CardPriceComparisonChart({
                   ].map((zone, i) =>
                     Math.min(zone.high, max + padding) > Math.max(zone.low, min - padding) ? (
                       <ReferenceArea
-                        key={i}
+                        key={zone.color}
                         y1={Math.max(zone.low, min - padding)}
                         y2={Math.min(zone.high, max + padding)}
                         fill={zone.color}

@@ -63,6 +63,7 @@ export default function CardPickerSheet({
   );
 }
 
+// oxlint-disable-next-line react-doctor/only-export-components -- class helper shared with the sheet's callers in other passes; moving it touches their imports
 export const cardPickerSheetChoice = (highlighted = false) =>
   `flex min-h-12 w-full min-w-0 items-center justify-between gap-3 rounded-2xl border px-4 text-left text-sm font-semibold transition-colors ${
     highlighted

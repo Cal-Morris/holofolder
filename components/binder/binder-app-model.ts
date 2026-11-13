@@ -169,6 +169,12 @@ export function getCollectionItemPriceKey(item?: { card_id?: string | null; card
   return item?.card_id ? getCardPriceKey(item.card_id, item.card_language) : null;
 }
 
+const COLLECTED_DATE_FORMAT = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+
 export function formatCollectedDate(value?: string | null) {
   if (!value) {
     return null;
@@ -179,11 +185,7 @@ export function formatCollectedDate(value?: string | null) {
     return null;
   }
 
-  return new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
+  return COLLECTED_DATE_FORMAT.format(date);
 }
 
 export type PriceSummary = {

@@ -173,6 +173,7 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
                     <div
                       className={`bg-muted/40 relative flex shrink-0 items-center justify-center ${selectedPrimaryCardPreview?.cardImage ? 'trading-card w-11' : 'h-16 w-16 rounded-xl'}`}
                     >
+                      {/* oxlint-disable-next-line nextjs/no-img-element -- card art from the asset CDN or Pokémon artwork, cached by the service worker for offline use */}
                       <img
                         src={
                           toCardImageSrc(selectedPrimaryCardPreview?.cardImage) ??

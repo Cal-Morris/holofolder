@@ -82,6 +82,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             {...quickPressHandlers}
             aria-label="Search"
             aria-pressed={isSearchOpen || isQuickModeOpen}
+            // oxlint-disable-next-line jsx-a11y/role-supports-aria-props -- aria-description (ARIA 1.3) is supported by current browsers; the rule's table predates it
             aria-description="Press and hold for Quick mode"
             title="Search (hold for Quick mode)"
             className={`flex h-11 min-w-0 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-full px-1 transition-colors select-none [-webkit-touch-callout:none] ${

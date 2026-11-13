@@ -137,6 +137,7 @@ export default function PocketReserve({
             />
             <input
               type="search"
+              // oxlint-disable-next-line jsx-a11y/no-autofocus -- the sheet opens to type a Pokémon to reserve; this field is its only task
               autoFocus
               aria-label="Search Pokémon"
               placeholder="Name or number"

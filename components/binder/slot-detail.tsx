@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Layers3, MoreHorizontal, Palette, X } from 'lucide-react';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import type { BinderDisplaySlot } from '@/lib/binder-display-model';
@@ -73,11 +73,13 @@ export default function SlotDetail({
     action.run(next, selected);
   };
   const editable = Boolean(picker);
+  const closeOffline = useEffectEvent(() => onClose());
   useEffect(() => {
     if (!editable) return;
-    window.addEventListener('offline', onClose);
-    return () => window.removeEventListener('offline', onClose);
-  }, [editable, onClose]);
+    const listener = () => closeOffline();
+    window.addEventListener('offline', listener);
+    return () => window.removeEventListener('offline', listener);
+  }, [editable]);
   // The copy's own recorded printing, never a catalog guess: prices and All cards follow exactly this card.
   const copy = slot.item?.identity.kind === 'card' ? slot.item.identity : null;
   const identity = copy ?? (slot.target?.kind === 'card' ? slot.target : null);
@@ -399,6 +401,7 @@ export default function SlotDetail({
                     </>
                   );
                   return (
+                    // oxlint-disable-next-line react-doctor/no-array-index-as-key -- a slot's wants have no id of their own; read-only, in stored order
                     <li key={index} className="min-w-0">
                       {host?.onOpenWant ? (
                         <button
@@ -463,6 +466,7 @@ export default function SlotDetail({
                 </>
               )}
               {grade.subgrades.map((s, index) => (
+                // oxlint-disable-next-line react-doctor/no-array-index-as-key -- a grade's subgrades have no id; read-only, in stored order
                 <div key={index} className="contents">
                   <dt className="text-muted-foreground">{s.name}</dt>
                   <dd>{s.grade}</dd>
