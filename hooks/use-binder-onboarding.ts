@@ -26,6 +26,7 @@ const writeLocal = (accountId: string) => {
  */
 export function useBinderOnboarding(accountId: string) {
   const [done, setDone] = useState<boolean | null>(null);
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- each setState runs in its own async callback, never together.
   useEffect(() => {
     let live = true;
     if (

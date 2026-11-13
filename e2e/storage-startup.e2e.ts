@@ -176,6 +176,7 @@ test('fresh storage opens representative owner through actual worker and saves a
 async function seedResetSentinels(page: Page) {
   await page.evaluate(async () => {
     localStorage.setItem('pokemon_collection_snapshot_v1', 'synthetic cached snapshot');
+    // oxlint-disable-next-line react-doctor/auth-token-in-web-storage -- seeds a synthetic Supabase key so the test can prove reset removes it.
     localStorage.setItem('sb-synthetic-auth-token', 'synthetic credentials');
     await (
       await caches.open('binderdex-v6-shell')

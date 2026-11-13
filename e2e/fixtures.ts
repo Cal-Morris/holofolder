@@ -673,6 +673,7 @@ export const test = base.extend<Fixtures>({
   signedIn: [false, { option: true }],
   collection: [SEEDED_COLLECTION, { option: true }],
   standalone: [
+    // oxlint-disable-next-line eslint/no-empty-pattern -- Playwright requires a destructured first argument.
     async ({}, use, testInfo) => {
       await use(Boolean(testInfo.project.metadata?.standalone));
     },

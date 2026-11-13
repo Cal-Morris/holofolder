@@ -108,6 +108,7 @@ async function deliver(eventId: string, subscriptionId: string): Promise<'delive
       await admin.from('push_subscriptions').delete().eq('id', subscriptionId);
       return 'skipped';
     }
+    // oxlint-disable-next-line react-doctor/async-defer-await -- the lease release is a write both later paths need, not data for the guard.
     await admin
       .from('partner_push_deliveries')
       .update({ lease_until: null, last_status: status })

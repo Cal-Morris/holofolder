@@ -352,8 +352,9 @@ async function main() {
     const config = getPrivateArtworkConfig();
     if (config && config.accessKeyId.length === 32) {
       const signer = new AwsClient({ ...config, service: 's3', region: 'auto', retries: 0 });
-      for (const key of [...cleanup.artwork]) {
+      for (const key of cleanup.artwork) {
         if (!actors.some((actor) => key.startsWith(actor.id + '/')))
+          // oxlint-disable-next-line eslint/no-unsafe-finally -- safety stop: never delete an object outside this run's fixtures, even while cleaning up.
           throw new Error('Artwork cleanup refused an unrelated object');
         try {
           const signed = await signer.sign(getR2BucketEndpoint(config) + key, { method: 'DELETE' });

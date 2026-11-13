@@ -76,6 +76,7 @@ export function useComparisonJob(targets: readonly CheckCompsTarget[], isOnline:
       .catch(() => {});
     return () => abort.abort();
   }, [cards, isOnline, setJob]);
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect -- polling with an AbortController and a version check; stale responses are dropped.
   useEffect(() => {
     if (!job || !isComparisonJobActive(job) || !isOnline) return;
     const abort = new AbortController();
@@ -125,20 +126,25 @@ export function useComparisonJob(targets: readonly CheckCompsTarget[], isOnline:
     void (async () => {
       for (let i = 0; i < cards.length; i += 25) {
         const batch = cards.slice(i, i + 25).map((card) => ({ ...card, finish: priceCheckFinish(card.finish) }));
+        // oxlint-disable-next-line react-doctor/async-await-in-loop -- 25 cards per request keeps the query string bounded; batches run in order.
         const response = await fetchOfflineResource(
           `/app/api/card-price-checks?${new URLSearchParams({ cards: JSON.stringify(batch) })}`,
           { signal: abort.signal },
         );
         const data = await response.json();
         if (!Array.isArray(data.checks)) throw new Error('Invalid saved checks');
+        const savedByKey = new Map<string, Record<string, unknown>>();
+        for (const value of data.checks) {
+          if (typeof value?.cardId !== 'string' || typeof value.finish !== 'string') continue;
+          const key = `${value.cardId}\u0000${value.finish}`;
+          if (!savedByKey.has(key)) savedByKey.set(key, value);
+        }
         for (const target of batch) {
-          const saved = data.checks.find(
-            (value: { cardId?: unknown; finish?: unknown }) =>
-              value?.cardId === target.cardId && value.finish === target.finish,
-          );
+          const saved = savedByKey.get(`${target.cardId}\u0000${target.finish}`);
           if (!saved) throw new Error('Incomplete saved checks');
           for (const source of PRICE_CHECK_SOURCES)
             if (isCardPriceCheck(saved[source]))
+              // oxlint-disable-next-line react-doctor/async-await-in-loop -- pins are written one by one so a failure stops the rest, as before.
               await pinCardPriceCheck(target.cardId, target.finish, source, saved[source]);
         }
       }

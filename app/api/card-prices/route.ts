@@ -35,10 +35,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
+const headers = { 'Cache-Control': 'no-store' };
+
 /** Download existing evidence without provider calls. Full evidence (with history) allows 25 cards;
  * `fields=summary` returns only SAVED_PRICE_SUMMARY_COLUMNS and allows SAVED_PRICE_SUMMARY_MAX_CARDS. */
 export async function GET(request: NextRequest) {
-  const headers = { 'Cache-Control': 'no-store' };
   try {
     const cards = JSON.parse(request.nextUrl.searchParams.get('cards') ?? '[]');
     const summary = request.nextUrl.searchParams.get('fields') === 'summary';

@@ -2,8 +2,9 @@ import { getFirstPartyUser } from '@/lib/supabase/session-user';
 import { createClient } from '@/lib/supabase/server';
 import { startPendingPartnerPush } from '@/lib/server/partner-push';
 
+const headers = { 'cache-control': 'private, no-store' };
+
 export async function POST() {
-  const headers = { 'cache-control': 'private, no-store' };
   const {
     data: { user },
   } = await getFirstPartyUser(await createClient());

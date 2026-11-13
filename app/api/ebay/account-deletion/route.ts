@@ -3,6 +3,7 @@ import { verifyEbayNotification } from '@/lib/server/ebay-notifications';
 
 const headers = { 'Cache-Control': 'no-store' };
 
+// oxlint-disable-next-line react-doctor/nextjs-no-side-effect-in-get-handler -- `.update()` is a hash update; eBay's verification challenge is a read-only GET.
 export async function GET(request: Request) {
   const challenge = new URL(request.url).searchParams.get('challenge_code');
   if (!challenge) return Response.json({ error: 'Missing challenge_code' }, { status: 400, headers });

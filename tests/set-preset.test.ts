@@ -5,6 +5,7 @@ import { instantiatePreset } from '@/lib/domain/binder-presets';
 import { getBinderCompletion, matchesSlotTarget } from '@/lib/domain/binder-slots';
 import { parseBinderCreationDraft } from '@/lib/binder-creation-draft';
 import type { TCGSetSlotCard } from '@/lib/tcg-set-slots';
+import { jsonRoundTrip } from './fixtures/json-round-trip';
 
 // All cards, IDs, variants and counts in this file are synthetic catalog evidence.
 const set = { id: 'synthetic-set', name: 'Synthetic set', officialCardCount: 3 };
@@ -101,7 +102,7 @@ describe('copied set checklist', () => {
     cards[0].name = 'changed later';
     assert.notEqual(result.scope.cards[0].name, cards[0].name);
     assert.ok(Object.isFrozen(result.scope.cards[0]));
-    const reordered = JSON.parse(JSON.stringify(result));
+    const reordered = jsonRoundTrip<{ scope: object }>(result);
     reordered.scope = Object.fromEntries(Object.entries(reordered.scope).reverse());
     assert.deepEqual(parseSetChecklist(reordered), result);
     const draft = parseBinderCreationDraft({
@@ -112,7 +113,7 @@ describe('copied set checklist', () => {
       manifest: result.manifest,
       setChecklist: result,
     });
-    assert.deepEqual(parseSetChecklist(JSON.parse(JSON.stringify(draft.setChecklist))), result);
+    assert.deepEqual(parseSetChecklist(jsonRoundTrip(draft.setChecklist)), result);
     assert.throws(
       () => parseBinderCreationDraft({ ...draft, manifest: { ...result.manifest, entries: [] } }),
       /scope/i,
@@ -121,7 +122,7 @@ describe('copied set checklist', () => {
   test('normal cannot fulfil reverse, current targets change with extras and removal', () => {
     const result = generate([card('1', { variants: { reverse: true } })], { finishes: ['reverse_holo'] });
     const binder = instantiatePreset(
-      JSON.parse(JSON.stringify(result.manifest)),
+      jsonRoundTrip(result.manifest),
       { ownerUserId: 'owner', collectionId: 'collection' },
       ['slot'],
     )!;

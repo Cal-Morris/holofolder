@@ -9,6 +9,7 @@ import { createSlotOfflineQueue } from '@/lib/collection/slot-offline-queue';
 import { createMemoryStore } from '@/lib/offline-store/kv';
 import { nativeCreationSchema, nativeArrangementSchema } from '@/lib/developer-api/storage';
 import { syntheticPresetCards, syntheticPresetSet, syntheticPresetPromo } from './fixtures/set-preset';
+import { jsonRoundTrip } from './fixtures/json-round-trip';
 
 const owner = '01010000-0000-4000-8000-000000000001',
   collection = '01010000-0000-4000-8000-000000000002';
@@ -59,7 +60,7 @@ test('reviewed set evidence crosses preparation, strict API parsing, durable que
   );
   assert.equal(intent.kind, 'creation');
   assert.deepEqual(intent.request.manifest.setScope, set.scope);
-  assert.deepEqual(parseCollectionCreation(JSON.parse(JSON.stringify(intent.request))), intent.request);
+  assert.deepEqual(parseCollectionCreation(jsonRoundTrip(intent.request)), intent.request);
   assert.deepEqual(nativeCreationSchema.parse(intent.request), intent.request);
   assert.equal(
     nativeArrangementSchema.shape.manifest.safeParse(intent.request.manifest).success,

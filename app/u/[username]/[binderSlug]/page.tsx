@@ -10,11 +10,9 @@ export const instant = false;
 
 const load = cache(async (username: string, binderSlug: string) => {
   await connection();
-  try {
-    return await loadPublicBinder({ username, binderSlug });
-  } catch {
-    notFound();
-  }
+  const binder = await loadPublicBinder({ username, binderSlug }).catch(() => null);
+  if (!binder) notFound();
+  return binder;
 });
 type Props = { params: Promise<{ username: string; binderSlug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

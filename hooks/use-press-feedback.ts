@@ -10,6 +10,7 @@ let installed = false;
  * pressed styles in globals.css for every control without per-component wiring.
  */
 export function usePressFeedback() {
+  // oxlint-disable-next-line react-doctor/effect-needs-cleanup -- installed once for the page's lifetime; the module flag stops repeats.
   useEffect(() => {
     if (installed) return;
     installed = true;

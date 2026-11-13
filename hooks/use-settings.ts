@@ -15,6 +15,7 @@ export type { BinderSettings } from '@/lib/settings';
 const LEGACY_LOCAL_SETTINGS_KEY = 'pokemon_binder_settings';
 const ANON_LOCAL_SETTINGS_KEY = 'pokemon_binder_settings:anon';
 const DEFAULT_SETTINGS: BinderSettings = getDefaultBinderSettings();
+const SETTLED: Promise<unknown> = Promise.resolve();
 
 interface UseSettingsOptions {
   binderId?: string | null;
@@ -110,6 +111,7 @@ export function useSettings(options: UseSettingsOptions = {}) {
     readOnly = false,
     readOnlyLayout = false,
     hasRemoteSettings = false,
+    // oxlint-disable-next-line react-doctor/no-event-handler -- mirrors localStorage after mount; reading it during render would mismatch the server HTML.
   } = options;
   const initialResolvedSettings = initialSettings ?? DEFAULT_SETTINGS;
   const [settings, setSettingsState] = useState<BinderSettings>(initialResolvedSettings);
@@ -144,20 +146,25 @@ export function useSettings(options: UseSettingsOptions = {}) {
 
     const pending = readStoredValue(`${getLocalSettingsKey(settingsOwnerUserId ?? user?.id, binderId)}:pending`);
     if (pending && localSettings) {
+      // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-derived-state -- mirrors localStorage after mount; reading it during render would mismatch the server HTML.
       setSettings(localSettings);
       return;
     }
+    // oxlint-disable-next-line react-doctor/no-event-handler -- mirrors localStorage after mount; reading it during render would mismatch the server HTML.
     if ((settingsOwnerUserId ?? user?.id) && hasRemoteSettings) {
+      // oxlint-disable-next-line react-doctor/no-chain-state-updates -- mirrors localStorage after mount; reading it during render would mismatch the server HTML.
       setSettings(initialResolvedSettings);
       writeStoredSettings(initialResolvedSettings, settingsOwnerUserId ?? user?.id, binderId);
       return;
     }
 
     if (localSettings) {
+      // oxlint-disable-next-line react-doctor/no-derived-state -- mirrors localStorage after mount; reading it during render would mismatch the server HTML.
       setSettings(normaliseSettings(localSettings, initialResolvedSettings));
       return;
     }
 
+    // oxlint-disable-next-line react-doctor/no-chain-state-updates -- mirrors localStorage after mount; reading it during render would mismatch the server HTML.
     setSettings(initialResolvedSettings);
     writeStoredSettings(initialResolvedSettings, settingsOwnerUserId ?? user?.id, binderId);
   }, [binderId, hasRemoteSettings, initialResolvedSettings, readOnly, setSettings, settingsOwnerUserId, user?.id]);
@@ -208,7 +215,7 @@ export function useSettings(options: UseSettingsOptions = {}) {
     };
   }, [binderId, hasRemoteSettings, readOnly, setSettings, settingsOwnerUserId, user?.id]);
 
-  const pendingSaves = useRef<Promise<unknown>>(Promise.resolve());
+  const pendingSaves = useRef<Promise<unknown>>(SETTLED);
   const saveRemote = useCallback(
     (pendingSettings: BinderSettings) => {
       const updatedSettings = withCurrentLayout(pendingSettings);

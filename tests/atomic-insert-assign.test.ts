@@ -4,6 +4,7 @@ import { parseInventoryCommand, type InsertAssignCommand } from '@/lib/domain/in
 import { projectSlotIntent, parseSlotIntent, type SlotOfflineIntent } from '@/lib/collection/slot-optimistic';
 import { nativeInventorySchema } from '@/lib/developer-api/storage';
 import type { InventorySnapshot } from '@/lib/domain/inventory';
+import { jsonRoundTrip } from './fixtures/json-round-trip';
 
 const owner = '00910000-0000-4000-8000-000000000001',
   collectionId = '00910000-0000-4000-8000-000000000011';
@@ -82,7 +83,7 @@ const catalog = () => undefined;
 
 test('insertAssign survives strict persisted intent/REST/MCP schema without inventing a destination reference', () => {
   const draft = intent(base());
-  assert.deepEqual(parseSlotIntent(JSON.parse(JSON.stringify(draft))), draft);
+  assert.deepEqual(parseSlotIntent(jsonRoundTrip(draft)), draft);
   assert.deepEqual(
     nativeInventorySchema.parse({ ...draft.request, privateFields: 'preserve', expectedOwnerUserId: owner }).commands,
     draft.request.commands,

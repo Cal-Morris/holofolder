@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
+// oxlint-disable-next-line react-doctor/no-flush-sync -- page turns must commit before the animation or snapshot starts.
 import { flushSync } from 'react-dom';
 import { PAGE_TURN_EASING, PAGE_TURN_MS } from '@/lib/binder-page-turn';
 
@@ -38,6 +39,7 @@ export function useNavigationTransition(reducedMotion: boolean) {
         element.style.viewTransitionName = '';
         delete root.dataset.binderMotion;
       };
+      // oxlint-disable-next-line react-doctor/no-document-start-view-transition -- imperative transition with cancel and skip; <ViewTransition> can't supersede a navigation mid-capture.
       const transition = document.startViewTransition(async () => {
         // A skipped transition still runs its callback; never apply a superseded navigation.
         if (!cancelled) {

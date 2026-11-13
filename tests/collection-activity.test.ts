@@ -30,7 +30,7 @@ test('provenance never fabricates profiles and bigint IDs stay strings', () => {
     'Account retained-account',
   );
   assert.equal(parseActivityPage({ data: [event], nextCursor: null })?.data[0].id, event.id);
-  assert.equal(parseActivityPage({ data: [{ ...event, id: 9223372036854775807 }], nextCursor: null }), null);
+  assert.equal(parseActivityPage({ data: [{ ...event, id: 2 ** 63 }], nextCursor: null }), null);
 });
 test('ownership removal, unassignment, legacy wants and bulk changes are distinct', () => {
   const changes = activityChanges({

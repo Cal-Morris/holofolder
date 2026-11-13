@@ -40,6 +40,7 @@ export async function refreshCardPricesWorkflow(
   let unpriced = 0;
 
   for (let pass = 0; pass < options.repeatCount; pass += 1) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- passes are spaced by sleep(interval) on purpose.
     const result = await refreshTrackedCardPrices(options.ownerUserId);
     totalCards = result.totalCards;
     refreshed += result.refreshed;
@@ -97,6 +98,7 @@ async function refreshTrackedCardPrices(ownerUserId: string | null): Promise<Car
   let unpriced = 0;
 
   for (const batch of batches) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop -- one batch at a time keeps provider requests under their rate limits.
     const result = await refreshCardPriceBatch(batch);
     refreshed += result.refreshed;
     cached += result.cached;

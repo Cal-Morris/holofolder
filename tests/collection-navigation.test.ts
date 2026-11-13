@@ -17,6 +17,7 @@ import {
   inventoryBrowseCatalog,
   inventoryBrowseLayouts,
 } from './fixtures/inventory-browse';
+import { jsonRoundTrip } from './fixtures/json-round-trip';
 const scope = { sessionId: 'synthetic-session', accountUserId: 'synthetic-owner', ownerUserId: 'synthetic-owner' };
 async function read(): Promise<CollectionNavigationRead> {
   return {
@@ -37,7 +38,7 @@ describe('device-local collection navigation', () => {
       requestedSet: set,
     };
     const state = captureNavigationScroll(normalizeNavigationState(input), 120);
-    const restored = resolveNavigation(JSON.parse(JSON.stringify(state)), scope, await read()).state;
+    const restored = resolveNavigation(jsonRoundTrip(state), scope, await read()).state;
     assert.deepEqual(restored.requestedSet, { id: set.id, name: set.name });
     assert.equal(restored.collections.alpha.page, 2);
     assert.equal(restored.collections.alpha.search, 'saved');
@@ -65,7 +66,7 @@ describe('device-local collection navigation', () => {
       overlay: 'detail',
       drag: true,
     };
-    const state = normalizeNavigationState(JSON.parse(JSON.stringify(input)));
+    const state = normalizeNavigationState(jsonRoundTrip(input));
     assert.deepEqual(state.collections.alpha, { view: 'list', page: 2, search: 'charizard', scroll: 832 });
     assert.equal(state.inventory.window, 2);
     assert.equal(state.inventory.query.condition, undefined);
@@ -151,7 +152,7 @@ describe('device-local collection navigation', () => {
         'unknown',
       );
     }
-    assert.equal(navigationIndex(scope, JSON.parse(JSON.stringify(r))).kind, 'unavailable');
+    assert.equal(navigationIndex(scope, jsonRoundTrip(r)).kind, 'unavailable');
     r.scope = { ...scope, accountUserId: 'partner' };
     assert.equal(navigationIndex(r.scope, r).kind, 'complete');
   });

@@ -11,11 +11,9 @@ export const instant = false;
 // React cache deduplicates page/metadata only within this request. No cross-request payload cache.
 const load = cache(async (token: string) => {
   await connection();
-  try {
-    return await loadPublicBinder({ token });
-  } catch {
-    notFound();
-  }
+  const binder = await loadPublicBinder({ token }).catch(() => null);
+  if (!binder) notFound();
+  return binder;
 });
 type Props = { params: Promise<{ token: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

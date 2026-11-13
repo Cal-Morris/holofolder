@@ -2,6 +2,7 @@
 
 import { isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { BillingAccessError } from '@/lib/billing';
+// oxlint-disable-next-line react-doctor/no-flush-sync -- a membership change must close the scope before anything renders with it.
 import { flushSync } from 'react-dom';
 import { closeAllOverlays } from '@/hooks/use-overlay';
 import { clearActivityCache } from '@/lib/collection-activity';
@@ -32,6 +33,7 @@ export function useBrowserCollectionScope(accountId: string | null, ownerUserId:
       lifetime.invalidate();
     };
   }, [enabled, accountId, ownerUserId, lifetime]);
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- the setState calls run in auth callbacks and async checks, not together.
   useEffect(() => {
     if (!enabled || !accountId) return;
     let active = true;

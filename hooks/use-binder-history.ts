@@ -42,6 +42,7 @@ export function useBinderHistory(scope: HistoryScope | null | undefined): Binder
     change: (kind: HistoryKind, op: 'add' | 'clear', value?: RecentCard | string) => void;
   } | null>(null);
 
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- each setState runs in its own async callback, never together.
   useEffect(() => {
     const currentScope = scope;
     if (currentScope === null) {

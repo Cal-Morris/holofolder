@@ -266,6 +266,7 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
     ],
   );
 
+  // oxlint-disable-next-line react-doctor/advanced-event-handler-refs -- the handlers are memoized, so re-subscribing only happens when their inputs change.
   useEffect(() => {
     if (!element) return;
 
@@ -277,6 +278,7 @@ export function useTouchGestures<T extends HTMLElement>(options: TouchGestureOpt
     element.addEventListener('click', handleClickCapture, { capture: true });
     element.addEventListener('dblclick', handleClickCapture, { capture: true });
     if (enableTrackpadSwipe) {
+      // oxlint-disable-next-line react-doctor/client-passive-event-listeners -- handleWheel calls preventDefault to stop the browser's own swipe navigation.
       window.addEventListener('wheel', handleWheel, { passive: false, capture: true });
     }
 

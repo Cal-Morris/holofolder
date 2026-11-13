@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createBinderBackup, binderBackupFilename, type BinderBackupInput } from '@/lib/binder-backup';
 import { defaultBinderDesign } from '@/lib/binder-design';
 import { getDefaultBinderSettings } from '@/lib/settings';
+import { jsonRoundTrip } from './fixtures/json-round-trip';
 
 // Synthetic collection and artwork, no real account data.
 function fixture(): BinderBackupInput {
@@ -68,7 +69,7 @@ describe('binder backup', () => {
   test('JSON round trip keeps owned and wanted metadata, status, settings and design', async () => {
     const input = fixture();
     input.design.surfaces.cover.words = 'My trades';
-    const backup = JSON.parse(JSON.stringify(await createBinderBackup(input, date)));
+    const backup = jsonRoundTrip(await createBinderBackup(input, date));
     assert.equal(backup.format, 'holofolder-binder-backup');
     assert.equal(backup.version, 1);
     assert.equal(backup.exportedAt, date.toISOString());

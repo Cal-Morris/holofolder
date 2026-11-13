@@ -25,6 +25,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   try {
     requireAppearanceOrigin(request);
+    // oxlint-disable-next-line react-doctor/async-defer-await -- authenticate before looking at the payload, so anonymous callers always get 401.
     const { admin, ownerId, actorId } = await requireAppearanceOwner(request);
     if (Number(request.headers.get('content-length')) > 128 * 1024)
       throw new AppearanceError('Appearance payload is too large', 413);
@@ -43,7 +44,7 @@ export async function PUT(request: Request) {
         409,
       );
     if (needsCustomLayoutAccess(payload.design, current.design)) await requirePaidAccess(ownerId);
-    for (const id of binderArtworkIds(payload.design)) await loadBinderArtwork(admin, ownerId, id);
+    await Promise.all(binderArtworkIds(payload.design).map((id) => loadBinderArtwork(admin, ownerId, id)));
     const saved = await withAuditActor(actorId, () =>
       writeAppearance(admin, ownerId, payload.design, payload.baseRevision),
     );

@@ -21,8 +21,7 @@ interface PageProps {
 }
 
 async function loadServerBoot(searchParams: PageProps['searchParams']): Promise<ServerBinderBoot> {
-  const supabase = await createClient();
-  const cookieStore = await cookies();
+  const [supabase, cookieStore] = await Promise.all([createClient(), cookies()]);
   const user = await getSessionUser(supabase);
 
   const empty = {

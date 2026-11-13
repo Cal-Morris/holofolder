@@ -22,14 +22,12 @@ export function useDisplayCardPrices(
 ) {
   const requests = useMemo(() => {
     const seen = new Set<string>();
-    return lookups
-      .map((lookup) => ({ cardId: lookup.cardId, language: lookup.language }))
-      .filter((lookup) => {
-        const key = getCardPriceKey(lookup.cardId, lookup.language);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+    return lookups.flatMap(({ cardId, language }) => {
+      const key = getCardPriceKey(cardId, language);
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [{ cardId, language }];
+    });
   }, [lookups]);
   const {
     pricesByCardId,

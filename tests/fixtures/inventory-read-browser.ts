@@ -5,6 +5,7 @@ import type { InventoryReadScope } from '@/lib/collection/inventory-read-transpo
 import { createSlotOfflineQueue } from '@/lib/collection/slot-offline-queue';
 import { createIndexedDbStore } from '@/lib/offline-store/kv';
 import { isCompleteInventorySnapshot } from '@/lib/collection/slot-snapshot';
+import { jsonRoundTrip } from './json-round-trip';
 
 // Synthetic browser-only proof entry. Never imported by the application.
 const owner = '11111111-1111-4111-8111-111111111111',
@@ -32,7 +33,7 @@ const api = {
     return {
       count: result.snapshot.items.length,
       branded: isCompleteInventorySnapshot(result.snapshot),
-      jsonBranded: isCompleteInventorySnapshot(JSON.parse(JSON.stringify(result.snapshot))),
+      jsonBranded: isCompleteInventorySnapshot(jsonRoundTrip(result.snapshot)),
     };
   },
   async navigation() {
