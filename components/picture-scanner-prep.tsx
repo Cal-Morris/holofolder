@@ -1,46 +1,60 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
+import { useMachine } from '@/hooks/use-machine';
 import {
   downloadPictureScanner,
   getPictureScannerStatus,
   removePictureScanner,
-  type PictureScannerStatus,
+  subscribePictureDownload,
 } from '@/lib/card-picture-scanner';
+import { CHECKING_PICTURE_PREP, picturePrepAction, picturePrepTransition } from '@/lib/picture-scanner-state';
 
 const megabytes = (bytes: number) => `${Math.max(1, Math.round(bytes / 1_000_000))} MB`;
 
 /** Show mode's offline prep: the "Download scanner for offline" switch for the picture scanner. */
 export default function PictureScannerPrep({ isOnline }: { isOnline: boolean }) {
-  const [status, setStatus] = useState<PictureScannerStatus | null>(null);
-  const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const refresh = () =>
-    getPictureScannerStatus().then(setStatus, () => setMessage('This browser can’t store the scanner.'));
+  const [state, send] = useMachine(picturePrepTransition, CHECKING_PICTURE_PREP);
+  const refresh = useCallback(
+    () =>
+      getPictureScannerStatus().then(
+        (status) => send({ type: 'status', status }),
+        () => send({ type: 'status-failed' }),
+      ),
+    [send],
+  );
   useEffect(() => {
     void refresh();
-  }, []);
+    // Any download shows here, including one the scanner started by itself before this was opened.
+    return subscribePictureDownload((download) => {
+      if (download.kind === 'downloading') send({ type: 'progress', loaded: download.loaded, total: download.total });
+      else if (send({ type: 'download-ended' })) void refresh();
+    });
+  }, [refresh, send]);
 
-  const busy = progress !== null;
-  const on = !!status?.ready;
-  const toggle = async () => {
-    if (busy) return;
-    setMessage(null);
-    if (on) {
-      await removePictureScanner().catch(() => setMessage('Couldn’t remove the scanner. Try again.'));
-      return void refresh();
-    }
-    setProgress({ loaded: 0, total: status?.bytes ?? 0 });
-    try {
-      await downloadPictureScanner((loaded, total) => setProgress({ loaded, total }));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Download failed. Try again.');
-    } finally {
-      setProgress(null);
-      void refresh();
-    }
+  const action = picturePrepAction(state, isOnline);
+  const toggle = () => {
+    if (action === 'remove' && send({ type: 'remove' }))
+      void removePictureScanner()
+        .then(
+          () => send({ type: 'removed' }),
+          () => send({ type: 'remove-failed', message: 'Couldn’t remove the scanner. Try again.' }),
+        )
+        .finally(refresh);
+    else if (action === 'download' && send({ type: 'download' }))
+      downloadPictureScanner().catch((error) =>
+        send({
+          type: 'download-failed',
+          message: error instanceof Error ? error.message : 'Download failed. Try again.',
+        }),
+      );
   };
 
+  const on = state.kind === 'on' || state.kind === 'removing';
+  const lit = on || state.kind === 'downloading';
+  const size = 'bytes' in state ? state.bytes : null;
+  const message =
+    state.kind === 'unsupported' ? 'This browser can’t store the scanner.' : 'message' in state ? state.message : null;
   return (
     <section aria-label="Picture scanner" className="border-border mt-4 space-y-2 rounded-2xl border p-3">
       <div className="flex items-center gap-3">
@@ -50,8 +64,7 @@ export default function PictureScannerPrep({ isOnline }: { isOnline: boolean }) 
           </h3>
           <p className="text-muted-foreground text-xs">
             Recognises cards by their picture, without a connection.{' '}
-            {status &&
-              (on ? `${megabytes(status.bytes)} on this device.` : `About ${megabytes(status.bytes)}, best on Wi-Fi.`)}
+            {size !== null && (on ? `${megabytes(size)} on this device.` : `About ${megabytes(size)}, best on Wi-Fi.`)}
           </p>
         </div>
         <button
@@ -59,30 +72,30 @@ export default function PictureScannerPrep({ isOnline }: { isOnline: boolean }) 
           role="switch"
           aria-checked={on}
           aria-labelledby="picture-scanner-label"
-          disabled={!status || busy || (!on && !isOnline)}
-          onClick={() => void toggle()}
-          className={`relative h-9 w-14 shrink-0 rounded-full transition-colors disabled:opacity-50 ${on || busy ? 'bg-primary' : 'bg-muted'}`}
+          disabled={!action}
+          onClick={toggle}
+          className={`relative h-9 w-14 shrink-0 rounded-full transition-colors disabled:opacity-50 ${lit ? 'bg-primary' : 'bg-muted'}`}
         >
           <span
             aria-hidden
-            className={`bg-background absolute top-1 left-1 h-7 w-7 rounded-full shadow transition-transform ${on || busy ? 'translate-x-5' : ''}`}
+            className={`bg-background absolute top-1 left-1 h-7 w-7 rounded-full shadow transition-transform ${lit ? 'translate-x-5' : ''}`}
           />
         </button>
       </div>
-      {busy && (
+      {state.kind === 'downloading' && (
         <div className="space-y-1">
           <progress
             aria-label="Scanner download"
             className="accent-primary h-2 w-full"
-            value={progress.loaded}
-            max={Math.max(progress.total, 1)}
+            value={state.loaded}
+            max={Math.max(state.total, 1)}
           />
           <p role="status" className="text-xs">
-            Downloading {megabytes(progress.loaded)} of {megabytes(progress.total)}…
+            Downloading {megabytes(state.loaded)} of {megabytes(state.total)}…
           </p>
         </div>
       )}
-      {!on && !busy && !isOnline && (
+      {(state.kind === 'off' || state.kind === 'checking' || state.kind === 'unsupported') && !isOnline && (
         <p className="text-xs">Offline. Scanning reads the card’s name and number until the scanner is downloaded.</p>
       )}
       {message && (
