@@ -7,6 +7,7 @@ import {
   ownedCopyFinishChoices,
   getRecordedFinish,
   getVariantFilter,
+  matchesRarityChoice,
 } from '../lib/card-picker-filters';
 
 describe('card picker filters', () => {
@@ -19,6 +20,16 @@ describe('card picker filters', () => {
     assert.equal(getRecordedFinish('illustration_rare'), 'illustration_rare');
     assert.equal(getVariantFilter('any'), undefined);
     assert.equal(getRecordedFinish('any'), null);
+  });
+
+  test('rarity finish choices narrow to that rarity', () => {
+    const sir = { rarity: 'Special illustration rare' };
+    const common = { rarity: 'Common' };
+    assert.equal(matchesRarityChoice(sir, 'special_illustration_rare'), true);
+    assert.equal(matchesRarityChoice(common, 'special_illustration_rare'), false);
+    assert.equal(matchesRarityChoice(sir, 'illustration_rare'), false);
+    assert.equal(matchesRarityChoice(common, 'reverse_holo'), true);
+    assert.equal(matchesRarityChoice(common, 'any'), true);
   });
 
   test('only non-default filters become chips', () => {

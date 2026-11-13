@@ -35,6 +35,7 @@ import {
   getCardPickerSuggestedFinish,
   getRecordedFinish,
   getVariantFilter,
+  matchesRarityChoice,
   type CardPickerFilterKey,
   type CardPickerVariantChoice,
 } from '@/lib/card-picker-filters';
@@ -564,12 +565,13 @@ export default function CardSelector({
         cards.filter(
           (card) =>
             (!binderLanguageFilter || cardMatchesLanguages(card, binderLanguageFilter)) &&
-            (!pokemonCardIds || pokemonCardIds.has(card.id)),
+            (!pokemonCardIds || pokemonCardIds.has(card.id)) &&
+            matchesRarityChoice(card, variantChoice),
         ),
         // Any-card results are already the search's matches (name, set, number or artist), so they are not re-filtered by text.
         { ...filters, ...(isAnyCard ? { searchQuery: undefined } : {}), variant: variantFilter },
       ),
-    [binderLanguageFilter, isAnyCard, cards, filters, filterCards, pokemonCardIds, variantFilter],
+    [binderLanguageFilter, isAnyCard, cards, filters, filterCards, pokemonCardIds, variantChoice, variantFilter],
   );
   const filtersMatchBinder =
     !targetLanguages || (matchBinder && fixedLanguage !== undefined && targetLanguages.includes(fixedLanguage));

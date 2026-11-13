@@ -56,6 +56,12 @@ export function getVariantFilter(choice: CardPickerVariantChoice) {
   return VARIANT_FILTERS[choice];
 }
 
+/** Whether a card fits a rarity-finish choice (IR, SIR, ex and so on); other choices narrow by variant instead. */
+export function matchesRarityChoice(card: Pick<TCGCard, 'rarity'>, choice: CardPickerVariantChoice) {
+  if (choice === 'any' || choice === 'first_edition' || VARIANT_FILTERS[choice]) return true;
+  return inferCardFinish(card.rarity, undefined) === choice;
+}
+
 /** The finish recorded when a card is picked (null: infer it from the picked card). */
 export function getRecordedFinish(choice: CardPickerVariantChoice): CardFinish | null {
   return choice === 'any' || choice === 'first_edition' ? null : choice;
