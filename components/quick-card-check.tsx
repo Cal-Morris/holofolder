@@ -437,22 +437,27 @@ export default function QuickCardCheck({
               {high ? `High ${money(high.amount)}` : ''}
             </p>
           )}
-          {(cacheAge || !isOnline) && (
-            <p className="text-muted-foreground flex items-center gap-1 text-[11px]" data-testid="quick-card-cache-age">
-              {!isOnline && <WifiOff className="h-3 w-3" aria-hidden />}
-              {cacheAge
-                ? `${isOnline ? 'Saved' : 'Offline · saved price from'} ${cacheAge}`
-                : 'Offline · no saved price on this device'}
-            </p>
-          )}
-          <p className="text-muted-foreground text-[11px]">
-            {usesSoldGuide ? 'Sold check' : 'Provider quote'}: {referenceAge ?? 'date unknown'}
+          {/* How fresh the price is, on one line: this device's copy, then the source's own date. */}
+          <p className="text-muted-foreground flex flex-wrap items-center gap-x-1 text-[11px]">
+            {(cacheAge || !isOnline) && (
+              <span className="flex items-center gap-1" data-testid="quick-card-cache-age">
+                {!isOnline && <WifiOff className="h-3 w-3" aria-hidden />}
+                {cacheAge
+                  ? `${isOnline ? 'Saved' : 'Offline · saved price from'} ${cacheAge}`
+                  : 'Offline · no saved price on this device'}
+              </span>
+            )}
+            {(cacheAge || !isOnline) && <span aria-hidden>·</span>}
+            <span>
+              {usesSoldGuide ? 'Sold check' : 'Provider quote'}: {referenceAge ?? 'date unknown'}
+            </span>
           </p>
         </div>
 
         <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
         {/* In the scrolling body, so the pinned panel below keeps the scale and verdict in view while typing. */}
-        {nativeConsumer && (
+        {/* Only when this printing is wanted: an empty "not on your want list" block is noise at a stall. */}
+        {nativeConsumer && state.wanted && (
           <NativeWantedEntries
             binding={readOnly ? { ...nativeConsumer, editingAvailable: false } : nativeConsumer}
             card={card}
@@ -461,7 +466,6 @@ export default function QuickCardCheck({
         )}
         {(!nativeConsumer || nativeSoldAllowed) && (
           <CardPriceComparison
-            readOnly={Boolean(nativeConsumer)}
             key={`${card.id}:${language}:${finish}`}
             cardId={card.id}
             searchCard={{ name: card.name, localId: card.localId, setName: card.set.name }}

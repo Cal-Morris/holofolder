@@ -149,6 +149,8 @@ test('eBay listings API requires a signed-in session', async ({ request }) => {
 test('Show mode checks both sources on tap and resets comparisons when the finish changes', async ({ harness }) => {
   let requests = 0;
   await harness.page.route('**/app/api/card-price-checks?**', async (route) => {
+    // Native checks first read what's saved (a GET); only a tap on Check prices runs a new one.
+    if (route.request().method() === 'GET') return route.fulfill({ json: NOTHING_SAVED });
     requests++;
     expect(route.request().method()).toBe('POST');
     expect(new URL(route.request().url()).searchParams.get('cardId')).toBe('sv03.5-005');
@@ -164,8 +166,11 @@ test('Show mode checks both sources on tap and resets comparisons when the finis
     .first()
     .click();
   const check = dialog.getByTestId('quick-card-check');
-  const button = check.getByRole('button', { name: 'Check prices', exact: true });
-  await expect(button).toBeVisible();
+  // After a check the same button reads "Refresh prices".
+  const button = check
+    .getByRole('region', { name: 'Price comparisons' })
+    .getByRole('button', { name: /^(Check|Refresh) prices$/ });
+  await expect(button).toHaveText('Check prices');
   expect(requests).toBe(0);
   await harness.expectMinTapTarget(button);
   await button.click();
@@ -225,6 +230,9 @@ for (const fast of ['ebay', 'soldcomps'] as const) {
   });
 }
 
+/** No saved checks yet for this card. */
+const NOTHING_SAVED = { ebay: null, soldcomps: null, errors: {} };
+
 // Synthetic fresh, concentrated sales which qualify for a buying guide.
 const qualifyingFixture = () => ({
   ...comparisonFixture,
@@ -253,6 +261,8 @@ test('qualified sold guide changes Show mode verdict, plots an overlay and reset
   });
   let requests = 0;
   await harness.page.route('**/app/api/card-price-checks?**', async (route) => {
+    // Native checks first read what's saved (a GET); only a tap on Check prices runs a new one.
+    if (route.request().method() === 'GET') return route.fulfill({ json: NOTHING_SAVED });
     requests++;
     await route.fulfill({ json: qualifyingFixture() });
   });
@@ -349,6 +359,7 @@ test('switching finishes cancels the old check before it can overwrite new evide
     release = resolve;
   });
   await harness.page.route('**/app/api/card-price-checks?**', async (route) => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: NOTHING_SAVED });
     const params = new URL(route.request().url()).searchParams;
     if (params.get('source') === 'soldcomps' && params.get('finish') === 'normal') await gate;
     const fixture = qualifyingFixture();
@@ -391,6 +402,8 @@ test('fair market bands, quick eBay link and individually verifiable source reco
   await mockCardPrices(harness.page, { 'sv03.5-005': { market: 10, confidence: 'high' } });
   let calls = 0;
   await harness.page.route('**/app/api/card-price-checks?**', (route) => {
+    // Native checks first read what's saved (a GET); only a tap on Check prices runs a new one.
+    if (route.request().method() === 'GET') return route.fulfill({ json: NOTHING_SAVED });
     calls++;
     const fixture = qualifyingFixture();
     const sold = {

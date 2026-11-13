@@ -195,7 +195,8 @@ test.describe('manual bundle price checks', () => {
     harness,
   }) => {
     await mockCardPrices(harness.page, {
-      'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high' },
+      // Native checks need a known English printing on a normal, holo or reverse finish (Charmeleon 151, normal).
+      'sv03.5-005': { finish: 'normal', market: 10, confidence: 'high' },
       'sv03.5-007': { finish: 'normal', market: 4, confidence: 'high' },
     });
     let calls = 0;
@@ -216,7 +217,7 @@ test.describe('manual bundle price checks', () => {
         await route.fulfill({ status: 503, json: { error: 'Sold provider unavailable' } }).catch(() => undefined);
       } else {
         const sold = query.get('source') === 'soldcomps';
-        const amount = query.get('cardId') === 'sv03.5-006' ? 9.8 : 4;
+        const amount = query.get('cardId') === 'sv03.5-005' ? 9.8 : 4;
         // Synthetic concentrated sales across three dates.
         const check = {
           checkedAt: new Date().toISOString(),
@@ -241,7 +242,7 @@ test.describe('manual bundle price checks', () => {
       }
     });
     const dialog = await openQuickInShowMode(harness);
-    let card = await checkCard(harness, 'charizard', /^Charizard ex, 151 /);
+    let card = await checkCard(harness, 'charmeleon', /^Charmeleon, 151 /);
     await card.getByRole('button', { name: 'Add to bundle' }).click();
     await card.getByRole('button', { name: 'Back to results' }).click();
     card = await checkCard(harness, 'squirtle', /^Squirtle, 151 /);

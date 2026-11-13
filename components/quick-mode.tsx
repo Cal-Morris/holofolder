@@ -548,6 +548,7 @@ function QuickMode({
         onBack={() => setIsBundleOpen(false)}
         onRemove={(key) => updateBundle(bundle.filter((entry) => entry.key !== key))}
         onClear={() => updateBundle([])}
+        isOnline={isOnline}
         onSoldCheck={(key, soldCheck) =>
           updateBundle((current) => current.map((entry) => (entry.key === key ? { ...entry, soldCheck } : entry)))
         }

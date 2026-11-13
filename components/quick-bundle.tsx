@@ -15,6 +15,7 @@ import { TOAST_ANCHOR } from '@/components/ui/toast';
 import { ShowBought, type ShowTally } from '@/components/show-bought';
 import { splitBundlePrice } from '@/lib/show-session';
 import ShowBudget from '@/components/show-budget';
+import { Button } from '@/components/ui/button';
 import { checkBundle, parseAskingPrice, readDealThresholds } from '@/lib/deal-check';
 import { requestCardPriceCheck } from '@/lib/card-price-check-client';
 import type { CardPriceCheck, CardPriceChecks, PriceCheckSource } from '@/lib/card-price-checks';
@@ -37,6 +38,7 @@ export interface QuickBundleProps {
   onRemove: (key: string) => void;
   onClear: () => void;
   onSoldCheck: (key: string, check: CardPriceCheck) => void;
+  isOnline: boolean;
   /** Show mode's purchase tally: Bought bundle logs the total, split across the cards by market price. */
   tally?: ShowTally;
 }
@@ -53,6 +55,7 @@ export default function QuickBundle({
   onRemove,
   onClear,
   onSoldCheck,
+  isOnline,
   tally,
   // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: QuickBundleProps) {
@@ -93,7 +96,6 @@ export default function QuickBundle({
   const [pending, setPending] = useState<Record<string, Partial<Record<PriceCheckSource, boolean>>>>({});
   const [error, setError] = useState<string | null>(null);
   async function checkPrices() {
-    if (nativeConsumer) return;
     if (!premium) {
       billing?.upgrade();
       return;
@@ -108,7 +110,10 @@ export default function QuickBundle({
     const abort = new AbortController();
     controller.current = abort;
     const { signal } = abort;
-    const supported = entries.filter((entry) => (entry.card.language ?? 'en') === 'en' && entry.finish !== 'jumbo');
+    // Native checks only printings whose exact sold evidence the native gates accept (known English, real finish).
+    const supported = entries.filter((entry) =>
+      native ? entry.nativeEvidence?.soldExact : (entry.card.language ?? 'en') === 'en' && entry.finish !== 'jumbo',
+    );
     setPending(Object.fromEntries(supported.map((entry) => [entry.key, { ebay: true, soldcomps: true }])));
     let cursor = 0;
     async function worker() {
@@ -134,7 +139,11 @@ export default function QuickBundle({
                   errors: { ...previous[entry.key]?.errors, [source]: error },
                 },
               }));
-              if (source === 'soldcomps' && check) onSoldCheck(entry.key, check);
+              if (source === 'soldcomps' && check) {
+                // The native guide's clock ticks each minute; a check that just landed must not read as from the future.
+                setNow(Date.now());
+                onSoldCheck(entry.key, check);
+              }
             } catch (failure) {
               if (signal.aborted) return;
               const message =
@@ -201,14 +210,14 @@ export default function QuickBundle({
 
         {nativeConsumer && (
           <section aria-label="Bundle comparison" className="border-border/60 rounded-xl border p-3 text-sm">
-            <p className="font-semibold">Read-only comparison</p>
+            <p className="font-semibold">Bundle comparison</p>
+            {/* Bought bundle adds the cards (see ShowBought), so this no longer says "lookups, not copies to acquire". */}
             <p>
               {nativeModel?.kind === 'cached'
                 ? 'Cached only, read-only'
                 : nativeModel
                   ? 'Saved scoped inventory'
                   : 'Ownership unavailable'}
-              . Selected printings are lookups, not copies to acquire.
             </p>
           </section>
         )}
@@ -284,30 +293,16 @@ export default function QuickBundle({
           )}
         </ul>
 
-        {!nativeConsumer && (
-          <>
-            <button
-              type="button"
-              onClick={() => void checkPrices()}
-              disabled={checking || entries.length === 0}
-              className="border-primary/40 bg-primary/10 min-h-14 rounded-2xl border px-4 text-base font-semibold disabled:opacity-50"
-            >
-              {!premium ? 'Unlock bundle comparisons' : checking ? 'Checking bundle prices…' : 'Check bundle prices'}
-            </button>
-            <p className="text-muted-foreground text-[11px]">
-              Checks each English card and finish, reuses saved results until you refresh them on the card.{' '}
-              {guide.items.filter((item) => item.source === 'sold').length} of {entries.length} use qualified sold
-              evidence.
-            </p>
-          </>
-        )}
-        {nativeConsumer && (
-          <p className="text-muted-foreground text-[11px]">
-            Saved price evidence only. No provider checks or ownership changes
-            {tally ? '; Bought bundle only logs to this show’s tally' : ''}. Each selected entry counts once, including
-            repeated printings.
-          </p>
-        )}
+        {/* A paid check needs the network; offline the bundle compares saved evidence only. */}
+        <BundlePriceCheck
+          isOnline={isOnline}
+          native={Boolean(nativeConsumer)}
+          label={!premium ? 'Unlock bundle comparisons' : checking ? 'Checking bundle prices…' : 'Check bundle prices'}
+          disabled={checking || entries.length === 0}
+          onCheck={() => void checkPrices()}
+          soldCount={guide.items.filter((item) => item.source === 'sold').length}
+          total={entries.length}
+        />
         {error ? (
           <p role="status" className="text-muted-foreground text-xs">
             {error}
@@ -397,5 +392,53 @@ function BundleBought({
         onLogged();
       }}
     />
+  );
+}
+
+/** Check bundle prices: the same control as each card's Check prices (CardPriceComparison). Online only. */
+function BundlePriceCheck({
+  isOnline,
+  native,
+  label,
+  disabled,
+  onCheck,
+  soldCount,
+  total,
+}: {
+  isOnline: boolean;
+  native: boolean;
+  label: string;
+  disabled: boolean;
+  onCheck: () => void;
+  soldCount: number;
+  total: number;
+}) {
+  return (
+    <>
+      {isOnline && (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-14 w-full rounded-2xl text-base font-bold"
+            onClick={onCheck}
+            disabled={disabled}
+          >
+            {label}
+          </Button>
+          <p className="text-muted-foreground text-[11px]">
+            Checks each English card and finish, reuses saved results until you refresh them on the card. {soldCount} of{' '}
+            {total} use qualified sold evidence.
+          </p>
+        </>
+      )}
+      {native && (
+        <p className="text-muted-foreground text-[11px]">
+          Check bundle prices runs the same per-card checks as each card&apos;s check. Each selected entry counts once,
+          including repeated printings.
+        </p>
+      )}
+    </>
   );
 }

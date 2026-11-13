@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import QuickMode from '@/components/quick-mode';
 import QuickCardCheck from '@/components/quick-card-check';
 import PokemonSearch from '@/components/pokemon-search';
@@ -14,9 +14,27 @@ import type { StagedSlotCommandIntent } from '@/lib/binder-slot-editing';
 
 const noop = () => {};
 
+// The browser's own connection state, as the app passes it to Quick mode.
+const subscribeOnline = (change: () => void) => {
+  window.addEventListener('online', change);
+  window.addEventListener('offline', change);
+  return () => {
+    window.removeEventListener('online', change);
+    window.removeEventListener('offline', change);
+  };
+};
+
+const useOnline = () =>
+  useSyncExternalStore(
+    subscribeOnline,
+    () => navigator.onLine,
+    () => true,
+  );
+
 /** Actual consumers with a synthetic read/admission and draft sink. No BrowserSession/IDB/HTTP acceptance. */
 // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 export default function NativeCardConsumersHarness() {
+  const online = useOnline();
   const [binding, setBinding] = useState<NativeConsumerBinding | null>(null);
   const [usd, setUsd] = useState(false);
   const [mode, setMode] = useState('show');
@@ -186,7 +204,7 @@ export default function NativeCardConsumersHarness() {
           getOfflineCards={async () =>
             inventoryProjectionCatalog.map((c) => ({ ...c.card, dexIds: [...(c.pokemonIds ?? [])] }))
           }
-          isOnline={true}
+          isOnline={online}
           cardCheck={{
             currency: usd ? 'USD' : 'GBP',
             fxRates: { date: '2026-11-10', eurToGbp: 0.9, usdToGbp: 0.8 },
