@@ -180,7 +180,13 @@ export default function BinderSwitcherSheet({
   if (typeof document === 'undefined') return null;
 
   return createPortal(
-    <div data-overlay-backdrop className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px]" onClick={onClose}>
+    <div
+      data-overlay-backdrop
+      role="presentation"
+      className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px]"
+      onClick={onClose}
+    >
+      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops taps inside the sheet reaching the backdrop's close handler */}
       <div
         ref={sheetRef}
         style={

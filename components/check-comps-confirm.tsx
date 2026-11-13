@@ -28,10 +28,12 @@ export default function CheckCompsConfirm({
   return createPortal(
     <div
       data-overlay-backdrop
+      role="presentation"
       data-testid="check-comps-confirm-backdrop"
       className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-[2px]"
       onClick={onCancel}
     >
+      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops taps inside the sheet reaching the backdrop's close handler */}
       <div
         ref={sheetRef}
         role="dialog"

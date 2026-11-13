@@ -119,7 +119,12 @@ export default function SlotDetail({
   const hasMenu = canTakeOut || Boolean(editable && host?.onArrange);
   return (
     <div className="fixed inset-0 z-40">
-      <div data-overlay-backdrop className="absolute inset-0 bg-black/45 backdrop-blur-[2px]" onClick={onClose} />
+      <div
+        data-overlay-backdrop
+        aria-hidden="true"
+        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
       <div
         ref={ref}
         role="dialog"

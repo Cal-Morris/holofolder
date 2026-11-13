@@ -108,7 +108,7 @@ export default function BulkFillReview({
   };
   return (
     <div className="fixed inset-0 z-40">
-      <div data-overlay-backdrop className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div data-overlay-backdrop aria-hidden="true" className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div
         ref={ref}
         role="dialog"

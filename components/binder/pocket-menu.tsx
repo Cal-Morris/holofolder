@@ -97,6 +97,7 @@ export default function PocketMenu({
     <div className="fixed inset-0 z-40">
       <div
         data-overlay-backdrop
+        aria-hidden="true"
         className="absolute inset-0 bg-black/45 sm:bg-transparent"
         onClick={onClose}
         onContextMenu={(event) => {

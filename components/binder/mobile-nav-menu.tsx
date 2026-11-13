@@ -77,7 +77,13 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
   return (
     isMobileNavExpanded &&
     !isSearchOpen && (
-      <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/45" onClick={closeControlsSheet}>
+      <div
+        data-overlay-backdrop
+        role="presentation"
+        className="fixed inset-0 z-40 bg-black/45"
+        onClick={closeControlsSheet}
+      >
+        {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops taps inside the sheet reaching the backdrop's close handler */}
         <div
           ref={controlsSheetRef}
           role="dialog"
