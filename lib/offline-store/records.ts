@@ -1,6 +1,6 @@
 // What Holo Folder keeps in IndexedDB for offline use. Every record is a plain, versionless JSON value
 // under a fixed key; readers validate what they get back.
-import type { CollectedPokemon, WantedCard } from '@/lib/domain/cards';
+import type { CollectedPokemon } from '@/lib/domain/cards';
 import { normalizeCollectionItems } from '@/lib/collection/normalize';
 import type { TCGSetSlotsResponse } from '@/lib/tcg-set-slots';
 import type { OfflineKeyValueStore } from '@/lib/offline-store/kv';
@@ -12,7 +12,6 @@ import {
 } from '@/lib/illustrators';
 
 export const COLLECTION_RECORD_KEY = 'collection';
-export const PRICES_RECORD_KEY = 'prices';
 const SET_QUERY_PREFIX = 'sets:query:';
 export const MAX_STORED_SET_QUERIES = 40;
 
@@ -24,26 +23,6 @@ export interface CollectionRecord {
   savedAt: string;
   collection: CollectedPokemon[];
   pendingOperations: unknown[];
-}
-
-export interface WantlistEntry {
-  pokemonId: number;
-  pokemonName: string;
-  card: WantedCard | null;
-}
-
-/** Wishlisted Pokémon and every wanted printing, as the Wanted view lists them. */
-export function selectWantlist(collection: CollectedPokemon[]): WantlistEntry[] {
-  const entries: WantlistEntry[] = [];
-  for (const item of collection) {
-    if (item.wanted_cards.length > 0) {
-      for (const card of item.wanted_cards)
-        entries.push({ pokemonId: item.pokemon_id, pokemonName: item.pokemon_name, card });
-    } else if (item.status === 'wishlisted') {
-      entries.push({ pokemonId: item.pokemon_id, pokemonName: item.pokemon_name, card: null });
-    }
-  }
-  return entries;
 }
 
 export async function loadCollectionRecord(
@@ -59,74 +38,6 @@ export async function loadCollectionRecord(
     collection: normalizeCollectionItems(value.collection),
     pendingOperations: Array.isArray(value.pendingOperations) ? value.pendingOperations : [],
   };
-}
-
-/** Last-known price for a card, copied from the price cache the app already keeps (read-only). */
-export interface LastKnownPrice {
-  cardId: string;
-  language: string | null;
-  marketGbpAmount: number | null;
-  gbpAmount: number | null;
-  source: string | null;
-  updatedAt: string | null;
-}
-
-export interface PricesRecord {
-  savedAt: string;
-  prices: Record<string, LastKnownPrice>;
-}
-
-const finiteOrNull = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : null);
-const stringOrNull = (value: unknown) => (typeof value === 'string' ? value : null);
-
-/** Pick the last-known price fields out of the existing client price cache JSON. Invalid entries are skipped. */
-export function extractLastKnownPrices(rawPriceCache: string | null): Record<string, LastKnownPrice> {
-  if (!rawPriceCache) return {};
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawPriceCache);
-  } catch {
-    return {};
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-
-  const prices: Record<string, LastKnownPrice> = {};
-  for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-    if (!value || typeof value !== 'object') continue;
-    const entry = value as Record<string, unknown>;
-    if (typeof entry.cardId !== 'string') continue;
-    const marketGbpAmount = finiteOrNull(entry.marketGbpAmount);
-    const gbpAmount = finiteOrNull(entry.gbpAmount);
-    if (marketGbpAmount === null && gbpAmount === null) continue;
-    prices[key] = {
-      cardId: entry.cardId,
-      language: stringOrNull(entry.language),
-      marketGbpAmount,
-      gbpAmount,
-      source: stringOrNull(entry.source),
-      updatedAt: stringOrNull(entry.updatedAt),
-    };
-  }
-  return prices;
-}
-
-/** Merge newly seen prices into the stored ones, so a card that dropped out of the client cache keeps its last price. */
-export async function saveLastKnownPrices(
-  store: OfflineKeyValueStore,
-  prices: Record<string, LastKnownPrice>,
-  now = new Date(),
-) {
-  if (Object.keys(prices).length === 0) return;
-  const existing = await loadLastKnownPrices(store);
-  await store.set(PRICES_RECORD_KEY, {
-    savedAt: now.toISOString(),
-    prices: { ...existing, ...prices },
-  } satisfies PricesRecord);
-}
-
-export async function loadLastKnownPrices(store: OfflineKeyValueStore): Promise<Record<string, LastKnownPrice>> {
-  const value = await store.get<Partial<PricesRecord>>(PRICES_RECORD_KEY);
-  return value && value.prices && typeof value.prices === 'object' ? value.prices : {};
 }
 
 /** Set-coverage lookups the user made (`/app/api/tcg-set-slots` responses), keyed by their query string. */

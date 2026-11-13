@@ -18,13 +18,6 @@ export interface BillingAccess {
   enforced: boolean;
 }
 
-export function savedCardWeight(item: { status?: unknown; wanted_cards?: unknown }) {
-  const wants = Array.isArray(item.wanted_cards) ? item.wanted_cards.length : 0;
-  return item.status === 'wishlisted' ? Math.max(1, wants) : 1 + wants;
-}
-export function countSavedCards(items: Array<{ status?: unknown; wanted_cards?: unknown }>) {
-  return items.reduce((sum, item) => sum + savedCardWeight(item), 0);
-}
 export function resolveBillingAccess(
   ownerUserId: string,
   row: Record<string, unknown> = {},
@@ -64,11 +57,6 @@ export function resolveBillingAccess(
     enforced: row.enforced === true,
   };
 }
-export function canGrowCollection(access: BillingAccess, previousCount: number, nextCount: number) {
-  return (
-    !access.enforced || access.tier === 'paid' || nextCount <= (access.cardLimit ?? 10) || nextCount <= previousCount
-  );
-}
 export function canCreateOwnerBinder(access: BillingAccess, binderCount: number) {
   return binderCount < access.binderLimit;
 }
@@ -90,21 +78,5 @@ export function isBillingError(error: unknown): boolean {
     candidate?.status === 402 ||
     ['upgrade_required', 'card_limit_reached', 'binder_limit_reached'].includes(String(candidate?.code)) ||
     /upgrade_required|card_limit_reached|binder_limit_reached/.test(String(candidate?.message ?? ''))
-  );
-}
-
-export function pendingCardDelta(
-  operations: Array<{
-    type: string;
-    base?: { status?: unknown; wanted_cards?: unknown } | null;
-    item?: { status?: unknown; wanted_cards?: unknown };
-  }>,
-) {
-  return operations.reduce(
-    (sum, operation) =>
-      sum +
-      (operation.type === 'upsert' && operation.item ? savedCardWeight(operation.item) : 0) -
-      (operation.base ? savedCardWeight(operation.base) : 0),
-    0,
   );
 }

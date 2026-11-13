@@ -1,12 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  capBinderSnapshots,
-  evictableSnapshotKeys,
-  isQuotaError,
-  MAX_LOCAL_BINDER_SNAPSHOTS,
-  setItemMakingRoom,
-} from '../lib/storage/make-room';
+import { evictableSnapshotKeys, isQuotaError, setItemMakingRoom } from '../lib/storage/make-room';
 
 const DEFAULT_KEY = 'pokemon_collection_snapshot_v1';
 const binderKey = (id: string) => `${DEFAULT_KEY}:${id}`;
@@ -79,28 +73,5 @@ describe('setItemMakingRoom', () => {
   test('a binder snapshot never evicts itself', () => {
     const storage = quotaStorage(400, { [binderKey('a')]: snapshot('2026-01-01T00:00:00Z', 200) });
     assert.deepEqual(evictableSnapshotKeys(storage, [binderKey('a')]), []);
-  });
-});
-
-describe('capBinderSnapshots', () => {
-  test(`keeps at most ${MAX_LOCAL_BINDER_SNAPSHOTS} other-binder snapshots, counting the one being written`, () => {
-    const storage = quotaStorage(1_000_000, {
-      [DEFAULT_KEY]: snapshot('2026-01-01T00:00:00Z'),
-      [binderKey('a')]: snapshot('2026-01-01T00:00:00Z'),
-      [binderKey('b')]: snapshot('2026-02-01T00:00:00Z'),
-      [binderKey('c')]: snapshot('2026-03-01T00:00:00Z'),
-      [binderKey('d')]: snapshot('2026-04-01T00:00:00Z'),
-    });
-    assert.deepEqual(capBinderSnapshots(storage, binderKey('d')), [binderKey('a')]);
-    assert.deepEqual([...storage.data.keys()].sort(), [DEFAULT_KEY, binderKey('b'), binderKey('c'), binderKey('d')]);
-  });
-
-  test('writing the default binder keeps up to the cap of others', () => {
-    const storage = quotaStorage(1_000_000, {
-      [binderKey('a')]: snapshot('2026-01-01T00:00:00Z'),
-      [binderKey('b')]: snapshot('2026-02-01T00:00:00Z'),
-      [binderKey('c')]: snapshot('2026-03-01T00:00:00Z'),
-    });
-    assert.deepEqual(capBinderSnapshots(storage, DEFAULT_KEY), []);
   });
 });

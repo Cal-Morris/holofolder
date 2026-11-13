@@ -1,85 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { CollectedPokemon } from '../lib/domain/cards';
 import { createMemoryStore } from '../lib/offline-store/kv';
-import {
-  MAX_STORED_SET_QUERIES,
-  extractLastKnownPrices,
-  loadLastKnownPrices,
-  loadSetQuery,
-  saveLastKnownPrices,
-  saveSetQuery,
-  selectWantlist,
-} from '../lib/offline-store/records';
+import { MAX_STORED_SET_QUERIES, loadSetQuery, saveSetQuery } from '../lib/offline-store/records';
 import type { TCGSetSlotsResponse } from '../lib/tcg-set-slots';
-
-const pikachu: CollectedPokemon = {
-  id: 'row-25',
-  pokemon_id: 25,
-  pokemon_name: 'Pikachu',
-  card_language: 'en',
-  card_finish: 'normal',
-  wanted_cards: [],
-  status: 'collected',
-  collected_at: '2026-10-01T00:00:00.000Z',
-};
-
-const mew: CollectedPokemon = {
-  ...pikachu,
-  id: 'row-151',
-  pokemon_id: 151,
-  pokemon_name: 'Mew',
-  status: 'wishlisted',
-  wanted_cards: [{ card_id: 'base4-151', card_name: 'Mew', added_at: '2026-10-02T00:00:00.000Z' }],
-};
-
-const eevee: CollectedPokemon = {
-  ...pikachu,
-  id: 'row-133',
-  pokemon_id: 133,
-  pokemon_name: 'Eevee',
-  status: 'wishlisted',
-};
-
-test('the wantlist lists wanted printings, and wishlisted Pokémon without a chosen printing', () => {
-  assert.deepEqual(selectWantlist([pikachu, mew, eevee]), [
-    { pokemonId: 151, pokemonName: 'Mew', card: mew.wanted_cards[0] },
-    { pokemonId: 133, pokemonName: 'Eevee', card: null },
-  ]);
-});
-
-test('last-known prices come from the existing client price cache and survive it being trimmed', async () => {
-  const raw = JSON.stringify({
-    'base1-4:en': {
-      cardId: 'base1-4',
-      language: 'en',
-      gbpAmount: 210,
-      marketGbpAmount: 199.5,
-      source: 'cardmarket',
-      updatedAt: '2026-10-07',
-    },
-    'base1-58:en': { cardId: 'base1-58', language: 'en', gbpAmount: null, marketGbpAmount: null },
-    junk: 'nope',
-  });
-  const prices = extractLastKnownPrices(raw);
-  assert.deepEqual(Object.keys(prices), ['base1-4:en']);
-  assert.equal(prices['base1-4:en'].marketGbpAmount, 199.5);
-  assert.deepEqual(extractLastKnownPrices('{oops'), {});
-  assert.deepEqual(extractLastKnownPrices(null), {});
-
-  const store = createMemoryStore();
-  await saveLastKnownPrices(store, prices);
-  await saveLastKnownPrices(
-    store,
-    extractLastKnownPrices(
-      JSON.stringify({
-        'sv3pt5-151:en': { cardId: 'sv3pt5-151', language: 'en', gbpAmount: 12, marketGbpAmount: 11 },
-      }),
-    ),
-  );
-  const stored = await loadLastKnownPrices(store);
-  assert.deepEqual(Object.keys(stored).sort(), ['base1-4:en', 'sv3pt5-151:en']);
-});
 
 test('set lookups are saved per query, readable later, and trimmed to the most recent', async () => {
   const store = createMemoryStore();
