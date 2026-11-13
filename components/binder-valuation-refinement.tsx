@@ -29,6 +29,7 @@ export function BinderValuationRefinement({
   const billing = useBillingContext();
   const premium = billing?.premium !== false;
   const [checks, setChecks] = useState<Record<string, CardPriceCheck | null>>({});
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- `revision` re-runs the saved-checks effect
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     if (!premium) return;

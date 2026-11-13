@@ -45,6 +45,7 @@ export function BinderCreationPresets({
   disabled?: boolean;
   initialSet?: TCGSetSummary;
   nativeCreation?: boolean;
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent creation wizard fields; one reducer would not read better
 }) {
   const [name, setName] = useState('');
   const [kind, setKind] = useState<BinderCreationDraft['kind']>('binder');
@@ -107,6 +108,7 @@ export function BinderCreationPresets({
     return `${printings[index]?.name ?? target.cardId} · ${printings[index]?.set.name} · ${target.language}`;
   };
   return (
+    // oxlint-disable-next-line react-doctor/no-prevent-default -- client-only PWA: this form is handled on the device (offline queue and validation), so it can't fall back to a server action
     <form
       aria-label="Preset creation draft"
       className="border-border mt-3 space-y-3 border-t pt-3"
@@ -117,6 +119,7 @@ export function BinderCreationPresets({
           onDraft(
             parseBinderCreationDraft({
               version: 1,
+              // oxlint-disable-next-line react-doctor/rendering-hydration-mismatch-time -- runs in the submit handler, not during render
               operationId: crypto.randomUUID(),
               ownerUserId,
               name,
@@ -137,6 +140,7 @@ export function BinderCreationPresets({
     >
       {nativeCreation && (
         <>
+          {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- wraps the native <select> that Select renders */}
           <label className="block text-xs">
             Storage kind
             <Select
@@ -192,6 +196,7 @@ export function BinderCreationPresets({
       >
         {nativeCreation ? 'Review storage' : 'Prepare draft'}
       </button>
+      {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- wraps the native <select> that Select renders */}
       <label className="block text-xs">
         Preset
         <Select

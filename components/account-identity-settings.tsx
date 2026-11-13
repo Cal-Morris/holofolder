@@ -14,6 +14,7 @@ export function AccountIdentitySettings({
   user: User;
   isOnline: boolean;
   onUsernameSaved?: () => void;
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- two independent forms (name and username); one reducer would not read better
 }) {
   const [name, setName] = useState(() => accountDisplayName(user.user_metadata));
   const [savedName, setSavedName] = useState(name);
@@ -25,6 +26,7 @@ export function AccountIdentitySettings({
   const [usernamePending, setUsernamePending] = useState(false);
   const [usernameMessage, setUsernameMessage] = useState('');
 
+  // oxlint-disable-next-line react-doctor/no-effect-event-handler, react-doctor/no-fetch-in-effect -- loads the username when Settings opens online; aborted on change
   useEffect(() => {
     if (!isOnline) return;
     const controller = new AbortController();
@@ -50,6 +52,7 @@ export function AccountIdentitySettings({
 
   return (
     <section className="border-border/50 bg-muted/25 space-y-4 rounded-2xl border p-3" aria-label="Your profile">
+      {/* oxlint-disable-next-line react-doctor/no-prevent-default -- client-only PWA: this form is handled on the device (offline queue and validation), so it can't fall back to a server action */}
       <form
         className="space-y-2"
         onSubmit={async (event) => {
@@ -108,6 +111,7 @@ export function AccountIdentitySettings({
           </p>
         )}
       </form>
+      {/* oxlint-disable-next-line react-doctor/no-prevent-default -- client-only PWA: this form is handled on the device (offline queue and validation), so it can't fall back to a server action */}
       <form
         className="space-y-2"
         onSubmit={async (event) => {

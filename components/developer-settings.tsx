@@ -65,6 +65,7 @@ function keyRows(value: unknown): DeveloperKeyMetadata[] {
     }
   });
 }
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent key list and create-form fields; one reducer would not read better
 export function DeveloperApiKeys({ isOnline, onSignIn }: { isOnline: boolean; onSignIn?: () => void }) {
   const [signedOut, setSignedOut] = useState(false);
   const [keys, setKeys] = useState<DeveloperKeyMetadata[]>([]),
@@ -76,6 +77,7 @@ export function DeveloperApiKeys({ isOnline, onSignIn }: { isOnline: boolean; on
     [expiry, setExpiry] = useState(90),
     [secret, setSecret] = useState('');
   const [permissions, setPermissions] = useState<DeveloperPermission[]>([...DEFAULT_DEVELOPER_PERMISSIONS]);
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- the setters run when the key request settles, not during the effect
   useEffect(() => {
     let cancelled = false;
     requestKeys()
@@ -172,6 +174,7 @@ export function DeveloperApiKeys({ isOnline, onSignIn }: { isOnline: boolean; on
             </div>
           )}
           {canCreate && (
+            // oxlint-disable-next-line react-doctor/no-prevent-default -- client-only PWA: this form is handled on the device (offline queue and validation), so it can't fall back to a server action
             <form
               className="space-y-3"
               onSubmit={(event) => {

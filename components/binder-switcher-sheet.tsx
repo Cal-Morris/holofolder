@@ -54,6 +54,7 @@ export default function BinderSwitcherSheet({
   onBindersChange,
   onClose,
   stagedCreation,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent sheet controls; one reducer would not read better
 }: BinderSwitcherSheetProps) {
   const billing = useBillingContext();
   const upgrade = () => {
