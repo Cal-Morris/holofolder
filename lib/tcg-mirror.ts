@@ -850,11 +850,14 @@ export async function searchMirroredCards(
     if (response.error) throw response.error;
   }
   for (const row of deduplicateCatalogCards(responses.flatMap((response) => response.data || []))) {
-    const card = toSearchCardResult(
-      row,
-      language === 'any' ? (primaryCardLanguage(row.name_json) ?? 'en') : language,
-      includeNonPokemon,
-    );
+    // A card printed only in another language (an imported Japanese promo found by its English name) keeps that
+    // language; English printings stand in for the other languages, as before.
+    const printedIn = (code: string) => Boolean(row.name_json?.[code]?.trim?.());
+    const rowLanguage =
+      language === 'any' || (!printedIn(language) && !printedIn('en') && primaryCardLanguage(row.name_json))
+        ? (primaryCardLanguage(row.name_json) ?? 'en')
+        : language;
+    const card = toSearchCardResult(row, rowLanguage, includeNonPokemon);
     if (card && !results.has(card.id)) results.set(card.id, card);
   }
 
