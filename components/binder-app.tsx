@@ -3408,7 +3408,6 @@ function BinderAppSurface(props: BinderAppProps) {
   ]);
 
   const searchDialogRef = useRef<HTMLDivElement | null>(null);
-  const mobileActionsRef = useRef<HTMLDivElement | null>(null);
   const closeMobileActions = useCallback(() => setLongPressedPokemon(null), []);
   const closeSelectedPokemon = useCallback(() => {
     setSelectedPokemon(null);
@@ -3428,10 +3427,6 @@ function BinderAppSurface(props: BinderAppProps) {
     trapFocus: !isDesktopViewport && !isQuickPanelCovered,
     autoFocus: !isDesktopViewport,
   });
-  useOverlay(Boolean(longPressedPokemon) && !isDesktopViewport && !readOnlyMode, closeMobileActions, {
-    containerRef: mobileActionsRef,
-  });
-  const mobileActionsSwipe = useSwipeToDismiss(mobileActionsRef, closeMobileActions, !isDesktopViewport);
   useOverlay(isSearchOpen, closeSearch, { containerRef: searchDialogRef, autoFocus: false });
   const searchSwipe = useSwipeToDismiss(searchDialogRef, closeSearch, isSearchOpen);
   const quickPanelSwipe = useSwipeToDismiss(quickPanelRef, closeSelectedPokemon, isMobileQuickPanel);
@@ -3978,9 +3973,8 @@ function BinderAppSurface(props: BinderAppProps) {
       handleQuickCollect,
       handleToggleFavorite,
       isCollected,
+      isDesktopViewport,
       longPressedPokemon,
-      mobileActionsRef,
-      mobileActionsSwipe,
       openCardBrowser,
       openCardSelectorForPokemon,
       readOnlyMode,
