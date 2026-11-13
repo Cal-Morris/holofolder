@@ -300,6 +300,35 @@ test('a page review saves every chosen card in one command, only on Add', async 
   await expect(page.locator('[data-slot-id="synthetic-slot-2"]')).toContainText('Synthetic energy');
   await expect(page.locator('[data-slot-id="synthetic-slot-3"]')).toContainText('Synthetic trainer');
 });
+test('a page review the server refuses says it could not be saved and can be discarded', async ({ page }) => {
+  let sends = 0;
+  await page.route('**/app/e2e-harness/storage/inventory', (route) => {
+    sends++;
+    return route.fulfill({
+      status: 400,
+      json: { error: { code: 'invalid_input', message: 'The storage request does not satisfy current constraints.' } },
+    });
+  });
+  await page.goto(`${entry}&scanFixture=1`);
+  await pageReview(page);
+  await choose(page, 3, 'energy');
+  await choose(page, 4, 'trainer');
+  await addButton(page).click();
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('blocked');
+  await page.reload();
+  await expect(page.getByText("This change couldn't be saved.", { exact: false })).toBeVisible();
+  await expect(page.getByText(/signed in to the right account/)).toHaveCount(0);
+  // Try again resends the same refused request, so it stays blocked; only Discard clears it.
+  await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect.poll(() => sends).toBe(2);
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('blocked');
+  const discard = page.getByRole('button', { name: 'Discard', exact: true });
+  expect((await discard.boundingBox())!.height).toBeGreaterThanOrEqual(36);
+  await discard.click();
+  await expect(page.getByText('That change was discarded.', { exact: false })).toBeVisible();
+  await expect.poll(async () => (await record(page))?.pending.length).toBe(0);
+  await expect(page.locator('[data-slot-id="synthetic-slot-2"]')).not.toContainText('Synthetic energy');
+});
 for (const change of ['layout', 'grid'] as const)
   test(`${change} changes during actual capture require a new scan`, async ({ page }) => {
     let changed = false;

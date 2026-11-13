@@ -10,6 +10,25 @@ import {
 } from '@/lib/scan-destinations';
 import { syntheticSlotPickerSnapshot } from './fixtures/slot-picker';
 import { pickerCandidate } from '@/lib/slot-picker';
+import { parseInventoryCommand } from '@/lib/domain/inventory-commands';
+
+/** storage_execute_v1 rejects a request that names one item or slot in two commands (invalid_inventory_repeated_entity). */
+function assertEachEntityOnce(commands: readonly object[]) {
+  const seen = new Set<string>();
+  for (const command of commands) {
+    const ids = new Set<string>();
+    JSON.stringify(command, (key, value) => {
+      if (typeof value === 'string' && ['itemId', 'inventoryItemId', 'newItemId'].includes(key))
+        ids.add(`item:${value}`);
+      if (key === 'destination' && value?.slot?.id) ids.add(`slot:${value.slot.id}`);
+      return value;
+    });
+    for (const id of ids) {
+      assert.ok(!seen.has(id), `${id} is named by more than one command`);
+      seen.add(id);
+    }
+  }
+}
 
 function setup() {
   const seed = syntheticSlotPickerSnapshot();
@@ -313,7 +332,7 @@ test('explicit mixed append preserves reviewer order, original slots and one ato
   );
   assert.deepEqual(
     draft.intent.request.commands.map((c) => c.kind),
-    ['insertAssign', 'add', 'assign', 'insertAssign'],
+    ['insertAssign', 'assign', 'insertAssign'],
   );
   const inserts = draft.intent.request.commands.filter((c) => c.kind === 'insertAssign');
   assert.equal(inserts.length, 2);
@@ -408,25 +427,22 @@ test('append capacity and cumulative order-work refuse the whole batch with smal
   }
 });
 
-test('existing-slot acquisition batch above 100 commands refuses without partial projection', () => {
+test('a full 100-pocket page of new copies is one assign per pocket, inside the command cap', () => {
   const s = setup();
   s.binder.slots = Array.from({ length: 100 }, (_, i) => ({ ...s.binder.slots[3], id: `command-cap-${i}` }));
   s.view.rows = 10;
   s.view.cols = 10;
   s.view.pageSlotIds = s.binder.slots.map((s) => s.id);
   const capture = captureScanDestination(s.snapshot, s.view);
-  assert.throws(
-    () =>
-      prepareScanDraft(
-        s.snapshot,
-        s.view,
-        capture,
-        s.binder.slots.map((slot, cellIndex) => ({ cellIndex, slotId: slot.id, card: s.cards[3], copy: 'raw' })),
-        s.context,
-        s.catalog,
-      ),
-    /smaller page/,
+  const draft = prepareScanDraft(
+    s.snapshot,
+    s.view,
+    capture,
+    s.binder.slots.map((slot, cellIndex) => ({ cellIndex, slotId: slot.id, card: s.cards[3], copy: 'raw' })),
+    s.context,
+    s.catalog,
   );
+  assert.equal(draft.intent.request.commands.length, 100);
   assert.equal(s.snapshot.items.length, 0);
 });
 
@@ -567,4 +583,31 @@ test('page fill starts at the tapped pocket, wraps round, skips pockets kept for
       ),
     /page-full/,
   );
+});
+
+test('page review of several new cards sends a request the server parser and storage function accept', () => {
+  const s = setup();
+  const [snorlaxA, snorlaxB, trainer] = s.cards;
+  const draft = prepareScanDraft(
+    s.snapshot,
+    s.view,
+    s.capture,
+    [
+      { cellIndex: 0, slotId: 'slot-a', card: snorlaxA, copy: 'raw' },
+      { cellIndex: 1, slotId: 'slot-b', card: snorlaxB, copy: 'raw' },
+      { cellIndex: 6, slotId: 'slot-g', card: trainer, copy: 'raw' },
+      ...planPageFill(s.snapshot, s.view, 'slot-c', [{ card: trainer }]),
+    ],
+    s.context,
+    s.catalog,
+  );
+  // Exactly what the queue sends over the wire, read back the way the server reads it.
+  const body = JSON.stringify(draft.intent.request);
+  const sent = parseInventoryCommand(JSON.parse(body));
+  assert.deepEqual(
+    sent.commands.map((c) => c.kind),
+    ['assign', 'assign', 'assign', 'assign'],
+  );
+  assertEachEntityOnce(sent.commands);
+  assert.equal(draft.preview.placements.length, 4);
 });

@@ -2,6 +2,7 @@ import { matchesSlotTarget, isSlotRevision } from '@/lib/domain/binder-slots';
 import type { InventoryCatalogResolver, InventoryIdentity, InventorySnapshot } from '@/lib/domain/inventory';
 import type { OperationIntentContext } from '@/lib/domain/audit-context';
 import type { InventoryCommand, InsertInventorySelection } from '@/lib/domain/inventory-commands';
+import type { InventorySelection } from '@/lib/inventory-plans';
 import type { StagedSlotCommandIntent, SlotLocalAcceptance } from '@/lib/binder-slot-editing';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 import type { CardFinish } from '@/lib/domain/cards';
@@ -188,7 +189,7 @@ export function prepareScanDraft(
       ...(isCardLanguage(choice.card.language) ? { language: choice.card.language } : {}),
       ...(choice.finish ? { finish: choice.finish } : {}),
     };
-    let selection: InsertInventorySelection;
+    let selection: InsertInventorySelection | Extract<InventorySelection, { kind: 'catalog' }>;
     if (choice.copy === 'raw') {
       // Existing matching copies keep the command contract authoritative.
       const available = { ...snapshot, items: snapshot.items.filter((i) => !copies.has(i.id)) };
@@ -201,10 +202,11 @@ export function prepareScanDraft(
             'raw-creation-unavailable: choose a recorded copy; creating Raw beside graded-only copies is unsupported',
           );
         const id = crypto.randomUUID();
-        if (slot) {
-          commands.push({ kind: 'add', itemId: id, identity, grading: null, acquiredAt: null });
-          selection = { kind: 'existing', inventoryItemId: id, itemVersion: 0 };
-        } else selection = { kind: 'new', itemId: id, identity, grading: null, acquiredAt: null };
+        // A new copy is created by the assign itself: the server rejects a request that names one item in two
+        // commands, so `add` followed by `assign` of the same new item can never save.
+        selection = slot
+          ? { kind: 'catalog', identity, newItemId: id }
+          : { kind: 'new', itemId: id, identity, grading: null, acquiredAt: null };
       }
     } else {
       const selectedCopy = choice.copy;
@@ -222,11 +224,17 @@ export function prepareScanDraft(
         return fail('copy-choice-required');
       selection = existing.selection;
     }
-    const copyId = selection.kind === 'new' ? selection.itemId : selection.inventoryItemId;
+    const copyId =
+      selection.kind === 'new'
+        ? selection.itemId
+        : selection.kind === 'catalog'
+          ? selection.newItemId
+          : selection.inventoryItemId;
     if (copies.has(copyId)) return fail('duplicate-scan-copy');
     if (slot && copyId === slot.inventoryItemId) return fail('replace-same-card');
     copies.add(copyId);
-    if (!slot)
+    if (!slot) {
+      if (selection.kind === 'catalog') return fail('scan-unconfirmed');
       commands.push({
         kind: 'insertAssign',
         collectionId: view.collectionId,
@@ -235,7 +243,7 @@ export function prepareScanDraft(
         target: choice.append === 'card' ? identity : null,
         selection,
       });
-    else if (selection.kind === 'existing')
+    } else if (selection.kind !== 'new')
       commands.push({
         kind: 'assign',
         selection,
