@@ -18,14 +18,19 @@ const viewports = [
   { name: '390x844', width: 390, height: 844 },
   { name: '430x932', width: 430, height: 932 },
 ];
+// browser-390x844 runs every test. The other five phone projects run only `@matrix` tests (layout, safe areas,
+// overflow, dock, sheets) unless E2E_MATRIX=1 (`bun run test:e2e:matrix`) runs everything everywhere.
+const PRIMARY = 'browser-390x844';
+const matrixOnly = process.env.E2E_MATRIX === '1' ? {} : { grep: /@matrix/ };
+
 export default defineConfig({
   testDir: './e2e',
   testMatch: /.*\.e2e\.ts$/,
   fullyParallel: true,
-  workers: process.env.CI ? 2 : 4,
+  workers: Number(process.env.E2E_WORKERS) || (process.env.CI ? 2 : 4),
   retries: process.env.CI ? 1 : 0,
-  timeout: 60_000,
-  expect: { timeout: 7_500 },
+  timeout: 20_000,
+  expect: { timeout: 5_000 },
   reporter: process.env.CI ? 'line' : [['list']],
   use: {
     baseURL,
@@ -34,31 +39,23 @@ export default defineConfig({
     serviceWorkers: 'block',
     launchOptions: executablePath ? { executablePath, args: ['--no-sandbox'] } : { args: ['--no-sandbox'] },
   },
-  projects: viewports.flatMap((viewport) => [
-    {
-      name: `browser-${viewport.name}`,
-      default: viewport.width === 390,
-      use: {
-        ...iphone,
-        browserName: 'chromium' as const,
-        viewport: { width: viewport.width, height: viewport.height },
-        // Playwright's iPhone profile is WebKit-based; we drive Chromium with the same touch/mobile settings.
-        defaultBrowserType: undefined,
-      },
-      metadata: { standalone: false },
-    },
-    {
-      name: `standalone-${viewport.name}`,
-      default: viewport.width === 390,
-      use: {
-        ...iphone,
-        browserName: 'chromium' as const,
-        viewport: { width: viewport.width, height: viewport.height },
-        defaultBrowserType: undefined,
-      },
-      metadata: { standalone: true },
-    },
-  ]),
+  projects: viewports.flatMap((viewport) =>
+    [false, true].map((standalone) => {
+      const name = `${standalone ? 'standalone' : 'browser'}-${viewport.name}`;
+      return {
+        name,
+        ...(name === PRIMARY ? {} : matrixOnly),
+        use: {
+          ...iphone,
+          browserName: 'chromium' as const,
+          viewport: { width: viewport.width, height: viewport.height },
+          // Playwright's iPhone profile is WebKit-based; we drive Chromium with the same touch/mobile settings.
+          defaultBrowserType: undefined,
+        },
+        metadata: { standalone },
+      };
+    }),
+  ),
   webServer: [
     // Synthetic PostgREST at the e2e Supabase URL, so the real share routes render server-side (e2e/public-binder-compat.e2e.ts).
     // Answers only its fixture tables under /rest/v1/; every other Supabase path is a 404, as an unreachable backend was before.

@@ -5,7 +5,7 @@ import base from './playwright.config';
 export default defineConfig({
   ...base,
   testMatch: /show-hunt-rendering\.e2e\.ts$/,
-  projects: base.projects!.flatMap((project) =>
+  projects: base.projects!.flatMap(({ grep: _grep, ...project }) =>
     project.metadata?.standalone
       ? []
       : [
