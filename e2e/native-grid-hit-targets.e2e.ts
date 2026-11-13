@@ -116,31 +116,28 @@ for (const size of [3, 4, 8])
       const dialog = page.getByRole('dialog', { name: /details$/ });
       await expect(toolbar.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
       await expect(page.getByRole('region', { name: 'Storage dashboard', exact: true })).toHaveCount(0);
+      // Browse: an empty pocket opens the card selector for that pocket; an owned one opens its details.
+      const selector = page.getByRole('dialog', { name: 'Card selector', exact: true });
       await first.click();
-      await expect(dialog).toHaveAttribute('data-slot-id', 'alpha-empty-0');
-      await expect(first).toHaveAttribute('aria-pressed', 'true');
-      await expect(dialog.getByRole('button', { name: 'Move earlier', exact: true })).toHaveCount(0);
-      await page.getByRole('button', { name: 'Close slot details', exact: true }).click();
+      await expect(selector).toBeVisible();
+      await selector.getByRole('button', { name: 'Close card selector', exact: true }).click();
+      await expect(selector).toHaveCount(0);
       if (size > 3) {
         await slot('slot-0').click();
-        await expect(dialog).toHaveAttribute('data-slot-id', 'slot-0');
-        await expect(dialog).toContainText('Copy: copy-00001');
-        await page.getByRole('button', { name: 'Close slot details', exact: true }).click();
+        await expect(dialog).toBeVisible();
+        await h.closeControl(dialog).click();
+        await expect(dialog).toHaveCount(0);
       }
       const browse = await geometry(page);
       await toolbar.getByRole('button', { name: 'Edit layout', exact: true }).click();
-      // Ordinary pointer clicks must reach the saved slot in both modes.
+      // Ordinary pointer clicks must reach the saved slot in both modes: in Edit they select it.
       await first.click();
-      await expect(dialog).toHaveAttribute('data-slot-id', 'alpha-empty-0');
-      await expect(dialog).toContainText(`Slot 1 of ${size === 3 ? 12 : size * size}`);
+      await expect(toolbar.getByRole('status')).toHaveText('1 selected');
       await expect(first).toHaveAttribute('aria-pressed', 'true');
       await expect(slot('alpha-empty-1')).toHaveAttribute('aria-pressed', 'false');
-      await h.expectWithinSafeViewport(dialog);
+      await expect(selector).toHaveCount(0);
+      await expect(dialog).toHaveCount(0);
       const dock = page.getByRole('navigation', { name: 'Main navigation', exact: true });
-      expect((await dialog.boundingBox())!.y + (await dialog.boundingBox())!.height).toBeLessThanOrEqual(
-        (await dock.boundingBox())!.y,
-      );
-      await page.getByRole('button', { name: 'Close slot details', exact: true }).click();
       const edit = await geometry(page);
       const expectedIds = Array.from({ length: size * size }, (_, n) => (n === 9 ? 'slot-0' : `alpha-empty-${n}`));
       expect(browse.slots.map((s) => s.id)).toEqual(expectedIds);
@@ -182,22 +179,9 @@ for (const size of [3, 4, 8])
         (await dock.boundingBox())!.y,
       );
       await last.click();
-      await expect(dialog).toHaveAttribute('data-slot-id', lastId);
-      await expect(dialog).toContainText(`Slot ${size * size} of`);
       await expect(last).toHaveAttribute('aria-pressed', 'true');
-      await page.getByRole('button', { name: 'Close slot details', exact: true }).click();
-      await toolbar.getByRole('button', { name: 'Select several pockets', exact: true }).click();
-      await toolbar.getByRole('button', { name: 'Select slot 1', exact: true }).click();
-      await toolbar.getByRole('button', { name: 'Select slot 2', exact: true }).click();
-      await expect(toolbar.getByRole('button', { name: 'Select slot 1', exact: true })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
-      await expect(toolbar.getByRole('button', { name: 'Select slot 2', exact: true })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
-      await toolbar.getByRole('button', { name: 'Back to single slot', exact: true }).click();
+      await expect(toolbar.getByRole('status')).toHaveText('2 selected');
+      await expect(first).toHaveAttribute('aria-pressed', 'true');
       await toolbar.getByRole('button', { name: 'Done', exact: true }).click();
       await expect(toolbar.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
       await h.expectNoHorizontalOverflow();

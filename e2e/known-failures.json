@@ -624,33 +624,6 @@
       "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
-      "file": "native-grid-hit-targets.e2e.ts",
-      "title": [
-        "native 8x8 grid keeps real Browse and Edit pointer targets separate"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('dialog', { name: /details$/ })"
-    },
-    {
-      "file": "native-grid-hit-targets.e2e.ts",
-      "title": [
-        "native 3x3 grid keeps real Browse and Edit pointer targets separate"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('dialog', { name: /details$/ })"
-    },
-    {
-      "file": "native-grid-hit-targets.e2e.ts",
-      "title": [
-        "native 4x4 grid keeps real Browse and Edit pointer targets separate"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('dialog', { name: /details$/ })"
-    },
-    {
       "file": "native-toolbar-typography.e2e.ts",
       "title": [
         "native toolbar inherits the app font and compact control hierarchy"
