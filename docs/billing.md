@@ -8,7 +8,7 @@ Migration 056 grants full Premium automatically for 168 hours from the collectio
 
 The database uses the trusted signup timestamp for premium checks and returns the expiry to the app. Settings shows the trial terms and local expiry time; the scoped offline billing cache honours the same expiry. After expiry, free limits apply again. Existing cards, wanted entries, binders and queued edits are retained; further growth above the free allowance needs Premium. Partner access follows the owner's plan, so it ends when the owner's trial expires unless paid or lifetime access applies.
 
-Apply `scripts/056_signup_premium_trial.sql` before deploying the updated app. Before application, the app tolerates the missing trial field and uses the existing free/paid/lifetime rules; older clients keep their conservative client gates until updated. Rollback restores `billing_has_paid` from 049 and `get_billing_access` from 052 without deleting user data. Verify with `TRIAL_TEST_DATABASE_URL=… bun scripts/verify-premium-trial.ts --hosted-rollback`; all synthetic fixtures and both migration runs roll back.
+Apply `scripts/056_signup_premium_trial.sql` before deploying the updated app. Before application, the app tolerates the missing trial field and uses the existing free/paid/lifetime rules; older clients keep their conservative client gates until updated. Rollback restores `billing_has_paid` from 049 and `get_billing_access` from 052 without deleting user data.
 
 ## Pricing cutover, 8 November 2026
 
@@ -64,10 +64,10 @@ Migration `052_free_plan_allowances.sql` adds server-owned `free_card_limit` and
 
 The collection and binder database triggers serialize checks per owner, including direct database writes and concurrent requests. The binder API prechecks the same allowance for a useful HTTP 402; the database remains authoritative for races. Creating the first named binder does not create an extra default binder first. Existing default-binder initialization remains idempotent.
 
-1. Run the local concurrency verifier on a disposable database: `FREE_PLAN_TEST_DATABASE_URL=postgresql://.../holofolder_free_plan bun scripts/verify-free-plan.ts`. It creates the synthetic billing schema, applies 049 and 052, checks 052 twice, then verifies concurrent collection/binder limits and data-preserving rollback. The local database must be fresh; never point the local mode at the hosted database.
-2. Inspect the hosted target and verify `FREE_PLAN_TEST_DATABASE_URL` explicitly with `bun scripts/verify-free-plan.ts --hosted-rollback`. This applies 052 twice and checks synthetic owner/permission/cap/rollback behaviour inside one transaction, then rolls everything back. It does not change the existing cutoff, enforcement or licence grants.
-3. Apply 052 to the hosted target before releasing the new app. Older deployed clients may still guard at ten until their app updates. Verify the two configuration values and the new trigger/RPC. Keep the existing enforcement value.
-4. Release the code and verify its exact production deployment. Confirm account usage and the binder switcher reflect the server values. Billing prices, sharing and paid partner/comparison rules are unchanged in this release.
+The rollout verifiers for 052, 056 and the billing caps (`scripts/verify-free-plan.ts`, `verify-premium-trial.ts`, `verify-billing.ts`, `verify-billing-concurrency.ts`) were removed once migration 108 dropped `pokemon_collection`, the table they seeded.
+
+1. Apply 052 to the hosted target before releasing the new app. Older deployed clients may still guard at ten until their app updates. Verify the two configuration values and the new trigger/RPC. Keep the existing enforcement value.
+2. Release the code and verify its exact production deployment. Confirm account usage and the binder switcher reflect the server values. Billing prices, sharing and paid partner/comparison rules are unchanged in this release.
 
 To reverse the product policy without removing any saved data or schema, run this as the trusted operator, then revert the app PR if needed:
 
@@ -106,7 +106,7 @@ Before the migration exists, billing actions are unavailable and the old applica
 
 ## Verification
 
-`bun run test`, `bun run typecheck`, `bun run lint`, `bun run build` are the release checks for this change. Cal explicitly excluded e2e verification. The earlier targeted browser attempt did not pass; it showed signed-out fixture state rather than the intended signed-in flow, and a card-control selector timed out. No passing browser/PWA proof is claimed. `scripts/verify-billing.ts` requires `BILLING_TEST_DATABASE_URL`; all migration changes, licences, account fixtures and enforcement changes are rolled back on the hosted target. It never defaults to production credentials. For true concurrent cap testing use the isolated local database test, not synthetic users committed to production.
+`bun run test`, `bun run typecheck`, `bun run lint`, `bun run build` are the release checks for this change. Cal explicitly excluded e2e verification. The earlier targeted browser attempt did not pass; it showed signed-out fixture state rather than the intended signed-in flow, and a card-control selector timed out. No passing browser/PWA proof is claimed.
 
 An HTTP 402 pauses collection sync with the edited item and operation retained on the device. A later entitlement or usage refresh retries the operation when the account changes. A new edit/removal and visibility/reconnect refresh usage; ordinary permanent 4xx errors retain their existing rollback behavior.
 

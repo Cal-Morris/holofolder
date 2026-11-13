@@ -684,23 +684,6 @@
     },
     {
       "file": "binder-display.e2e.ts",
-      "title": ["binder printing display", "each mode uses its own printing and missing slots stay artwork"],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
-    },
-    {
-      "file": "binder-display.e2e.ts",
-      "title": [
-        "binder printing display",
-        "legacy wishlisted printing keeps its metadata and saved date across all modes"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
-    },
-    {
-      "file": "binder-display.e2e.ts",
       "title": ["staged stable-slot display", "mixed targets open distinct copy details without browse mutations"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
@@ -757,13 +740,6 @@
     },
     {
       "file": "binder-start.e2e.ts",
-      "title": ["binder start", "paints the saved binder without waiting for the server"],
-      "cause": "harness-or-fixture",
-      "batch": 3,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
-    },
-    {
-      "file": "binder-start.e2e.ts",
       "title": ["binder start", "a first visit shows the skeleton until the server's binder arrives"],
       "cause": "harness-or-fixture",
       "batch": 3,
@@ -813,23 +789,6 @@
       "cause": "harness-or-fixture",
       "batch": 3,
       "failure": "Test timeout of 20000ms exceeded. || Error: expect(locator).toBeVisible() failed — getByRole('alert').filter({ hasText: 'Could not open storage:' })"
-    },
-    {
-      "file": "card-display.e2e.ts",
-      "title": [
-        "Binder card display",
-        "defaults to mixed, switches both binders between owned and wanted, and retains both details"
-      ],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the Mixed/Owned/Wanted binder card display lives in View options, and the header's View button is hidden for native storage."
-    },
-    {
-      "file": "card-display.e2e.ts",
-      "title": ["Binder card display", "owned never promotes a wanted-only printing into an owned slot"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the Mixed/Owned/Wanted binder card display lives in View options, and the header's View button is hidden for native storage."
     },
     {
       "file": "card-image-viewer.e2e.ts",
@@ -931,13 +890,6 @@
       "title": [
         "partner creates Custom under shared owner without changing existing graded copies, targets or placements"
       ],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Storage', exact: true }).getByRole('button', { name: 'New storage', exact: true })"
-    },
-    {
-      "file": "custom-storage-scope.e2e.ts",
-      "title": ["retained legacy work arriving during Custom review fences confirmation and survives reload"],
       "cause": "stale-selector-or-flow",
       "batch": 1,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Storage', exact: true }).getByRole('button', { name: 'New storage', exact: true })"
