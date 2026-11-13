@@ -31,6 +31,10 @@ New sheets and modals use `components/ui/overlay-dialog.tsx`. It renders a nativ
 - The backdrop is `::backdrop`; a press and click both outside the dialog close it. There is no `data-overlay-backdrop` element (e2e `tapBackdrop` accepts `dialog:modal` hits).
 - Escape is still `useOverlay`'s; the dialog's `cancel` event is prevented and only closes for other close requests (Android back through CloseWatcher).
 - The page behind is inert, so anything it must show over (menus portalled to `body`) has to live inside the dialog. A div overlay opened from inside one will sit under it.
+- Non-modal (`modal={false}`) is for overlays that leave the dock usable: they keep their z-index, with a `data-overlay-backdrop` div (`backdropProps`) and an optional `layerClassName` layer. `layerChildren` renders an inner overlay (a picker opened from the sheet) in that layer but outside the dialog, so it can't drag it.
+- `swipe` overrides whether it swipes (e.g. `swipe={!isDesktop}`, or off while saving). `variant="fullscreen"` (modal) covers the screen with a clear `::backdrop` for viewers that draw their own.
+- `managed`: a parent's `useOverlay` owns it, with its `containerRef` on the dialog's `ref`, so phases that swap dialogs (a scanner's camera, then its review) keep one history entry.
+- Shapes already shared: `OverlayInsetSheet` (inset sheet above the dock, styled by a CSS module through `className`), `CardDetailSheet`, `CardsBrowserSheet` and `ScanSheet`. Reuse one before writing panel classes.
 - Toasts (`toast()` from `components/ui/toast.tsx`) handle this themselves: they render inside the topmost modal dialog and sit just above its last visible `[data-toast-anchor]` (spread `TOAST_ANCHOR`). `OverlayFooter` is already an anchor; mark any other sticky bottom action area that covers the dock (Show's deal check and bundle footers do), or the toast lands on it.
 
 The steps below describe the older div overlays, still in use until they are migrated.
