@@ -1,6 +1,6 @@
 import { isSetYearQuery, rankSetMatches } from '@/lib/set-search';
 import { appPath } from '@/lib/app-path';
-import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
+import { correctedCardSearchQuery, matchesCardName, resolveCardSearchQuery } from '@/lib/card-search-query';
 import {
   expandSearchAliases,
   hasRarity,
@@ -233,7 +233,7 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
     if (setIds.size && !setIds.has(card.set.id)) continue;
     if (text) {
       const matchesText =
-        card.name.toLowerCase().includes(text) ||
+        matchesCardName(card.name, text) ||
         (!parsed.setIds.length &&
           (card.set.name.toLowerCase().includes(text) ||
             card.set.id.toLowerCase() === text ||
@@ -245,10 +245,13 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
     results.push(card);
     if (results.length >= limit) break;
   }
-  // "mario pikachu": a word that partly names a set but finds nothing there is a card name, like the server search.
+  // A word that partly names a set can also be part of a card name ("dark charizard"), like the server search.
   const literal = parseCardSearchQuery(query);
-  if (!results.length && setIds.size && literal.text && !literal.number)
-    return cards.filter((card) => card.name.toLowerCase().includes(literal.text)).slice(0, limit);
+  if (setIds.size && literal.text && !literal.number) {
+    const found = new Set(results);
+    for (const card of cards)
+      if (results.length < limit && !found.has(card) && matchesCardName(card.name, literal.text)) results.push(card);
+  }
   return results;
 }
 

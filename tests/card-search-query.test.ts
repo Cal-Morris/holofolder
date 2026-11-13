@@ -1,6 +1,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cardNameSearchFilter, correctedCardSearchQuery, resolveCardSearchQuery } from '../lib/card-search-query';
+import {
+  cardNameSearchFilter,
+  correctedCardSearchQuery,
+  matchesCardName,
+  resolveCardSearchQuery,
+} from '../lib/card-search-query';
 import { searchOfflineCards, searchOfflineCardsWithCorrection } from '../lib/offline-card-index';
 
 // Synthetic cards using catalog set identifiers/names, never pricing evidence.
@@ -204,4 +209,16 @@ describe('cardNameSearchFilter', () => {
     assert.equal(cardNameSearchFilter('abr'), 'name_en.ilike."%abr%"');
     assert.equal(cardNameSearchFilter('ピカ'), 'name_en.ilike."%ピカ%"');
   });
+});
+
+test('several words match in order, and a trailing s may be a possessive', () => {
+  // Synthetic names; no catalog data involved.
+  assert.match(cardNameSearchFilter('blaines charizard'), /"%blaine%s%charizard%"/);
+  assert.equal(cardNameSearchFilter('charizard'), 'name_en.ilike."%charizard%"');
+  assert.equal(matchesCardName("Blaine's Charizard", 'blaines charizard'), true);
+  assert.equal(matchesCardName("Blaine's Charizard", 'blaine charizard'), true);
+  assert.equal(matchesCardName('Poncho-wearing Pikachu', 'poncho pikachu'), true);
+  assert.equal(matchesCardName('Mr. Mime', 'mr mime'), true);
+  assert.equal(matchesCardName('Pikachu', 'charizard pikachu'), false);
+  assert.equal(matchesCardName('Charizard', 'pikachu charizard'), false);
 });
