@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/rules-of-hooks -- Playwright fixtures call use. */
 import { test as base, expect } from '@playwright/test';
-import { Harness, SAFE_AREA, emulateStandalone, mockBackends, SEEDED_COLLECTION } from './fixtures';
+import { Harness, SAFE_AREA, emulateStandalone, mockBackends } from './fixtures';
 
 const test = base.extend<{ harness: Harness }>({
   serviceWorkers: 'allow',
@@ -9,14 +9,6 @@ const test = base.extend<{ harness: Harness }>({
       insets = standalone ? SAFE_AREA : { top: 0, bottom: 0, left: 0, right: 0 };
     if (standalone) await emulateStandalone(page, insets);
     await mockBackends(page.context(), page.context(), { signedIn: true, baseURL });
-    await page.context().route('**/rest/v1/pokemon_collection*', (route) =>
-      route.fulfill({
-        json: SEEDED_COLLECTION.map((row) => ({
-          ...row,
-          card_image: `https://assets.tcgdex.net/en/base/base1/${row.pokemon_id === 1 ? '44' : '46'}/high.webp`,
-        })),
-      }),
-    );
     await use(new Harness(page, insets, true));
   },
 });

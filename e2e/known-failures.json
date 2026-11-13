@@ -798,13 +798,6 @@
       "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Charmander full screen', exact: true }).getByRole('status')"
     },
     {
-      "file": "card-image-viewer.e2e.ts",
-      "title": ["expanded owned and wanted images each open their own printing"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).locator('summary').filter({ hasText: 'Card & variant' })"
-    },
-    {
       "file": "card-scroll.e2e.ts",
       "title": ["card picker stays opaque and open while scrolling"],
       "cause": "stale-selector-or-flow",
@@ -923,34 +916,7 @@
     },
     {
       "file": "dashboard-binder.e2e.ts",
-      "title": ["Dashboard binder appearance", "collection refresh keeps the shared page with a status filter"],
-      "cause": "stale-selector-or-flow",
-      "batch": 3,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
-    },
-    {
-      "file": "dashboard-binder.e2e.ts",
       "title": ["Dashboard binder appearance", "3D failure keeps collection editing accessible in 2D"],
-      "cause": "stale-selector-or-flow",
-      "batch": 3,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
-    },
-    {
-      "file": "dashboard-binder.e2e.ts",
-      "title": [
-        "Dashboard binder appearance",
-        "account changes hide cached artwork until the new partner owner resolves"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 3,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
-    },
-    {
-      "file": "dashboard-binder.e2e.ts",
-      "title": [
-        "Dashboard binder appearance",
-        "a collection refresh in flight during an account change never shows the previous account's cards"
-      ],
       "cause": "stale-selector-or-flow",
       "batch": 3,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"

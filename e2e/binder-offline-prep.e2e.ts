@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/rules-of-hooks -- Playwright fixtures use `use`. */
 import { test as base, expect } from '@playwright/test';
-import { Harness, SAFE_AREA, emulateStandalone, mockBackends, SEEDED_COLLECTION, SUPABASE_URL } from './fixtures';
+import { Harness, SAFE_AREA, emulateStandalone, mockBackends } from './fixtures';
 
 const test = base.extend<{ harness: Harness }>({
   serviceWorkers: 'allow',
@@ -13,28 +13,6 @@ const test = base.extend<{ harness: Harness }>({
 });
 
 // Synthetic 65 eligible printings, plus Japanese, jumbo and missing-image examples.
-const wanted = Array.from({ length: 64 }, (_, i) => ({
-  card_id: i === 0 ? 'base1-4-stamped' : `synthetic-${i}`,
-  card_name: i === 0 ? 'Stamped Bulbasaur' : `Synthetic ${i}`,
-  card_image: `https://assets.tcgdex.net/en/base/base1/${i}/high.webp`,
-  card_set: 'Synthetic',
-  card_language: 'en',
-  card_finish: i === 0 ? 'reverse_holo' : 'normal',
-  added_at: '2026-01-01',
-}));
-const rows = [
-  {
-    ...SEEDED_COLLECTION[0],
-    card_image: 'https://assets.tcgdex.net/en/base/base1/44/high.webp',
-    wanted_cards: [
-      ...wanted,
-      wanted[0],
-      { ...wanted[1], card_language: 'ja' },
-      { ...wanted[2], card_finish: 'jumbo' },
-      { ...wanted[3], card_id: 'synthetic-missing', card_image: '' },
-    ],
-  },
-];
 const check = (kind: 'asking' | 'sold') => ({
   summary: { kind, currency: 'GBP', count: 2, low: 2, median: 3, high: 4 },
   checkedAt: '2026-01-01T00:00:00Z',
@@ -128,7 +106,6 @@ test('binder download reads all saved evidence, retries missing images, then col
   let paidRequests = 0;
   const checks: string[] = [];
   const downloadedPrices: string[] = [];
-  await context.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) => route.fulfill({ json: rows }));
   await context.route('**/app/api/card-price-checks?**', (route) => {
     if (route.request().method() !== 'GET') paidRequests++;
     const params = new URL(route.request().url()).searchParams;

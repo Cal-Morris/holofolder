@@ -1,4 +1,4 @@
-import { test, expect, SUPABASE_URL, SEEDED_COLLECTION, placeholderSvg } from './fixtures';
+import { test, expect, placeholderSvg } from './fixtures';
 
 test.use({ signedIn: true });
 
@@ -7,23 +7,6 @@ for (const reducedMotion of [false, true])
     const { page } = harness;
     await page.emulateMedia({ reducedMotion: reducedMotion ? 'reduce' : 'no-preference' });
     // Synthetic owned/wanted printings across three pages, with deliberately staggered image responses.
-    const collection = Array.from({ length: 48 }, (_, index) => {
-      const id = index + 1;
-      const printing = {
-        card_id: `synthetic-${id}`,
-        card_name: `Synthetic ${id}`,
-        card_image: `https://assets.tcgdex.net/en/mock/swipe/${id}/high.webp`,
-        card_finish: 'normal',
-      };
-      return {
-        ...SEEDED_COLLECTION[0],
-        id: `swipe-${id}`,
-        pokemon_id: id,
-        ...printing,
-        wanted_cards: id % 2 ? [] : [{ ...printing, added_at: '2026-01-01T00:00:00Z' }],
-      };
-    });
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) => route.fulfill({ json: collection }));
     let release!: () => void;
     const delayed = new Promise<void>((resolve) => {
       release = resolve;
@@ -140,9 +123,6 @@ test('a missing resized image retries the original card before falling back to a
   const { page } = harness;
   // Synthetic image on the seeded owned card.
   const image = 'https://assets.tcgdex.net/en/mock/base1/44/high.webp';
-  await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-    route.fulfill({ json: [{ ...SEEDED_COLLECTION[0], card_image: image }] }),
-  );
   let failFullSize = false;
   await page.route('**/app/api/card-image-proxy**', (route) => {
     const params = new URL(route.request().url()).searchParams;

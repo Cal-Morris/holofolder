@@ -1,4 +1,4 @@
-import { test, expect, SUPABASE_URL, SEEDED_COLLECTION } from './fixtures';
+import { test, expect } from './fixtures';
 import type { TCGSetSlotsResponse } from '../lib/tcg-set-slots';
 
 // Synthetic catalogue includes an unmapped Trainer and one printing associated with two species.
@@ -46,16 +46,6 @@ test.describe('set checklists', () => {
     harness,
   }) => {
     const page = harness.page;
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-      route.fulfill({
-        json: [
-          {
-            ...SEEDED_COLLECTION[0],
-            wanted_cards: [{ card_id: 'fixture-other-1', card_name: 'Other fixture', added_at: '2026-01-01' }],
-          },
-        ],
-      }),
-    );
     await page.reload();
     await mockSet(page);
     await selectSet(harness);
@@ -166,14 +156,6 @@ test.describe('set checklists', () => {
 
   test('selected sets show how much of the set the binder holds', async ({ harness }) => {
     const page = harness.page;
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-      route.fulfill({
-        json: [
-          { ...SEEDED_COLLECTION[0], card_id: card.id },
-          { ...SEEDED_COLLECTION[1], card_id: trainer.id, status: 'wishlisted' },
-        ],
-      }),
-    );
     await page.reload();
     await mockSet(page);
     await selectSet(harness);

@@ -32,7 +32,6 @@ test.describe('signed-in first use', () => {
 
   test('empty binder prioritizes adding a card and keeps Show mode in More', async ({ harness }) => {
     const { page } = harness;
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) => route.fulfill({ json: [] }));
     await page.goto('/app/e2e-harness?signedIn=1&binders=3&binder=e2e00000-0000-4000-8000-000000000004');
     await expect(page.getByText('Tap a pocket to add your first card')).toBeVisible();
     await expect(page.getByRole('region', { name: 'Binder value' })).toHaveCount(0);

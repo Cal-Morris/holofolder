@@ -1,5 +1,5 @@
 import type { Locator } from '@playwright/test';
-import { test, expect, openSettingsPage, SEEDED_COLLECTION, SUPABASE_URL } from './fixtures';
+import { test, expect, openSettingsPage } from './fixtures';
 
 test.use({ signedIn: true });
 
@@ -68,18 +68,6 @@ test('desktop cover shows real progress, price caveats and works offline in ligh
   test.skip(testInfo.project.name !== 'browser-390x844', 'One desktop viewport complements the six phone layouts');
   const { page } = harness;
   await page.setViewportSize({ width: 1440, height: 1000 });
-  // Synthetic collection for layout verification, not real ownership or card pricing.
-  await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-    route.fulfill({
-      json: Array.from({ length: 653 }, (_, index) => ({
-        ...SEEDED_COLLECTION[0],
-        id: `synthetic-${index}`,
-        pokemon_id: index + 1,
-        pokemon_name: `Synthetic ${index + 1}`,
-        card_finish: index < 272 ? 'reverse_holo' : 'normal',
-      })),
-    }),
-  );
   await page.reload();
   const cover = page.getByRole('region', { name: 'Inside cover', exact: true });
   await expect(cover.getByRole('heading', { name: 'Your collection, beautifully kept.' })).toBeVisible();

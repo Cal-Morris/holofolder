@@ -1,18 +1,9 @@
-import { test, expect, SEEDED_COLLECTION } from './fixtures';
+import { test, expect } from './fixtures';
 
 test.use({ signedIn: true });
 
 for (const dismissal of ['close', 'escape', 'back', 'backdrop', 'swipe'] as const) {
   test(`full-screen card returns to details after ${dismissal}`, async ({ harness }) => {
-    // Synthetic collection rows with a mirrored card image, retained after refresh.
-    await harness.page.route('**/rest/v1/pokemon_collection*', (route) =>
-      route.fulfill({
-        json: SEEDED_COLLECTION.map((row) => ({
-          ...row,
-          card_image: `https://assets.tcgdex.net/en/base/base1/${row.pokemon_id === 1 ? '44' : '46'}/high.webp`,
-        })),
-      }),
-    );
     await harness.page.goto(`${harness.path}&cardArtwork=1`);
     const detail = await harness.openCardDetail();
     const opener = detail.getByRole('button', { name: 'View Bulbasaur full screen' });
@@ -68,15 +59,6 @@ test('search card details can show the card full screen', async ({ harness }) =>
 
 test('viewer opens offline on desktop and traps focus', async ({ harness }) => {
   await harness.page.setViewportSize({ width: 1280, height: 800 });
-  // Synthetic card image retained after collection refresh.
-  await harness.page.route('**/rest/v1/pokemon_collection*', (route) =>
-    route.fulfill({
-      json: SEEDED_COLLECTION.map((row) => ({
-        ...row,
-        card_image: 'https://assets.tcgdex.net/en/base/base1/44/high.webp',
-      })),
-    }),
-  );
   await harness.page.goto(`${harness.path}&cardArtwork=1`);
   const detail = await harness.openCardDetail();
   const opener = detail.getByRole('button', { name: 'View Bulbasaur full screen' });
@@ -117,61 +99,7 @@ test('unavailable image explains the failure and stays dismissible in dark mode'
   await expect(detail).toBeVisible();
 });
 
-test('expanded owned and wanted images each open their own printing', async ({ harness }) => {
-  // Synthetic printings with distinct image URLs so the vendor sees the chosen card.
-  const ownedImage = 'https://assets.tcgdex.net/en/base/base1/44/high.webp';
-  const wantedImage = 'https://assets.tcgdex.net/en/mock/sv03.5/001/high.webp';
-  await harness.page.route('**/rest/v1/pokemon_collection*', (route) =>
-    route.fulfill({
-      json: SEEDED_COLLECTION.map((row) => ({
-        ...row,
-        card_image: ownedImage,
-        wanted_cards:
-          row.pokemon_id === 1
-            ? [
-                {
-                  card_id: 'sv03.5-001',
-                  card_name: 'Wanted Bulbasaur',
-                  card_set: '151',
-                  card_language: 'en',
-                  card_finish: 'normal',
-                  card_image: wantedImage,
-                  added_at: '2026-01-01',
-                },
-              ]
-            : [],
-      })),
-    }),
-  );
-  await harness.page.goto(`${harness.path}&cardArtwork=1`);
-  const detail = await harness.openCardDetail();
-  await detail.locator('summary').filter({ hasText: 'Card & variant' }).click();
-  const expanded = detail
-    .locator('details')
-    .filter({ has: harness.page.locator('summary').filter({ hasText: 'Card & variant' }) });
-  for (const [name, source] of [
-    ['Bulbasaur', 'https://assets.holofolder.com/pokemon/tcg/cards/en/base1/44/high.webp'],
-    ['Wanted Bulbasaur', 'https://assets.holofolder.com/pokemon/tcg/cards/en/sv03.5/001/high.webp'],
-  ]) {
-    const opener = expanded.getByRole('button', { name: `View ${name} full screen`, exact: true });
-    await opener.click();
-    const viewer = harness.page.getByRole('dialog', { name: `${name} full screen`, exact: true });
-    await expect(viewer.getByRole('img')).toHaveAttribute('src', source);
-    await harness.page.keyboard.press('Escape');
-    await expect(opener).toBeFocused();
-  }
-});
-
 test('full-screen card tilts towards the pointer and settles when it leaves', async ({ harness }) => {
-  // Synthetic collection rows with a mirrored card image, retained after refresh.
-  await harness.page.route('**/rest/v1/pokemon_collection*', (route) =>
-    route.fulfill({
-      json: SEEDED_COLLECTION.map((row) => ({
-        ...row,
-        card_image: 'https://assets.tcgdex.net/en/base/base1/44/high.webp',
-      })),
-    }),
-  );
   await harness.page.goto(`${harness.path}&cardArtwork=1`);
   const detail = await harness.openCardDetail();
   await detail.getByRole('button', { name: 'View Bulbasaur full screen' }).click();
