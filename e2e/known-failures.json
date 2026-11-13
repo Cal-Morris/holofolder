@@ -1,0 +1,10 @@
+{
+  "rules": [
+    "Temporary quarantine for tests that already fail on a clean main. It must be empty once the three fix batches land.",
+    "Every entry names its cause and fix batch from the triage file (/Users/cal/dev/plans/holofolder-card-recognition-2026-11-12/e2e-triage.md).",
+    "Listed tests still run. A listed test that passes fails the run with 'remove from known-failures' (flaky entries excepted).",
+    "test:e2e:compare and any CI smoke step report known failures separately and never count them as passes.",
+    "Add an entry only for a test that also fails on a clean main. Delete the entry in the PR that fixes the test."
+  ],
+  "tests": []
+}

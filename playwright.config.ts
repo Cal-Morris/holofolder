@@ -31,12 +31,16 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   timeout: 20_000,
   expect: { timeout: 5_000 },
-  reporter: process.env.CI ? 'line' : [['list']],
+  // The known-failures reporter keeps e2e/known-failures.json honest (see the writing-e2e-tests skill).
+  reporter: [process.env.CI ? ['line'] : ['list'], ['./e2e/known-failures-reporter.ts']],
   use: {
     baseURL,
     trace: process.env.CI ? 'on-first-retry' : 'off',
     screenshot: 'only-on-failure',
     serviceWorkers: 'block',
+    // A click on a missing control fails in 5 s instead of waiting out the whole test.
+    actionTimeout: 5_000,
+    navigationTimeout: 10_000,
     launchOptions: executablePath ? { executablePath, args: ['--no-sandbox'] } : { args: ['--no-sandbox'] },
   },
   projects: viewports.flatMap((viewport) =>

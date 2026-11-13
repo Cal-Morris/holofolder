@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { knownFailure } from '../e2e/known-failures';
 
 type Outcome = 'expected' | 'unexpected' | 'flaky' | 'skipped';
 type Suite = {
@@ -51,13 +52,15 @@ function playwright(cwd: string, testArgs: string[], tree: string, treePort: num
     },
   });
   if (!existsSync(report)) throw new Error(`${tree}: Playwright wrote no report; see the output above`);
-  const results = new Map<string, { file: string; status: Outcome }>();
+  const results = new Map<string, { file: string; title: string[]; project: string; status: Outcome }>();
   const walk = (suite: Suite, titles: string[]) => {
     const here = suite.title && suite.title !== suite.file ? [...titles, suite.title] : titles;
     for (const spec of suite.specs ?? [])
       for (const test of spec.tests)
         results.set(`${test.projectName} › ${spec.file} › ${[...here, spec.title].join(' › ')}`, {
           file: spec.file,
+          title: [...here, spec.title],
+          project: test.projectName,
           status: test.status,
         });
     for (const child of suite.suites ?? []) walk(child, here);
@@ -85,7 +88,13 @@ function baselineTree(): { dir: string; env: Record<string, string> } {
   // ponytail: until this runner is on main, main runs with this tree's isolated config (building into its own
   // `.next`, since main's next.config ignores NEXT_DIST_DIR); drop once merged.
   if (!existsSync(path.join(dir, 'scripts/e2e-server.ts'))) {
-    for (const file of ['playwright.config.ts', 'scripts/e2e-server.ts'])
+    for (const file of [
+      'playwright.config.ts',
+      'scripts/e2e-server.ts',
+      'e2e/known-failures.json',
+      'e2e/known-failures.ts',
+      'e2e/known-failures-reporter.ts',
+    ])
       copyFileSync(path.join(root, file), path.join(dir, file));
     return { dir, env: { NEXT_DIST_DIR: '.next' } };
   }
@@ -93,7 +102,20 @@ function baselineTree(): { dir: string; env: Record<string, string> } {
 }
 
 const branch = playwright(root, args, 'branch', port);
-const failing = [...branch].filter(([, result]) => result.status === 'unexpected');
+const listed = ({ file, title, project }: { file: string; title: string[]; project: string }) =>
+  knownFailure(file, title, project);
+// Known failures are reported on their own and never count as passes; listed tests that pass must leave the list.
+const known = [...branch].filter(([, result]) => result.status === 'unexpected' && listed(result));
+const fixed = [...branch]
+  .filter(
+    ([, result]) =>
+      result.status !== 'unexpected' &&
+      result.status !== 'skipped' &&
+      listed(result)?.cause !== 'flaky' &&
+      listed(result),
+  )
+  .map(([key]) => key);
+const failing = [...branch].filter(([, result]) => result.status === 'unexpected' && !listed(result));
 const flaky = [...branch].filter(([, result]) => result.status === 'flaky').map(([key]) => `${key} (branch)`);
 const regressions: string[] = [];
 const added: string[] = [];
@@ -119,10 +141,16 @@ if (failing.length) {
 const section = (title: string, keys: string[]) =>
   keys.length && console.log(`\n${title} (${keys.length}):\n${keys.map((key) => `  ${key}`).join('\n')}`);
 console.log(
-  `\n${'─'.repeat(60)}\n${branch.size} tests here, ${failing.length} failing after one retry, ${preexisting} of them fail on origin/main too`,
+  `\n${'─'.repeat(60)}\n${branch.size} tests here, ${failing.length} unlisted failing after one retry, ${preexisting} of them fail on origin/main too`,
 );
 section('✖ Fail here, pass on origin/main', regressions);
 section('✖ Fail here, not on origin/main', added);
 section('~ Flaky (failed, then passed on retry)', flaky);
-if (!regressions.length && !added.length) console.log('\nNo regressions against origin/main.');
-process.exit(regressions.length || added.length ? 1 : 0);
+section(
+  '~ Known failures (e2e/known-failures.json, not counted as passes)',
+  known.map(([key]) => key),
+);
+section('✖ Listed in e2e/known-failures.json but now pass: remove from known-failures', fixed);
+const bad = regressions.length + added.length + fixed.length;
+if (!bad) console.log('\nNo regressions against origin/main.');
+process.exit(bad ? 1 : 0);
