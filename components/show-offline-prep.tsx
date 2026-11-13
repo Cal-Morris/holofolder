@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import BinderOfflinePrep, { type BinderOfflineSource } from '@/components/binder-offline-prep';
 import CardShowPrep from '@/components/card-show-prep';
+import PictureScannerPrep from '@/components/picture-scanner-prep';
 import { getSetIdFromCardId, type HuntSourceItem } from '@/lib/show-hunt';
 import type { TCGSetSummary } from '@/lib/tcg-set-slots';
 
@@ -27,6 +28,7 @@ export default function ShowOfflinePrep({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3 pb-[var(--dock-clearance)]">
       {binder && <BinderOfflinePrep {...binder} isOnline={isOnline} />}
+      <PictureScannerPrep isOnline={isOnline} />
       <p className="text-muted-foreground mt-4 mb-3 text-sm">Optional extra sets</p>
       <OfflineSetPicker seedSets={wantedSets} isOnline={isOnline} />
     </div>
