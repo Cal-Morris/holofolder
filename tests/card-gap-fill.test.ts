@@ -232,6 +232,30 @@ describe('card gap fill', () => {
     );
   });
 
+  test('imports a Japanese promo set as Japanese printings, numbered without the set code', () => {
+    const plan = planCardGapFill({
+      ...base,
+      existingSetIds: new Set(GAP_NEW_SETS.filter((s) => s.id !== 'jp-sm-promos').map((s) => s.id)),
+      existingSeriesIds: new Set(),
+      cards: [],
+      // Synthetic product rows shaped like TCGplayer's Japanese category.
+      tcgcsv: {
+        23881: [
+          product(598364, 23881, 'Eevee - 287/SM-P', { Number: '287/SM-P', HP: '60', CardType: 'Colorless' }),
+          product(1, 23881, 'Pikachu', { Number: 'S-P', HP: '60' }),
+        ],
+      },
+    });
+    assert.deepEqual(
+      plan.sets.map((s) => [s.id, s.series_id, s.name_json]),
+      [['jp-sm-promos', 'SM', { ja: 'SM-P: Sun & Moon Promos' }]],
+    );
+    assert.deepEqual(
+      plan.cards.map((c) => [c.id, c.local_id, c.name_en, c.name_json, c.types_json]),
+      [['tcgplayer-598364', '287', 'Eevee', { ja: 'Eevee' }, ['Colorless']]],
+    );
+  });
+
   test("replaces dead images, preferring the card's own Scrydex scan", () => {
     const dead = card('2014xy-1', '2014xy', '1', 'Chespin', {
       external_ids_json: {

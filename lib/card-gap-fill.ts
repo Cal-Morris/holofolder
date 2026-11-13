@@ -78,6 +78,8 @@ export const GAP_CARD_ALIASES: Array<{
 /**
  * Promo distributions the primary source does not list, imported from TCGplayer product data.
  * `seriesId` files the set under an existing series; otherwise it goes under the supplemental series.
+ * `language: 'ja'` sets come from TCGplayer's Japanese category (85): their cards are Japanese printings with the
+ * English names TCGplayer lists, and their numbers drop the printed set code ("287/SM-P" → "287").
  */
 export const GAP_NEW_SETS: Array<{
   id: string;
@@ -85,6 +87,7 @@ export const GAP_NEW_SETS: Array<{
   name: string;
   releaseDate: string | null;
   seriesId?: string;
+  language?: 'ja';
 }> = [
   { id: 'trick-or-trade-2022', group: 3179, name: 'Trick or Trade BOOster Bundle 2022', releaseDate: '2022-09-01' },
   { id: 'trick-or-trade-2023', group: 23266, name: 'Trick or Trade BOOster Bundle 2023', releaseDate: '2023-09-01' },
@@ -92,7 +95,36 @@ export const GAP_NEW_SETS: Array<{
   { id: 'burger-king-promos', group: 2175, name: 'Burger King Promos', releaseDate: null },
   { id: 'countdown-calendar-2008', group: 2155, name: 'Countdown Calendar Promos', releaseDate: '2008-10-01' },
   { id: 'mcdonalds-2026', group: 24938, name: "McDonald's Collection 2026", releaseDate: '2026-11-10', seriesId: 'mc' },
+  // Japanese promo series TCGdex doesn't list (it has SV-P and M-P). Own ids, so a later TCGdex SM-P can't collide.
+  {
+    id: 'jp-xy-promos',
+    group: 23908,
+    name: 'XY-P: XY Promos',
+    releaseDate: '2013-10-01',
+    seriesId: 'XY',
+    language: 'ja',
+  },
+  {
+    id: 'jp-sm-promos',
+    group: 23881,
+    name: 'SM-P: Sun & Moon Promos',
+    releaseDate: '2016-11-01',
+    seriesId: 'SM',
+    language: 'ja',
+  },
+  {
+    id: 'jp-s-promos',
+    group: 23876,
+    name: 'S-P: Sword & Shield Promos',
+    releaseDate: '2019-11-01',
+    seriesId: 'S',
+    language: 'ja',
+  },
 ];
+/** TCGplayer category of a group: Japanese sets are in 85, everything else in 3 (Pokémon). */
+export function gapGroupCategory(group: number) {
+  return GAP_NEW_SETS.find((set) => set.group === group)?.language === 'ja' ? 85 : 3;
+}
 export const GAP_SERIES_ID = 'catalog-supplements';
 
 const FINISH = /^(?:holo|holofoil|non-holo|cosmos holo|reverse holo|\d{4} copyright date)$/i;
@@ -445,6 +477,7 @@ export function planCardGapFill(input: {
       return (
         /^\d+$/.test(d.HP ?? '') &&
         Boolean(d.Number) &&
+        (!def.language || /\d/.test(d.Number)) &&
         input.hasProductImage(String(p.productId)) &&
         !elsewhere.has(String(p.productId))
       );
@@ -462,14 +495,15 @@ export function planCardGapFill(input: {
             (q) => !/^\d+\/\d+$|^#\d+/.test(q) && !FINISH.test(q) && !/^(?:diamond (?:&|and) pearl|platinum)$/i.test(q),
           )
           .join(', ');
-        return { p, d, base, label, number: d.Number.trim() };
+        const number = d.Number.trim();
+        return { p, d, base, label, number: def.language ? number.replace(/\/[A-Z]+-P$/i, '') : number };
       })
       .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }) || a.base.localeCompare(b.base));
     plan.sets.push({
       id: def.id,
       series_id: seriesId,
       name_en: def.name,
-      name_json: { en: def.name },
+      name_json: { [def.language ?? 'en']: def.name },
       official_card_count: null,
       release_date: def.releaseDate,
       raw_json: { supplementalSources: { tcgcsv: { groupId: def.group } } },
@@ -489,12 +523,12 @@ export function planCardGapFill(input: {
         local_id: localId,
         local_id_sort: index + 1,
         name_en: name,
-        name_json: { en: name },
+        name_json: { [def.language ?? 'en']: name },
         category: 'Pokemon',
         rarity: row.d.Rarity ?? null,
         hp: Number(row.d.HP) || null,
         illustrator: null,
-        types_json: row.d['Card Type'] ? [row.d['Card Type']] : [],
+        types_json: (row.d['Card Type'] ?? row.d.CardType) ? [row.d['Card Type'] ?? row.d.CardType] : [],
         image_languages_json: [],
         variants_json: /cosmos holo|holo/i.test(row.p.name) && !/non-holo/i.test(row.p.name) ? { holo: true } : {},
         external_ids_json: { catalog: { productId: pid, image: `https://product-images.tcgplayer.com/${pid}.jpg` } },

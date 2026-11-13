@@ -14,7 +14,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { readCatalogMetadata } from "../../lib/card-catalog"
 import { mapWithConcurrency } from "../../lib/card-db-sync-concurrency"
-import { currentFallbackImageUrl, GAP_CARD_ALIASES, GAP_IMAGE_SOURCES, GAP_NEW_SETS, planCardGapFill, type GapCard, type GapImagePatch, type GapShopProduct, type GapPlan, type GapLegacyCard, type GapProduct } from "../../lib/card-gap-fill"
+import { currentFallbackImageUrl, gapGroupCategory, GAP_CARD_ALIASES, GAP_IMAGE_SOURCES, GAP_NEW_SETS, planCardGapFill, type GapCard, type GapImagePatch, type GapShopProduct, type GapPlan, type GapLegacyCard, type GapProduct } from "../../lib/card-gap-fill"
 import { loadProjectEnvFiles } from "../../lib/load-project-env"
 
 const args = process.argv.slice(2)
@@ -131,7 +131,7 @@ export async function run() {
   const pokemontcg: Record<string, GapLegacyCard[]> = {}
   for (const id of legacySets) pokemontcg[id] = await cachedJson(`pokemontcg-${id}.json`, `${LEGACY_ROOT}/${id}.json`)
   const tcgcsv: Record<number, GapProduct[]> = {}
-  for (const group of groups) tcgcsv[group] = (await cachedJson<{ results: GapProduct[] }>(`tcgcsv-${group}.json`, `https://tcgcsv.com/tcgplayer/3/${group}/products`)).results
+  for (const group of groups) tcgcsv[group] = (await cachedJson<{ results: GapProduct[] }>(`tcgcsv-${group}.json`, `https://tcgcsv.com/tcgplayer/${gapGroupCategory(group)}/${group}/products`)).results
 
   const scrydexPlaceholder = await scrydexPlaceholderEtag()
   if (!scrydexPlaceholder) console.warn("[gap-fill] Scrydex placeholder check failed; Scrydex images are skipped this run.")
