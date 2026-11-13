@@ -168,9 +168,7 @@ export async function saveSetQuery(
     keys.map(async (key) => ({ key, savedAt: (await store.get<StoredSetQuery>(key))?.savedAt ?? '' })),
   );
   dated.sort((a, b) => a.savedAt.localeCompare(b.savedAt));
-  for (const { key } of dated.slice(0, dated.length - MAX_STORED_SET_QUERIES)) {
-    await store.delete(key);
-  }
+  await Promise.all(dated.slice(0, dated.length - MAX_STORED_SET_QUERIES).map(({ key }) => store.delete(key)));
 }
 
 export async function loadSetQuery(
@@ -219,9 +217,7 @@ export async function saveIllustratorCards(
     keys.map(async (key) => ({ key, savedAt: (await store.get<{ savedAt?: string }>(key))?.savedAt ?? '' })),
   );
   dated.sort((a, b) => a.savedAt.localeCompare(b.savedAt));
-  for (const { key } of dated.slice(0, dated.length - MAX_STORED_ILLUSTRATORS)) {
-    await store.delete(key);
-  }
+  await Promise.all(dated.slice(0, dated.length - MAX_STORED_ILLUSTRATORS).map(({ key }) => store.delete(key)));
 }
 
 export async function loadIllustratorCards(

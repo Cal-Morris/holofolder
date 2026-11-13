@@ -7,7 +7,7 @@ import type {
   PriceConfidence,
   SupportedCurrency,
 } from '@/lib/card-pricing';
-import type { DisplayCurrency, PricingRegion } from '@/lib/pricing-region';
+import { DISPLAY_CURRENCIES, type DisplayCurrency, type PricingRegion } from '@/lib/pricing-region';
 import { isStandardFinishVariantKey } from '@/lib/card-pricing';
 
 /**
@@ -221,6 +221,7 @@ export function getRegionalFinishPrices(
     byFinish.set(price.finish, [...(byFinish.get(price.finish) ?? []), price]);
   }
   for (const [finish, prices] of byFinish) {
+    // oxlint-disable-next-line react-doctor/js-index-maps -- prefers one source within a small per-finish group
     const chosen = prices.find((price) => price.source === snapshot?.source) ?? prices[0];
     const regional = regionalizeCardPrice(chosen as CardPriceSnapshot, region);
     if (typeof regional.gbpAmount === 'number' && regional.gbpAmount > 0) result[finish] = regional;
@@ -255,13 +256,24 @@ export function getGbpPerUnit(
   return null;
 }
 
-export function formatMoney(amount: number, currency: SupportedCurrency | DisplayCurrency) {
-  return new Intl.NumberFormat(currency === 'GBP' ? 'en-GB' : 'en-US', {
+const moneyFormat = (currency: DisplayCurrency, maximumFractionDigits: number) =>
+  // oxlint-disable-next-line react-doctor/js-hoist-intl -- runs once per currency and precision when the module loads
+  new Intl.NumberFormat(currency === 'GBP' ? 'en-GB' : 'en-US', {
     style: 'currency',
     currency,
-    maximumFractionDigits: currency === 'JPY' ? 0 : amount >= 100 ? 0 : 2,
+    maximumFractionDigits,
     minimumFractionDigits: currency === 'JPY' ? 0 : undefined,
-  }).format(amount);
+  });
+const MONEY_FORMATS = Object.fromEntries(
+  DISPLAY_CURRENCIES.map((currency) => [
+    currency,
+    { whole: moneyFormat(currency, 0), pence: moneyFormat(currency, currency === 'JPY' ? 0 : 2) },
+  ]),
+) as Record<DisplayCurrency, { whole: Intl.NumberFormat; pence: Intl.NumberFormat }>;
+
+export function formatMoney(amount: number, currency: SupportedCurrency | DisplayCurrency) {
+  const formats = MONEY_FORMATS[currency];
+  return (amount >= 100 ? formats.whole : formats.pence).format(amount);
 }
 
 /** Converts a GBP amount for display; falls back to GBP when no rate is known. */

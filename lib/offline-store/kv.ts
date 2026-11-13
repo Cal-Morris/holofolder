@@ -90,6 +90,7 @@ export function createIndexedDbStore(factory: IDBFactory, name = OFFLINE_DB_NAME
     ) {
       keys = [...keys];
       if (!keys.length || new Set(keys).size !== keys.length) throw new Error('Invalid atomic keys');
+      const named = new Set(keys);
       const db = await database();
       return await new Promise<T>((resolve, reject) => {
         const tx = db.transaction(OFFLINE_DB_STORE, 'readwrite');
@@ -106,7 +107,7 @@ export function createIndexedDbStore(factory: IDBFactory, name = OFFLINE_DB_NAME
             if (--remaining) return;
             try {
               const next = transform(current);
-              if (next.writes.some(([target]) => !keys.includes(target)))
+              if (next.writes.some(([target]) => !named.has(target)))
                 throw new Error('Atomic write outside named keys');
               for (const [target, value] of next.writes) store.put(value, target);
               result = structuredClone(next.result);
@@ -156,7 +157,10 @@ export function createIndexedDbStore(factory: IDBFactory, name = OFFLINE_DB_NAME
     },
     async keys(prefix = '') {
       const all = (await run('readonly', (store) => [store.getAllKeys()]))[0] as IDBValidKey[];
-      return all.map(String).filter((key) => key.startsWith(prefix));
+      return all.flatMap((value) => {
+        const key = String(value);
+        return key.startsWith(prefix) ? [key] : [];
+      });
     },
   };
 }

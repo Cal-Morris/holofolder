@@ -328,14 +328,14 @@ export function getInventoryItemLocation(
 /** Valid complete snapshots only. Display references, wants and empty targets never enter these counts. */
 export function getInventoryCounts(snapshot: InventorySnapshot) {
   const ids = new Set(snapshot.items.map((i) => i.id)),
-    assigned = new Set(snapshot.placements.map((p) => p.inventoryItemId).filter((id) => ids.has(id)));
+    assigned = new Set(snapshot.placements.flatMap((p) => (ids.has(p.inventoryItemId) ? [p.inventoryItemId] : [])));
   const byCollection = Object.fromEntries(
     snapshot.collections.map((c) => [
       c.id,
       new Set(
-        snapshot.placements
-          .filter((p) => p.collectionId === c.id && ids.has(p.inventoryItemId))
-          .map((p) => p.inventoryItemId),
+        snapshot.placements.flatMap((p) =>
+          p.collectionId === c.id && ids.has(p.inventoryItemId) ? [p.inventoryItemId] : [],
+        ),
       ).size,
     ]),
   );

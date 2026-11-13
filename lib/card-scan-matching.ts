@@ -113,23 +113,25 @@ export function aggregateCardScanMatches<TCard>(
     return [];
   }
 
-  const ranked = [...aggregateMap.values()]
-    .filter((entry) => entry.appearances >= minimumAppearances)
-    .map((entry) => {
+  const ranked = Array.from(aggregateMap.values())
+    .flatMap((entry) => {
+      if (entry.appearances < minimumAppearances) return [];
       const similarity = entry.similaritySum / Math.max(entry.appearances, 1);
       const appearanceRatio = entry.appearances / usableFrameCount;
       const weightedAverage = entry.weightedScore / Math.max(entry.appearances, 1);
       const score = similarity * 0.56 + clamp(weightedAverage / 1.2, 0, 1) * 0.22 + appearanceRatio * 0.22;
 
-      return {
-        card: entry.card,
-        similarity,
-        score,
-        appearances: entry.appearances,
-        appearanceRatio,
-        confidence: 0,
-        margin: 0,
-      };
+      return [
+        {
+          card: entry.card,
+          similarity,
+          score,
+          appearances: entry.appearances,
+          appearanceRatio,
+          confidence: 0,
+          margin: 0,
+        },
+      ];
     })
     .sort((left, right) => {
       if (right.score !== left.score) return right.score - left.score;
@@ -162,14 +164,13 @@ export function aggregatePageSlotScanMatches<TCard>(
   options: AggregatePageSlotScanMatchesOptions<TCard>,
 ): PageSlotScanMatch<TCard>[] {
   return slots
-    .map((slot) => ({
-      slotIndex: slot.slotIndex,
-      matches: aggregateCardScanMatches(slot.frameMatches, {
+    .flatMap((slot) => {
+      const matches = aggregateCardScanMatches(slot.frameMatches, {
         ...options,
         maxResults: options.maxResultsPerSlot ?? DEFAULT_MAX_RESULTS,
-      }),
-    }))
-    .filter((slot) => slot.matches.length > 0)
+      });
+      return matches.length > 0 ? [{ slotIndex: slot.slotIndex, matches }] : [];
+    })
     .sort((left, right) => left.slotIndex - right.slotIndex);
 }
 

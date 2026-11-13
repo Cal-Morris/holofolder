@@ -13,18 +13,17 @@ export function getBinderGoalPresentation(
   catalog: InventoryCatalogResolver,
 ) {
   const items = new Map(
-    inventory.items
-      .filter((i) => i.ownerUserId === binder.ownerUserId && i.ownerUserId === inventory.ownerUserId)
-      .map((i) => [i.id, i]),
+    inventory.items.flatMap((i) =>
+      i.ownerUserId === binder.ownerUserId && i.ownerUserId === inventory.ownerUserId ? [[i.id, i] as const] : [],
+    ),
   );
   const placed = new Set(
-    inventory.placements
-      .filter(
-        (p) =>
-          p.collectionId === binder.collectionId &&
-          binder.slots.some((s) => s.id === p.slotId && s.inventoryItemId === p.inventoryItemId),
-      )
-      .map((p) => p.inventoryItemId),
+    inventory.placements.flatMap((p) =>
+      p.collectionId === binder.collectionId &&
+      binder.slots.some((s) => s.id === p.slotId && s.inventoryItemId === p.inventoryItemId)
+        ? [p.inventoryItemId]
+        : [],
+    ),
   );
   const resolve = (id: string) => {
     const item = placed.has(id) ? items.get(id) : undefined;

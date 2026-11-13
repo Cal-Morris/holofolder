@@ -1,3 +1,5 @@
+const RETRYABLE_ERRORS = new Set(['TimeoutError', 'AbortError']);
+
 /** Foreground downloads can be suspended on phones. Finish each body before returning and retry only transient failures. */
 export async function fetchOfflineResource(
   url: string,
@@ -11,6 +13,7 @@ export async function fetchOfflineResource(
   for (let attempt = 0; ; attempt++) {
     options.signal?.throwIfAborted();
     try {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- retries wait for the previous attempt
       const response = await (options.fetcher ?? fetch)(url, {
         cache: 'no-store',
         headers: options.headers,
@@ -31,11 +34,7 @@ export async function fetchOfflineResource(
     } catch (error) {
       options.signal?.throwIfAborted();
       if (error instanceof DownloadHttpError || attempt >= 2) throw error;
-      if (
-        !(error instanceof TypeError) &&
-        !(error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name))
-      )
-        throw error;
+      if (!(error instanceof TypeError) && !(error instanceof Error && RETRYABLE_ERRORS.has(error.name))) throw error;
       await (options.retryDelay ?? wait)([500, 1500][attempt], options.signal);
     }
   }

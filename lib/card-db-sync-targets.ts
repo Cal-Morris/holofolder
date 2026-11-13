@@ -49,7 +49,14 @@ export class InvalidSyncRequestError extends Error {}
  */
 export function parseIncrementalSyncRequest(searchParams: URLSearchParams): IncrementalSyncRequest {
   const rawSets = searchParams.getAll('set').flatMap((value) => value.split(','));
-  const setIds = [...new Set(rawSets.map((value) => value.trim()).filter(Boolean))];
+  const setIds = [
+    ...new Set(
+      rawSets.flatMap((value) => {
+        const id = value.trim();
+        return id ? [id] : [];
+      }),
+    ),
+  ];
   const invalid = setIds.filter((id) => !SET_ID_PATTERN.test(id));
   if (invalid.length > 0) {
     throw new InvalidSyncRequestError(`Invalid set id(s): ${invalid.join(', ')}`);
@@ -138,13 +145,11 @@ export function selectIncrementalSyncTargets(
     return eligible.slice(0, request.recent).map((set) => set.id);
   }
 
-  return eligible
-    .filter((set) => {
-      const mirrorTotal = mirrorCardCountsBySetId.get(set.id) ?? 0;
-      const restTotal = typeof set.cardCount?.total === 'number' ? set.cardCount.total : null;
-      return mirrorTotal === 0 || (restTotal != null && restTotal > mirrorTotal);
-    })
-    .map((set) => set.id);
+  return eligible.flatMap((set) => {
+    const mirrorTotal = mirrorCardCountsBySetId.get(set.id) ?? 0;
+    const restTotal = typeof set.cardCount?.total === 'number' ? set.cardCount.total : null;
+    return mirrorTotal === 0 || (restTotal != null && restTotal > mirrorTotal) ? [set.id] : [];
+  });
 }
 
 /**

@@ -269,6 +269,7 @@ export async function recognizeCardTextSignalsFromImage(
   if (textDetector) {
     for (const ocrImage of ocrImages) {
       try {
+        // oxlint-disable-next-line react-doctor/async-await-in-loop -- one OCR pass at a time on the device
         const detectedText = await textDetector.detect(ocrImage.canvas);
         const signals = extractCardTextSignals(detectedText.map((text) => text.rawValue ?? '').join('\n'));
         if (hasUsefulSignals(signals)) {
@@ -301,6 +302,7 @@ export async function recognizeCardTextSignalsFromImage(
   for (const ocrImage of tesseractImages) {
     let result: Awaited<ReturnType<typeof recognizeWithQueuedTesseract>>;
     try {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- one OCR pass at a time, keeping partial results if one fails
       result = await recognizeWithQueuedTesseract(ocrImage.canvas);
     } catch (error) {
       // Tesseract downloads its engine on first use, so it can fail offline: keep what the device read.

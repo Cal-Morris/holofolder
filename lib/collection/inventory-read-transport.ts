@@ -103,6 +103,8 @@ export function parseInventoryReadEnvelope(
   )
     return undefined;
   const storage: InventoryReadEvidence['storage'] = [];
+  const collections = new Map(snapshot.collections.map((c) => [c.id, c]));
+  const binders = new Map(snapshot.binders.map((b) => [b.collectionId, b]));
   for (const raw of e.storage) {
     if (
       !isContractRecord(raw, ['collectionId', 'collectionVersion', 'layoutRevision', 'slotCount']) ||
@@ -113,8 +115,8 @@ export function parseInventoryReadEnvelope(
       storage.some((s) => s.collectionId === raw.collectionId)
     )
       return undefined;
-    const collection = snapshot.collections.find((c) => c.id === raw.collectionId);
-    const binder = snapshot.binders.find((b) => b.collectionId === raw.collectionId);
+    const collection = collections.get(raw.collectionId);
+    const binder = binders.get(raw.collectionId);
     if (
       !collection ||
       !binder ||

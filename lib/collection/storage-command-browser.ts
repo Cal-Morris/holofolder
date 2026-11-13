@@ -57,9 +57,11 @@ export async function sendStorageCommand(
       body: JSON.stringify(parsed.request),
     });
     if (!valid() || response.redirected) return { status: 0 };
+    // oxlint-disable-next-line react-doctor/async-defer-await -- validity is rechecked after every await
     const body: unknown = await response.json();
     if (!valid()) return { status: 0 };
     if (parsed.kind === 'raw-restore') {
+      // oxlint-disable-next-line react-doctor/async-defer-await -- validity is rechecked after every await
       const rawRestoreProof = await readRawRestoreDelivery(response, body, parsed.request, scope, deliveryId);
       if (!valid()) return { status: 0 };
       return rawRestoreProof
