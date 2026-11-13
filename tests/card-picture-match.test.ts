@@ -151,14 +151,19 @@ describe('decidePictureScan', () => {
   const SNORLAX = card('ee-143', 'Snorlax', '143', 165, [143]);
   const ONIX = card('ff-095', 'Onix', '95', 102, [95]);
 
-  test('offers the one top-five picture the name read agrees with', () => {
+  test('a name alone never offers a card: the agreeing pictures come first among the choices', () => {
     const decision = decidePictureScan(pictures(MEW, EEVEE, SNORLAX), read('Eevee HP 60'));
-    assert.deepEqual(decision, { kind: 'match', card: EEVEE });
+    assert.deepEqual(decision, { kind: 'choose', candidates: [EEVEE, MEW, SNORLAX] });
   });
 
-  test('offers the one the number agrees with even when the name read is ambiguous', () => {
+  test('offers the one picture whose number and set total agree', () => {
     const decision = decidePictureScan(pictures(PIKACHU_2, PIKACHU_1, MEW), read('Pikachu\n025/102'));
     assert.deepEqual(decision, { kind: 'match', card: PIKACHU_1 });
+  });
+
+  test('a number without its set total is not enough', () => {
+    const decision = decidePictureScan(pictures(MEW, ONIX, SNORLAX), read('095'));
+    assert.equal(decision.kind, 'choose');
   });
 
   test('two equally agreeing pictures become choices, agreeing first', () => {

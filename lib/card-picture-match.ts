@@ -18,7 +18,11 @@ export const PICTURE_CHOICES = 5;
  * plan's "Decision rule, measured"): cards missing from the gallery still score about 0.70, close to the 0.77 median
  * of right answers. Offering the top match at similarity ≥ 0.76 and ≥ 0.03 ahead of the second was only 86%
  * precise (catching 38% of identifiable pockets), and ≥ 0.78 only 92% (29%). So a card is offered only when the
- * name or number read agrees with one of the top `PICTURE_AGREE_TOP` picture matches.
+ * read agrees with one of the top `PICTURE_AGREE_TOP` picture matches, and the agreement has to include the full
+ * collector number (number and set total). Measured on the same pockets with this matcher (2026-11-13): letting a
+ * name alone agree offered 6 cards, all wrong (a same-named card or reprint in the top five); a bare number offered
+ * 2, both wrong (noise read as "2/3" or "1/100"). Requiring number and total offered none wrongly. The right card
+ * was among the five picture choices for 113 of 194 identifiable pockets.
  */
 export const PICTURE_ALONE_MEASURED = { similarity: 0.78, margin: 0.03, precision: 0.92, recall: 0.29 } as const;
 
@@ -123,21 +127,21 @@ function agreement(card: SearchCardResult, read: ScannedCardRead) {
       scanWords(read.pokemon.name).every((word) => scanWords(card.name).includes(word)));
   const number = !!read.number && normalizeLocalId(card.localId) === normalizeLocalId(read.number.number);
   const total = number && !!read.number?.total && card.set.officialCardCount === Number(read.number.total);
-  return (name ? 2 : 0) + (number ? 2 : 0) + (total ? 1 : 0);
+  return { score: (name ? 2 : 0) + (number ? 2 : 0) + (total ? 1 : 0), fullNumber: total };
 }
 
 /**
  * What a scan offers from its picture matches (best first, collected languages first) and its text read. A card is
- * offered only when what was read agrees with one of the top five pictures and no other of the five agrees as well;
- * otherwise up to five pictures (the agreeing ones first) become tap-to-pick choices. Never one choice on its own:
+ * offered only when its collector number and set total (and the name, when read) agree with one of the top five
+ * pictures and no other of the five agrees as well; otherwise up to five pictures (the agreeing ones first) become tap-to-pick choices. Never one choice on its own:
  * the review pre-selects a lone candidate, and the picture alone must never pick.
  */
 export function decidePictureScan(pictures: readonly PictureCandidate[], read: ScannedCardRead): PictureScanDecision {
-  const top = pictures.slice(0, PICTURE_AGREE_TOP).map(({ card }) => ({ card, agree: agreement(card, read) }));
-  const best = Math.max(0, ...top.map((entry) => entry.agree));
-  const agreeing = top.filter((entry) => entry.agree === best && best > 0);
-  if (agreeing.length === 1) return { kind: 'match', card: agreeing[0].card };
-  const ordered = [...top.filter((entry) => entry.agree > 0), ...top.filter((entry) => entry.agree === 0)];
+  const top = pictures.slice(0, PICTURE_AGREE_TOP).map(({ card }) => ({ card, ...agreement(card, read) }));
+  const best = Math.max(0, ...top.map((entry) => entry.score));
+  const agreeing = top.filter((entry) => entry.score === best && best > 0);
+  if (agreeing.length === 1 && agreeing[0].fullNumber) return { kind: 'match', card: agreeing[0].card };
+  const ordered = [...top.filter((entry) => entry.score > 0), ...top.filter((entry) => entry.score === 0)];
   const candidates = ordered.slice(0, PICTURE_CHOICES).map((entry) => entry.card);
   return { kind: 'choose', candidates: candidates.length > 1 ? candidates : [] };
 }

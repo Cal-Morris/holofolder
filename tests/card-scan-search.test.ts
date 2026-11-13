@@ -95,10 +95,10 @@ describe('identifyPocketCrop', () => {
       }) as unknown as typeof fetch;
     };
 
-    test('offers the picture match the name read agrees with', async () => {
+    test('offers the picture match whose number and set total were read', async () => {
       serveIds([MEW, PIKACHU_B]);
       const found = await identifyPocketCrop('crop', noOfflineCards, {
-        recognize: readText('Pikachu'),
+        recognize: readText('Pikachu\n058/102'),
         matchPicture: picture('dd-151', 'bb-058'),
       });
       assert.deepEqual(found.candidates, [PIKACHU_B]);
