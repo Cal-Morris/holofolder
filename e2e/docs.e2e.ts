@@ -57,21 +57,27 @@ test('native API explorer sends an authenticated request and displays its respon
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('sticky docs navigation stays below the status bar and resource groups appear once', async ({ page }, info) => {
-  await page.goto('/app/docs/api-keys');
-  await page.evaluate(() => window.scrollTo(0, 600));
-  const search = page.getByRole('button', { name: 'Open Search', exact: true });
-  await expect(search).toBeVisible();
-  const bounds = await search.boundingBox();
-  expect(bounds!.y).toBeGreaterThanOrEqual(info.project.metadata.standalone ? SAFE_AREA.top : 0);
-  await page.getByRole('button', { name: 'Open Sidebar', exact: true }).click();
-  await expect(page.locator('#nd-sidebar-mobile').getByRole('button', { name: 'Catalog', exact: true })).toHaveCount(1);
-  const drawer = await page.locator('#nd-sidebar-mobile').boundingBox();
-  expect(drawer!.y).toBeGreaterThanOrEqual(info.project.metadata.standalone ? SAFE_AREA.top : 0);
-  expect(drawer!.y + drawer!.height).toBeLessThanOrEqual(
-    page.viewportSize()!.height - (info.project.metadata.standalone ? SAFE_AREA.bottom : 0),
-  );
-});
+test(
+  'sticky docs navigation stays below the status bar and resource groups appear once',
+  { tag: '@matrix' },
+  async ({ page }, info) => {
+    await page.goto('/app/docs/api-keys');
+    await page.evaluate(() => window.scrollTo(0, 600));
+    const search = page.getByRole('button', { name: 'Open Search', exact: true });
+    await expect(search).toBeVisible();
+    const bounds = await search.boundingBox();
+    expect(bounds!.y).toBeGreaterThanOrEqual(info.project.metadata.standalone ? SAFE_AREA.top : 0);
+    await page.getByRole('button', { name: 'Open Sidebar', exact: true }).click();
+    await expect(page.locator('#nd-sidebar-mobile').getByRole('button', { name: 'Catalog', exact: true })).toHaveCount(
+      1,
+    );
+    const drawer = await page.locator('#nd-sidebar-mobile').boundingBox();
+    expect(drawer!.y).toBeGreaterThanOrEqual(info.project.metadata.standalone ? SAFE_AREA.top : 0);
+    expect(drawer!.y + drawer!.height).toBeLessThanOrEqual(
+      page.viewportSize()!.height - (info.project.metadata.standalone ? SAFE_AREA.bottom : 0),
+    );
+  },
+);
 
 test('reference sidebar has compact subject groups and preserves saved operation links', async ({ page }) => {
   await page.goto('/app/docs/api-keys');

@@ -69,7 +69,7 @@ for (const suite of suites) {
       await shot(page, 'a-selector-species-cards', prefix);
     });
 
-    test('b. finish choice, then copy choice, before anything is saved', async ({ harness }) => {
+    test('b. finish choice, then copy choice, before anything is saved', { tag: '@matrix' }, async ({ harness }) => {
       const { page } = harness;
       await open(page);
       await slot(page, 'slot-e').click();

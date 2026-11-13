@@ -14,29 +14,33 @@ async function openPicker(harness: Harness) {
 test.describe('card picker layout', () => {
   test.use({ signedIn: true });
 
-  test('opens on search with cards above the fold and one compact filters control', async ({ harness }) => {
-    const selector = await openPicker(harness);
-    const search = selector.getByRole('searchbox', { name: 'Search cards' });
-    await expect(search).toBeVisible();
-    await expect(selector.getByRole('button', { name: 'Scan card', exact: true })).toBeVisible();
+  test(
+    'opens on search with cards above the fold and one compact filters control',
+    { tag: '@matrix' },
+    async ({ harness }) => {
+      const selector = await openPicker(harness);
+      const search = selector.getByRole('searchbox', { name: 'Search cards' });
+      await expect(search).toBeVisible();
+      await expect(selector.getByRole('button', { name: 'Scan card', exact: true })).toBeVisible();
 
-    // The first card is on screen without scrolling.
-    const firstCard = selector.getByRole('button', { name: /^Add card Squirtle from / }).first();
-    await expect(firstCard).toBeInViewport({ ratio: 1 });
+      // The first card is on screen without scrolling.
+      const firstCard = selector.getByRole('button', { name: /^Add card Squirtle from / }).first();
+      await expect(firstCard).toBeInViewport({ ratio: 1 });
 
-    // Language, variant, set, rarity and sort live behind one button, not stacked rows.
-    await expect(selector.getByRole('button', { name: 'Japanese' })).toHaveCount(0);
-    await expect(selector.getByRole('combobox')).toHaveCount(0);
-    const filtersButton = selector.getByRole('button', { name: /filters · sort/i });
-    await harness.expectMinTapTarget(filtersButton, 36);
-    await harness.expectNoHorizontalOverflow();
+      // Language, variant, set, rarity and sort live behind one button, not stacked rows.
+      await expect(selector.getByRole('button', { name: 'Japanese' })).toHaveCount(0);
+      await expect(selector.getByRole('combobox')).toHaveCount(0);
+      const filtersButton = selector.getByRole('button', { name: /filters · sort/i });
+      await harness.expectMinTapTarget(filtersButton, 36);
+      await harness.expectNoHorizontalOverflow();
 
-    // Search narrows the cards.
-    await search.fill('celebration');
-    await expect(selector.getByText(/^[12] of 3 cards$/)).toBeVisible();
-    await search.fill('');
-    await expect(selector.getByText('3 of 3 cards')).toBeVisible();
-  });
+      // Search narrows the cards.
+      await search.fill('celebration');
+      await expect(selector.getByText(/^[12] of 3 cards$/)).toBeVisible();
+      await search.fill('');
+      await expect(selector.getByText('3 of 3 cards')).toBeVisible();
+    },
+  );
 
   test('filters apply from the sheet and show as removable chips', async ({ harness }) => {
     const { page } = harness;

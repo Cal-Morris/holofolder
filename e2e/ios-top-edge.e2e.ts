@@ -63,33 +63,35 @@ async function scrollEverything(harness: Harness) {
   await harness.page.waitForTimeout(250);
 }
 
-test('nothing sits in or just below the status bar: loaded, in Show mode, and scrolled', async ({
-  harness,
-}, testInfo) => {
-  test.skip(
-    !testInfo.project.metadata?.standalone || !testInfo.project.name.includes('390'),
-    'one installed-app run at 393x852',
-  );
-  const { page } = harness;
-  await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
-  await expectClearTopBand(harness, 'loaded');
-  await expectHeaderRoom(harness, 'loaded');
+test(
+  'nothing sits in or just below the status bar: loaded, in Show mode, and scrolled',
+  { tag: '@matrix' },
+  async ({ harness }, testInfo) => {
+    test.skip(
+      !testInfo.project.metadata?.standalone || !testInfo.project.name.includes('390'),
+      'one installed-app run at 393x852',
+    );
+    const { page } = harness;
+    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expectClearTopBand(harness, 'loaded');
+    await expectHeaderRoom(harness, 'loaded');
 
-  await scrollEverything(harness);
-  await expectClearTopBand(harness, 'binder scrolled');
+    await scrollEverything(harness);
+    await expectClearTopBand(harness, 'binder scrolled');
 
-  await harness.dock().getByRole('button', { name: 'List', exact: true }).click();
-  await scrollEverything(harness);
-  await expectClearTopBand(harness, 'list scrolled');
-  await harness.dock().getByRole('button', { name: 'Binder', exact: true }).click();
+    await harness.dock().getByRole('button', { name: 'List', exact: true }).click();
+    await scrollEverything(harness);
+    await expectClearTopBand(harness, 'list scrolled');
+    await harness.dock().getByRole('button', { name: 'Binder', exact: true }).click();
 
-  await page.getByRole('button', { name: 'Show mode', exact: true }).click();
-  const strip = page.getByRole('region', { name: 'Show mode' });
-  await expect(strip).toBeVisible();
-  expect((await strip.boundingBox())!.height, 'Show mode strip is one slim row').toBeLessThanOrEqual(52);
-  await expectClearTopBand(harness, 'show mode');
-  await expectHeaderRoom(harness, 'show mode');
-  await scrollEverything(harness);
-  await expectClearTopBand(harness, 'show mode scrolled');
-  await expectHeaderRoom(harness, 'show mode scrolled');
-});
+    await page.getByRole('button', { name: 'Show mode', exact: true }).click();
+    const strip = page.getByRole('region', { name: 'Show mode' });
+    await expect(strip).toBeVisible();
+    expect((await strip.boundingBox())!.height, 'Show mode strip is one slim row').toBeLessThanOrEqual(52);
+    await expectClearTopBand(harness, 'show mode');
+    await expectHeaderRoom(harness, 'show mode');
+    await scrollEverything(harness);
+    await expectClearTopBand(harness, 'show mode scrolled');
+    await expectHeaderRoom(harness, 'show mode scrolled');
+  },
+);

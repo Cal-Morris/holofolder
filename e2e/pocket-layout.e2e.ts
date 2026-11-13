@@ -73,42 +73,47 @@ test.describe('layout editing on the pockets', () => {
     });
   };
 
-  test('empty, one and many: pockets are selected on the page under one compact bar', async ({ harness }) => {
-    const { page } = harness;
-    const before = await pocket(page, 'slot-a').boundingBox();
-    await edit(page);
-    await expect(bar(page).getByRole('status')).toHaveText('Tap pockets to select');
-    // One compact bar, not a panel: no second list of the pockets and no staging wording.
-    const box = (await bar(page).boundingBox())!;
-    expect(box.height).toBeLessThanOrEqual(harness.viewport.width >= 640 ? 64 : 112);
-    await expect(
-      bar(page).getByRole('button', { name: /Slot \d|Select slot|Select page|Append free slot/ }),
-    ).toHaveCount(0);
-    await expect(bar(page)).not.toContainText(/draft|Save on this device|Saved position|anchor/i);
-    await expect(bar(page).getByRole('button', { name: 'Move', exact: true })).toBeDisabled();
-    // The binder page keeps its place and (nearly) its size under the bar.
-    const during = await pocket(page, 'slot-a').boundingBox();
-    expect(during!.width).toBeGreaterThan(before!.width * 0.7);
-    await pocket(page, 'slot-a').click();
-    await expect(bar(page).getByRole('status')).toHaveText('1 selected');
-    await expect(pocket(page, 'slot-a')).toHaveAttribute('aria-pressed', 'true');
-    await expect(pocket(page, 'slot-a').locator('[data-pocket-mark="selected"]')).toBeVisible();
-    await expect(pocket(page, 'slot-b').locator('[data-pocket-mark="available"]')).toBeVisible();
-    await pocket(page, 'slot-c').click();
-    await pocket(page, 'slot-f').click();
-    await expect(bar(page).getByRole('status')).toHaveText('3 selected');
-    // A tap in layout editing never opens a card, a selector or a form, and prepares nothing.
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(count(page)).toHaveText('0');
-    await pocket(page, 'slot-c').click();
-    await expect(bar(page).getByRole('status')).toHaveText('2 selected');
-    for (const action of await bar(page).locator('button:visible').all()) await harness.expectMinTapTarget(action, 36);
-    await harness.expectNoHorizontalOverflow();
-    await bar(page).getByRole('button', { name: 'Done', exact: true }).click();
-    await expect(pocket(page, 'slot-a')).toHaveAttribute('aria-pressed', 'false');
-    await expect(pocket(page, 'slot-a').locator('[data-pocket-mark]')).toHaveCount(0);
-    await expect(count(page)).toHaveText('0');
-  });
+  test(
+    'empty, one and many: pockets are selected on the page under one compact bar',
+    { tag: '@matrix' },
+    async ({ harness }) => {
+      const { page } = harness;
+      const before = await pocket(page, 'slot-a').boundingBox();
+      await edit(page);
+      await expect(bar(page).getByRole('status')).toHaveText('Tap pockets to select');
+      // One compact bar, not a panel: no second list of the pockets and no staging wording.
+      const box = (await bar(page).boundingBox())!;
+      expect(box.height).toBeLessThanOrEqual(harness.viewport.width >= 640 ? 64 : 112);
+      await expect(
+        bar(page).getByRole('button', { name: /Slot \d|Select slot|Select page|Append free slot/ }),
+      ).toHaveCount(0);
+      await expect(bar(page)).not.toContainText(/draft|Save on this device|Saved position|anchor/i);
+      await expect(bar(page).getByRole('button', { name: 'Move', exact: true })).toBeDisabled();
+      // The binder page keeps its place and (nearly) its size under the bar.
+      const during = await pocket(page, 'slot-a').boundingBox();
+      expect(during!.width).toBeGreaterThan(before!.width * 0.7);
+      await pocket(page, 'slot-a').click();
+      await expect(bar(page).getByRole('status')).toHaveText('1 selected');
+      await expect(pocket(page, 'slot-a')).toHaveAttribute('aria-pressed', 'true');
+      await expect(pocket(page, 'slot-a').locator('[data-pocket-mark="selected"]')).toBeVisible();
+      await expect(pocket(page, 'slot-b').locator('[data-pocket-mark="available"]')).toBeVisible();
+      await pocket(page, 'slot-c').click();
+      await pocket(page, 'slot-f').click();
+      await expect(bar(page).getByRole('status')).toHaveText('3 selected');
+      // A tap in layout editing never opens a card, a selector or a form, and prepares nothing.
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(count(page)).toHaveText('0');
+      await pocket(page, 'slot-c').click();
+      await expect(bar(page).getByRole('status')).toHaveText('2 selected');
+      for (const action of await bar(page).locator('button:visible').all())
+        await harness.expectMinTapTarget(action, 36);
+      await harness.expectNoHorizontalOverflow();
+      await bar(page).getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(pocket(page, 'slot-a')).toHaveAttribute('aria-pressed', 'false');
+      await expect(pocket(page, 'slot-a').locator('[data-pocket-mark]')).toHaveCount(0);
+      await expect(count(page)).toHaveText('0');
+    },
+  );
 
   test('a move picks its destination by tapping a pocket and saves as one change', async ({ harness }) => {
     const { page } = harness;

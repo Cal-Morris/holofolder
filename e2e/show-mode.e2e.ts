@@ -153,7 +153,7 @@ test.describe('show mode', () => {
     await page.context().setOffline(false);
   });
 
-  test("the header's tally fits on a narrow phone, offline too", async ({ harness }) => {
+  test("the header's tally fits on a narrow phone, offline too", { tag: '@matrix' }, async ({ harness }) => {
     const { page } = harness;
     const boughtAt = new Date(Date.now() - 30 * 60 * 1000).toISOString();
     await page.route(`${SUPABASE_URL}/rest/v1/show_purchases**`, (route) =>

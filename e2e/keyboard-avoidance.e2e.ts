@@ -56,7 +56,7 @@ async function expectAboveKeyboard(harness: Harness, locator: Locator, name: str
   expect(box.y, `${name} stays on screen`).toBeGreaterThanOrEqual(-0.5);
 }
 
-test.describe('on-screen keyboard', () => {
+test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
   test.use({ signedIn: true });
 
   test('Show mode search: the search bar rides above the keyboard and settles back when it closes', async ({

@@ -30,7 +30,7 @@ test('a recovery link without a recovery session explains that the link has expi
   await expect(page.getByText(/invalid or has expired|Could not reach/)).toBeVisible();
 });
 
-test('the branded sign-in controls fit safely in both device themes', async ({ page, insets }) => {
+test('the branded sign-in controls fit safely in both device themes', { tag: '@matrix' }, async ({ page, insets }) => {
   const layout = new Harness(page, insets);
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme });

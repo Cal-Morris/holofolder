@@ -38,7 +38,7 @@ for (const entry of ['More', 'Binders', 'Settings'] as const) {
   });
 }
 
-test('Studio keeps back and save actions within the safe area', async ({ harness }) => {
+test('Studio keeps back and save actions within the safe area', { tag: '@matrix' }, async ({ harness }) => {
   const { page } = harness;
   await page.context().clearCookies();
   await page.goto('/app/e2e-harness/studio?theme=light');

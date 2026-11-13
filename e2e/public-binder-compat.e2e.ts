@@ -239,24 +239,24 @@ for (const path of paths('priced')) {
 }
 
 for (const path of paths('stress')) {
-  test(`wide 3x8 light page and long recorded grading stay inside the phone: ${path}`, async ({
-    page,
-    standalone,
-    insets,
-  }) => {
-    // One page only: there is no page turn, so no swipe handler to wait for.
-    const phone = await open(page, path, standalone, insets, false);
-    await expect(page.getByRole('region', { name: 'Scrollable binder page 1' })).toBeVisible();
-    await phone.expectNoHorizontalOverflow();
-    await page.getByRole('button', { name: 'Synthetic Snorlax, Owned' }).first().click();
-    const detail = page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' });
-    await expect(detail).toContainText('Recorded grading provider');
-    // Not checked against the safe area here: a 500-character stress grade overflows the shared SlotDetail
-    // in standalone (private app too). Normal details are checked above.
-    await page.keyboard.press('Escape');
-    await expect(detail).toHaveCount(0);
-    await phone.expectNoHorizontalOverflow();
-  });
+  test(
+    `wide 3x8 light page and long recorded grading stay inside the phone: ${path}`,
+    { tag: '@matrix' },
+    async ({ page, standalone, insets }) => {
+      // One page only: there is no page turn, so no swipe handler to wait for.
+      const phone = await open(page, path, standalone, insets, false);
+      await expect(page.getByRole('region', { name: 'Scrollable binder page 1' })).toBeVisible();
+      await phone.expectNoHorizontalOverflow();
+      await page.getByRole('button', { name: 'Synthetic Snorlax, Owned' }).first().click();
+      const detail = page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' });
+      await expect(detail).toContainText('Recorded grading provider');
+      // Not checked against the safe area here: a 500-character stress grade overflows the shared SlotDetail
+      // in standalone (private app too). Normal details are checked above.
+      await page.keyboard.press('Escape');
+      await expect(detail).toHaveCount(0);
+      await phone.expectNoHorizontalOverflow();
+    },
+  );
 }
 
 for (const path of paths('revoked')) {

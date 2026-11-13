@@ -14,7 +14,7 @@ async function edgeSwipe(harness: Harness, distance = 140, steps = 6, dy = 0) {
 const listSearch = (harness: Harness) => harness.page.getByPlaceholder('Search name, card, set, or dex #');
 const setsView = (harness: Harness) => harness.page.getByRole('group', { name: 'Browse perspective' });
 
-test.describe('edge swipe back', () => {
+test.describe('edge swipe back', { tag: '@matrix' }, () => {
   test('returns to the previous view in the installed app only', async ({ harness, standalone }) => {
     await harness.dock().getByRole('button', { name: 'List', exact: true }).click();
     await expect(listSearch(harness)).toBeVisible();

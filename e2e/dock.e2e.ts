@@ -5,7 +5,7 @@ const bar = (harness: Harness) => harness.dock().locator(':scope > div').first()
 test.describe('compact bottom dock', () => {
   test.use({ signedIn: true });
 
-  test('slim bar, safe-area inset applied once, no wasted band', async ({ harness }) => {
+  test('slim bar, safe-area inset applied once, no wasted band', { tag: '@matrix' }, async ({ harness }) => {
     const { height } = harness.viewport;
     const box = (await bar(harness).boundingBox())!;
     expect(box.height, 'dock bar height').toBeLessThanOrEqual(56);

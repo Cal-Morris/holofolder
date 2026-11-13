@@ -72,7 +72,7 @@ for (const signedIn of [false, true]) {
   test.describe(`binder header pager (${signedIn ? 'signed in' : 'signed out'})`, () => {
     test.use({ signedIn });
 
-    test('lives in the header, fits on one row and pages the binder', async ({ harness }) => {
+    test('lives in the header, fits on one row and pages the binder', { tag: '@matrix' }, async ({ harness }) => {
       await expect(pager(harness)).toBeVisible();
       const headerBox = (await header(harness).boundingBox())!;
       const pagerBox = (await pager(harness).boundingBox())!;
@@ -110,7 +110,7 @@ for (const signedIn of [false, true]) {
   });
 }
 
-test.describe('vertical space by the dock', () => {
+test.describe('vertical space by the dock', { tag: '@matrix' }, () => {
   test('main content ends just above the dock in every view, never under it', async ({ harness }) => {
     const dockBar = harness.dock().locator(':scope > div').first();
     for (const tab of ['Binder', 'List', 'Wanted', 'Browse'] as const) {

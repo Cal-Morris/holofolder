@@ -37,7 +37,7 @@ async function reloadAt(harness: Harness, width: number, height: number) {
   await harness.page.waitForTimeout(150);
 }
 
-test.describe('installed app', () => {
+test.describe('installed app', { tag: '@matrix' }, () => {
   // oxlint-disable-next-line eslint/no-empty-pattern -- Playwright requires a destructured first argument.
   test.beforeEach(({}, testInfo) => {
     test.skip(
@@ -83,7 +83,7 @@ for (const [label, height, gap] of [
   ['short iOS 26 view', 793, 59],
   ['full-height view', 852, 0],
 ] as const) {
-  test.describe(`installed app, ${label}: sheets and dialogs`, () => {
+  test.describe(`installed app, ${label}: sheets and dialogs`, { tag: '@matrix' }, () => {
     test.use({ signedIn: true });
     // oxlint-disable-next-line eslint/no-empty-pattern -- Playwright requires a destructured first argument.
     test.beforeEach(({}, testInfo) => {
