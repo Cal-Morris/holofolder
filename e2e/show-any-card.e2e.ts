@@ -1,5 +1,5 @@
 import type { Locator } from '@playwright/test';
-import { test, expect, SUPABASE_URL, type Harness } from './fixtures';
+import { test, expect, seedCollection, type Harness, type SeedRow } from './fixtures';
 import { HUNT_COLLECTION, HUNT_PRICES } from './hunt-fixtures';
 import { mockCardPrices } from './price-fixtures';
 
@@ -38,18 +38,16 @@ const standings = (dialog: Locator) =>
   cardRows(dialog).evaluateAll((rows) => rows.map((row) => row.getAttribute('data-standing')));
 
 /** Owned Bulbasaur and Charmander, a want list across four Pokémon, and prices for cards nobody wants. */
-async function seed(harness: Harness, collection: unknown[] = HUNT_COLLECTION) {
+async function seed(harness: Harness, collection: SeedRow[] = HUNT_COLLECTION) {
   const { page } = harness;
-  await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-    route.request().method() === 'GET' ? route.fulfill({ json: collection }) : route.fallback(),
-  );
+  await seedCollection(page, collection);
   await mockCardPrices(page, {
     ...HUNT_PRICES,
     'sv03.5-005': { market: 1.2, confidence: 'high' },
     'sv03.5-007': { market: 0.8, confidence: 'high' },
   });
   await page.reload();
-  await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+  await expect(harness.slot(1)).toBeVisible();
 }
 
 async function openShowMode(harness: Harness) {

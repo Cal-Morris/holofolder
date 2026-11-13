@@ -1,4 +1,4 @@
-import { test, expect, Harness, emulateStandalone, mockBackends } from './fixtures';
+import { test, expect, Harness, emulateStandalone, mockBackends, seedNativeStorage } from './fixtures';
 import { mockCardPrices } from './price-fixtures';
 
 // Synthetic catalogue quotes, not real market data.
@@ -22,14 +22,15 @@ test.use({ signedIn: true, locale: 'en-GB' });
 test.beforeEach(async ({ page, standalone, insets, baseURL }) => {
   if (standalone) await emulateStandalone(page, insets);
   await mockBackends(page, page.context(), { signedIn: true, baseURL });
+  await seedNativeStorage(page.context(), baseURL);
   // Seed storage before mounting the app, without racing its first price request.
   await page.route('**/price-test-setup', (route) =>
     route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Price test setup</title>' }),
   );
   await page.goto('/price-test-setup');
   await mockCardPrices(page, {
-    'base1-44': { confidence: 'medium', market: 8 },
-    'base1-46': { confidence: 'medium', market: 9 },
+    'base1-44': { confidence: 'medium', market: 8, finish: 'normal' },
+    'base1-46': { confidence: 'medium', market: 9, finish: 'normal' },
   });
 });
 

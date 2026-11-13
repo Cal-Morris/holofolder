@@ -1,4 +1,4 @@
-import { test, expect, SEEDED_COLLECTION, SUPABASE_URL } from './fixtures';
+import { test, expect, seedCollection } from './fixtures';
 import type { TCGSetSlotsResponse, TCGSetSlotCard } from '../lib/tcg-set-slots';
 
 // Synthetic sets/printings exercise overlapping species and alternate art/finishes.
@@ -32,28 +32,15 @@ const payloads: TCGSetSlotsResponse[] = sets.map((set, index) => ({
 
 async function setup(harness: import('./fixtures').Harness, failSecond = false) {
   const page = harness.page;
-  await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-    route.fulfill({
-      json: [
-        {
-          ...SEEDED_COLLECTION[0],
-          pokemon_id: 179,
-          pokemon_name: 'mareep',
-          card_id: mareep.id,
-          card_set: sets[0].name,
-          wanted_cards: [{ card_id: 'other-set-want', card_name: 'Mareep', added_at: '2026-01-01' }],
-        },
-        {
-          ...SEEDED_COLLECTION[0],
-          id: 'wanted-flaaffy',
-          pokemon_id: 180,
-          pokemon_name: 'flaaffy',
-          status: 'wishlisted',
-          card_id: 'another-set-flaaffy',
-        },
-      ],
-    }),
-  );
+  await seedCollection(page, [
+    {
+      pokemon_id: 179,
+      card_id: mareep.id,
+      status: 'collected',
+      wanted_cards: [{ card_id: 'other-set-want', card_name: 'Mareep', added_at: '2026-01-01' }],
+    },
+    { pokemon_id: 180, card_id: null, status: 'wishlisted' },
+  ]);
   await page.reload();
   await page.route('**/app/api/tcg-set-slots**', (route) => {
     const params = new URL(route.request().url()).searchParams;
@@ -64,7 +51,7 @@ async function setup(harness: import('./fixtures').Harness, failSecond = false) 
   await harness.dock().getByRole('button', { name: 'Browse', exact: true }).click();
   await page.getByRole('button', { name: 'Fixture Rivals', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Select mareep', exact: true })).toBeVisible();
-  await page.getByRole('textbox', { name: 'Search sets by name or code' }).fill('rising');
+  await page.getByRole('textbox', { name: 'Search sets by name, code or year' }).fill('rising');
   await page.getByRole('button', { name: 'Fixture Rising', exact: true }).first().click();
   if (failSecond)
     await expect(page.getByTestId('view-scroller').getByRole('alert')).toContainText('Could not load Fixture Rising');
@@ -143,7 +130,7 @@ test.describe('multi-set matching', () => {
       const id = new URL(route.request().url()).searchParams.get('setId');
       return route.fulfill({ json: id === sets[1].id ? payloads[1] : { sets, selectedSet: null, slots: [] } });
     });
-    await page.getByRole('textbox', { name: 'Search sets by name or code' }).fill('rising');
+    await page.getByRole('textbox', { name: 'Search sets by name, code or year' }).fill('rising');
     await page.getByRole('button', { name: 'Fixture Rising', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Select ampharos', exact: true })).toBeVisible();
     await expect(page.getByTestId('view-scroller').getByRole('alert')).toHaveCount(0);
@@ -181,7 +168,7 @@ test.describe('multi-set matching', () => {
     await harness.dock().getByRole('button', { name: 'Browse', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Remove Fixture Rivals', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Fixture Rivals', exact: true }).click();
-    await page.getByRole('textbox', { name: 'Search sets by name or code' }).fill('rising');
+    await page.getByRole('textbox', { name: 'Search sets by name, code or year' }).fill('rising');
     await page.getByRole('button', { name: 'Fixture Rising', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Select ampharos', exact: true })).toBeVisible();
     await expect(
