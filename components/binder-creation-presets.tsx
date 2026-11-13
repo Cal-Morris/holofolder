@@ -75,7 +75,7 @@ export function BinderCreationPresets({
           : mode === 'generation'
             ? speciesPreset(
                 gen.region,
-                POKEMON_CATALOG.filter((p) => p.id >= gen.start && p.id <= gen.end).map((p) => p.id),
+                POKEMON_CATALOG.flatMap((p) => (p.id >= gen.start && p.id <= gen.end ? [p.id] : [])),
                 `generation-${gen.id}`,
               )
             : mode === 'species'
@@ -236,11 +236,15 @@ export function BinderCreationPresets({
             setPreviewPage(0);
           }}
         >
-          {GENERATIONS.filter((g) => g.id > 0).map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.region} · {g.name}
-            </option>
-          ))}
+          {GENERATIONS.flatMap((g) =>
+            g.id > 0
+              ? [
+                  <option key={g.id} value={g.id}>
+                    {g.region} · {g.name}
+                  </option>,
+                ]
+              : [],
+          )}
         </Select>
       )}
       {(mode === 'species' || mode === 'printings') && (

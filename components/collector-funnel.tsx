@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, use, useCallback, useEffect, type ReactNode } from 'react';
 import { appPath } from '@/lib/app-path';
 import { sanitizeAttribution } from '@/lib/collector-funnel';
 
@@ -30,7 +30,7 @@ export function CollectorFunnelProvider({ enabled, children }: { enabled: boolea
   return <Enabled.Provider value={enabled}>{children}</Enabled.Provider>;
 }
 export function useTrackCollectorEvent() {
-  const enabled = useContext(Enabled);
+  const enabled = use(Enabled);
   return useCallback(
     async (name: 'app_open' | 'upgrade_viewed', accountId: string | null) => {
       if (!enabled || !accountId || !navigator.onLine) return;

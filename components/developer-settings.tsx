@@ -236,35 +236,37 @@ export function DeveloperApiKeys({ isOnline, onSignIn }: { isOnline: boolean; on
             </form>
           )}
           <div className="space-y-2">
-            {keys
-              .filter((key) => !key.revoked_at)
-              .map((key) => (
-                <div
-                  key={key.id}
-                  className="border-border flex items-start justify-between gap-3 rounded-xl border p-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium break-words">{key.name}</p>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      Expires {new Date(key.expires_at).toLocaleDateString()}
-                    </p>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      Key hidden. If you didn’t save it, revoke this key and create another.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="min-h-9 shrink-0"
-                    disabled={busy || !isOnline}
-                    onClick={() => void change('DELETE', { id: key.id })}
-                    aria-label={`Revoke ${key.name}`}
-                  >
-                    Revoke
-                  </Button>
-                </div>
-              ))}
+            {keys.flatMap((key) =>
+              key.revoked_at
+                ? []
+                : [
+                    <div
+                      key={key.id}
+                      className="border-border flex items-start justify-between gap-3 rounded-xl border p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium break-words">{key.name}</p>
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          Expires {new Date(key.expires_at).toLocaleDateString()}
+                        </p>
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          Key hidden. If you didn’t save it, revoke this key and create another.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-h-9 shrink-0"
+                        disabled={busy || !isOnline}
+                        onClick={() => void change('DELETE', { id: key.id })}
+                        aria-label={`Revoke ${key.name}`}
+                      >
+                        Revoke
+                      </Button>
+                    </div>,
+                  ],
+            )}
           </div>
         </>
       )}
