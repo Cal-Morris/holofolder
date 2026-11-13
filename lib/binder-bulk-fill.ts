@@ -86,7 +86,6 @@ export function automaticBulkFillChoices(
       continue;
     }
     if (!slot.target) continue;
-    // oxlint-disable-next-line react-doctor/js-index-maps -- picks the first unused copy that fits, not a key lookup
     const item = items.find((i) => !used.has(i.id) && !copyReason(snapshot, slot, i.id, catalog));
     choices[slot.id] = item?.id ?? null;
     if (item) used.add(item.id);

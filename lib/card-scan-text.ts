@@ -407,14 +407,12 @@ function scoreCollectorNumberSimilarity(querySignals: CardTextSignals, candidate
 
   for (const queryNumber of querySignals.collectorNumbers) {
     if (candidateNumbers.has(queryNumber)) {
-      // oxlint-disable-next-line react-doctor/js-set-map-lookups -- substring check on a string
       best = Math.max(best, queryNumber.includes('/') ? 1 : /[a-z]/.test(queryNumber) ? 0.86 : 0.72);
       continue;
     }
 
     const queryNumeric = normalizeNumberToken(queryNumber);
     if (queryNumeric && candidateNumbers.has(queryNumeric)) {
-      // oxlint-disable-next-line react-doctor/js-set-map-lookups -- substring check on a string
       best = Math.max(best, queryNumeric.includes('/') ? 0.82 : 0.58);
     }
   }

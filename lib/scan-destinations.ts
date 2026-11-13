@@ -184,8 +184,7 @@ export function prepareScanDraft(
             matchesSlotTarget(candidate, replaced.target)
             ? replaced
             : fail('target-mismatch')
-          : // oxlint-disable-next-line react-doctor/js-index-maps -- one lookup in the destinations computed for this card
-            (scanDestinations(snapshot, view, choice.card, choice.finish).find((s) => s.id === choice.slotId) ??
+          : (scanDestinations(snapshot, view, choice.card, choice.finish).find((s) => s.id === choice.slotId) ??
             fail('target-mismatch'));
     const identity = {
       kind: 'card' as const,
@@ -198,7 +197,6 @@ export function prepareScanDraft(
       // Existing matching copies keep the command contract authoritative.
       const available = { ...snapshot, items: snapshot.items.filter((i) => !copies.has(i.id)) };
       const eligible = pickerChoices(available, identity, resolve);
-      // oxlint-disable-next-line react-doctor/js-index-maps -- the first raw choice, in picker order
       const raw = eligible.find((c) => c.label === 'Raw')?.selection;
       if (raw?.kind === 'existing') selection = raw;
       else {
@@ -216,7 +214,6 @@ export function prepareScanDraft(
     } else {
       const selectedCopy = choice.copy;
       const selectedItem = items.get(selectedCopy.inventoryItemId);
-      // oxlint-disable-next-line react-doctor/js-index-maps -- the picker offers this one item's choices
       const existing = pickerChoices(
         { ...snapshot, items: selectedItem ? [selectedItem] : [] },
         identity,

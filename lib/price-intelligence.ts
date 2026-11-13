@@ -346,7 +346,6 @@ function findConflictingPrefixedCollectorNumber(normalizedTitle: string, validAl
   );
 
   for (const prefix of setPrefixes) {
-    // oxlint-disable-next-line react-doctor/js-hoist-regexp -- built from each set prefix
     const matches = compactTitle.match(new RegExp(`${escapeRegExp(prefix)}0*\\d{1,4}`, 'g')) ?? [];
     for (const match of matches) {
       if (!validCompacts.has(match)) {

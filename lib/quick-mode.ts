@@ -86,7 +86,6 @@ export function matchQuickDestinations(query: string, destinations: readonly Qui
       if (term === needle) score = Math.max(score, 3);
       else if (term.startsWith(needle) || term.split(' ').some((word) => word.startsWith(needle)))
         score = Math.max(score, 2);
-      // oxlint-disable-next-line react-doctor/js-set-map-lookups -- substring check on a string
       else if (needle.length >= 3 && term.includes(needle)) score = Math.max(score, 1);
     }
     if (score > 0) scored.push({ destination, score });

@@ -328,7 +328,6 @@ export function planCardGapFill(input: {
   for (const a of GAP_CARD_ALIASES) {
     const alias = byId.get(a.alias),
       canonical = byId.get(a.canonical);
-    // oxlint-disable-next-line react-doctor/js-index-maps -- one lookup for each of a few fixed alias pairs
     const source = input.pokemontcg[a.source.pokemontcg]?.find((c) => c.id === a.source.cardId);
     if (!alias || !canonical) {
       plan.notes.push(`Alias pair ${a.alias} → ${a.canonical} is not in the catalog`);
@@ -410,7 +409,6 @@ export function planCardGapFill(input: {
           .filter((c) => !c.qualified)
           .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
         if (plain.length === siblings.length && plain.length > 1) {
-          // oxlint-disable-next-line react-doctor/js-set-map-lookups -- this card's position among its siblings
           found = plain[siblings.indexOf(card)];
           break;
         }

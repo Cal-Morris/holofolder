@@ -155,18 +155,15 @@ export function scorePokemonSearchItem(query: string, item: PokemonSearchItem) {
   let bestScore = 0;
 
   for (const term of terms) {
-    // oxlint-disable-next-line react-doctor/js-set-map-lookups -- substring check on a string
     const comparableQuery = term.includes(' ') ? normalizedQuery : compactQuery;
     let score = 0;
 
-    // oxlint-disable-next-line react-doctor/js-set-map-lookups -- substring check on a string
     if (comparableQuery === 'male' && term.includes('female')) {
       score = 0;
     } else if (term === comparableQuery) {
       score = 1000;
     } else if (term.startsWith(comparableQuery)) {
       score = 900;
-      // oxlint-disable-next-line react-doctor/js-set-map-lookups -- substring check on a string
     } else if (term.includes(comparableQuery)) {
       score = 800;
     } else {

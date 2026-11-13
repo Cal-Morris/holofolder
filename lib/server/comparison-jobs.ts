@@ -52,7 +52,6 @@ export async function estimateComparisonSpend(targets: ComparisonTarget[]) {
   const fresh = new Set<string>();
   const ids = [...new Set(targets.map((target) => target.cardId))];
   for (let i = 0; i < ids.length; i += 100) {
-    // oxlint-disable-next-line react-doctor/async-await-in-loop -- batches go one at a time to bound database load
     const { data, error } = await createAdminClient()
       .from('card_price_checks')
       .select('card_id,finish,checked_at')
@@ -77,7 +76,6 @@ export async function checkComparisonTarget(
   let failed = false;
   let retryable = false;
   for (const source of PRICE_CHECK_SOURCES) {
-    // oxlint-disable-next-line react-doctor/async-await-in-loop -- sources run one at a time and stop when the job is cancelled
     if (jobId && !(await comparisonJobActive(jobId))) return { result: 'failed', stopped: {} };
     if (saved[source]) continue;
     allFresh = false;

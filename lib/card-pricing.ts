@@ -444,7 +444,6 @@ async function loadCardPriceMetadata(supabase: ReturnType<typeof createAdminClie
   for (const row of (data ?? []) as CardExternalIdsRow[]) {
     const externalIds = readRecord(row.external_ids_json) ?? {};
     const catalog = readCatalogMetadata(externalIds);
-    // oxlint-disable-next-line react-doctor/js-index-maps -- each row's own short list of sources
     const reviewedProduct = row.tcg_card_external_sources?.find(
       (source) => source.source === 'tcgcsv-pricing' && /^[1-9]\d*$/.test(source.source_card_id),
     )?.source_card_id;
@@ -723,7 +722,6 @@ async function mapWithConcurrency<TInput, TOutput>(
     while (index < items.length) {
       const currentIndex = index;
       index += 1;
-      // oxlint-disable-next-line react-doctor/async-await-in-loop -- each runner works through the shared queue one item at a time
       results[currentIndex] = await worker(items[currentIndex]);
     }
   });
@@ -746,7 +744,6 @@ export async function fetchCardPriceSnapshot(
 
   for (const upstreamId of upstreamIds) {
     try {
-      // oxlint-disable-next-line react-doctor/async-await-in-loop -- tries each id in turn and stops at the first priced answer
       const response = await fetch(
         `https://api.tcgdex.net/v2/${encodeURIComponent(language)}/cards/${encodeURIComponent(upstreamId)}`,
         {
@@ -1244,7 +1241,6 @@ export function pickPokePulseMarketDataRecord(payload: unknown, productId: strin
   ];
 
   for (const array of arrays) {
-    // oxlint-disable-next-line react-doctor/js-index-maps -- the first match across a few arrays, in priority order
     const record = array?.map((item) => readRecord(item)).find((item) => readString(item?.productId) === productId);
     if (record) return record;
   }
@@ -1875,11 +1871,9 @@ function buildFinishPrices(
   for (const variantKey of TCGPLAYER_VARIANT_PRIORITY) {
     const tcgplayer = pickTcgplayerPrice(cardId, language, readRecord(pricing.tcgplayer), fxRates, [variantKey]);
     if (!tcgplayer) continue;
-    // oxlint-disable-next-line react-doctor/js-set-map-lookups -- substring check on a string
-    const holoKey = variantKey.includes('holo');
     const finish: PricedCardFinish = variantKey.toLowerCase().includes('reverse')
       ? 'reverse_holo'
-      : holoKey
+      : variantKey.includes('holo')
         ? 'holo'
         : 'normal';
     const isStandard = STANDARD_VARIANT_KEYS.has(variantKey);

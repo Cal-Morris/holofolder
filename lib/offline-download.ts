@@ -13,7 +13,6 @@ export async function fetchOfflineResource(
   for (let attempt = 0; ; attempt++) {
     options.signal?.throwIfAborted();
     try {
-      // oxlint-disable-next-line react-doctor/async-await-in-loop -- retries wait for the previous attempt
       const response = await (options.fetcher ?? fetch)(url, {
         cache: 'no-store',
         headers: options.headers,

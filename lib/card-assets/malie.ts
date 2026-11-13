@@ -62,7 +62,6 @@ export function parseTcglExport(value: unknown): MalieEntry[] {
     const longFormId = card.ext?.tcgl?.longFormID
     const url = card.images?.tcgl?.png?.front
     const number = card.collector_number?.numerator
-    // oxlint-disable-next-line react-doctor/js-set-map-lookups -- substring check on a string
     if (typeof longFormId !== "string" || !longFormId.includes("_std_") || typeof url !== "string" || typeof number !== "string" || typeof card.name !== "string") continue
     entries.push({ number, name: card.name, url })
   }
@@ -77,7 +76,6 @@ export function parseTcgoListing(html: string, code: string): MalieEntry[] {
     const file = decodeURIComponent(url.slice(url.lastIndexOf("/") + 1, -4))
     if (!file.startsWith(prefix)) continue
     const rest = file.slice(prefix.length)
-    // oxlint-disable-next-line react-doctor/js-set-map-lookups -- position in a string
     const dash = rest.indexOf("-")
     if (dash <= 0) continue
     entries.set(url, { number: rest.slice(0, dash), name: rest.slice(dash + 1), url })

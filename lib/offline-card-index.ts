@@ -248,7 +248,6 @@ export async function readCachedCardApiResponses(
   try {
     const names = (await cacheStorage.keys()).filter((name) => name.endsWith('-data'));
     for (const name of names) {
-      // oxlint-disable-next-line react-doctor/async-await-in-loop -- stops opening caches once enough responses are read
       const cache = await cacheStorage.open(name);
       const requests = (await cache.keys()).filter((request) => {
         const path = appPath(new URL(request.url).pathname);

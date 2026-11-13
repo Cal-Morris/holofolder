@@ -221,7 +221,6 @@ export function getRegionalFinishPrices(
     byFinish.set(price.finish, [...(byFinish.get(price.finish) ?? []), price]);
   }
   for (const [finish, prices] of byFinish) {
-    // oxlint-disable-next-line react-doctor/js-index-maps -- prefers one source within a small per-finish group
     const chosen = prices.find((price) => price.source === snapshot?.source) ?? prices[0];
     const regional = regionalizeCardPrice(chosen as CardPriceSnapshot, region);
     if (typeof regional.gbpAmount === 'number' && regional.gbpAmount > 0) result[finish] = regional;
@@ -257,7 +256,6 @@ export function getGbpPerUnit(
 }
 
 const moneyFormat = (currency: DisplayCurrency, maximumFractionDigits: number) =>
-  // oxlint-disable-next-line react-doctor/js-hoist-intl -- runs once per currency and precision when the module loads
   new Intl.NumberFormat(currency === 'GBP' ? 'en-GB' : 'en-US', {
     style: 'currency',
     currency,

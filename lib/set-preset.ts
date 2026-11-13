@@ -141,7 +141,6 @@ function buildSetChecklist(input: SetChecklistInput, preserveCapturedOrder: bool
     );
   const eligible = cards.filter((c) => c.languageConfirmed && !excluded.has(c.cardId));
   for (const finish of input.finishes) {
-    // oxlint-disable-next-line react-doctor/js-set-map-lookups -- each card's own short list of finishes
     const verified = eligible.filter((c) => c.verifiedFinishes.includes(finish)).length;
     warnings.push(
       `${finish}: ${verified} verified targets of ${eligible.length} included language-confirmed cards; ${eligible.length - verified} unavailable. Flags describe catalog evidence, not guaranteed regional distribution.`,

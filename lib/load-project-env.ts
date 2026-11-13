@@ -19,7 +19,6 @@ export async function loadProjectEnvFiles(projectRoot?: string) {
         const trimmed = line.trim();
         if (!trimmed || trimmed.startsWith('#')) continue;
 
-        // oxlint-disable-next-line react-doctor/js-set-map-lookups -- position in a string
         const separatorIndex = trimmed.indexOf('=');
         if (separatorIndex === -1) continue;
 

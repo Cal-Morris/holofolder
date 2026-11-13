@@ -11,7 +11,6 @@ export async function sanitizeDeveloperImages(
     const output = [];
     for (let n = 0; n < value.length; n += 8)
       output.push(
-        // oxlint-disable-next-line react-doctor/async-await-in-loop -- deliberate chunks of 8 bound concurrent image lookups
         ...(await Promise.all(value.slice(n, n + 8).map((item) => sanitizeDeveloperImages(item, resolve, imageGroup)))),
       );
     return output;
@@ -26,7 +25,6 @@ export async function sanitizeDeveloperImages(
         key.replaceAll('_', ''),
       );
     if (image && (typeof child === 'string' || child === null)) {
-      // oxlint-disable-next-line react-doctor/async-await-in-loop -- sequential so output keys keep their input order
       const resolved = await resolve(child);
       output[key] = resolved.url;
       output[`${key}Availability`] = resolved.availability;

@@ -110,7 +110,6 @@ export async function runCheckComps(
   let needed = 0;
   for (const target of checkCompsTargets(targets, 'collection')) {
     if (signal.aborted) break;
-    // oxlint-disable-next-line react-doctor/async-await-in-loop -- reads stop as soon as the run is aborted
     const soldFresh = Boolean(await readPinned(target.cardId, target.finish, 'soldcomps'));
     // Saved cards must not occupy the next batch's slots.
     if (options.scope !== 'collection' && soldFresh && Boolean(await readPinned(target.cardId, target.finish, 'ebay')))
@@ -165,17 +164,13 @@ export async function runCheckComps(
     while (cursor < queue.length && !signal.aborted) {
       const target = queue[cursor++];
       const results: Array<'fresh' | 'checked' | 'failed'> = [];
-      for (const source of PRICE_CHECK_SOURCES)
-        // oxlint-disable-next-line react-doctor/async-await-in-loop -- one provider request at a time per card
-        results.push(await checkOne(target, source));
+      for (const source of PRICE_CHECK_SOURCES) results.push(await checkOne(target, source));
       if (signal.aborted) return;
       // A card counts by its sold check; asking is supporting evidence.
       const sold = results[SOLD_INDEX];
-      // oxlint-disable-next-line react-doctor/js-set-map-lookups -- one result per source, checked once
-      const failed = results.includes('failed');
       const result =
         options.scope === 'collection'
-          ? failed
+          ? results.includes('failed')
             ? 'failed'
             : results.every((result) => result === 'fresh')
               ? 'fresh'

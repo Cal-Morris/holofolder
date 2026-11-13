@@ -309,7 +309,6 @@ export function buildCatalogSupplement(input: {
       continue;
     const tcgdexCardId = typeof base.raw_json.id === 'string' ? base.raw_json.id : base.id;
     const standardVariants = variants(base).filter((v) => v.size !== 'jumbo');
-    // oxlint-disable-next-line react-doctor/js-index-maps -- the first unstamped variant, in catalog order
     const baseVariant = standardVariants.find((v) => !v.stamp?.length) ?? standardVariants[0];
     const stampKey = (variant: Variant | undefined) => (variant?.stamp ?? []).toSorted().join('|');
     const seenStamps = new Set([stampKey(baseVariant)]);

@@ -65,14 +65,12 @@ export async function readPresetPrintings(
   if (cards.length !== ids.length || cards.some((c) => !ids.includes(String(c.id)))) return unavailable();
   // A direct ID must not also identify a different mirrored row via an alias/canonical mapping.
   for (const id of ids) {
-    // oxlint-disable-next-line react-doctor/async-await-in-loop -- one id at a time to bound database load
     const aliases = await read('tcg_cards', select, (q) =>
       q.contains('external_ids_json->catalog->aliasIds', JSON.stringify([id])),
     );
     const canonical = await read('tcg_cards', select, (q) => q.eq('external_ids_json->catalog->>canonicalId', id));
     if ([...aliases, ...canonical].some((c) => c.id !== id)) return unavailable();
     if (
-      // oxlint-disable-next-line react-doctor/js-set-map-lookups -- one lookup in each row's own alias list
       aliases.some((c) => !readCatalogMetadata(c.external_ids_json).aliasIds?.includes(id)) ||
       canonical.some((c) => readCatalogMetadata(c.external_ids_json).canonicalId !== id)
     )

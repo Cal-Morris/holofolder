@@ -36,7 +36,6 @@ export async function recordCollectorPayments(ownerId: string, customerId: strin
       periodEnd: invoice.periodEnd,
     };
     let recorded = false;
-    // oxlint-disable-next-line react-doctor/async-await-in-loop -- events are recorded in invoice order
     if (index === 0) recorded = await recordCollectorEvent({ ...input, name: 'first_paid', key: 'first_paid' });
     // Replaying or backfilling history must not recreate granular rows after retention cleanup.
     if (Date.parse(invoice.at) >= granularCutoff) {

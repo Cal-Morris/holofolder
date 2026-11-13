@@ -166,7 +166,6 @@ export function createR2Deps(
       do {
         const query = new URLSearchParams({ 'list-type': '2', prefix, 'max-keys': '1000' });
         if (token) query.set('continuation-token', token);
-        // oxlint-disable-next-line react-doctor/async-await-in-loop -- each page needs the previous continuation token
         const response = await signedFetch(`${endpoint}?${query}`);
         if (!response.ok) throw await r2ResponseError('LIST', response);
         const page = parseListObjectsV2(await response.text());

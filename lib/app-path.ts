@@ -8,7 +8,6 @@ export function appPath(path: string) {
 
 /** Auth links may contain an old app-relative next path, but may never leave the app. */
 export function appReturnPath(path: string | null) {
-  // oxlint-disable-next-line no-control-regex -- rejecting control characters is the point
   if (!path || !path.startsWith('/') || path.startsWith('//') || /[\\\u0000-\u0020]/.test(path)) return APP_BASE_PATH;
   try {
     const url = new URL(appPath(decodeURI(path)), 'https://app.local');

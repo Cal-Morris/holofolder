@@ -199,7 +199,6 @@ export function parseImportFile(source: string): ImportDocument {
   const mapping: ImportMapping = trusted ? { ...holoMapping } : {};
   if (!trusted)
     for (const field of IMPORT_FIELDS) {
-      // oxlint-disable-next-line react-doctor/js-index-maps -- first matching column in header order
       const index = keys.findIndex((key) => aliasSets[field].has(key));
       if (index >= 0) mapping[field] = index;
     }
@@ -401,7 +400,6 @@ export async function applyImportPlan(
     if (signal.aborted) break;
     let result: { error?: string; queued?: boolean };
     try {
-      // oxlint-disable-next-line react-doctor/async-await-in-loop -- writes go in order and stop when aborted
       result = await save(operation.next, operation.base);
     } catch (error) {
       result = { error: error instanceof Error ? error.message : 'Write failed. Check your binder before retrying.' };

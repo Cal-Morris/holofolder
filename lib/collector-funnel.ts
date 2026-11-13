@@ -136,7 +136,6 @@ export function funnelReport(accounts: FunnelAccount[], events: FunnelEvent[], f
       (a, b) => Date.parse(a.occurred_at) - Date.parse(b.occurred_at),
     );
     const after = (name: string, minimum: number) =>
-      // oxlint-disable-next-line react-doctor/js-index-maps -- first event at or after a time, not a key lookup
       list.find((e) => e.name === name && Date.parse(e.occurred_at) >= minimum);
     const first = after('first_save', seen);
     if (first) group.firstSaved++;

@@ -218,7 +218,6 @@ export function imageCandidates(card: MirrorCardRow, lang = "en", discovered: re
 export function chooseImage(candidates: readonly ImageCandidate[], prefer: readonly string[]) {
   for (const token of prefer) {
     const [id, language] = token.split(":")
-    // oxlint-disable-next-line react-doctor/js-index-maps -- first candidate for each preference, in order
     const match = candidates.find(candidate => id === REVIEWED ? candidate.reviewed : !candidate.reviewed && candidate.source === id && (language === undefined || candidate.language === language))
     if (match) return match
   }

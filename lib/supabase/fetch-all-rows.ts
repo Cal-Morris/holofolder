@@ -14,7 +14,6 @@ export async function fetchAllRows<T>(
   const rows: T[] = [];
 
   for (let from = 0; ; from += pageSize) {
-    // oxlint-disable-next-line react-doctor/async-await-in-loop -- pages are read until one comes back short
     const { data, error } = await fetchPage(from, from + pageSize - 1);
     if (error) return { data: rows, error };
 

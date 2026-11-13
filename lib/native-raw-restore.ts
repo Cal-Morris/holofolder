@@ -187,7 +187,6 @@ export async function requestNativeRawRestorePlan(
     backupContentKey(command.releaseItemIds) !== backupContentKey(input.choices.releaseItemIds)
   )
     throw new Error('Restore review changed. Nothing has been queued.');
-  // oxlint-disable-next-line react-doctor/async-defer-await -- the session is rechecked after the binding is ready
   await binding.assertReady();
   if (!valid()) throw new Error('Restore session changed.');
   return freezeBackupPlan(command);

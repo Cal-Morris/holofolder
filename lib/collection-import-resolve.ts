@@ -18,7 +18,6 @@ export function readImportLookups(body: unknown): ImportLookup[] {
     const value = raw as Record<string, unknown>;
     if (
       Object.entries(value).some(
-        // oxlint-disable-next-line no-control-regex -- rejecting control characters is the point
         ([key, v]) => !fields.has(key) || typeof v !== 'string' || v.length > 240 || /[\u0000-\u001f]/.test(v),
       ) ||
       !isCardLanguage(value.language) ||

@@ -4,7 +4,6 @@ const currencyFormats = (maximumFractionDigits: number) =>
   Object.fromEntries(
     (['USD', 'EUR', 'GBP'] as const).map((currency) => [
       currency,
-      // oxlint-disable-next-line react-doctor/js-hoist-intl -- runs once per precision when the module loads
       new Intl.NumberFormat('en-GB', { style: 'currency', currency, maximumFractionDigits }),
     ]),
   ) as Record<SupportedCurrency, Intl.NumberFormat>;

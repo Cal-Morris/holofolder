@@ -69,7 +69,6 @@ export async function syncBinderAppearance(
   for (const id of binderArtworkIds(snapshot.design)) {
     const blob = snapshot.uploads[id];
     if (!blob) throw new Error('Artwork is missing. Re-upload it before saving.');
-    // oxlint-disable-next-line react-doctor/async-await-in-loop -- uploads go one at a time and stop at the first failure
     const response = await fetch('/app/api/binder-appearance/upload', {
       method: 'POST',
       credentials: 'same-origin',

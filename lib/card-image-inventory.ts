@@ -4,7 +4,6 @@ export async function recordMirroredCardImages(bucket: string, keys: readonly st
   const { createAdminClient } = await import('./supabase/admin');
   const admin = createAdminClient();
   for (let n = 0; n < keys.length; n += 500) {
-    // oxlint-disable-next-line react-doctor/async-await-in-loop -- batches go one at a time to bound database load
     const { error } = await admin.from('card_image_inventory').upsert(
       keys.slice(n, n + 500).map((object_key) => ({ bucket, object_key, observed_at: new Date().toISOString() })),
       { onConflict: 'bucket,object_key' },
