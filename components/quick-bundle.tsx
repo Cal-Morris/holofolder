@@ -299,8 +299,9 @@ export default function QuickBundle({
         )}
         {nativeConsumer && (
           <p className="text-muted-foreground text-[11px]">
-            Saved price evidence only. No provider checks, purchase recording or ownership changes. Each selected entry
-            counts once, including repeated printings.
+            Saved price evidence only. No provider checks or ownership changes
+            {tally ? '; Bought bundle only logs to this show’s tally' : ''}. Each selected entry counts once, including
+            repeated printings.
           </p>
         )}
         {error ? (

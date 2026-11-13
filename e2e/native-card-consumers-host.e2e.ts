@@ -170,6 +170,8 @@ for (const desktop of [false, true])
     const lookupWants = quick.getByRole('region', { name: 'On your want list' });
     await expect(lookupWants.getByRole('heading', { name: 'On your want list · 3 cards' })).toBeVisible();
     await expect(lookupWants).not.toContainText(raw);
-    await expect(quick.getByRole('button', { name: /Mark got|Add to owned|Bought/ })).toHaveCount(0);
+    await expect(quick.getByRole('button', { name: /Mark got|Add to owned/ })).toHaveCount(0);
+    // Bought only logs to the show tally (no storage command), and needs an asking price first.
+    await expect(quick.getByRole('button', { name: 'Bought', exact: true })).toBeDisabled();
     expect(sends).toBe(0);
   });

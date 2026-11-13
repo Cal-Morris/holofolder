@@ -46,7 +46,7 @@ export function ShowBought({
       {logged && (
         <div
           role="status"
-          className="bg-muted/60 col-span-full flex min-h-11 items-center gap-2 rounded-2xl px-3 text-sm"
+          className="bg-muted/60 order-last col-span-full flex min-h-11 items-center gap-2 rounded-2xl px-3 text-sm"
         >
           <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden />
           <span className="min-w-0 flex-1 truncate">{logged.message}</span>

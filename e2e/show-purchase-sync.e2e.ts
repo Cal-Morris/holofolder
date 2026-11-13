@@ -176,6 +176,7 @@ test.describe('show purchases on the account', () => {
     await bundle.getByRole('button', { name: 'Bought bundle', exact: true }).click();
     await expect(bundle.getByRole('status').filter({ hasText: 'Bought 2 cards for £20.00' })).toBeVisible();
     await expect(banner(harness)).toContainText('2 bought · £20.00');
+    await screenshot(harness, 'show-bought-bundle');
     await expect
       .poll(() =>
         account.posts
