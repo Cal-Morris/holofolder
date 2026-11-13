@@ -8,62 +8,6 @@
   ],
   "tests": [
     {
-      "file": "card-picker.e2e.ts",
-      "title": ["card picker layout", "opens on search with cards above the fold and one compact filters control"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
-    },
-    {
-      "file": "card-picker.e2e.ts",
-      "title": ["card picker layout", "filters apply from the sheet and show as removable chips"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
-    },
-    {
-      "file": "card-picker.e2e.ts",
-      "title": ["card picker layout", "marking owned without a card is in the overflow menu"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
-    },
-    {
-      "file": "card-picker.e2e.ts",
-      "title": ["card picker layout", "a search with no matches says so and clears in one tap"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
-    },
-    {
-      "file": "card-picker.e2e.ts",
-      "title": ["card picker layout", "provider-confirmed reverse is offered when catalogue flags omit it"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
-    },
-    {
-      "file": "card-picker.e2e.ts",
-      "title": ["card picker layout", "keeps unpriced Normal and suggests the most expensive quoted variant"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
-    },
-    {
-      "file": "card-picker.e2e.ts",
-      "title": ["card picker layout", "unpriced variants stay selectable without a likely badge"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
-    },
-    {
-      "file": "card-picker.e2e.ts",
-      "title": ["card picker layout", "a single-finish card is picked in one tap"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('button[data-dex-id=\"7\"]').first()"
-    },
-    {
       "file": "collection-list.e2e.ts",
       "title": ["selecting a row, by artwork or anywhere on the row, selects that exact slot"],
       "cause": "stale-selector-or-flow",
@@ -72,41 +16,13 @@
     },
     {
       "file": "deal-cardmarket.e2e.ts",
-      "title": ["deal scale geometry", "labels and actions fit phone"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.evaluate: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('figure', { name: 'Buying range' }).locator('svg')"
-    },
-    {
-      "file": "deal-cardmarket.e2e.ts",
-      "title": ["deal scale geometry", "labels and actions fit 1238x500"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.evaluate: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('figure', { name: 'Buying range' }).locator('svg')"
-    },
-    {
-      "file": "deal-cardmarket.e2e.ts",
-      "title": ["deal scale geometry", "labels and actions fit 667x375"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.evaluate: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('figure', { name: 'Buying range' }).locator('svg')"
-    },
-    {
-      "file": "deal-cardmarket.e2e.ts",
-      "title": ["deal scale geometry", "labels and actions fit 844x300"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.evaluate: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('figure', { name: 'Buying range' }).locator('svg')"
-    },
-    {
-      "file": "deal-cardmarket.e2e.ts",
       "title": [
         "Cardmarket catalog in the deal checker",
         "Show keeps the buying summary clear and Check prices charts available"
       ],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "TypeError: Cannot read properties of null (reading 'cards')"
+      "failure": "Native parity gap: the native Show/Quick deal check has no paid Check prices control."
     },
     {
       "file": "deal-cardmarket.e2e.ts",
@@ -114,60 +30,9 @@
         "Cardmarket catalog in the deal checker",
         "Quick keeps the buying summary clear and Check prices charts available"
       ],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "TypeError: Cannot read properties of null (reading 'cards') — getByRole('dialog', { name: 'Quick mode' }).getByRole('region', { name: 'Cards' }).getByRole('button', { name: /^Charmeleon, 151 / }).first()"
-    },
-    {
-      "file": "deal-cardmarket.e2e.ts",
-      "title": [
-        "Cardmarket catalog in the deal checker",
-        "Show shows exact-finish quotes and trend separately, including offline"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('region', { name: 'Catalog price sources' })"
-    },
-    {
-      "file": "deal-cardmarket.e2e.ts",
-      "title": [
-        "Cardmarket catalog in the deal checker",
-        "Quick shows exact-finish quotes and trend separately, including offline"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('region', { name: 'Catalog price sources' })"
-    },
-    {
-      "file": "deal-cardmarket.e2e.ts",
-      "title": ["Cardmarket catalog in the deal checker", "catalog GBP attribution stays explicit with EUR display"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "TypeError: Cannot read properties of null (reading 'cards')"
-    },
-    {
-      "file": "deal-cardmarket.e2e.ts",
-      "title": ["Cardmarket catalog in the deal checker", "catalog GBP attribution stays explicit with USD display"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "TypeError: Cannot read properties of null (reading 'cards')"
-    },
-    {
-      "file": "deal-cardmarket.e2e.ts",
-      "title": [
-        "Cardmarket catalog in the deal checker",
-        "keyboard keeps the asking field reachable and restores actions on Done"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.scrollIntoViewIfNeeded: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('button', { name: 'Add owned', exact: true })"
-    },
-    {
-      "file": "deal-cardmarket.e2e.ts",
-      "title": ["Cardmarket catalog in the deal checker", "other providers are not labelled Cardmarket trend"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('region', { name: 'Catalog price sources' })"
+      "failure": "Native parity gap: the native Show/Quick deal check has no paid Check prices control."
     },
     {
       "file": "docs.e2e.ts",
@@ -699,40 +564,9 @@
     {
       "file": "show-mode.e2e.ts",
       "title": ["show mode", "the header's tally fits on a narrow phone, offline too"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('region', { name: 'Show mode' })"
-    },
-    {
-      "file": "show-mode.e2e.ts",
-      "title": ["show mode", "the header shows the active mode without an extra row, and Exit turns it off"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
-    },
-    {
-      "file": "show-mode.e2e.ts",
-      "title": ["show mode", "Show mode left on lapses when the app is reopened hours later"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
-    },
-    {
-      "file": "show-mode.e2e.ts",
-      "title": [
-        "show mode",
-        "the header button is on every main view, and with Show mode on a Search tap opens Quick mode"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
-    },
-    {
-      "file": "show-mode.e2e.ts",
-      "title": ["show mode", "the binder stays free of promotions offline too"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Native parity gap: Show purchase recording (the header tally) is not wired for native binders."
     },
     {
       "file": "studio-navigation.e2e.ts",
@@ -1013,16 +847,16 @@
         "Binder card display",
         "defaults to mixed, switches both binders between owned and wanted, and retains both details"
       ],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
+      "failure": "Native parity gap: the Mixed/Owned/Wanted binder card display lives in View options, and the header's View button is hidden for native storage."
     },
     {
       "file": "card-display.e2e.ts",
       "title": ["Binder card display", "owned never promotes a wanted-only printing into an owned slot"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
+      "failure": "Native parity gap: the Mixed/Owned/Wanted binder card display lives in View options, and the header's View button is hidden for native storage."
     },
     {
       "file": "card-image-viewer.e2e.ts",
@@ -1122,23 +956,23 @@
     {
       "file": "collection-price-check.e2e.ts",
       "title": ["wanted checks confirm once, survive leaving and reopening, and reconnect offline"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toContainText(expected) failed — getByTestId('collection-price-check')"
+      "failure": "Native parity gap: the wanted and owned bulk price checks are not shown for native binders (main-content hides it for nativeWanted; native analytics replaces the owned check's host)."
     },
     {
       "file": "collection-price-check.e2e.ts",
       "title": ["explicit Stop cancels the server job"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
+      "failure": "Native parity gap: the wanted and owned bulk price checks are not shown for native binders (main-content hides it for nativeWanted; native analytics replaces the owned check's host)."
     },
     {
       "file": "collection-price-check.e2e.ts",
       "title": ["a slow initial inspection cannot erase a job started in the meantime"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'List', exact: true })"
+      "failure": "Native parity gap: the wanted and owned bulk price checks are not shown for native binders (main-content hides it for nativeWanted; native analytics replaces the owned check's host)."
     },
     {
       "file": "custom-binder-layout.e2e.ts",
@@ -1270,65 +1104,13 @@
     },
     {
       "file": "deal-check.e2e.ts",
-      "title": ["deal checker", "the verdict follows the thresholds: great, good, fair, overpriced, walk away"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "Error: expect(locator).toHaveText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('quick-card-market-price')"
-    },
-    {
-      "file": "deal-check.e2e.ts",
-      "title": ["deal checker", "£6 in a binder for a £4 card is a walk away; £6 for a £10 card is great"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "Error: expect(locator).toHaveText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('quick-card-market-price')"
-    },
-    {
-      "file": "deal-check.e2e.ts",
-      "title": ["deal checker", "custom thresholds from Settings change the verdict"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('deal-verdict')"
-    },
-    {
-      "file": "deal-check.e2e.ts",
-      "title": ["deal checker", "thin data is flagged and a rising card gets a nudge"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('deal-verdict')"
-    },
-    {
-      "file": "deal-check.e2e.ts",
-      "title": ["deal checker", "the variant toggle switches the market price"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "Error: expect(locator).toHaveText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('quick-card-status')"
-    },
-    {
-      "file": "deal-check.e2e.ts",
-      "title": ["deal checker", "offline it still judges from the saved price and says how old it is"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "Error: expect(locator).toHaveText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('quick-card-market-price')"
-    },
-    {
-      "file": "deal-check.e2e.ts",
       "title": [
         "manual bundle price checks",
         "checks every card independently, updates the range and offer dot, and retains catalogue fallback"
       ],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-bundle').getByRole('button', { name: 'Check bundle prices', exact: true })"
-    },
-    {
-      "file": "deal-check.e2e.ts",
-      "title": [
-        "deal checker outside Show mode",
-        "Quick mode checks a card's asking price without Show mode, and flags a rising price"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: 'Quick mode' }).getByRole('region', { name: 'Cards' }).getByRole('button', { name: /^Charizard ex, 151 / }).first().getByT"
+      "failure": "Native parity gap: native Bundle has no paid Check bundle prices control (docs/native-search-show-consumers.md)."
     },
     {
       "file": "developer-access.e2e.ts",
@@ -1360,101 +1142,45 @@
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": ["asking and sold comparisons load on demand and remain separate from the card valuation"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "Error: expect(received).toBe(expected) // Object.is equality — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('region', { name: 'Price comparisons' }).getByText(/Manual checks/)"
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
-      "title": ["eBay lookup degrades clearly offline without making a request"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: 'Check prices' })"
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
-      "title": ["eBay lookup failure and an empty sample do not invent a price"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('region', { name: 'Price comparisons' }).getByRole('button', { name: 'Check prices' })"
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
-      "title": ["eBay lookup is available when the card has no market quote"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: 'Check prices' })"
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
       "title": ["Show mode checks both sources on tap and resets comparisons when the finish changes"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('button', { name: 'Check prices', exact: true })"
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
-      "title": ["ebay appears independently while the other source is pending"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('region', { name: 'Price comparisons' }).getByRole('button', { name: 'Check prices', e"
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
-      "title": ["soldcomps appears independently while the other source is pending"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('region', { name: 'Price comparisons' }).getByRole('button', { name: 'Check prices', e"
+      "failure": "Native parity gap: the native Show/Quick deal check has no paid Check prices control."
     },
     {
       "file": "ebay-listings.e2e.ts",
       "title": ["qualified sold guide changes Show mode verdict, plots an overlay and resets on finish change"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toHaveText(expected) failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByTestId('quick-card-market-price')"
+      "failure": "Native parity gap: the native Show/Quick deal check has no paid Check prices control."
     },
     {
       "file": "ebay-listings.e2e.ts",
       "title": ["card details updates its good-price band only after a user checks qualifying sold evidence"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: 'Check prices', exact: true })"
+      "failure": "Native parity gap: native card details have no sold-price band (only the legacy selected-pokemon-quick-panel has it)."
     },
     {
       "file": "ebay-listings.e2e.ts",
       "title": ["card details compares sold evidence with the tracked finish quote"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).locator('summary').filter({ hasText: 'Card & variant' })"
+      "failure": "Native parity gap: native card details have no Card & variant switcher or sold-price band."
     },
     {
       "file": "ebay-listings.e2e.ts",
       "title": ["switching finishes cancels the old check before it can overwrite new evidence"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('button', { name: 'Check prices', exact: true })"
+      "failure": "Native parity gap: the native Show/Quick deal check has no paid Check prices control."
     },
     {
       "file": "ebay-listings.e2e.ts",
       "title": ["fair market bands, quick eBay link and individually verifiable source records"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('button', { name: 'Check prices', exact: true })"
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
-      "title": ["an old saved check survives reload and offline, only explicit refresh requests new evidence"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('button', { name: 'Check prices', exact: true })"
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
-      "title": ["a saved source can be refreshed when the other provider is unavailable"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /bulbasaur.* details/i }).getByRole('region', { name: 'Price comparisons' }).getByRole('button', { name: 'Check prices', e"
+      "failure": "Native parity gap: the native Show/Quick deal check has no paid Check prices control."
     },
     {
       "file": "first-use.e2e.ts",
@@ -2385,13 +2111,6 @@
     },
     {
       "file": "regional-prices.e2e.ts",
-      "title": ["list prices (UK)", "all-cards browse and set checklists use the UK price"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('textbox', { name: 'Search sets by name or code' })"
-    },
-    {
-      "file": "regional-prices.e2e.ts",
       "title": ["US locale", "leads with the TCGplayer price in USD"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
@@ -2444,27 +2163,6 @@
         "set checklists",
         "species filters include other-set ownership and wants while printing state stays exact"
       ],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('textbox', { name: 'Search sets by name or code' })"
-    },
-    {
-      "file": "set-checklist.e2e.ts",
-      "title": ["set checklists", "legacy saved payload is partial and cards without Pokémon remain browseable"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('textbox', { name: 'Search sets by name or code' })"
-    },
-    {
-      "file": "set-checklist.e2e.ts",
-      "title": ["set checklists", "read-only browsing retains exact state without collection mutations"],
-      "cause": "stale-selector-or-flow",
-      "batch": 2,
-      "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('textbox', { name: 'Search sets by name or code' })"
-    },
-    {
-      "file": "set-checklist.e2e.ts",
-      "title": ["set checklists", "exact saved set data opens when the lookup fails"],
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('textbox', { name: 'Search sets by name or code' })"
@@ -2567,26 +2265,16 @@
     {
       "file": "show-any-card.e2e.ts",
       "title": ["Show mode: look up any card", "finds any card, wanted first, labelled Wanted / Owned / Not in binder"],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Native parity gap: Show opens a flat wanted list for native binders, not the show-hunt Hunting list this test starts from."
     },
     {
       "file": "show-any-card.e2e.ts",
       "title": ["Show mode: look up any card", "searches by illustrator too"],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
-    },
-    {
-      "file": "show-any-card.e2e.ts",
-      "title": [
-        "Show mode: look up any card",
-        "offline it searches the cards on this device and says when a price isn't saved"
-      ],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Suspected app bug: online Show search labels the wanted Bulbasaur 151 166/165 (an Illustration Rare holo want) 'No exact saved match' instead of Wanted, while offline search marks wanted printings 'Wanted ×1'."
     },
     {
       "file": "show-any-card.e2e.ts",
@@ -2651,9 +2339,9 @@
         "Show mode finder",
         "opens on the Hunting list: the want list by Pokémon, most wanted or top value first, with pay-up-to prices"
       ],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
     },
     {
       "file": "show-hunt.e2e.ts",
@@ -2661,9 +2349,9 @@
         "Show mode finder",
         "Good pickups: wanted cards whose price dropped, biggest fall first, one tap to the deal check"
       ],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
     },
     {
       "file": "show-hunt.e2e.ts",
@@ -2671,23 +2359,23 @@
         "Show mode finder",
         "% down / % up sort the Hunting list, a Pokémon's cards and the card search by price move"
       ],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
     },
     {
       "file": "show-hunt.e2e.ts",
       "title": ["Show mode finder", "Check comps bakes sold comps for the Hunting cards, dearest first, with progress"],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
     },
     {
       "file": "show-hunt.e2e.ts",
       "title": ["Show mode finder", "Check comps big run: in-app confirm Cancel aborts, Check now proceeds"],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
     },
     {
       "file": "show-hunt.e2e.ts",
@@ -2695,44 +2383,44 @@
         "Show mode finder",
         "lifetime Check prices covers the whole want list and resumes its background job after reload"
       ],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
     },
     {
       "file": "show-hunt.e2e.ts",
       "title": ["Show mode finder", "no Good pickups strip when nothing on the want list has dropped"],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
     },
     {
       "file": "show-hunt.e2e.ts",
       "title": ["Show mode finder", "era, set and illustrator filters narrow the Hunting list"],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
     },
     {
       "file": "show-hunt.e2e.ts",
       "title": ["Show mode finder", "search by Pokémon: wanted first with what to pay, the rest, owned dimmed last"],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
     },
     {
       "file": "show-hunt.e2e.ts",
       "title": ["Show mode finder", "works offline from the want list on this device"],
-      "cause": "harness-or-fixture",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
+      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
     },
     {
       "file": "show-purchase-sync.e2e.ts",
       "title": ["show purchases on the account", "a fresh install or a partner's phone shows the show's purchases"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('region', { name: 'Show mode' })"
+      "failure": "Native parity gap: Show purchase recording is not wired for native binders (docs/native-search-show-consumers.md)."
     },
     {
       "file": "show-recents.e2e.ts",
@@ -2781,16 +2469,16 @@
     {
       "file": "show-scroll.e2e.ts",
       "title": ["long Hunting list does not read layout on every touch move"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — getByTestId('show-hunt').getByRole('heading', { name: /Hunting · 500 cards/ })"
+      "failure": "Native parity gap: the grouped Hunting list (show-hunt sections) is not rendered for native binders."
     },
     {
       "file": "show-scroll.e2e.ts",
       "title": ["touch guard keeps axis changes, headers and native controls working"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — getByTestId('show-hunt')"
+      "failure": "Native parity gap: the grouped Hunting list (show-hunt sections) is not rendered for native binders."
     },
     {
       "file": "show-workspace-navigation.e2e.ts",
@@ -2815,16 +2503,16 @@
     {
       "file": "show-workspace.e2e.ts",
       "title": ["Show workspace light", "471-card hunt stays usable, with detail only on selection"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('show-hunt').getByRole('heading', { name: /471 cards/ })"
+      "failure": "Native parity gap: the grouped Hunting list (show-hunt sections) is not rendered for native binders."
     },
     {
       "file": "show-workspace.e2e.ts",
       "title": ["Show workspace dark", "471-card hunt stays usable, with detail only on selection"],
-      "cause": "stale-selector-or-flow",
+      "cause": "app-bug",
       "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: 'Quick mode' }).getByTestId('show-hunt').getByRole('heading', { name: /471 cards/ })"
+      "failure": "Native parity gap: the grouped Hunting list (show-hunt sections) is not rendered for native binders."
     },
     {
       "file": "slabs.e2e.ts",

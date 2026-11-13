@@ -1,5 +1,5 @@
 import { test, expect, type Harness } from './fixtures';
-import { clearCardPriceCache } from './price-fixtures';
+import { clearCardPriceCache, requestedPriceCards } from './price-fixtures';
 
 // Synthetic catalog evidence: deliberately different headline and exact-finish quotes.
 async function mockEvidence(harness: Harness, source = 'cardmarket', withEvidence = true) {
@@ -45,34 +45,31 @@ async function mockEvidence(harness: Harness, source = 'cardmarket', withEvidenc
     await route.fulfill({
       json: {
         fx: { date: new Date().toISOString().slice(0, 10), eurToGbp: 0.8, usdToGbp: 0.7 },
-        prices: route
-          .request()
-          .postDataJSON()
-          .cards.map((card: { cardId: string; language: string }) => ({
-            ...card,
-            ...quote,
-            gbpAmount: 80,
-            marketGbpAmount: 80,
-            sourcePrices: [
-              {
-                ...quote.sourcePrices[0],
-                source,
-                label: 'Wrong headline finish',
-                marketGbpAmount: 80,
-                originalMarketAmount: 100,
-              },
-              // Preserve a synthetic USD conversion in cached snapshots as well as the response FX.
-              {
-                ...quote.sourcePrices[0],
-                source: 'tcgplayer',
-                label: 'Wrong headline USD',
-                marketGbpAmount: 80,
-                originalMarketAmount: 80 / 0.7,
-                originalCurrency: 'USD',
-              },
-            ],
-            finishPrices: [{ ...card, ...quote, finish: 'normal', variantKey: 'normal' }],
-          })),
+        prices: requestedPriceCards(route.request()).map((card) => ({
+          ...card,
+          ...quote,
+          gbpAmount: 80,
+          marketGbpAmount: 80,
+          sourcePrices: [
+            {
+              ...quote.sourcePrices[0],
+              source,
+              label: 'Wrong headline finish',
+              marketGbpAmount: 80,
+              originalMarketAmount: 100,
+            },
+            // Preserve a synthetic USD conversion in cached snapshots as well as the response FX.
+            {
+              ...quote.sourcePrices[0],
+              source: 'tcgplayer',
+              label: 'Wrong headline USD',
+              marketGbpAmount: 80,
+              originalMarketAmount: 80 / 0.7,
+              originalCurrency: 'USD',
+            },
+          ],
+          finishPrices: [{ ...card, ...quote, finish: 'normal', variantKey: 'normal' }],
+        })),
       },
     });
   });
@@ -107,7 +104,7 @@ test.describe('Cardmarket catalog in the deal checker', () => {
       harness,
     }) => {
       await harness.page.emulateMedia({ colorScheme: show ? 'dark' : 'light' });
-      await harness.page.route('**/app/api/settings', (route) =>
+      await harness.page.route('**/app/api/settings**', (route) =>
         route.fulfill({ json: { settings: { preferredCurrency: 'GBP', pricingRegion: 'UK' } } }),
       );
       await harness.page.reload();
@@ -201,8 +198,9 @@ test.describe('Cardmarket catalog in the deal checker', () => {
       await expect(sources).not.toContainText('Wrong headline finish');
       const comparisons = check.getByRole('region', { name: 'Price comparisons' });
       await expect(comparisons).not.toContainText('Cardmarket');
-      await expect(comparisons.getByRole('button', { name: 'Check prices', exact: true })).toBeEnabled();
-      const action = check.getByRole('button', { name: 'Add owned', exact: true });
+      // Native checks read saved comparisons only; there is no paid Check prices control.
+      await expect(comparisons.getByRole('button', { name: 'Check prices', exact: true })).toHaveCount(0);
+      const action = check.getByRole('textbox', { name: 'Asking price' });
       await harness.expectWithinSafeViewport(action);
       await harness.expectHittable(action);
       const before = await action.boundingBox();
@@ -228,7 +226,7 @@ test.describe('Cardmarket catalog in the deal checker', () => {
 
   for (const currency of ['EUR', 'USD']) {
     test(`catalog GBP attribution stays explicit with ${currency} display`, async ({ harness }) => {
-      await harness.page.route('**/app/api/settings', (route) =>
+      await harness.page.route('**/app/api/settings**', (route) =>
         route.fulfill({ json: { settings: { preferredCurrency: currency, pricingRegion: 'UK' } } }),
       );
       await mockEvidence(harness);
@@ -264,11 +262,11 @@ test.describe('Cardmarket catalog in the deal checker', () => {
       expect(box.y).toBeGreaterThanOrEqual(harness.insets.top);
       expect(box.y + box.height).toBeLessThanOrEqual(harness.viewport.height - 300);
     }
-    await expect(check.getByRole('button', { name: 'Add owned', exact: true })).toBeHidden();
+    await expect(check.getByRole('button', { name: 'Add to bundle', exact: true })).toBeHidden();
     await check.getByRole('button', { name: 'Done editing price' }).click();
     await setKeyboard(0);
     await expect(harness.page.locator('html')).not.toHaveAttribute('data-keyboard-open');
-    for (const name of ['Add owned', 'Want', 'Add to bundle']) {
+    for (const name of ['Add to bundle']) {
       const button = check.getByRole('button', { name, exact: true });
       await button.scrollIntoViewIfNeeded();
       await harness.expectWithinSafeViewport(button);
@@ -332,7 +330,7 @@ test.describe('deal scale geometry', () => {
         await expect(sources).toContainText('Original €10.00 EUR');
         await expect(sources).toBeInViewport({ ratio: 0.1 });
         const height = size?.height ?? harness.viewport.height;
-        for (const name of ['Add owned', 'Want', 'Add to bundle']) {
+        for (const name of ['Add to bundle']) {
           const button = check.getByRole('button', { name, exact: true });
           await button.scrollIntoViewIfNeeded();
           const box = (await button.boundingBox())!;

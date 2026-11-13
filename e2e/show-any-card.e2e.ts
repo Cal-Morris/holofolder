@@ -1,5 +1,5 @@
 import type { Locator } from '@playwright/test';
-import { test, expect, SUPABASE_URL, type Harness } from './fixtures';
+import { test, expect, seedCollection, type Harness, type SeedRow } from './fixtures';
 import { HUNT_COLLECTION, HUNT_PRICES } from './hunt-fixtures';
 import { mockCardPrices } from './price-fixtures';
 
@@ -38,18 +38,16 @@ const standings = (dialog: Locator) =>
   cardRows(dialog).evaluateAll((rows) => rows.map((row) => row.getAttribute('data-standing')));
 
 /** Owned Bulbasaur and Charmander, a want list across four Pokémon, and prices for cards nobody wants. */
-async function seed(harness: Harness, collection: unknown[] = HUNT_COLLECTION) {
+async function seed(harness: Harness, collection: SeedRow[] = HUNT_COLLECTION) {
   const { page } = harness;
-  await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-    route.request().method() === 'GET' ? route.fulfill({ json: collection }) : route.fallback(),
-  );
+  await seedCollection(page, collection);
   await mockCardPrices(page, {
     ...HUNT_PRICES,
-    'sv03.5-005': { market: 1.2, confidence: 'high' },
-    'sv03.5-007': { market: 0.8, confidence: 'high' },
+    'sv03.5-005': { finish: 'normal', market: 1.2, confidence: 'high' },
+    'sv03.5-007': { finish: 'normal', market: 0.8, confidence: 'high' },
   });
   await page.reload();
-  await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+  await expect(harness.slot(1)).toBeVisible();
 }
 
 async function openShowMode(harness: Harness) {
@@ -90,7 +88,7 @@ test.describe('Show mode: look up any card', () => {
     await charmeleon.click();
     const check = dialog.getByTestId('quick-card-check');
     await expect(check).toBeVisible();
-    await expect(check.getByTestId('quick-card-status')).toHaveText('Not in binder');
+    await expect(check.getByTestId('quick-card-status')).toHaveText('No exact saved match');
     await expect(check.getByTestId('quick-card-market-price')).toHaveText('£1.20');
     await expect(check).toContainText('Pay up to £1.32');
     const input = check.getByRole('textbox', { name: /price/i });
@@ -129,12 +127,12 @@ test.describe('Show mode: look up any card', () => {
     await dialog.getByRole('searchbox').fill('charmander');
     const cards = dialog.getByRole('region', { name: 'Cards' });
     await expect(cards).toContainText('on this device');
-    await expect(cardRows(dialog).first()).toHaveAccessibleName(/^Charmander, 151 004\/165, Wanted, £/);
+    await expect(cardRows(dialog).first()).toHaveAccessibleName(/^Charmander, 151 #004, Wanted ×1, £/);
     await expect(dialog.getByRole('button', { name: /^Charmander, Base Set .*46.*, Owned/ })).toBeVisible();
 
     // A printing whose price was never saved here says so, in the list and in the deal check.
     await dialog.getByRole('searchbox').fill('squirtle');
-    const unpriced = dialog.getByRole('button', { name: /^Squirtle, 30th Classic Collection .*, Wanted$/ });
+    const unpriced = dialog.getByRole('button', { name: /^Squirtle, 30th Classic Collection .*, Wanted ×1$/ });
     await expect(unpriced).toContainText('No price offline');
     await harness.expectNoHorizontalOverflow();
     await screenshot(harness, 'any-card-offline');

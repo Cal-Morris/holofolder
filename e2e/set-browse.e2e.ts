@@ -67,7 +67,7 @@ test.describe('Sets browse', () => {
     await series.getByRole('button', { name: /Fixture Origins/ }).click();
     await expect(page.getByRole('region', { name: 'Fixture Era sets' })).toHaveCount(0);
     await series.getByRole('button', { name: /All series/ }).click();
-    await page.getByRole('textbox', { name: 'Search sets by name or code' }).fill('dawn');
+    await page.getByRole('textbox', { name: 'Search sets by name, code or year' }).fill('dawn');
     await expect(page.getByRole('region', { name: /sets$/ }).getByRole('button')).toHaveText([/Fixture Dawn/]);
     await page.getByRole('button', { name: 'Fixture Dawn', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Remove Fixture Dawn', exact: true })).toBeVisible();

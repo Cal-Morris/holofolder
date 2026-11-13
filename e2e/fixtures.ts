@@ -374,7 +374,8 @@ export async function mockBackends(
       if (!haystack.includes(first)) return false;
       return !second || card.localId.replace(/^0+/, '') === second.replace(/^#/, '').split('/')[0].replace(/^0+/, '');
     });
-    return route.fulfill({ json: { cards } });
+    // Like the real route (lib/tcg-mirror.ts searchMirroredCards), each result carries the searched language.
+    return route.fulfill({ json: { cards: cards.map((card) => ({ ...card, language: 'en' })) } });
   });
   // Placeholder art for card images and Pokémon artwork (external hosts are otherwise blocked).
   await target.route(

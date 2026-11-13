@@ -1,4 +1,4 @@
-import { test, expect, SUPABASE_URL, E2E_USER, type Harness } from './fixtures';
+import { test, expect, E2E_USER, seedCollection, type Harness } from './fixtures';
 import { HUNT_COLLECTION, HUNT_PRICES } from './hunt-fixtures';
 import { mockCardPrices } from './price-fixtures';
 
@@ -14,12 +14,10 @@ const quickDialog = (harness: Harness) => harness.page.getByRole('dialog', { nam
 
 async function seedHuntList(harness: Harness) {
   const { page } = harness;
-  await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-    route.request().method() === 'GET' ? route.fulfill({ json: HUNT_COLLECTION }) : route.fallback(),
-  );
+  await seedCollection(page, HUNT_COLLECTION);
   await mockCardPrices(page, HUNT_PRICES);
   await page.reload();
-  await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+  await expect(harness.slot(1)).toBeVisible();
 }
 
 async function openShowMode(harness: Harness) {
@@ -94,9 +92,7 @@ test.describe('Show mode finder', () => {
     harness,
   }) => {
     const { page } = harness;
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-      route.request().method() === 'GET' ? route.fulfill({ json: HUNT_COLLECTION }) : route.fallback(),
-    );
+    await seedCollection(page, HUNT_COLLECTION);
     // Synthetic trends: Charizard −40% vs 30d, Bulbasaur 151 −20% vs 7d, Phantasmal Bulbasaur −5% (under the drop rule).
     await mockCardPrices(page, {
       ...HUNT_PRICES,
@@ -105,7 +101,7 @@ test.describe('Show mode finder', () => {
       'me02-001': { ...HUNT_PRICES['me02-001'], trend: { Trend: 3, '7d': 3.15 } },
     });
     await page.reload();
-    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expect(harness.slot(1)).toBeVisible();
     const dialog = await openShowMode(harness);
     const pickups = dialog.getByRole('region', { name: 'Good pickups' });
     await pickups.locator('summary').click();
@@ -137,9 +133,7 @@ test.describe('Show mode finder', () => {
     harness,
   }) => {
     const { page } = harness;
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-      route.request().method() === 'GET' ? route.fulfill({ json: HUNT_COLLECTION }) : route.fallback(),
-    );
+    await seedCollection(page, HUNT_COLLECTION);
     // Synthetic trends: Charmander −50% vs 7d, Charizard −40% vs 30d, Bulbasaur 151 −20%, Phantasmal Bulbasaur +50%.
     await mockCardPrices(page, {
       ...HUNT_PRICES,
@@ -149,7 +143,7 @@ test.describe('Show mode finder', () => {
       'me02-001': { ...HUNT_PRICES['me02-001'], trend: { Trend: 4.5, '7d': 3 } },
     });
     await page.reload();
-    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expect(harness.slot(1)).toBeVisible();
     const dialog = await openShowMode(harness);
     const hunt = dialog.getByTestId('show-hunt');
     const sort = hunt.getByRole('combobox', { name: 'Sort' });
@@ -328,12 +322,10 @@ test.describe('Show mode finder', () => {
     const prices = Object.fromEntries(
       bigWanted.map((card, i) => [card.card_id, { market: 20 - i * 0.5, confidence: 'high' as const }]),
     );
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-      route.request().method() === 'GET' ? route.fulfill({ json: collection }) : route.fallback(),
-    );
+    await seedCollection(page, collection);
     await mockCardPrices(page, prices);
     await page.reload();
-    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expect(harness.slot(1)).toBeVisible();
 
     const dialog = await openShowMode(harness);
     const comps = dialog.getByTestId('show-check-comps');
@@ -399,11 +391,7 @@ test.describe('Show mode finder', () => {
       status: finished ? 'completed' : 'running',
       progress: { total: 65, done: finished ? 65 : 4, fresh: 0, checked: finished ? 65 : 4, failed: 0, stopped: {} },
     });
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-      route.request().method() === 'GET'
-        ? route.fulfill({ json: [{ ...HUNT_COLLECTION[0], wanted_cards: wanted }] })
-        : route.fallback(),
-    );
+    await seedCollection(page, [{ ...HUNT_COLLECTION[0], wanted_cards: wanted }]);
     await mockCardPrices(page, HUNT_PRICES);
     await page.route('**/app/api/comparison-jobs**', async (route) => {
       if (route.request().method() === 'GET') return route.fulfill({ json: { job: job() } });
@@ -425,7 +413,7 @@ test.describe('Show mode finder', () => {
       });
     });
     await page.reload();
-    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expect(harness.slot(1)).toBeVisible();
     let dialog = await openShowMode(harness);
     await dialog.getByRole('combobox', { name: 'Era' }).selectOption({ label: 'Mega Evolution (1)' });
     const checks = dialog.getByTestId('collection-price-check');
@@ -443,7 +431,7 @@ test.describe('Show mode finder', () => {
     await dialog.getByRole('button', { name: 'Close quick mode' }).click();
     finished = true;
     await page.reload();
-    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expect(harness.slot(1)).toBeVisible();
     dialog = await openShowMode(harness);
     await expect(dialog.getByTestId('collection-price-check').getByRole('status')).toContainText(
       'Finished. Checks saved on the server',

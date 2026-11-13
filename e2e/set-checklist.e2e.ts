@@ -31,7 +31,7 @@ async function mockSet(page: import('@playwright/test').Page, data: TCGSetSlotsR
 
 async function selectSet(harness: import('./fixtures').Harness) {
   await harness.dock().getByRole('button', { name: 'Browse', exact: true }).click();
-  await harness.page.getByRole('textbox', { name: 'Search sets by name or code' }).fill('fixture');
+  await harness.page.getByRole('textbox', { name: 'Search sets by name, code or year' }).fill('fixture');
   await harness.page
     .getByRole('button', { name: /Fixture Set/ })
     .first()
