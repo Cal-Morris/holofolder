@@ -2,6 +2,8 @@ import { inferDexIdsFromCardName } from './card-dex-inference';
 import { normalizeCatalogName, readCatalogMetadata } from './card-catalog';
 import type { MirrorCardRow, MirrorSetRow, MirrorCardExternalSourceRow } from './card-db-sync';
 
+const NAME_MATCHED_SETS = new Set(['cel25c', 'me55c']);
+
 export type CatalogProduct = {
   productId: number;
   groupId: number;
@@ -107,6 +109,7 @@ export function buildCatalogSupplement(input: {
     raw_json: { source: 'pokemon_tcg' },
   };
   const legacyById = new Map(input.legacyCards.map((c) => [c.id, c]));
+  const legacySetsById = new Map(input.legacySets.map((s) => [s.id, s]));
   const products = new Map(input.products.map((p) => [String(p.productId), p]));
   const dexLinks: Array<{ card_id: string; dex_id: number }> = [];
   const unresolved: Array<{ source: string; id: string; reason: string }> = [];
@@ -225,7 +228,7 @@ export function buildCatalogSupplement(input: {
     const sid = setAliases.get(source.sourceSetId) ?? source.sourceSetId;
     const name = source.name;
     let matches = cards.has(source.id) ? [cards.get(source.id)!] : find(sid, source.number, name);
-    if (!matches.length && ['cel25c', 'me55c'].includes(source.sourceSetId))
+    if (!matches.length && NAME_MATCHED_SETS.has(source.sourceSetId))
       matches = [...cards.values()].filter(
         (c) => c.set_id === sid && normalizeCatalogName(c.name_en ?? '') === normalizeCatalogName(name),
       );
@@ -243,17 +246,19 @@ export function buildCatalogSupplement(input: {
     }
     const inferred = species(name);
     const given = source.nationalPokedexNumbers ?? [];
+    const inferredIds = new Set(inferred),
+      givenIds = new Set(given);
     if (
       !inferred.length ||
       !given.length ||
-      inferred.some((id) => !given.includes(id)) ||
-      given.some((id) => !inferred.includes(id))
+      inferred.some((id) => !givenIds.has(id)) ||
+      given.some((id) => !inferredIds.has(id))
     ) {
       unresolved.push({ source: 'pokemon_tcg', id: source.id, reason: 'Species identity needs review' });
       continue;
     }
     let set = sets.get(sid);
-    const sourceSet = input.legacySets.find((s) => s.id === source.sourceSetId);
+    const sourceSet = legacySetsById.get(source.sourceSetId);
     if (!set && sourceSet?.name) {
       const date = sourceSet.releaseDate?.replaceAll('/', '-');
       set = {
@@ -295,7 +300,8 @@ export function buildCatalogSupplement(input: {
     attachImage(row, pid);
     for (const dex_id of inferred) dexLinks.push({ card_id: row.id, dex_id });
   }
-  for (const base of [...cards.values()]) {
+  // Snapshot first: the loop adds printing rows to `cards`.
+  for (const base of Array.from(cards.values())) {
     if (
       readCatalogMetadata(base.external_ids_json).canonicalId ||
       readCatalogMetadata(base.external_ids_json).variantId
@@ -303,6 +309,7 @@ export function buildCatalogSupplement(input: {
       continue;
     const tcgdexCardId = typeof base.raw_json.id === 'string' ? base.raw_json.id : base.id;
     const standardVariants = variants(base).filter((v) => v.size !== 'jumbo');
+    // oxlint-disable-next-line react-doctor/js-index-maps -- the first unstamped variant, in catalog order
     const baseVariant = standardVariants.find((v) => !v.stamp?.length) ?? standardVariants[0];
     const stampKey = (variant: Variant | undefined) => (variant?.stamp ?? []).toSorted().join('|');
     const seenStamps = new Set([stampKey(baseVariant)]);
@@ -328,7 +335,9 @@ export function buildCatalogSupplement(input: {
         (printingCards.get(`${tcgdexCardId}:${printingLabel}`) ?? printingCards.get(`${base.id}:${printingLabel}`))
           ?.id ?? `${base.id}~${pid}`;
       // Product identity prevents the same stamped printing being imported through both providers.
-      if (productCards.has(pid) && ![base.id, id].includes(productCards.get(pid)!.id)) continue;
+      const productOwner = productCards.get(pid);
+      if (productOwner && productOwner.id !== base.id && productOwner.id !== id) continue;
+      const stamps = new Set(variant.stamp);
       const name = `${base.name_en} (${printingLabel})`;
       const row: MirrorCardRow = {
         ...base,
@@ -341,8 +350,8 @@ export function buildCatalogSupplement(input: {
           holo: variant.type === 'holo',
           normal: variant.type === 'normal',
           reverse: variant.type === 'reverse',
-          firstEdition: variant.stamp.includes('1st-edition'),
-          wPromo: variant.stamp.includes('w-Promo'),
+          firstEdition: stamps.has('1st-edition'),
+          wPromo: stamps.has('w-Promo'),
         },
         external_ids_json: {
           catalog: {

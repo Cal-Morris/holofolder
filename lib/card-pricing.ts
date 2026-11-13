@@ -190,6 +190,7 @@ export const CARD_PRICE_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 export const CARD_PRICE_MISSING_CACHE_TTL_MS = 5 * 60 * 1000;
 export const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ['en', 'fr', 'de', 'es', 'it', 'pt-br', 'ja', 'ko'];
 const CARDMARKET_FIRST_LANGUAGES = new Set<CardLanguage>(['fr', 'de', 'es', 'it', 'pt-br']);
+const STANDARD_VARIANT_KEYS = new Set<string>(['normal', 'unlimited', 'holo', 'holofoil', 'unlimited-holofoil']);
 const TCGPLAYER_VARIANT_PRIORITY = [
   'normal',
   'reverse',
@@ -307,14 +308,12 @@ export async function loadSavedCardPrices(
       return (data ?? []) as unknown as CardPriceRow[];
     }),
   );
-  return pages
-    .flat()
-    .filter((row) => keys.has(getCardPriceKey(row.card_id, row.language)))
-    .map((row) => {
-      const snapshot = rowToSnapshot(row);
-      if (summary) delete snapshot.historyPoints;
-      return snapshot;
-    });
+  return pages.flat().flatMap((row) => {
+    if (!keys.has(getCardPriceKey(row.card_id, row.language))) return [];
+    const snapshot = rowToSnapshot(row);
+    if (summary) delete snapshot.historyPoints;
+    return [snapshot];
+  });
 }
 
 export async function refreshCardPriceLookups(
@@ -445,6 +444,7 @@ async function loadCardPriceMetadata(supabase: ReturnType<typeof createAdminClie
   for (const row of (data ?? []) as CardExternalIdsRow[]) {
     const externalIds = readRecord(row.external_ids_json) ?? {};
     const catalog = readCatalogMetadata(externalIds);
+    // oxlint-disable-next-line react-doctor/js-index-maps -- each row's own short list of sources
     const reviewedProduct = row.tcg_card_external_sources?.find(
       (source) => source.source === 'tcgcsv-pricing' && /^[1-9]\d*$/.test(source.source_card_id),
     )?.source_card_id;
@@ -716,13 +716,14 @@ async function mapWithConcurrency<TInput, TOutput>(
   concurrency: number,
   worker: (item: TInput) => Promise<TOutput>,
 ) {
-  const results = new Array<TOutput>(items.length);
+  const results: TOutput[] = Array.from({ length: items.length });
   let index = 0;
 
   const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
     while (index < items.length) {
       const currentIndex = index;
       index += 1;
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- each runner works through the shared queue one item at a time
       results[currentIndex] = await worker(items[currentIndex]);
     }
   });
@@ -745,6 +746,7 @@ export async function fetchCardPriceSnapshot(
 
   for (const upstreamId of upstreamIds) {
     try {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- tries each id in turn and stops at the first priced answer
       const response = await fetch(
         `https://api.tcgdex.net/v2/${encodeURIComponent(language)}/cards/${encodeURIComponent(upstreamId)}`,
         {
@@ -1242,6 +1244,7 @@ export function pickPokePulseMarketDataRecord(payload: unknown, productId: strin
   ];
 
   for (const array of arrays) {
+    // oxlint-disable-next-line react-doctor/js-index-maps -- the first match across a few arrays, in priority order
     const record = array?.map((item) => readRecord(item)).find((item) => readString(item?.productId) === productId);
     if (record) return record;
   }
@@ -1872,12 +1875,14 @@ function buildFinishPrices(
   for (const variantKey of TCGPLAYER_VARIANT_PRIORITY) {
     const tcgplayer = pickTcgplayerPrice(cardId, language, readRecord(pricing.tcgplayer), fxRates, [variantKey]);
     if (!tcgplayer) continue;
+    // oxlint-disable-next-line react-doctor/js-set-map-lookups -- substring check on a string
+    const holoKey = variantKey.includes('holo');
     const finish: PricedCardFinish = variantKey.toLowerCase().includes('reverse')
       ? 'reverse_holo'
-      : variantKey.includes('holo')
+      : holoKey
         ? 'holo'
         : 'normal';
-    const isStandard = ['normal', 'unlimited', 'holo', 'holofoil', 'unlimited-holofoil'].includes(variantKey);
+    const isStandard = STANDARD_VARIANT_KEYS.has(variantKey);
     const sameFinishMarket = isStandard && finish === baseFinish ? cardmarket : null;
     const preferred = CARDMARKET_FIRST_LANGUAGES.has(language) ? (sameFinishMarket ?? tcgplayer) : tcgplayer;
     const combined = combineSourceEvidence(preferred, [tcgplayer, sameFinishMarket]);
@@ -1889,7 +1894,10 @@ function buildFinishPrices(
       finish,
       variantKey,
       updatedAt: Number.isFinite(Date.parse(preferred.updatedAt ?? ''))
-        ? (timestamps.sort((left, right) => Date.parse(left) - Date.parse(right))[0] ?? null)
+        ? timestamps.reduce<string | null>(
+            (oldest, date) => (oldest === null || Date.parse(date) < Date.parse(oldest) ? date : oldest),
+            null,
+          )
         : null,
       trendPoints: sameFinishMarket?.updatedAt ? combined.trendPoints : [],
     });
