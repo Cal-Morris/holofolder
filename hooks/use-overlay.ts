@@ -250,9 +250,12 @@ export function useOverlay(open: boolean, onClose: () => void, options: UseOverl
       if (event.key === 'Tab' && liveOptionsRef.current.trapFocus) {
         const container = liveOptionsRef.current.containerRef?.current;
         if (!container) return;
-        const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-          (element) => element.offsetParent !== null || element === document.activeElement,
-        );
+        // A toast's action (e.g. Undo) floats above every overlay, so Tab reaches it too.
+        const toastAction = document.querySelector<HTMLElement>('[data-toaster] [data-toast-action]');
+        const focusable = [
+          ...container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+          ...(toastAction ? [toastAction] : []),
+        ].filter((element) => element.offsetParent !== null || element === document.activeElement);
         if (focusable.length === 0) {
           event.preventDefault();
           container.focus();
@@ -261,7 +264,13 @@ export function useOverlay(open: boolean, onClose: () => void, options: UseOverl
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
         const active = document.activeElement as HTMLElement | null;
-        if (event.shiftKey && (active === first || !container.contains(active))) {
+        if (toastAction && focusable.includes(toastAction)) {
+          // Cycle by hand so the step out to the toast and back in doesn't follow DOM order.
+          event.preventDefault();
+          const index = active ? focusable.indexOf(active) : -1;
+          const step = event.shiftKey ? -1 : 1;
+          (index === -1 ? (event.shiftKey ? last : first) : focusable.at((index + step) % focusable.length))?.focus();
+        } else if (event.shiftKey && (active === first || !container.contains(active))) {
           event.preventDefault();
           last.focus();
         } else if (!event.shiftKey && (active === last || !container.contains(active))) {

@@ -377,7 +377,7 @@ function BundleBought({
         currency,
         bundleId,
       })),
-      message: `Bought ${entries.length} card${entries.length === 1 ? '' : 's'} for ${formatMoney(total, currency)}`,
+      message: `Bought ${entries.length} card${entries.length === 1 ? '' : 's'}`,
     };
   };
   if (!tally) return null;
@@ -386,7 +386,7 @@ function BundleBought({
       tally={tally}
       label="Bought bundle"
       disabled={entries.length === 0 || !total}
-      className={`bg-primary text-primary-foreground flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-bold disabled:opacity-45 ${DEAL_HIDE_WHILE_TYPING}`}
+      className={`holo-action flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-bold disabled:opacity-45 ${DEAL_HIDE_WHILE_TYPING}`}
       purchases={purchases}
       onLogged={() => {
         resetInput('');

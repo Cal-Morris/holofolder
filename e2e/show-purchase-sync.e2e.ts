@@ -10,6 +10,7 @@ async function screenshot(harness: Harness, name: string) {
     await harness.page.screenshot({ path: `${SCREENS}/quick-${name}.png` });
 }
 
+const toaster = (harness: Harness) => harness.page.locator('[data-toaster]');
 const banner = (harness: Harness) => harness.page.getByRole('region', { name: 'Show mode' });
 const quickDialog = (harness: Harness) => harness.page.getByRole('dialog', { name: 'Quick mode' });
 
@@ -134,9 +135,12 @@ test.describe('show purchases on the account', () => {
     await input.press('Enter');
     await harness.expectMinTapTarget(bought, 48);
     await bought.click();
-    await expect(check.getByRole('status').filter({ hasText: 'Bought Charizard ex for £45.00' })).toContainText(
-      'Added to Page 1 · Pocket 6',
-    );
+    // The confirmation is the app's toast above the dock, with Undo, not a strip in the sheet.
+    const toast = toaster(harness);
+    await expect(toast).toHaveText(/^Bought Charizard ex · Page 1 · Pocket 6\s*Undo$/);
+    const undo = toast.getByRole('button', { name: 'Undo', exact: true });
+    await harness.expectMinTapTarget(undo);
+    await harness.expectHittable(undo);
     await expect(check.getByTestId('quick-card-status')).toHaveText('Owned ×1');
     await expect(banner(harness)).toContainText('1 bought · £45.00');
     await expect.poll(() => sends.length).toBe(1);
@@ -151,8 +155,13 @@ test.describe('show purchases on the account', () => {
     });
     await screenshot(harness, 'show-bought');
 
+    // Undo is keyboard reachable from inside the dialog's focus trap.
+    for (let presses = 0; presses < 40 && !(await undo.evaluate((el) => el === document.activeElement)); presses++)
+      await page.keyboard.press('Tab');
+    await expect(undo).toBeFocused();
     // Undo removes the new copy, puts the want back in its pocket and takes the purchase off the tally.
-    await check.getByRole('button', { name: 'Undo', exact: true }).click();
+    await page.keyboard.press('Enter');
+    await expect(toast).toBeEmpty();
     await expect(check.getByTestId('quick-card-status')).toHaveText('Wanted ×1');
     await expect(banner(harness)).not.toContainText('bought');
     await expect.poll(() => account.deletes).toEqual([account.posts[0].body[0].client_id]);
@@ -186,9 +195,7 @@ test.describe('show purchases on the account', () => {
     await input.fill('2');
     await input.press('Enter');
     await check.getByRole('button', { name: 'Bought', exact: true }).click();
-    await expect(check.getByRole('status').filter({ hasText: 'Bought Squirtle for £2.00' })).toContainText(
-      'Added to your inventory',
-    );
+    await expect(toaster(harness)).toContainText('Bought Squirtle · in your inventory');
     // The copy is unassigned, so it isn't counted in this binder's Owned / Wanted label.
     await expect(check.getByTestId('quick-card-status')).toHaveText('No exact saved match');
     await expect(banner(harness)).toContainText('1 bought · £2.00');
@@ -234,9 +241,8 @@ test.describe('show purchases on the account', () => {
     await input.press('Enter');
     await bundle.getByRole('button', { name: 'Bought bundle', exact: true }).click();
     // Neither printing is wanted here, so both copies go to the inventory, as one edit.
-    await expect(bundle.getByRole('status').filter({ hasText: 'Bought 2 cards for £20.00' })).toContainText(
-      'Added to your inventory',
-    );
+    await expect(toaster(harness)).toContainText('Bought 2 cards · in your inventory');
+    await harness.expectNoHorizontalOverflow();
     await expect.poll(() => sends.length).toBe(1);
     await expect(banner(harness)).toContainText('2 bought · £20.00');
     await screenshot(harness, 'show-bought-bundle');

@@ -16,10 +16,11 @@ import type { BoughtEntry, ShowTally } from '@/components/show-bought';
 
 type Acquire = NonNullable<NativeConsumerBinding['acquire']>;
 
-/** "Added to Page 1 · Pocket 2 and your inventory". */
+/** Where the cards went, short enough for a toast: "Page 1 · Pocket 2", "in your inventory". */
 export function describeBoughtPlacements(placements: readonly BoughtPlacement[]) {
   const labels = [...new Set(placements.map((p) => p.label))];
-  return `Added to ${labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}` : labels[0]}`;
+  if (labels.length > 1) return `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`;
+  return labels[0] === 'your inventory' ? 'in your inventory' : labels[0];
 }
 
 function admitted(acquire: Acquire | undefined) {

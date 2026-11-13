@@ -595,7 +595,7 @@ export default function QuickCardCheck({
                 tally={tally}
                 label="Bought"
                 disabled={!askingPrice}
-                className={`${bigButton} bg-primary text-primary-foreground`}
+                className={`${bigButton} holo-action`}
                 purchases={() =>
                   askingPrice
                     ? {
@@ -611,7 +611,7 @@ export default function QuickCardCheck({
                             currency: moneyCurrency,
                           },
                         ],
-                        message: `Bought ${card.name} for ${money(askingPrice)}`,
+                        message: `Bought ${card.name}`,
                       }
                     : null
                 }
