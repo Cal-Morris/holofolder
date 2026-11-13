@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft, ArrowRight, Pause, Play } from 'lucide-react';
 import { FEATURED_CARDS, getFeaturedCardImageSrcSet, getFeaturedCardImageUrl } from '@/lib/featured-cards';
 import styles from '@/components/home-page.module.css';
@@ -9,29 +9,54 @@ const cards = FEATURED_CARDS.slice(0, 6);
 /** Matches `.fanCard` widths in home-page.module.css (phone, tablet, desktop). */
 const FAN_CARD_SIZES = '(max-width: 650px) 160px, (max-width: 900px) 185px, 250px';
 
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+
+function subscribeReducedMotion(onChange: () => void) {
+  const motion = window.matchMedia(REDUCED_MOTION);
+  motion.addEventListener('change', onChange);
+  return () => motion.removeEventListener('change', onChange);
+}
+
+function subscribeVisibility(onChange: () => void) {
+  document.addEventListener('visibilitychange', onChange);
+  return () => document.removeEventListener('visibilitychange', onChange);
+}
+
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 export function MarketingCardFan() {
   const stage = useRef<HTMLDivElement>(null);
   const fan = useRef<HTMLDivElement>(null);
   const deck = useRef<HTMLDivElement>(null);
-  const cardElements = useRef(new Map<string, HTMLDivElement>());
+  const [cardElements] = useState(() => new Map<string, HTMLDivElement>());
   const animations = useRef<Animation[]>([]);
   const currentIndex = useRef(0);
   const pose = useRef({ x: 0, y: 0, gather: 0 });
   const shuffle = useRef<{ transforms: Map<string, string>; lifted: string } | null>(null);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- the autoplay effect reads it and must re-run when it changes
   const [hovered, setHovered] = useState(false);
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- the autoplay effect reads it and must re-run when it changes
   const [focused, setFocused] = useState(false);
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- the autoplay effect reads it and must re-run when it changes
   const [visible, setVisible] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(true);
-  const [hidden, setHidden] = useState(false);
+  const reducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia(REDUCED_MOTION).matches,
+    () => true,
+  );
+  const hidden = useSyncExternalStore(
+    subscribeVisibility,
+    () => document.hidden,
+    () => false,
+  );
 
   const move = useCallback(
     (direction: number, animate = true) => {
       const previous = currentIndex.current;
       const next = (previous + direction + cards.length) % cards.length;
       const transforms = new Map(
-        Array.from(cardElements.current, ([id, element]) => [id, getComputedStyle(element).transform]),
+        Array.from(cardElements, ([id, element]) => [id, getComputedStyle(element).transform]),
       );
       animations.current.forEach((animation) => animation.cancel());
       animations.current = [];
@@ -40,14 +65,14 @@ export function MarketingCardFan() {
       currentIndex.current = next;
       setIndex(next);
     },
-    [reducedMotion, paused],
+    [cardElements, reducedMotion, paused],
   );
 
   useLayoutEffect(() => {
     const pending = shuffle.current;
     if (!pending) return;
     shuffle.current = null;
-    for (const [id, element] of cardElements.current) {
+    for (const [id, element] of cardElements) {
       const target = getComputedStyle(element);
       const from = pending.transforms.get(id)!;
       const to = target.transform;
@@ -71,22 +96,14 @@ export function MarketingCardFan() {
         }),
       );
     }
-  }, [index]);
+  }, [cardElements, index]);
 
   useEffect(() => {
-    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const updateMotion = () => setReducedMotion(motion.matches);
-    const updateVisibility = () => setHidden(document.hidden);
-    updateMotion();
-    updateVisibility();
-    motion.addEventListener('change', updateMotion);
-    document.addEventListener('visibilitychange', updateVisibility);
     const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting));
+    // oxlint-disable-next-line react-doctor/no-initialize-state -- visible is set from IntersectionObserver callbacks, not an initial value
     if (stage.current) observer.observe(stage.current);
     return () => {
       observer.disconnect();
-      motion.removeEventListener('change', updateMotion);
-      document.removeEventListener('visibilitychange', updateVisibility);
       animations.current.forEach((animation) => animation.cancel());
     };
   }, []);
@@ -169,6 +186,7 @@ export function MarketingCardFan() {
 
   const current = cards[index];
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- hover and focus only pause the autoplay (WCAG 2.2.2); the region itself is not interactive
     <div
       ref={stage}
       className={styles.cardShowcase}
@@ -189,8 +207,8 @@ export function MarketingCardFan() {
               <div
                 key={card.id}
                 ref={(element) => {
-                  if (element) cardElements.current.set(card.id, element);
-                  else cardElements.current.delete(card.id);
+                  if (element) cardElements.set(card.id, element);
+                  else cardElements.delete(card.id);
                 }}
                 className={`trading-card ${styles.cardFace} ${styles.fanCard}`}
                 data-card-id={card.id}

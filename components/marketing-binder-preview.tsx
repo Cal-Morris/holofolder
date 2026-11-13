@@ -39,6 +39,7 @@ const views: { label: string; view: BinderView }[] = [
   { label: 'Spine', view: 'spine' },
 ];
 
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 export function MarketingBinderPreview() {
   const host = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
@@ -56,6 +57,7 @@ export function MarketingBinderPreview() {
       },
       { rootMargin: '200px' },
     );
+    // oxlint-disable-next-line react-doctor/no-initialize-state -- ready is set from the IntersectionObserver callback, not an initial value
     observer.observe(host.current!);
     return () => observer.disconnect();
   }, []);
