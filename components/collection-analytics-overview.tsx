@@ -6,7 +6,8 @@ import { ChevronRight, Layers3 } from 'lucide-react';
 import { buildAnalyticsBreakdown, type buildCollectionAnalytics, type AnalyticsCard } from '@/lib/collection-analytics';
 import { toCardImageSrc } from '@/lib/card-image-url';
 
-const money = (amount: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount);
+const moneyFormat = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
+const money = (amount: number) => moneyFormat.format(amount);
 const tabs = ['Highest value', 'Unpriced', 'Wanted'] as const;
 
 export function CollectionAnalyticsOverview({
@@ -144,6 +145,7 @@ export function CollectionAnalyticsOverview({
             <ul className="mt-4 space-y-1">
               {(showAllSets ? breakdown.sets : breakdown.sets.slice(0, 6)).map((set) => (
                 <li key={set.name}>
+                  {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- named by the set name and count rendered inside it */}
                   <button
                     type="button"
                     aria-pressed={setName === set.name}

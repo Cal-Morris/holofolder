@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from 'lucide-react';
+// oxlint-disable-next-line react-doctor/prefer-dynamic-import -- this whole view is already loaded on demand (components/binder/lazy-views.tsx)
 import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { collectionFingerprint } from '@/lib/collection/sync';
 import { buildCollectionCsv, collectionCsvFilename } from '@/lib/collection-export';
@@ -33,7 +34,8 @@ interface Props {
   isLoadingPrices?: boolean;
   onBrowsePokemon: (pokemon: { id: number; name: string }) => void;
 }
-const money = (amount: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount);
+const moneyFormat = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
+const money = (amount: number) => moneyFormat.format(amount);
 const panel = 'min-w-0 border-t border-border/60 py-6';
 const button = 'min-h-9 rounded-xl border border-border/60 px-3 py-2 text-sm hover:bg-muted';
 const emptyHistory = normalizeAnalyticsHistory(null);
@@ -74,6 +76,7 @@ function AnalyticsContent({
   isOnline,
   isLoadingPrices = false,
   onBrowsePokemon,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of the history panel; one reducer would not read better
 }: Props) {
   const [scope, setScope] = useState<BinderScope>(() => readBinderScope('analytics'));
   const isAllBinders = scope === 'all' && allBindersCollection !== null;
@@ -88,7 +91,9 @@ function AnalyticsContent({
   const [history, setHistory] = useState(emptyHistory);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- `retry` re-runs the history fetch effect
   const [retry, setRetry] = useState(0);
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- `cursor` pages the history fetch effect
   const [cursor, setCursor] = useState<string | null>(null);
   const [seriesKey, setSeriesKey] = useState('');
   const revision = useMemo(() => collection.map(collectionFingerprint).join('|'), [collection]);
@@ -103,6 +108,7 @@ function AnalyticsContent({
   }, [revision]);
   const cardId = selected?.card.card_id;
   const language = selected?.card.card_language ?? 'en';
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state, react-doctor/no-effect-event-handler, react-doctor/no-fetch-in-effect -- the history follows the selected card, cursor and retry; aborted on change, and setters run after the fetch
   useEffect(() => {
     if (!ownerId || readOnly || !isOnline) return;
     const controller = new AbortController();
@@ -484,13 +490,15 @@ function AnalyticsContent({
         <details className="mt-3 text-sm">
           <summary className="min-h-9 cursor-pointer py-2">Legacy saved dates</summary>
           <ul className="max-h-52 overflow-y-auto text-sm">
-            {collection
-              .filter((item) => Number.isFinite(Date.parse(item.collected_at)))
-              .map((item) => (
-                <li key={item.id} className="py-2">
-                  {item.pokemon_name} · Legacy saved {new Date(item.collected_at).toLocaleDateString('en-GB')}
-                </li>
-              ))}
+            {collection.flatMap((item) =>
+              Number.isFinite(Date.parse(item.collected_at))
+                ? [
+                    <li key={item.id} className="py-2">
+                      {item.pokemon_name} · Legacy saved {new Date(item.collected_at).toLocaleDateString('en-GB')}
+                    </li>,
+                  ]
+                : [],
+            )}
           </ul>
         </details>
       </section>
