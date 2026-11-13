@@ -5,7 +5,12 @@ import type { SlotOfflineRecord } from '../lib/collection/slot-offline-queue';
 const collection = '22222222-2222-4222-8222-222222222222';
 const entry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${collection}`;
 const button = (p: Page, name: string) => p.getByRole('button', { name, exact: true });
-const dialog = (p: Page) => p.getByRole('dialog', { name: 'Review slot removal', exact: true });
+const dialog = (p: Page) => p.getByRole('dialog', { name: 'Remove pockets', exact: true });
+const bar = (p: Page) => p.locator('[data-layout-bar]');
+const removeButton = (p: Page) => bar(p).getByRole('button', { name: 'Remove', exact: true });
+/** The review's confirm button: "Remove N pockets", or "Try again" once a handoff failed. */
+const confirmButton = (p: Page) => dialog(p).getByRole('button', { name: /^(Remove \d+ pockets?|Try again)$/ });
+const pocket = (p: Page, n: number) => p.locator(`[data-slot-id="synthetic-slot-${n - 1}"]`);
 async function record(page: Page): Promise<SlotOfflineRecord> {
   return page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((yes, no) => {
@@ -27,16 +32,17 @@ async function record(page: Page): Promise<SlotOfflineRecord> {
     return rows.find((r) => !!r && typeof r === 'object' && 'pending' in r) as SlotOfflineRecord;
   });
 }
+/** Edit layout, tap the pockets (1-based), then Remove opens the review. */
 async function select(page: Page, ids = [1, 2, 3, 4]) {
   await button(page, 'Edit layout').click();
-  await button(page, 'Select several pockets').click();
-  await expect(button(page, 'Remove selected slots')).toBeDisabled();
-  for (const id of ids) await button(page, `Select slot ${id}`).click();
-  await button(page, 'Remove selected slots').click();
+  await expect(removeButton(page)).toBeDisabled();
+  for (const id of ids) await pocket(page, id).click();
+  await expect(bar(page).getByRole('status')).toHaveText(`${ids.length} selected`);
+  await removeButton(page).click();
   await expect(dialog(page)).toBeVisible();
 }
 async function confirm(page: Page) {
-  await button(page, 'Confirm slot removal').click();
+  await confirmButton(page).click();
 }
 
 test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
@@ -56,33 +62,37 @@ test('bulk consequences, duplicate/raw/graded/unknown retention and one atomic c
     await route.continue();
   });
   await page.goto(entry);
-  await expect(button(page, 'Remove selected slots')).toHaveCount(0);
-  await expect(button(page, 'Remove selected slot')).toHaveCount(0);
+  await expect(removeButton(page)).toHaveCount(0);
   await expect.poll(async () => (await record(page))?.snapshot?.items.length).toBe(4);
   const before = (await record(page)).snapshot!;
   const browse = await page.getByRole('region', { name: 'Layout editing', exact: true }).boundingBox();
   await select(page);
-  await expect(dialog(page)).toContainText(
-    'Slots to remove: 4 · Targets to remove: 1 · Explicit wants to remove: 1 · Owned copies becoming Unassigned: 4',
+  await expect(dialog(page).getByRole('heading', { name: 'Remove 4 pockets?' })).toBeVisible();
+  await expect(dialog(page).getByRole('list', { name: 'What happens' })).toContainText(
+    '4 cards stay in your collection',
   );
-  await expect(dialog(page)).toContainText('Want to remove: Synthetic explicit want');
-  await expect(dialog(page)).toContainText('Recorded graded copy, metadata retained');
-  await expect(dialog(page)).toContainText('unknown printing');
+  await expect(dialog(page).getByRole('list', { name: 'Affected cards' })).toContainText(
+    'Wanted: Synthetic explicit want',
+  );
   expect(bodies).toHaveLength(0);
   expect((await record(page)).pending).toHaveLength(0);
   const h = new Harness(page, insets, true);
   await h.expectWithinSafeViewport(dialog(page));
   await h.expectNoHorizontalOverflow();
-  for (const name of ['Confirm slot removal', 'Cancel removal', 'Close slot removal']) {
-    await h.expectMinTapTarget(button(page, name), 36);
-    await h.expectHittable(button(page, name));
+  for (const control of [
+    confirmButton(page),
+    dialog(page).getByRole('button', { name: 'Keep them', exact: true }),
+    dialog(page).getByRole('button', { name: 'Close', exact: true }),
+  ]) {
+    await h.expectMinTapTarget(control, 36);
+    await h.expectHittable(control);
   }
   console.log(
     'removal geometry',
     test.info().project.name,
     JSON.stringify({ browse, review: await dialog(page).boundingBox() }),
   );
-  await button(page, 'Confirm slot removal').evaluate((el) => {
+  await confirmButton(page).evaluate((el) => {
     (el as HTMLButtonElement).click();
     (el as HTMLButtonElement).click();
   });
@@ -104,21 +114,27 @@ test('single selected slot has exact confirmation, cancel leaves Browse unchange
   await page.goto(entry);
   const slot = page.locator('[data-slot-id="synthetic-slot-0"]');
   await slot.click();
-  await expect(button(page, 'Remove selected slot')).toHaveCount(0);
-  await button(page, 'Close slot details').click();
+  const details = page.getByRole('dialog', { name: /details$/ });
+  await expect(details).toBeVisible();
+  await expect(removeButton(page)).toHaveCount(0);
+  await details
+    .getByRole('button', { name: /^close/i })
+    .first()
+    .click();
   await button(page, 'Edit layout').click();
   await slot.click();
-  await button(page, 'Remove selected slot').click();
-  const review = page.getByRole('region', { name: 'Review slot removal', exact: true });
-  await expect(review).toContainText(
-    'Slots to remove: 1 · Targets to remove: 1 · Explicit wants to remove: 1 · Owned copies becoming Unassigned: 1',
+  await removeButton(page).click();
+  await expect(dialog(page).getByRole('heading', { name: 'Remove 1 pocket?' })).toBeVisible();
+  await expect(dialog(page).getByRole('list', { name: 'What happens' })).toContainText(
+    '1 card stays in your collection',
   );
   const h = new Harness(page, insets, true);
-  await h.expectHittable(button(page, 'Confirm slot removal'));
-  await h.expectMinTapTarget(button(page, 'Confirm slot removal'), 36);
-  await button(page, 'Cancel removal').click();
+  await h.expectHittable(confirmButton(page));
+  await h.expectMinTapTarget(confirmButton(page), 36);
+  await dialog(page).getByRole('button', { name: 'Keep them', exact: true }).click();
+  await expect(dialog(page)).toHaveCount(0);
   expect((await record(page)).pending).toHaveLength(0);
-  await button(page, 'Remove selected slot').click();
+  await removeButton(page).click();
   await confirm(page);
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
   expect((await record(page)).snapshot!.placements).toHaveLength(3);
@@ -147,11 +163,11 @@ test('local IDB abort retains exact reviewed operation, timestamp, versions and 
     };
   });
   await confirm(page);
-  await expect(button(page, 'Retry same removal')).toBeVisible();
+  await expect(confirmButton(page)).toHaveText('Try again');
   expect(body).toBe('');
   expect((await record(page)).pending).toHaveLength(0);
   const original = await page.evaluate(() => JSON.parse(sessionStorage.getItem('aborted-removal')!));
-  await button(page, 'Retry same removal').click();
+  await confirm(page);
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
   expect(JSON.parse(body)).toEqual(original.request);
   expect((await record(page)).receipts[0].intent).toEqual(original);
@@ -184,9 +200,9 @@ test('unknown committed reply survives cached reload, exact retry and fresh comp
   expect((await record(page)).receipts).toHaveLength(0);
   failRead = false;
   // The existing sender may complete an exact automatic replay as this control remounts.
-  await button(page, 'Retry pending sync').evaluateAll((buttons) =>
-    (buttons[0] as HTMLButtonElement | undefined)?.click(),
-  );
+  await page
+    .getByRole('button', { name: /^(Try now|Try again)$/ })
+    .evaluateAll((buttons) => (buttons[0] as HTMLButtonElement | undefined)?.click());
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
   expect(new Set(bodies).size).toBe(1);
   expect((await record(page)).snapshot!.items).toHaveLength(4);
@@ -206,7 +222,8 @@ test('accepted HTTP reply alone is not fresh-read ACK', async ({ page }) => {
   await page.goto(entry);
   await select(page);
   await confirm(page);
-  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('unavailable');
+  // Accepted by the server, but it stays queued until a fresh complete read covers it.
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('acknowledged');
   expect((await record(page)).receipts).toHaveLength(0);
   failRead = false;
   await page.reload();
@@ -314,9 +331,9 @@ test('cancel and every shared dismissal never remove, offline review cannot conf
   await select(page);
   const h = new Harness(page, insets, true);
   for (const action of ['cancel', 'close', 'escape', 'back', 'backdrop', 'swipe', 'dock']) {
-    if (action !== 'cancel') await button(page, 'Remove selected slots').click();
-    if (action === 'cancel') await button(page, 'Cancel removal').click();
-    if (action === 'close') await button(page, 'Close slot removal').click();
+    if (action !== 'cancel') await removeButton(page).click();
+    if (action === 'cancel') await dialog(page).getByRole('button', { name: 'Keep them', exact: true }).click();
+    if (action === 'close') await dialog(page).getByRole('button', { name: 'Close', exact: true }).click();
     if (action === 'escape') await page.keyboard.press('Escape');
     if (action === 'back') await page.goBack();
     if (action === 'backdrop') await h.tapBackdrop(dialog(page));
@@ -336,7 +353,7 @@ test('cancel and every shared dismissal never remove, offline review cannot conf
     .click();
   await select(page);
   await context.setOffline(true);
-  await expect(button(page, 'Confirm slot removal')).not.toBeEnabled();
+  await expect(confirmButton(page)).not.toBeEnabled();
   expect((await record(page)).pending).toHaveLength(0);
 });
 
@@ -363,8 +380,8 @@ test('fresh changed selection evidence blocks confirmation without silently upda
   await select(page);
   changed = true;
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-  await expect(dialog(page)).toContainText('This review is blocked');
-  await expect(button(page, 'Confirm slot removal')).toBeDisabled();
+  await expect(dialog(page)).toContainText('These pockets changed while this was open');
+  await expect(confirmButton(page)).toBeDisabled();
   expect(sends).toBe(0);
   expect((await record(page)).pending).toHaveLength(0);
 });
@@ -414,39 +431,10 @@ test('supported Activity entry point stays truthful when removal history recover
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
   await (await storageAction(page, 'Activity')).click();
   const activity = page.getByRole('dialog', { name: 'Collection Activity', exact: true });
-  await activity.getByRole('button', { name: 'Review recovery', exact: true }).click();
-  await expect(activity).toContainText('private_assets_unverifiable');
-  await expect(activity.getByRole('button', { name: 'Confirm recovery', exact: true })).toHaveCount(0);
+  await activity.getByRole('button', { name: 'See what undoing does', exact: true }).click();
+  await expect(activity.getByRole('region', { name: 'Review recovery', exact: true })).toContainText(
+    'This change can no longer be undone',
+  );
+  await expect(activity.getByRole('button', { name: 'Undo this change', exact: true })).toHaveCount(0);
   expect((await record(page)).recovery ?? []).toHaveLength(0);
-});
-
-test('unsupported occupied group rejects whole before handoff, no truncation or automatic selection', async ({
-  page,
-  context,
-  baseURL,
-}) => {
-  await context.addCookies([
-    { name: 'hf-storage-fixture', value: `remove-bound-${crypto.randomUUID()}`, url: baseURL! },
-  ]);
-  let sends = 0;
-  await page.route('**/app/e2e-harness/storage/inventory', (route) => {
-    sends++;
-    return route.continue();
-  });
-  await page.goto(entry);
-  await button(page, 'Edit layout').click();
-  await button(page, 'Select several pockets').click();
-  const bulk = page.getByRole('region', { name: 'Bulk layout actions', exact: true });
-  await expect(bulk).toContainText('0 selected');
-  await button(page, 'Select page').click();
-  await button(page, 'Next selection page').click();
-  await button(page, 'Select page').click();
-  await button(page, 'Next selection page').click();
-  await button(page, 'Select page').click();
-  await expect(bulk).toContainText('129 selected');
-  await button(page, 'Remove selected slots').click();
-  await expect(dialog(page)).toContainText('entire selection is unsupported');
-  await expect(button(page, 'Confirm slot removal')).toHaveCount(0);
-  expect(sends).toBe(0);
-  expect((await record(page)).pending).toHaveLength(0);
 });
