@@ -4,9 +4,8 @@
 import { useCallback, useMemo } from 'react';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { getCardPriceKey } from '@/hooks/use-card-prices';
-import { convertGbpForDisplay, getRegionalFinishPrices, type DisplayFxRates } from '@/lib/regional-price';
+import { convertGbpForDisplay, getRegionalFinishPrice, type DisplayFxRates } from '@/lib/regional-price';
 import type { DisplayCurrency, PricingRegion } from '@/lib/pricing-region';
-import type { PricedCardFinish } from '@/lib/card-pricing';
 
 export interface DisplayPriceLookup {
   cardId: string;
@@ -41,9 +40,7 @@ export function useDisplayCardPrices(
     (lookup: DisplayPriceLookup) => {
       const snapshot = pricesByCardId[getCardPriceKey(lookup.cardId, lookup.language)];
       if (!snapshot) return null;
-      const finishPrice = lookup.finish
-        ? getRegionalFinishPrices(snapshot, region)[lookup.finish as PricedCardFinish]
-        : undefined;
+      const finishPrice = getRegionalFinishPrice(snapshot, region, lookup.finish);
       const gbp = (finishPrice ?? snapshot).gbpAmount;
       return typeof gbp === 'number' && gbp > 0 ? convertGbpForDisplay(gbp, { currency, fxRates }, snapshot) : null;
     },

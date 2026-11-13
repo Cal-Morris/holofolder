@@ -2,14 +2,9 @@ import { indexCatalogCardIds } from '@/lib/card-catalog';
 import type { CardFinish, WantedCard } from '@/lib/domain/cards';
 import type { InventorySnapshot, Placement } from '@/lib/domain/inventory';
 import type { InventoryCatalogEvidence } from '@/lib/domain/inventory-browse';
-import {
-  getCardPriceKey,
-  type CardPriceLookup,
-  type CardPriceSnapshot,
-  type PricedCardFinish,
-} from '@/lib/card-pricing';
+import { getCardPriceKey, type CardPriceLookup, type CardPriceSnapshot } from '@/lib/card-pricing';
 import { applyPriceStaleness } from '@/lib/price-freshness';
-import { getRegionalFinishPrices } from '@/lib/regional-price';
+import { getRegionalFinishPrice } from '@/lib/regional-price';
 import type { PricingRegion } from '@/lib/pricing-region';
 
 export interface InventoryPriceIdentity extends CardPriceLookup {
@@ -132,9 +127,11 @@ export function valueInventoryCollection(
   const quotes = new Map(
     projection.priceIdentities.map((identity) => {
       const snapshot = saved.get(getCardPriceKey(identity.cardId, identity.language));
-      const finish = getRegionalFinishPrices(snapshot ? applyPriceStaleness(snapshot, now) : undefined, region)[
-        identity.finish as PricedCardFinish
-      ];
+      const finish = getRegionalFinishPrice(
+        snapshot ? applyPriceStaleness(snapshot, now) : undefined,
+        region,
+        identity.finish,
+      );
       const amount = finish?.gbpAmount;
       // This read surface never introduces timing signals, including for low/unknown confidence.
       const quote =

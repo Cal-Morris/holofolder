@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   nativeCardConsumers,
   nativeCardState,
+  nativeSavedFinish,
   nativeSpeciesCollection,
   nativeWantSelections,
   prepareNativeWant,
@@ -345,4 +346,29 @@ test('species view: an explicit want alone marks the species wanted, not owned',
   assert.equal(model.bySpecies.get(143)?.status, 'wishlisted');
   assert.equal(model.bySpecies.get(143)?.card_id, undefined);
   assert.equal(model.bySpecies.get(143)?.wanted_cards.length, 1);
+});
+
+// Offline, the device catalog has no rarity, so a scanned Double Rare can't infer its finish from the card.
+test('an exact saved printing supplies the finish a rarity-less card cannot infer', () => {
+  const charizard = {
+    id: 'sv03.5-006',
+    localId: '006',
+    name: 'Charizard ex',
+    language: 'en',
+    set: { id: 'sv03.5', name: '151' },
+  };
+  const entry = (finish: string | null, card = charizard) => ({ card, finish });
+  const model = (copies: ReturnType<typeof entry>[], wants: ReturnType<typeof entry>[]) =>
+    ({ copies, wants }) as unknown as Parameters<typeof nativeSavedFinish>[0];
+  assert.equal(nativeSavedFinish(model([], [entry('double_rare')]), charizard), 'double_rare');
+  assert.equal(nativeSavedFinish(model([entry('double_rare')], [entry('double_rare')]), charizard), 'double_rare');
+  // Two printings saved, or another language: which one this is, is unknown.
+  assert.equal(nativeSavedFinish(model([entry('holo')], [entry('double_rare')]), charizard), undefined);
+  assert.equal(
+    nativeSavedFinish(model([], [entry('double_rare', { ...charizard, language: 'ja' })]), charizard),
+    undefined,
+  );
+  assert.equal(nativeSavedFinish(model([], [entry(null)]), charizard), undefined);
+  assert.equal(nativeSavedFinish(model([], []), charizard), undefined);
+  assert.equal(nativeSavedFinish(null, charizard), undefined);
 });

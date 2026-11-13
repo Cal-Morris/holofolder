@@ -111,3 +111,11 @@ function cardCounts(rows: { item: { grading: unknown } | null }[], removeOwned: 
   return { cards: cards.length, graded, removed, unassigned: cards.length - removed };
 }
 export type CollectionDeletionDraft = ReturnType<typeof prepareCollectionDeletion>;
+
+/** The draft as sent: it happened when the user confirmed, not when the preview was built. */
+export function confirmCollectionDeletion(
+  draft: CollectionDeletionDraft,
+  at = new Date().toISOString(),
+): CollectionDeletionDraft {
+  return { ...draft, intent: { ...draft.intent, context: { ...draft.intent.context, clientOccurredAt: at } } };
+}

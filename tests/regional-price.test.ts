@@ -9,6 +9,7 @@ import {
   formatDisplayAmount,
   formatDisplayRange,
   formatRegionalPriceLabel,
+  getRegionalFinishPrice,
   getRegionalFinishPrices,
   getSourceMarket,
   normalizeDisplayFxRates,
@@ -243,5 +244,28 @@ describe('finish prices', () => {
   test('is empty without finish quotes', () => {
     assert.deepEqual(getRegionalFinishPrices(undefined, 'UK'), {});
     assert.deepEqual(getRegionalFinishPrices(snapshot([tcgplayer(1)]), 'UK'), {});
+  });
+
+  // A Double Rare (Charizard ex) is saved with its rarity as the finish; providers quote its one holo printing.
+  test('a rarity-named finish takes the holo quote only when that is the only quoted finish', () => {
+    const holoOnly = snapshot([tcgplayer(50)], { finishPrices: [finish('holo', 'holofoil', [tcgplayer(50)])] });
+    for (const rarity of ['double_rare', 'ultra_rare', 'illustration_rare', 'special_illustration_rare'] as const)
+      assert.equal(getRegionalFinishPrice(holoOnly, 'US', rarity)?.gbpAmount, 50, rarity);
+    assert.equal(getRegionalFinishPrice(holoOnly, 'US', 'holo')?.gbpAmount, 50);
+    assert.equal(getRegionalFinishPrice(holoOnly, 'US', 'normal'), undefined);
+    // Jumbo cards are a different product, never the standard holo.
+    assert.equal(getRegionalFinishPrice(holoOnly, 'US', 'jumbo'), undefined);
+    // Several quoted printings: which one a rarity finish is, is unknown.
+    const ambiguous = snapshot([tcgplayer(50)], {
+      finishPrices: [
+        finish('holo', 'holofoil', [tcgplayer(50)]),
+        finish('reverse_holo', 'reverseHolofoil', [tcgplayer(3)]),
+      ],
+    });
+    assert.equal(getRegionalFinishPrice(ambiguous, 'US', 'double_rare'), undefined);
+    const normalOnly = snapshot([tcgplayer(5)], { finishPrices: [finish('normal', 'normal', [tcgplayer(5)])] });
+    assert.equal(getRegionalFinishPrice(normalOnly, 'US', 'double_rare'), undefined);
+    assert.equal(getRegionalFinishPrice(undefined, 'US', 'double_rare'), undefined);
+    assert.equal(getRegionalFinishPrice(holoOnly, 'US', null), undefined);
   });
 });

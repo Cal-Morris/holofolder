@@ -8,7 +8,8 @@ import type {
   SupportedCurrency,
 } from '@/lib/card-pricing';
 import { DISPLAY_CURRENCIES, type DisplayCurrency, type PricingRegion } from '@/lib/pricing-region';
-import { isStandardFinishVariantKey } from '@/lib/card-pricing';
+import { isStandardFinishVariantKey, quotedFinishFor } from '@/lib/card-pricing';
+import type { CardFinish } from '@/lib/domain/cards';
 
 /**
  * Region-grounded pricing.
@@ -226,6 +227,22 @@ export function getRegionalFinishPrices(
     if (typeof regional.gbpAmount === 'number' && regional.gbpAmount > 0) result[finish] = regional;
   }
   return result;
+}
+
+/**
+ * The region-weighted quote that prices a copy of `finish` (see `quotedFinishFor`). A rarity-named finish only
+ * takes the holo quote when holo is the only finish quoted: with several, which printing it is, is unknown.
+ */
+export function getRegionalFinishPrice(
+  snapshot: CardPriceSnapshot | undefined,
+  region: PricingRegion,
+  finish: CardFinish | string | null | undefined,
+): RegionalCardPriceSnapshot | undefined {
+  const quoted = quotedFinishFor(finish);
+  if (!quoted) return undefined;
+  const prices = getRegionalFinishPrices(snapshot, region);
+  if (quoted !== finish && Object.keys(prices).length !== 1) return undefined;
+  return prices[quoted];
 }
 
 /** GBP value of one unit of `currency`, from fresh rates or, failing that, rates implied by a snapshot. */

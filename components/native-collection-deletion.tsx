@@ -2,7 +2,11 @@
 
 import { useMemo, useRef, useState } from 'react';
 import type { CollectionNavigationRead } from '@/lib/collection-navigation';
-import { prepareCollectionDeletion, type CollectionDeletionDraft } from '@/lib/native-collection-deletion';
+import {
+  confirmCollectionDeletion,
+  prepareCollectionDeletion,
+  type CollectionDeletionDraft,
+} from '@/lib/native-collection-deletion';
 import type { SlotLocalAcceptance } from '@/lib/binder-slot-editing';
 import { useSlotDraftAcceptance } from '@/hooks/use-slot-draft-acceptance';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
@@ -55,8 +59,8 @@ export default function NativeCollectionDeletion({
             clientId: null,
             operationId: crypto.randomUUID(),
             batchId: null,
-            // oxlint-disable-next-line react/purity -- intent metadata for a draft that is only sent on confirm; a recomputed memo just restamps it before anything is sent
-            clientOccurredAt: new Date().toISOString(),
+            // Stamped on confirm, so a sheet left open doesn't send the time it opened.
+            clientOccurredAt: null,
           },
           removeOwned,
         ),
@@ -224,7 +228,7 @@ export default function NativeCollectionDeletion({
             type="button"
             className="bg-destructive min-h-11 flex-1 rounded-2xl px-3 text-sm font-semibold text-white disabled:opacity-45"
             disabled={!draft || !binding.available || busy}
-            onClick={() => draft && handoff(draft)}
+            onClick={() => draft && handoff(pending ?? confirmCollectionDeletion(draft))}
           >
             {busy ? 'Deleting…' : pending ? 'Try again' : counts?.removed ? 'Delete all' : 'Delete binder'}
           </button>
