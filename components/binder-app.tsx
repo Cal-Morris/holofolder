@@ -184,7 +184,14 @@ import { renderMobileNavMenuView } from '@/components/binder/mobile-nav-menu';
 import { renderBottomNavView } from '@/components/binder/bottom-nav';
 
 import type { SlotCommandSink } from '@/lib/binder-slot-editing';
-import type { InventoryCatalogResolver } from '@/lib/domain/inventory';
+// Static: the warning must open offline, where a lazy chunk may not load.
+import LayoutChangeConfirm from '@/components/binder/layout-change-confirm';
+import {
+  planBinderLayoutChange,
+  prepareBinderLayoutIntent,
+  type BinderLayoutChangePlan,
+} from '@/lib/binder-layout-change';
+import type { InventoryCatalogResolver, InventorySnapshot } from '@/lib/domain/inventory';
 import type { LayoutSessionStart, LayoutTap } from '@/components/binder/layout-editor';
 import type { WantedDashboardCard } from '@/lib/wanted-dashboard';
 import { pocketPlace } from '@/lib/pocket-labels';
@@ -562,6 +569,13 @@ function BinderAppSurface(props: BinderAppProps) {
   const [wantedDetail, setWantedDetail] = useState<{ pokemonId: number; card: WantedCard } | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(initialDarkMode);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [layoutChange, setLayoutChange] = useState<{
+    plan: BinderLayoutChangePlan;
+    snapshot: InventorySnapshot;
+    collectionId: string;
+    resolve: (changed: boolean) => void;
+    reject: (error: Error) => void;
+  } | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<'sign-in' | 'sign-up'>('sign-in');
   const [isPartnerOpen, setIsPartnerOpen] = useState(false);
@@ -1618,6 +1632,53 @@ function BinderAppSurface(props: BinderAppProps) {
           resolveCard: stagedSlotDisplay.resolveCard ?? ((id: string) => stagedSlotDisplay.catalog[id]),
         }
       : undefined;
+  // Native binders change their grid with a queued `layout` slot command, once the person has seen what moves.
+  const nativeLayout =
+    !legacyReadOnlyMode &&
+    !shareViewToken &&
+    user &&
+    stagedSlotDisplay &&
+    onStagedSlotCommandIntent &&
+    (!browserSurface || browserSurface.editingAvailable)
+      ? { snapshot: stagedSlotDisplay.inventory, collectionId: stagedSlotDisplay.binder.collectionId }
+      : null;
+  const requestNativeLayout = nativeLayout
+    ? (rows: number, cols: number) =>
+        new Promise<boolean>((resolve, reject) => {
+          const { snapshot, collectionId } = nativeLayout;
+          const binder = snapshot.binders.find((b) => b.collectionId === collectionId);
+          const plan = planBinderLayoutChange(
+            (binder?.slots ?? []).map((slot) => slot.inventoryItemId !== null),
+            { rows: settings.binderRows, cols: settings.binderCols },
+            { rows, cols },
+          );
+          if (!plan.changed) return resolve(false);
+          setLayoutChange({ plan, snapshot, collectionId, resolve, reject });
+        })
+    : undefined;
+  const confirmLayoutChange = async () => {
+    const change = layoutChange;
+    setLayoutChange(null);
+    if (!change || !onStagedSlotCommandIntent) return;
+    try {
+      const operationId = crypto.randomUUID();
+      await onStagedSlotCommandIntent(
+        prepareBinderLayoutIntent(
+          change.snapshot,
+          { ownerUserId: change.snapshot.ownerUserId, collectionId: change.collectionId, slotId: null },
+          change.plan.to,
+          { source: 'app', clientId: null, operationId, batchId: null, clientOccurredAt: new Date().toISOString() },
+        ),
+      );
+      change.resolve(true);
+    } catch {
+      change.reject(new Error('The layout wasn’t changed. Check your connection and try again.'));
+    }
+  };
+  const cancelLayoutChange = () => {
+    layoutChange?.resolve(false);
+    setLayoutChange(null);
+  };
   const startLayoutEditing = (start?: LayoutSessionStart) => {
     closeSlotDetail();
     setPocketMenu(null);
@@ -4644,6 +4705,13 @@ function BinderAppSurface(props: BinderAppProps) {
           {renderBottomNav()}
 
           {/* Modals */}
+          {layoutChange && (
+            <LayoutChangeConfirm
+              plan={layoutChange.plan}
+              onConfirm={() => void confirmLayoutChange()}
+              onCancel={cancelLayoutChange}
+            />
+          )}
           <SettingsModal
             binderId={shareBinderId}
             binderName={browserSurface ? shareTarget?.name : activeBinder?.name}
@@ -4691,6 +4759,7 @@ function BinderAppSurface(props: BinderAppProps) {
             onInstallApp={handleInstallApp}
             isReadOnlyView={readOnlyMode}
             isAccountReadOnly={accountSettingsReadOnly}
+            onRequestLayoutChange={requestNativeLayout}
             canManageShare={canManageShare}
             sharePath={sharePath}
             shareShowPrices={shareShowPrices}

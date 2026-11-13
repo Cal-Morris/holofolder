@@ -13,7 +13,8 @@ export function BinderLayoutSettings({
   rows: number;
   cols: number;
   readOnly: boolean;
-  onChange: (rows: number, cols: number) => void | Promise<void>;
+  /** Resolves false when nothing changed (a native binder's warning was dismissed). */
+  onChange: (rows: number, cols: number) => void | boolean | Promise<void | boolean>;
 }) {
   const billing = useBillingContext();
   const [customRows, setCustomRows] = useState(String(rows));
@@ -25,7 +26,7 @@ export function BinderLayoutSettings({
     setBusy(true);
     setMessage(null);
     try {
-      await onChange(nextRows, nextCols);
+      if ((await onChange(nextRows, nextCols)) === false) return;
       setCustomRows(String(nextRows));
       setCustomCols(String(nextCols));
       setMessage(navigator.onLine ? 'Layout saved.' : 'Saved on this device. Will sync when you’re online.');
