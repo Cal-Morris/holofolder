@@ -2,7 +2,7 @@ import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER } from
 import type { Page } from '@playwright/test';
 const collection = '22222222-2222-4222-8222-222222222222';
 const entry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${collection}`;
-const dialog = (p: Page) => p.getByRole('dialog', { name: 'Review bulk fill', exact: true });
+const dialog = (p: Page) => p.getByRole('dialog', { name: 'Fill pockets', exact: true });
 async function record(page: Page) {
   return page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((yes, no) => {
@@ -31,16 +31,23 @@ async function record(page: Page) {
     );
   });
 }
+/** Layout editing: tap the first page's four pockets (two Snorlax pockets, one free, one holding a trainer), then Fill. */
 async function open(page: Page) {
   await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
-  await page.getByRole('button', { name: 'Select several pockets', exact: true }).click();
-  await page.getByRole('button', { name: 'Select page', exact: true }).click();
-  await page.getByRole('button', { name: 'Fill selected pockets', exact: true }).click();
+  const snorlax = page.getByRole('button', { name: 'Snorlax, Unfilled target', exact: true });
+  await snorlax.nth(0).click();
+  await snorlax.nth(1).click();
+  await page.getByRole('button', { name: 'Free slot, Empty spacer', exact: true }).first().click();
+  await page.getByRole('button', { name: /, Owned$/ }).click();
+  await page.getByRole('button', { name: 'Fill', exact: true }).click();
   await expect(dialog(page)).toBeVisible();
 }
+const card = (p: Page, n: number) => p.getByRole('combobox', { name: `Card for Page 1 · Pocket ${n}`, exact: true });
+const add = (p: Page) => dialog(p).getByRole('button', { name: /^Add \d+ cards?$/ });
 async function automatic(page: Page) {
-  await dialog(page).getByRole('button', { name: 'Preview automatic matches', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Copy for slot 3', exact: true }).selectOption('synthetic-copy-energy');
+  await dialog(page).getByRole('button', { name: 'Match my spare cards', exact: true }).click();
+  await card(page, 3).selectOption('synthetic-copy-energy');
+  await expect(add(page)).toHaveText('Add 3 cards');
 }
 test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   if (standalone) await emulateStandalone(page, insets);
@@ -73,19 +80,20 @@ test('mixed targets/free/occupied and distinct duplicates confirm one HTTP batch
     await route.continue();
   });
   await page.goto(entry);
-  await expect(page.getByRole('button', { name: 'Fill selected pockets' })).toHaveCount(0);
   await open(page);
   await automatic(page);
-  await expect(dialog(page)).toContainText('Occupied destination preserved');
+  await expect(dialog(page)).toContainText('1 selected pocket already has a card and stays as it is.');
   const h = new Harness(page, insets, true);
   await h.expectWithinSafeViewport(dialog(page));
   await h.expectNoHorizontalOverflow();
-  for (const name of ['Confirm bulk fill', 'Cancel', 'Close bulk fill']) {
-    const b = dialog(page).getByRole('button', { name, exact: true });
+  for (const b of [
+    add(page),
+    ...['Cancel', 'Close'].map((name) => dialog(page).getByRole('button', { name, exact: true })),
+  ]) {
     await h.expectMinTapTarget(b, 36);
     await h.expectHittable(b);
   }
-  await dialog(page).getByRole('button', { name: 'Confirm bulk fill', exact: true }).click();
+  await add(page).click();
   await expect(dialog(page)).toHaveCount(0);
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
   expect(bodies).toHaveLength(1);
@@ -102,7 +110,7 @@ test('mixed targets/free/occupied and distinct duplicates confirm one HTTP batch
   await page.reload();
   await expect(page.locator('[data-slot-id="synthetic-slot-3"]')).toContainText('Synthetic trainer');
 });
-test('manual mismatch/assigned/duplicate refusal and cancellation never write', async ({ page }) => {
+test('manual mismatch and duplicate refusal block confirmation, cancellation never writes', async ({ page }) => {
   let sends = 0;
   await page.route('**/app/e2e-harness/storage/inventory', (route) => {
     sends++;
@@ -110,18 +118,19 @@ test('manual mismatch/assigned/duplicate refusal and cancellation never write', 
   });
   await page.goto(entry);
   await open(page);
-  const copy = (n: number) => page.getByRole('combobox', { name: `Copy for slot ${n}`, exact: true });
-  await copy(1).selectOption('synthetic-copy-energy');
-  await expect(dialog(page)).toContainText('Target mismatch');
-  await copy(1).selectOption('synthetic-copy-trainer');
-  await expect(dialog(page)).toContainText('Copy already assigned');
-  await copy(1).selectOption('synthetic-copy-snorlax');
-  await copy(2).selectOption('synthetic-copy-snorlax');
-  await expect(dialog(page).getByText(/Copy selected more than once/)).toHaveCount(2);
-  await expect(dialog(page).getByRole('button', { name: 'Confirm bulk fill' })).toBeDisabled();
+  // Copies already in a pocket are never offered, so only spare copies can be chosen.
+  await expect(card(page, 1).getByRole('option', { name: /Synthetic trainer/ })).toHaveCount(0);
+  await card(page, 1).selectOption('synthetic-copy-energy');
+  await expect(dialog(page)).toContainText("This card doesn't match what the pocket is for.");
+  await expect(dialog(page).getByRole('button', { name: /^Add|^Choose a card$/ })).toBeDisabled();
+  await card(page, 1).selectOption('synthetic-copy-snorlax');
+  await card(page, 2).selectOption('synthetic-copy-snorlax');
+  await expect(dialog(page).getByText('This card is already chosen for another pocket.')).toHaveCount(2);
+  await expect(dialog(page).getByRole('button', { name: /^Add|^Choose a card$/ })).toBeDisabled();
   await dialog(page).getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(dialog(page)).toHaveCount(0);
   expect(sends).toBe(0);
-  expect((await record(page))?.pending).toHaveLength(0);
+  expect((await record(page))?.pending ?? []).toHaveLength(0);
 });
 test('IDB commit abort retains exact confirmed IDs and versions for retry', async ({ page }) => {
   let sent = '';
@@ -145,8 +154,8 @@ test('IDB commit abort retains exact confirmed IDs and versions for retry', asyn
       return request;
     };
   });
-  await dialog(page).getByRole('button', { name: 'Confirm bulk fill' }).click();
-  const retry = dialog(page).getByRole('button', { name: 'Retry same fill', exact: true });
+  await add(page).click();
+  const retry = dialog(page).getByRole('button', { name: 'Try again', exact: true });
   await expect(retry).toBeVisible();
   expect(sent).toBe('');
   expect((await record(page))?.pending).toHaveLength(0);
@@ -156,7 +165,7 @@ test('IDB commit abort retains exact confirmed IDs and versions for retry', asyn
   expect(JSON.parse(sent)).toEqual(original.request);
   expect((await record(page))?.receipts[0]?.intent).toEqual(original);
 });
-test('lost reply survives Done/reload, exact retry has no cancel/rebase for unknown outcome', async ({ page }) => {
+test('lost reply survives reload, exact retry has no cancel/rebase for unknown outcome', async ({ page }) => {
   const requests: string[] = [];
   await page.route('**/app/e2e-harness/storage/inventory', async (route) => {
     requests.push(route.request().postData()!);
@@ -167,10 +176,8 @@ test('lost reply survives Done/reload, exact retry has no cancel/rebase for unkn
   await page.goto(entry);
   await open(page);
   await automatic(page);
-  await dialog(page).getByRole('button', { name: 'Confirm bulk fill' }).click();
+  await add(page).click();
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('unavailable');
-  await expect(page.getByRole('button', { name: 'Use current storage' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.reload();
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
   expect(requests).toHaveLength(2);
@@ -190,16 +197,14 @@ test('accepted receipt without fresh complete read stays pending until a later c
   await page.goto(entry);
   await open(page);
   await automatic(page);
-  await dialog(page).getByRole('button', { name: 'Confirm bulk fill' }).click();
-  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('unavailable');
+  await add(page).click();
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('acknowledged');
   expect((await record(page))?.receipts).toHaveLength(0);
   failRead = false;
   await page.reload();
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
 });
-test('stale partner revision is an atomic terminal rejection, retained until existing reconciliation', async ({
-  page,
-}) => {
+test('stale partner revision is an atomic terminal rejection that retains the whole fill', async ({ page }) => {
   await page.route('**/app/e2e-harness/storage/inventory', async (route) => {
     const body = route.request().postDataJSON(),
       operationId = 'synthetic-concurrent-layout';
@@ -226,14 +231,16 @@ test('stale partner revision is an atomic terminal rejection, retained until exi
   await page.goto(entry);
   await open(page);
   await automatic(page);
-  await dialog(page).getByRole('button', { name: 'Confirm bulk fill' }).click();
+  await add(page).click();
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('conflict');
-  await expect(page.getByRole('button', { name: 'Refresh current storage' })).toBeVisible();
   expect((await record(page))?.receipts).toHaveLength(0);
-  await page.getByRole('button', { name: 'Refresh current storage' }).click();
-  await page.getByRole('button', { name: 'Use current storage' }).click();
-  await expect.poll(async () => (await record(page))?.receipts[0]?.outcome).toBe('cancelled');
-  await expect(page.locator('[data-slot-id="synthetic-slot-0"]')).not.toContainText('Synthetic snorlax');
+  const retained = (await record(page))!.pending[0].intent;
+  expect(retained.request.commands).toHaveLength(3);
+  // Kept as sent across a reload: never rebased onto the partner's layout or partly applied.
+  await page.reload();
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('conflict');
+  expect((await record(page))!.pending[0].intent).toEqual(retained);
+  expect((await record(page))?.receipts).toHaveLength(0);
 });
 for (const change of ['signout', 'account', 'owner'] as const)
   test(`${change} teardown retains an in-flight accepted fill and rejects late reply`, async ({ page }) => {
@@ -253,8 +260,9 @@ for (const change of ['signout', 'account', 'owner'] as const)
     await page.goto(entry);
     await open(page);
     await automatic(page);
-    await dialog(page).getByRole('button', { name: 'Confirm bulk fill' }).click();
+    await add(page).click();
     await sending;
+    const original = (await record(page))!.pending[0].intent;
     if (change === 'owner')
       await page.route('**/rest/v1/partnerships*', (route) =>
         route.fulfill({
@@ -288,7 +296,7 @@ for (const change of ['signout', 'account', 'owner'] as const)
     await expect(dialog(page)).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).not.toBeVisible();
     release();
-    expect((await record(page))?.pending[0]?.status).toBe('sending');
+    expect((await record(page))!.pending[0].intent).toEqual(original);
     expect((await record(page))?.receipts).toHaveLength(0);
   });
 test('review shared dismissals and offline downgrade never hand off', async ({ page, context, insets }) => {
@@ -296,9 +304,9 @@ test('review shared dismissals and offline downgrade never hand off', async ({ p
   const h = new Harness(page, insets, true);
   await open(page);
   for (const dismissal of ['close', 'escape', 'back', 'backdrop', 'swipe', 'dock']) {
-    if (dismissal !== 'close') await page.getByRole('button', { name: 'Fill selected pockets', exact: true }).click();
+    if (dismissal !== 'close') await page.getByRole('button', { name: 'Fill', exact: true }).click();
     await expect(dialog(page)).toBeVisible();
-    if (dismissal === 'close') await dialog(page).getByRole('button', { name: 'Close bulk fill' }).click();
+    if (dismissal === 'close') await dialog(page).getByRole('button', { name: 'Close', exact: true }).click();
     if (dismissal === 'escape') await page.keyboard.press('Escape');
     if (dismissal === 'back') await page.goBack();
     if (dismissal === 'backdrop') await h.tapBackdrop(dialog(page));
@@ -308,7 +316,7 @@ test('review shared dismissals and offline downgrade never hand off', async ({ p
         .getByRole('navigation', { name: 'Main navigation' })
         .getByRole('button', { name: 'Inventory', exact: true })
         .click();
-    await expect(dialog(page)).toHaveCount(0);
+    await expect(dialog(page), dismissal).toHaveCount(0);
     await h.expectScrollUnlocked();
   }
   await page
@@ -318,8 +326,8 @@ test('review shared dismissals and offline downgrade never hand off', async ({ p
   await open(page);
   await context.setOffline(true);
   await expect(dialog(page)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Fill selected pockets' })).toHaveCount(0);
-  expect((await record(page))?.pending).toHaveLength(0);
+  await expect(page.getByRole('button', { name: 'Fill', exact: true })).toHaveCount(0);
+  expect((await record(page))?.pending ?? []).toHaveLength(0);
 });
 test('fresh changed evidence during review blocks confirmation without a request', async ({ page }) => {
   let changed = false,
@@ -345,63 +353,35 @@ test('fresh changed evidence during review blocks confirmation without a request
   await automatic(page);
   changed = true;
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-  await expect(dialog(page)).toContainText('Storage changed. Close and review a fresh selection');
-  await expect(dialog(page).getByRole('button', { name: 'Confirm bulk fill' })).toBeDisabled();
+  await expect(dialog(page)).toContainText(
+    'Your binder changed while this was open. Close this and select the pockets again.',
+  );
+  await expect(add(page)).toBeDisabled();
   await dialog(page).getByRole('button', { name: 'Cancel', exact: true }).click();
   expect(sends).toBe(0);
-  expect((await record(page))?.pending).toHaveLength(0);
+  expect((await record(page))?.pending ?? []).toHaveLength(0);
 });
-test('selection crosses saved pages, ignores padding and confirms in saved order', async ({ page }) => {
-  let body: { commands: { destination: { slot: { id: string } } }[] } | null = null;
-  await page.route('**/app/e2e-harness/storage/inventory', async (route) => {
-    body = route.request().postDataJSON();
-    await route.continue();
-  });
-  await page.goto(entry);
-  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
-  await page.getByRole('button', { name: 'Select several pockets', exact: true }).click();
-  const fill = page.getByRole('button', { name: 'Fill selected pockets', exact: true });
-  await expect(fill).toBeDisabled();
-  await page.getByRole('button', { name: 'Select slot 2', exact: true }).click();
-  await page.getByRole('button', { name: 'Next selection page', exact: true }).click();
-  await page.getByRole('button', { name: 'Select page', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Bulk layout actions', exact: true })).toContainText(
-    '2 selected · Page 2',
-  );
-  await expect(page.getByRole('button', { name: 'Select slot 6', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Previous selection page', exact: true }).click();
-  await page.getByRole('button', { name: 'Select slot 1', exact: true }).click();
-  await fill.click();
-  await dialog(page).getByRole('button', { name: 'Preview automatic matches', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Copy for slot 5', exact: true }).selectOption('skip');
-  await dialog(page).getByRole('button', { name: 'Confirm bulk fill', exact: true }).click();
-  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
-  expect(body!.commands.map((c) => c.destination.slot.id)).toEqual(['synthetic-slot-0', 'synthetic-slot-1']);
-});
-test('long actual copy IDs wrap within phone review, unresolved target identity stays blocked', async ({
-  page,
-  insets,
-}) => {
-  const longId = `synthetic-${'copy'.repeat(45)}`;
+test('unresolved target identity stays blocked and the review fits the phone', async ({ page, insets }) => {
+  let sends = 0;
   await page.route('**/app/e2e-harness/storage/inventory?*', async (route) => {
     const response = await route.fetch(),
       body = await response.json();
-    body.snapshot.items.find((i: { id: string }) => i.id === 'synthetic-copy-energy').id = longId;
     body.navigation.catalog = [];
     await route.fulfill({ response, json: body });
   });
+  await page.route('**/app/e2e-harness/storage/inventory', (route) => {
+    sends++;
+    return route.continue();
+  });
   await page.goto(entry);
   await open(page);
-  await page.getByRole('combobox', { name: 'Copy for slot 1', exact: true }).selectOption('synthetic-copy-snorlax');
-  await expect(dialog(page)).toContainText('Unresolved catalog identity');
-  await page.getByRole('combobox', { name: 'Copy for slot 3', exact: true }).selectOption(longId);
-  await expect(dialog(page).getByRole('region', { name: 'Fill destination 3', exact: true })).toContainText(
-    `Proposed copy: ${longId}`,
-  );
-  await expect(dialog(page).getByRole('button', { name: 'Confirm bulk fill' })).toBeDisabled();
+  await card(page, 1).selectOption('synthetic-copy-snorlax');
+  await expect(dialog(page)).toContainText("This card can't be checked against the pocket right now.");
+  await expect(dialog(page).getByRole('button', { name: /^Add|^Choose a card$/ })).toBeDisabled();
   const h = new Harness(page, insets, true);
   await h.expectWithinSafeViewport(dialog(page));
   await h.expectNoHorizontalOverflow();
   await dialog(page).getByRole('button', { name: 'Cancel', exact: true }).click();
-  expect((await record(page))?.pending).toHaveLength(0);
+  expect(sends).toBe(0);
+  expect((await record(page))?.pending ?? []).toHaveLength(0);
 });

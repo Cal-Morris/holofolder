@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import CardImage from '@/components/card-image';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
@@ -109,8 +110,9 @@ export default function BulkFillReview({
       setError(slotDraftFailureMessage(cause));
     }
   };
-  return (
-    <div className="fixed inset-0 z-40">
+  // Portalled above the sticky app header (z-40), below the dock (z-45), like native-binder-creation.
+  return createPortal(
+    <div className="fixed inset-0 z-[42]">
       <div data-overlay-backdrop aria-hidden="true" className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div
         ref={ref}
@@ -259,6 +261,7 @@ export default function BulkFillReview({
           )}
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

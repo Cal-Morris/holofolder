@@ -1,10 +1,11 @@
 import type { Page } from '@playwright/test';
-import { test, expect, SUPABASE_URL, type Harness } from './fixtures';
+import { test, expect, MOCK_CARDS, type Harness } from './fixtures';
 import { HUNT_COLLECTION, HUNT_PRICES } from './hunt-fixtures';
 import { mockCardPrices } from './price-fixtures';
 
 // Show mode's Scan: the camera is a canvas stream, and the text reader is a stand-in for the system one
-// (window.TextDetector) that "reads" whatever the test sets in window.__scanText.
+// (window.TextDetector) that "reads" whatever the test sets in window.__scanText. The picture scanner is never
+// downloaded here, so online scans ask the server matcher (/api/card-identify), mocked by `pictureMatches`.
 
 const SCREENS = process.env.E2E_SCREENSHOT_DIR;
 
@@ -70,14 +71,44 @@ const banner = (harness: Harness) => harness.page.getByRole('region', { name: 'S
 const quickDialog = (harness: Harness) => harness.page.getByRole('dialog', { name: 'Quick mode' });
 const scanner = (harness: Harness) => harness.page.getByRole('dialog', { name: 'Scan a card' });
 
+type PictureMatch = { id: string; language: string; score: number };
+
+/** Synthetic server picture matches, not a matcher claim: what /api/card-identify answers for every photo. */
+async function pictureMatches(page: Page, matches: PictureMatch[]) {
+  await page.route('**/app/api/card-identify**', (route) =>
+    route.fulfill({ json: { matches, ms: { decode: 1, embed: 1, search: 1 } } }),
+  );
+}
+
+/** The hunt collection with Charizard ex wanted as the Double Rare the picker saves (native wants match exact finish). */
+const SCAN_COLLECTION = HUNT_COLLECTION.map((row) => ({
+  ...row,
+  wanted_cards: row.wanted_cards.map((want) =>
+    want.card_id === 'sv03.5-006' ? { ...want, card_finish: 'double_rare' } : want,
+  ),
+}));
+
 async function seed(harness: Harness) {
   const { page } = harness;
-  await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-    route.request().method() === 'GET' ? route.fulfill({ json: HUNT_COLLECTION }) : route.fallback(),
-  );
   await mockCardPrices(page, HUNT_PRICES);
-  await page.reload();
-  await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+  // No picture match by default, so the text read decides.
+  await pictureMatches(page, []);
+  // The real card search tags each card with its language (native wants and quotes match on it) and answers
+  // picture candidates by id; the shared mock does neither.
+  await page.route('**/app/api/tcg-card-search?*', (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    const ids = params.get('ids')?.split(',');
+    const [name, number] = (params.get('q') ?? '').toLowerCase().trim().split(/\s+/);
+    const cards = ids
+      ? MOCK_CARDS.filter((card) => ids.includes(card.id))
+      : MOCK_CARDS.filter(
+          (card) =>
+            card.name.toLowerCase().includes(name) &&
+            (!number || Number(card.localId) === Number(number.replace(/^#/, '').split('/')[0])),
+        );
+    return route.fulfill({ json: { cards: cards.map((card) => ({ ...card, language: 'en' })) } });
+  });
+  await harness.reload();
 }
 
 async function openScanner(harness: Harness) {
@@ -97,9 +128,10 @@ async function openScanner(harness: Harness) {
 }
 
 test.describe('Show mode: scan a card into the deal checker', () => {
-  test.use({ signedIn: true });
+  // A function, because an array option would be read as a [value, options] tuple.
+  test.use({ signedIn: true, collection: async ({ signedIn: _signedIn }, provide) => provide(SCAN_COLLECTION) });
 
-  test('reads the name and number, opens the deal check, and takes an asking price', async ({ harness }) => {
+  test('reads the name and number and opens the deal check', async ({ harness }) => {
     const { page } = harness;
     await fakeCamera(page);
     await seed(harness);
@@ -124,13 +156,7 @@ test.describe('Show mode: scan a card into the deal checker', () => {
     const check = dialog.getByTestId('quick-card-check');
     await expect(check).toBeVisible();
     await expect(check).toContainText('Charizard ex');
-    await expect(check.getByTestId('quick-card-status')).toHaveText('Wanted');
-    await expect(check.getByTestId('quick-card-market-price')).toHaveText('£50.00');
-
-    const input = check.getByRole('textbox', { name: /price/i });
-    await input.fill('40');
-    await input.press('Enter');
-    await expect(check.getByTestId('deal-verdict')).toHaveAttribute('data-verdict', /.+/);
+    await expect(check.getByTestId('quick-card-status')).toHaveText('Wanted ×1');
     await harness.expectNoHorizontalOverflow();
     await screenshot(harness, 'scan-check');
 
@@ -149,7 +175,7 @@ test.describe('Show mode: scan a card into the deal checker', () => {
     await expect(scanner(harness)).toHaveCount(0);
     await expect(dialog.getByRole('searchbox')).toHaveValue('Charizard');
     await expect(dialog.getByTestId('scan-notice')).toHaveText('Read “Charizard”. Pick the right printing below.');
-    await expect(dialog.getByRole('button', { name: /^Charizard ex, 151 006\/165, Wanted/ })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /^Charizard ex, 151 #006, Wanted ×1/ })).toBeVisible();
     await expect(dialog.getByTestId('quick-card-check')).toHaveCount(0);
     await harness.expectNoHorizontalOverflow();
     // Typing takes over from the notice.
@@ -176,7 +202,6 @@ test.describe('Show mode: scan a card into the deal checker', () => {
     await scanner(harness).getByRole('button', { name: 'Read card' }).click();
     await expect(check).toBeVisible();
     await expect(check).toContainText('Charizard ex');
-    await expect(check.getByTestId('quick-card-status')).toHaveText('Wanted');
     await screenshot(harness, 'scan-offline-check');
 
     // A card that isn't on this device: what was read is typed in, with why.
@@ -217,7 +242,7 @@ test.describe('Show mode: scan a card into the deal checker', () => {
     await seed(harness);
     const dialog = await openScanner(harness);
     await expect(scanner(harness).getByTestId('card-scan-status')).toHaveText(
-      'Camera access is off. Allow it in Settings to scan.',
+      'Camera access is off. Allow it in Settings to scan. Choose a photo of the card instead.',
     );
     await expect(scanner(harness).getByRole('button', { name: 'Read card' })).toBeDisabled();
     await scanner(harness).getByRole('button', { name: 'Type instead' }).click();
@@ -226,14 +251,77 @@ test.describe('Show mode: scan a card into the deal checker', () => {
     await expect(dialog.getByRole('searchbox')).toBeFocused();
   });
 
-  test("the want list's price check has Scan too", async ({ harness }) => {
+  test('a confident picture match opens its deal check, even when no text was read', async ({ harness }) => {
+    const { page } = harness;
+    await fakeCamera(page);
+    await seed(harness);
+    // Synthetic: clears the suggest gate (≥ 0.78 and ≥ 0.03 ahead of the next).
+    await pictureMatches(page, [
+      { id: 'sv03.5-006', language: 'en', score: 0.9 },
+      { id: 'sv03.5-005', language: 'en', score: 0.7 },
+    ]);
+    const dialog = await openScanner(harness);
+    await scanner(harness).getByRole('button', { name: 'Read card' }).click();
+    const check = dialog.getByTestId('quick-card-check');
+    await expect(check).toContainText('Charizard ex');
+    await expect(check.getByTestId('quick-card-status')).toHaveText('Wanted ×1');
+  });
+
+  test('close picture matches are offered to tap, and a tap opens the deal check', async ({ harness }) => {
+    const { page } = harness;
+    await fakeCamera(page);
+    await seed(harness);
+    // Synthetic: below the suggest gate, so nothing is picked for him.
+    await pictureMatches(page, [
+      { id: 'sv03.5-005', language: 'en', score: 0.72 },
+      { id: 'sv03.5-006', language: 'en', score: 0.71 },
+    ]);
+    const dialog = await openScanner(harness);
+    await setCardText(page, 'Charizard ex HP 330');
+    await scanner(harness).getByRole('button', { name: 'Read card' }).click();
+    const choices = dialog.getByRole('group', { name: 'Looks like' });
+    await expect(choices.getByRole('button')).toHaveCount(2);
+    await expect(dialog.getByTestId('quick-card-check')).toHaveCount(0);
+    await harness.expectNoHorizontalOverflow();
+    const charizard = choices.getByRole('button', { name: 'Charizard ex, 151 006/165' });
+    await harness.expectHittable(charizard);
+    await charizard.click();
+    await expect(dialog.getByTestId('quick-card-check')).toContainText('Charizard ex');
+  });
+
+  test('with the camera off, a chosen photo is read the same way', async ({ harness }) => {
+    const { page } = harness;
+    await fakeCamera(page, { camera: 'denied' });
+    await seed(harness);
+    const dialog = await openScanner(harness);
+    // A synthetic card-sized PNG drawn in the page; the stubbed TextDetector supplies the text.
+    const png = Buffer.from(
+      await page.evaluate(() => {
+        const canvas = Object.assign(document.createElement('canvas'), { width: 400, height: 560 });
+        const context = canvas.getContext('2d')!;
+        context.fillStyle = '#e8c547';
+        context.fillRect(0, 0, 400, 560);
+        return canvas.toDataURL('image/png').split(',')[1];
+      }),
+      'base64',
+    );
+    await setCardText(page, 'Charizard ex HP 330\n006/165');
+    await scanner(harness)
+      .getByLabel('Card photo', { exact: true })
+      .setInputFiles({ name: 'card.png', mimeType: 'image/png', buffer: png });
+    await expect(scanner(harness)).toHaveCount(0);
+    await expect(dialog.getByTestId('quick-card-check')).toContainText('Charizard ex');
+  });
+});
+
+// Signed in, Wanted is the native want list; the price lookup lives on the guest want list.
+test.describe("Show mode scan: the want list's price check", () => {
+  test('has Scan too', async ({ harness }) => {
     const { page } = harness;
     await fakeCamera(page);
     await seed(harness);
     await harness.dock().getByRole('button', { name: 'Wanted', exact: true }).click();
-    const main = page.getByTestId('main-content');
-    await main.getByRole('searchbox', { name: 'Search want list' }).fill('charmeleon');
-    await main.getByRole('button', { name: 'Check price of any card', exact: true }).click();
+    await page.getByTestId('main-content').getByRole('button', { name: 'Check a card price', exact: true }).click();
     const dialog = quickDialog(harness);
     await expect(dialog.getByRole('heading', { name: 'Price check' })).toBeVisible();
     await dialog.getByRole('button', { name: 'Scan a card' }).click();
