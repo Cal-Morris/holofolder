@@ -139,6 +139,20 @@ export function nativeCardState(model: ReturnType<typeof nativeCardConsumers>, c
     wantedCount: wants.length,
   };
 }
+/** The one finish saved for this exact printing (copies and wants), for a card whose rarity is unknown. */
+export function nativeSavedFinish(model: ReturnType<typeof nativeCardConsumers>, card: BrowseCard) {
+  const finishes = new Set(
+    [...(model?.copies ?? []), ...(model?.wants ?? [])].flatMap((entry) =>
+      entry.card &&
+      matchesCatalogCardId(card, entry.card.canonicalId ?? entry.card.id) &&
+      entry.card.language === card.language
+        ? [entry.finish]
+        : [],
+    ),
+  );
+  const [finish] = finishes;
+  return finishes.size === 1 && finish ? finish : undefined;
+}
 export function nativeCardLabel(state: ReturnType<typeof nativeCardState>) {
   if (!state.known) return 'Ownership unavailable';
   return (

@@ -1,7 +1,7 @@
 // Type-only at module level: this file is also the single source of pricing types and
 // normalizers for the client (hooks/use-card-prices.ts), so it must not pull the service-role
 // Supabase client into the browser bundle. The admin client is loaded lazily on the server.
-import type { CardFinish } from '@/lib/domain/cards';
+import { isCardFinish, type CardFinish } from '@/lib/domain/cards';
 import { readCatalogMetadata, selectCatalogPricing } from '@/lib/card-catalog';
 import { normalizePriceHistory, type CardPriceHistoryPoint } from '@/lib/card-price-history';
 import type { createAdminClient } from '@/lib/supabase/admin';
@@ -58,6 +58,16 @@ const STANDARD_FINISH_VARIANT_KEYS = new Set([
   'reverse-holofoil',
   'reverse-holo',
 ]);
+
+/**
+ * The quoted finish that prices a copy of `finish`. Standard finishes price themselves. A rarity-named finish
+ * (Double Rare, Illustration Rare, …) names the rarity of a holo printing, so it takes the holo quote.
+ * Jumbo cards are a separate product with no standard quote.
+ */
+export function quotedFinishFor(finish: CardFinish | string | null | undefined): PricedCardFinish | null {
+  if (finish === 'normal' || finish === 'holo' || finish === 'reverse_holo') return finish;
+  return finish && finish !== 'jumbo' && isCardFinish(finish) ? 'holo' : null;
+}
 
 /** True for a finish quote row that prices the standard printing (not 1st Edition or another special row). */
 export function isStandardFinishVariantKey(variantKey: string) {

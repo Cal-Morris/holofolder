@@ -1,5 +1,10 @@
 import { isCardLanguage, type CardFinish } from '@/lib/domain/cards';
-import { isStandardFinishVariantKey, normalizePriceSource, type CardFinishPrice } from '@/lib/card-pricing';
+import {
+  isStandardFinishVariantKey,
+  normalizePriceSource,
+  quotedFinishFor,
+  type CardFinishPrice,
+} from '@/lib/card-pricing';
 import { priceCheckFinish } from '@/lib/card-price-check-cache';
 import { isMomentumEligibleConfidence } from '@/lib/price-momentum';
 import { capConfidence, STALE_AFTER_DAYS, VERY_STALE_AFTER_DAYS } from '@/lib/price-freshness';
@@ -26,7 +31,7 @@ export function nativeCatalogueQuote(
     !isCardLanguage(card.language) ||
     quote?.cardId !== card.id ||
     quote.language !== card.language ||
-    quote.finish !== finish ||
+    quote.finish !== quotedFinishFor(finish) ||
     typeof quote.variantKey !== 'string' ||
     !isStandardFinishVariantKey(quote.variantKey) ||
     !normalizePriceSource(quote.source) ||

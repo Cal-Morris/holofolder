@@ -3,9 +3,9 @@
  * Price sorts use the region-weighted market price (falling back to the "good" low price) for the
  * finish chosen in the picker, and always put unpriced cards last.
  */
-import type { CardPriceSnapshot, PricedCardFinish } from '@/lib/card-pricing';
+import type { CardPriceSnapshot } from '@/lib/card-pricing';
 import type { CardFinish } from '@/lib/domain/cards';
-import { getRegionalFinishPrices } from '@/lib/regional-price';
+import { getRegionalFinishPrice } from '@/lib/regional-price';
 import type { PricingRegion } from '@/lib/pricing-region';
 
 export type CardPickerSort = 'default' | 'price-desc' | 'price-asc' | 'newest' | 'oldest';
@@ -45,8 +45,6 @@ function positive(value: number | null | undefined) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
 }
 
-const PRICED_FINISHES = new Set<CardFinish>(['normal', 'holo', 'reverse_holo']);
-
 /**
  * The amount a card is ranked by: the selected finish's own quote when one exists, else the card's
  * headline quote. Market price first, then the "good" (L) price. Null when unpriced.
@@ -57,9 +55,7 @@ export function getCardPickerSortAmount(
   region: PricingRegion,
 ) {
   if (!price) return null;
-  const finishPrice = PRICED_FINISHES.has(finish)
-    ? getRegionalFinishPrices(price, region)[finish as PricedCardFinish]
-    : undefined;
+  const finishPrice = getRegionalFinishPrice(price, region, finish);
   for (const quote of [finishPrice, price]) {
     const amount = positive(quote?.marketGbpAmount ?? quote?.gbpAmount) ?? positive(quote?.goodGbpAmount);
     if (amount != null) return amount;

@@ -54,6 +54,14 @@ test('native catalogue requires exact identity, provenance, finite amount and kn
   assert.equal(nativeCatalogueQuote(card, 'normal', quote, now + 31 * 86400000), undefined);
 });
 
+test('a rarity-named finish accepts the exact holo quote, never a normal or reverse one', () => {
+  const holo = { ...quote, finish: 'holo' as const, variantKey: 'holofoil' };
+  assert.equal(nativeCatalogueQuote(card, 'double_rare', holo, now)?.gbpAmount, 100);
+  assert.equal(nativeCatalogueQuote(card, 'illustration_rare', holo, now)?.gbpAmount, 100);
+  assert.equal(nativeCatalogueQuote(card, 'jumbo', holo, now), undefined);
+  assert.equal(nativeCatalogueQuote(card, 'double_rare', { ...holo, finish: 'reverse_holo' as const }, now), undefined);
+});
+
 test('native saved sold checks never turn unknown language or any-finish evidence into an exact match', () => {
   assert.equal(nativeSoldEvidenceAllowed(card, 'normal'), true);
   assert.equal(nativeSoldEvidenceAllowed({ language: undefined, variants: { normal: true } }, 'normal', true), false);

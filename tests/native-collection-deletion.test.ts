@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { collectionDeletionEvidence, prepareCollectionDeletion } from '@/lib/native-collection-deletion';
+import {
+  collectionDeletionEvidence,
+  confirmCollectionDeletion,
+  prepareCollectionDeletion,
+} from '@/lib/native-collection-deletion';
 import { projectSlotIntent } from '@/lib/collection/slot-optimistic';
 import { createSlotOfflineQueue } from '@/lib/collection/slot-offline-queue';
 import { createMemoryStore } from '@/lib/offline-store/kv';
@@ -264,4 +268,17 @@ test('deleteCollection accepts removeOwned only as true', () => {
   assert.doesNotThrow(() => parseInventoryCommand(request({})));
   assert.doesNotThrow(() => parseInventoryCommand(request({ removeOwned: true })));
   for (const removeOwned of [false, 'true', 1]) assert.throws(() => parseInventoryCommand(request({ removeOwned })));
+});
+
+test('the sent deletion is stamped when confirmed, not when its preview was built', async () => {
+  const read = await deletionRead(1);
+  const draft = prepareCollectionDeletion(read, deletionCollection, deletionRemaining, {
+    ...context,
+    clientOccurredAt: null,
+  });
+  const confirmed = confirmCollectionDeletion(draft, '2026-01-02T03:04:05.000Z');
+  assert.equal(confirmed.intent.context.clientOccurredAt, '2026-01-02T03:04:05.000Z');
+  assert.equal(confirmed.intent.context.operationId, context.operationId);
+  assert.deepEqual(confirmed.intent.request, draft.intent.request);
+  assert.equal(draft.intent.context.clientOccurredAt, null);
 });

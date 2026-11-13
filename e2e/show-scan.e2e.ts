@@ -88,9 +88,15 @@ const SCAN_COLLECTION = HUNT_COLLECTION.map((row) => ({
   ),
 }));
 
+/** Synthetic: Charizard ex's catalog quote is for its one holo printing, as providers price a Double Rare. */
+const SCAN_PRICES = {
+  ...HUNT_PRICES,
+  'sv03.5-006': { ...HUNT_PRICES['sv03.5-006'], finishes: [{ finish: 'holo' as const, market: 50 }] },
+};
+
 async function seed(harness: Harness) {
   const { page } = harness;
-  await mockCardPrices(page, HUNT_PRICES);
+  await mockCardPrices(page, SCAN_PRICES);
   // No picture match by default, so the text read decides.
   await pictureMatches(page, []);
   // The real card search tags each card with its language (native wants and quotes match on it) and answers
@@ -157,6 +163,8 @@ test.describe('Show mode: scan a card into the deal checker', () => {
     await expect(check).toBeVisible();
     await expect(check).toContainText('Charizard ex');
     await expect(check.getByTestId('quick-card-status')).toHaveText('Wanted ×1');
+    // The Double Rare is priced from its holo quote, the same price its search row shows.
+    await expect(check.getByTestId('quick-card-market-price')).toHaveText('£50.00');
     await harness.expectNoHorizontalOverflow();
     await screenshot(harness, 'scan-check');
 
@@ -202,6 +210,8 @@ test.describe('Show mode: scan a card into the deal checker', () => {
     await scanner(harness).getByRole('button', { name: 'Read card' }).click();
     await expect(check).toBeVisible();
     await expect(check).toContainText('Charizard ex');
+    // The device catalog has no rarity; the saved want says which printing this is.
+    await expect(check.getByTestId('quick-card-status')).toHaveText('Wanted ×1');
     await screenshot(harness, 'scan-offline-check');
 
     // A card that isn't on this device: what was read is typed in, with why.

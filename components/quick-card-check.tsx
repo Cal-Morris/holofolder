@@ -7,6 +7,7 @@ import NativeWantedEntries from '@/components/native-wanted-entries';
 import {
   nativeCardConsumers,
   nativeCardState,
+  nativeSavedFinish,
   nativeCardLabel,
   type NativeConsumerBinding,
 } from '@/lib/collection/native-card-consumers';
@@ -23,11 +24,10 @@ import {
   convertGbpForDisplay,
   formatMoney,
   getGbpPerUnit,
-  getRegionalFinishPrices,
+  getRegionalFinishPrice,
   type DisplayFxRates,
 } from '@/lib/regional-price';
 import type { DisplayCurrency, PricingRegion } from '@/lib/pricing-region';
-import type { PricedCardFinish } from '@/lib/card-pricing';
 import type { CardFinish } from '@/lib/domain/cards';
 import { getPriceDataAgeDays } from '@/lib/price-freshness';
 import { getRisingMomentum, isMomentumEligibleConfidence } from '@/lib/price-momentum';
@@ -182,7 +182,14 @@ export default function QuickCardCheck({
     () => getCardPickerFinishChoices(card.variants, inferred, 'any', snapshot?.finishPrices),
     [card.variants, inferred, snapshot?.finishPrices],
   );
-  const [finish, setFinish] = useState<CardFinish>(() => initialFinish ?? finishChoices[0]?.finish ?? inferred);
+  // Offline catalog cards carry no rarity, so an exact saved printing says which finish this is.
+  const [finish, setFinish] = useState<CardFinish>(
+    () =>
+      initialFinish ??
+      (card.rarity ? undefined : nativeSavedFinish(nativeModel, card)) ??
+      finishChoices[0]?.finish ??
+      inferred,
+  );
   const state: QuickCardState = nativeConsumer
     ? nativeCardState(nativeModel, card, finish)
     : (getState?.(finish) ?? initialState);
@@ -190,9 +197,8 @@ export default function QuickCardCheck({
   const replacementKey = state.replacing ? `${card.id}:${finish}:${state.replacing}` : null;
   const needsConfirmation = Boolean(replacementKey && confirmedReplacement !== replacementKey);
   const [soldEvidence, setSoldEvidence] = useState<{ key: string; check: CardPriceCheck } | null>(null);
-  const finishPrices = useMemo(() => getRegionalFinishPrices(snapshot, pricingRegion), [pricingRegion, snapshot]);
   // Native lookups require reliable exact-finish evidence; legacy keeps its headline fallback.
-  const exactPrice = finishPrices[finish as PricedCardFinish];
+  const exactPrice = getRegionalFinishPrice(snapshot, pricingRegion, finish);
   const nativeQuote = nativeCatalogueQuote(card, finish, exactPrice, now);
   const nativeSoldAllowed = nativeSoldEvidenceAllowed(card, finish, Boolean(nativeQuote));
   const price = nativeConsumer
@@ -479,10 +485,7 @@ export default function QuickCardCheck({
               {formatCardFinishLabel(finish)} · Catalog quotes and averages, not sold records. Values in GBP, converted
               from the original source currency shown.
             </p>
-            <CardPriceEvidence
-              price={finishPrices[finish as PricedCardFinish]}
-              emptyMessage="No catalog evidence saved for this finish."
-            />
+            <CardPriceEvidence price={exactPrice} emptyMessage="No catalog evidence saved for this finish." />
           </section>
         </details>
 
