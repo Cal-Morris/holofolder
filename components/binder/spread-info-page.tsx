@@ -124,7 +124,9 @@ export function renderSpreadInfoPageView(ctx: SpreadInfoPageContext, side: 'left
           <footer className={styles.footer}>
             <p>
               <span>{activeCollectionFilterOption.label}</span>
-              <span>{totalBinderPages} pages</span>
+              <span>
+                {totalBinderPages} {totalBinderPages === 1 ? 'page' : 'pages'}
+              </span>
               <span>{ctx.native ? `${ctx.native.slotCount} slots` : `${filteredPokemonList.length} Pokémon`}</span>
               {!canEditBinder && <span>Read-only</span>}
             </p>
