@@ -665,6 +665,26 @@ export async function findMirroredImportCandidates(lookup: ImportLookup): Promis
     .filter((card): card is SearchCardResult => Boolean(card));
 }
 
+/** Cards by TCGdex id (picture scan candidates), in `language`. Unknown or hidden ids are left out. */
+export async function getMirroredCardsByIds(ids: readonly string[], language: MirrorLanguage = 'en') {
+  'use cache: remote';
+  cacheLife(MIRROR_CACHE_LIFE);
+  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION);
+  if (!ids.length) return [];
+  const { data, error } = await createAdminClient()
+    .from('tcg_cards')
+    .select(cardSearchSelect(true))
+    .in('id', [...ids]);
+  if (error) throw error;
+  const cards = new Map(
+    (data ?? []).flatMap((row) => {
+      const card = toSearchCardResult(row, language, true);
+      return card ? [[card.id, card] as const] : [];
+    }),
+  );
+  return ids.flatMap((id) => cards.get(id) ?? []);
+}
+
 /**
  * Card search across the mirror: card name, card number ("bulbasaur 44/102"), set name/id
  * ("pitch black", "me05 12"), illustrator ("arita") or a TCGdex card id ("base1-44"). Defaults to cards that feature a Pokémon; explicit-slot catalog mode also includes non-Pokémon cards.
