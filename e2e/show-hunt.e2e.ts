@@ -362,7 +362,7 @@ test.describe('Show mode finder', () => {
     await comps.getByRole('button', { name: 'Check comps' }).click();
     await expect(page.getByTestId('check-comps-confirm')).toBeVisible();
     // Backdrop tap cancels.
-    await page.getByTestId('check-comps-confirm-backdrop').click({ position: { x: 8, y: 8 } });
+    await harness.tapBackdrop(page.getByTestId('check-comps-confirm'));
     await expect(page.getByTestId('check-comps-confirm')).toHaveCount(0);
     await expect(comps.getByRole('status')).toHaveText('Check comps cancelled.');
 

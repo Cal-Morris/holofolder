@@ -631,7 +631,8 @@ export class Harness {
       if (insideDialog) continue;
       const isBackdrop = await this.page.evaluate(({ x, y }) => {
         const element = document.elementFromPoint(x, y) as HTMLElement | null;
-        return Boolean(element?.matches('[data-overlay-backdrop]'));
+        // A native modal <dialog> paints its own ::backdrop, which hit-tests as the dialog element.
+        return Boolean(element?.matches('[data-overlay-backdrop], dialog:modal'));
       }, point);
       if (isBackdrop) {
         await this.page.mouse.click(point.x, point.y);

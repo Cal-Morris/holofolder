@@ -7,6 +7,33 @@ description: Build a modal, bottom sheet, dialog or popover in Holo Folder using
 
 Every overlay must use `hooks/use-overlay.ts`. The stack bookkeeping and swipe maths are in `lib/overlay-stack.ts`, which has unit tests. Good references: `components/partner-modal.tsx` (simple modal) and `components/pokemon-cards-browser.tsx` (sheet with swipe).
 
+## New overlays: use `OverlayDialog`
+
+New sheets and modals use `components/ui/overlay-dialog.tsx`. It renders a native `<dialog>` opened with `showModal()` (top layer above the header and dock, inert page behind, native focus restore) and wires `useOverlay` and `useSwipeToDismiss` inside, so every dismissal path below comes for free. Reference: `components/wanted-filters-sheet.tsx`.
+
+```tsx
+<OverlayDialog
+  onClose={onClose}
+  aria-label="Sort and filter want list"
+  className="flex flex-col px-4 pt-3 pb-[calc(var(--safe-bottom)+0.75rem)]"
+>
+  <div data-sheet-grabber className="-mx-4 -mt-3 shrink-0 px-4 pt-3">
+    {/* grabber pill, title, <button aria-label="Close …" onClick={onClose} className="h-9 w-9 …"> */}
+  </div>
+  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">…</div>
+</OverlayDialog>
+```
+
+- Render it while open and unmount it to close. `variant` is `sheet` (default, bottom edge, swipes) or `centred`.
+- The `<dialog>` is the panel: pass padding, height and layout in `className` (merged with `cn`, so you can override the sheet chrome, e.g. `bottom-[var(--dock-clearance)]`).
+- Name it (`aria-label`/`aria-labelledby`) and render your own X (36 px+) calling `onClose`.
+- Mark the swipe header `data-sheet-grabber`; there are no handlers to spread.
+- The backdrop is `::backdrop`; a press and click both outside the dialog close it. There is no `data-overlay-backdrop` element (e2e `tapBackdrop` accepts `dialog:modal` hits).
+- Escape is still `useOverlay`'s; the dialog's `cancel` event is prevented and only closes for other close requests (Android back through CloseWatcher).
+- The page behind is inert, so anything it must show over (toasts, menus portalled to `body`) has to live inside the dialog. A div overlay opened from inside one will sit under it.
+
+The steps below describe the older div overlays, still in use until they are migrated.
+
 ## Steps
 
 1. **Markup.** A fixed container with:
