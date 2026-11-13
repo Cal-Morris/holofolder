@@ -1,4 +1,10 @@
-import { hasRarity, matchCardNicknames, matchesNicknameRest, matchRarityWords } from '@/lib/card-nicknames';
+import {
+  expandSearchAliases,
+  hasRarity,
+  matchCardNicknames,
+  matchesNicknameRest,
+  matchRarityWords,
+} from '@/lib/card-nicknames';
 import {
   cardNameSearchFilter,
   cardSearchSetCandidates,
@@ -714,6 +720,10 @@ export async function searchMirroredCards(
 ): Promise<{ cards: SearchCardResult[]; correction: string | null }> {
   'use cache: remote';
   cacheLife(MIRROR_CACHE_LIFE);
+
+  // "zard", "mr mime": search for the name as printed.
+  const expanded = expandSearchAliases(query);
+  if (expanded !== query.trim()) return searchMirroredCards(expanded, language, limit, includeNonPokemon);
 
   // "charizard sir": the search without the rarity word, kept to that rarity.
   const rarity = matchRarityWords(query);
