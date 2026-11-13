@@ -1092,7 +1092,7 @@ export default function CardSelector({
         role="dialog"
         aria-modal="true"
         aria-label="Card selector"
-        className="border-border bg-card fixed inset-x-0 z-50 flex flex-col overflow-hidden rounded-t-[2.25rem] border shadow-[0_-28px_80px_-42px_rgba(0,0,0,0.75)] outline-none sm:inset-x-3 sm:rounded-[2.25rem] lg:inset-x-8 xl:right-auto xl:left-1/2 xl:w-[min(calc(100vw-4rem),92rem)] xl:-translate-x-1/2"
+        className="border-border bg-card fixed inset-x-0 z-50 flex flex-col overflow-hidden rounded-t-[2.25rem] border shadow-[0_-28px_80px_-42px_rgba(0,0,0,0.75)] outline-none sm:inset-x-3 sm:rounded-[2.25rem] lg:inset-x-8 xl:inset-x-0 xl:mx-auto xl:w-[min(calc(100vw-4rem),92rem)]"
         onClick={(e) => e.stopPropagation()}
         style={{
           top: 'calc(var(--top-inset) + 0.5rem)',
