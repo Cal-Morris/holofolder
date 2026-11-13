@@ -40,7 +40,10 @@ test('a failed stale batch keeps the successful missing-card batch', async ({ pa
     quote('base1-46', 9, Date.now() - 3 * 60 * 60 * 1000),
   );
   await page.route('**/app/api/card-prices**', (route) =>
-    route.request().postDataJSON().force
+    route
+      .request()
+      .postDataJSON()
+      .cards.some((card: { cardId: string }) => card.cardId === 'base1-46')
       ? route.fulfill({ status: 503, json: { error: 'Synthetic batch failure' } })
       : route.fallback(),
   );
