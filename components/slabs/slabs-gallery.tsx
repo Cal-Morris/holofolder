@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import { OverlayDialog, OverlayGrabber } from '@/components/ui/overlay-dialog';
+import { OverlayGrabber, OverlayInsetSheet } from '@/components/ui/overlay-dialog';
 import type { SlabPresentation } from '@/lib/slabs/presentation';
 import { slabSummary } from '@/lib/slabs/presentation';
 import SlabCard from './slab-card';
@@ -15,12 +15,9 @@ export interface SlabGalleryCopy {
 function SlabDetail({ copy, onClose }: { copy: SlabGalleryCopy; onClose: () => void }) {
   const p = copy.slab;
   return (
-    <OverlayDialog
-      modal={false}
-      portal={false}
+    <OverlayInsetSheet
       onClose={onClose}
-      layerClassName={styles.overlay}
-      backdropProps={{ className: styles.backdrop }}
+      backdropClassName={styles.backdrop}
       aria-label="Slab copy details"
       className={styles.sheet}
     >
@@ -66,7 +63,7 @@ function SlabDetail({ copy, onClose }: { copy: SlabGalleryCopy; onClose: () => v
         </div>
         <p className={styles.copyId}>Copy {copy.itemId}</p>
       </div>
-    </OverlayDialog>
+    </OverlayInsetSheet>
   );
 }
 /** Only already-scoped/redacted copies enter the gallery. No mutation, asset fetch or pricing. */

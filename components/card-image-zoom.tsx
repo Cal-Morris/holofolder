@@ -1,10 +1,9 @@
 'use client';
 
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
 import CardImage from '@/components/card-image';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import { OverlayCloseButton, OverlayDialog } from '@/components/ui/overlay-dialog';
+import { useSwipeToDismiss } from '@/hooks/use-overlay';
 import { cardTilt } from '@/lib/card-tilt';
 
 const TILT_RESET = 'transform 500ms cubic-bezier(0.22, 1, 0.36, 1)';
@@ -62,24 +61,22 @@ export default function CardImageZoom({
 }
 
 function CardImageViewer({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
-  const dialogRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
-  useOverlay(true, onClose, { containerRef: dialogRef });
+  // The card (not the black backdrop) follows the finger, so the dialog's own swipe stays off.
   const swipe = useSwipeToDismiss(cardRef, onClose);
 
-  return createPortal(
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
+  return (
+    <OverlayDialog
+      variant="fullscreen"
+      onClose={onClose}
       aria-label={`${alt} full screen`}
       // Portal pointer events must not start a drag on the detail sheet underneath.
       onPointerDown={(event) => event.stopPropagation()}
       onPointerMove={(event) => event.stopPropagation()}
       onPointerUp={(event) => event.stopPropagation()}
       onPointerCancel={(event) => event.stopPropagation()}
-      className="fixed inset-0 z-[100] flex flex-col overflow-hidden text-white outline-none"
+      className="flex flex-col overflow-hidden text-white"
       style={{
         paddingTop: 'calc(env(safe-area-inset-top) + 0.5rem)',
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)',
@@ -93,14 +90,12 @@ function CardImageViewer({ src, alt, onClose }: { src: string; alt: string; onCl
       >
         <div data-sheet-grabber className="pointer-events-auto flex w-full shrink-0 items-center justify-between gap-3">
           <p className="text-sm text-white/70">Swipe down to close</p>
-          <button
-            type="button"
-            aria-label="Close full-screen card"
+          <OverlayCloseButton
+            label="Close full-screen card"
             onClick={onClose}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15 focus-visible:outline-2 focus-visible:outline-white"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
+            className="h-11 w-11 bg-white/15 hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-white"
+            iconClassName="h-5 w-5"
+          />
         </div>
         <div className="flex min-h-0 flex-1 items-center justify-center">
           <div
@@ -145,7 +140,6 @@ function CardImageViewer({ src, alt, onClose }: { src: string; alt: string; onCl
           </div>
         </div>
       </div>
-    </div>,
-    document.body,
+    </OverlayDialog>
   );
 }

@@ -3408,8 +3408,6 @@ function BinderAppSurface(props: BinderAppProps) {
   ]);
 
   const searchDialogRef = useRef<HTMLDivElement | null>(null);
-  const controlsSheetRef = useRef<HTMLDivElement | null>(null);
-  const mobileActionsRef = useRef<HTMLDivElement | null>(null);
   const closeMobileActions = useCallback(() => setLongPressedPokemon(null), []);
   const closeSelectedPokemon = useCallback(() => {
     setSelectedPokemon(null);
@@ -3429,17 +3427,11 @@ function BinderAppSurface(props: BinderAppProps) {
     trapFocus: !isDesktopViewport && !isQuickPanelCovered,
     autoFocus: !isDesktopViewport,
   });
-  useOverlay(Boolean(longPressedPokemon) && !isDesktopViewport && !readOnlyMode, closeMobileActions, {
-    containerRef: mobileActionsRef,
-  });
-  const mobileActionsSwipe = useSwipeToDismiss(mobileActionsRef, closeMobileActions, !isDesktopViewport);
   useOverlay(isSearchOpen, closeSearch, { containerRef: searchDialogRef, autoFocus: false });
   const searchSwipe = useSwipeToDismiss(searchDialogRef, closeSearch, isSearchOpen);
-  useOverlay(isMobileNavExpanded && !isSearchOpen, closeControlsSheet, { containerRef: controlsSheetRef });
   const quickPanelSwipe = useSwipeToDismiss(quickPanelRef, closeSelectedPokemon, isMobileQuickPanel);
   const closeCardBrowser = useCallback(() => setCardBrowser(null), [setCardBrowser]);
   const closeIllustratorBrowser = useCallback(() => setIllustratorBrowser(null), []);
-  const controlsSheetSwipe = useSwipeToDismiss(controlsSheetRef, closeControlsSheet, !isDesktopViewport);
 
   /** Close every open overlay first so sheets/modals never stack on top of each other. */
   const openExclusively = useCallback(
@@ -3981,9 +3973,8 @@ function BinderAppSurface(props: BinderAppProps) {
       handleQuickCollect,
       handleToggleFavorite,
       isCollected,
+      isDesktopViewport,
       longPressedPokemon,
-      mobileActionsRef,
-      mobileActionsSwipe,
       openCardBrowser,
       openCardSelectorForPokemon,
       readOnlyMode,
@@ -4463,8 +4454,6 @@ function BinderAppSurface(props: BinderAppProps) {
       closeControlsSheet,
       collectionStats,
       collectionViewFilter,
-      controlsSheetRef,
-      controlsSheetSwipe,
       currentPagePokemon,
       handlePhotoButtonClick,
       hasTrackedCards,

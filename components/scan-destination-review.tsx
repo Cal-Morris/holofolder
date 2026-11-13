@@ -1,10 +1,10 @@
 'use client';
 
-import { useLayoutEffect, useReducer, useRef, useState, type RefObject } from 'react';
-import { X } from 'lucide-react';
+import { useLayoutEffect, useReducer, useRef, useState, type ComponentProps, type RefObject } from 'react';
 import CardImage from '@/components/card-image';
 import { CardSelector } from '@/components/binder/lazy-views';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import { OverlayCloseButton, OverlayDialog, OverlayFooter, OverlayHeader } from '@/components/ui/overlay-dialog';
+import { cn } from '@/lib/utils';
 import { useSlotDraftAcceptance } from '@/hooks/use-slot-draft-acceptance';
 import {
   assertScanCurrent,
@@ -63,6 +63,26 @@ function scanProblem(cause: unknown) {
 }
 
 /**
+ * The scanners' sheet: non-modal above the dock (which stays usable) in a z-40 layer, rendered in place. The camera
+ * and the review that follows it share this placement; pass the panel's own look and height in `className`.
+ */
+export function ScanSheet({ className, ...props }: ComponentProps<typeof OverlayDialog>) {
+  return (
+    <OverlayDialog
+      modal={false}
+      portal={false}
+      layerClassName="z-40"
+      backdropProps={{ className: 'bg-black/55' }}
+      {...props}
+      className={cn(
+        'absolute inset-x-2 bottom-[var(--dock-clearance)] mx-auto max-w-lg overflow-hidden rounded-2xl',
+        className,
+      )}
+    />
+  );
+}
+
+/**
  * What a scan found, card by card: the photo, the card you say it is and the pocket it goes in. A scan never adds
  * anything by itself: only cards you have chosen are added, to the pocket shown, in one save when you press Add.
  */
@@ -78,10 +98,8 @@ export default function ScanDestinationReview({
   cells: ScanReviewCell[];
   onClose: () => void;
   /** Keep one overlay/history entry while capture transitions into review. */
-  managed?: { containerRef: RefObject<HTMLDivElement | null>; onBusyChange: (busy: boolean) => void };
+  managed?: { containerRef: RefObject<HTMLDialogElement | null>; onBusyChange: (busy: boolean) => void };
 }) {
-  const ownPanel = useRef<HTMLDivElement>(null);
-  const panel = managed?.containerRef ?? ownPanel;
   const latest = useRef(admission);
   const pendingCatalog = useRef<InventoryCatalogResolver>(admission.catalog);
   useLayoutEffect(() => {
@@ -106,15 +124,10 @@ export default function ScanDestinationReview({
   const close = () => {
     if (!acceptance.busy) onClose();
   };
-  useOverlay(!managed, close, { containerRef: panel });
   useLayoutEffect(() => {
     managed?.onBusyChange(acceptance.busy);
     return () => managed?.onBusyChange(false);
   }, [managed, acceptance.busy]);
-  useLayoutEffect(() => {
-    panel.current?.focus();
-  }, [panel]);
-  const swipe = useSwipeToDismiss(panel, close, !acceptance.busy);
   let stale = false;
   try {
     assertScanCurrent(admission.snapshot, admission.view, capture);
@@ -229,367 +242,355 @@ export default function ScanDestinationReview({
   const pickingReserved = picking?.slot?.target?.kind === 'card' ? picking.slot.target : null;
   const locked = stale || acceptance.busy || Boolean(acceptance.pending);
   return (
-    <div className="fixed inset-0 z-40">
-      <div data-overlay-backdrop className="absolute inset-0 bg-black/55" onClick={close} />
-      <div
-        ref={panel}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Scanned cards"
-        className="border-border bg-card text-foreground absolute inset-x-2 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl border outline-none"
-      >
-        <header
-          data-sheet-grabber
-          {...swipe}
-          className="border-border relative flex shrink-0 items-center gap-2 border-b p-3"
-        >
-          <span
-            aria-hidden="true"
-            className="bg-muted-foreground/30 pointer-events-none absolute top-1 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full"
+    <ScanSheet
+      ref={managed?.containerRef}
+      managed={Boolean(managed)}
+      onClose={close}
+      swipe={!acceptance.busy}
+      aria-label="Scanned cards"
+      className="border-border bg-card text-foreground flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] flex-col border"
+      layerChildren={
+        picking && (
+          <CardSelector
+            pokemonId={pickingSpecies ?? 0}
+            pokemonName={pickingSpecies ? describeIdentity({ kind: 'pokemon', pokemonId: pickingSpecies }).name : ''}
+            onSelect={unusedLegacySelect}
+            onClose={() => send({ type: 'close-picker' })}
+            defaultCardLanguage={pickingReserved?.language}
+            anyCard={
+              pickingSpecies
+                ? undefined
+                : pickingReserved
+                  ? { title: 'Which card is this?', cardId: pickingReserved.cardId }
+                  : { title: 'Which card is this?', query: picking.cell.query }
+            }
+            native={{
+              onPick: (card, finish) =>
+                send({
+                  type: 'picked',
+                  index: picking.cell.index,
+                  card: pickingSpecies
+                    ? speciesSelectorCard(card, pickingSpecies)
+                    : ({ ...card, dexIds: card.dexIds ?? [] } as SearchCardResult),
+                  finish,
+                }),
+            }}
           />
-          <div className="min-w-0 flex-1">
-            <h2 className="font-semibold">
-              {found.length === 1 && !found[0].slotId ? 'Scanned card' : 'Cards on this page'}
-            </h2>
-            <p className="text-muted-foreground text-xs">Choose each card, then add them to your binder.</p>
-          </div>
-          <button
-            type="button"
-            className="hover:bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-full disabled:opacity-45"
-            disabled={acceptance.busy}
-            aria-label="Close scan review"
-            onClick={close}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </header>
-        <div className="min-h-0 space-y-2 overflow-y-auto overscroll-contain p-3">
-          {stale && (
-            <p role="alert" className="text-sm">
-              This page changed after the scan. Close this and scan again.
-            </p>
-          )}
-          {error && (
-            <p role="alert" className="text-sm break-words">
-              {error}
-            </p>
-          )}
-          {acceptance.pending && acceptance.message && (
-            <p role="alert" className="text-sm">
-              {acceptance.message}
-            </p>
-          )}
-          {found.length === 0 && (
-            <p className="text-muted-foreground py-6 text-center text-sm">
-              No cards were found in the photo. Try again with the whole page in view and good light.
-            </p>
-          )}
-          {rows.map(
-            ({
-              cell,
-              choice,
-              slot,
-              recorded,
-              replacing,
-              differs,
-              card,
-              finishes,
-              finish,
-              graded,
-              rawAvailable,
-              copy,
-              pockets,
-              destination,
-            }) => {
-              const pocketFor = slot?.target
-                ? slot.target.kind === 'pokemon'
-                  ? describeIdentity(slot.target).name
-                  : 'a specific card'
-                : null;
-              const where = cell.slotId ? place(cell.slotId) : null;
-              const picture = card?.image ?? cell.crop;
-              return (
-                <section
-                  key={cell.index}
-                  aria-label={where ?? 'Scanned card'}
-                  className={`border-border/60 flex gap-3 rounded-2xl border p-2.5 ${choice.skip || recorded ? 'opacity-60' : ''}`}
-                >
-                  <span className="trading-card border-border/60 bg-muted relative w-16 shrink-0 self-start overflow-hidden rounded-md border">
-                    {picture &&
-                      (card?.image ? (
-                        <CardImage src={card.image} alt="" fill sizes="64px" className="object-cover" />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element -- a crop of the person's own photo, held in memory
-                        <img src={picture} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                      ))}
-                  </span>
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    {where && (
-                      <p className="text-muted-foreground text-xs">
-                        {where}
-                        {pocketFor ? ` · for ${pocketFor}` : ''}
+        )
+      }
+    >
+      <OverlayHeader>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-semibold">
+            {found.length === 1 && !found[0].slotId ? 'Scanned card' : 'Cards on this page'}
+          </h2>
+          <p className="text-muted-foreground text-xs">Choose each card, then add them to your binder.</p>
+        </div>
+        <OverlayCloseButton
+          label="Close scan review"
+          onClick={close}
+          disabled={acceptance.busy}
+          className="disabled:opacity-45"
+        />
+      </OverlayHeader>
+      <div className="min-h-0 space-y-2 overflow-y-auto overscroll-contain p-3">
+        {stale && (
+          <p role="alert" className="text-sm">
+            This page changed after the scan. Close this and scan again.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm break-words">
+            {error}
+          </p>
+        )}
+        {acceptance.pending && acceptance.message && (
+          <p role="alert" className="text-sm">
+            {acceptance.message}
+          </p>
+        )}
+        {found.length === 0 && (
+          <p className="text-muted-foreground py-6 text-center text-sm">
+            No cards were found in the photo. Try again with the whole page in view and good light.
+          </p>
+        )}
+        {rows.map(
+          ({
+            cell,
+            choice,
+            slot,
+            recorded,
+            replacing,
+            differs,
+            card,
+            finishes,
+            finish,
+            graded,
+            rawAvailable,
+            copy,
+            pockets,
+            destination,
+          }) => {
+            const pocketFor = slot?.target
+              ? slot.target.kind === 'pokemon'
+                ? describeIdentity(slot.target).name
+                : 'a specific card'
+              : null;
+            const where = cell.slotId ? place(cell.slotId) : null;
+            const picture = card?.image ?? cell.crop;
+            return (
+              <section
+                key={cell.index}
+                aria-label={where ?? 'Scanned card'}
+                className={`border-border/60 flex gap-3 rounded-2xl border p-2.5 ${choice.skip || recorded ? 'opacity-60' : ''}`}
+              >
+                <span className="trading-card border-border/60 bg-muted relative w-16 shrink-0 self-start overflow-hidden rounded-md border">
+                  {picture &&
+                    (card?.image ? (
+                      <CardImage src={card.image} alt="" fill sizes="64px" className="object-cover" />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element -- a crop of the person's own photo, held in memory
+                      <img src={picture} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    ))}
+                </span>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  {where && (
+                    <p className="text-muted-foreground text-xs">
+                      {where}
+                      {pocketFor ? ` · for ${pocketFor}` : ''}
+                    </p>
+                  )}
+                  {recorded ? (
+                    <>
+                      <p className="text-sm">
+                        {differs
+                          ? 'Your binder has a different card in this pocket.'
+                          : 'Already in your binder. Nothing to add.'}
                       </p>
-                    )}
-                    {recorded ? (
-                      <>
-                        <p className="text-sm">
-                          {differs
-                            ? 'Your binder has a different card in this pocket.'
-                            : 'Already in your binder. Nothing to add.'}
-                        </p>
+                      <button
+                        type="button"
+                        className={differs ? `${small} border-primary/50 bg-primary/15 text-primary` : small}
+                        disabled={locked}
+                        onClick={() => send({ type: 'replace', index: cell.index, keepCard: differs })}
+                      >
+                        {differs ? 'Replace it' : 'Wrong card? Replace it'}
+                      </button>
+                    </>
+                  ) : choice.skip ? (
+                    <>
+                      <p className="text-muted-foreground text-sm">Skipped</p>
+                      <button
+                        type="button"
+                        className={small}
+                        disabled={locked}
+                        onClick={() => send({ type: 'include', index: cell.index })}
+                      >
+                        Include
+                      </button>
+                    </>
+                  ) : !card ? (
+                    <>
+                      <p className="text-sm font-semibold">Which card is this?</p>
+                      {pocketReviewStatus(cell, review.pockets[cell.index]) === 'choices' && (
+                        <div role="group" aria-label="Possible matches" className="flex gap-1.5 overflow-x-auto pb-1">
+                          {cell.candidates.map((option) => (
+                            <button
+                              key={cardKey(option)}
+                              type="button"
+                              disabled={locked}
+                              aria-label={`${option.name}, ${option.set.name} #${option.localId}`}
+                              onClick={() => send({ type: 'pick-choice', index: cell.index, card: option })}
+                              className="trading-card border-border/60 bg-muted relative w-12 shrink-0 overflow-hidden rounded border"
+                            >
+                              {option.image && (
+                                <CardImage src={option.image} alt="" fill sizes="48px" className="object-cover" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-1.5">
                         <button
                           type="button"
-                          className={differs ? `${small} border-primary/50 bg-primary/15 text-primary` : small}
+                          className={`${small} border-primary/50 bg-primary/15 text-primary`}
                           disabled={locked}
-                          onClick={() => send({ type: 'replace', index: cell.index, keepCard: differs })}
+                          onClick={() => send({ type: 'choose', index: cell.index })}
                         >
-                          {differs ? 'Replace it' : 'Wrong card? Replace it'}
+                          Choose card
                         </button>
-                      </>
-                    ) : choice.skip ? (
-                      <>
-                        <p className="text-muted-foreground text-sm">Skipped</p>
                         <button
                           type="button"
                           className={small}
                           disabled={locked}
-                          onClick={() => send({ type: 'include', index: cell.index })}
+                          onClick={() => send({ type: replacing ? 'keep-current' : 'skip', index: cell.index })}
                         >
-                          Include
+                          {replacing ? 'Keep current card' : 'Skip'}
                         </button>
-                      </>
-                    ) : !card ? (
-                      <>
-                        <p className="text-sm font-semibold">Which card is this?</p>
-                        {pocketReviewStatus(cell, review.pockets[cell.index]) === 'choices' && (
-                          <div role="group" aria-label="Possible matches" className="flex gap-1.5 overflow-x-auto pb-1">
-                            {cell.candidates.map((option) => (
-                              <button
-                                key={cardKey(option)}
-                                type="button"
-                                disabled={locked}
-                                aria-label={`${option.name}, ${option.set.name} #${option.localId}`}
-                                onClick={() => send({ type: 'pick-choice', index: cell.index, card: option })}
-                                className="trading-card border-border/60 bg-muted relative w-12 shrink-0 overflow-hidden rounded border"
-                              >
-                                {option.image && (
-                                  <CardImage src={option.image} alt="" fill sizes="48px" className="object-cover" />
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        <div className="flex flex-wrap gap-1.5">
-                          <button
-                            type="button"
-                            className={`${small} border-primary/50 bg-primary/15 text-primary`}
-                            disabled={locked}
-                            onClick={() => send({ type: 'choose', index: cell.index })}
-                          >
-                            Choose card
-                          </button>
-                          <button
-                            type="button"
-                            className={small}
-                            disabled={locked}
-                            onClick={() => send({ type: replacing ? 'keep-current' : 'skip', index: cell.index })}
-                          >
-                            {replacing ? 'Keep current card' : 'Skip'}
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-sm font-semibold [overflow-wrap:anywhere] break-words">{card.name}</p>
-                        <p className="text-muted-foreground text-xs [overflow-wrap:anywhere] break-words">
-                          {card.set.name}
-                          {card.localId ? ` · #${card.localId}` : ''}
-                          {finish ? ` · ${formatCardFinishLabel(finish)}` : ''}
-                        </p>
-                        {pocketReviewStatus(cell, review.pockets[cell.index]) === 'photo' && (
-                          <p className="text-muted-foreground text-xs font-medium">Matched from photo</p>
-                        )}
-                        {finishes.length > 1 && (
-                          <div role="group" aria-label="Which version?" className="flex flex-wrap gap-1.5">
-                            {finishes.map((option) => (
-                              <button
-                                key={option.finish}
-                                type="button"
-                                disabled={locked}
-                                aria-pressed={finish === option.finish}
-                                onClick={() => send({ type: 'finish', index: cell.index, finish: option.finish })}
-                                className={`${small} aria-pressed:border-primary/50 aria-pressed:bg-primary/15`}
-                              >
-                                {option.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        {graded.length > 0 && (
-                          <div role="group" aria-label="Which copy?" className="flex flex-wrap gap-1.5">
-                            {rawAvailable && (
-                              <button
-                                type="button"
-                                disabled={locked}
-                                aria-pressed={copy === 'raw'}
-                                onClick={() => send({ type: 'copy', index: cell.index, copy: 'raw' })}
-                                className={`${small} aria-pressed:border-primary/50 aria-pressed:bg-primary/15`}
-                              >
-                                An ungraded copy
-                              </button>
-                            )}
-                            {graded.map(
-                              (option) =>
-                                option.selection.kind === 'existing' && (
-                                  <button
-                                    key={option.selection.inventoryItemId}
-                                    type="button"
-                                    disabled={locked}
-                                    aria-pressed={copy === `copy:${option.selection.inventoryItemId}`}
-                                    onClick={() =>
-                                      send({
-                                        type: 'copy',
-                                        index: cell.index,
-                                        copy: `copy:${option.selection.kind === 'existing' ? option.selection.inventoryItemId : ''}`,
-                                      })
-                                    }
-                                    className={`${small} aria-pressed:border-primary/50 aria-pressed:bg-primary/15`}
-                                  >
-                                    My {option.label}
-                                  </button>
-                                ),
-                            )}
-                          </div>
-                        )}
-                        {/* Where it goes is always shown. It is only a question when the card doesn't fit where it was photographed. */}
-                        {destination &&
-                        (cell.slotId
-                          ? destination === `slot:${cell.slotId}`
-                          : pockets.length <= 1 && destination !== 'append') ? (
-                          <p className="text-xs">
-                            {replacing ? 'Replaces the card in' : 'Goes in'}{' '}
-                            <span className="font-semibold">
-                              {destination === 'append' ? 'a new pocket at the end' : place(destination.slice(5))}
-                            </span>
-                          </p>
-                        ) : (
-                          <label className="block text-xs">
-                            {cell.slotId && !pockets.some((p) => p.id === cell.slotId)
-                              ? "This card doesn't fit that pocket. Put it in"
-                              : 'Put it in'}
-                            <Select
-                              aria-label={`Pocket for ${card.name}`}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold [overflow-wrap:anywhere] break-words">{card.name}</p>
+                      <p className="text-muted-foreground text-xs [overflow-wrap:anywhere] break-words">
+                        {card.set.name}
+                        {card.localId ? ` · #${card.localId}` : ''}
+                        {finish ? ` · ${formatCardFinishLabel(finish)}` : ''}
+                      </p>
+                      {pocketReviewStatus(cell, review.pockets[cell.index]) === 'photo' && (
+                        <p className="text-muted-foreground text-xs font-medium">Matched from photo</p>
+                      )}
+                      {finishes.length > 1 && (
+                        <div role="group" aria-label="Which version?" className="flex flex-wrap gap-1.5">
+                          {finishes.map((option) => (
+                            <button
+                              key={option.finish}
+                              type="button"
                               disabled={locked}
-                              value={destination ?? ''}
-                              onChange={(event) =>
-                                send({
-                                  type: 'destination',
-                                  index: cell.index,
-                                  destination: event.target.value || undefined,
-                                })
-                              }
-                              className="mt-1 w-full"
+                              aria-pressed={finish === option.finish}
+                              onClick={() => send({ type: 'finish', index: cell.index, finish: option.finish })}
+                              className={`${small} aria-pressed:border-primary/50 aria-pressed:bg-primary/15`}
                             >
-                              <option value="">Choose a pocket</option>
-                              {pockets.map((pocket) => (
-                                <option key={pocket.id} value={`slot:${pocket.id}`}>
-                                  {place(pocket.id)}
-                                  {pocket.target ? '' : ' · empty pocket'}
-                                </option>
-                              ))}
-                              <option value="append">A new pocket at the end</option>
-                            </Select>
-                          </label>
-                        )}
-                        <div className="flex flex-wrap gap-1.5">
-                          <button
-                            type="button"
-                            className={small}
-                            disabled={locked}
-                            // A photo suggestion goes back to its other picture matches first, else the picker opens.
-                            onClick={() => send({ type: 'change', index: cell.index })}
-                          >
-                            Change card
-                          </button>
-                          <button
-                            type="button"
-                            className={small}
-                            disabled={locked}
-                            onClick={() => send({ type: replacing ? 'keep-current' : 'skip', index: cell.index })}
-                          >
-                            {replacing ? 'Keep current card' : 'Skip'}
-                          </button>
+                              {option.label}
+                            </button>
+                          ))}
                         </div>
-                      </>
-                    )}
-                  </div>
-                </section>
-              );
-            },
-          )}
-        </div>
-        <footer className="border-border flex shrink-0 gap-2 border-t p-3">
+                      )}
+                      {graded.length > 0 && (
+                        <div role="group" aria-label="Which copy?" className="flex flex-wrap gap-1.5">
+                          {rawAvailable && (
+                            <button
+                              type="button"
+                              disabled={locked}
+                              aria-pressed={copy === 'raw'}
+                              onClick={() => send({ type: 'copy', index: cell.index, copy: 'raw' })}
+                              className={`${small} aria-pressed:border-primary/50 aria-pressed:bg-primary/15`}
+                            >
+                              An ungraded copy
+                            </button>
+                          )}
+                          {graded.map(
+                            (option) =>
+                              option.selection.kind === 'existing' && (
+                                <button
+                                  key={option.selection.inventoryItemId}
+                                  type="button"
+                                  disabled={locked}
+                                  aria-pressed={copy === `copy:${option.selection.inventoryItemId}`}
+                                  onClick={() =>
+                                    send({
+                                      type: 'copy',
+                                      index: cell.index,
+                                      copy: `copy:${option.selection.kind === 'existing' ? option.selection.inventoryItemId : ''}`,
+                                    })
+                                  }
+                                  className={`${small} aria-pressed:border-primary/50 aria-pressed:bg-primary/15`}
+                                >
+                                  My {option.label}
+                                </button>
+                              ),
+                          )}
+                        </div>
+                      )}
+                      {/* Where it goes is always shown. It is only a question when the card doesn't fit where it was photographed. */}
+                      {destination &&
+                      (cell.slotId
+                        ? destination === `slot:${cell.slotId}`
+                        : pockets.length <= 1 && destination !== 'append') ? (
+                        <p className="text-xs">
+                          {replacing ? 'Replaces the card in' : 'Goes in'}{' '}
+                          <span className="font-semibold">
+                            {destination === 'append' ? 'a new pocket at the end' : place(destination.slice(5))}
+                          </span>
+                        </p>
+                      ) : (
+                        <label className="block text-xs">
+                          {cell.slotId && !pockets.some((p) => p.id === cell.slotId)
+                            ? "This card doesn't fit that pocket. Put it in"
+                            : 'Put it in'}
+                          <Select
+                            aria-label={`Pocket for ${card.name}`}
+                            disabled={locked}
+                            value={destination ?? ''}
+                            onChange={(event) =>
+                              send({
+                                type: 'destination',
+                                index: cell.index,
+                                destination: event.target.value || undefined,
+                              })
+                            }
+                            className="mt-1 w-full"
+                          >
+                            <option value="">Choose a pocket</option>
+                            {pockets.map((pocket) => (
+                              <option key={pocket.id} value={`slot:${pocket.id}`}>
+                                {place(pocket.id)}
+                                {pocket.target ? '' : ' · empty pocket'}
+                              </option>
+                            ))}
+                            <option value="append">A new pocket at the end</option>
+                          </Select>
+                        </label>
+                      )}
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          className={small}
+                          disabled={locked}
+                          // A photo suggestion goes back to its other picture matches first, else the picker opens.
+                          onClick={() => send({ type: 'change', index: cell.index })}
+                        >
+                          Change card
+                        </button>
+                        <button
+                          type="button"
+                          className={small}
+                          disabled={locked}
+                          onClick={() => send({ type: replacing ? 'keep-current' : 'skip', index: cell.index })}
+                        >
+                          {replacing ? 'Keep current card' : 'Skip'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </section>
+            );
+          },
+        )}
+      </div>
+      <OverlayFooter>
+        <button
+          type="button"
+          className="border-border/70 min-h-11 flex-1 rounded-2xl border px-3 text-sm font-medium disabled:opacity-45"
+          disabled={acceptance.busy}
+          onClick={close}
+        >
+          Cancel
+        </button>
+        {acceptance.pending ? (
           <button
             type="button"
-            className="border-border/70 min-h-11 flex-1 rounded-2xl border px-3 text-sm font-medium disabled:opacity-45"
-            disabled={acceptance.busy}
-            onClick={close}
+            className="bg-primary text-primary-foreground min-h-11 flex-1 rounded-2xl px-3 text-sm font-semibold disabled:opacity-45"
+            disabled={acceptance.busy || stale}
+            onClick={() => acceptance.handoff(acceptance.pending!)}
           >
-            Cancel
+            Try again
           </button>
-          {acceptance.pending ? (
-            <button
-              type="button"
-              className="bg-primary text-primary-foreground min-h-11 flex-1 rounded-2xl px-3 text-sm font-semibold disabled:opacity-45"
-              disabled={acceptance.busy || stale}
-              onClick={() => acceptance.handoff(acceptance.pending!)}
-            >
-              Try again
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="bg-primary text-primary-foreground min-h-11 flex-1 rounded-2xl px-3 text-sm font-semibold disabled:opacity-45"
-              disabled={!adding.length || locked}
-              onClick={confirm}
-            >
-              {acceptance.busy
-                ? 'Adding…'
-                : adding.length
-                  ? `Add ${adding.length} ${adding.length === 1 ? 'card' : 'cards'}`
-                  : 'Choose a card to add'}
-            </button>
-          )}
-        </footer>
-      </div>
-      {picking && (
-        <CardSelector
-          pokemonId={pickingSpecies ?? 0}
-          pokemonName={pickingSpecies ? describeIdentity({ kind: 'pokemon', pokemonId: pickingSpecies }).name : ''}
-          onSelect={unusedLegacySelect}
-          onClose={() => send({ type: 'close-picker' })}
-          defaultCardLanguage={pickingReserved?.language}
-          anyCard={
-            pickingSpecies
-              ? undefined
-              : pickingReserved
-                ? { title: 'Which card is this?', cardId: pickingReserved.cardId }
-                : { title: 'Which card is this?', query: picking.cell.query }
-          }
-          native={{
-            onPick: (card, finish) =>
-              send({
-                type: 'picked',
-                index: picking.cell.index,
-                card: pickingSpecies
-                  ? speciesSelectorCard(card, pickingSpecies)
-                  : ({ ...card, dexIds: card.dexIds ?? [] } as SearchCardResult),
-                finish,
-              }),
-          }}
-        />
-      )}
-    </div>
+        ) : (
+          <button
+            type="button"
+            className="bg-primary text-primary-foreground min-h-11 flex-1 rounded-2xl px-3 text-sm font-semibold disabled:opacity-45"
+            disabled={!adding.length || locked}
+            onClick={confirm}
+          >
+            {acceptance.busy
+              ? 'Adding…'
+              : adding.length
+                ? `Add ${adding.length} ${adding.length === 1 ? 'card' : 'cards'}`
+                : 'Choose a card to add'}
+          </button>
+        )}
+      </OverlayFooter>
+    </ScanSheet>
   );
 }

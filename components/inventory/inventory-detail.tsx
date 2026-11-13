@@ -1,11 +1,11 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { ArrowLeftRight, MapPin, MoreHorizontal, Trash2, X } from 'lucide-react';
 import CardImage from '@/components/card-image';
 import CardImageZoom from '@/components/card-image-zoom';
+import CardDetailSheet from '@/components/card-detail-sheet';
 import NativeCardPrice from '@/components/binder/native-card-price';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import type { InventoryBrowseRow, InventoryLocationIntent } from '@/lib/domain/inventory-browse';
 import { inventoryLocationLabel } from '@/lib/inventory-location';
 import { formatCardFinishLabel, formatCardLanguageLabel } from '@/lib/card-labels';
@@ -46,9 +46,6 @@ export default function InventoryDetail({
   onClose: () => void;
   onOpenLocation?: (intent: InventoryLocationIntent) => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useOverlay(true, onClose, { containerRef: ref });
-  const swipe = useSwipeToDismiss(ref, onClose);
   const [mode, setMode] = useState<'view' | 'move' | 'takeOut' | 'remove'>('view');
   const [menu, setMenu] = useState(false);
   const name = row.name ?? (row.speciesNames.join(', ') || 'Unknown card');
@@ -56,26 +53,12 @@ export default function InventoryDetail({
   const editable = Boolean(ownership?.available && labels && !cached);
   const placed = row.location.kind === 'assigned';
   return (
-    <div className="fixed inset-0 z-40">
-      <div
-        data-overlay-backdrop
-        aria-hidden="true"
-        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
-        onClick={onClose}
-      />
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${name} details`}
-        tabIndex={-1}
-        className="holo-panel border-border/70 bg-card/96 text-foreground absolute inset-x-2 bottom-[calc(var(--dock-clearance)+0.375rem)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-md flex-col overflow-hidden rounded-[1.35rem] border p-3 shadow-xl backdrop-blur-xl outline-none sm:rounded-[1.6rem] md:bottom-4"
-      >
-        <div data-sheet-grabber {...swipe} className="shrink-0">
-          <div
-            aria-hidden="true"
-            className="bg-muted-foreground/30 mx-auto -mt-1 mb-2 h-1.5 w-10 rounded-full sm:hidden"
-          />
+    <CardDetailSheet
+      onClose={onClose}
+      aria-label={`${name} details`}
+      className="shadow-xl"
+      header={
+        <>
           <div className="flex items-start gap-3">
             {row.image && (
               <CardImageZoom
@@ -121,139 +104,140 @@ export default function InventoryDetail({
               </p>
             </div>
           </div>
-        </div>
-        <div className="-mx-3 mt-3 -mb-3 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-3 text-sm [&>*]:shrink-0">
-          {mode === 'view' && (
-            <>
-              {((placed && onOpenLocation) || editable || onEditGrading) && (
-                <div className="flex gap-2">
-                  {placed && onOpenLocation && (
-                    <button
-                      type="button"
-                      className={action}
-                      onClick={() => {
-                        if (row.location.kind === 'assigned') onOpenLocation({ ...row.location.intent });
-                      }}
-                    >
-                      <MapPin className="h-4 w-4" aria-hidden />
-                      Go to pocket
-                    </button>
-                  )}
-                  {editable && (
-                    <button type="button" className={action} onClick={() => setMode('move')}>
-                      <ArrowLeftRight className="h-4 w-4" aria-hidden />
-                      {placed ? 'Move' : 'Put in a binder'}
-                    </button>
-                  )}
-                  {(editable || onEditGrading) && (
-                    <button
-                      type="button"
-                      aria-label="More card options"
-                      aria-haspopup="menu"
-                      aria-expanded={menu}
-                      className={`${action} max-w-11 flex-none px-0`}
-                      onClick={() => setMenu((open) => !open)}
-                    >
-                      <MoreHorizontal className="h-4 w-4" aria-hidden />
-                    </button>
-                  )}
-                </div>
-              )}
-              {menu && (
-                <div
-                  role="menu"
-                  aria-label="Card options"
-                  className="border-border/60 bg-background/40 grid gap-0.5 rounded-2xl border p-1"
-                >
-                  {editable && placed && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="hover:bg-muted/70 flex min-h-11 items-center rounded-xl px-3 text-left text-sm font-medium"
-                      onClick={() => {
-                        setMenu(false);
-                        setMode('takeOut');
-                      }}
-                    >
-                      Take out of its binder
-                    </button>
-                  )}
-                  {onEditGrading && row.cardId && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="hover:bg-muted/70 flex min-h-11 items-center rounded-xl px-3 text-left text-sm font-medium"
-                      onClick={onEditGrading}
-                    >
-                      {row.graded ? 'Edit grading' : 'Add grading'}
-                    </button>
-                  )}
-                </div>
-              )}
-              {row.cardId && isCardLanguage(row.language) && (
-                <NativeCardPrice
-                  cardId={row.cardId}
-                  language={row.language}
-                  finish={isCardFinish(row.finish) ? row.finish : undefined}
-                  name={name}
-                  setName={row.setName ?? undefined}
-                  localId={row.number ?? undefined}
-                  pricing={{
-                    region: pricingRegion,
-                    formatAmount: gbp,
-                    formatRange: (low, high) => (gbp(low) && gbp(high) ? `${gbp(low)}-${gbp(high)}` : null),
-                  }}
-                />
-              )}
-              {row.graded && (
-                <p className="text-muted-foreground text-xs">
-                  Prices shown are for an ungraded copy. A graded card&apos;s value isn&apos;t estimated.
-                </p>
-              )}
-              {editable &&
-                (row.graded ? (
-                  <p className="text-muted-foreground text-xs">
-                    A graded card can&apos;t be removed from your collection here. You can still move it or take it out
-                    of its binder.
-                  </p>
-                ) : (
+        </>
+      }
+    >
+      <div className="-mx-3 mt-3 -mb-3 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-3 text-sm [&>*]:shrink-0">
+        {mode === 'view' && (
+          <>
+            {((placed && onOpenLocation) || editable || onEditGrading) && (
+              <div className="flex gap-2">
+                {placed && onOpenLocation && (
                   <button
                     type="button"
-                    className="border-destructive/40 text-destructive hover:bg-destructive/10 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-2xl border px-3 text-sm font-medium"
+                    className={action}
                     onClick={() => {
-                      setMenu(false);
-                      setMode('remove');
+                      if (row.location.kind === 'assigned') onOpenLocation({ ...row.location.intent });
                     }}
                   >
-                    <Trash2 className="h-4 w-4" aria-hidden />
-                    Remove from collection
+                    <MapPin className="h-4 w-4" aria-hidden />
+                    Go to pocket
                   </button>
-                ))}
-            </>
-          )}
-          {mode === 'move' && ownership && labels && (
-            <InventoryMove
-              binding={ownership}
-              labels={labels}
-              itemId={row.itemId}
-              onAccepted={onClose}
-              onCancel={() => setMode('view')}
-            />
-          )}
-          {(mode === 'takeOut' || mode === 'remove') && ownership && (
-            <Confirm
-              binding={ownership}
-              itemId={row.itemId}
-              kind={mode}
-              name={name}
-              placed={placed}
-              onAccepted={onClose}
-              onCancel={() => setMode('view')}
-            />
-          )}
-        </div>
+                )}
+                {editable && (
+                  <button type="button" className={action} onClick={() => setMode('move')}>
+                    <ArrowLeftRight className="h-4 w-4" aria-hidden />
+                    {placed ? 'Move' : 'Put in a binder'}
+                  </button>
+                )}
+                {(editable || onEditGrading) && (
+                  <button
+                    type="button"
+                    aria-label="More card options"
+                    aria-haspopup="menu"
+                    aria-expanded={menu}
+                    className={`${action} max-w-11 flex-none px-0`}
+                    onClick={() => setMenu((open) => !open)}
+                  >
+                    <MoreHorizontal className="h-4 w-4" aria-hidden />
+                  </button>
+                )}
+              </div>
+            )}
+            {menu && (
+              <div
+                role="menu"
+                aria-label="Card options"
+                className="border-border/60 bg-background/40 grid gap-0.5 rounded-2xl border p-1"
+              >
+                {editable && placed && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="hover:bg-muted/70 flex min-h-11 items-center rounded-xl px-3 text-left text-sm font-medium"
+                    onClick={() => {
+                      setMenu(false);
+                      setMode('takeOut');
+                    }}
+                  >
+                    Take out of its binder
+                  </button>
+                )}
+                {onEditGrading && row.cardId && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="hover:bg-muted/70 flex min-h-11 items-center rounded-xl px-3 text-left text-sm font-medium"
+                    onClick={onEditGrading}
+                  >
+                    {row.graded ? 'Edit grading' : 'Add grading'}
+                  </button>
+                )}
+              </div>
+            )}
+            {row.cardId && isCardLanguage(row.language) && (
+              <NativeCardPrice
+                cardId={row.cardId}
+                language={row.language}
+                finish={isCardFinish(row.finish) ? row.finish : undefined}
+                name={name}
+                setName={row.setName ?? undefined}
+                localId={row.number ?? undefined}
+                pricing={{
+                  region: pricingRegion,
+                  formatAmount: gbp,
+                  formatRange: (low, high) => (gbp(low) && gbp(high) ? `${gbp(low)}-${gbp(high)}` : null),
+                }}
+              />
+            )}
+            {row.graded && (
+              <p className="text-muted-foreground text-xs">
+                Prices shown are for an ungraded copy. A graded card&apos;s value isn&apos;t estimated.
+              </p>
+            )}
+            {editable &&
+              (row.graded ? (
+                <p className="text-muted-foreground text-xs">
+                  A graded card can&apos;t be removed from your collection here. You can still move it or take it out of
+                  its binder.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  className="border-destructive/40 text-destructive hover:bg-destructive/10 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-2xl border px-3 text-sm font-medium"
+                  onClick={() => {
+                    setMenu(false);
+                    setMode('remove');
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                  Remove from collection
+                </button>
+              ))}
+          </>
+        )}
+        {mode === 'move' && ownership && labels && (
+          <InventoryMove
+            binding={ownership}
+            labels={labels}
+            itemId={row.itemId}
+            onAccepted={onClose}
+            onCancel={() => setMode('view')}
+          />
+        )}
+        {(mode === 'takeOut' || mode === 'remove') && ownership && (
+          <Confirm
+            binding={ownership}
+            itemId={row.itemId}
+            kind={mode}
+            name={name}
+            placed={placed}
+            onAccepted={onClose}
+            onCancel={() => setMode('view')}
+          />
+        )}
       </div>
-    </div>
+    </CardDetailSheet>
   );
 }
 
