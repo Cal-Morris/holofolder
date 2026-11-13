@@ -61,9 +61,9 @@ export function buildAllBindersLookup(input: {
   return {
     binders: input.binders.map(({ id, name }) => ({ id, name })),
     collections,
-    loadedBinderIds: input.binders
-      .filter((binder) => binder.id === input.currentBinderId || Object.hasOwn(input.others ?? {}, binder.id))
-      .map((binder) => binder.id),
+    loadedBinderIds: input.binders.flatMap(({ id }) =>
+      id === input.currentBinderId || Object.hasOwn(input.others ?? {}, id) ? [id] : [],
+    ),
   };
 }
 

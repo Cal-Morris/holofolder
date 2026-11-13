@@ -37,12 +37,10 @@ function pokemonCorrection(text: string) {
   if (!/^[a-z]{4,}$/.test(text)) return null;
   if (POKEMON_CATALOG.some((pokemon) => pokemon.name.includes(text))) return null;
   const max = text.length >= 5 ? 2 : 1;
-  const ranked = POKEMON_CATALOG.map((pokemon) => ({
-    name: pokemon.name,
-    distance: getEditDistance(text, pokemon.name, max),
-  }))
-    .filter((pokemon) => pokemon.distance <= max)
-    .sort((a, b) => a.distance - b.distance);
+  const ranked = POKEMON_CATALOG.flatMap(({ name }) => {
+    const distance = getEditDistance(text, name, max);
+    return distance <= max ? [{ name, distance }] : [];
+  }).sort((a, b) => a.distance - b.distance);
   return ranked[0] && ranked[0].distance !== ranked[1]?.distance ? ranked[0].name : null;
 }
 

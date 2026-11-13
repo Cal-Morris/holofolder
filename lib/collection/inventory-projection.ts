@@ -79,13 +79,13 @@ export function projectInventoryCollection(
           : null,
     });
   }
-  const wants = snapshot.binders
-    .filter((b) => !collectionId || b.collectionId === collectionId)
-    .flatMap((b) =>
-      b.slots.flatMap((s) =>
-        s.wantedCards.map((card, index) => ({ collectionId: b.collectionId, slotId: s.id, index, card })),
-      ),
-    );
+  const wants = snapshot.binders.flatMap((b) =>
+    !collectionId || b.collectionId === collectionId
+      ? b.slots.flatMap((s) =>
+          s.wantedCards.map((card, index) => ({ collectionId: b.collectionId, slotId: s.id, index, card })),
+        )
+      : [],
+  );
   return summarizeInventoryProjection(owned, wants);
 }
 

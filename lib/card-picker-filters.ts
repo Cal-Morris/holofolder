@@ -148,14 +148,11 @@ export function getCardPickerFinishChoices(
   if (!(inferredFinish in STANDARD_FINISH_LABELS)) return [];
   // Catalogue flags can omit finishes that providers explicitly quote for the standard printing.
   const quoted = new Set(
-    finishPrices
-      .filter(
-        (price) =>
-          isStandardFinishVariantKey(price.variantKey) &&
-          Number.isFinite(price.gbpAmount) &&
-          (price.gbpAmount ?? 0) > 0,
-      )
-      .map((price) => price.finish),
+    finishPrices.flatMap((price) =>
+      isStandardFinishVariantKey(price.variantKey) && Number.isFinite(price.gbpAmount) && (price.gbpAmount ?? 0) > 0
+        ? [price.finish]
+        : [],
+    ),
   );
   const finishes: CardPickerStandardFinish[] = [];
   if (variants?.normal || quoted.has('normal')) finishes.push('normal');

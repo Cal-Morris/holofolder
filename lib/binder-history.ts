@@ -59,7 +59,7 @@ export function normalizeHistoryCard(value: unknown): RecentCard | null {
     dexId: card.dexId,
     pokemonName: card.pokemonName,
     viewedAt: card.viewedAt.slice(0, 40),
-    ...(card.image && /^https:\/\//.test(card.image) ? { image: card.image } : {}),
+    ...(card.image?.startsWith('https://') ? { image: card.image } : {}),
     ...(card.language ? { language: card.language.slice(0, 16) } : {}),
     ...(card.localId ? { localId: card.localId.slice(0, 40) } : {}),
     ...(card.setId ? { setId: card.setId.slice(0, 100) } : {}),

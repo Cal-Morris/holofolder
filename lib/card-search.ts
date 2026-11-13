@@ -255,11 +255,10 @@ export function filterAndRankCards<TCard extends SearchableCard>(cards: TCard[],
   }
 
   return matchingCards
-    .map((card) => ({
-      card,
-      score: scoreQuery(buildSearchDocument(card), query),
-    }))
-    .filter((match) => match.score > 0)
+    .flatMap((card) => {
+      const score = scoreQuery(buildSearchDocument(card), query);
+      return score > 0 ? [{ card, score }] : [];
+    })
     .sort((left, right) => {
       if (right.score !== left.score) return right.score - left.score;
       return compareCardsByLocalId(left.card, right.card);

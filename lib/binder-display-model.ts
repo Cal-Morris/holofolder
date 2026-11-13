@@ -151,6 +151,7 @@ export function speciesPocket(
   for (const [index, slot] of input.binder.slots.entries()) {
     const item = slot.inventoryItemId ? (items.get(slot.inventoryItemId) ?? null) : null;
     if (
+      // oxlint-disable-next-line react-doctor/js-set-map-lookups -- one small per-slot list, checked once
       ![
         ...species(slot.target),
         ...species(item?.identity),

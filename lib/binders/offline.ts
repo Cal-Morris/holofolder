@@ -145,7 +145,7 @@ export function offlineAvailableBinderIds(
 ) {
   const saved = new Set((ownerUserId ? readDeviceBinders(storage, ownerUserId) : null)?.savedBinderIds ?? []);
   return new Set(
-    binders.filter((binder) => saved.has(binder.id) || storedSnapshotIsOf(storage, binder)).map((binder) => binder.id),
+    binders.flatMap((binder) => (saved.has(binder.id) || storedSnapshotIsOf(storage, binder) ? [binder.id] : [])),
   );
 }
 
