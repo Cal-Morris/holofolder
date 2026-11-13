@@ -3569,7 +3569,12 @@ function BinderAppSurface(props: BinderAppProps) {
   const nativeConsumer: NativeConsumerBinding | undefined = browserSurface?.nativeConsumer
     ? { ...browserSurface.nativeConsumer, openCard: openNativeCard }
     : undefined;
-  const nativeSpeciesView = activeMainView === 'pokemon' || activeMainView === 'sets' || activeMainView === 'list';
+  // Wanted too: its bulk price check reads the same rows (one per explicit want).
+  const nativeSpeciesView =
+    activeMainView === 'pokemon' ||
+    activeMainView === 'sets' ||
+    activeMainView === 'list' ||
+    activeMainView === 'wanted';
   const {
     scope: nativeScope,
     read: nativeRead,
@@ -4337,6 +4342,12 @@ function BinderAppSurface(props: BinderAppProps) {
             onShare={(cards) => {
               void handleShareWantedList(cards);
             }}
+            // The want list's bulk price check, for your own (or your partner's) binders, never a shared view.
+            priceCheck={
+              user?.id && !accountSettingsReadOnly && speciesCollection
+                ? { ownerId: resolvedCollectionOwnerUserId ?? null, rows: speciesCollection.rows, isOnline }
+                : undefined
+            }
           />
         </>
       ) : undefined,

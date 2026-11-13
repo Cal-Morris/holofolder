@@ -185,7 +185,8 @@ test('Add to collection for an unoccupied known entry hands off the same want, a
     destination: { slot: { id: 'synthetic-want-slot-0' } },
     fulfillWant: { index: 1, expected: { card_id: 'synthetic-pikachu' } },
   });
-  const notice = wants.getByRole('status');
+  // The want list's price check has its own live status; this is the edit's notice.
+  const notice = wants.getByRole('status').filter({ hasText: 'Saved on device' });
   await expect(notice).toHaveText('Saved on device, awaiting sync');
   // Scroll far away: the notice is sticky, so the user still sees the outcome from anywhere in the long list.
   await wants.getByRole('listitem').last().scrollIntoViewIfNeeded();

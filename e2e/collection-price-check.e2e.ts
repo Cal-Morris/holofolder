@@ -1,22 +1,29 @@
-import { test, expect, SEEDED_COLLECTION, SUPABASE_URL } from './fixtures';
+import { test, expect, SEEDED_COLLECTION, seedCollection, type Harness } from './fixtures';
 import type { ComparisonJob } from '../lib/comparison-jobs';
 
 test.use({ signedIn: true });
 const id = '00000000-0000-4000-8000-000000000050';
 
-test('wanted checks confirm once, survive leaving and reopening, and reconnect offline', async ({ harness }) => {
-  const { page } = harness;
-  // Synthetic jobs and evidence. No actual provider or workflow calls.
-  const wanted = Array.from({ length: 65 }, (_, i) => ({
+/** Synthetic wants in Bulbasaur's pocket, on the native binder. */
+async function seedWants(harness: Harness, count: number) {
+  const wanted = Array.from({ length: count }, (_, i) => ({
     card_id: `synthetic-${i}`,
     card_name: `Synthetic ${i}`,
     card_language: 'en',
     card_finish: 'normal',
     added_at: '2026-01-01T00:00:00Z',
   }));
-  await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-    route.fulfill({ json: [{ ...SEEDED_COLLECTION[0], wanted_cards: [...wanted, wanted[0]] }] }),
-  );
+  // A repeated want is checked once.
+  await seedCollection(harness.page, [
+    { ...SEEDED_COLLECTION[0], wanted_cards: [...wanted, wanted[0]] },
+    SEEDED_COLLECTION[1],
+  ]);
+}
+
+test('wanted checks confirm once, survive leaving and reopening, and reconnect offline', async ({ harness }) => {
+  const { page } = harness;
+  // Synthetic jobs and evidence. No actual provider or workflow calls.
+  await seedWants(harness, 65);
   let job: ComparisonJob | null = null;
   let starts = 0,
     stops = 0,
@@ -42,7 +49,7 @@ test('wanted checks confirm once, survive leaving and reopening, and reconnect o
     job = { id, status: 'running', progress: { total: 65, done: 3, checked: 3, fresh: 0, failed: 0, stopped: {} } };
     return route.fulfill({ status: 202, json: { job } });
   });
-  await page.reload();
+  await harness.reload();
   await harness.dock().getByRole('button', { name: 'Wanted', exact: true }).click();
   const batch = page.getByTestId('collection-price-check');
   await expect(batch).toContainText('65 eligible printings in this binder');
@@ -58,14 +65,16 @@ test('wanted checks confirm once, survive leaving and reopening, and reconnect o
   await start.click();
   await dialog.getByRole('button', { name: 'Check now' }).click();
   await expect(batch).toContainText('You can close the app');
-  await harness.dock().getByRole('button', { name: 'List', exact: true }).click();
+  await harness.dock().getByRole('button', { name: 'Binder', exact: true }).click();
   await harness.dock().getByRole('button', { name: 'Wanted', exact: true }).click();
   await expect(batch).toContainText('Checking 3/65 in background');
   expect(stops).toBe(0);
-  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await page.context().setOffline(true);
   await expect(batch).toContainText('Offline. Checks continue on the server');
   await expect(batch.getByRole('button', { name: 'Stop checking prices' })).toBeDisabled();
+  await page.context().setOffline(false);
   job = { id, status: 'completed', progress: { total: 65, done: 65, checked: 60, fresh: 4, failed: 1, stopped: {} } };
+  // The app reopens on Wanted, so wait for the dock rather than a binder pocket.
   await page.reload();
   await harness.dock().getByRole('button', { name: 'Wanted', exact: true }).click();
   await expect(batch).toContainText('60 checked, 4 already saved, 1 incomplete');
@@ -86,7 +95,9 @@ test('explicit Stop cancels the server job', async ({ harness }) => {
     if (route.request().method() === 'POST' && route.request().postDataJSON().action === 'stop') stopped = true;
     return route.fulfill({ json: { job: { ...job, status: stopped ? 'cancelled' : 'running' } } });
   });
-  await harness.dock().getByRole('button', { name: 'List', exact: true }).click();
+  await seedWants(harness, 2);
+  await harness.reload();
+  await harness.dock().getByRole('button', { name: 'Wanted', exact: true }).click();
   const batch = page.getByTestId('collection-price-check');
   const stop = batch.getByRole('button', { name: 'Stop checking prices' });
   await expect(stop).toBeVisible();
@@ -117,10 +128,12 @@ test('a slow initial inspection cannot erase a job started in the meantime', asy
     }
     return route.fulfill({ json: { job } });
   });
-  await harness.dock().getByRole('button', { name: 'List', exact: true }).click();
+  await seedWants(harness, 2);
+  await harness.reload();
+  await harness.dock().getByRole('button', { name: 'Wanted', exact: true }).click();
   await expect.poll(() => inspecting).toBe(true);
   const batch = page.getByTestId('collection-price-check');
-  await batch.getByRole('button', { name: 'Check owned prices' }).click();
+  await batch.getByRole('button', { name: 'Check wanted prices' }).click();
   await expect(batch).toContainText('You can close the app');
   const response = page.waitForResponse(
     (response) =>

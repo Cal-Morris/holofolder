@@ -55,3 +55,7 @@ Native Show records purchases again. In Show mode, Bought in the deal check logs
 ## Check prices in the native deal check and bundle (parity)
 
 The native Show and Quick deal check now shows the same paid Check prices control as native card details (`CardPriceComparison`), under the same native gates: only a known English printing on a normal, holo or reverse finish, so a rarity-named finish (Double Rare and the like) still has no sold check. Check bundle prices runs the same per-card checks for every bundle entry that passes that gate; others keep their catalogue reference. Saved checks are read first and nothing is checked until the tap, under the existing billing rules.
+
+## Wanted bulk price check on native (parity)
+
+The native Wanted tab shows the existing want-list bulk price check (`CollectionPriceCheck`, the same background comparison job as Show's Hunting list) under its header, for the signed-in owner or partner in their own binders, never on a shared view. Its printings come from the native read's explicit wants (`nativeSpeciesCollection(...).rows`), with repeated wants checked once. Starting the job keeps its existing confirmation and billing rules. An owned bulk check on native (Inventory) is not built yet.
