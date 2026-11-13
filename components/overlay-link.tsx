@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+// oxlint-disable-next-line react-doctor/no-flush-sync -- the close has to commit before the overlay's history traversal starts
 import { flushSync } from 'react-dom';
 import type { ComponentProps } from 'react';
 import { runAfterOverlayHistory } from '@/hooks/use-overlay';

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+// oxlint-disable-next-line react-doctor/prefer-dynamic-import -- every chart consumer already loads this wrapper lazily (next/dynamic or import())
 import * as RechartsPrimitive from 'recharts';
 import type { LegendPayload, LegendProps, TooltipContentProps } from 'recharts';
 
@@ -23,7 +24,7 @@ type ChartContextProps = {
 const ChartContext = React.createContext<ChartContextProps | null>(null);
 
 function useChart() {
-  const context = React.useContext(ChartContext);
+  const context = React.use(ChartContext);
 
   if (!context) {
     throw new Error('useChart must be used within a <ChartContainer />');
@@ -119,7 +120,8 @@ function ChartTooltipContent({
   }) {
   const { config } = useChart();
 
-  const tooltipLabel = React.useMemo(() => {
+  // Only rendered while a tooltip is active, after the early return below.
+  const getTooltipLabel = () => {
     if (hideLabel || !payload?.length) {
       return null;
     }
@@ -139,13 +141,14 @@ function ChartTooltipContent({
     }
 
     return <div className={cn('font-medium', labelClassName)}>{value}</div>;
-  }, [label, labelFormatter, payload, hideLabel, labelClassName, config, labelKey]);
+  };
 
   if (!active || !payload?.length) {
     return null;
   }
 
   const nestLabel = payload.length === 1 && indicator !== 'dot';
+  const tooltipLabel = getTooltipLabel();
 
   return (
     <div

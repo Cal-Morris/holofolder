@@ -77,10 +77,12 @@ export default function OfflineAppShell() {
     <>
       <BinderApp {...legacyProps} key={boot.binderId ?? 'binder'} />
       {boot.unavailableBinderName && noticeVisible && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--dock-clearance,5rem)+0.5rem)] z-50 flex justify-center px-3">
+        <div
+          role="status"
+          className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--dock-clearance,5rem)+0.5rem)] z-50 flex justify-center px-3"
+        >
           <button
             type="button"
-            role="status"
             onClick={() => setNoticeVisible(false)}
             className="bg-card/95 pointer-events-auto max-w-sm rounded-2xl border border-amber-500/25 px-3 py-2 text-left text-xs font-medium text-amber-700 shadow-lg backdrop-blur-xl dark:text-amber-200"
           >

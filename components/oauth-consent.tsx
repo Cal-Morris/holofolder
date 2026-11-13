@@ -1,6 +1,7 @@
 'use client';
 import { use, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { appPath } from '@/lib/app-path';
@@ -40,6 +41,7 @@ function SwitchRow({
   );
 }
 type Details = { client: { id: string; name: string }; redirectUri: string; scope: string; eligible: boolean };
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 export default function OAuthConsent({ searchParams }: { searchParams: Promise<{ authorization_id?: string }> }) {
   const { authorization_id: authorizationId } = use(searchParams);
   const [details, setDetails] = useState<Details | null>(null),
@@ -51,6 +53,7 @@ export default function OAuthConsent({ searchParams }: { searchParams: Promise<{
   const [remoteClient, setRemoteClient] = useState(false),
     [callbackUrl, setCallbackUrl] = useState(''),
     [copied, setCopied] = useState(false);
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect -- one-shot client load with abort/cancel handling; the app has no data-fetching layer
   useEffect(() => {
     let cancelled = false;
     if (!authorizationId) return;
@@ -220,9 +223,9 @@ export default function OAuthConsent({ searchParams }: { searchParams: Promise<{
           {!details.eligible && (
             <p className="border-border/50 bg-muted/35 rounded-2xl border px-4 py-3 text-sm">
               MCP access requires a Premium subscription or lifetime access. Signup trials do not include it.{' '}
-              <a className="underline" href="/app">
+              <Link className="underline" href="/">
                 Open Holo Folder to manage your plan.
-              </a>
+              </Link>
             </p>
           )}
           {(

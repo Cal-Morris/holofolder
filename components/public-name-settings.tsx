@@ -23,6 +23,7 @@ export function PublicNameSettings(props: PublicNameSettingsProps) {
   return <PublicNameForm key={`${props.binderId ?? ''}:${props.binderName ?? ''}:${props.isOnline}`} {...props} />;
 }
 
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 function PublicNameForm({ binderId, binderName = '', isOnline, onSaved }: PublicNameSettingsProps) {
   const id = useId();
   const endpoint = `/app/api/binder-identity?binderId=${encodeURIComponent(binderId ?? '')}`;
@@ -35,6 +36,7 @@ function PublicNameForm({ binderId, binderName = '', isOnline, onSaved }: Public
   const [message, setMessage] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect -- one-shot client load with abort/cancel handling; the app has no data-fetching layer
   useEffect(() => {
     const controller = new AbortController();
     if (!binderId) return () => controller.abort();
@@ -82,6 +84,7 @@ function PublicNameForm({ binderId, binderName = '', isOnline, onSaved }: Public
     setMessage(null);
     setFailed(false);
     try {
+      // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
       const response = await fetch(endpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
