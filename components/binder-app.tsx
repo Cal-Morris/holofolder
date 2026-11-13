@@ -265,6 +265,10 @@ interface BinderAppProps {
   startGrid?: { rows: number; cols: number };
 }
 
+function rememberThemeChoice(theme: 'dark' | 'light') {
+  const maxAge = 60 * 60 * 24 * 365;
+  document.cookie = `binderdex_theme=${theme}; path=/; max-age=${maxAge}; samesite=lax`;
+}
 function subscribeOnline(onChange: () => void) {
   window.addEventListener('online', onChange);
   window.addEventListener('offline', onChange);
@@ -291,8 +295,10 @@ const readStandalone = () =>
 const readNotStandalone = () => false;
 
 /** Authenticated lifetimes never mount the writable legacy collection hook. */
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent startup flags, each set from a different callback (session ready, displayed, startup failure); React batches them, a reducer would only add indirection
 export default function BinderApp(props: BinderAppProps) {
   const nativeHost = Boolean(
+    // oxlint-disable-next-line react-doctor/no-event-handler -- nativeHost is fixed for the mount; the effects keyed on it preload the session code and arm startup timeouts, not user events
     props.initialUser &&
     !props.readOnlyMode &&
     !props.shareViewToken &&
@@ -527,6 +533,7 @@ function BinderAppSurface(props: BinderAppProps) {
     initialSharePath = null,
     initialBinders = [],
     initialBinderId = null,
+    // oxlint-disable-next-line react-doctor/no-event-handler -- attributed to destructured props that feed the page-from-URL, host page sync, layout reset, filter clamp and theme sync effects below, which react to data changes, not user events
   } = props;
   const publicIndex = stagedSlotDisplay && !browserSurface ? props.publicIndex : undefined;
   const readOnlyMode = legacyReadOnlyMode || Boolean(stagedSlotDisplay) || Boolean(browserSurface);
@@ -598,6 +605,7 @@ function BinderAppSurface(props: BinderAppProps) {
     String(browserSurface?.surface.collection?.state.page ?? 1),
   );
   // The page the input and pending navigation were last reset for.
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- previous-value tracking for the render-time reset below (the documented React pattern for adjusting state when a value changes)
   const [pageInputPage, setPageInputPage] = useState(() => browserSurface?.surface.collection?.state.page ?? 1);
   const [collectionViewFilter, setCollectionViewFilter] = useState<CollectionViewFilter>('all');
   const [isMobileNavExpanded, setIsMobileNavExpanded] = useState(false);
@@ -641,6 +649,7 @@ function BinderAppSurface(props: BinderAppProps) {
       cancelPreload?.();
     };
   }, []);
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- bumping it refetches the share state in the effect that depends on it
   const [shareIdentityRevision, setShareIdentityRevision] = useState(0);
   const handlePublicIdentityChange = useCallback(() => setShareIdentityRevision((value) => value + 1), []);
   const [sharePath, setSharePath] = useState<string | null>(
@@ -667,6 +676,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const [slotGlareState, setSlotGlareState] = useState(DEFAULT_SLOT_GLARE_STATE);
   const [motionGlintStatus, setMotionGlintStatus] = useState<MotionGlintStatus>('fallback');
   const [motionGlintMessage, setMotionGlintMessage] = useState<string | null>(null);
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- bumping it rebinds the motion sensor listeners in the effect that depends on it
   const [motionSensorVersion, setMotionSensorVersion] = useState(0);
   const [quickPanelPosition, setQuickPanelPosition] = useState<QuickPanelPosition | null>(null);
   const [binderStageSize, setBinderStageSize] = useState({ width: 0, height: 0 });
@@ -761,6 +771,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const history = useBinderHistory(historyScope);
   const refreshHistory = history.refresh;
   useEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-event-handler, react-doctor/no-pass-data-to-parent -- refreshes history while Search or Quick mode is open, whichever of their many entry points opened them
     if (isSearchOpen || isQuickModeOpen) refreshHistory();
   }, [isSearchOpen, isQuickModeOpen, refreshHistory]);
 
@@ -771,6 +782,7 @@ function BinderAppSurface(props: BinderAppProps) {
     isShowModeOn,
   });
 
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- a render must commit the closed switcher first so its history entry pops before navigating (see the effect below)
   const [pendingBinderSwitch, setPendingBinderSwitch] = useState<string | null>(null);
   const switchBinder = useCallback(
     (binderId: string) => {
@@ -792,6 +804,7 @@ function BinderAppSurface(props: BinderAppProps) {
       );
       // Offline, a full load lets the service worker open that binder's saved copy from the app shell.
       if (typeof navigator !== 'undefined' && navigator.onLine === false) window.location.assign(appPath(href));
+      // oxlint-disable-next-line react-doctor/nextjs-no-client-side-redirect -- a user-chosen binder switch, deferred until the switcher has closed; not a redirect
       else router.push(href);
     });
   }, [binders, isBinderSwitcherOpen, pendingBinderSwitch, router]);
@@ -1134,16 +1147,20 @@ function BinderAppSurface(props: BinderAppProps) {
     };
   }, [motionGlintStatus, motionGlintEffectsEnabled]);
 
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
 
+    // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
     setSlotGlareState(DEFAULT_SLOT_GLARE_STATE);
 
     if (!motionGlintEffectsEnabled) {
       // Pausing rendering does not revoke an iOS motion permission already granted.
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintStatus('disabled');
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintMessage(null);
       return;
     }
@@ -1329,14 +1346,20 @@ function BinderAppSurface(props: BinderAppProps) {
 
     if (!hasSensorApi) {
       motionSensorsEnabledRef.current = false;
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintStatus('unsupported');
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintMessage('Motion sensors are not exposed here. Touch and pointer movement still move the shine.');
     } else if (needsExplicitPermission && !motionSensorsEnabledRef.current) {
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintStatus((status) => (status === 'denied' ? status : 'needs-permission'));
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintMessage((message) => message ?? 'Tap Enable motion glint in settings, then tilt the phone.');
     } else {
       motionSensorsEnabledRef.current = true;
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       bindSensorListeners();
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintStatus((status) => (status === 'active' ? status : 'fallback'));
     }
 
@@ -1459,7 +1482,9 @@ function BinderAppSurface(props: BinderAppProps) {
     }
 
     const nextPage = Math.min(Math.max(parsedPage, 1), totalBinderPages);
+    // oxlint-disable-next-line react-doctor/no-event-handler -- one-time read of ?page= after hydration; the server render cannot see it, so it cannot be the initial state
     if (nextPage !== currentBinderPage) {
+      // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-chain-state-updates, react-doctor/no-derived-state -- one-time read of ?page= after hydration; the server render cannot see it, so it cannot be the initial state
       setCurrentBinderPage(nextPage);
     }
   }, [localBrowserHost, browserSurface, currentBinderPage, totalBinderPages]);
@@ -1517,8 +1542,10 @@ function BinderAppSurface(props: BinderAppProps) {
   useEffect(() => {
     if (
       browserSurface?.surface.state.main === 'collection' &&
+      // oxlint-disable-next-line react-doctor/no-event-handler -- tells the navigation host the committed page so it lands in the URL and history; the page changes from many places (swipes, keys, jumps, filter clamps)
       browserSurface.surface.collection?.state.page !== currentBinderPage
     )
+      // oxlint-disable-next-line react-doctor/no-pass-live-state-to-parent -- tells the navigation host the committed page so it lands in the URL and history; the page changes from many places (swipes, keys, jumps, filter clamps)
       browserSurface.surface.collection?.onChange({ page: currentBinderPage });
   }, [browserSurface, currentBinderPage]);
   const layoutScopeKey = JSON.stringify([
@@ -1566,6 +1593,7 @@ function BinderAppSurface(props: BinderAppProps) {
   );
   const canEditLayout = layoutPlace && (!browserSurface || browserSurface.editingAvailable);
   const editingLayout = canEditLayout && layoutSession?.scope === layoutScopeKey;
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- three resets in one microtask, which React batches into a single render
   useEffect(() => {
     queueMicrotask(() => {
       setLayoutSession(null);
@@ -1734,6 +1762,7 @@ function BinderAppSurface(props: BinderAppProps) {
   });
 
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-derived-state, react-doctor/no-pass-data-to-parent, react-doctor/no-pass-live-state-to-parent -- clamps the page once when filters or the grid change; the user pages freely afterwards, so the page is not derivable
     adjustPageForFilters();
   }, [
     selectedGen,
@@ -2792,14 +2821,15 @@ function BinderAppSurface(props: BinderAppProps) {
     }
     document.documentElement.classList.toggle('dark', next);
     // Only a theme the user picked here is saved to the cookie, not one synced from settings.
-    const maxAge = 60 * 60 * 24 * 365;
-    document.cookie = `binderdex_theme=${next ? 'dark' : 'light'}; path=/; max-age=${maxAge}; samesite=lax`;
+    rememberThemeChoice(next ? 'dark' : 'light');
   };
 
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-derived-state -- the server paints the cookie theme; saved settings take over after mount and on change, and the toggle can differ from them until they save
     setIsDarkMode(settings.darkMode);
   }, [settings.darkMode]);
 
+  // oxlint-disable-next-line react-doctor/no-effect-chain -- applies the theme to <html> and its meta tags (DOM outside React) whenever it changes, from the toggle or from settings
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
 
@@ -2916,12 +2946,16 @@ function BinderAppSurface(props: BinderAppProps) {
     }
   }, [installPromptEvent]);
 
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state, react-doctor/no-fetch-in-effect -- cancellable load of the share link for the current binder and identity; the app has no client data layer
   useEffect(() => {
     if (!canManageShare) {
       if (!legacyReadOnlyMode && !shareViewToken) {
+        // oxlint-disable-next-line react/set-state-in-effect -- clears the share state when this binder stops being shareable here (signed out, read-only, partner view)
         setSharePath(null);
         setIsShareEnabled(false);
+        // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- clears the share state when this binder stops being shareable here (signed out, read-only, partner view)
         setShareShowPrices(false);
+        // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- clears the share state when this binder stops being shareable here (signed out, read-only, partner view)
         setIsShareLoading(false);
       }
       return;
@@ -2971,6 +3005,7 @@ function BinderAppSurface(props: BinderAppProps) {
       setIsShareLoading(true);
 
       try {
+        // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after this await checks the share scope did not change during it, so it has to run after it
         const response = await fetch('/app/api/binder-share', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3022,6 +3057,7 @@ function BinderAppSurface(props: BinderAppProps) {
     setIsShareLoading(true);
 
     try {
+      // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after this await checks the share scope did not change during it, so it has to run after it
       const response = await fetch(binderShareUrl(shareBinderId), {
         method: 'DELETE',
       });
@@ -3266,11 +3302,13 @@ function BinderAppSurface(props: BinderAppProps) {
 
   useEffect(() => {
     if (!selectedPokemon || isSearchOpen || typeof window === 'undefined') {
+      // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-adjust-state-on-prop-change -- drops the measured position when the panel hides, so a reopened panel never paints at a stale spot
       setQuickPanelPosition(null);
       return;
     }
 
     if (!isDesktopViewport) {
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- drops the measured position when the panel hides, so a reopened panel never paints at a stale spot
       setQuickPanelPosition(null);
       return;
     }
@@ -3768,8 +3806,11 @@ function BinderAppSurface(props: BinderAppProps) {
 
   // Full-screen dialogs replace the card detail instead of stacking on top of it.
   useEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-event-handler -- closes the card detail whenever a full-screen dialog opens; they open from many call sites
     if (isSettingsOpen || isAuthOpen || isPartnerOpen || isMobileNavExpanded) {
+      // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-chain-state-updates -- closes the card detail whenever a full-screen dialog opens; they open from many call sites
       setSelectedPokemon(null);
+      // oxlint-disable-next-line react-doctor/no-chain-state-updates -- closes the card detail whenever a full-screen dialog opens; they open from many call sites
       setLongPressedPokemon(null);
     }
   }, [isAuthOpen, isMobileNavExpanded, isPartnerOpen, isSettingsOpen]);
@@ -4554,9 +4595,9 @@ function BinderAppSurface(props: BinderAppProps) {
             legacyMainContent
           )}
 
-          {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
+          {/* eslint-disable-next-line react-hooks/refs, react-doctor/no-render-in-render -- the helper only passes refs through as `ref` props, and it is a render helper called inline, not a component type, so nothing remounts */}
           {renderSelectedPokemonQuickPanel()}
-          {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
+          {/* eslint-disable-next-line react-hooks/refs, react-doctor/no-render-in-render -- the helper only passes refs through as `ref` props, and it is a render helper called inline, not a component type, so nothing remounts */}
           {renderMobileSlotActionBar()}
 
           {isQuickModeOpen && (
@@ -4592,13 +4633,13 @@ function BinderAppSurface(props: BinderAppProps) {
             />
           )}
 
-          {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
+          {/* eslint-disable-next-line react-hooks/refs, react-doctor/no-render-in-render -- the helper only passes refs through as `ref` props, and it is a render helper called inline, not a component type, so nothing remounts */}
           {renderSearchOverlay()}
 
-          {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
+          {/* eslint-disable-next-line react-hooks/refs, react-doctor/no-render-in-render -- the helper only passes refs through as `ref` props, and it is a render helper called inline, not a component type, so nothing remounts */}
           {renderMobileNavMenu()}
 
-          {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
+          {/* eslint-disable-next-line react-hooks/refs, react-doctor/no-render-in-render -- the helper only passes refs through as `ref` props, and it is a render helper called inline, not a component type, so nothing remounts */}
           {renderBottomNav()}
 
           {/* Modals */}
