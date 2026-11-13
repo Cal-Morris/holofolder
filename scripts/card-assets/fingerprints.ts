@@ -14,7 +14,11 @@
  * language plus 1. --publish needs CARD_IMAGE_STORE=r2 and the app's R2_* variables.
  */
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Client } from 'pg';
 import {
   buildFingerprintManifest,
@@ -264,9 +268,33 @@ async function headEtags(wanted: readonly WantedImage[], publicBase: string, fet
   return etags;
 }
 
+/** The two pieces of `@huggingface/transformers` this command uses. */
+interface ModelLibrary {
+  pipeline(
+    task: 'image-feature-extraction',
+    model: string,
+    options: { dtype: string },
+  ): Promise<(image: unknown) => Promise<{ data: unknown; dims: number[] }>>;
+  RawImage: { fromBlob(blob: Blob): Promise<unknown> };
+}
+
+/**
+ * Loads the model library from its own package in scripts/card-assets/model, installing it on first use. It pulls in
+ * about 450 MB of onnxruntime, so it stays out of the root package and never reaches CI, Vercel or app code.
+ */
+async function loadModelLibrary(): Promise<ModelLibrary> {
+  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'model');
+  // Check the folder rather than resolving first: Bun remembers a failed resolve even after the install.
+  if (!existsSync(path.join(dir, 'node_modules', '@huggingface', 'transformers', 'package.json'))) {
+    console.log('Installing the model library into scripts/card-assets/model (first run only)…');
+    execFileSync('bun', ['install', '--frozen-lockfile'], { cwd: dir, stdio: 'inherit' });
+  }
+  const entry = createRequire(path.join(dir, 'package.json')).resolve('@huggingface/transformers');
+  return (await import(pathToFileURL(entry).href)) as ModelLibrary;
+}
+
 async function loadEmbedder() {
-  // Script-only dependency: never import it from app code (it pulls onnxruntime-node).
-  const { pipeline, RawImage } = await import('@huggingface/transformers');
+  const { pipeline, RawImage } = await loadModelLibrary();
   const extract = await pipeline('image-feature-extraction', FINGERPRINT_MODEL.id, { dtype: FINGERPRINT_MODEL.dtype });
   return async (body: ArrayBuffer) => {
     const output = await extract(await RawImage.fromBlob(new Blob([body])));
