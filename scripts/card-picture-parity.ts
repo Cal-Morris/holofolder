@@ -118,7 +118,13 @@ async function main() {
     const { Bun } = globalThis as unknown as {
       Bun: { build(options: object): Promise<{ outputs: Array<{ text(): Promise<string> }> }> };
     };
-    const bundle = await Bun.build({ entrypoints: [entry], target: 'browser', format: 'esm' });
+    // Next inlines NEXT_PUBLIC_ variables in the app; do the same here.
+    const bundle = await Bun.build({
+      entrypoints: [entry],
+      target: 'browser',
+      format: 'esm',
+      define: { 'process.env.NEXT_PUBLIC_PICTURE_MODEL_BASE_URL': '""' },
+    });
     const code = await bundle.outputs[0].text();
     const encode = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64');
     const browser = await chromium.launch();
