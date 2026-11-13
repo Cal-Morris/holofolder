@@ -395,6 +395,9 @@ test.describe('offline search and card show prep', () => {
   test('stopping a size check keeps the set panel usable', async ({ harness, context }) => {
     const { page } = harness;
     await mockNetwork(context, page);
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
     const { sets } = await openOfflineSets(page);
     await sets.getByRole('searchbox', { name: 'Find sets to save' }).fill('Legends');
     await sets.getByRole('button', { name: 'Find', exact: true }).click();
