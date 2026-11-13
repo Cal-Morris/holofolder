@@ -95,6 +95,7 @@ export default function PokemonCardsBrowser({
   formatPrice,
   pricingRegion = DEFAULT_PRICING_REGION,
   cardLanguages,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: PokemonCardsBrowserProps) {
   const binderLanguages = cardLanguages ?? DEFAULT_BINDER_CARD_LANGUAGES;
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);

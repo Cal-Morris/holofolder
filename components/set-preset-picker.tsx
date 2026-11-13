@@ -54,6 +54,7 @@ export function SetPresetPicker({
   /** Catalog images and Pokémon for the chosen cards, for a picture preview. Never sent anywhere. */
   onCards?: (cards: Map<string, PreviewCard>) => void;
   part?: 'all' | 'scope' | 'extras' | 'none';
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }) {
   const [query, setQuery] = useState(initialSet?.id ?? '');
   const [sets, setSets] = useState<TCGSetSummary[]>([]);
@@ -118,6 +119,7 @@ export function SetPresetPicker({
       });
       const response = await fetch(`/app/api/tcg-set-slots?${params}`, { cache: 'no-store' });
       if (!response.ok) throw new Error("Couldn't load sets just now. Try again.");
+      // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
       const data = (await response.json()) as TCGSetSlotsResponse;
       if (sequence !== request.current) return;
       if (!setId) {
@@ -137,6 +139,7 @@ export function SetPresetPicker({
       // The set's usual promos (ETB, blisters, Build & Battle) are offered to add. A failure here keeps the set.
       const known = knownSetPromos(next.set.id);
       if (known) {
+        // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
         const promoResponse = await fetch(
           `/app/api/tcg-set-slots?${new URLSearchParams({ language, setId: known.setId })}`,
           { cache: 'no-store' },
@@ -166,12 +169,12 @@ export function SetPresetPicker({
   const canFind = isOnline && !loading && query.trim().length >= 2;
   const confirmed = (c: TCGSetSlotCard) => c.languageConfirmed === true && c.language === language;
   const finishCounts = catalog
-    ? (Object.keys(SET_FINISH_FLAGS) as SetPresetFinish[])
-        .map((f) => ({
-          f,
-          count: [...catalog.cards, ...promos].filter((c) => confirmed(c) && verifiedSetFinishes(c).includes(f)).length,
-        }))
-        .filter((x) => x.count > 0)
+    ? (Object.keys(SET_FINISH_FLAGS) as SetPresetFinish[]).flatMap((f) => {
+        const count = [...catalog.cards, ...promos].filter(
+          (c) => confirmed(c) && verifiedSetFinishes(c).includes(f),
+        ).length;
+        return count > 0 ? [{ f, count }] : [];
+      })
     : [];
   const togglePromo = (c: TCGSetSlotCard) => {
     const chosen = promos.some((p) => p.id === c.id);

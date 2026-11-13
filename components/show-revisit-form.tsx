@@ -45,6 +45,7 @@ export default function ShowRevisitForm({
         className="bg-muted min-h-10 rounded-xl px-3 text-sm font-semibold"
         onClick={() =>
           setSavedNotice(
+            // oxlint-disable-next-line react-doctor/rendering-hydration-mismatch-time -- runs in an event handler, never during render
             onSave({ card, askingPrice, currency, note: note.trim(), savedAt: new Date().toISOString() })
               ? signature
               : null,

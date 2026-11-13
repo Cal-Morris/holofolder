@@ -22,6 +22,7 @@ export default function ShowBudget({
   const { session } = useShowSession();
   const [editing, setEditing] = useState(false);
   const [input, setInput] = useState('');
+  // oxlint-disable-next-line react-doctor/no-derived-useState -- draft currency for the edit form, seeded from the prop on purpose
   const [chosenCurrency, setChosenCurrency] = useState(currency);
   const summary = budget ? summarizeShowBudget(budget, session) : null;
   const amount = parseAskingPrice(input);
@@ -51,6 +52,7 @@ export default function ShowBudget({
             This device&apos;s limit · current show&apos;s shared spending
           </p>
           {editing ? (
+            // oxlint-disable-next-line react-doctor/no-prevent-default -- client-only form that works on the device; there is no server action to post to
             <form
               className="mt-2 space-y-2"
               onSubmit={(event) => {

@@ -53,7 +53,7 @@ function SourceRecords({ check, source }: { check: CardPriceCheck; source: Price
   const [visible, setVisible] = useState(10);
   const sold = source === 'soldcomps';
   const records = sold ? check.sales : check.listings;
-  const sorted = [...(records ?? [])].sort((left, right) => {
+  const sorted = (records ?? []).toSorted((left, right) => {
     if ('soldAt' in left && 'soldAt' in right && typeof left.soldAt === 'string' && typeof right.soldAt === 'string')
       return right.soldAt.localeCompare(left.soldAt);
     return left.amount - right.amount;
@@ -76,6 +76,7 @@ function SourceRecords({ check, source }: { check: CardPriceCheck; source: Price
             <>
               <ol className="space-y-2" aria-label={sold ? 'Matched sold records' : 'Matched asking records'}>
                 {sorted.slice(0, visible).map((record, index) => (
+                  // oxlint-disable-next-line react-doctor/no-array-index-as-key -- saved records carry no id; this read-only list is sorted once
                   <li key={index} className="border-border/50 rounded-lg border p-2">
                     <p className="flex flex-wrap justify-between gap-x-2 font-semibold">
                       <span>{formatGbpAmount(record.amount)}</span>

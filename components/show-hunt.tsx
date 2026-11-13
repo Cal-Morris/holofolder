@@ -41,7 +41,7 @@ import { Select } from '@/components/ui/select';
 
 type Money = { amount: number; currency: Parameters<typeof formatMoney>[1] };
 
-export function payUpTo(market: number, thresholds: DealThresholds) {
+function payUpTo(market: number, thresholds: DealThresholds) {
   return Math.round(market * (1 + thresholds.fairPct / 100) * 100) / 100;
 }
 
@@ -225,6 +225,7 @@ function ShowHunt({
   isOnline,
   onPickCard,
   onPickPokemon,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: ShowHuntProps) {
   const billing = useBillingContext();
   const thresholds = useDealThresholds();
@@ -272,7 +273,7 @@ function ShowHunt({
   useEffect(() => {
     let cancelled = false;
     void loadIllustratorDirectory().then((result) => {
-      if (!cancelled && result.data) setDirectory([...result.data].sort((a, b) => a.name.localeCompare(b.name)));
+      if (!cancelled && result.data) setDirectory(result.data.toSorted((a, b) => a.name.localeCompare(b.name)));
     });
     return () => {
       cancelled = true;
@@ -300,7 +301,7 @@ function ShowHunt({
       illustrator
         ? new Set([
             ...(illustratorCards?.name === illustrator ? (illustratorCards.ids ?? []) : []),
-            ...cards.filter((card) => card.wanted.illustrator === illustrator).map((card) => card.wanted.card_id),
+            ...cards.flatMap((card) => (card.wanted.illustrator === illustrator ? [card.wanted.card_id] : [])),
           ])
         : null,
     [cards, illustrator, illustratorCards],
@@ -308,12 +309,12 @@ function ShowHunt({
   // ~435 directory names: sorted once per want list / directory change, not on every render.
   const illustratorNames = useMemo(
     () =>
-      [
-        ...new Set([
+      Array.from(
+        new Set([
           ...cards.flatMap((card) => (card.wanted.illustrator ? [card.wanted.illustrator] : [])),
           ...directory.map((entry) => entry.name),
         ]),
-      ].sort((a, b) => a.localeCompare(b)),
+      ).sort((a, b) => a.localeCompare(b)),
     [cards, directory],
   );
   const groups = useMemo(
