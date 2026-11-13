@@ -19,7 +19,7 @@ Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are 
 3. **Sync it.** Drop `dryRun`, or omit `?set=` to sync everything missing or incomplete, newest first. Repeat the call until the response has `"done": true`. Each call handles `maxSets` sets (default 4, max 12) and returns `remainingSetIds`.
    - The sync upserts (it never truncates), runs under an advisory lock (`409` if another sync is running), and revalidates the `tcg-mirror` cache tag.
    - It also copies each synced set's English `high` and `low` images into the mirror. Add `?images=0` to skip that.
-   - The full rebuild is local: `bun run sync-card-db` (needs `POSTGRES_URL_NON_POOLING` or `DATABASE_URL`; supports `--dry-run`). It truncates and reloads the mirror, so prefer the API route for one set.
+   - The full rebuild is local: `bun run sync-card-db` (needs `POSTGRES_URL_NON_POOLING` or `DATABASE_URL`; supports `--dry-run`). It upserts every TCGdex set and never truncates or deletes, so cards imported by `card-assets fill-gaps` and their catalog metadata survive; prefer the API route for one set.
 4. **Back-fill the images**, if they weren't copied during the sync or other languages or qualities are needed:
    - API, resumable:
      ```sh
