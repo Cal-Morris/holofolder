@@ -23,6 +23,8 @@ export interface NativePageScanAdmission extends ScanDestinationAdmission {
   getOfflineCards: () => Promise<SearchCardResult[]>;
   /** Occupancy detector adapter. Default is the existing browser page detector. */
   detectPage?: (file: File, rows: number, cols: number) => Promise<ScanCell[]>;
+  /** Pocket reader adapter for the e2e harness. Default reads the crop with identifyPocketCrop. */
+  identifyPocket?: (crop: string) => Promise<{ candidates: SearchCardResult[]; query: string }>;
 }
 const detectPage = async (file: File, rows: number, cols: number) =>
   (await scanBinderPageImage(file, rows, cols)).slots;
@@ -86,7 +88,7 @@ export default function NativePageScanner({
         cells.map(async (c) => {
           const crop = c.cardImageDataUrl;
           if (!crop || !toRead.includes(c)) return { ...c, candidates: [], crop };
-          const found = await identifyPocketCrop(crop, admission.getOfflineCards);
+          const found = await (admission.identifyPocket?.(crop) ?? identifyPocketCrop(crop, admission.getOfflineCards));
           if (alive.current) setReading((r) => r && { ...r, done: r.done + 1 });
           return { ...c, ...found, crop };
         }),

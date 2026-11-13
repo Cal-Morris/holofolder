@@ -64,6 +64,8 @@ function scanProblem(cause: unknown) {
     reason.startsWith('raw-creation-unavailable')
   )
     return 'Choose which of your copies each card is, then try again.';
+  // prepareScanDraft's own limit message already says what to do; a retry would only fail again.
+  if (reason.startsWith('Scan batch exceeds')) return reason;
   return slotDraftFailureMessage(cause);
 }
 

@@ -1,8 +1,17 @@
 import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, collectionPicker } from './fixtures';
 import type { Page } from '@playwright/test';
+
+// The real BinderApp host with native storage over the loopback HTTP harness (tests/fixtures/storage-command-harness,
+// `scan-*` fixtures: a 2×2 page, pockets 1 and 2 kept for Snorlax, pockets 3 and 4 free, one unplaced raw copy each of
+// Synthetic energy, trainer and snorlax). Page photos go through tests/fixtures/native-scanner-host, which reports the
+// pockets it is given without crops, so no pocket is read and every card is chosen in the review.
 const collection = '22222222-2222-4222-8222-222222222222';
 const entry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${collection}`;
-const review = (page: Page) => page.getByRole('dialog', { name: 'Review scan destinations' });
+const review = (page: Page) => page.getByRole('dialog', { name: 'Scanned cards' });
+const pocket = (page: Page, n: number) =>
+  review(page).getByRole('region', { name: `Page 1 · Pocket ${n}`, exact: true });
+const scanned = (page: Page) => review(page).getByRole('region', { name: 'Scanned card', exact: true });
+const addButton = (page: Page) => review(page).getByRole('button', { name: /^(Add \d+ cards?|Choose a card to add)$/ });
 async function record(page: Page) {
   return page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((yes, no) => {
@@ -31,38 +40,73 @@ async function record(page: Page) {
     );
   });
 }
-async function nextSavedPage(page: Page) {
-  const canvas = page.locator('[data-page-turn-ms]');
-  const box = (await canvas.boundingBox())!;
-  const touch = await page.context().newCDPSession(page);
-  const x = box.x + box.width * 0.8,
-    y = box.y + box.height * 0.5;
-  await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
-  await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x - 100, y, id: 1 }] });
-  await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await touch.detach();
-}
 /** Scanning lives in the storage (⋮) menu. */
 async function scan(page: Page, name: 'Scan page' | 'Scan card') {
   await page.getByRole('button', { name: 'Storage', exact: true }).click();
   await page.getByRole('dialog', { name: 'Storage', exact: true }).getByRole('button', { name, exact: true }).click();
 }
+/** Card scan without the camera: the review offers the cards saved on this device to tap. */
 async function cardReview(page: Page) {
   await scan(page, 'Scan card');
   await page.getByRole('button', { name: 'Type instead', exact: true }).click();
   await expect(review(page)).toBeVisible();
 }
-async function choose(page: Page, cell: number, card: string, slot: number | 'append-free' | 'append-card') {
-  await page.getByRole('combobox', { name: `Card for cell ${cell}`, exact: true }).selectOption(`synthetic-${card}:en`);
-  await page.getByRole('combobox', { name: `Copy for cell ${cell}`, exact: true }).selectOption('raw');
-  await page
-    .getByRole('combobox', { name: `Destination for cell ${cell}`, exact: true })
-    .selectOption(typeof slot === 'number' ? `slot:synthetic-slot-${slot}` : slot);
+/** Taps one of the scanned card's possible matches. */
+async function tapMatch(page: Page, kind: string) {
+  await scanned(page)
+    .getByRole('group', { name: 'Possible matches' })
+    .getByRole('button', { name: `Synthetic ${kind}, Synthetic scanner set #1`, exact: true })
+    .click();
+}
+/** Chooses a pocket's card in the picker, searching the synthetic catalog. */
+async function choose(page: Page, n: number, kind: string) {
+  await pocket(page, n).getByRole('button', { name: 'Choose card', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: 'Card selector' });
+  await picker.getByRole('searchbox', { name: 'Search cards' }).fill(`Synthetic ${kind}`);
+  await picker
+    .getByRole('button', { name: `Add card Synthetic ${kind} from Synthetic scanner set`, exact: true })
+    .click();
+  await expect(picker).toHaveCount(0);
+}
+/** A page photo the synthetic detector reports as filled pockets 3 and 4 (index 2 and 3). */
+async function pageReview(page: Page, deferred = false) {
+  await scan(page, 'Scan page');
+  await page.getByLabel('Page photo', { exact: true }).setInputFiles({
+    name: 'synthetic-page.json',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      JSON.stringify({
+        deferred,
+        cells: [
+          { index: 3, row: 1, col: 1, occupied: true },
+          { index: 2, row: 1, col: 0, occupied: true },
+        ],
+      }),
+    ),
+  });
 }
 test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   if (standalone) await emulateStandalone(page, insets);
   await mockBackends(page, context, { signedIn: true, baseURL });
   await context.addCookies([{ name: 'hf-storage-fixture', value: `scan-${crypto.randomUUID()}`, url: baseURL! }]);
+  // Synthetic catalog search over the fixture's cards, matched on the query's words.
+  await page.route('**/app/api/tcg-card-search**', (route) => {
+    const q = new URL(route.request().url()).searchParams.get('q') ?? '';
+    return route.fulfill({
+      json: {
+        cards: ['energy', 'trainer', 'snorlax']
+          .filter((kind) => q.includes(kind))
+          .map((kind) => ({
+            id: `synthetic-${kind}`,
+            name: `Synthetic ${kind}`,
+            localId: '1',
+            language: 'en',
+            dexIds: kind === 'snorlax' ? [143] : [],
+            set: { id: 'synthetic', name: 'Synthetic scanner set' },
+          })),
+      },
+    });
+  });
   await page.addInitScript(() => {
     // Synthetic camera only. No physical device or recognition accuracy claim.
     const canvas = document.createElement('canvas');
@@ -88,7 +132,10 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
     });
   });
 });
-test('real host manual Energy uses explicit free destination and durable HTTP fresh ACK', async ({ page, insets }) => {
+test('card scan saves the chosen card to the chosen pocket with one HTTP send and a fresh read', async ({
+  page,
+  insets,
+}) => {
   let sends = 0,
     after = false,
     reads = 0;
@@ -104,21 +151,22 @@ test('real host manual Energy uses explicit free destination and durable HTTP fr
   });
   await page.goto(entry);
   await cardReview(page);
-  await choose(page, 1, 'energy', 2);
-  const options = await page
-    .getByRole('combobox', { name: 'Destination for cell 1', exact: true })
-    .locator('option')
-    .allTextContents();
-  expect(options.join()).not.toContain('synthetic-slot-0');
+  await tapMatch(page, 'energy');
+  const target = review(page).getByRole('combobox', { name: 'Pocket for Synthetic energy', exact: true });
+  // Energy doesn't fit the Snorlax pockets; only free pockets and a new one are offered.
+  const options = await target.locator('option').allTextContents();
+  expect(options.join()).not.toContain('Pocket 1');
+  await target.selectOption({ label: 'Page 1 · Pocket 3 · empty pocket' });
   const h = new Harness(page, insets, true);
   await h.expectWithinSafeViewport(review(page));
   await h.expectNoHorizontalOverflow();
-  for (const name of ['Cancel', 'Confirm scan draft', 'Close scan review']) {
+  for (const name of ['Cancel', 'Add 1 card', 'Close scan review']) {
     const button = review(page).getByRole('button', { name, exact: true });
     await h.expectMinTapTarget(button, 36);
     await h.expectHittable(button);
   }
-  await review(page).getByRole('button', { name: 'Confirm scan draft' }).click();
+  expect(sends).toBe(0);
+  await addButton(page).click();
   await expect(review(page)).toHaveCount(0);
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
   expect(sends).toBe(1);
@@ -142,28 +190,35 @@ test('lost inventory reply survives modal close/reload and retries exact origina
   });
   await page.goto(entry);
   await cardReview(page);
-  await choose(page, 1, 'trainer', 'append-card');
-  await review(page).getByRole('button', { name: 'Confirm scan draft' }).click();
+  await tapMatch(page, 'trainer');
+  await review(page)
+    .getByRole('combobox', { name: 'Pocket for Synthetic trainer', exact: true })
+    .selectOption({ label: 'A new pocket at the end' });
+  await addButton(page).click();
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('unavailable');
   await page.reload();
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
   expect(requests).toHaveLength(2);
   expect(requests[0]).toBe(requests[1]);
 });
-test('repeated species never preselect first destination; cancel creates no intent', async ({ page }) => {
+test('several possible matches wait for a tap; cancel creates no intent', async ({ page }) => {
   await page.goto(entry);
   await cardReview(page);
-  await page.getByRole('combobox', { name: 'Card for cell 1', exact: true }).selectOption('synthetic-snorlax:en');
-  const target = page.getByRole('combobox', { name: 'Destination for cell 1', exact: true });
-  await expect(target).toHaveValue('');
-  await expect(target.locator('option[value="slot:synthetic-slot-0"]')).toHaveCount(1);
-  await expect(target.locator('option[value="slot:synthetic-slot-1"]')).toHaveCount(1);
-  await choose(page, 1, 'snorlax', 1);
+  await expect(scanned(page).getByRole('group', { name: 'Possible matches' }).getByRole('button')).toHaveCount(3);
+  await expect(addButton(page)).toBeDisabled();
+  await tapMatch(page, 'snorlax');
+  // A card kept for this card's Pokémon is offered first, but nothing is saved until Add.
+  await expect(review(page).getByRole('combobox', { name: 'Pocket for Synthetic snorlax', exact: true })).toHaveValue(
+    'slot:synthetic-slot-0',
+  );
   await review(page).getByRole('button', { name: 'Cancel', exact: true }).click();
   expect((await record(page))?.pending).toHaveLength(0);
   await cardReview(page);
-  await choose(page, 1, 'snorlax', 1);
-  await review(page).getByRole('button', { name: 'Confirm scan draft' }).click();
+  await tapMatch(page, 'snorlax');
+  await review(page)
+    .getByRole('combobox', { name: 'Pocket for Synthetic snorlax', exact: true })
+    .selectOption({ label: 'Page 1 · Pocket 2' });
+  await addButton(page).click();
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
   await expect(page.locator('[data-slot-id="synthetic-slot-1"]')).toContainText('Synthetic snorlax');
   await expect(page.locator('[data-slot-id="synthetic-slot-0"]')).not.toContainText('Synthetic snorlax');
@@ -183,7 +238,7 @@ for (const change of ['signout', 'account', 'owner'] as const)
   test(`${change} teardown discards unconfirmed review without queue writes`, async ({ page }) => {
     await page.goto(entry);
     await cardReview(page);
-    await choose(page, 1, 'trainer', 'append-card');
+    await tapMatch(page, 'trainer');
     if (change === 'owner') {
       await page.route('**/rest/v1/partnerships*', (route) =>
         route.fulfill({
@@ -221,53 +276,32 @@ for (const change of ['signout', 'account', 'owner'] as const)
     await expect(review(page)).toHaveCount(0);
     expect((await record(page))?.pending).toHaveLength(0);
   });
-async function pageReview(page: Page, deferred = false) {
-  await scan(page, 'Scan page');
-  await page.getByLabel('Page photo', { exact: true }).setInputFiles({
-    name: 'synthetic-page.json',
-    mimeType: 'image/png',
-    buffer: Buffer.from(
-      JSON.stringify({
-        deferred,
-        cells: [
-          { index: 3, row: 1, col: 1, occupied: true },
-          { index: 0, row: 0, col: 0, occupied: true },
-        ],
-      }),
-    ),
-  });
-}
-test('inserted free pocket page maps captured IDs and confirms Energy plus trainer atomically', async ({ page }) => {
+test('a page review saves every chosen card in one command, only on Add', async ({ page }) => {
   const bodies: { commands: { kind: string; destination?: { slot: { id: string } } }[] }[] = [];
   await page.route('**/app/e2e-harness/storage/inventory', async (route) => {
     bodies.push(route.request().postDataJSON());
     await route.continue();
   });
   await page.goto(`${entry}&scanFixture=1`);
-  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
-  await page.locator('[data-slot-id="synthetic-slot-0"]').click();
-  await page.getByRole('button', { name: 'Insert free slot before', exact: true }).click();
-  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
-  await page.getByRole('dialog').getByRole('button', { name: 'Done', exact: true }).click();
-  const inserted = await page.locator('[data-slot-id]').first().getAttribute('data-slot-id');
-  expect(inserted).not.toBe('synthetic-slot-0');
   await pageReview(page);
-  await expect(review(page).getByRole('region', { name: 'Cell 1', exact: true })).toContainText(inserted!);
-  await expect(review(page).getByRole('region', { name: 'Cell 4', exact: true })).toContainText('synthetic-slot-2');
-  await page.getByRole('combobox', { name: 'Card for cell 1', exact: true }).selectOption('synthetic-energy:en');
-  await page.getByRole('combobox', { name: 'Copy for cell 1', exact: true }).selectOption('raw');
-  await page.getByRole('combobox', { name: 'Destination for cell 1', exact: true }).selectOption(`slot:${inserted}`);
-  await choose(page, 4, 'trainer', 2);
+  // Unread pockets are never filled in by themselves.
+  for (const n of [3, 4]) await expect(pocket(page, n)).toContainText('Which card is this?');
+  await expect(addButton(page)).toBeDisabled();
+  await choose(page, 3, 'energy');
+  await choose(page, 4, 'trainer');
+  await expect(pocket(page, 3)).toContainText('Goes in Page 1 · Pocket 3');
+  await expect(pocket(page, 4)).toContainText('Goes in Page 1 · Pocket 4');
   expect(bodies).toHaveLength(0);
-  await review(page).getByRole('button', { name: 'Confirm scan draft' }).click();
-  await expect.poll(async () => (await record(page))?.receipts.length).toBe(2);
+  await addButton(page).click();
+  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
   expect(bodies).toHaveLength(1);
   expect(bodies[0].commands.map((c) => c.kind)).toEqual(['assign', 'assign']);
-  expect(bodies[0].commands.map((c) => c.destination!.slot.id)).toEqual([inserted, 'synthetic-slot-2']);
-  await expect(page.locator('[data-slot-id="synthetic-slot-0"]')).not.toContainText('Synthetic energy');
+  expect(bodies[0].commands.map((c) => c.destination!.slot.id)).toEqual(['synthetic-slot-2', 'synthetic-slot-3']);
+  await expect(page.locator('[data-slot-id="synthetic-slot-2"]')).toContainText('Synthetic energy');
+  await expect(page.locator('[data-slot-id="synthetic-slot-3"]')).toContainText('Synthetic trainer');
 });
 for (const change of ['layout', 'grid'] as const)
-  test(`${change} changes during actual capture require new explicit review`, async ({ page }) => {
+  test(`${change} changes during actual capture require a new scan`, async ({ page }) => {
     let changed = false;
     await page.route('**/app/e2e-harness/storage/inventory?*', async (route) => {
       const response = await route.fetch(),
@@ -287,7 +321,7 @@ for (const change of ['layout', 'grid'] as const)
     });
     await page.goto(`${entry}&scanFixture=1`);
     await pageReview(page, true);
-    await expect(page.getByText('Reading page… No results saved.')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Scan page' }).getByRole('status')).toContainText('Reading');
     changed = true;
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
     await expect
@@ -312,21 +346,13 @@ for (const change of ['layout', 'grid'] as const)
       )
       .toBe(5);
     await page.evaluate(() => window.dispatchEvent(new Event('synthetic-host-scan-release')));
-    await expect(review(page).getByText(/layout or grid changed/)).toBeVisible();
-    await expect(review(page).getByRole('button', { name: 'Confirm scan draft' })).toBeDisabled();
+    if (change === 'layout') {
+      await expect(review(page).getByRole('alert')).toContainText('This page changed after the scan');
+      await expect(addButton(page)).toBeDisabled();
+      // A new grid closes the scanner outright: its pockets no longer exist.
+    } else await expect(page.getByRole('dialog', { name: /^(Scan page|Scanned cards)$/ })).toHaveCount(0);
     expect((await record(page))?.pending).toHaveLength(0);
   });
-test('unknown and ambiguous capture never infer ownership; explicit page cancel saves nothing', async ({ page }) => {
-  await page.goto(`${entry}&scanFixture=1`);
-  await pageReview(page);
-  await expect(review(page).getByRole('button', { name: 'Confirm scan draft' })).toBeDisabled();
-  for (const cell of [1, 4])
-    await expect(page.getByRole('combobox', { name: `Card for cell ${cell}`, exact: true })).toHaveValue('');
-  await choose(page, 1, 'energy', 2);
-  await expect(review(page).getByRole('button', { name: 'Confirm scan draft' })).toBeDisabled();
-  await review(page).getByRole('button', { name: 'Cancel', exact: true }).click();
-  expect((await record(page))?.pending).toHaveLength(0);
-});
 test('unknown catalog capture stays unresolved without guesses', async ({ page }) => {
   await page.route('**/app/e2e-harness/storage/inventory?*', async (route) => {
     const response = await route.fetch(),
@@ -336,14 +362,17 @@ test('unknown catalog capture stays unresolved without guesses', async ({ page }
   });
   await page.goto(entry);
   await cardReview(page);
-  await expect(review(page).getByText(/Unidentified content/)).toBeVisible();
-  await expect(review(page).getByRole('button', { name: 'Confirm scan draft' })).toBeDisabled();
+  await expect(scanned(page)).toContainText('Which card is this?');
+  await expect(scanned(page).getByRole('group', { name: 'Possible matches' })).toHaveCount(0);
+  await expect(addButton(page)).toBeDisabled();
   await review(page).getByRole('button', { name: 'Cancel', exact: true }).click();
   expect((await record(page))?.pending).toHaveLength(0);
 });
-test('actual host ambiguous OCR requires explicit catalog and destination review', async ({ page }) => {
-  await page.route('**/app/api/tcg-card-search**', (route) =>
-    route.fulfill({
+test('read card with several online matches asks for a tap and saves nothing on cancel', async ({ page }) => {
+  const queries: URL[] = [];
+  await page.route('**/app/api/tcg-card-search**', (route) => {
+    queries.push(new URL(route.request().url()));
+    return route.fulfill({
       json: {
         cards: ['trainer', 'energy'].map((kind) => ({
           id: `synthetic-${kind}`,
@@ -354,15 +383,16 @@ test('actual host ambiguous OCR requires explicit catalog and destination review
           set: { id: 'synthetic', name: 'Synthetic scanner set' },
         })),
       },
-    }),
-  );
+    });
+  });
   await page.goto(entry);
   await scan(page, 'Scan card');
   await expect(page.getByRole('button', { name: 'Read card', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Read card', exact: true }).click();
   await expect(review(page)).toBeVisible();
-  await expect(page.getByRole('combobox', { name: 'Card for cell 1', exact: true })).toHaveValue('');
-  await expect(review(page).getByRole('button', { name: 'Confirm scan draft' })).toBeDisabled();
+  expect(queries.at(-1)?.searchParams.get('includeNonPokemon')).toBe('1');
+  await expect(scanned(page).getByRole('group', { name: 'Possible matches' }).getByRole('button')).toHaveCount(2);
+  await expect(addButton(page)).toBeDisabled();
   await review(page).getByRole('button', { name: 'Cancel', exact: true }).click();
   expect((await record(page))?.pending).toHaveLength(0);
 });
@@ -374,7 +404,7 @@ for (const stage of ['page', 'card', 'review'] as const)
       if (stage === 'review') await cardReview(page);
       else await scan(page, stage === 'page' ? 'Scan page' : 'Scan card');
       return page.getByRole('dialog', {
-        name: stage === 'page' ? 'Scan stable page' : stage === 'card' ? 'Scan a card' : 'Review scan destinations',
+        name: stage === 'page' ? 'Scan page' : stage === 'card' ? 'Scan a card' : 'Scanned cards',
         exact: true,
       });
     };
@@ -388,15 +418,7 @@ for (const stage of ['page', 'card', 'review'] as const)
       });
       await h.expectMinTapTarget(close, 36);
       await h.expectHittable(close);
-      if (dismissal === 'close') {
-        console.log(
-          'native host scanner bounds',
-          test.info().project.name,
-          stage,
-          JSON.stringify(await dialog.boundingBox()),
-        );
-        await close.click();
-      }
+      if (dismissal === 'close') await close.click();
       if (dismissal === 'escape') await page.keyboard.press('Escape');
       if (dismissal === 'back') await page.goBack();
       if (dismissal === 'backdrop') await h.tapBackdrop(dialog);
@@ -411,7 +433,7 @@ for (const stage of ['page', 'card', 'review'] as const)
     }
     expect((await record(page))?.pending).toHaveLength(0);
   });
-test('real IDB abort shows no acceptance and retry persists the same confirmed request', async ({ page }) => {
+test('real IDB abort shows no acceptance and Try again persists the same confirmed request', async ({ page }) => {
   let sent = '';
   await page.route('**/app/e2e-harness/storage/inventory', async (route) => {
     sent = route.request().postData()!;
@@ -419,8 +441,8 @@ test('real IDB abort shows no acceptance and retry persists the same confirmed r
   });
   await page.goto(`${entry}&scanFixture=1`);
   await pageReview(page);
-  await choose(page, 1, 'energy', 'append-free');
-  await choose(page, 4, 'energy', 'append-card');
+  await choose(page, 3, 'energy');
+  await choose(page, 4, 'trainer');
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put;
     let aborted = false;
@@ -435,8 +457,8 @@ test('real IDB abort shows no acceptance and retry persists the same confirmed r
       return request;
     };
   });
-  await review(page).getByRole('button', { name: 'Confirm scan draft' }).click();
-  const retry = review(page).getByRole('button', { name: 'Retry same draft', exact: true });
+  await addButton(page).click();
+  const retry = review(page).getByRole('button', { name: 'Try again', exact: true });
   await expect(retry).toBeVisible();
   expect((await record(page))?.pending).toHaveLength(0);
   expect(sent).toBe('');
@@ -451,12 +473,7 @@ test('real IDB abort shows no acceptance and retry persists the same confirmed r
 test('duplicate page copies keep distinct IDs through lost reply and exact durable retry', async ({ page }) => {
   const requests: {
     operationId: string;
-    commands: {
-      kind: string;
-      itemId?: string;
-      slotId?: string;
-      selection?: { inventoryItemId?: string; itemId?: string };
-    }[];
+    commands: { kind: string; selection?: { inventoryItemId?: string; itemId?: string } }[];
   }[] = [];
   await page.route('**/app/e2e-harness/storage/inventory', async (route) => {
     requests.push(route.request().postDataJSON());
@@ -466,9 +483,9 @@ test('duplicate page copies keep distinct IDs through lost reply and exact durab
   });
   await page.goto(`${entry}&scanFixture=1`);
   await pageReview(page);
-  await choose(page, 1, 'snorlax', 0);
-  await choose(page, 4, 'snorlax', 'append-card');
-  await review(page).getByRole('button', { name: 'Confirm scan draft' }).click();
+  await choose(page, 3, 'snorlax');
+  await choose(page, 4, 'snorlax');
+  await addButton(page).click();
   await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('unavailable');
   const original = (await record(page))?.pending[0].intent.request;
   await page.reload();
@@ -476,17 +493,18 @@ test('duplicate page copies keep distinct IDs through lost reply and exact durab
   expect(requests).toHaveLength(2);
   expect(requests[0]).toEqual(requests[1]);
   expect(requests[0]).toEqual(original);
-  expect(requests[0].commands.map((c) => c.kind)).toEqual(['assign', 'insertAssign']);
-  const copies = requests[0].commands.map((c) => c.selection!.inventoryItemId ?? c.selection!.itemId);
+  // The first reuses the unplaced raw copy, the second is a new copy added in the same command.
+  expect(requests[0].commands.map((c) => c.kind)).toEqual(['assign', 'add', 'assign']);
+  const copies = requests[0].commands
+    .filter((c) => c.kind === 'assign')
+    .map((c) => c.selection!.inventoryItemId ?? c.selection!.itemId);
   expect(new Set(copies).size).toBe(2);
   expect(copies[0]).toBe('synthetic-copy-snorlax');
-  expect(copies[1]).toBe(requests[0].commands[1].selection!.itemId);
-  await expect(page.locator('[data-slot-id="synthetic-slot-0"]')).toContainText('Synthetic snorlax');
-  await nextSavedPage(page);
-  await expect(page.locator(`[data-slot-id="${requests[0].commands[1].slotId}"]`)).toContainText('Synthetic snorlax');
+  await expect(page.locator('[data-slot-id="synthetic-slot-2"]')).toContainText('Synthetic snorlax');
+  await expect(page.locator('[data-slot-id="synthetic-slot-3"]')).toContainText('Synthetic snorlax');
 });
-for (const size of [0, 3, 4])
-  test(`append from ${size === 0 ? 'empty' : size === 3 ? 'partial' : 'full'} page uses one reviewed batch without padding`, async ({
+for (const size of [0, 3] as const)
+  test(`a pocket not yet created on ${size ? 'a partial' : 'an empty'} page goes in a new pocket in the same batch`, async ({
     page,
     context,
     baseURL,
@@ -498,29 +516,38 @@ for (const size of [0, 3, 4])
       await route.continue();
     });
     await context.addCookies([
-      {
-        name: 'hf-storage-fixture',
-        value: `scan-${size === 0 ? 'empty' : size === 3 ? 'partial' : 'full'}-${crypto.randomUUID()}`,
-        url: baseURL!,
-      },
+      { name: 'hf-storage-fixture', value: `scan-${size ? 'partial' : 'empty'}-${crypto.randomUUID()}`, url: baseURL! },
     ]);
     await page.goto(`${entry}&scanFixture=1`);
     await pageReview(page);
-    await choose(page, 1, 'energy', 'append-free');
-    await choose(page, 4, 'trainer', size ? 2 : 'append-card');
+    // The uncreated pockets have no place yet, so each is a "Scanned card" that asks where it goes.
+    const created = size ? [pocket(page, 3)] : [];
+    const uncreated = review(page).getByRole('region', { name: 'Scanned card', exact: true });
+    await expect(uncreated).toHaveCount(size ? 1 : 2);
+    for (const row of [...created, ...(await uncreated.all())]) {
+      await row.getByRole('button', { name: 'Choose card', exact: true }).click();
+      const picker = page.getByRole('dialog', { name: 'Card selector' });
+      await picker.getByRole('searchbox', { name: 'Search cards' }).fill('Synthetic energy');
+      await picker
+        .getByRole('button', { name: 'Add card Synthetic energy from Synthetic scanner set', exact: true })
+        .click();
+      await expect(picker).toHaveCount(0);
+    }
+    for (const row of await uncreated.all())
+      await row
+        .getByRole('combobox', { name: 'Pocket for Synthetic energy', exact: true })
+        .selectOption({ label: 'A new pocket at the end' });
     const h = new Harness(page, insets, true);
     await h.expectWithinSafeViewport(review(page));
     await h.expectNoHorizontalOverflow();
     expect(bodies).toHaveLength(0);
-    await review(page).getByRole('button', { name: 'Confirm scan draft' }).click();
+    await addButton(page).click();
     await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
     expect(bodies).toHaveLength(1);
-    expect(bodies[0].commands.map((c) => c.kind)).toEqual(['insertAssign', size ? 'assign' : 'insertAssign']);
-    if (size === 4) {
-      await nextSavedPage(page);
-      await expect(page.locator(`[data-slot-id="${bodies[0].commands[0].slotId}"]`)).toContainText('Synthetic energy');
-    }
-    await expect(page.locator('[data-slot-id]')).toHaveCount(size === 4 ? 1 : size + (size ? 1 : 2));
+    expect(bodies[0].commands.map((c) => c.kind)).toEqual(
+      size ? ['assign', 'insertAssign'] : ['insertAssign', 'insertAssign'],
+    );
+    await expect(page.locator('[data-slot-id]')).toHaveCount(size ? 4 : 2);
     for (const command of bodies[0].commands.filter((c) => c.kind === 'insertAssign'))
       expect(command.slotId).toBeTruthy();
   });
@@ -537,16 +564,20 @@ test('append cap refuses the entire confirmed page and cancel leaves no durable 
   });
   await page.goto(`${entry}&scanFixture=1`);
   await cardReview(page);
-  await choose(page, 1, 'energy', 'append-free');
-  await review(page).getByRole('button', { name: 'Confirm scan draft' }).click();
-  await expect(review(page).getByRole('alert')).toContainText('smaller page');
+  await tapMatch(page, 'energy');
+  await review(page)
+    .getByRole('combobox', { name: 'Pocket for Synthetic energy', exact: true })
+    .selectOption({ label: 'A new pocket at the end' });
+  await addButton(page).click();
+  await expect(review(page).getByRole('alert')).toContainText('Review a smaller page');
+  await expect(review(page).getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0);
   expect(sends).toBe(0);
   expect((await record(page))?.pending).toHaveLength(0);
   await review(page).getByRole('button', { name: 'Cancel', exact: true }).click();
   expect((await record(page))?.pending).toHaveLength(0);
 });
 
-test('append reply cannot ACK a stale complete read and explicit retry keeps the original IDs', async ({ page }) => {
+test('an acknowledged append only counts as saved once a fresh read includes it', async ({ page }) => {
   let original: unknown,
     sends = 0,
     stale = true;
@@ -564,15 +595,18 @@ test('append reply cannot ACK a stale complete read and explicit retry keeps the
   });
   await page.goto(entry);
   await cardReview(page);
-  await choose(page, 1, 'energy', 'append-free');
-  await review(page).getByRole('button', { name: 'Confirm scan draft' }).click();
-  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('unavailable');
+  await tapMatch(page, 'energy');
+  await review(page)
+    .getByRole('combobox', { name: 'Pocket for Synthetic energy', exact: true })
+    .selectOption({ label: 'A new pocket at the end' });
+  await addButton(page).click();
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('acknowledged');
   expect((await record(page))?.receipts).toHaveLength(0);
   stale = false;
-  await page.getByRole('button', { name: 'Retry pending sync', exact: true }).click();
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
-  expect(requests).toHaveLength(2);
-  expect(requests[0]).toBe(requests[1]);
+  // Never sent twice.
+  expect(requests).toHaveLength(1);
 });
 
 test('empty binder without a verified saved grid never gains scan authority', async ({ page, context, baseURL }) => {
@@ -585,35 +619,19 @@ test('empty binder without a verified saved grid never gains scan authority', as
   });
   await page.goto(entry);
   await expect(collectionPicker(page)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Scan page', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Storage', exact: true }).click();
+  const menu = page.getByRole('dialog', { name: 'Storage', exact: true });
+  await expect(menu.getByRole('button', { name: 'Refresh', exact: true })).toBeVisible();
+  await expect(menu.getByRole('button', { name: 'Scan page', exact: true })).toHaveCount(0);
+  await expect(menu.getByRole('button', { name: 'Scan card', exact: true })).toHaveCount(0);
   expect((await record(page))?.pending).toHaveLength(0);
 });
 
-for (const slotId of ['append-free', 'append-card'])
-  test(`existing destination ${slotId} is distinct from the append action`, async ({ page, context, baseURL }) => {
-    await context.addCookies([
-      { name: 'hf-storage-fixture', value: `scan-destination-collision-${crypto.randomUUID()}`, url: baseURL! },
-    ]);
-    const commands: { kind: string; destination?: { slot: { id: string } } }[] = [];
-    await page.route('**/app/e2e-harness/storage/inventory', async (route) => {
-      commands.push(...JSON.parse(route.request().postData()!).commands);
-      await route.continue();
-    });
-    await page.goto(entry);
-    await cardReview(page);
-    await page.getByRole('combobox', { name: 'Card for cell 1', exact: true }).selectOption('synthetic-energy:en');
-    await page
-      .getByRole('combobox', { name: 'Copy for cell 1', exact: true })
-      .selectOption({ label: 'Raw, reuse Unassigned or create' });
-    await page
-      .getByRole('combobox', { name: 'Destination for cell 1', exact: true })
-      .selectOption({ label: `${slotId} · Free slot` });
-    await review(page).getByRole('button', { name: 'Confirm scan draft' }).click();
-    await expect.poll(() => commands.length).toBe(1);
-    expect(commands[0].kind).toBe('assign');
-    expect(commands[0].destination?.slot.id).toBe(slotId);
-  });
-test('recorded copy named raw remains an explicit graded copy', async ({ page, context, baseURL }) => {
+test('a graded copy whose ID is raw is still chosen explicitly under Which copy?', async ({
+  page,
+  context,
+  baseURL,
+}) => {
   await context.addCookies([
     { name: 'hf-storage-fixture', value: `scan-copy-collision-${crypto.randomUUID()}`, url: baseURL! },
   ]);
@@ -624,14 +642,16 @@ test('recorded copy named raw remains an explicit graded copy', async ({ page, c
   });
   await page.goto(entry);
   await cardReview(page);
-  await page.getByRole('combobox', { name: 'Card for cell 1', exact: true }).selectOption('synthetic-energy:en');
-  const copies = page.getByRole('combobox', { name: 'Copy for cell 1', exact: true });
-  const recorded = (await copies.locator('option').allTextContents()).find((label) => label.endsWith(' · raw'))!;
-  await copies.selectOption({ label: recorded });
-  await page
-    .getByRole('combobox', { name: 'Destination for cell 1', exact: true })
-    .selectOption({ label: 'synthetic-slot-2 · Free slot' });
-  await review(page).getByRole('button', { name: 'Confirm scan draft' }).click();
+  await tapMatch(page, 'energy');
+  const copies = scanned(page).getByRole('group', { name: 'Which copy?' });
+  // The only copy is graded, so it is offered, never assumed.
+  await expect(copies.getByRole('button')).toHaveCount(1);
+  await expect(addButton(page)).toBeDisabled();
+  await copies.getByRole('button', { name: 'My PSA 9', exact: true }).click();
+  await review(page)
+    .getByRole('combobox', { name: 'Pocket for Synthetic energy', exact: true })
+    .selectOption({ label: 'Page 1 · Pocket 3 · empty pocket' });
+  await addButton(page).click();
   await expect.poll(() => commands.length).toBe(1);
   expect(commands[0].kind).toBe('assign');
   expect(commands[0].selection).toMatchObject({ kind: 'existing', inventoryItemId: 'raw' });
