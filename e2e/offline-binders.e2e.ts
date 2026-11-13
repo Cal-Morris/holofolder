@@ -234,6 +234,8 @@ test("Settings' binder prep counts the cards this device saved for that binder",
   // Trades holds one synthetic base1-4 holo copy.
   await expect(prep).toContainText('All 1 owned and wanted printings');
   await expect(prep.getByLabel('Binder download coverage')).toContainText('Cards 1/1');
+  await prep.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `/tmp/settings-binder-prep-${info.project.name}.png` });
 
   const reopened = await relaunchOffline(page, standalone, `/app?binder=${TRADES}`);
   await expect(collectionPicker(reopened)).toContainText('Trades', { timeout: 30_000 });
