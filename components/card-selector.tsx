@@ -601,6 +601,8 @@ export default function CardSelector({
   const resultsScrollRef = useRef<HTMLDivElement>(null);
   const moreCardsRef = useRef<HTMLButtonElement>(null);
   const displayedCards = useMemo(() => {
+    // Suggestions arrive most alike first; Best match keeps that order, other sorts still apply.
+    if (showingSuggestions && sort === 'default') return filteredCards;
     if (scanRankById.size === 0) {
       return sortCardPickerCards(
         filteredCards,
@@ -629,7 +631,17 @@ export default function CardSelector({
 
       return left.localId.localeCompare(right.localId, undefined, { numeric: true, sensitivity: 'base' });
     });
-  }, [filteredCards, pricesByCardId, pricingRegion, scanRankById, priceLanguage, finishFor, likelyRank, sort]);
+  }, [
+    filteredCards,
+    pricesByCardId,
+    pricingRegion,
+    scanRankById,
+    priceLanguage,
+    finishFor,
+    likelyRank,
+    sort,
+    showingSuggestions,
+  ]);
   const renderedCards = useMemo(() => displayedCards.slice(0, renderLimit.count), [displayedCards, renderLimit.count]);
   const hasMoreCards = renderedCards.length < displayedCards.length;
   // About two screens ahead of the end of the list, so tiles and their images are ready before they scroll into view.
