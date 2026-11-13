@@ -33,7 +33,7 @@ export default function CardShowPrep({
 }: {
   embedded?: boolean;
   candidateSets: TCGSetSummary[];
-// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent prep controls and device status; one reducer would not read better
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent prep controls and device status; one reducer would not read better
 }) {
   // oxlint-disable-next-line react-doctor/no-derived-useState, react-doctor/no-event-handler -- initial value only: embedded prep starts open, then the toggle owns it
   const [open, setOpen] = useState(embedded);
