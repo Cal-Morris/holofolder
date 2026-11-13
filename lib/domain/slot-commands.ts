@@ -6,6 +6,7 @@ import {
   normalizeSlotTarget,
 } from '@/lib/domain/binder-slots';
 import type { BinderSlot, SlotTarget } from '@/lib/domain/binder-slots';
+import { isBinderGridSize } from '@/lib/binder-layout';
 
 export const SLOT_LIMITS = {
   commands: 100,
@@ -27,7 +28,9 @@ export type SlotCommand =
   | { kind: 'create'; ids: string[]; beforeSlotId: string | null }
   | { kind: 'move'; slots: SlotPrecondition[]; beforeSlotId: string | null }
   | { kind: 'clear' | 'remove'; slots: SlotPrecondition[] }
-  | { kind: 'update'; slot: SlotPrecondition; target?: SlotTarget | null; wantedCards?: BinderSlot['wantedCards'] };
+  | { kind: 'update'; slot: SlotPrecondition; target?: SlotTarget | null; wantedCards?: BinderSlot['wantedCards'] }
+  /** The binder's page grid (SQL 118). Pockets keep their order; only page breaks move. One per request. */
+  | { kind: 'layout'; rows: number; cols: number };
 export interface SlotCommandRequest {
   collectionId: string;
   operationId: string;
@@ -80,11 +83,20 @@ export function parseSlotCommand(value: unknown): SlotCommandRequest {
   )
     return invalid();
   let affected = 0,
-    inserted = 0;
+    inserted = 0,
+    layouts = 0;
   for (const c of value.commands) {
-    if (!isContractRecord(c, ['kind', 'ids', 'beforeSlotId', 'slots', 'slot', 'target', 'wantedCards']))
+    if (!isContractRecord(c, ['kind', 'ids', 'beforeSlotId', 'slots', 'slot', 'target', 'wantedCards', 'rows', 'cols']))
       return invalid();
-    if (c.kind === 'create') {
+    if (c.kind === 'layout') {
+      if (
+        !isContractRecord(c, ['kind', 'rows', 'cols']) ||
+        !isBinderGridSize(c.rows) ||
+        !isBinderGridSize(c.cols) ||
+        ++layouts > 1
+      )
+        return invalid();
+    } else if (c.kind === 'create') {
       const ids = c.ids;
       if (
         !isContractRecord(c, ['kind', 'ids', 'beforeSlotId']) ||

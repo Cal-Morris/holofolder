@@ -592,7 +592,8 @@ test('native owner can open Account and save pricing preferences without legacy 
   await expect(dialog.getByRole('combobox', { name: 'Currency', exact: true })).toHaveValue('USD');
   await h.expectNoHorizontalOverflow();
   await openSettingsPage(dialog, 'Layout');
-  await expect(dialog.getByRole('button', { name: /2x2/ })).toBeDisabled();
+  // Owners change the grid through the layout warning and a queued slot command, never a settings save.
+  await expect(dialog.getByRole('button', { name: /2x2/ })).toBeEnabled();
   await page
     .getByRole('navigation', { name: 'Main navigation', exact: true })
     .getByRole('button', { name: 'Binder', exact: true })

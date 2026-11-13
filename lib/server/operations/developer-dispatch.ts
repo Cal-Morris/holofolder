@@ -1,4 +1,5 @@
 import { PRESET_OPERATIONS } from '@/lib/developer-api/presets';
+import { setBinderLayout, type BinderLayoutInput } from './binder-layout';
 import { executePresetOperation } from './presets';
 import { NATIVE_READ_OPERATIONS } from '@/lib/developer-api/native-read';
 import { executeNativeDeveloperRead } from './native-developer-read';
@@ -218,6 +219,8 @@ async function dispatchDeveloperOperation(
     case 'update_binder':
     case 'reorder_binders':
       return unwrap(await updateBinder(operationRequest(input, 'PATCH'), identity, context.ownerUserId));
+    case 'set_binder_layout':
+      return setBinderLayout(context, input as unknown as BinderLayoutInput);
     case 'delete_binder': {
       const request = operationRequest({ ...input, confirm: input.confirm ? '1' : '0' }, 'DELETE');
       return unwrap(await deleteBinder(request, identity, context.ownerUserId));

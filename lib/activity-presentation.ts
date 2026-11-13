@@ -41,7 +41,16 @@ function name(s: ActivityState | null, fallback = 'an item') {
 }
 function verb(c: ActivityChange) {
   const { before: b, after: a, table: t } = c;
-  if (t === 'binders') return !a ? 'Deleted' : !b ? 'Created' : b.name !== a.name ? 'Renamed' : 'Updated';
+  if (t === 'binders')
+    return !a
+      ? 'Deleted'
+      : !b
+        ? 'Created'
+        : b.name !== a.name
+          ? 'Renamed'
+          : b.binder_rows !== a.binder_rows || b.binder_cols !== a.binder_cols
+            ? 'Changed the layout of'
+            : 'Updated';
   if (t === 'inventory_placements') return !a ? 'Unassigned' : !b ? 'Assigned' : 'Moved';
   if (t === 'binder_slots') return !a ? 'Removed' : !b ? 'Added' : 'Updated';
   if (t === 'user_settings' || t === 'binder_appearances' || t === 'binder_shares') return 'Updated';
@@ -67,6 +76,8 @@ export function readableActivityChanges(event: ActivityEvent) {
     favorite: 'Favourite',
     rows: 'Rows',
     cols: 'Columns',
+    binder_rows: 'Rows',
+    binder_cols: 'Columns',
     show_prices: 'Show prices',
     is_enabled: 'Sharing',
     position: 'Position',

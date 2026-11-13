@@ -155,6 +155,17 @@ export const API_SMOKE_ASSERTIONS: Record<string, Check> = {
       input.order,
     );
   },
+  set_binder_layout: (value, input) => {
+    assert.equal(value.binderId, input.id);
+    assert.deepEqual(value.dryRun ? value.to : value.layout, { rows: input.rows, cols: input.cols });
+    if (value.dryRun) {
+      assert.ok(array(value.summary).length > 0, 'A dry run explains the consequences');
+      assert.equal(typeof object(value.consequences).cardsChangingPage, 'number');
+      for (const key of ['inventoryRevision', 'collectionVersion', 'layoutRevision'])
+        assert.equal(typeof object(value.preconditions)[key], 'number');
+    } else
+      assert.equal(value.layoutRevision, Number(input.layoutRevision) + 1, 'A layout change advances the revision');
+  },
   delete_binder: (value, input) => {
     binders(value, input);
     assert.equal(value.deletedBinderId, input.id);

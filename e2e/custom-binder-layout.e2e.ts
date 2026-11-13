@@ -1,7 +1,6 @@
-import { test, expect, E2E_USER, openSettingsPage, type Harness } from './fixtures';
-import { getDefaultBinderSettings } from '../lib/settings';
+import type { Page, Response } from '@playwright/test';
+import { test, expect, E2E_USER, openSettingsPage, type Harness, type SeedRow } from './fixtures';
 
-const BINDER = 'e2e00000-0000-4000-8000-000000000001';
 async function openSettings(harness: Harness) {
   await harness.page.locator('nav').first().getByRole('button', { name: 'More', exact: true }).click();
   await harness.page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
@@ -9,75 +8,93 @@ async function openSettings(harness: Harness) {
   await expect(dialog).toBeVisible();
   return openSettingsPage(dialog, 'Layout');
 }
+const warning = (page: Page) => page.getByRole('dialog', { name: /^Change layout to/ });
+/** The layout commands the native storage endpoint (the harness ledger here) accepted from this page. */
+function layoutWrites(page: Page) {
+  const writes: Array<{ rows: number; cols: number }> = [];
+  page.on('response', (response: Response) => {
+    const request = response.request();
+    if (
+      !response.ok() ||
+      request.method() !== 'POST' ||
+      !/\/app\/(api\/binder-slots|e2e-harness\/storage\/slots)(\?|$)/.test(request.url())
+    )
+      return;
+    for (const command of request.postDataJSON()?.commands ?? [])
+      if (command.kind === 'layout') writes.push({ rows: command.rows, cols: command.cols });
+  });
+  return writes;
+}
+const slot = (page: Page, dex: number) => page.locator(`button[data-slot-id="synthetic-dex-${dex}"]`);
+// Synthetic owned copies in pockets 1, 4, 5 and 7 of the seeded National Dex binder.
+const FOUR_CARDS: SeedRow[] = [
+  { pokemon_id: 1, card_id: 'base1-44', card_language: 'en', card_finish: 'normal', status: 'collected' },
+  { pokemon_id: 4, card_id: 'base1-46', card_language: 'en', card_finish: 'normal', status: 'collected' },
+  { pokemon_id: 5, card_id: 'sv03.5-005', card_language: 'en', card_finish: 'normal', status: 'collected' },
+  { pokemon_id: 7, card_id: 'sv03.5-007', card_language: 'en', card_finish: 'normal', status: 'collected' },
+];
 
 test.describe('custom binder layouts', () => {
   test.use({ signedIn: true });
-  test('premium layouts save per binder, stay tappable and scroll without overflowing the phone', async ({
-    harness,
-  }) => {
-    const { page } = harness;
-    let settings = getDefaultBinderSettings();
-    const writes: Array<Record<string, unknown>> = [];
-    await page.route('**/app/api/settings**', async (route) => {
-      if (route.request().method() === 'PUT') {
-        const body = route.request().postDataJSON();
-        writes.push(body);
-        settings = body;
-      }
-      return route.fulfill({ json: { settings, hasStoredSettings: true } });
-    });
-    await page.goto('/app/e2e-harness?signedIn=1&binders=1');
-    await expect(harness.dock()).toBeVisible();
-    const originalSlot = await page.locator('button[data-dex-id]').first().boundingBox();
-    const dialog = await openSettings(harness);
-    const rows = dialog.getByRole('spinbutton', { name: 'Rows', exact: true });
-    const cols = dialog.getByRole('spinbutton', { name: 'Columns', exact: true });
-    await expect(rows).toBeVisible();
-    await rows.fill('8');
-    await cols.fill('8');
-    const apply = dialog.getByRole('button', { name: 'Apply layout', exact: true });
-    await harness.expectMinTapTarget(apply);
-    await apply.click();
-    await expect(dialog.getByRole('status')).toHaveText('Layout saved.');
-    expect(writes.at(-1)).toMatchObject({ binderId: BINDER, binderRows: 8, binderCols: 8 });
-    await harness.expectNoHorizontalOverflow();
-    await harness.closeControl(dialog).click();
-    const frame = page.getByRole('region', { name: 'Scrollable binder page 1', exact: true });
-    await expect(frame).toBeVisible();
-    await harness.expectWithinSafeViewport(frame);
-    expect((await frame.boundingBox())!.width).toBeGreaterThan(harness.viewport.width - 40);
-    const first = frame.locator('button[data-dex-id]').first();
-    await harness.expectMinTapTarget(first);
-    expect(await frame.locator('button[data-dex-id]').count()).toBe(64);
-    const denseSlot = await first.boundingBox();
-    console.log(
-      JSON.stringify({ viewport: harness.viewport, insets: harness.insets, before: originalSlot, after: denseSlot }),
-    );
-    const screenshot = test.info().outputPath('custom-layout.png');
-    await page.screenshot({ path: screenshot });
-    await test.info().attach('custom-layout.png', { path: screenshot, contentType: 'image/png' });
-    // A native horizontal drag must scroll this page, not turn to another one.
-    const bounds = (await frame.boundingBox())!;
-    const cdp = await page.context().newCDPSession(page);
-    await cdp.send('Input.dispatchTouchEvent', {
-      type: 'touchStart',
-      touchPoints: [{ x: bounds.x + bounds.width - 30, y: bounds.y + 50 }],
-    });
-    await cdp.send('Input.dispatchTouchEvent', {
-      type: 'touchMove',
-      touchPoints: [{ x: bounds.x + 30, y: bounds.y + 50 }],
-    });
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await expect.poll(() => frame.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
-    const last = frame.locator('button[data-dex-id]').last();
-    await last.scrollIntoViewIfNeeded();
-    await harness.expectMinTapTarget(last);
-    await harness.expectHittable(last);
-    await harness.expectHittable(harness.dock().getByRole('button').first());
-    await harness.expectNoHorizontalOverflow();
-    await page.reload();
-    await expect(page.getByRole('region', { name: 'Scrollable binder page 1', exact: true })).toBeVisible();
-  });
+  test(
+    'a premium layout warns first, saves to the binder, stays tappable and scrolls without overflowing the phone',
+    { tag: '@matrix' },
+    async ({ harness }) => {
+      const { page } = harness;
+      const writes = layoutWrites(page);
+      const dialog = await openSettings(harness);
+      const rows = dialog.getByRole('spinbutton', { name: 'Rows', exact: true });
+      const cols = dialog.getByRole('spinbutton', { name: 'Columns', exact: true });
+      await rows.fill('8');
+      await cols.fill('8');
+      const apply = dialog.getByRole('button', { name: 'Apply layout', exact: true });
+      await harness.expectMinTapTarget(apply);
+      await apply.click();
+      const sheet = warning(page);
+      await expect(sheet).toBeVisible();
+      await expect(sheet).toContainText('The binder will have 17 pages instead of 65.');
+      await expect(sheet).toContainText('No card leaves its pocket and nothing is removed.');
+      await harness.expectWithinSafeViewport(sheet);
+      for (const button of await sheet.getByRole('button').all()) await harness.expectMinTapTarget(button, 36);
+      expect(writes).toHaveLength(0);
+      await sheet.getByRole('button', { name: 'Change layout', exact: true }).click();
+      await expect(sheet).toHaveCount(0);
+      await expect(dialog.getByRole('status')).toHaveText('Layout saved.');
+      await expect.poll(() => writes).toEqual([{ rows: 8, cols: 8 }]);
+      await harness.expectNoHorizontalOverflow();
+      await harness.closeControl(dialog).click();
+      const frame = page.getByRole('region', { name: 'Scrollable binder page 1', exact: true });
+      await expect(frame).toBeVisible();
+      await harness.expectWithinSafeViewport(frame);
+      expect((await frame.boundingBox())!.width).toBeGreaterThan(harness.viewport.width - 40);
+      await expect(frame.locator('button[data-slot-id]')).toHaveCount(64);
+      await harness.expectMinTapTarget(frame.locator('button[data-slot-id]').first());
+      const screenshot = test.info().outputPath('custom-layout.png');
+      await page.screenshot({ path: screenshot });
+      await test.info().attach('custom-layout.png', { path: screenshot, contentType: 'image/png' });
+      // A native horizontal drag must scroll this page, not turn to another one.
+      const bounds = (await frame.boundingBox())!;
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x: bounds.x + bounds.width - 30, y: bounds.y + 50 }],
+      });
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: bounds.x + 30, y: bounds.y + 50 }],
+      });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await expect.poll(() => frame.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+      const last = frame.locator('button[data-slot-id]').last();
+      await last.scrollIntoViewIfNeeded();
+      await harness.expectMinTapTarget(last);
+      await harness.expectHittable(last);
+      await harness.expectHittable(harness.dock().getByRole('button').first());
+      await harness.expectNoHorizontalOverflow();
+      await harness.reload();
+      await expect(page.getByRole('region', { name: 'Scrollable binder page 1', exact: true })).toBeVisible();
+    },
+  );
 
   test('free accounts keep presets and get the custom layout upgrade action', async ({ harness }) => {
     const { page } = harness;
@@ -97,8 +114,7 @@ test.describe('custom binder layouts', () => {
         },
       }),
     );
-    await page.reload();
-    await expect(harness.dock()).toBeVisible();
+    await harness.reload();
     const dialog = await openSettings(harness);
     const upgrade = dialog.getByRole('button', { name: 'Upgrade for custom layouts' });
     await expect(upgrade).toBeVisible();
@@ -108,145 +124,86 @@ test.describe('custom binder layouts', () => {
       await expect(dialog.getByRole('button', { name: new RegExp(`^${name}`) })).toBeEnabled();
     await harness.expectNoHorizontalOverflow();
   });
-});
 
-test.describe('custom layout persistence', () => {
-  test.use({ signedIn: true });
-  test('offline layout edits stay on the device and sync after reconnect', async ({ harness }) => {
-    const { page } = harness;
-    let saved = getDefaultBinderSettings();
-    const writes: Array<Record<string, unknown>> = [];
-    await page.route('**/app/api/settings**', (route) => {
-      if (route.request().method() === 'PUT') {
-        const body = route.request().postDataJSON();
-        writes.push(body);
-        saved = body;
-      }
-      return route.fulfill({ json: { settings: saved, hasStoredSettings: true } });
-    });
-    await page.goto('/app/e2e-harness?signedIn=1&binders=1');
-    await expect(harness.dock()).toBeVisible();
-    const dialog = await openSettings(harness);
-    await expect(dialog.getByRole('spinbutton', { name: 'Rows', exact: true })).toBeVisible();
-    await page.context().setOffline(true);
-    await dialog.getByRole('spinbutton', { name: 'Rows', exact: true }).fill('8');
-    await dialog.getByRole('spinbutton', { name: 'Columns', exact: true }).fill('8');
-    await dialog.getByRole('button', { name: 'Apply layout', exact: true }).click();
-    await expect(dialog.getByRole('status')).toContainText('Saved on this device');
-    expect(writes).toHaveLength(0);
-    const pendingKey = `pokemon_binder_settings:${E2E_USER.id}:binder:${BINDER}:pending`;
-    expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).binderRows, pendingKey)).toBe(8);
-    await harness.closeControl(dialog).click();
-    await expect(page.getByRole('region', { name: 'Scrollable binder page 1', exact: true })).toBeVisible();
-    await page.context().setOffline(false);
-    await expect.poll(() => writes.length).toBeGreaterThan(0);
-    expect(writes.at(-1)).toMatchObject({ binderId: BINDER, binderRows: 8, binderCols: 8 });
-    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), pendingKey)).toBeNull();
-    await page.reload();
-    await expect(page.getByRole('region', { name: 'Scrollable binder page 1', exact: true })).toBeVisible();
-  });
-
-  test('a rejected custom layout rolls back and invalid dimensions cannot be applied', async ({ harness }) => {
-    const { page } = harness;
-    await page.route('**/app/api/settings**', (route) =>
-      route.request().method() === 'PUT'
-        ? route.fulfill({ status: 402, json: { error: 'Upgrade to use custom layouts' } })
-        : route.fulfill({ json: { settings: getDefaultBinderSettings() } }),
-    );
+  test('invalid custom dimensions cannot be applied', async ({ harness }) => {
     const dialog = await openSettings(harness);
     const rows = dialog.getByRole('spinbutton', { name: 'Rows', exact: true });
-    const cols = dialog.getByRole('spinbutton', { name: 'Columns', exact: true });
     const apply = dialog.getByRole('button', { name: 'Apply layout', exact: true });
     for (const value of ['9', '0', '2.5', '']) {
       await rows.fill(value);
       await expect(apply).toBeDisabled();
     }
-    await rows.fill('8');
-    await cols.fill('8');
+    await rows.fill('4');
     await apply.click();
-    await expect(dialog.getByRole('status')).toHaveText('Upgrade to use custom layouts');
+    // The current layout: nothing to warn about or send.
+    await expect(warning(harness.page)).toHaveCount(0);
+  });
+});
+
+test.describe('layout change warning', () => {
+  test.use({ signedIn: true, collection: async ({ signedIn: _signedIn }, provide) => provide(FOUR_CARDS) });
+
+  test('shrinking says which cards change page; keeping or dismissing changes nothing', async ({ harness }) => {
+    const { page } = harness;
+    const writes = layoutWrites(page);
+    await expect(slot(page, 4)).toHaveAccessibleDescription('A4');
+    const dialog = await openSettings(harness);
+    const twoByTwo = dialog.getByRole('button', { name: /^2x2/ });
+    await twoByTwo.click();
+    const sheet = warning(page);
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByRole('listitem')).toHaveText([
+      '2 cards on page 1 will move to page 2.',
+      '1 card will stay on the same page but sit in a different spot.',
+      'The binder will have 257 pages instead of 65.',
+      'No card leaves its pocket and nothing is removed. Pockets, cards and wants keep their order.',
+    ]);
+    await sheet.getByRole('button', { name: 'Keep 4×4', exact: true }).click();
+    await expect(sheet).toHaveCount(0);
+    await twoByTwo.click();
+    await expect(sheet).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(sheet).toHaveCount(0);
+    await expect(dialog).toBeVisible();
     await expect(dialog.getByRole('button', { name: /^4x4/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(writes).toHaveLength(0);
+
+    await twoByTwo.click();
+    await sheet.getByRole('button', { name: 'Change layout', exact: true }).click();
+    await expect(twoByTwo).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => writes).toEqual([{ rows: 2, cols: 2 }]);
     await harness.closeControl(dialog).click();
-    await expect(page.getByRole('region', { name: /Scrollable binder/ })).toHaveCount(0);
+    // Charmander keeps its pocket, now the last spot of page 1; every card is still in the binder.
+    await expect(slot(page, 4)).toHaveAccessibleDescription('B2');
+    await harness.reload();
+    await expect(slot(page, 4)).toHaveAccessibleDescription('B2');
   });
-});
 
-test.describe('queued layout ordering', () => {
-  test.use({ signedIn: true });
-  test('an older rejected write cannot remove a newer offline layout', async ({ harness }) => {
+  test('growing pulls cards back onto earlier pages', async ({ harness }) => {
     const { page } = harness;
-    let rejectOlder: (() => void) | undefined;
-    const writes: Array<Record<string, unknown>> = [];
-    await page.route('**/app/api/settings**', async (route) => {
-      if (route.request().method() !== 'PUT') return route.fulfill({ json: { settings: getDefaultBinderSettings() } });
-      writes.push(route.request().postDataJSON());
-      if (writes.length === 1) {
-        await new Promise<void>((resolve) => {
-          rejectOlder = resolve;
-        });
-        return route.fulfill({ status: 400, json: { error: 'Synthetic older write rejection' } });
-      }
-      return route.fulfill({ json: { settings: writes.at(-1) } });
-    });
-    await page.goto('/app/e2e-harness?signedIn=1&binders=1');
-    await expect(harness.dock()).toBeVisible();
     const dialog = await openSettings(harness);
-    await openSettingsPage(dialog, 'Appearance');
-    await dialog.getByRole('switch', { name: 'Toggle binder slot glare', exact: true }).click();
-    await expect.poll(() => Boolean(rejectOlder)).toBe(true);
-    await openSettingsPage(dialog, 'Layout');
-    await expect(dialog.getByRole('spinbutton', { name: 'Rows', exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: /^2x2/ }).click();
+    await warning(page).getByRole('button', { name: 'Change layout', exact: true }).click();
+    await expect(dialog.getByRole('button', { name: /^2x2/ })).toHaveAttribute('aria-pressed', 'true');
+    await dialog.getByRole('button', { name: /^4x4/ }).click();
+    await expect(warning(page).getByRole('listitem').first()).toHaveText('2 cards on page 2 will move to page 1.');
+    await expect(warning(page)).toContainText('The binder will have 65 pages instead of 257.');
+  });
+
+  test('offline, the new layout shows at once and syncs after reconnecting', async ({ harness }) => {
+    const { page } = harness;
+    const writes = layoutWrites(page);
+    const dialog = await openSettings(harness);
     await page.context().setOffline(true);
-    await dialog.getByRole('spinbutton', { name: 'Rows', exact: true }).fill('8');
-    await dialog.getByRole('spinbutton', { name: 'Columns', exact: true }).fill('8');
-    await dialog.getByRole('button', { name: 'Apply layout', exact: true }).click();
-    await expect(dialog.getByRole('status')).toContainText('Saved on this device');
-    rejectOlder!();
-    const key = `pokemon_binder_settings:${E2E_USER.id}:binder:${BINDER}:pending`;
-    await expect.poll(() => page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).binderRows, key)).toBe(8);
+    await dialog.getByRole('button', { name: /^3x3/ }).click();
+    await warning(page).getByRole('button', { name: 'Change layout', exact: true }).click();
+    await expect(dialog.getByRole('status')).toHaveText('Saved on this device. Will sync when you’re online.');
+    await expect(dialog.getByRole('button', { name: /^3x3/ })).toHaveAttribute('aria-pressed', 'true');
+    await harness.closeControl(dialog).click();
+    await expect(slot(page, 4)).toHaveAccessibleDescription('B1');
     await page.context().setOffline(false);
-    await expect.poll(() => writes.length).toBe(2);
-    expect(writes[1]).toMatchObject({ binderRows: 8, binderCols: 8 });
-    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), key)).toBeNull();
-  });
-});
-
-test.describe('unavailable settings storage', () => {
-  test.use({ signedIn: true });
-  test('blocked settings storage does not crash startup and reports an unsaved offline edit', async ({ harness }) => {
-    const { page } = harness;
-    await page.addInitScript(() => {
-      const get = Storage.prototype.getItem,
-        set = Storage.prototype.setItem,
-        remove = Storage.prototype.removeItem;
-      Storage.prototype.getItem = function (key) {
-        if (key.startsWith('pokemon_binder_settings'))
-          throw new DOMException('Synthetic blocked storage', 'SecurityError');
-        return get.call(this, key);
-      };
-      Storage.prototype.setItem = function (key, value) {
-        if (key.startsWith('pokemon_binder_settings'))
-          throw new DOMException('Synthetic blocked storage', 'SecurityError');
-        set.call(this, key, value);
-      };
-      Storage.prototype.removeItem = function (key) {
-        if (key.startsWith('pokemon_binder_settings'))
-          throw new DOMException('Synthetic blocked storage', 'SecurityError');
-        remove.call(this, key);
-      };
-    });
-    await page.route('**/app/api/settings**', (route) =>
-      route.fulfill({ json: { settings: getDefaultBinderSettings() } }),
-    );
-    await page.reload();
-    await expect(harness.dock()).toBeVisible();
-    const dialog = await openSettings(harness);
-    await expect(dialog.getByRole('spinbutton', { name: 'Rows', exact: true })).toBeVisible();
-    await page.context().setOffline(true);
-    await dialog.getByRole('spinbutton', { name: 'Rows', exact: true }).fill('8');
-    await dialog.getByRole('spinbutton', { name: 'Columns', exact: true }).fill('8');
-    await dialog.getByRole('button', { name: 'Apply layout', exact: true }).click();
-    await expect(dialog.getByRole('status')).toContainText('Device storage is unavailable');
-    await expect(dialog.getByRole('button', { name: /^4x4/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => writes, { timeout: 15_000 }).toEqual([{ rows: 3, cols: 3 }]);
+    await harness.reload();
+    await expect(slot(page, 4)).toHaveAccessibleDescription('B1');
   });
 });

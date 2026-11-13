@@ -975,57 +975,6 @@
       "failure": "Native parity gap: the wanted and owned bulk price checks are not shown for native binders (main-content hides it for nativeWanted; native analytics replaces the owned check's host)."
     },
     {
-      "file": "custom-binder-layout.e2e.ts",
-      "title": [
-        "custom binder layouts",
-        "premium layouts save per binder, stay tappable and scroll without overflowing the phone"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded. — locator('button[data-dex-id]').first()"
-    },
-    {
-      "file": "custom-binder-layout.e2e.ts",
-      "title": ["custom binder layouts", "free accounts keep presets and get the custom layout upgrade action"],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: /settings/i }).getByRole('button', { name: 'Upgrade for custom layouts' })"
-    },
-    {
-      "file": "custom-binder-layout.e2e.ts",
-      "title": ["custom layout persistence", "offline layout edits stay on the device and sync after reconnect"],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: /settings/i }).getByRole('spinbutton', { name: 'Rows', exact: true })"
-    },
-    {
-      "file": "custom-binder-layout.e2e.ts",
-      "title": [
-        "custom layout persistence",
-        "a rejected custom layout rolls back and invalid dimensions cannot be applied"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('dialog', { name: /settings/i }).getByRole('spinbutton', { name: 'Rows', exact: true })"
-    },
-    {
-      "file": "custom-binder-layout.e2e.ts",
-      "title": ["queued layout ordering", "an older rejected write cannot remove a newer offline layout"],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: /settings/i }).getByRole('spinbutton', { name: 'Rows', exact: true })"
-    },
-    {
-      "file": "custom-binder-layout.e2e.ts",
-      "title": [
-        "unavailable settings storage",
-        "blocked settings storage does not crash startup and reports an unsaved offline edit"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: /settings/i }).getByRole('spinbutton', { name: 'Rows', exact: true })"
-    },
-    {
       "file": "custom-storage-scope.e2e.ts",
       "title": [
         "partner creates Custom under shared owner without changing existing graded copies, targets or placements"

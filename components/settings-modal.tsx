@@ -116,6 +116,8 @@ interface SettingsModalProps {
   pwaStatusMessage: string | null;
   onInstallApp: () => void;
   isReadOnlyView: boolean;
+  /** Native binders: review then queue a grid change. Resolves false when the person keeps the current layout. */
+  onRequestLayoutChange?: (rows: number, cols: number) => Promise<boolean>;
   /** Owner/partner may manage the public link; independent of read-only collection editing. Defaults to !isReadOnlyView. */
   canManageShare?: boolean;
   isAccountReadOnly?: boolean;
@@ -186,6 +188,7 @@ export default function SettingsModal({
   pwaStatusMessage,
   onInstallApp,
   isReadOnlyView,
+  onRequestLayoutChange,
   isAccountReadOnly = isReadOnlyView,
   canManageShare = !isReadOnlyView,
   sharePath,
@@ -449,8 +452,8 @@ export default function SettingsModal({
             <BinderLayoutSettings
               rows={settings.binderRows}
               cols={settings.binderCols}
-              readOnly={isReadOnlyView}
-              onChange={handleBinderSizeChange}
+              readOnly={isReadOnlyView && !onRequestLayoutChange}
+              onChange={onRequestLayoutChange ?? handleBinderSizeChange}
             />
           </div>
         );
