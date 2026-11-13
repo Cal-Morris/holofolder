@@ -20,6 +20,7 @@ import type { SlotOfflineIntent } from '@/lib/collection/slot-optimistic';
 import { inventoryGradingReference, prepareInventoryGradingIntent } from '@/lib/grading/inventory-edit';
 import CollectionNavigationHost, { type NavigationSurface } from './navigation-host';
 import { useSlotOfflineQueue } from '@/hooks/use-slot-offline-queue';
+import { useCollectionChanged } from '@/hooks/use-collection-changed';
 import { rememberSavedBinders } from '@/lib/binders/offline';
 import {
   CollectionNavigationReadError,
@@ -287,6 +288,12 @@ function ScopedBrowserSession({
       if (valid() && !refreshing.current && !sending.current) void refresh().catch(() => {});
     }, delay);
   };
+  // A partner (or the API/MCP) changed the collection: read it again. A busy read or send retries shortly after.
+  useCollectionChanged(localHarness ? null : scope.ownerUserId, () => {
+    if (!valid() || document.visibilityState === 'hidden') return;
+    if (refreshing.current || sending.current) retryRead();
+    else void refresh().catch(() => {});
+  });
   const refresh = () => {
     const read = readFresh();
     inFlightRead.current = read;
