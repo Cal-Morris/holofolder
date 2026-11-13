@@ -71,6 +71,9 @@ const nextConfig = {
       },
     ],
   },
+  // The server picture matcher (lib/server/card-identify.ts) passes onnxruntime-web the WASM it fetched from R2, so
+  // the 15 MB copy Turbopack emits for the bundled import is never read on the server.
+  outputFileTracingExcludes: { '/*': ['.next/server/assets/ort-wasm-*.wasm'] },
   outputFileTracingIncludes: {
     '/*': [
       './node_modules/@workflow/world-postgres/**/*',
