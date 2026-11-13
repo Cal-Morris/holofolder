@@ -65,14 +65,12 @@ import {
   Loader2,
   Camera,
   Heart,
-  ListFilter,
   MoreHorizontal,
   SlidersHorizontal,
   Sparkles,
   WifiOff,
 } from 'lucide-react';
 import { usePageCardSuggestions, type PageSuggestionSeeds } from '@/hooks/use-page-card-suggestions';
-import { SelectorMenu } from '@/components/collection-navigation/selector-menu';
 import { cardMatchesLanguages, type CardSearchLanguage } from '@/lib/card-languages';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -693,8 +691,19 @@ export default function CardSelector({
         },
         (id) => uniqueSets.find((set) => set.id === id)?.name,
         (id) => pokemonOptions.find((option) => option.id === id)?.name,
-      ),
-    [defaultLanguage, filters, pokemonFilter, pokemonOptions, selectedCardLanguage, sort, uniqueSets, variantChoice],
+      ).concat(targetLanguages && !matchBinder ? [{ key: 'binder', label: 'All printings' }] : []),
+    [
+      defaultLanguage,
+      filters,
+      matchBinder,
+      pokemonFilter,
+      pokemonOptions,
+      selectedCardLanguage,
+      sort,
+      targetLanguages,
+      uniqueSets,
+      variantChoice,
+    ],
   );
   const updateSort = useCallback((next: CardPickerSort) => {
     setSort(next);
@@ -703,18 +712,20 @@ export default function CardSelector({
   const clearFilter = useCallback(
     (key: CardPickerFilterKey) => {
       if (key === 'sort') updateSort('default');
+      else if (key === 'binder') setMatchBinder(true);
       else if (key === 'language') setSelectedCardLanguage(defaultLanguage);
       else if (key === 'variant') setVariantChoice('any');
       else setFilters((current) => ({ ...current, [key]: undefined }));
     },
-    [defaultLanguage, updateSort],
+    [defaultLanguage, setMatchBinder, updateSort],
   );
   const resetFilters = useCallback(() => {
     setFilters((current) => ({ searchQuery: current.searchQuery }));
     setVariantChoice('any');
     setSelectedCardLanguage(defaultLanguage);
+    setMatchBinder(true);
     updateSort('default');
-  }, [defaultLanguage, updateSort]);
+  }, [defaultLanguage, setMatchBinder, updateSort]);
   const closeMoreMenu = useCallback(() => setIsMoreOpen(false), []);
   useOverlay(isMoreOpen, closeMoreMenu, { containerRef: moreMenuRef, lockScroll: false, history: false });
 
@@ -1313,30 +1324,6 @@ export default function CardSelector({
                   </button>
                 )}
               </div>
-              {targetLanguages && (
-                <SelectorMenu
-                  label="Binder filter"
-                  heading="Show"
-                  menuLabel="Choose which cards to show"
-                  width={200}
-                  className="shrink-0"
-                  icon={
-                    <>
-                      <ListFilter className={`h-4 w-4 ${matchBinder ? 'text-primary' : ''}`} aria-hidden />
-                      {matchBinder && (
-                        <span className="bg-primary absolute top-1.5 right-1.5 h-2 w-2 rounded-full" aria-hidden />
-                      )}
-                    </>
-                  }
-                  value={matchBinder ? 'binder' : 'all'}
-                  valueLabel={matchBinder ? 'Binder settings' : 'All cards'}
-                  options={[
-                    { value: 'binder', label: 'Binder settings' },
-                    { value: 'all', label: 'All cards' },
-                  ]}
-                  onSelect={(value) => setMatchBinder(value === 'binder')}
-                />
-              )}
               <button
                 type="button"
                 onClick={() => setIsFiltersOpen(true)}
@@ -1422,6 +1409,8 @@ export default function CardSelector({
               onSortChange={updateSort}
               language={selectedCardLanguage}
               onLanguageChange={setSelectedCardLanguage}
+              binderLanguagesOnly={targetLanguages ? matchBinder : undefined}
+              onBinderLanguagesOnlyChange={setMatchBinder}
               allowAnyLanguage={isAnyCard}
               variant={variantChoice}
               onVariantChange={setVariantChoice}

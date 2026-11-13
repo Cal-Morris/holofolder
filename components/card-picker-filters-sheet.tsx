@@ -14,6 +14,9 @@ interface CardPickerFiltersSheetProps {
   onLanguageChange: (language: CardSearchLanguage) => void;
   /** Card search only: offer "Any", every printing in its own language. */
   allowAnyLanguage?: boolean;
+  /** Binder slots only: limit results to cards printed in the binder's languages. Undefined hides the toggle. */
+  binderLanguagesOnly?: boolean;
+  onBinderLanguagesOnlyChange?: (only: boolean) => void;
   variant: CardPickerVariantChoice;
   onVariantChange: (variant: CardPickerVariantChoice) => void;
   pokemon?: number;
@@ -114,6 +117,16 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
               </button>
             ))}
           </div>
+          {props.binderLanguagesOnly !== undefined && (
+            <button
+              type="button"
+              aria-pressed={props.binderLanguagesOnly}
+              onClick={() => props.onBinderLanguagesOnlyChange?.(!props.binderLanguagesOnly)}
+              className={chipClass(props.binderLanguagesOnly)}
+            >
+              Only this binder’s languages
+            </button>
+          )}
         </fieldset>
 
         <fieldset className="space-y-1.5">
