@@ -268,13 +268,12 @@ async function main() {
         source: 'tcgcsv-pricing',
         source_card_id: String(m.product.productId),
         source_set_id: String(m.product.groupId),
-        raw_json: { product: m.product, groupName: groupNames.get(m.product.groupId), archiveRef: ARCHIVE_REF },
       }));
       for (let offset = 0; offset < links.length; offset += 200) {
         await client.query(
-          `insert into public.tcg_card_external_sources(card_id,source,source_card_id,source_set_id,raw_json)
-          select card_id,source,source_card_id,source_set_id,raw_json from jsonb_populate_recordset(null::public.tcg_card_external_sources,$1::jsonb)
-          on conflict(card_id,source) do update set source_card_id=excluded.source_card_id,source_set_id=excluded.source_set_id,raw_json=excluded.raw_json`,
+          `insert into public.tcg_card_external_sources(card_id,source,source_card_id,source_set_id)
+          select card_id,source,source_card_id,source_set_id from jsonb_populate_recordset(null::public.tcg_card_external_sources,$1::jsonb)
+          on conflict(card_id,source) do update set source_card_id=excluded.source_card_id,source_set_id=excluded.source_set_id`,
           [JSON.stringify(links.slice(offset, offset + 200))],
         );
       }

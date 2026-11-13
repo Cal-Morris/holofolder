@@ -1,4 +1,4 @@
--- 115: Drop collection_activity.command_evidence. It held a second copy of each command's before/after
+-- 120: Drop collection_activity.command_evidence. It held a second copy of each command's before/after
 -- state next to `changes`, and nothing reads it: Undo and Activity work from `changes`. record_v1 keeps
 -- its signature so its many callers are unchanged; the `evidence` argument is now ignored.
 -- Space is reclaimed only by a table rewrite: run `VACUUM FULL public.collection_activity` afterwards.
