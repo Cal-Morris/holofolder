@@ -46,4 +46,5 @@ Positioning near the bottom of the screen uses `--dock-inset`, `--dock-bar` and 
 - [adding-an-overlay-or-sheet](../adding-an-overlay-or-sheet/SKILL.md) for overlays specifically
 - [mobile-ui-verification](../mobile-ui-verification/SKILL.md) for viewport and standalone checks
 - [emil-design-eng](../emil-design-eng/SKILL.md) for polish, animation and interaction detail
-- `design-system` (token and component reference) and `design-review` (pre-PR self-review) are being added alongside this skill and follow the same principles.
+- [design-system](../design-system/SKILL.md) for tokens, scales, surfaces and the design lint rules
+- [design-review](../design-review/SKILL.md), the self-review to run before pushing a UI change
