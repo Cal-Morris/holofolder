@@ -242,6 +242,10 @@ async function choose(page: Page, trigger: Locator, menu: string, value: string)
 export const chooseCollection = (page: Page, id: string) =>
   choose(page, collectionPicker(page), 'Choose collection', id);
 export const chooseView = (page: Page, view: string) => choose(page, viewPicker(page), 'Choose view', view);
+/** The binder's pocket filter ("Show pockets"): all, owned, wanted or needed (shown as Missing). */
+export const pocketFilter = (page: Page) => page.getByRole('button', { name: 'Show pockets', exact: true });
+export const choosePockets = (page: Page, filter: 'all' | 'owned' | 'wanted' | 'needed') =>
+  choose(page, pocketFilter(page), 'Choose pockets', filter);
 
 export async function emulateStandalone(page: Page, insets: typeof SAFE_AREA) {
   await page.addInitScript(() => {
