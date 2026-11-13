@@ -11,6 +11,7 @@ import { speciesSelectorCard, type SlotPickerBoundary } from '@/lib/slot-picker'
 import { displaySlotName } from '@/lib/pocket-labels';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 import type { TCGCard } from '@/lib/domain/cards';
+import { pageSuggestionSeeds } from '@/lib/page-card-suggestions';
 import type { CardSelectorPick } from '@/components/card-selector';
 import type { StagedSlotCommandIntent } from '@/lib/binder-slot-editing';
 import { useSlotDraftAcceptance } from '@/hooks/use-slot-draft-acceptance';
@@ -87,6 +88,13 @@ function PocketSelector({
   const toSearchCard = (card: TCGCard & { dexIds?: number[] }) =>
     species ? speciesSelectorCard(card, species.id) : ({ ...card, dexIds: card.dexIds ?? [] } as SearchCardResult);
   const fill = usePageFill(boundary, page, onClose);
+  // Captured once: suggestions describe the page as it was when the pocket was tapped.
+  const [pageSuggestions] = useState(() =>
+    !species && !reserved && page
+      ? (pageSuggestionSeeds(boundary.snapshot, boundary.scope.collectionId, slot.id, page.rows * page.cols) ??
+        undefined)
+      : undefined,
+  );
   return (
     <>
       <CardSelector
@@ -105,6 +113,7 @@ function PocketSelector({
               ? { title: `Add ${displaySlotName(slot)}`, cardId: reserved.cardId }
               : { title: 'Add a card' }
         }
+        pageSuggestions={pageSuggestions}
         native={{
           onPick: (card, finish) => save.pick(toSearchCard(card), finish),
           many:

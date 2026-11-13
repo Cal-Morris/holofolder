@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMirroredCardsByIds, searchMirroredCards } from '@/lib/tcg-mirror';
+import { getMirroredCardsByIds, searchMirroredCards, suggestMirroredCards } from '@/lib/tcg-mirror';
 import { normalizeCardLanguage } from '@/lib/domain/cards';
 import { PUBLIC_JSON_CACHE_HEADERS } from '@/lib/http-cache';
 
@@ -8,6 +8,7 @@ export const instant = false;
 /**
  * GET /app/api/tcg-card-search?q=bulbasaur%2044 → { cards: SearchCardResult[] }
  * GET /app/api/tcg-card-search?ids=sv01-001,base1-4&language=ja → those cards, in that order (picture scan)
+ * GET /app/api/tcg-card-search?like=sv01-001,base1-4&pokemon=25 → cards similar to a binder page's cards
  */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -15,7 +16,20 @@ export async function GET(request: NextRequest) {
   const language = searchParams.get('language') === 'any' ? 'any' : normalizeCardLanguage(searchParams.get('language'));
   const ids = (searchParams.get('ids') ?? '').split(',').filter((id) => /^[\w.-]{1,40}$/.test(id));
 
+  const like = (searchParams.get('like') ?? '').split(',').filter((id) => /^[\w.-]{1,40}$/.test(id));
+  const pokemon = (searchParams.get('pokemon') ?? '')
+    .split(',')
+    .flatMap((id) => (/^\d{1,4}$/.test(id) ? [Number(id)] : []));
+
   try {
+    if (like.length || pokemon.length) {
+      if (like.length + pokemon.length > 40)
+        return NextResponse.json({ error: 'At most 40 cards.', cards: [] }, { status: 400 });
+      return NextResponse.json(
+        { cards: await suggestMirroredCards(like, pokemon, normalizeCardLanguage(searchParams.get('language'))) },
+        { headers: PUBLIC_JSON_CACHE_HEADERS },
+      );
+    }
     if (ids.length) {
       if (ids.length > 20) return NextResponse.json({ error: 'At most 20 ids.', cards: [] }, { status: 400 });
       return NextResponse.json(

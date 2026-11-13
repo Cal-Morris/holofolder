@@ -20,6 +20,7 @@ import type { CardCatalogIdentity, CardLanguage } from '@/lib/domain/cards';
 import { cardLanguagesFromNames, primaryCardLanguage, type CardSearchLanguage } from '@/lib/card-languages';
 import { formatPokemonDisplayName, POKEMON_CATALOG } from '@/lib/pokemon-catalog';
 import { deduplicateCatalogCards, readCatalogMetadata } from '@/lib/card-catalog';
+import { rankPageSuggestions, type SuggestionTraits } from '@/lib/page-card-suggestions';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   selectRecentSetSummaries,
@@ -706,6 +707,76 @@ export async function getMirroredCardsByIds(ids: readonly string[], language: Mi
     }),
   );
   return ids.flatMap((id) => cards.get(id) ?? []);
+}
+
+const SUGGESTION_CANDIDATE_LIMIT = 150;
+type SuggestionRow = {
+  id: string;
+  set_id: string;
+  illustrator?: unknown;
+  types_json?: unknown;
+  tcg_card_dex_ids?: unknown;
+};
+const suggestionTraits = (row: SuggestionRow): SuggestionTraits => ({
+  id: row.id,
+  setId: row.set_id,
+  illustrator: typeof row.illustrator === 'string' && row.illustrator.trim() ? row.illustrator.trim() : undefined,
+  types: Array.isArray(row.types_json) ? row.types_json.filter((t): t is string => typeof t === 'string') : [],
+  dexIds: (Array.isArray(row.tcg_card_dex_ids) ? (row.tcg_card_dex_ids as Array<{ dex_id?: unknown }>) : []).flatMap(
+    (link) => (typeof link?.dex_id === 'number' ? [link.dex_id] : []),
+  ),
+});
+
+/**
+ * Cards like the ones on a binder page: the same Pokémon, illustrator or set, ranked by `rankPageSuggestions` (energy
+ * type only reorders). `cardIds` and `pokemonIds` are what the page holds.
+ */
+export async function suggestMirroredCards(
+  cardIds: readonly string[],
+  pokemonIds: readonly number[],
+  language: MirrorLanguage = 'en',
+): Promise<SearchCardResult[]> {
+  'use cache: remote';
+  cacheLife(MIRROR_CACHE_LIFE);
+  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION);
+  const admin = createAdminClient();
+  const seedRows = cardIds.length
+    ? await admin
+        .from('tcg_cards')
+        .select('id,set_id,illustrator,types_json,tcg_card_dex_ids(dex_id)')
+        .in('id', [...cardIds])
+    : { data: [], error: null };
+  if (seedRows.error) throw seedRows.error;
+  const seeds = (seedRows.data ?? []).map(suggestionTraits);
+  const dexIds = [...new Set([...pokemonIds, ...seeds.flatMap((s) => s.dexIds)])];
+  const illustrators = [...new Set(seeds.flatMap((s) => s.illustrator ?? []))];
+  const setIds = [...new Set(seeds.map((s) => s.setId))];
+  // Ids first (cheap, indexed), then one full fetch: filtering the full select by an embedded dex id times out.
+  const idLists = await Promise.all([
+    dexIds.length
+      ? admin.from('tcg_card_dex_ids').select('id:card_id').in('dex_id', dexIds).limit(SUGGESTION_CANDIDATE_LIMIT)
+      : null,
+    illustrators.length
+      ? admin.from('tcg_cards').select('id').in('illustrator', illustrators).limit(SUGGESTION_CANDIDATE_LIMIT)
+      : null,
+    setIds.length ? admin.from('tcg_cards').select('id').in('set_id', setIds).limit(SUGGESTION_CANDIDATE_LIMIT) : null,
+  ]);
+  const ids = new Set<string>();
+  for (const list of idLists) {
+    if (list?.error) throw list.error;
+    for (const row of list?.data ?? []) ids.add(row.id);
+  }
+  if (!ids.size) return [];
+  const { data, error } = await printedInEnglish(
+    admin.from('tcg_cards').select(`${cardSearchSelect(true)}, types_json`),
+    language,
+  ).in('id', [...ids]);
+  if (error) throw error;
+  const candidates = (data ?? []).flatMap((row) => {
+    const card = toSearchCardResult(row, language, true);
+    return card ? [{ ...suggestionTraits(row as unknown as SuggestionRow), card }] : [];
+  });
+  return rankPageSuggestions(seeds, pokemonIds, candidates).map(({ card }) => card);
 }
 
 /**
