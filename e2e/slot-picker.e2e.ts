@@ -156,6 +156,25 @@ test.describe('explicit stable-slot picker', () => {
     await harness.expectScrollUnlocked();
   });
 
+  test('holding a card turns on Pick several with it picked, and picks survive a new search', async ({ harness }) => {
+    const { page } = harness;
+    const dialog = await search(page, 'slot-g', 'energy');
+    // Right-click is the same `contextmenu` a long-press sends on Android.
+    await dialog.getByRole('button', { name: /^Add card Energy from / }).click({ button: 'right' });
+    await variant(page)
+      .getByRole('button', { name: /^Add Normal/ })
+      .click();
+    await expect(dialog.getByRole('button', { name: 'Pick one', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(dialog).toContainText('1 of 3 empty pockets on this page');
+    await dialog.getByRole('searchbox', { name: 'Search cards' }).fill('trainer');
+    await dialog.getByRole('button', { name: /^Pick card Trainer from / }).click();
+    await variant(page)
+      .getByRole('button', { name: /^Add Normal/ })
+      .click();
+    await expect(dialog.getByRole('button', { name: 'Add 2 cards to this page', exact: true })).toBeVisible();
+    await harness.expectNoHorizontalOverflow();
+  });
+
   test('searching any language finds a Japanese-only printing and saves it as Japanese', async ({ harness }) => {
     const { page } = harness;
     const { cards } = syntheticSlotPickerSnapshot();
