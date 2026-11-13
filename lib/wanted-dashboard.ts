@@ -1,5 +1,9 @@
 import type { CardPriceSnapshot } from '@/hooks/use-card-prices';
-import type { WantedCard } from '@/lib/domain/cards';
+import { getCardPriceKey, type CardPriceLookup } from '@/lib/card-pricing';
+import { isCardLanguage, type WantedCard } from '@/lib/domain/cards';
+import { applyPriceStaleness } from '@/lib/price-freshness';
+import type { PricingRegion } from '@/lib/pricing-region';
+import { regionalizeCardPrices } from '@/lib/regional-price';
 import { getFallingMomentum, getRisingMomentum, isMomentumEligibleConfidence } from '@/lib/price-momentum';
 import { buildHuntGroups, getSetEra, getSetIdFromCardId, type HuntCard, type HuntSourceItem } from '@/lib/show-hunt';
 
@@ -564,4 +568,36 @@ export function matchesWantedSearch(entry: WantedDashboardEntry, query: string) 
 export function filterWantedDashboardEntries<T extends WantedDashboardEntry>(cards: T[], query: string): T[] {
   if (!normalizeWantedSearchText(query)) return cards;
   return cards.filter((card) => matchesWantedSearch(card, query));
+}
+
+/** One saved-price lookup per wanted card and language. */
+export function wantedPriceLookups(cards: readonly Pick<WantedCard, 'card_id' | 'card_language'>[]): CardPriceLookup[] {
+  return [
+    ...new Map(
+      cards.flatMap((card) =>
+        isCardLanguage(card.card_language)
+          ? [
+              [
+                getCardPriceKey(card.card_id, card.card_language),
+                { cardId: card.card_id, language: card.card_language },
+              ] as const,
+            ]
+          : [],
+      ),
+    ).values(),
+  ];
+}
+
+/** Saved snapshots aged from their fetch time and regionalised, keyed the way `buildWantedDashboardSummary` reads them. */
+export function wantedPricesByKey(prices: readonly CardPriceSnapshot[], region: PricingRegion) {
+  const regional = regionalizeCardPrices(
+    Object.fromEntries(
+      prices.map((price) => [
+        getCardPriceKey(price.cardId, price.language),
+        { ...price, ...applyPriceStaleness(price, price.fetchedAt) },
+      ]),
+    ),
+    region,
+  );
+  return Object.fromEntries(Object.values(regional).map((price) => [`${price.cardId}::${price.language}`, price]));
 }

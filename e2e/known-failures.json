@@ -1477,22 +1477,6 @@
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — locator('[data-slot-id=\"synthetic-dex-1\"]')"
     },
     {
-      "file": "native-analytics.e2e.ts",
-      "title": [
-        "actual dashboard badge and analytics distinguish copies, species, slots and current targets, including cached offline evidence"
-      ],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('region', { name: 'Collection analytics', exact: true })"
-    },
-    {
-      "file": "native-analytics.e2e.ts",
-      "title": ["weak saved prices remain unknown and never produce a zero or graded value"],
-      "cause": "stale-selector-or-flow",
-      "batch": 1,
-      "failure": "Error: expect(locator).toContainText(expected) failed — getByRole('region', { name: 'Collection analytics', exact: true })"
-    },
-    {
       "file": "native-backup.e2e.ts",
       "title": [
         "real host downloads complete scoped data and private fields, local immutable preview performs no writes or provider lookup"
