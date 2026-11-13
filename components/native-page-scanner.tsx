@@ -1,9 +1,9 @@
 'use client';
 
-import { useRef, useEffect, type RefObject } from 'react';
+import { useRef, useEffect } from 'react';
 import { useMachine } from '@/hooks/use-machine';
-import { Camera, Image as ImageIcon, Loader2, X } from 'lucide-react';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import { Camera, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useOverlay } from '@/hooks/use-overlay';
 import { useCameraStream } from '@/hooks/use-camera-stream';
 import { scanBinderPageImage } from '@/lib/binder-page-scan';
 import { drawVideoCoverFrame } from '@/lib/camera-frame';
@@ -20,7 +20,8 @@ import { mapWithConcurrency } from '@/lib/card-db-sync-concurrency';
 import { AIMING_PAGE_SCAN, pageScanStatus, pageScanTransition, type PageScanSession } from '@/lib/page-scan-session';
 import { warmCardTextReader } from '@/lib/card-scan-ocr';
 import { getPictureScannerLanguages, matchCardPicture, warmPictureScanner } from '@/lib/card-picture-scanner';
-import ScanDestinationReview, { type ScanReviewCell } from '@/components/scan-destination-review';
+import ScanDestinationReview, { ScanSheet, type ScanReviewCell } from '@/components/scan-destination-review';
+import { OverlayCloseButton, OverlayGrabber } from '@/components/ui/overlay-dialog';
 import CameraControls from '@/components/camera-controls';
 
 export interface NativePageScanAdmission extends ScanDestinationAdmission {
@@ -72,7 +73,6 @@ export default function NativePageScanner({
     }
   };
   useOverlay(true, close, { containerRef: panel });
-  const swipe = useSwipeToDismiss(panel, close, !review);
   /** Finds the pockets in a photo and reads each new card; the session must already be capturing. */
   const capture = async (file: File, captured: ScanDestinationCapture) => {
     try {
@@ -150,91 +150,82 @@ export default function NativePageScanner({
       />
     );
   return (
-    <div className="fixed inset-0 z-40">
-      <div data-overlay-backdrop className="absolute inset-0 bg-black/55" onClick={close} />
-      <div
-        ref={panel as unknown as RefObject<HTMLDivElement | null>}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Scan page"
-        className="absolute inset-x-2 bottom-[var(--dock-clearance)] mx-auto flex h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl bg-black p-3 text-white outline-none"
-      >
-        <header data-sheet-grabber {...swipe} className="relative flex shrink-0 items-center gap-2 pb-2">
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-white/30"
-          />
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base leading-tight font-bold">Scan page</h2>
-            <p className="text-xs text-white/65">
-              Fit all {admission.view.rows} by {admission.view.cols} pockets in view. You choose each card before
-              anything is added.
-            </p>
+    <ScanSheet
+      ref={panel}
+      managed
+      onClose={close}
+      aria-label="Scan page"
+      className="flex h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] flex-col bg-black p-3 text-white"
+    >
+      <header data-sheet-grabber className="relative flex shrink-0 items-center gap-2 pb-2">
+        <OverlayGrabber floating className="-top-2 bg-white/30" />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base leading-tight font-bold">Scan page</h2>
+          <p className="text-xs text-white/65">
+            Fit all {admission.view.rows} by {admission.view.cols} pockets in view. You choose each card before anything
+            is added.
+          </p>
+        </div>
+        <OverlayCloseButton
+          label="Close page scanner"
+          onClick={close}
+          className="h-12 w-12 bg-white/10 hover:bg-white/10"
+          iconClassName="h-5 w-5"
+        />
+      </header>
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[2rem] border border-white/10 bg-black">
+        <video ref={video} autoPlay playsInline muted className="h-full w-full object-cover" />
+        {!camera.ready && !camera.error && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Starting camera
+            </span>
           </div>
+        )}
+        <CameraControls track={camera.track} />
+      </div>
+      <div className="shrink-0 space-y-2 pt-3">
+        {scan.kind === 'aiming' && scan.problem ? (
+          <p role="alert" className="min-h-5 text-center text-sm text-red-300">
+            {scan.problem}
+          </p>
+        ) : (
+          <p role="status" className="min-h-5 text-center text-sm text-white/75">
+            {pageScanStatus(scan, camera.error)}
+          </p>
+        )}
+        <div className="flex gap-2">
+          <label className="flex h-14 shrink-0 cursor-pointer items-center gap-2 rounded-2xl border border-white/20 px-4 text-sm font-semibold has-[:disabled]:opacity-40">
+            <ImageIcon className="h-4 w-4" aria-hidden />
+            Choose photo
+            <input
+              aria-label="Page photo"
+              type="file"
+              accept="image/*"
+              disabled={busy}
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (file) choosePhoto(file);
+              }}
+            />
+          </label>
           <button
             type="button"
-            onClick={close}
-            aria-label="Close page scanner"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10"
+            disabled={busy || !camera.ready}
+            onClick={() => void cameraCapture()}
+            className="holo-action flex h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-4 text-base font-semibold disabled:opacity-50"
           >
-            <X className="h-5 w-5" aria-hidden />
+            {busy ? (
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+            ) : (
+              <Camera className="h-5 w-5" aria-hidden />
+            )}
+            Take photo
           </button>
-        </header>
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[2rem] border border-white/10 bg-black">
-          <video ref={video} autoPlay playsInline muted className="h-full w-full object-cover" />
-          {!camera.ready && !camera.error && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm">
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Starting camera
-              </span>
-            </div>
-          )}
-          <CameraControls track={camera.track} />
-        </div>
-        <div className="shrink-0 space-y-2 pt-3">
-          {scan.kind === 'aiming' && scan.problem ? (
-            <p role="alert" className="min-h-5 text-center text-sm text-red-300">
-              {scan.problem}
-            </p>
-          ) : (
-            <p role="status" className="min-h-5 text-center text-sm text-white/75">
-              {pageScanStatus(scan, camera.error)}
-            </p>
-          )}
-          <div className="flex gap-2">
-            <label className="flex h-14 shrink-0 cursor-pointer items-center gap-2 rounded-2xl border border-white/20 px-4 text-sm font-semibold has-[:disabled]:opacity-40">
-              <ImageIcon className="h-4 w-4" aria-hidden />
-              Choose photo
-              <input
-                aria-label="Page photo"
-                type="file"
-                accept="image/*"
-                disabled={busy}
-                className="sr-only"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = '';
-                  if (file) choosePhoto(file);
-                }}
-              />
-            </label>
-            <button
-              type="button"
-              disabled={busy || !camera.ready}
-              onClick={() => void cameraCapture()}
-              className="holo-action flex h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-4 text-base font-semibold disabled:opacity-50"
-            >
-              {busy ? (
-                <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-              ) : (
-                <Camera className="h-5 w-5" aria-hidden />
-              )}
-              Take photo
-            </button>
-          </div>
         </div>
       </div>
-    </div>
+    </ScanSheet>
   );
 }
