@@ -10,7 +10,6 @@ import {
 import CardImage from '@/components/card-image';
 import CardImageZoom from '@/components/card-image-zoom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Check, Heart, Loader2, Plus, Search as SearchIcon, X } from 'lucide-react';
 import { matchesCatalogCardId } from '@/lib/card-catalog';
 import { formatCardFinishLabel, formatCardLanguageLabel } from '@/lib/card-labels';
@@ -26,7 +25,7 @@ import {
   type WantedCard,
 } from '@/lib/domain/cards';
 import { cardMatchesLanguages, DEFAULT_BINDER_CARD_LANGUAGES, parseLanguageSearch } from '@/lib/card-languages';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import CardsBrowserSheet from '@/components/cards-browser-sheet';
 import { useTCGdex, type TCGCard } from '@/hooks/use-tcgdex';
 import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
@@ -99,7 +98,6 @@ export default function PokemonCardsBrowser({
 }: PokemonCardsBrowserProps) {
   const binderLanguages = cardLanguages ?? DEFAULT_BINDER_CARD_LANGUAGES;
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const { fetchCardsForPokemon, error: fetchError } = useTCGdex();
   const [cards, setCards] = useState<TCGCard[] | null>(() =>
@@ -135,9 +133,6 @@ export default function PokemonCardsBrowser({
       setPendingCardId(null);
     }
   };
-
-  useOverlay(true, onClose, { containerRef: dialogRef });
-  const swipe = useSwipeToDismiss(dialogRef, onClose, !isDesktop);
 
   const pokemonId = pokemon?.id;
   useEffect(() => {
@@ -281,42 +276,15 @@ export default function PokemonCardsBrowser({
 
   const showActions = !readOnly && Boolean(onWantCard || onAddCard);
 
-  const content = (
-    <>
-      <div data-overlay-backdrop aria-hidden="true" className="fixed inset-0 z-[43] bg-black/55" onClick={onClose} />
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`All ${displayName} cards`}
-        className="border-border/70 bg-card dark:border-border/50 dark:bg-background fixed z-[44] flex flex-col overflow-hidden rounded-[1.6rem] border shadow-[0_28px_80px_-30px_rgba(15,23,42,0.6)] outline-none"
-        style={
-          isDesktop
-            ? {
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 'min(calc(100vw - 2rem), 52rem)',
-                maxHeight: 'min(85vh, 56rem)',
-              }
-            : {
-                left: '0.5rem',
-                right: '0.5rem',
-                // Sits above the bottom dock (which stays usable) and never under the status bar.
-                bottom: 'calc(var(--dock-clearance) + 0.375rem)',
-                height:
-                  'calc(100dvh - max(env(safe-area-inset-top) + 0.5rem, var(--top-banner-bottom, 0px)) - var(--dock-clearance) - 0.375rem)',
-              }
-        }
-      >
-        <div
-          data-sheet-grabber
-          className="border-border/50 shrink-0 border-b px-4 pt-2 pb-3"
-          {...(isDesktop ? {} : swipe)}
-        >
-          {!isDesktop ? (
-            <div className="bg-muted-foreground/30 mx-auto mb-2 h-1.5 w-10 rounded-full" aria-hidden="true" />
-          ) : null}
+  return (
+    <CardsBrowserSheet
+      isDesktop={isDesktop}
+      onClose={onClose}
+      aria-label={`All ${displayName} cards`}
+      className="dark:bg-background"
+      phoneHeight="calc(100dvh - max(env(safe-area-inset-top) + 0.5rem, var(--top-banner-bottom, 0px)) - var(--dock-clearance) - 0.375rem)"
+      header={
+        <>
           <div className="flex items-center gap-3">
             {pokemon && (
               <div className="from-muted to-muted/30 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br">
@@ -404,301 +372,295 @@ export default function PokemonCardsBrowser({
               ))}
             </div>
           )}
-        </div>
-
-        <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-4">
-          {cardDetails && detailState && (
-            <section
-              aria-label="Card details"
-              className="border-primary/30 bg-primary/5 mb-4 space-y-3 rounded-2xl border p-3"
-            >
-              <div className="flex items-start gap-3">
-                {cardDetails.card.image && (
-                  <CardImageZoom src={cardDetails.card.image} alt={cardDetails.card.name} className="w-20 shrink-0">
-                    <CardImage
-                      sizes="80px"
-                      src={cardDetails.card.image}
-                      alt={cardDetails.card.name}
-                      className="trading-card w-20 object-contain"
-                    />
-                  </CardImageZoom>
-                )}
-                <div className="min-w-0">
-                  <h3 className="text-base font-bold break-words">{cardDetails.card.name}</h3>
-                  <p className="text-muted-foreground text-xs">
-                    {cardDetails.card.set.name} · {formatCardNumber(cardDetails.card)}
-                  </p>
-                  <p className="mt-1 text-xs">
-                    {formatCardLanguageLabel(cardDetails.card.language)} · {formatCardFinishLabel(detailFinish)}
-                  </p>
-                  <p className="mt-1 text-xs font-semibold">
-                    {nativeConsumer
-                      ? nativeCardLabel(nativeCardState(nativeModel, cardDetails.card, detailFinish))
-                      : `${detailState.owned ? 'Owned' : 'Not owned'} · ${detailState.wanted ? 'Wanted' : 'Not wanted'}`}
-                  </p>
-                </div>
+        </>
+      }
+    >
+      <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-4">
+        {cardDetails && detailState && (
+          <section
+            aria-label="Card details"
+            className="border-primary/30 bg-primary/5 mb-4 space-y-3 rounded-2xl border p-3"
+          >
+            <div className="flex items-start gap-3">
+              {cardDetails.card.image && (
+                <CardImageZoom src={cardDetails.card.image} alt={cardDetails.card.name} className="w-20 shrink-0">
+                  <CardImage
+                    sizes="80px"
+                    src={cardDetails.card.image}
+                    alt={cardDetails.card.name}
+                    className="trading-card w-20 object-contain"
+                  />
+                </CardImageZoom>
+              )}
+              <div className="min-w-0">
+                <h3 className="text-base font-bold break-words">{cardDetails.card.name}</h3>
+                <p className="text-muted-foreground text-xs">
+                  {cardDetails.card.set.name} · {formatCardNumber(cardDetails.card)}
+                </p>
+                <p className="mt-1 text-xs">
+                  {formatCardLanguageLabel(cardDetails.card.language)} · {formatCardFinishLabel(detailFinish)}
+                </p>
+                <p className="mt-1 text-xs font-semibold">
+                  {nativeConsumer
+                    ? nativeCardLabel(nativeCardState(nativeModel, cardDetails.card, detailFinish))
+                    : `${detailState.owned ? 'Owned' : 'Not owned'} · ${detailState.wanted ? 'Wanted' : 'Not wanted'}`}
+                </p>
               </div>
-              {nativeConsumer && (
-                <NativeWantedEntries
-                  binding={readOnly ? { ...nativeConsumer, editingAvailable: false } : nativeConsumer}
-                  card={cardDetails.card}
-                  finish={detailFinish}
-                />
-              )}
-              {detailChoices.length > 1 && (
-                <div role="group" aria-label="Card detail variant" className="flex flex-wrap gap-2">
-                  {detailChoices.map((choice) => (
-                    <button
-                      key={choice.finish}
-                      type="button"
-                      aria-pressed={detailFinish === choice.finish}
-                      onClick={() => setDetailFinish(choice.finish)}
-                      className="border-border/60 aria-pressed:bg-primary aria-pressed:text-primary-foreground min-h-9 rounded-xl border px-3 text-xs font-semibold"
-                    >
-                      {choice.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {!nativeConsumer && (
-                <button
-                  type="button"
-                  onClick={() => cardDetails.onJumpToSlot(detailFinish)}
-                  className="border-primary/30 min-h-11 w-full rounded-xl border px-3 py-2 text-sm font-semibold"
-                >
-                  Jump to binder slot
-                </button>
-              )}
-              {!readOnly && !nativeConsumer && (
-                <>
-                  {detailState.replacing && (
-                    <label className="flex min-h-11 items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={replacementKey === confirmedReplacement}
-                        onChange={(event) => setConfirmedReplacement(event.target.checked ? replacementKey : null)}
-                      />
-                      <span>Replace {detailState.replacing} in this binder</span>
-                    </label>
-                  )}
-                  <div className="grid grid-cols-2 gap-2">
-                    {detailState.owned ? (
-                      <button
-                        type="button"
-                        disabled={Boolean(pendingCardId)}
-                        onClick={cardDetails.onRemoveOwned}
-                        className="border-destructive/30 text-destructive min-h-11 rounded-xl border px-2 py-2 text-sm font-semibold"
-                      >
-                        Remove owned card
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={
-                          Boolean(pendingCardId) || Boolean(replacementKey && replacementKey !== confirmedReplacement)
-                        }
-                        onClick={() => void runDetailAction('add-owned')}
-                        className="bg-primary text-primary-foreground min-h-11 rounded-xl px-2 py-2 text-sm font-semibold disabled:opacity-50"
-                      >
-                        Add to owned
-                      </button>
-                    )}
+            </div>
+            {nativeConsumer && (
+              <NativeWantedEntries
+                binding={readOnly ? { ...nativeConsumer, editingAvailable: false } : nativeConsumer}
+                card={cardDetails.card}
+                finish={detailFinish}
+              />
+            )}
+            {detailChoices.length > 1 && (
+              <div role="group" aria-label="Card detail variant" className="flex flex-wrap gap-2">
+                {detailChoices.map((choice) => (
+                  <button
+                    key={choice.finish}
+                    type="button"
+                    aria-pressed={detailFinish === choice.finish}
+                    onClick={() => setDetailFinish(choice.finish)}
+                    className="border-border/60 aria-pressed:bg-primary aria-pressed:text-primary-foreground min-h-9 rounded-xl border px-3 text-xs font-semibold"
+                  >
+                    {choice.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!nativeConsumer && (
+              <button
+                type="button"
+                onClick={() => cardDetails.onJumpToSlot(detailFinish)}
+                className="border-primary/30 min-h-11 w-full rounded-xl border px-3 py-2 text-sm font-semibold"
+              >
+                Jump to binder slot
+              </button>
+            )}
+            {!readOnly && !nativeConsumer && (
+              <>
+                {detailState.replacing && (
+                  <label className="flex min-h-11 items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={replacementKey === confirmedReplacement}
+                      onChange={(event) => setConfirmedReplacement(event.target.checked ? replacementKey : null)}
+                    />
+                    <span>Replace {detailState.replacing} in this binder</span>
+                  </label>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  {detailState.owned ? (
                     <button
                       type="button"
                       disabled={Boolean(pendingCardId)}
-                      onClick={() => void runDetailAction(detailState.wanted ? 'remove-wanted' : 'want')}
-                      className={`min-h-11 rounded-xl border px-2 py-2 text-sm font-semibold ${detailState.wanted ? 'border-destructive/30 text-destructive' : 'border-border/60'}`}
+                      onClick={cardDetails.onRemoveOwned}
+                      className="border-destructive/30 text-destructive min-h-11 rounded-xl border px-2 py-2 text-sm font-semibold"
                     >
-                      {detailState.wanted ? 'Remove from want list' : 'Add to want list'}
+                      Remove owned card
                     </button>
-                  </div>
-                </>
-              )}
-            </section>
-          )}
-
-          {cards === null ? (
-            <div className="text-muted-foreground flex h-40 items-center justify-center text-sm">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading cards…
-            </div>
-          ) : visibleEntries.length === 0 ? (
-            <div className="text-muted-foreground flex h-40 items-center justify-center px-6 text-center text-sm">
-              {loadError
-                ? fetchError
-                  ? 'Could not load cards. Offline, only previously opened Pokémon card lists are available.'
-                  : 'No mirrored cards found for this Pokémon yet.'
-                : filter === 'owned'
-                  ? "You don't own any of these cards yet."
-                  : filter === 'wanted'
-                    ? 'No wanted cards yet.'
-                    : 'No cards match that filter.'}
-            </div>
-          ) : (
-            <>
-              {showBreakout ? (
-                <CardHighlights
-                  name={displayName}
-                  cards={highlightCards}
-                  prices={pricesByCardId}
-                  formatPrice={formatPrice}
-                  onSelectCard={scrollToCard}
-                />
-              ) : null}
-              <ul
-                className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4"
-                aria-label={`${displayName} cards`}
-              >
-                {visibleEntries.map((entry) => {
-                  const { card } = entry;
-                  const priceSnapshot = pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')];
-                  const price = formatPrice(priceSnapshot);
-                  const image = thumbnailUrl(card.image);
-                  const isHighlighted = card.id === highlightCardId;
-                  const isPending = pendingCardId === card.id;
-                  const wantedPrintings =
-                    collectionItem?.wanted_cards?.filter(
-                      (wanted) =>
-                        matchesCatalogCardId(card, wanted.card_id) &&
-                        (wanted.card_language ?? 'en') === (card.language ?? 'en'),
-                    ) ?? [];
-                  return (
-                    <li
-                      key={card.id}
-                      data-card-id={card.id}
-                      aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${nativeConsumer ? `, ${nativeCardLabel(nativeCardState(nativeModel, card))}` : ''}${entry.owned ? ', owned' : ''}${entry.wanted ? ', wanted' : ''}`}
-                      className={`bg-background/60 flex min-w-0 flex-col overflow-hidden rounded-2xl border ${
-                        isHighlighted
-                          ? 'border-primary/70 ring-primary/40 ring-2'
-                          : entry.owned
-                            ? 'border-emerald-400/45'
-                            : entry.wanted
-                              ? 'border-amber-400/45'
-                              : 'border-border/50'
-                      }`}
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={
+                        Boolean(pendingCardId) || Boolean(replacementKey && replacementKey !== confirmedReplacement)
+                      }
+                      onClick={() => void runDetailAction('add-owned')}
+                      className="bg-primary text-primary-foreground min-h-11 rounded-xl px-2 py-2 text-sm font-semibold disabled:opacity-50"
                     >
-                      <div className="trading-card bg-muted/40 relative w-full">
-                        {image ? (
-                          <CardImage
-                            sizes="(max-width: 639px) 45vw, 180px"
-                            src={image}
-                            alt={`${card.name} – ${card.set.name} ${entry.numberLabel}`}
-                            loading="lazy"
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="text-muted-foreground flex h-full items-center justify-center p-2 text-center text-[11px]">
-                            No image
-                          </div>
-                        )}
-                        <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
-                          {entry.owned ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
-                              <Check className="h-3 w-3" /> Owned
-                              {nativeConsumer ? ` ×${nativeCardState(nativeModel, card).ownedCount}` : ''}
-                            </span>
-                          ) : null}
-                          {!nativeConsumer &&
-                          !entry.owned &&
-                          formatOwnedIn(ownedElsewhereByCard?.get(card.id) ?? [], 'In') ? (
-                            <span
-                              className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-sky-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm"
-                              data-testid="card-owned-elsewhere"
-                            >
-                              {formatOwnedIn(ownedElsewhereByCard?.get(card.id) ?? [], 'In')}
-                            </span>
-                          ) : null}
-                          {entry.wanted ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
-                              <Heart className="h-3 w-3 fill-current" /> Wanted
-                              {nativeConsumer ? ` ×${nativeCardState(nativeModel, card).wantedCount}` : ''}
-                            </span>
-                          ) : null}
+                      Add to owned
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={Boolean(pendingCardId)}
+                    onClick={() => void runDetailAction(detailState.wanted ? 'remove-wanted' : 'want')}
+                    className={`min-h-11 rounded-xl border px-2 py-2 text-sm font-semibold ${detailState.wanted ? 'border-destructive/30 text-destructive' : 'border-border/60'}`}
+                  >
+                    {detailState.wanted ? 'Remove from want list' : 'Add to want list'}
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {cards === null ? (
+          <div className="text-muted-foreground flex h-40 items-center justify-center text-sm">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading cards…
+          </div>
+        ) : visibleEntries.length === 0 ? (
+          <div className="text-muted-foreground flex h-40 items-center justify-center px-6 text-center text-sm">
+            {loadError
+              ? fetchError
+                ? 'Could not load cards. Offline, only previously opened Pokémon card lists are available.'
+                : 'No mirrored cards found for this Pokémon yet.'
+              : filter === 'owned'
+                ? "You don't own any of these cards yet."
+                : filter === 'wanted'
+                  ? 'No wanted cards yet.'
+                  : 'No cards match that filter.'}
+          </div>
+        ) : (
+          <>
+            {showBreakout ? (
+              <CardHighlights
+                name={displayName}
+                cards={highlightCards}
+                prices={pricesByCardId}
+                formatPrice={formatPrice}
+                onSelectCard={scrollToCard}
+              />
+            ) : null}
+            <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4" aria-label={`${displayName} cards`}>
+              {visibleEntries.map((entry) => {
+                const { card } = entry;
+                const priceSnapshot = pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')];
+                const price = formatPrice(priceSnapshot);
+                const image = thumbnailUrl(card.image);
+                const isHighlighted = card.id === highlightCardId;
+                const isPending = pendingCardId === card.id;
+                const wantedPrintings =
+                  collectionItem?.wanted_cards?.filter(
+                    (wanted) =>
+                      matchesCatalogCardId(card, wanted.card_id) &&
+                      (wanted.card_language ?? 'en') === (card.language ?? 'en'),
+                  ) ?? [];
+                return (
+                  <li
+                    key={card.id}
+                    data-card-id={card.id}
+                    aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${nativeConsumer ? `, ${nativeCardLabel(nativeCardState(nativeModel, card))}` : ''}${entry.owned ? ', owned' : ''}${entry.wanted ? ', wanted' : ''}`}
+                    className={`bg-background/60 flex min-w-0 flex-col overflow-hidden rounded-2xl border ${
+                      isHighlighted
+                        ? 'border-primary/70 ring-primary/40 ring-2'
+                        : entry.owned
+                          ? 'border-emerald-400/45'
+                          : entry.wanted
+                            ? 'border-amber-400/45'
+                            : 'border-border/50'
+                    }`}
+                  >
+                    <div className="trading-card bg-muted/40 relative w-full">
+                      {image ? (
+                        <CardImage
+                          sizes="(max-width: 639px) 45vw, 180px"
+                          src={image}
+                          alt={`${card.name} – ${card.set.name} ${entry.numberLabel}`}
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-muted-foreground flex h-full items-center justify-center p-2 text-center text-[11px]">
+                          No image
                         </div>
-                        <PriceRisingBadge price={priceSnapshot} className="absolute top-1.5 right-1.5" />
-                      </div>
-                      <div className="flex min-w-0 flex-1 flex-col gap-1 p-2">
-                        <p className="truncate text-xs font-semibold" title={card.set.name}>
-                          {card.set.name}
-                        </p>
-                        <div className="text-muted-foreground flex items-center justify-between gap-1 text-[11px]">
-                          <span className="tabular-nums">{entry.numberLabel}</span>
-                          {price ? (
-                            <span className="text-foreground truncate font-semibold">{price.split(' (')[0]}</span>
-                          ) : null}
-                        </div>
-                        {entry.variantLabels.length > 0 || card.rarity ? (
-                          <p className="text-muted-foreground truncate text-[10px]">
-                            {[card.rarity, ...entry.variantLabels].filter(Boolean).join(' · ')}
-                          </p>
+                      )}
+                      <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
+                        {entry.owned ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
+                            <Check className="h-3 w-3" /> Owned
+                            {nativeConsumer ? ` ×${nativeCardState(nativeModel, card).ownedCount}` : ''}
+                          </span>
                         ) : null}
-                        {showActions && !nativeConsumer ? (
-                          <div className="mt-auto grid grid-cols-2 gap-1 pt-1">
-                            {onWantCard && wantedPrintings.length > 0 ? (
-                              wantedPrintings.map((wanted) => (
-                                <button
-                                  key={wantedCardKey(wanted)}
-                                  type="button"
-                                  disabled={isPending}
-                                  aria-label={`Remove from want list: ${card.name} ${entry.numberLabel}, ${formatCardLanguageLabel(wanted.card_language)}, ${formatCardFinishLabel(wanted.card_finish)}`}
-                                  onClick={() => void runAction(card.id, () => onWantCard(card, true, wanted))}
-                                  className="col-span-2 min-h-9 rounded-xl border border-amber-400/50 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300"
-                                >
-                                  Remove wanted · {formatCardFinishLabel(wanted.card_finish)}
-                                </button>
-                              ))
-                            ) : onWantCard ? (
+                        {!nativeConsumer &&
+                        !entry.owned &&
+                        formatOwnedIn(ownedElsewhereByCard?.get(card.id) ?? [], 'In') ? (
+                          <span
+                            className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-sky-600/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm"
+                            data-testid="card-owned-elsewhere"
+                          >
+                            {formatOwnedIn(ownedElsewhereByCard?.get(card.id) ?? [], 'In')}
+                          </span>
+                        ) : null}
+                        {entry.wanted ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
+                            <Heart className="h-3 w-3 fill-current" /> Wanted
+                            {nativeConsumer ? ` ×${nativeCardState(nativeModel, card).wantedCount}` : ''}
+                          </span>
+                        ) : null}
+                      </div>
+                      <PriceRisingBadge price={priceSnapshot} className="absolute top-1.5 right-1.5" />
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1 p-2">
+                      <p className="truncate text-xs font-semibold" title={card.set.name}>
+                        {card.set.name}
+                      </p>
+                      <div className="text-muted-foreground flex items-center justify-between gap-1 text-[11px]">
+                        <span className="tabular-nums">{entry.numberLabel}</span>
+                        {price ? (
+                          <span className="text-foreground truncate font-semibold">{price.split(' (')[0]}</span>
+                        ) : null}
+                      </div>
+                      {entry.variantLabels.length > 0 || card.rarity ? (
+                        <p className="text-muted-foreground truncate text-[10px]">
+                          {[card.rarity, ...entry.variantLabels].filter(Boolean).join(' · ')}
+                        </p>
+                      ) : null}
+                      {showActions && !nativeConsumer ? (
+                        <div className="mt-auto grid grid-cols-2 gap-1 pt-1">
+                          {onWantCard && wantedPrintings.length > 0 ? (
+                            wantedPrintings.map((wanted) => (
                               <button
+                                key={wantedCardKey(wanted)}
                                 type="button"
                                 disabled={isPending}
-                                aria-pressed={false}
-                                aria-label={`Want ${card.name} ${entry.numberLabel}`}
-                                onClick={() => void runAction(card.id, () => onWantCard(card, false))}
-                                className={`flex h-9 items-center justify-center gap-1 rounded-xl border text-[11px] font-bold disabled:opacity-50 ${
-                                  entry.wanted
-                                    ? 'border-amber-400/50 bg-amber-500/15 text-amber-600 dark:text-amber-300'
-                                    : 'border-border/55 bg-muted/40 text-muted-foreground hover:text-foreground'
-                                }`}
+                                aria-label={`Remove from want list: ${card.name} ${entry.numberLabel}, ${formatCardLanguageLabel(wanted.card_language)}, ${formatCardFinishLabel(wanted.card_finish)}`}
+                                onClick={() => void runAction(card.id, () => onWantCard(card, true, wanted))}
+                                className="col-span-2 min-h-9 rounded-xl border border-amber-400/50 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300"
                               >
-                                <Heart className={`h-3.5 w-3.5 ${entry.wanted ? 'fill-current' : ''}`} />
-                                Want
+                                Remove wanted · {formatCardFinishLabel(wanted.card_finish)}
                               </button>
-                            ) : null}
-                            {onAddCard ? (
-                              <button
-                                type="button"
-                                disabled={isPending || entry.owned}
-                                aria-label={
-                                  entry.owned
-                                    ? `${card.name} ${entry.numberLabel} is in your binder`
-                                    : `Add ${card.name} ${entry.numberLabel} to binder`
-                                }
-                                onClick={() => void runAction(card.id, () => onAddCard(card))}
-                                className="flex h-9 items-center justify-center gap-1 rounded-xl border border-emerald-400/35 bg-emerald-500/10 text-[11px] font-bold text-emerald-600 disabled:opacity-50 dark:text-emerald-300"
-                              >
-                                {entry.owned ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-                                {entry.owned ? 'Owned' : 'Add'}
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
-          {cards !== null && hiddenCount > 0 && (
-            <p className="text-muted-foreground mt-4 px-2 text-center text-xs">
-              {hiddenCount} {hiddenCount === 1 ? 'printing' : 'printings'} in other languages hidden. Choose this
-              binder’s card languages in Binders → Edit.
-            </p>
-          )}
-        </div>
+                            ))
+                          ) : onWantCard ? (
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              aria-pressed={false}
+                              aria-label={`Want ${card.name} ${entry.numberLabel}`}
+                              onClick={() => void runAction(card.id, () => onWantCard(card, false))}
+                              className={`flex h-9 items-center justify-center gap-1 rounded-xl border text-[11px] font-bold disabled:opacity-50 ${
+                                entry.wanted
+                                  ? 'border-amber-400/50 bg-amber-500/15 text-amber-600 dark:text-amber-300'
+                                  : 'border-border/55 bg-muted/40 text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              <Heart className={`h-3.5 w-3.5 ${entry.wanted ? 'fill-current' : ''}`} />
+                              Want
+                            </button>
+                          ) : null}
+                          {onAddCard ? (
+                            <button
+                              type="button"
+                              disabled={isPending || entry.owned}
+                              aria-label={
+                                entry.owned
+                                  ? `${card.name} ${entry.numberLabel} is in your binder`
+                                  : `Add ${card.name} ${entry.numberLabel} to binder`
+                              }
+                              onClick={() => void runAction(card.id, () => onAddCard(card))}
+                              className="flex h-9 items-center justify-center gap-1 rounded-xl border border-emerald-400/35 bg-emerald-500/10 text-[11px] font-bold text-emerald-600 disabled:opacity-50 dark:text-emerald-300"
+                            >
+                              {entry.owned ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                              {entry.owned ? 'Owned' : 'Add'}
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+        {cards !== null && hiddenCount > 0 && (
+          <p className="text-muted-foreground mt-4 px-2 text-center text-xs">
+            {hiddenCount} {hiddenCount === 1 ? 'printing' : 'printings'} in other languages hidden. Choose this binder’s
+            card languages in Binders → Edit.
+          </p>
+        )}
       </div>
-    </>
+    </CardsBrowserSheet>
   );
-
-  if (typeof document === 'undefined') return null;
-  return createPortal(content, document.body);
 }
