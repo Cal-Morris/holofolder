@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { EllipsisVertical, History, X, type LucideIcon } from 'lucide-react';
-import { runAfterOverlayHistory, useOverlay } from '@/hooks/use-overlay';
+import { useEffect, useState, type ReactNode } from 'react';
+import { EllipsisVertical, History, type LucideIcon } from 'lucide-react';
+import { runAfterOverlayHistory } from '@/hooks/use-overlay';
+import { OverlayMenu } from '@/components/ui/overlay-dialog';
 import { useActivityOpener } from '@/components/collection-activity-context';
 
 export interface StorageMenuAction {
@@ -38,10 +39,8 @@ export function StorageMenu({
   attention?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const openActivity = useActivityOpener();
   const close = () => setOpen(false);
-  useOverlay(open, close, { containerRef: menuRef });
   const defer = useMenuAction(open);
   const items: StorageMenuAction[] = [
     ...(openActivity ? [{ label: 'Activity', icon: History, onSelect: () => openActivity({}) }] : []),
@@ -61,49 +60,34 @@ export function StorageMenu({
         {attention && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-amber-500" aria-hidden />}
       </button>
       {open && (
-        <>
-          <div className="fixed inset-0 z-40" data-overlay-backdrop aria-hidden onClick={close} />
-          <div
-            ref={menuRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Storage"
-            className="border-border/60 bg-card fixed top-[calc(var(--top-inset)+3.5rem)] right-[max(0.5rem,var(--right-inset))] z-50 flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-4rem)] w-72 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-2xl border p-1.5 shadow-xl outline-none md:right-4"
-          >
-            <div className="flex shrink-0 items-center justify-between pl-3">
-              <p className="text-muted-foreground text-xs font-medium">Options</p>
-              <button
-                type="button"
-                onClick={close}
-                aria-label="Close storage"
-                className="hover:bg-muted flex h-9 w-9 items-center justify-center rounded-full"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain px-1 pb-1 text-sm">
-              {items.map(({ label, icon: Icon, separated, danger, disabled, onSelect }, index) => (
-                <div key={label} className={separated && index > 0 ? 'border-border/60 mt-1 border-t pt-1' : undefined}>
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => {
-                      defer(onSelect);
-                      close();
-                    }}
-                    className={`flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-left disabled:opacity-40 ${danger ? 'text-destructive hover:bg-destructive/10' : 'hover:bg-muted/70'}`}
-                  >
-                    {Icon && (
-                      <Icon className={`h-4 w-4 shrink-0 ${danger ? '' : 'text-muted-foreground'}`} aria-hidden />
-                    )}
-                    {label}
-                  </button>
-                </div>
-              ))}
-              {children}
-            </div>
+        <OverlayMenu
+          onClose={close}
+          label="Storage"
+          heading="Options"
+          headingClassName="text-muted-foreground text-xs font-medium"
+          closeLabel="Close storage"
+          className="fixed top-[calc(var(--top-inset)+3.5rem)] right-[max(0.5rem,var(--right-inset))] max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-4rem)] w-72 max-w-[calc(100vw-1rem)] md:right-4"
+        >
+          <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain px-1 pb-1 text-sm">
+            {items.map(({ label, icon: Icon, separated, danger, disabled, onSelect }, index) => (
+              <div key={label} className={separated && index > 0 ? 'border-border/60 mt-1 border-t pt-1' : undefined}>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => {
+                    defer(onSelect);
+                    close();
+                  }}
+                  className={`flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-left disabled:opacity-40 ${danger ? 'text-destructive hover:bg-destructive/10' : 'hover:bg-muted/70'}`}
+                >
+                  {Icon && <Icon className={`h-4 w-4 shrink-0 ${danger ? '' : 'text-muted-foreground'}`} aria-hidden />}
+                  {label}
+                </button>
+              </div>
+            ))}
+            {children}
           </div>
-        </>
+        </OverlayMenu>
       )}
     </div>
   );
