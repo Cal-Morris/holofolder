@@ -38,7 +38,7 @@ Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are 
    bun run card-assets fingerprints --set <id> --dry-run --db   # how many cards are new or changed, in the index and the table
    bun run card-assets fingerprints --set <id> --publish --db   # embed only those, upload the new index files, upsert the table
    ```
-   It resumes from the published index, so only the new set is embedded (about 20 ms per card on a Mac). Publishing is a handful of Class A writes: three files per changed language plus the manifest. Without `--publish` it writes `.cache/card-fingerprints/` only. `--db` upserts the same cards into `tcg_card_embeddings`, which feeds Same artwork and Similar look on the card detail; a re-run with nothing changed writes nothing. Add `--lang ja` for a Japanese set (the default is `en,ja`).
+   It resumes from the published index, so only the new set is embedded (about 30 ms per card on a Mac with the default Node workers; Node must be installed). Publishing is a handful of Class A writes: three files per changed language plus the manifest. Without `--publish` it writes `.cache/card-fingerprints/` only. `--db` upserts the same cards into `tcg_card_embeddings`, which feeds Same artwork and Similar look on the card detail; a re-run with nothing changed writes nothing. Add `--lang ja` for a Japanese set (the default is `en,ja`).
 7. **Verify.**
    - The set shows in the Sets view and in search.
    - This should return `x-card-image-source: r2` (the first fetch of an un-mirrored image says `tcgdex`):

@@ -9,6 +9,7 @@
  *   <lang>-<hash>.ids.json          ["sv01-001", …]
  *   <lang>-<hash>.sources.json      [[objectKey, etag], …] the image each row was built from (build-side only)
  */
+import { ONNX_RUNTIME_VERSION } from '../card-picture-fingerprint';
 import { createHash } from 'node:crypto';
 import { getSourceImageLowPathname, parseSourceCardImageUrl, pickCardImageUrl } from '../card-image-sources';
 import { CARD_ASSET_ROOT, CARD_IMAGE_EXTENSIONS, getCardImageBlobPathname } from '../tcgdex-card-image';
@@ -54,14 +55,21 @@ export interface FingerprintManifest {
   model: { id: string; dtype: string; dim: number };
   preprocessing: string;
   quantization: string;
+  /** FINGERPRINT_RUNTIME; absent in indexes built with onnxruntime-node through Transformers.js. */
+  runtime?: string;
   builtAt: string;
   languages: Record<string, FingerprintLanguageFiles>;
 }
 
 export const FINGERPRINT_PREPROCESSING =
-  'Transformers.js image-feature-extraction pipeline with the model’s own image processor, on the stored low rendition ' +
-  '(about 245 × 342 WebP; the high one when no low exists). Take the CLS token (first 384 values of the last hidden ' +
-  'state) and L2-normalise it. Queries go through exactly the same steps.';
+  'lib/card-picture-fingerprint.ts on the stored low rendition (about 245 × 342 WebP; the high one when no low ' +
+  'exists), decoded with sharp: the model’s own image processor (224 × 224 bilinear, ImageNet mean and std), then ' +
+  'the CLS token (first 384 values of the last hidden state), L2-normalised. Queries go through exactly the same steps.';
+/**
+ * What computed the fingerprints. The int8 kernels differ slightly between onnxruntime builds (cosine 0.97-0.999 for
+ * the same input), so a manifest built by another runtime is rebuilt from scratch rather than resumed.
+ */
+export const FINGERPRINT_RUNTIME = `onnxruntime-web ${ONNX_RUNTIME_VERSION} wasm, single thread`;
 export const FINGERPRINT_QUANTIZATION =
   'int8, symmetric per vector: q = round(x / max|x| × 127). Rows have different scales, so rank by cosine: ' +
   'dot(query, row) / |row| (precompute each row’s norm once).';
@@ -233,6 +241,7 @@ export function buildFingerprintManifest(
     model: { id: FINGERPRINT_MODEL.id, dtype: FINGERPRINT_MODEL.dtype, dim: FINGERPRINT_MODEL.dim },
     preprocessing: FINGERPRINT_PREPROCESSING,
     quantization: FINGERPRINT_QUANTIZATION,
+    runtime: FINGERPRINT_RUNTIME,
     builtAt: builtAt.toISOString(),
     languages: Object.fromEntries(Object.entries(languages).sort(([a], [b]) => a.localeCompare(b))),
   };

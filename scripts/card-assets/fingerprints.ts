@@ -1,6 +1,6 @@
 /**
  * bun run card-assets fingerprints [--lang en,ja] [--set a,b] [--dry-run] [--report] [--recheck] [--publish]
- *                                  [--out .cache/card-fingerprints] [--concurrency 16]
+ *                                  [--out .cache/card-fingerprints] [--concurrency 16] [--workers N]
  *
  * Builds the picture-matching index: one DINOv3 ViT-S/16 fingerprint per card and language from the images mirrored
  * in R2 (see lib/card-assets/fingerprints.ts for the file format). Incremental: it resumes from the local output
@@ -16,13 +16,18 @@
  * --db also mirrors the index into public.tcg_card_embeddings (see fingerprints-db.ts): new or changed cards only,
  * so a re-run with nothing changed writes nothing, and an empty table is backfilled from the index without
  * embedding again. With --dry-run it only reports what it would write.
+ *
+ * Fingerprints come from lib/card-picture-fingerprint.ts on onnxruntime-web's WASM build, the code the scan worker and
+ * the server matcher run, in --workers Node processes (fingerprint-worker.mjs; default half the CPUs). An index built
+ * by another runtime (FINGERPRINT_RUNTIME) is rebuilt from scratch, and with --db every row is rewritten.
  */
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { availableParallelism } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createInterface } from 'node:readline';
+import { fileURLToPath } from 'node:url';
 import { Client } from 'pg';
 import {
   buildFingerprintManifest,
@@ -30,9 +35,9 @@ import {
   encodeFingerprintFiles,
   FINGERPRINT_MODEL,
   FINGERPRINT_PREFIX,
+  FINGERPRINT_RUNTIME,
   fingerprintImageKeys,
   isPrintedIn,
-  l2Normalize,
   parseFingerprintManifest,
   pickStoredKey,
   planFingerprintUpdate,
@@ -44,6 +49,7 @@ import {
   type WantedImage,
 } from '../../lib/card-assets/fingerprints';
 import { getMirrorDatabaseUrl } from '../../lib/card-db-sync';
+import { PICTURE_MODEL_BASE_URL, PICTURE_MODEL_FILES } from '../../lib/card-picture-fingerprint';
 import { createR2Deps, getR2BucketEndpoint, getR2Config, normalizePublicBaseUrl } from '../../lib/card-image-r2';
 import { loadProjectEnvFiles } from '../../lib/load-project-env';
 import { createPoliteFetch } from './mirror-tcgdex';
@@ -72,6 +78,7 @@ export async function run() {
   const publish = flag('publish');
   const out = path.resolve(arg('out') ?? '.cache/card-fingerprints');
   const concurrency = Math.max(1, Number(arg('concurrency') ?? 16));
+  const workers = Math.max(1, Number(arg('workers') ?? Math.ceil(availableParallelism() / 2)));
   if (!languages.every((language) => /^[a-z]{2}(?:-[a-z]{2})?$/.test(language)))
     throw new Error('--lang takes language codes, e.g. en,ja');
   const bucket = process.env.R2_BUCKET?.trim() || 'holofolder-assets';
@@ -142,54 +149,54 @@ export async function run() {
     for (const file of [files.vectors, files.ids, files.sources])
       await writeFile(path.join(await ensureDir(out), file), await previous.read(file));
 
-  const embedder = [...plans.values()].some((plan) => plan.embed.length) ? await loadEmbedder() : null;
+  const embedder = [...plans.values()].some((plan) => plan.embed.length) ? await loadEmbedder(workers) : null;
+  const started = performance.now();
   let embedded = 0;
-  let embedMs = 0;
   const failures: string[] = [];
   const dbLanguages: EmbeddingLanguage[] = [];
-  for (const language of languages) {
-    const plan = plans.get(language)!;
-    const rows = [...plan.keep];
-    const fresh = new Map<string, Float32Array>();
-    dbLanguages.push({ language, rows, fresh });
-    const save = async () => {
-      const { info, files } = encodeFingerprintFiles(language, rows, FINGERPRINT_MODEL.dim);
-      languageFiles[language] = info;
-      await writeLocal(out, buildFingerprintManifest(languageFiles, new Date()), files);
-    };
-    let next = 0;
-    // Fetch ahead with `concurrency` downloads in flight; the model runs one image at a time (it is multi-threaded).
-    const fetchImage = async (want: WantedImage) => {
-      const response = await politeFetch(`${publicBase}${want.key}`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return { want, etag: (response.headers.get('etag') ?? '').replaceAll('"', ''), body: await response.arrayBuffer() };
-    };
-    const inFlight: Array<Promise<Awaited<ReturnType<typeof fetchImage>> | { want: WantedImage; error: unknown }>> = [];
-    const refill = () => {
-      while (inFlight.length < concurrency && next < plan.embed.length) {
-        const want = plan.embed[next++];
-        inFlight.push(fetchImage(want).catch((error: unknown) => ({ want, error })));
-      }
-    };
-    refill();
-    while (inFlight.length) {
-      const item = await inFlight.shift()!;
-      refill();
-      if ('error' in item) {
-        failures.push(`${language} ${item.want.id}: ${item.error instanceof Error ? item.error.message : String(item.error)}`);
-        continue;
-      }
-      const started = performance.now();
-      const vector = await embedder!(item.body);
-      embedMs += performance.now() - started;
-      rows.push({ id: item.want.id, key: item.want.key, etag: item.etag, vector: quantizeInt8(vector) });
-      if (db) fresh.set(item.want.id, vector);
-      embedded++;
-      if (embedded % 500 === 0)
-        console.log(`embedded ${embedded} (${(embedMs / embedded).toFixed(1)} ms/card), ${language} ${rows.length - plan.keep.length}/${plan.embed.length}`);
-      if (embedded % CHECKPOINT_EVERY === 0) await save();
+  try {
+    for (const language of languages) {
+      const plan = plans.get(language)!;
+      const rows = [...plan.keep];
+      const fresh = new Map<string, Float32Array>();
+      dbLanguages.push({ language, rows, fresh });
+      let saving = Promise.resolve();
+      const save = () =>
+        (saving = saving.then(async () => {
+          const { info, files } = encodeFingerprintFiles(language, rows, FINGERPRINT_MODEL.dim);
+          languageFiles[language] = info;
+          await writeLocal(out, buildFingerprintManifest(languageFiles, new Date()), files);
+        }));
+      // `concurrency` downloads in flight; each image then waits for a free worker process.
+      const embedOne = async (want: WantedImage) => {
+        try {
+          const response = await politeFetch(`${publicBase}${want.key}`);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const etag = (response.headers.get('etag') ?? '').replaceAll('"', '');
+          const vector = await embedder!.embed(new Uint8Array(await response.arrayBuffer()));
+          rows.push({ id: want.id, key: want.key, etag, vector: quantizeInt8(vector) });
+          if (db) fresh.set(want.id, vector);
+        } catch (error) {
+          failures.push(`${language} ${want.id}: ${error instanceof Error ? error.message : String(error)}`);
+          return;
+        }
+        embedded++;
+        if (embedded % 500 === 0)
+          console.log(
+            `embedded ${embedded} (${((performance.now() - started) / embedded).toFixed(1)} ms/card), ${language} ${rows.length - plan.keep.length}/${plan.embed.length}`,
+          );
+        if (embedded % CHECKPOINT_EVERY === 0) await save();
+      };
+      let next = 0;
+      await Promise.all(
+        Array.from({ length: concurrency }, async () => {
+          while (next < plan.embed.length) await embedOne(plan.embed[next++]);
+        }),
+      );
+      await save();
     }
-    await save();
+  } finally {
+    embedder?.close();
   }
 
   const manifest = JSON.parse(await readFile(path.join(out, 'manifest.json'), 'utf8')) as FingerprintManifest;
@@ -198,7 +205,7 @@ export async function run() {
       {
         out,
         embedded,
-        msPerCard: embedded ? Number((embedMs / embedded).toFixed(1)) : null,
+        msPerCard: embedded ? Number(((performance.now() - started) / embedded).toFixed(1)) : null,
         failures: failures.length,
         firstFailures: failures.slice(0, 20),
         languages: manifest.languages,
@@ -251,6 +258,7 @@ async function loadPrevious(out: string, publicBase: string, fetchImpl: typeof f
   if (local) {
     const manifest = parseFingerprintManifest(JSON.parse(local));
     if (!manifest) throw new Error(`${out}/manifest.json is not a ${FINGERPRINT_MODEL.slug} v1 manifest`);
+    if (manifest.runtime !== FINGERPRINT_RUNTIME) return rebuildAll(`${out}/manifest.json`, manifest.runtime);
     return { manifest, read: async (file) => new Uint8Array(await readFile(path.join(out, file))) };
   }
   const base = `${publicBase}${FINGERPRINT_PREFIX}/`;
@@ -259,6 +267,7 @@ async function loadPrevious(out: string, publicBase: string, fetchImpl: typeof f
   if (!response.ok) throw new Error(`Published manifest: HTTP ${response.status}`);
   const manifest = parseFingerprintManifest(await response.json());
   if (!manifest) throw new Error('The published manifest is not one this script wrote');
+  if (manifest.runtime !== FINGERPRINT_RUNTIME) return rebuildAll('the published manifest', manifest.runtime);
   return {
     manifest,
     read: async (file) => {
@@ -267,6 +276,11 @@ async function loadPrevious(out: string, publicBase: string, fetchImpl: typeof f
       return new Uint8Array(await fileResponse.arrayBuffer());
     },
   };
+}
+
+function rebuildAll(where: string, runtime: string | undefined): Previous {
+  console.log(`${where} was built by ${runtime ?? 'onnxruntime-node'}, not ${FINGERPRINT_RUNTIME}: embedding every card`);
+  return { manifest: null, read: () => Promise.reject(new Error('no previous index')) };
 }
 
 async function readLanguage(previous: Previous, language: string): Promise<FingerprintEntry[]> {
@@ -293,39 +307,58 @@ async function headEtags(wanted: readonly WantedImage[], publicBase: string, fet
   return etags;
 }
 
-/** The two pieces of `@huggingface/transformers` this command uses. */
-interface ModelLibrary {
-  pipeline(
-    task: 'image-feature-extraction',
-    model: string,
-    options: { dtype: string },
-  ): Promise<(image: unknown) => Promise<{ data: unknown; dims: number[] }>>;
-  RawImage: { fromBlob(blob: Blob): Promise<unknown> };
+/** Fetches the model and runtime the app uses (lib/card-picture-fingerprint.ts) into a local cache, once. */
+async function modelFolder() {
+  const dir = await ensureDir(path.resolve('.cache/card-picture-model'));
+  for (const name of Object.values(PICTURE_MODEL_FILES)) {
+    if (existsSync(path.join(dir, name))) continue;
+    const response = await fetch(`${PICTURE_MODEL_BASE_URL}${name}`);
+    if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
+    await writeFile(path.join(dir, name), new Uint8Array(await response.arrayBuffer()));
+  }
+  return dir;
 }
 
 /**
- * Loads the model library from its own package in scripts/card-assets/model, installing it on first use. It pulls in
- * about 450 MB of onnxruntime, so it stays out of the root package and never reaches CI, Vercel or app code.
+ * `workers` Node processes running fingerprint-worker.mjs, each one image at a time on a single WASM thread (what
+ * the browser does, so the numbers match exactly); an image goes to the process with the shortest queue.
  */
-async function loadModelLibrary(): Promise<ModelLibrary> {
-  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'model');
-  // Check the folder rather than resolving first: Bun remembers a failed resolve even after the install.
-  if (!existsSync(path.join(dir, 'node_modules', '@huggingface', 'transformers', 'package.json'))) {
-    console.log('Installing the model library into scripts/card-assets/model (first run only)…');
-    execFileSync('bun', ['install', '--frozen-lockfile'], { cwd: dir, stdio: 'inherit' });
-  }
-  const entry = createRequire(path.join(dir, 'package.json')).resolve('@huggingface/transformers');
-  return (await import(pathToFileURL(entry).href)) as ModelLibrary;
-}
-
-async function loadEmbedder() {
-  const { pipeline, RawImage } = await loadModelLibrary();
-  const extract = await pipeline('image-feature-extraction', FINGERPRINT_MODEL.id, { dtype: FINGERPRINT_MODEL.dtype });
-  return async (body: ArrayBuffer) => {
-    const output = await extract(await RawImage.fromBlob(new Blob([body])));
-    const data = output.data as Float32Array;
-    // [1, tokens, dim]: the CLS token is the first `dim` values.
-    return l2Normalize(output.dims.length === 3 ? data.slice(0, output.dims[2]) : data);
+async function loadEmbedder(workers: number) {
+  const dir = await modelFolder();
+  const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fingerprint-worker.mjs');
+  const waiting = new Map<number, { resolve: (vector: Float32Array) => void; reject: (error: Error) => void }>();
+  const pool = Array.from({ length: workers }, () => {
+    const child = spawn('node', ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', script, dir], { stdio: ['pipe', 'pipe', 'inherit'] });
+    const worker = { child, queued: 0 };
+    child.on('exit', (code) => {
+      if (code) for (const { reject } of waiting.values()) reject(new Error(`fingerprint worker exited with ${code}`));
+    });
+    void (async () => {
+      for await (const line of createInterface({ input: child.stdout })) {
+        const { n, vector, error } = JSON.parse(line) as { n: number; vector?: number[]; error?: string };
+        worker.queued--;
+        const pending = waiting.get(n);
+        waiting.delete(n);
+        if (vector) pending?.resolve(Float32Array.from(vector));
+        else pending?.reject(new Error(error ?? 'no fingerprint'));
+      }
+    })();
+    return worker;
+  });
+  let next = 0;
+  return {
+    embed(image: Uint8Array) {
+      const n = next++;
+      const worker = pool.reduce((best, candidate) => (candidate.queued < best.queued ? candidate : best));
+      worker.queued++;
+      return new Promise<Float32Array>((resolve, reject) => {
+        waiting.set(n, { resolve, reject });
+        worker.child.stdin.write(`${JSON.stringify({ n, image: Buffer.from(image).toString('base64') })}\n`);
+      });
+    },
+    close() {
+      for (const { child } of pool) child.stdin.end();
+    },
   };
 }
 

@@ -5,23 +5,14 @@
 import { getOfflineStore, type OfflineKeyValueStore } from '@/lib/offline-store/kv';
 import { pictureIndexLanguages, type PictureMatch } from '@/lib/card-picture-match';
 import type { PictureWorkerRequest, PictureWorkerResponse } from '@/lib/card-picture-worker';
+import { PICTURE_MODEL_BASE_URL, PICTURE_MODEL_FILES } from '@/lib/card-picture-fingerprint';
 
 const ASSETS = 'https://assets.holofolder.com/pokemon/tcg';
-/** Model weights, their licence and the WASM runtime (overridable for dev, e.g. a local folder served over HTTP). */
-export const PICTURE_MODEL_BASE_URL = withSlash(
-  process.env.NEXT_PUBLIC_PICTURE_MODEL_BASE_URL || `${ASSETS}/models/dinov3-vits16-q8/`,
-);
+export { ONNX_RUNTIME_VERSION, PICTURE_MODEL_BASE_URL, PICTURE_MODEL_FILES } from '@/lib/card-picture-fingerprint';
 /** The published fingerprint index (lib/card-assets/fingerprints.ts FINGERPRINT_PREFIX). */
 export const PICTURE_INDEX_BASE_URL = withSlash(
   process.env.NEXT_PUBLIC_PICTURE_INDEX_BASE_URL || `${ASSETS}/fingerprints/v1/dinov3-vits16-q8/`,
 );
-/** Must match the installed onnxruntime-web: its JS and WASM halves only work together (a unit test checks). */
-export const ONNX_RUNTIME_VERSION = '1.31.1';
-export const PICTURE_MODEL_FILES = {
-  model: 'model_quantized.onnx',
-  modelData: 'model_quantized.onnx_data',
-  runtime: `ort-wasm-simd-threaded-${ONNX_RUNTIME_VERSION}.wasm`,
-} as const;
 /** Download size of the model and runtime, for the switch's label before anything is fetched. */
 export const PICTURE_MODEL_BYTES = 183_889 + 21_762_048 + 14_848_852;
 

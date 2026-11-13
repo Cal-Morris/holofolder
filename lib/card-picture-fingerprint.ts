@@ -1,12 +1,23 @@
 /**
  * A card picture's DINOv3 fingerprint, computed exactly as the index build does (`bun run card-assets fingerprints`,
- * Transformers.js on sharp). The same code runs in the browser scan worker and on Node (a future server matcher), on
- * onnxruntime-web's WASM build in both, so the root install never needs onnxruntime-node. Callers decode the image
+ * sharp decode). The same code runs in the browser scan worker, the index build and the server matcher, on
+ * onnxruntime-web's WASM build everywhere, so the root install never needs onnxruntime-node. Callers decode the image
  * to RGBA themselves (canvas in the browser, sharp on Node) and pass the model and runtime bytes.
  */
 import type * as Ort from 'onnxruntime-web/wasm';
 
 export const PICTURE_DIM = 384;
+/** Model weights, their licence and the WASM runtime on R2 (overridable for dev, e.g. a local folder over HTTP). */
+export const PICTURE_MODEL_BASE_URL = (
+  process.env.NEXT_PUBLIC_PICTURE_MODEL_BASE_URL || 'https://assets.holofolder.com/pokemon/tcg/models/dinov3-vits16-q8/'
+).replace(/\/?$/, '/');
+/** Must match the installed onnxruntime-web: its JS and WASM halves only work together (a unit test checks). */
+export const ONNX_RUNTIME_VERSION = '1.31.1';
+export const PICTURE_MODEL_FILES = {
+  model: 'model_quantized.onnx',
+  modelData: 'model_quantized.onnx_data',
+  runtime: `ort-wasm-simd-threaded-${ONNX_RUNTIME_VERSION}.wasm`,
+} as const;
 export const PICTURE_INPUT_SIZE = 224;
 // From the model's preprocessor_config.json (DINOv3ViTImageProcessor): resize to 224 × 224 bilinear, rescale by
 // 1/255, normalise with the ImageNet mean and std. No crop, aspect ratio not kept, alpha dropped (do_convert_rgb).
