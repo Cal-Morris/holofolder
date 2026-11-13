@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import { OverlayDialog, OverlayGrabber } from '@/components/ui/overlay-dialog';
 import type { SlotLocalAcceptance } from '@/lib/binder-slot-editing';
 import type { GradingRecord, InventoryItem } from '@/lib/domain/inventory';
 import type { InventoryItemRef } from '@/lib/domain/inventory-commands';
@@ -65,9 +65,6 @@ function EditorSession({
       mounted.current = false;
     };
   }, []);
-  const ref = useRef<HTMLDivElement>(null);
-  useOverlay(true, onClose, { containerRef: ref });
-  const swipe = useSwipeToDismiss(ref, onClose);
   const value = graded ? record : null;
   const duplicates = duplicateGradingCopies(item, value, ownerEvidence);
   const textField = (label: string, key: 'grade' | 'scale' | 'designation' | 'certificate' | 'holder') => (
@@ -117,216 +114,211 @@ function EditorSession({
     }
   };
   return (
-    <div className={styles.overlay}>
-      <div data-overlay-backdrop aria-hidden="true" className={styles.backdrop} onClick={onClose} />
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Edit copy grading"
-        tabIndex={-1}
-        className={styles.sheet}
-      >
-        <header {...swipe} data-sheet-grabber className={`${styles.header} relative`}>
-          <span
-            aria-hidden="true"
-            className="bg-muted-foreground/30 pointer-events-none absolute top-1 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full"
-          />
-          <h2>Edit grading</h2>
-          <button type="button" aria-label="Close grading editor" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </header>
-        <div className={styles.actions}>
-          <button
-            type="button"
-            disabled={busy || (!onQueue && !onCommit && !onAcceptDraft)}
-            onClick={() => void submit()}
+    <OverlayDialog
+      modal={false}
+      portal={false}
+      onClose={onClose}
+      layerClassName={styles.overlay}
+      backdropProps={{ className: styles.backdrop }}
+      aria-label="Edit copy grading"
+      className={styles.sheet}
+    >
+      <header data-sheet-grabber className={`${styles.header} relative`}>
+        <OverlayGrabber floating />
+        <h2>Edit grading</h2>
+        <button type="button" aria-label="Close grading editor" onClick={onClose}>
+          <X size={20} />
+        </button>
+      </header>
+      <div className={styles.actions}>
+        <button
+          type="button"
+          disabled={busy || (!onQueue && !onCommit && !onAcceptDraft)}
+          onClick={() => void submit()}
+        >
+          {busy
+            ? 'Saving…'
+            : onQueue
+              ? locked
+                ? 'Try again'
+                : 'Save grading'
+              : onCommit
+                ? 'Save grading'
+                : 'Use grading draft'}
+        </button>
+        <button type="button" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+      <div className={styles.body}>
+        <p className={styles.notice}>
+          These are your own notes about this card&apos;s grade. Certificate numbers and labels stay private. Leave
+          anything you don&apos;t know blank.
+        </p>
+        <label className={styles.field}>
+          Is it graded?
+          <select
+            disabled={busy || locked}
+            value={graded ? 'graded' : 'raw'}
+            onChange={(e) => setGraded(e.target.value === 'graded')}
           >
-            {busy
-              ? 'Saving…'
-              : onQueue
-                ? locked
-                  ? 'Try again'
-                  : 'Save grading'
-                : onCommit
-                  ? 'Save grading'
-                  : 'Use grading draft'}
-          </button>
-          <button type="button" onClick={onClose}>
-            Cancel
-          </button>
-        </div>
-        <div className={styles.body}>
-          <p className={styles.notice}>
-            These are your own notes about this card&apos;s grade. Certificate numbers and labels stay private. Leave
-            anything you don&apos;t know blank.
-          </p>
-          <label className={styles.field}>
-            Is it graded?
-            <select
-              disabled={busy || locked}
-              value={graded ? 'graded' : 'raw'}
-              onChange={(e) => setGraded(e.target.value === 'graded')}
-            >
-              <option value="raw">Not graded</option>
-              <option value="graded" disabled={item.identity.kind !== 'card'}>
-                Graded
-              </option>
-            </select>
-          </label>
-          {!graded && <p>Saving this removes the grade from this card. The card itself stays in your collection.</p>}
-          {graded && (
-            <>
-              <label className={styles.field}>
-                Provider
-                <select
-                  disabled={busy || locked}
-                  value={record.provider.kind === 'known' ? record.provider.id : 'custom'}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setRecord({
-                      ...record,
-                      provider:
-                        id === 'custom'
-                          ? { kind: 'custom', name: '' }
-                          : { kind: 'known', id: id as Extract<GradingRecord['provider'], { kind: 'known' }>['id'] },
-                    });
-                  }}
-                >
-                  {Object.entries(GRADING_PROVIDERS).map(([id, p]) => (
-                    <option key={id} value={id}>
-                      {p.name}
-                    </option>
-                  ))}
-                  <option value="custom">Custom</option>
-                </select>
-              </label>
-              {record.provider.kind === 'custom' && (
-                <label className={styles.field}>
-                  Custom provider name
-                  <input
-                    disabled={busy || locked}
-                    value={record.provider.name}
-                    maxLength={500}
-                    onChange={(e) => setRecord({ ...record, provider: { kind: 'custom', name: e.target.value } })}
-                  />
-                </label>
-              )}
-              <p className={styles.notice}>
-                Changing provider keeps entered text. Review the grade, scale and label for that provider.
-              </p>
-              {textField('Recorded grade', 'grade')}
-              {textField('Scale / version', 'scale')}
-              {textField('Designation / qualifier', 'designation')}
-              {textField('Certificate number', 'certificate')}
-              {textField('Holder / version', 'holder')}
-              <label className={styles.field}>
-                Label variant / custom style
-                <input
-                  disabled={busy || locked}
-                  value={record.label.variant ?? ''}
-                  maxLength={500}
-                  onChange={(e) =>
-                    setRecord({
-                      ...record,
-                      label: { ...record.label, variant: e.target.value === '' ? null : e.target.value },
-                    })
-                  }
-                />
-              </label>
-              <p className={styles.notice}>
-                Record the actual label, including legacy versions. No artwork or Black Label / Pristine designation is
-                inferred. Existing private asset references are retained.
-              </p>
-              {record.subgrades.map((subgrade, index) => (
-                // oxlint-disable-next-line react-doctor/no-array-index-as-key -- subgrades have no stored id; the inputs are controlled, so the position is the identity
-                <fieldset key={index}>
-                  <legend>Subgrade {index + 1}</legend>
-                  {(['name', 'grade'] as const).map((key) => (
-                    <label key={key} className={styles.field}>
-                      {key === 'name' ? 'Subgrade name' : 'Subgrade value'}
-                      <input
-                        disabled={busy || locked}
-                        maxLength={500}
-                        value={subgrade[key]}
-                        onChange={(e) =>
-                          setRecord({
-                            ...record,
-                            subgrades: record.subgrades.map((s, i) =>
-                              i === index ? { ...s, [key]: e.target.value } : s,
-                            ),
-                          })
-                        }
-                      />
-                    </label>
-                  ))}
-                  <button
-                    type="button"
-                    disabled={busy || locked}
-                    onClick={() => setRecord({ ...record, subgrades: record.subgrades.filter((_, i) => i !== index) })}
-                  >
-                    Remove subgrade {index + 1}
-                  </button>
-                </fieldset>
-              ))}
-              <button
-                type="button"
-                disabled={busy || locked || record.subgrades.length >= 20}
-                onClick={() => setRecord({ ...record, subgrades: [...record.subgrades, { name: '', grade: '' }] })}
-              >
-                Add subgrade
-              </button>
-              <label className={styles.field}>
-                Official record URL
-                <input disabled={busy || locked} type="url" value={url} onChange={(e) => setUrl(e.target.value)} />
-              </label>
-              <button
-                type="button"
+            <option value="raw">Not graded</option>
+            <option value="graded" disabled={item.identity.kind !== 'card'}>
+              Graded
+            </option>
+          </select>
+        </label>
+        {!graded && <p>Saving this removes the grade from this card. The card itself stays in your collection.</p>}
+        {graded && (
+          <>
+            <label className={styles.field}>
+              Provider
+              <select
                 disabled={busy || locked}
-                onClick={() => {
-                  const parsed = parseOfficialGradingUrl(url);
-                  if (
-                    !parsed ||
-                    record.provider.kind !== 'known' ||
-                    parsed.provider.kind !== 'known' ||
-                    parsed.provider.id !== record.provider.id
-                  ) {
-                    setError(
-                      'Use a supported official URL for the selected provider. Other providers use lookup and copy.',
-                    );
-                    return;
-                  }
-                  setRecord({ ...record, certificate: parsed.certificate });
-                  setUrl('');
-                  setError('');
+                value={record.provider.kind === 'known' ? record.provider.id : 'custom'}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setRecord({
+                    ...record,
+                    provider:
+                      id === 'custom'
+                        ? { kind: 'custom', name: '' }
+                        : { kind: 'known', id: id as Extract<GradingRecord['provider'], { kind: 'known' }>['id'] },
+                  });
                 }}
               >
-                Use certificate from URL
-              </button>
-              <p className={styles.notice}>
-                Paste a PSA certificate link to fill in its number. Nothing is looked up online.
-              </p>
-              <ProviderRecordLink key={`${record.provider.kind}:${record.certificate}`} record={record} />
-            </>
-          )}
-          {gradingReviewNotes(value).map((note) => (
-            <p key={note} className={styles.notice}>
-              {note}
+                {Object.entries(GRADING_PROVIDERS).map(([id, p]) => (
+                  <option key={id} value={id}>
+                    {p.name}
+                  </option>
+                ))}
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            {record.provider.kind === 'custom' && (
+              <label className={styles.field}>
+                Custom provider name
+                <input
+                  disabled={busy || locked}
+                  value={record.provider.name}
+                  maxLength={500}
+                  onChange={(e) => setRecord({ ...record, provider: { kind: 'custom', name: e.target.value } })}
+                />
+              </label>
+            )}
+            <p className={styles.notice}>
+              Changing provider keeps entered text. Review the grade, scale and label for that provider.
             </p>
-          ))}
-          {duplicates.length > 0 && (
-            <p role="status">
-              Another of your cards has the same grader and certificate number. Both are kept as separate cards.
+            {textField('Recorded grade', 'grade')}
+            {textField('Scale / version', 'scale')}
+            {textField('Designation / qualifier', 'designation')}
+            {textField('Certificate number', 'certificate')}
+            {textField('Holder / version', 'holder')}
+            <label className={styles.field}>
+              Label variant / custom style
+              <input
+                disabled={busy || locked}
+                value={record.label.variant ?? ''}
+                maxLength={500}
+                onChange={(e) =>
+                  setRecord({
+                    ...record,
+                    label: { ...record.label, variant: e.target.value === '' ? null : e.target.value },
+                  })
+                }
+              />
+            </label>
+            <p className={styles.notice}>
+              Record the actual label, including legacy versions. No artwork or Black Label / Pristine designation is
+              inferred. Existing private asset references are retained.
             </p>
-          )}
-          {locked && !busy && (
-            <p role="status">That didn&apos;t save. Try again, or close to leave the grade as it was.</p>
-          )}
-          {busy && !onQueue && <p role="status">Saving…</p>}
-          {error && <p role="alert">{error}</p>}
-        </div>
+            {record.subgrades.map((subgrade, index) => (
+              // oxlint-disable-next-line react-doctor/no-array-index-as-key -- subgrades have no stored id; the inputs are controlled, so the position is the identity
+              <fieldset key={index}>
+                <legend>Subgrade {index + 1}</legend>
+                {(['name', 'grade'] as const).map((key) => (
+                  <label key={key} className={styles.field}>
+                    {key === 'name' ? 'Subgrade name' : 'Subgrade value'}
+                    <input
+                      disabled={busy || locked}
+                      maxLength={500}
+                      value={subgrade[key]}
+                      onChange={(e) =>
+                        setRecord({
+                          ...record,
+                          subgrades: record.subgrades.map((s, i) =>
+                            i === index ? { ...s, [key]: e.target.value } : s,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                ))}
+                <button
+                  type="button"
+                  disabled={busy || locked}
+                  onClick={() => setRecord({ ...record, subgrades: record.subgrades.filter((_, i) => i !== index) })}
+                >
+                  Remove subgrade {index + 1}
+                </button>
+              </fieldset>
+            ))}
+            <button
+              type="button"
+              disabled={busy || locked || record.subgrades.length >= 20}
+              onClick={() => setRecord({ ...record, subgrades: [...record.subgrades, { name: '', grade: '' }] })}
+            >
+              Add subgrade
+            </button>
+            <label className={styles.field}>
+              Official record URL
+              <input disabled={busy || locked} type="url" value={url} onChange={(e) => setUrl(e.target.value)} />
+            </label>
+            <button
+              type="button"
+              disabled={busy || locked}
+              onClick={() => {
+                const parsed = parseOfficialGradingUrl(url);
+                if (
+                  !parsed ||
+                  record.provider.kind !== 'known' ||
+                  parsed.provider.kind !== 'known' ||
+                  parsed.provider.id !== record.provider.id
+                ) {
+                  setError(
+                    'Use a supported official URL for the selected provider. Other providers use lookup and copy.',
+                  );
+                  return;
+                }
+                setRecord({ ...record, certificate: parsed.certificate });
+                setUrl('');
+                setError('');
+              }}
+            >
+              Use certificate from URL
+            </button>
+            <p className={styles.notice}>
+              Paste a PSA certificate link to fill in its number. Nothing is looked up online.
+            </p>
+            <ProviderRecordLink key={`${record.provider.kind}:${record.certificate}`} record={record} />
+          </>
+        )}
+        {gradingReviewNotes(value).map((note) => (
+          <p key={note} className={styles.notice}>
+            {note}
+          </p>
+        ))}
+        {duplicates.length > 0 && (
+          <p role="status">
+            Another of your cards has the same grader and certificate number. Both are kept as separate cards.
+          </p>
+        )}
+        {locked && !busy && (
+          <p role="status">That didn&apos;t save. Try again, or close to leave the grade as it was.</p>
+        )}
+        {busy && !onQueue && <p role="status">Saving…</p>}
+        {error && <p role="alert">{error}</p>}
       </div>
-    </div>
+    </OverlayDialog>
   );
 }
