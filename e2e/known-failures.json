@@ -3755,7 +3755,13 @@
     {
       "file": "studio-workspace.e2e.ts",
       "title": ["editing keeps the binder and save action in view"],
-      "projects": ["standalone-375x667"],
+      "projects": [
+        "browser-375x667",
+        "browser-430x932",
+        "standalone-375x667",
+        "standalone-390x844",
+        "standalone-430x932"
+      ],
       "cause": "flaky",
       "batch": 3,
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — locator('.studio-stage') (fails intermittently, passes on retry)"
@@ -3773,6 +3779,141 @@
       "cause": "flaky",
       "batch": 1,
       "failure": "fails intermittently, passes on retry"
+    },
+    {
+      "file": "binder-appearance-sync.e2e.ts",
+      "title": ["offline saves survive reload and resume syncing without replacing the draft"],
+      "projects": ["browser-430x932", "standalone-430x932"],
+      "cause": "stale-selector-or-flow",
+      "batch": 1,
+      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('button', { name: 'Save appearance', exact: true }) (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "binder-appearance-sync.e2e.ts",
+      "title": ["accepting an empty account appearance cannot resurrect a discarded pending save"],
+      "projects": ["browser-430x932", "standalone-375x667", "standalone-430x932"],
+      "cause": "stale-selector-or-flow",
+      "batch": 1,
+      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('button', { name: 'Save appearance', exact: true }) (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "binder-bulk-fill.e2e.ts",
+      "title": ["signout teardown retains an in-flight accepted fill and rejects late reply"],
+      "projects": ["standalone-390x844"],
+      "cause": "stale-selector-or-flow",
+      "batch": 1,
+      "failure": "TimeoutError: route.fetch: Timeout 5000ms exceeded. (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "home-page.e2e.ts",
+      "title": ["homepage offers a compact interactive 3D binder preview"],
+      "projects": ["browser-430x932", "standalone-375x667"],
+      "cause": "stale-selector-or-flow",
+      "batch": 3,
+      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('group', { name: 'Interactive Binder Studio preview' }).getByRole('button', { name: 'Inside', exact: true }) (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "inventory-bulk.e2e.ts",
+      "title": ["selection crosses explicit pages and filters, clear resets all, overlay dismissal never dispatches"],
+      "projects": ["browser-430x932", "standalone-430x932"],
+      "cause": "stale-selector-or-flow",
+      "batch": 2,
+      "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('navigation', { name: 'Inventory pages', exact: true }).getByRole('button', { name: 'Show more', exact: true }) (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "inventory-bulk.e2e.ts",
+      "title": ["lost bulk reply retains original bytes and ID through cached reload until a fresh complete ACK"],
+      "projects": ["standalone-375x667"],
+      "cause": "stale-selector-or-flow",
+      "batch": 2,
+      "failure": "TimeoutError: locator.click: Timeout 10000ms exceeded. — getByRole('button', { name: 'Try now' }) (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "offline-search.e2e.ts",
+      "title": [
+        "offline search and card show prep",
+        "offline search finds the user's own cards without any saved sets"
+      ],
+      "projects": ["standalone-430x932"],
+      "cause": "stale-selector-or-flow",
+      "batch": 2,
+      "failure": "Error: expect(locator).toBeVisible() failed — getByRole('dialog', { name: /search pokemon/i }).getByRole('region', { name: /card results/i }).getByRole('button', { name: /bulbasaur 44\\/\\d* ?base s (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "overlays.e2e.ts",
+      "title": ["sign in", "closes with a touch pull down on its body from the top"],
+      "projects": ["browser-430x932"],
+      "cause": "stale-selector-or-flow",
+      "batch": 3,
+      "failure": "Error: expect(locator).toBeHidden() failed — getByRole('dialog', { name: /welcome|sign in/i }) (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "press-state.e2e.ts",
+      "title": ["pressed state", "dock buttons scale and dim while held"],
+      "projects": ["browser-390x844", "standalone-390x844"],
+      "cause": "stale-selector-or-flow",
+      "batch": 3,
+      "failure": "Error: expect(received).toBeLessThanOrEqual(expected) (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "startup-refresh.e2e.ts",
+      "title": ["desktop", "refocus while starting never shows an account-check page or bounces the binder"],
+      "projects": ["browser-375x667"],
+      "cause": "stale-selector-or-flow",
+      "batch": 3,
+      "failure": "Error: expect(received).toEqual(expected) // deep equality (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "studio-workspace.e2e.ts",
+      "title": ["appearance edits avoid offscreen GPU readback and retain the model"],
+      "projects": [
+        "browser-375x667",
+        "browser-390x844",
+        "browser-430x932",
+        "standalone-375x667",
+        "standalone-390x844",
+        "standalone-430x932"
+      ],
+      "cause": "stale-selector-or-flow",
+      "batch": 3,
+      "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByTestId('binder-3d-stage') (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "studio-workspace.e2e.ts",
+      "title": ["3D pages support keyboard navigation and fitting the view"],
+      "projects": [
+        "browser-375x667",
+        "browser-390x844",
+        "browser-430x932",
+        "standalone-375x667",
+        "standalone-390x844",
+        "standalone-430x932"
+      ],
+      "cause": "stale-selector-or-flow",
+      "batch": 3,
+      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('button', { name: 'Pocket pages', exact: true }) (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "studio-workspace.e2e.ts",
+      "title": ["artwork adjustment stays tucked away until requested"],
+      "projects": [
+        "browser-375x667",
+        "browser-430x932",
+        "standalone-375x667",
+        "standalone-390x844",
+        "standalone-430x932"
+      ],
+      "cause": "stale-selector-or-flow",
+      "batch": 3,
+      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('button', { name: 'Apply Magikarp preset', exact: true }) (only at these viewports, found by the full matrix)"
+    },
+    {
+      "file": "ux-controls.e2e.ts",
+      "title": ["list actions meet the minimum target size without overflowing"],
+      "projects": ["standalone-375x667"],
+      "cause": "stale-selector-or-flow",
+      "batch": 3,
+      "failure": "Error: element should not be covered by another layer (only at these viewports, found by the full matrix)"
     }
   ]
 }
