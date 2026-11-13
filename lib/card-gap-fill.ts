@@ -79,7 +79,7 @@ export const GAP_CARD_ALIASES: Array<{
  * Promo distributions the primary source does not list, imported from TCGplayer product data.
  * `seriesId` files the set under an existing series; otherwise it goes under the supplemental series.
  * `language: 'ja'` sets come from TCGplayer's Japanese category (85): their cards are Japanese printings with the
- * English names TCGplayer lists, and their numbers drop the printed set code ("287/SM-P" → "287").
+ * English names TCGplayer lists, and their numbers keep only the card number ("287/SM-P" → "287").
  */
 export const GAP_NEW_SETS: Array<{
   id: string;
@@ -120,6 +120,39 @@ export const GAP_NEW_SETS: Array<{
     seriesId: 'S',
     language: 'ja',
   },
+  {
+    id: 'jp-s8a-promos',
+    group: 23847,
+    name: 's8a-P: Promo Card Pack 25th Anniversary Edition',
+    releaseDate: '2021-10-22',
+    seriesId: 'S',
+    language: 'ja',
+  },
+  {
+    id: 'jp-bw-promos',
+    group: 24342,
+    name: 'BW-P Promotional Cards',
+    releaseDate: '2010-12-01',
+    seriesId: 'BW',
+    language: 'ja',
+  },
+  { id: 'jp-l-promos', group: 24023, name: 'L-P: Legends Promos', releaseDate: '2009-09-01', language: 'ja' },
+  { id: 'jp-dpt-promos', group: 24136, name: 'DPt-P Promotional Cards', releaseDate: '2008-10-01', language: 'ja' },
+  { id: 'jp-ppp-promos', group: 24152, name: 'PPP Promotional Cards', releaseDate: '2007-05-01', language: 'ja' },
+  { id: 'jp-dp-promos', group: 24137, name: 'DP-P Promotional Cards', releaseDate: '2006-12-01', language: 'ja' },
+  {
+    id: 'jp-pcg-promos',
+    group: 24138,
+    name: 'PCG-P Promotional Cards',
+    releaseDate: '2004-02-01',
+    seriesId: 'PCG',
+    language: 'ja',
+  },
+  { id: 'jp-adv-promos', group: 24140, name: 'ADV-P Promotional Cards', releaseDate: '2003-01-01', language: 'ja' },
+  { id: 'jp-play-promos', group: 24155, name: 'PLAY Promotional Cards', releaseDate: '2003-01-01', language: 'ja' },
+  { id: 'jp-t-promos', group: 24157, name: 'T Promotional Cards', releaseDate: '2002-01-01', language: 'ja' },
+  { id: 'jp-j-promos', group: 24142, name: 'J Promotional Cards', releaseDate: '2001-08-01', language: 'ja' },
+  { id: 'jp-p-promos', group: 24143, name: 'P Promotional Cards', releaseDate: '2001-07-01', language: 'ja' },
 ];
 /** TCGplayer category of a group: Japanese sets are in 85, everything else in 3 (Pokémon). */
 export function gapGroupCategory(group: number) {
@@ -496,7 +529,7 @@ export function planCardGapFill(input: {
           )
           .join(', ');
         const number = d.Number.trim();
-        return { p, d, base, label, number: def.language ? number.replace(/\/[A-Z]+-P$/i, '') : number };
+        return { p, d, base, label, number: def.language ? number.split('/')[0] : number };
       })
       .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }) || a.base.localeCompare(b.base));
     plan.sets.push({

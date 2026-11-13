@@ -1,8 +1,7 @@
 -- Card picture embeddings for similarity search ("Same artwork" and "Similar look" on the card detail).
 -- Filled by `bun run card-assets fingerprints --db`; one row per card, print language and model.
--- A separate table on purpose: the full sync-card-db rebuild truncates and reloads the tcg_* tables, so there is no
--- column on tcg_cards and no foreign key that the truncate would break. Rows for cards that disappear are removed by
--- the next `fingerprints --db` run.
+-- A separate table on purpose: embeddings are rebuilt by their own job, independently of the card sync (which only
+-- upserts). Rows for cards that disappear are removed by the next `fingerprints --db` run.
 CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
 
 CREATE TABLE IF NOT EXISTS public.tcg_card_embeddings (
