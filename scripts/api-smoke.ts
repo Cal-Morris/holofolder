@@ -242,9 +242,12 @@ async function main() {
       'update_settings',
       Object.fromEntries(Object.keys(settingsSchema.shape).map((key) => [key, record(settingsInput)[key]])),
     );
-    // The rename above records its own Activity event; read it back through both audit operations.
-    const renamed = await call('list_collection_audit', { collectionId: binderId, limit: 1 });
-    const renameEvent = record((renamed.data as unknown[])[0]);
+    // The rename above records its own Activity event; read it back through both audit operations. Later
+    // binder edits (the layout change) also record events, so find the rename rather than assuming it is newest.
+    const renamed = await call('list_collection_audit', { collectionId: binderId, limit: 10 });
+    const renameEvent = record(
+      (renamed.data as unknown[]).map(record).find((event) => event.action === 'collection_change'),
+    );
     assert.equal(renameEvent.action, 'collection_change', 'The rename must be recorded');
     assert.equal(record(await call('get_collection_audit', { id: renameEvent.id })).id, renameEvent.id);
     await read('get_identity');
