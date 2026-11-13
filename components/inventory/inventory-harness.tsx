@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import NavigationHarness from '@/components/collection-navigation/navigation-harness';
 import InventoryView from './inventory-view';
 import { closeAllOverlays } from '@/hooks/use-overlay';
@@ -28,6 +28,22 @@ export default function InventoryHarness() {
     <InventoryBrowseHarness />
   );
 }
+// The host app's dock, as a fixed bar the harness can tap.
+const harnessDockStyle: CSSProperties = {
+  position: 'fixed',
+  zIndex: 45,
+  bottom: 'var(--dock-inset)',
+  height: 'var(--dock-bar)',
+  left: 16,
+  right: 16,
+  background: 'var(--background)',
+  border: '1px solid var(--border)',
+  borderRadius: 16,
+  display: 'grid',
+  placeItems: 'center',
+};
+
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent test-harness controls
 function InventoryBrowseHarness() {
   const [snapshot, setSnapshot] = useState<CompleteInventorySnapshot | null>(null);
   const [mode, setMode] = useState('complete');
@@ -110,10 +126,11 @@ function InventoryBrowseHarness() {
             <option value="synthetic-other">Other account, stale evidence</option>
           </select>
         </label>
-        <button style={{ minHeight: 44 }} onClick={() => setWide((v) => !v)}>
+        <button type="button" style={{ minHeight: 44 }} onClick={() => setWide((v) => !v)}>
           Change grid
         </button>
         <button
+          type="button"
           style={{ minHeight: 44 }}
           onClick={() => {
             if (snapshot) {
@@ -127,7 +144,11 @@ function InventoryBrowseHarness() {
         >
           Reverse Alpha slots
         </button>
-        <button style={{ minHeight: 44 }} onClick={() => setNotice('Host refreshed without changing evidence')}>
+        <button
+          type="button"
+          style={{ minHeight: 44 }}
+          onClick={() => setNotice('Host refreshed without changing evidence')}
+        >
           Refresh host
         </button>
         <output aria-label="Location result" style={{ overflowWrap: 'anywhere' }}>
@@ -145,23 +166,8 @@ function InventoryBrowseHarness() {
       ) : (
         <p>Loading synthetic evidence</p>
       )}
-      <nav
-        aria-label="Harness dock"
-        style={{
-          position: 'fixed',
-          zIndex: 45,
-          bottom: 'var(--dock-inset)',
-          height: 'var(--dock-bar)',
-          left: 16,
-          right: 16,
-          background: 'var(--background)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          display: 'grid',
-          placeItems: 'center',
-        }}
-      >
-        <button style={{ minHeight: 44, width: '100%' }} onClick={closeAllOverlays}>
+      <nav aria-label="Harness dock" style={harnessDockStyle}>
+        <button type="button" style={{ minHeight: 44, width: '100%' }} onClick={closeAllOverlays}>
           Host tab switch
         </button>
       </nav>

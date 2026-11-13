@@ -59,6 +59,7 @@ export function BinderLayoutSettings({
             <span className="text-primary text-xs font-medium">Premium</span>
           </div>
           {billing?.premium ? (
+            // oxlint-disable-next-line react-doctor/no-prevent-default -- client-only PWA: this form is handled on the device (offline queue and validation), so it can't fall back to a server action
             <form
               className="space-y-3"
               onSubmit={(event) => {

@@ -75,7 +75,13 @@ export function renderMobileSlotActionBarView(ctx: MobileSlotActionBarContext) {
   const showFavoriteAction = collected && Boolean(item?.card_id);
   const mobileActionBar = (
     <>
-      <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/20 sm:hidden" onClick={closeMobileActions} />
+      <div
+        data-overlay-backdrop
+        aria-hidden="true"
+        className="fixed inset-0 z-40 bg-black/20 sm:hidden"
+        onClick={closeMobileActions}
+      />
+      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops taps inside the sheet bubbling to the binder behind it through the React tree */}
       <div
         ref={mobileActionsRef}
         role="dialog"

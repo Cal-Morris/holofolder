@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { usePasskeySupport } from '@/hooks/use-passkey-support';
 import { passkeyErrorMessage } from '@/lib/passkeys';
 
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent list, status and confirmation state; one reducer would not read better
 export function AccountPasskeys({ isOnline }: { isOnline: boolean }) {
   const [passkeys, setPasskeys] = useState<PasskeyListItem[]>([]);
   const supported = usePasskeySupport();
@@ -18,6 +19,7 @@ export function AccountPasskeys({ isOnline }: { isOnline: boolean }) {
   useEffect(() => {
     return () => controller.current?.abort();
   }, []);
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- the setters run when the passkey list arrives, not during the effect
   useEffect(() => {
     if (!isOnline) return;
     let active = true;

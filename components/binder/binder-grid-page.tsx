@@ -172,6 +172,7 @@ type BinderGridSlotProps = Omit<
 };
 
 /** One binder slot; re-renders only when its own props change. */
+// oxlint-disable-next-line react-doctor/only-export-components -- this file also exports binder-app.tsx's grid helpers; splitting them touches files outside this pass
 const BinderGridSlot = memo(function BinderGridSlot({ pageNumber, actions, ...slotProps }: BinderGridSlotProps) {
   const { pokemon } = slotProps;
   const onClick = useCallback(() => actions.click(pokemon, pageNumber), [actions, pageNumber, pokemon]);
@@ -326,6 +327,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
             if (!pokemon) {
               return (
                 <div
+                  // oxlint-disable-next-line react-doctor/no-array-index-as-key -- an empty pocket's identity is its position on the page
                   key={`slot-${pageNumber}-${index}`}
                   className="relative h-full w-full overflow-hidden border border-white/55 bg-white/16 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),inset_0_-10px_18px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/[0.03] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-10px_18px_rgba(0,0,0,0.24)]"
                   style={{ borderRadius: TRADING_CARD_CORNER_RADIUS }}

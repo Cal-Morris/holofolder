@@ -20,6 +20,17 @@ export interface BinderOfflineSource {
   scope: BinderPrepScope;
 }
 
+async function dependencies() {
+  const store = getOfflineStore();
+  if (!store || !window.caches) throw new Error('Offline storage is unavailable on this device.');
+  return {
+    store,
+    shellReady: Boolean(await caches.match('/app/app-shell')),
+    cache: await caches.open(BINDER_IMAGE_CACHE),
+    loadPrices: loadPriceEvidence,
+  };
+}
+
 export default function BinderOfflinePrep({
   collection,
   scope,
@@ -32,19 +43,10 @@ export default function BinderOfflinePrep({
   const controller = useRef<AbortController | null>(null);
   const { ownerUserId, binderId, isDefault } = scope;
   const stableScope = useMemo(() => ({ ownerUserId, binderId, isDefault }), [ownerUserId, binderId, isDefault]);
-  const dependencies = async () => {
-    const store = getOfflineStore();
-    if (!store || !window.caches) throw new Error('Offline storage is unavailable on this device.');
-    return {
-      store,
-      shellReady: Boolean(await caches.match('/app/app-shell')),
-      cache: await caches.open(BINDER_IMAGE_CACHE),
-      loadPrices: loadPriceEvidence,
-    };
-  };
   const inspect = useCallback(async () => {
     return inspectBinderPrep(cards, stableScope, await dependencies());
   }, [cards, stableScope]);
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- the setters run when the check settles, not during the effect
   useEffect(() => {
     let active = true;
     void inspect().then(

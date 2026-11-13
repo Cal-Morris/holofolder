@@ -54,10 +54,12 @@ export default function BinderViewport(props: ViewportProps) {
   }, [props.view]);
   return (
     <>
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- a focusable 3D view: Home resets it and the arrow keys turn pages */}
       <div
         className={styles.viewport}
         role="group"
         aria-label="Interactive 3D binder"
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard users focus the 3D view to turn pages
         tabIndex={0}
         aria-keyshortcuts="ArrowLeft ArrowRight Home"
         onKeyDown={(event) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import CardImage from '@/components/card-image';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
@@ -64,11 +64,13 @@ export default function BulkFillReview({
     if (!receipt) throw new Error('durable-acceptance-required');
     return receipt;
   }, onClose);
+  const close = useEffectEvent(() => onClose());
   useEffect(() => {
-    if (!boundary.bulkFill?.available) onClose();
-    window.addEventListener('offline', onClose);
-    return () => window.removeEventListener('offline', onClose);
-  }, [boundary.bulkFill?.available, onClose]);
+    if (!boundary.bulkFill?.available) close();
+    const listener = () => close();
+    window.addEventListener('offline', listener);
+    return () => window.removeEventListener('offline', listener);
+  }, [boundary.bulkFill?.available]);
   const spare = original.items.filter((item) => !original.placements.some((p) => p.inventoryItemId === item.id));
   const label = (itemId: string) => {
     const item = original.items.find((i) => i.id === itemId);
@@ -97,6 +99,7 @@ export default function BulkFillReview({
             clientId: null,
             operationId: crypto.randomUUID(),
             batchId: null,
+            // oxlint-disable-next-line react/purity -- runs in the confirm handler, not during render
             clientOccurredAt: new Date().toISOString(),
           },
           boundary.catalog,
@@ -108,7 +111,7 @@ export default function BulkFillReview({
   };
   return (
     <div className="fixed inset-0 z-40">
-      <div data-overlay-backdrop className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div data-overlay-backdrop aria-hidden="true" className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div
         ref={ref}
         role="dialog"

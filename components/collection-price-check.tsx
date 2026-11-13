@@ -62,17 +62,18 @@ export function BackgroundPriceCheck({
   onComplete?: () => void;
 }) {
   const billing = useBillingContext();
-  const { job, syncedJobId, estimate, busy, message, start, stop, cancelConfirmation } = useComparisonJob(
-    targets,
-    isOnline,
-    ownerId ? `comparison-job:${ownerId}:${kind}` : null,
-  );
+  // oxlint-disable-next-line react-doctor/no-event-handler -- misreads the job hook's inputs as a faked handler; the hook owns its effects
+  const jobKey = ownerId ? `comparison-job:${ownerId}:${kind}` : null;
+  // oxlint-disable-next-line react-doctor/no-event-handler -- misreads the job hook's inputs as a faked handler; the hook owns its effects
+  const comparison = useComparisonJob(targets, isOnline, jobKey);
+  const { job, syncedJobId, estimate, busy, message, start, stop, cancelConfirmation } = comparison;
   const running = Boolean(job && isComparisonJobActive(job));
   const progress = job?.progress;
   const notified = useRef<string | null>(null);
   useEffect(() => {
     if (job?.status === 'completed' && syncedJobId === job.id && notified.current !== job.id) {
       notified.current = job.id;
+      // oxlint-disable-next-line react-doctor/no-prop-callback-in-effect -- fires once when a job finishes syncing, which no handler here sees
       onComplete?.();
     }
   }, [job, syncedJobId, onComplete]);

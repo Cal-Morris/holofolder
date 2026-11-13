@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, type ReactNode } from 'react';
+import { createContext, use, useCallback, type ReactNode } from 'react';
 import { GoogleAnalytics } from '@next/third-parties/google';
 import { sendGoogleEvent, setGoogleAnalyticsEnabled, type GoogleEvents } from '@/lib/google-analytics';
 
@@ -27,7 +27,7 @@ export function GoogleAnalyticsProvider({
 }
 
 export function useGoogleAnalytics() {
-  const enabled = useContext(AnalyticsEnabled);
+  const enabled = use(AnalyticsEnabled);
   return useCallback(
     <K extends keyof GoogleEvents>(name: K, parameters: GoogleEvents[K]) => {
       sendGoogleEvent(enabled, name, parameters);

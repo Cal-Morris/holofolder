@@ -75,7 +75,7 @@ export default function CollectionActivitySheet(props: Props) {
               : key === 'actionText'
                 ? 'action'
                 : key,
-          ['since', 'until'].includes(key)
+          key === 'since' || key === 'until'
             ? new Date(`${value}${key === 'since' ? 'T00:00:00.000Z' : 'T23:59:59.999Z'}`).toISOString()
             : value.trim(),
         );
@@ -86,7 +86,12 @@ export default function CollectionActivitySheet(props: Props) {
   const selected = new URLSearchParams(filters);
   return createPortal(
     <div className="fixed inset-0 z-40">
-      <div data-overlay-backdrop className="absolute inset-0 bg-black/45 backdrop-blur-[2px]" onClick={onClose} />
+      <div
+        data-overlay-backdrop
+        aria-hidden="true"
+        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
       <section
         ref={panel}
         role="dialog"
@@ -165,13 +170,15 @@ export default function CollectionActivitySheet(props: Props) {
                 <Select name="actorId" defaultValue={selected.get('actorId') ?? ''} className="w-full">
                   <option value="">Everyone</option>
                   {scope && <option value={scope.accountId}>You</option>}
-                  {scope?.memberIds
-                    ?.filter((id) => id !== scope.accountId)
-                    .map((id) => (
-                      <option key={id} value={id}>
-                        Collection partner
-                      </option>
-                    ))}
+                  {scope?.memberIds?.flatMap((id) =>
+                    id === scope.accountId
+                      ? []
+                      : [
+                          <option key={id} value={id}>
+                            Collection partner
+                          </option>,
+                        ],
+                  )}
                 </Select>
               </label>
               <label className="text-xs">
@@ -192,6 +199,7 @@ export default function CollectionActivitySheet(props: Props) {
                   className={control}
                 />
               </label>
+              {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- wraps the native <select> that Select renders */}
               <label className="col-span-2 text-xs">
                 Action
                 <Select name="action" defaultValue={selected.get('action') ?? ''} className="w-full">
@@ -231,6 +239,7 @@ export default function CollectionActivitySheet(props: Props) {
 
 function ActivityResults(props: Props & { scope: ActivityScope; query: string }) {
   const { query } = props;
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- the cursor picks the page the child loads
   const [cursor, setCursor] = useState<string | null>(null);
   const [previous, setPrevious] = useState<Array<string | null>>([]);
   const params = new URLSearchParams(query);
@@ -276,9 +285,11 @@ function ActivityPageView({
 }: Props & { scope: ActivityScope; pageQuery: string; onNext: (cursor: string) => void }) {
   const key = activityCacheKey(scope, pageQuery);
   const [saved, setSaved] = useState(() => readActivityCache(localStorage, scope, key));
+  // oxlint-disable-next-line react-doctor/no-derived-useState -- initial value only: a page opened online starts loading
   const [loading, setLoading] = useState(isOnline);
   const [cached, setCached] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // oxlint-disable-next-line react-doctor/no-effect-event-handler, react-doctor/no-fetch-in-effect -- loads this page of history (keyed by its query); aborted and timed out on change
   useEffect(() => {
     if (!isOnline) return;
     let cancelled = false;
@@ -446,6 +457,7 @@ function ActivityEntry({
             {expanded && (
               <div className="border-border/60 mt-2 space-y-3 border-t pt-3 text-xs wrap-anywhere">
                 {changes.slice(0, count).map((change, index) => (
+                  // oxlint-disable-next-line react-doctor/no-array-index-as-key -- one event's changes, fixed and never reordered
                   <section key={index} className="bg-muted/40 rounded-lg p-3">
                     {summary.count > 1 && <h4 className="font-medium">{change.title}</h4>}
                     {change.subtitle && summary.count > 1 && (

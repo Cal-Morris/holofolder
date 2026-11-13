@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, use, useCallback, useEffect, type ReactNode } from 'react';
 import { appPath } from '@/lib/app-path';
 import { sanitizeAttribution } from '@/lib/collector-funnel';
 
@@ -25,12 +25,13 @@ function captureSource() {
 }
 export function CollectorFunnelProvider({ enabled, children }: { enabled: boolean; children: ReactNode }) {
   useEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-event-handler -- records the visit's source once tracking is enabled, not in response to a user event
     if (enabled) captureSource();
   }, [enabled]);
   return <Enabled.Provider value={enabled}>{children}</Enabled.Provider>;
 }
 export function useTrackCollectorEvent() {
-  const enabled = useContext(Enabled);
+  const enabled = use(Enabled);
   return useCallback(
     async (name: 'app_open' | 'upgrade_viewed', accountId: string | null) => {
       if (!enabled || !accountId || !navigator.onLine) return;

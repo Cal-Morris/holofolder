@@ -42,6 +42,9 @@ const InventoryAddOwned = dynamic(() => import('./inventory-ownership').then((mo
   ssr: false,
 });
 const InventoryDetail = dynamic(() => import('./inventory-detail'), { ssr: false });
+const pounds = (amount: number) =>
+  `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export interface InventoryViewProps {
   ownership?: InventoryOwnershipBinding;
   onEditGrading?: (itemId: string) => void;
@@ -137,6 +140,7 @@ function InventoryResults({
   | 'initialBrowseState'
   | 'onBrowseStateChange'
   | 'savedState'
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent browse controls; one reducer would not read better
 > & { index: InventoryBrowseIndex; labels?: InventoryLabels }) {
   const [initial] = useState(() => {
     const state = normalizeInventoryViewState(initialBrowseState);
@@ -147,6 +151,7 @@ function InventoryResults({
   const [requestedWindow, setWindow] = useState(initial.window);
   const result = useMemo(() => inventoryWindowRows(index, query, requestedWindow), [index, query, requestedWindow]);
   useEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-pass-data-to-parent, react-doctor/no-pass-live-state-to-parent, react-doctor/no-prop-callback-in-effect -- reports the browse state for the host to save; query and window change from many handlers
     onBrowseStateChange?.({ query, window: result.window });
   }, [query, result.window, onBrowseStateChange]);
   const more = result.rows.length < result.total;
@@ -195,14 +200,12 @@ function InventoryResults({
   }, [selected, onOpenLocation]);
   const selectLabels = inventorySelectLabels(result.rows);
   const row = index.rows.find((r) => r.itemId === selected);
-  const providers = [...new Set(index.rows.flatMap((r) => (r.provider ? [r.provider] : [])))].sort();
+  const providers = [...new Set(index.rows.flatMap((r) => (r.provider ? [r.provider] : [])))].toSorted();
   const grades = [
     ...new Set(
-      index.rows
-        .filter((r) => !query.provider || r.provider === query.provider)
-        .flatMap((r) => (r.grade ? [r.grade] : [])),
+      index.rows.flatMap((r) => (r.grade && (!query.provider || r.provider === query.provider) ? [r.grade] : [])),
     ),
-  ].sort();
+  ].toSorted();
   const change = (patch: Partial<InventoryBrowseQuery>) => {
     setQuery((q) => ({ ...q, ...patch }));
     setWindow(0);
@@ -223,8 +226,6 @@ function InventoryResults({
   const [filtersOpen, setFiltersOpen] = useState(() => filtersActive > 0);
   const hasGraded = index.rows.some((r) => r.graded);
   const searching = Boolean(query.search?.trim()) || scoped || filtersActive > 0;
-  const pounds = (amount: number) =>
-    `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   // Pages of the chosen collection that hold at least one card, so a page can be picked directly.
   const scopePages = useMemo(
     () =>
@@ -239,7 +240,7 @@ function InventoryResults({
                   : [],
               ),
             ),
-          ].sort((a, b) => a - b)
+          ].toSorted((a, b) => a - b)
         : [],
     [index, query.collectionId],
   );

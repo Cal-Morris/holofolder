@@ -100,8 +100,14 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
   } = ctx;
   return (
     isSearchOpen && (
-      <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={closeSearch}>
+      <div
+        data-overlay-backdrop
+        role="presentation"
+        className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm"
+        onClick={closeSearch}
+      >
         <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-3 pt-[calc(var(--top-inset)+0.25rem)] pb-[calc(var(--dock-clearance)+0.75rem)] sm:px-4 md:pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+          {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops taps inside the sheet reaching the backdrop's close handler */}
           <div
             ref={searchDialogRef}
             role="dialog"
@@ -167,6 +173,7 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
                     <div
                       className={`bg-muted/40 relative flex shrink-0 items-center justify-center ${selectedPrimaryCardPreview?.cardImage ? 'trading-card w-11' : 'h-16 w-16 rounded-xl'}`}
                     >
+                      {/* oxlint-disable-next-line nextjs/no-img-element -- card art from the asset CDN or Pokémon artwork, cached by the service worker for offline use */}
                       <img
                         src={
                           toCardImageSrc(selectedPrimaryCardPreview?.cardImage) ??

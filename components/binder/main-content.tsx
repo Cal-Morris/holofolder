@@ -473,6 +473,7 @@ export function renderMainContentView(ctx: MainContentContext) {
 
                         return (
                           <button
+                            type="button"
                             key={`${pokemonId}-${card.card_id}-${card.card_finish ?? 'normal'}`}
                             onClick={() => {
                               const pokemon = getPokemonSummary(pokemonId);
@@ -483,6 +484,7 @@ export function renderMainContentView(ctx: MainContentContext) {
                             className="bg-card/82 flex w-44 shrink-0 items-center gap-2 rounded-lg border border-amber-400/20 p-1.5 text-left sm:w-56 sm:p-2"
                           >
                             {card.card_image ? (
+                              // oxlint-disable-next-line nextjs/no-img-element -- card thumbnails from the asset CDN, cached by the service worker
                               <img
                                 src={toCardImageSrc(card.card_image) ?? undefined}
                                 alt={card.card_name}

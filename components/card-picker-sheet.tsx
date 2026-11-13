@@ -24,7 +24,13 @@ export default function CardPickerSheet({
   if (typeof document === 'undefined') return null;
 
   return createPortal(
-    <div data-overlay-backdrop className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-[2px]" onClick={onClose}>
+    <div
+      data-overlay-backdrop
+      role="presentation"
+      className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-[2px]"
+      onClick={onClose}
+    >
+      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops taps inside the sheet reaching the backdrop's close handler */}
       <div
         ref={sheetRef}
         role="dialog"
@@ -57,6 +63,7 @@ export default function CardPickerSheet({
   );
 }
 
+// oxlint-disable-next-line react-doctor/only-export-components -- class helper shared with the sheet's callers in other passes; moving it touches their imports
 export const cardPickerSheetChoice = (highlighted = false) =>
   `flex min-h-12 w-full min-w-0 items-center justify-between gap-3 rounded-2xl border px-4 text-left text-sm font-semibold transition-colors ${
     highlighted

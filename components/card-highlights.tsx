@@ -38,9 +38,11 @@ export function CardHighlights({
   const candidates = useMemo(() => buildCardHighlightCandidates(cards, prices), [cards, prices]);
   const filtered = candidates.filter((entry) => finish === 'all' || entry.finish === finish);
   const breakout = rankBreakoutCards(
-    filtered
-      .filter((entry) => entry.finish === null || Number.isFinite(Date.parse(entry.price.updatedAt ?? '')))
-      .map((entry) => ({ ...entry, card: entry })),
+    filtered.flatMap((entry) =>
+      entry.finish === null || Number.isFinite(Date.parse(entry.price.updatedAt ?? ''))
+        ? [{ ...entry, card: entry }]
+        : [],
+    ),
   );
   const values = rankValuableCards(candidates, finish);
   if (!showValues && rankBreakoutCards(candidates).length === 0) return null;

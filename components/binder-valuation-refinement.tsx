@@ -9,6 +9,8 @@ import type { CardPriceCheck } from '@/lib/card-price-checks';
 import type { AnalyticsCard } from '@/lib/collection-analytics';
 import type { CollectedPokemon } from '@/lib/domain/cards';
 
+const GBP_FORMAT = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
+
 export function BinderValuationRefinement({
   cards,
   collection,
@@ -27,14 +29,17 @@ export function BinderValuationRefinement({
   const billing = useBillingContext();
   const premium = billing?.premium !== false;
   const [checks, setChecks] = useState<Record<string, CardPriceCheck | null>>({});
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- `revision` re-runs the saved-checks effect
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     if (!premium) return;
     let cancelled = false;
     const targets = new Map(
-      cards
-        .filter((entry) => entry.scope === 'owned' && (entry.card.card_language ?? 'en') === 'en')
-        .map(({ card }) => [priceCheckKey(card.card_id, card.card_finish ?? 'normal', 'soldcomps'), card]),
+      cards.flatMap(({ scope, card }) =>
+        scope === 'owned' && (card.card_language ?? 'en') === 'en'
+          ? [[priceCheckKey(card.card_id, card.card_finish ?? 'normal', 'soldcomps'), card] as const]
+          : [],
+      ),
     );
     void Promise.all(
       [...targets].map(
@@ -69,9 +74,7 @@ export function BinderValuationRefinement({
       <div>
         <h3 className="font-medium">Sales-based estimate</h3>
         <p className="mt-1 text-2xl font-semibold tabular-nums">
-          {refined.soldCards
-            ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(refined.totalGbp)
-            : 'Not enough sold evidence'}
+          {refined.soldCards ? GBP_FORMAT.format(refined.totalGbp) : 'Not enough sold evidence'}
         </p>
         <p className="text-muted-foreground mt-1">
           {refined.soldCards} sold · {refined.fallbackCards} market fallback · {refined.unpricedCards} unpriced

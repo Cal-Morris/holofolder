@@ -64,6 +64,7 @@ export function CardPriceComparison({
     onSoldCheckRef.current = onSoldCheck;
   });
   useEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-event-handler -- tells the host about each sold check, whether it came from a saved read or a manual check
     if (result?.soldcomps) onSoldCheckRef.current?.(result.soldcomps);
   }, [result?.soldcomps]);
   // Paint the offline copy first, then read shared saved checks without spending provider credits.

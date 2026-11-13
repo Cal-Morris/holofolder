@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ComponentProps } from 'react';
 import SlotDetail from '@/components/binder/slot-detail';
 import { CardSelector } from '@/components/binder/lazy-views';
 import NativePickQuestion from '@/components/binder/native-pick-question';
@@ -56,11 +56,13 @@ export default function NativeSlotFlow({
   // Decided once from the pocket as it was tapped; a pocket filled meanwhile falls back to its details.
   const [choosing] = useState(() => Boolean(picker && !slot.item));
   const selecting = choosing && picker && !slot.item;
+  const closeOffline = useEffectEvent(() => onClose());
   useEffect(() => {
     if (!selecting) return;
-    window.addEventListener('offline', onClose);
-    return () => window.removeEventListener('offline', onClose);
-  }, [selecting, onClose]);
+    const listener = () => closeOffline();
+    window.addEventListener('offline', listener);
+    return () => window.removeEventListener('offline', listener);
+  }, [selecting]);
   if (selecting)
     return <PocketSelector boundary={picker} slot={slot} pricing={pricing} page={page} onClose={onClose} />;
   return <SlotDetail {...detail} />;

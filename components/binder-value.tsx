@@ -15,6 +15,8 @@ import {
 import { useInventoryPriceState } from '@/hooks/use-inventory-prices';
 import type { PricingRegion } from '@/lib/pricing-region';
 
+const GBP_FORMAT = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
+
 export function BinderValue({
   collection,
   prices,
@@ -45,11 +47,7 @@ export function BinderValue({
           <span className="block text-sm font-medium">
             Binder value{' '}
             <span className="ml-1 text-lg font-semibold tabular-nums">
-              {summary.pricedCards
-                ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(summary.valueGbp)
-                : loading
-                  ? 'Loading…'
-                  : 'Unknown'}
+              {summary.pricedCards ? GBP_FORMAT.format(summary.valueGbp) : loading ? 'Loading…' : 'Unknown'}
             </span>
           </span>
           <span className="text-muted-foreground block text-xs">

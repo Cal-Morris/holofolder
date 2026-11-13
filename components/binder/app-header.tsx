@@ -230,6 +230,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
           <div className="border-border/40 order-last hidden w-full items-center gap-1 border-t pt-1 md:flex xl:order-none xl:w-auto xl:flex-1 xl:border-0 xl:pt-0">
             {destinations.map(({ id, label, icon: Icon }) => (
               <button
+                type="button"
                 key={id}
                 onClick={() => {
                   if (id === 'inventory') inventory?.open();
@@ -243,6 +244,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               </button>
             ))}
             <button
+              type="button"
               onClick={isShowModeOn ? openQuickMode : openSearch}
               aria-label="Search"
               aria-pressed={isSearchOpen}

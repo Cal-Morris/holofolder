@@ -282,6 +282,7 @@ export default function DexListView({
                   <div
                     className={`border-border/45 bg-muted/45 relative flex shrink-0 items-center justify-center border ${item?.card_image ? 'trading-card w-10' : 'h-14 w-14 overflow-hidden rounded-xl'}`}
                   >
+                    {/* oxlint-disable-next-line nextjs/no-img-element -- card thumbnails from the asset CDN or Pokémon artwork, cached by the service worker */}
                     <img
                       src={toCardImageSrc(item?.card_image) || pokemon.sprites.other['official-artwork'].front_default}
                       alt={item?.card_name || pokemon.name}

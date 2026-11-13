@@ -25,6 +25,7 @@ const scope = {
 };
 const controlClass = 'min-h-10 rounded-xl border border-border bg-card px-3 py-2 text-sm disabled:opacity-50';
 
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent test-harness controls
 export default function BulkLayoutHarness() {
   const [sessionKey, setSessionKey] = useState(0);
   const queue = useSlotOfflineQueue(scope, String(sessionKey));
@@ -146,6 +147,7 @@ export default function BulkLayoutHarness() {
           </select>
         </label>
         <button
+          type="button"
           className={controlClass}
           onClick={() => {
             setView(view === 'binder' ? 'list' : 'binder');
@@ -158,13 +160,19 @@ export default function BulkLayoutHarness() {
       {snapshot && view === 'binder' && (
         <>
           <nav aria-label="Synthetic pages" className="flex flex-wrap gap-2">
-            <button className={controlClass} disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>
+            <button
+              type="button"
+              className={controlClass}
+              disabled={currentPage === 0}
+              onClick={() => setPage(currentPage - 1)}
+            >
               Previous page
             </button>
             <span className="self-center">
               Page {currentPage + 1} of {pages}
             </span>
             <button
+              type="button"
               className={controlClass}
               disabled={currentPage === pages - 1}
               onClick={() => setPage(currentPage + 1)}

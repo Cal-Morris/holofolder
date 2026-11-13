@@ -7,6 +7,7 @@ export default function DeveloperClients({ isOnline }: { isOnline: boolean }) {
   const [clients, setClients] = useState<Client[]>([]),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect -- loads the connected clients once; cancelled on unmount
   useEffect(() => {
     let cancelled = false;
     fetch(appPath('/api/developer/clients'), { cache: 'no-store' })

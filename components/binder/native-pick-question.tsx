@@ -34,28 +34,28 @@ export default function NativePickQuestion({ question, onClose }: { question: Qu
     <CardPickerSheet title={graded ? 'Which copy?' : 'Is this a wanted card?'} subtitle={subtitle} onClose={onClose}>
       {plan.wants.length > 0 && (
         <div className="mb-3 grid gap-2" role="group" aria-label="Wanted card">
-          {plan.wants.map(({ index, name }) => (
+          {plan.wants.map(({ index: wantIndex, name }, position) => (
             <button
-              key={index}
+              key={wantIndex}
               type="button"
-              aria-pressed={want === index}
-              className={cardPickerSheetChoice(want === index)}
-              onClick={() => setWant(want === index ? null : index)}
+              aria-pressed={want === wantIndex}
+              className={cardPickerSheetChoice(want === wantIndex)}
+              onClick={() => setWant(want === wantIndex ? null : wantIndex)}
             >
               <span className="min-w-0 [overflow-wrap:anywhere] break-words">
                 Found my wanted {name}
-                {plan.wants.length > 1 ? ` (${plan.wants.findIndex((w) => w.index === index) + 1})` : ''}
+                {plan.wants.length > 1 ? ` (${position + 1})` : ''}
               </span>
-              <span className="text-muted-foreground text-xs font-medium">{want === index ? 'Yes' : 'No'}</span>
+              <span className="text-muted-foreground text-xs font-medium">{want === wantIndex ? 'Yes' : 'No'}</span>
             </button>
           ))}
         </div>
       )}
       <div className="grid gap-2">
         {graded ? (
-          plan.choices.map((c, index) => (
+          plan.choices.map((c) => (
             <button
-              key={index}
+              key={c.selection.kind === 'catalog' ? c.selection.newItemId : c.selection.inventoryItemId}
               type="button"
               className={cardPickerSheetChoice()}
               onClick={() => choose(c.selection, want)}

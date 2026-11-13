@@ -336,6 +336,7 @@ export default function CardFinishShader({
     patternScale,
     patternSeed,
   });
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- starts and stops the WebGL effect below
   const [isActive, setIsActive] = useState(false);
   const [hasWebGl, setHasWebGl] = useState(true);
 
@@ -358,6 +359,7 @@ export default function CardFinishShader({
     if (!canvas) return;
 
     if (typeof IntersectionObserver === 'undefined') {
+      // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-initialize-state -- reads page visibility, which isn't known during server render
       setIsActive(document.visibilityState !== 'hidden');
       const handleVisibilityChange = () => setIsActive(document.visibilityState !== 'hidden');
       document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -380,6 +382,7 @@ export default function CardFinishShader({
       updateActiveState();
     };
 
+    // oxlint-disable-next-line react-doctor/no-initialize-state -- subscribes to the canvas's visibility; state changes come from the observer
     observer.observe(canvas);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
@@ -389,9 +392,11 @@ export default function CardFinishShader({
     };
   }, []);
 
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- each setter is a separate WebGL failure path, only one runs
   useEffect(() => {
     if (!isActive) return;
     if (shouldUseCssFinishFallback() || activeWebGlShaderCount >= getMaxActiveWebGlShaders()) {
+      // oxlint-disable-next-line react/set-state-in-effect -- the CSS fallback is decided at runtime from the device and the shared WebGL budget
       setHasWebGl(false);
       return;
     }

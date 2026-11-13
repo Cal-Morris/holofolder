@@ -433,7 +433,7 @@ export function InventoryBulkReview({
   const allMapped = itemIds.every((id) => mapping[id]);
   return (
     <div className={styles.overlay}>
-      <div data-overlay-backdrop className={styles.backdrop} onClick={onClose} />
+      <div data-overlay-backdrop aria-hidden="true" className={styles.backdrop} onClick={onClose} />
       <div
         ref={ref}
         role="dialog"

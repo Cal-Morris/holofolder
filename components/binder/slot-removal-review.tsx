@@ -66,7 +66,7 @@ export default function SlotRemovalReview({
   const counts = prepared?.counts;
   return (
     <div className="fixed inset-0 z-40">
-      <div data-overlay-backdrop className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div data-overlay-backdrop aria-hidden="true" className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div
         ref={ref}
         role="dialog"
@@ -128,35 +128,35 @@ export default function SlotRemovalReview({
           )}
           {prepared && prepared.rows.some((row) => row.item || row.slot.wantedCards.length) && (
             <ul aria-label="Affected cards" className="space-y-1.5">
-              {prepared.rows
-                .filter((row) => row.item || row.slot.wantedCards.length)
-                .map(({ slot, item }) => {
-                  const card = item ? describeIdentity(item.identity, boundary.resolveCard) : null;
-                  return (
-                    <li key={slot.id} className="border-border/60 flex items-center gap-3 rounded-xl border p-2">
-                      {card?.image && (
-                        <span className="trading-card bg-muted relative w-9 shrink-0 overflow-hidden rounded">
-                          <CardImage src={card.image} alt="" fill sizes="36px" className="object-cover" />
-                        </span>
-                      )}
-                      <span className="min-w-0 flex-1">
-                        {card && (
-                          <>
-                            <span className="block truncate font-semibold">{card.name}</span>
-                            <span className="text-muted-foreground block truncate text-xs">
-                              {card.detail} · stays in your collection
-                            </span>
-                          </>
-                        )}
-                        {slot.wantedCards.map((want, index) => (
-                          <span key={index} className="block truncate text-xs text-amber-700 dark:text-amber-300">
-                            Wanted: {want.card_name}
-                          </span>
-                        ))}
+              {prepared.rows.flatMap(({ slot, item }) => {
+                if (!item && !slot.wantedCards.length) return [];
+                const card = item ? describeIdentity(item.identity, boundary.resolveCard) : null;
+                return (
+                  <li key={slot.id} className="border-border/60 flex items-center gap-3 rounded-xl border p-2">
+                    {card?.image && (
+                      <span className="trading-card bg-muted relative w-9 shrink-0 overflow-hidden rounded">
+                        <CardImage src={card.image} alt="" fill sizes="36px" className="object-cover" />
                       </span>
-                    </li>
-                  );
-                })}
+                    )}
+                    <span className="min-w-0 flex-1">
+                      {card && (
+                        <>
+                          <span className="block truncate font-semibold">{card.name}</span>
+                          <span className="text-muted-foreground block truncate text-xs">
+                            {card.detail} · stays in your collection
+                          </span>
+                        </>
+                      )}
+                      {slot.wantedCards.map((want, index) => (
+                        // oxlint-disable-next-line react-doctor/no-array-index-as-key -- a slot's wants have no id of their own; read-only, in stored order
+                        <span key={index} className="block truncate text-xs text-amber-700 dark:text-amber-300">
+                          Wanted: {want.card_name}
+                        </span>
+                      ))}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           )}
           {review.error && <p role="alert">{review.error}</p>}

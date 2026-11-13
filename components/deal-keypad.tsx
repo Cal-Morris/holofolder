@@ -4,7 +4,7 @@
 import { useEffect, useRef } from 'react';
 import type { DealCheck, DealVerdict } from '@/lib/deal-check';
 
-export const DEAL_VERDICT_TONE: Record<DealVerdict, string> = {
+const DEAL_VERDICT_TONE: Record<DealVerdict, string> = {
   great: 'bg-emerald-600 text-white',
   good: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
   fair: 'bg-sky-500/15 text-sky-800 dark:text-sky-300',
@@ -57,6 +57,7 @@ export function PinnedDealVerdict({
   );
 }
 
+// oxlint-disable-next-line react-doctor/no-multi-comp -- the keypad's verdict, pinned verdict and price field are one UI, imported together by quick-card-check and quick-bundle
 export function DealVerdictPanel({
   deal,
   money,
@@ -100,6 +101,7 @@ export function DealVerdictPanel({
   );
 }
 
+// oxlint-disable-next-line react-doctor/no-multi-comp -- the keypad's verdict, pinned verdict and price field are one UI, imported together by quick-card-check and quick-bundle
 export function DealPriceInput({
   value,
   onChange,

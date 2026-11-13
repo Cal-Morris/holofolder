@@ -181,6 +181,7 @@ function LayoutBar({
   onTap: (tap: LayoutTap | null) => void;
   onSelection: (ids: readonly string[], moving: boolean) => void;
   onDone: () => void;
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent layout editor controls; one reducer would not read better
 }) {
   const { snapshot, scope, catalog } = boundary;
   const binder = snapshot.binders.find((b) => b.collectionId === scope.collectionId)!;
@@ -399,6 +400,7 @@ function LayoutBar({
   const selectionKey = ids.join(',');
   // The grid draws the selection; it only needs the IDs and whether a tap now picks a destination.
   useLayoutEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-prop-callback-in-effect -- reports the selection for the grid to draw; it changes from many handlers
     onSelection(ids, moving);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectionKey, moving]);

@@ -460,9 +460,10 @@ export function createBinderRenderer(
     const d = input.design,
       count = d.rows * d.cols,
       start = (face - 1) * count;
-    const cards = input.cards
-      .map((card, i) => ({ card, slot: card.slot ?? i }))
-      .filter((c) => c.slot >= start && c.slot < start + count);
+    const cards = input.cards.flatMap((card, i) => {
+      const slot = card.slot ?? i;
+      return slot >= start && slot < start + count ? [{ card, slot }] : [];
+    });
     const loaded = await Promise.all(cards.map(async (c) => ({ ...c, image: await image(c.card.image) })));
     if (disposed || token !== modelRevision) return;
     parent.userData.cardCount = cards.length;
@@ -478,9 +479,12 @@ export function createBinderRenderer(
     const paper = new THREE.PlaneGeometry(2.25, 3.13, 24, 8);
     paper.translate(BINDER_PAGE.inset + BINDER_PAGE.width / 2, 0, (side * BINDER_LAYERS.backing) / 2);
     attach(paper, new THREE.MeshStandardMaterial({ color, roughness: 0.9, side: sided }));
+    // The first card for each pocket, as find() would pick it.
+    const byPocket = new Map<number, (typeof loaded)[number]>();
+    for (const c of loaded) if (!byPocket.has(c.slot - start)) byPocket.set(c.slot - start, c);
     for (let i = 0; i < count; i++) {
       const { x, y, w, h } = binderPocket(d.rows, d.cols, i, side);
-      const card = loaded.find((c) => c.slot - start === i),
+      const card = byPocket.get(i),
         im = card?.image;
       if (card && (im || card.card.presentation)) {
         const presentation = card.card.presentation;

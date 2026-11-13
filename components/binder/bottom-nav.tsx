@@ -70,6 +70,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
       <div data-scroll-blur="card" className="mx-auto h-[calc(var(--dock-bar)-1px)] w-full max-w-xl min-w-0">
         <div className="grid h-full min-w-0 grid-cols-5 items-center">
           <button
+            type="button"
             onClick={() => {
               if (quickPressFiredRef.current) {
                 quickPressFiredRef.current = false;
@@ -81,6 +82,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             {...quickPressHandlers}
             aria-label="Search"
             aria-pressed={isSearchOpen || isQuickModeOpen}
+            // oxlint-disable-next-line jsx-a11y/role-supports-aria-props -- aria-description (ARIA 1.3) is supported by current browsers; the rule's table predates it
             aria-description="Press and hold for Quick mode"
             title="Search (hold for Quick mode)"
             className={`flex h-11 min-w-0 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-full px-1 transition-colors select-none [-webkit-touch-callout:none] ${
@@ -93,6 +95,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             <span className="text-[10px] font-medium">Search</span>
           </button>
           <button
+            type="button"
             onClick={() => void switchMainView('binder')}
             aria-label="Binder"
             aria-pressed={binderActive}
@@ -107,6 +110,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             <span className="text-[10px] font-medium">Binder</span>
           </button>
           <button
+            type="button"
             // Start fetching the tab's code on press, ahead of the click, in case idle preload hasn't run yet.
             onPointerDown={() => preloadTabView('list')}
             onTouchStart={() => preloadTabView('list')}
@@ -133,6 +137,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             <span className="text-[10px] font-medium">{ctx.inventoryNavigation ? 'Inventory' : 'List'}</span>
           </button>
           <button
+            type="button"
             onPointerDown={() => preloadTabView('wanted')}
             onTouchStart={() => preloadTabView('wanted')}
             onClick={() => {
@@ -151,6 +156,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             <span className="text-[10px] font-medium">Wanted</span>
           </button>
           <button
+            type="button"
             onPointerDown={() => preloadTabView(lastBrowseViewRef.current)}
             onTouchStart={() => preloadTabView(lastBrowseViewRef.current)}
             onClick={() => {

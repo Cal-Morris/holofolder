@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
 import { closeAllOverlays } from '@/hooks/use-overlay';
 import type { InventoryItem } from '@/lib/domain/inventory';
@@ -8,6 +8,19 @@ import { emptyGradingRecord } from '@/lib/grading/draft';
 import type { GradingCommitResult } from '@/lib/grading/draft';
 
 const GradingEditor = dynamic(() => import('./grading-editor'), { ssr: false });
+// The host app's dock, as a fixed bar the harness can tap.
+const harnessDockStyle: CSSProperties = {
+  position: 'fixed',
+  zIndex: 45,
+  bottom: 'var(--dock-inset)',
+  height: 'var(--dock-bar)',
+  left: 16,
+  right: 16,
+  background: 'var(--background)',
+  border: '1px solid var(--border)',
+  display: 'grid',
+};
+
 // Synthetic per-copy drafts, never account/API/queue/storage state.
 const initial: InventoryItem[] = [
   {
@@ -65,7 +78,7 @@ export default function GradingHarness() {
       </label>
       {items.map((i) => (
         <section key={i.id}>
-          <button style={{ minHeight: 44 }} onClick={() => setSelected(i.id)}>
+          <button type="button" style={{ minHeight: 44 }} onClick={() => setSelected(i.id)}>
             Edit {i.id}
           </button>
           <output aria-label={`Draft ${i.id}`}>{JSON.stringify(i)}</output>
@@ -94,21 +107,8 @@ export default function GradingHarness() {
           }
         />
       )}
-      <nav
-        aria-label="Harness dock"
-        style={{
-          position: 'fixed',
-          zIndex: 45,
-          bottom: 'var(--dock-inset)',
-          height: 'var(--dock-bar)',
-          left: 16,
-          right: 16,
-          background: 'var(--background)',
-          border: '1px solid var(--border)',
-          display: 'grid',
-        }}
-      >
-        <button style={{ minHeight: 44 }} onClick={closeAllOverlays}>
+      <nav aria-label="Harness dock" style={harnessDockStyle}>
+        <button type="button" style={{ minHeight: 44 }} onClick={closeAllOverlays}>
           Host tab switch
         </button>
       </nav>
