@@ -7,6 +7,7 @@ import BinderApp from '@/components/binder-app';
 import { BinderSkeleton } from '@/components/binder-skeleton';
 import { createClient } from '@/lib/supabase/client';
 import { readLastOpenedBinder } from '@/lib/binders/client';
+import { savedCollectionOwner } from '@/lib/binder-start';
 import { requestedBinderKey } from '@/lib/binders/url';
 import { readOfflineBinderBoot, type OfflineBinderBoot } from '@/lib/offline-shell';
 
@@ -40,6 +41,7 @@ export default function OfflineAppShell() {
           window.localStorage,
           document.cookie,
           user?.id ?? null,
+          user ? savedCollectionOwner(window.localStorage, user.id) : null,
           requestedBinderId,
           readLastOpenedBinder(),
         ),

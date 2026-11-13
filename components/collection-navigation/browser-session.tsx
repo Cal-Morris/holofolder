@@ -336,6 +336,7 @@ function ScopedBrowserSession({
       if (!pending)
         rememberSavedBinders(
           localStorage,
+          scope.actorUserId,
           scope.ownerUserId,
           fresh.evidence.snapshot.binders.map((binder) => binder.collectionId),
         );

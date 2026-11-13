@@ -60,28 +60,26 @@ export type OfflineBinderBoot = OfflineShellState & {
 
 /**
  * The offline shell with multiple binders: opens the requested binder (`?binder=`) when this device has a saved
- * copy of it, else the last opened saved one, else the default. The binder list is the one this device last saw.
+ * copy of it, else the last opened saved one, else the default. The binder list is the one this device last saw for
+ * this account and `ownerUserId` (its own collection, or its partner's: `savedCollectionOwner` in lib/binder-start).
  */
 export function readOfflineBinderBoot(
   storage: StorageLike,
   cookie: string,
   userId: string | null,
+  ownerUserId: string | null,
   requestedBinderId: string | null,
   lastOpenedBinderId: string | null,
 ): OfflineBinderBoot {
-  const base = readOfflineShellState(storage, cookie, userId);
-  const device = userId ? readDeviceBinders(storage) : null;
-  // Only the binders of the collection this account opens (its own, or its partner's).
-  const binders = device?.ownerUserId === userId ? device.binders : [];
+  const base = { ...readOfflineShellState(storage, cookie, userId), collectionOwnerUserId: userId && ownerUserId };
+  const device = readDeviceBinders(storage, userId, ownerUserId);
+  const binders = device?.binders ?? [];
   if (binders.length === 0) return { ...base, binders: [], binderId: null, unavailableBinderName: null };
 
-  const available = offlineAvailableBinderIds(storage, device!.ownerUserId, binders);
+  const available = offlineAvailableBinderIds(storage, userId, ownerUserId, binders);
   const { binder, unavailable } = pickOfflineBinder(binders, available, requestedBinderId, lastOpenedBinderId);
   const binderSettings = binder
-    ? readJson(
-        storage,
-        `pokemon_binder_settings:${base.collectionOwnerUserId ?? device!.ownerUserId}:binder:${binder.id}`,
-      )
+    ? readJson(storage, `pokemon_binder_settings:${ownerUserId}:binder:${binder.id}`)
     : null;
   const settings = binder
     ? normalizeBinderSettings(binderSettings as StoredBinderSettings, {
