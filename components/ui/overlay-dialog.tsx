@@ -165,8 +165,9 @@ export function OverlayDialog({
     onPointerDown?.(event);
     const dialog = event.currentTarget;
     pressedBackdropRef.current = event.target === dialog && isOutside(dialog, event.clientX, event.clientY);
-    if (!pressedBackdropRef.current && event.target instanceof Element && event.target.closest('[data-sheet-grabber]'))
-      swipe.onPointerDown(event);
+    // Only this dialog's own grabber: an overlay opened from inside it (even portalled) bubbles here through React.
+    const grabber = event.target instanceof Element ? event.target.closest('[data-sheet-grabber]') : null;
+    if (!pressedBackdropRef.current && grabber?.closest('[role="dialog"]') === dialog) swipe.onPointerDown(event);
   };
 
   const handleClick = (event: MouseEvent<HTMLDialogElement>) => {

@@ -2,13 +2,13 @@
 
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Layers3, MoreHorizontal, Palette, X } from 'lucide-react';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import type { BinderDisplaySlot } from '@/lib/binder-display-model';
 import type { WantedCard } from '@/lib/domain/cards';
 import { toCardImageSrc } from '@/lib/card-image-url';
 import type { SlotPickerBoundary } from '@/lib/slot-picker';
 import CardImage from '@/components/card-image';
 import CardImageZoom from '@/components/card-image-zoom';
+import CardDetailSheet from '@/components/card-detail-sheet';
 import NativeCardPrice, { type NativeCardPricing } from '@/components/binder/native-card-price';
 import { useNativeSlotAction } from '@/hooks/use-native-slot-pick';
 import { formatCardFinishLabel, formatCardLanguageLabel } from '@/lib/card-labels';
@@ -57,9 +57,6 @@ export default function SlotDetail({
   picker?: SlotPickerBoundary;
   host?: CardDetailHost;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useOverlay(true, onClose, { containerRef: ref });
-  const swipe = useSwipeToDismiss(ref, onClose);
   const [menu, setMenu] = useState(false);
   const [removing, setRemoving] = useState(false);
   // A finish change keeps the details open on the corrected card; every other action closes them.
@@ -120,26 +117,13 @@ export default function SlotDetail({
   const canTakeOut = editable && Boolean(slot.item);
   const hasMenu = canTakeOut || Boolean(editable && host?.onArrange);
   return (
-    <div className="fixed inset-0 z-40">
-      <div
-        data-overlay-backdrop
-        aria-hidden="true"
-        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
-        onClick={onClose}
-      />
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${name} details`}
-        data-slot-id={slot.id}
-        className="holo-panel border-border/70 bg-card/96 text-foreground absolute inset-x-2 bottom-[calc(var(--dock-clearance)+0.375rem)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-md flex-col overflow-hidden rounded-[1.35rem] border p-3 shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl outline-none sm:rounded-[1.6rem] md:bottom-4 dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]"
-      >
-        <div data-sheet-grabber {...swipe} className="shrink-0">
-          <div
-            aria-hidden="true"
-            className="bg-muted-foreground/30 mx-auto -mt-1 mb-2 h-1.5 w-10 rounded-full sm:hidden"
-          />
+    <CardDetailSheet
+      onClose={onClose}
+      aria-label={`${name} details`}
+      data-slot-id={slot.id}
+      className="shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.55)]"
+      header={
+        <>
           <div className="flex items-start gap-3">
             {image && (
               <CardImageZoom
@@ -287,203 +271,199 @@ export default function SlotDetail({
               )}
             </div>
           )}
-        </div>
-        <div className="-mx-3 mt-3 -mb-3 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-3 text-sm [&>*]:shrink-0">
-          {removing && !action.failed && (
-            <section
-              aria-label="Remove card"
-              className="border-destructive/40 bg-destructive/10 rounded-2xl border p-3"
-            >
-              <p className="text-sm font-semibold">Remove {name} from your collection?</p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                This removes the card itself, and its pocket becomes empty. Other copies you own aren&apos;t affected.
-                It can&apos;t be undone with one tap.
-              </p>
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  disabled={action.busy}
-                  onClick={() => setRemoving(false)}
-                  className="border-border/70 min-h-11 flex-1 rounded-2xl border px-3 text-sm font-medium"
-                >
-                  Keep it
-                </button>
-                <button
-                  type="button"
-                  disabled={action.busy}
-                  onClick={() => run({ kind: 'removeOwned' })}
-                  className="bg-destructive min-h-11 flex-1 rounded-2xl px-3 text-sm font-semibold text-white disabled:opacity-45"
-                >
-                  {action.busy ? 'Removing…' : 'Remove card'}
-                </button>
-              </div>
-            </section>
-          )}
-          {action.failed && (
-            <div role="alert" className="border-destructive/40 bg-destructive/10 rounded-2xl border p-3">
-              <p className="text-sm break-words">{action.failed}</p>
-              <div className="mt-2 flex gap-2">
-                {action.retry && (
-                  <button
-                    type="button"
-                    disabled={action.busy}
-                    onClick={action.retry}
-                    className="border-border min-h-10 rounded-xl border px-3 text-sm font-medium"
-                  >
-                    Try again
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={action.busy}
-                  onClick={action.dismiss}
-                  className="text-muted-foreground min-h-10 rounded-xl px-3 text-sm"
-                >
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          )}
-          {copy && host?.pricing && isCardLanguage(copy.language) && (
-            <NativeCardPrice
-              cardId={copy.cardId}
-              language={copy.language}
-              finish={copy.finish}
-              name={slot.card?.name ?? name}
-              setName={slot.card?.set?.name}
-              localId={slot.card?.localId}
-              pricing={host.pricing}
-            />
-          )}
-          {/* A share's Prices view. The owner's own cards use the saved-price panel instead. */}
-          {slot.item && priceLabel && !host?.pricing && (
-            <section
-              aria-label="Prices"
-              className="border-border/60 bg-background/25 rounded-2xl border px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]"
-            >
-              <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.14em] uppercase">
-                Market price
-              </p>
-              <p className="mt-0.5 text-sm font-bold tabular-nums">{priceLabel}</p>
-            </section>
-          )}
-          {slot.wantedCards.length > 0 && (
-            <section aria-label="Wanted here" className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-3">
-              <p className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-amber-700 uppercase dark:text-amber-300">
-                {slot.item ? 'Wanted upgrade' : 'Wanted here'}
-              </p>
-              {/* The wanted card's picture first: it is what you look for. Tapping it opens that card. */}
-              <ul className="grid gap-1">
-                {slot.wantedCards.map((want, index) => {
-                  const detail = [
-                    want.card_set,
-                    want.card_language ? formatCardLanguageLabel(want.card_language) : null,
-                    want.card_finish ? formatCardFinishLabel(want.card_finish) : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ');
-                  const picture = toCardImageSrc(want.card_image) ?? want.card_image;
-                  const body = (
-                    <>
-                      <span className="trading-card bg-muted relative block w-16 shrink-0 overflow-hidden rounded-md border border-amber-400/40">
-                        {picture && <CardImage src={picture} alt="" fill sizes="64px" className="object-cover" />}
-                      </span>
-                      <span className="min-w-0 flex-1 text-left">
-                        <span className="block text-sm font-semibold [overflow-wrap:anywhere] break-words">
-                          {want.card_name}
-                        </span>
-                        {detail && (
-                          <span className="text-muted-foreground block text-xs [overflow-wrap:anywhere] break-words">
-                            {detail}
-                          </span>
-                        )}
-                      </span>
-                    </>
-                  );
-                  return (
-                    // oxlint-disable-next-line react-doctor/no-array-index-as-key -- a slot's wants have no id of their own; read-only, in stored order
-                    <li key={index} className="min-w-0">
-                      {host?.onOpenWant ? (
-                        <button
-                          type="button"
-                          aria-label={`Open wanted card ${want.card_name}${detail ? `, ${detail}` : ''}`}
-                          onClick={() => host.onOpenWant!(want)}
-                          className="flex min-h-11 w-full items-center gap-3 rounded-xl p-1 hover:bg-amber-400/10 focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:outline-none"
-                        >
-                          {body}
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-3 p-1">{body}</div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-          {slot.card?.illustrator &&
-            (host?.onIllustrator ? (
+        </>
+      }
+    >
+      <div className="-mx-3 mt-3 -mb-3 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain px-3 pb-3 text-sm [&>*]:shrink-0">
+        {removing && !action.failed && (
+          <section aria-label="Remove card" className="border-destructive/40 bg-destructive/10 rounded-2xl border p-3">
+            <p className="text-sm font-semibold">Remove {name} from your collection?</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              This removes the card itself, and its pocket becomes empty. Other copies you own aren&apos;t affected. It
+              can&apos;t be undone with one tap.
+            </p>
+            <div className="mt-3 flex gap-2">
               <button
                 type="button"
-                onClick={() => host.onIllustrator!(slot.card!.illustrator!)}
-                aria-label={`Illustrator ${slot.card.illustrator}: show all their cards`}
-                className="border-border/60 bg-background/25 hover:border-primary/30 hover:bg-primary/10 flex h-12 w-full items-center gap-2.5 rounded-2xl border px-3 text-left transition-colors dark:border-white/10 dark:bg-white/[0.03]"
+                disabled={action.busy}
+                onClick={() => setRemoving(false)}
+                className="border-border/70 min-h-11 flex-1 rounded-2xl border px-3 text-sm font-medium"
               >
-                <Palette className="text-muted-foreground h-4 w-4 shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="text-muted-foreground block text-[10px] font-semibold tracking-[0.14em] uppercase">
-                    Illustrator
-                  </span>
-                  <span className="text-primary block truncate text-sm font-semibold">{slot.card.illustrator}</span>
-                </span>
+                Keep it
               </button>
-            ) : (
-              <p className="text-muted-foreground text-xs">Illustrated by {slot.card.illustrator}</p>
-            ))}
-          {slot.card?.rarity && <p className="text-muted-foreground text-xs">{slot.card.rarity}</p>}
-          {grade && (
-            <dl
-              className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs [overflow-wrap:anywhere] break-words"
-              aria-label="Grading"
-            >
-              <dt className="text-muted-foreground">Graded by</dt>
-              <dd>{grade.provider.kind === 'known' ? grade.provider.id.toUpperCase() : grade.provider.name}</dd>
-              <dt className="text-muted-foreground">Grade</dt>
-              <dd>
-                {grade.grade ?? 'Unknown'}
-                {grade.scale ? ` / ${grade.scale}` : ''}
-              </dd>
-              {grade.designation && (
-                <>
-                  <dt className="text-muted-foreground">Designation</dt>
-                  <dd>{grade.designation}</dd>
-                </>
+              <button
+                type="button"
+                disabled={action.busy}
+                onClick={() => run({ kind: 'removeOwned' })}
+                className="bg-destructive min-h-11 flex-1 rounded-2xl px-3 text-sm font-semibold text-white disabled:opacity-45"
+              >
+                {action.busy ? 'Removing…' : 'Remove card'}
+              </button>
+            </div>
+          </section>
+        )}
+        {action.failed && (
+          <div role="alert" className="border-destructive/40 bg-destructive/10 rounded-2xl border p-3">
+            <p className="text-sm break-words">{action.failed}</p>
+            <div className="mt-2 flex gap-2">
+              {action.retry && (
+                <button
+                  type="button"
+                  disabled={action.busy}
+                  onClick={action.retry}
+                  className="border-border min-h-10 rounded-xl border px-3 text-sm font-medium"
+                >
+                  Try again
+                </button>
               )}
-              {grade.holder && (
-                <>
-                  <dt className="text-muted-foreground">Holder</dt>
-                  <dd>{grade.holder}</dd>
-                </>
-              )}
-              {grade.subgrades.map((s, index) => (
-                // oxlint-disable-next-line react-doctor/no-array-index-as-key -- a grade's subgrades have no id; read-only, in stored order
-                <div key={index} className="contents">
-                  <dt className="text-muted-foreground">{s.name}</dt>
-                  <dd>{s.grade}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-          {!slot.item && !slot.wantedCards.length && (
-            <p className="text-muted-foreground text-xs">
-              {slot.target ? 'Nothing in this pocket yet.' : 'This pocket is empty.'}
+              <button
+                type="button"
+                disabled={action.busy}
+                onClick={action.dismiss}
+                className="text-muted-foreground min-h-10 rounded-xl px-3 text-sm"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+        {copy && host?.pricing && isCardLanguage(copy.language) && (
+          <NativeCardPrice
+            cardId={copy.cardId}
+            language={copy.language}
+            finish={copy.finish}
+            name={slot.card?.name ?? name}
+            setName={slot.card?.set?.name}
+            localId={slot.card?.localId}
+            pricing={host.pricing}
+          />
+        )}
+        {/* A share's Prices view. The owner's own cards use the saved-price panel instead. */}
+        {slot.item && priceLabel && !host?.pricing && (
+          <section
+            aria-label="Prices"
+            className="border-border/60 bg-background/25 rounded-2xl border px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]"
+          >
+            <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.14em] uppercase">Market price</p>
+            <p className="mt-0.5 text-sm font-bold tabular-nums">{priceLabel}</p>
+          </section>
+        )}
+        {slot.wantedCards.length > 0 && (
+          <section aria-label="Wanted here" className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-3">
+            <p className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-amber-700 uppercase dark:text-amber-300">
+              {slot.item ? 'Wanted upgrade' : 'Wanted here'}
             </p>
-          )}
-          {identity && host?.onOpenCard && isCardLanguage(identity.language) && (
-            <SimilarCardsRow cardId={identity.cardId} language={identity.language} onOpenCard={host.onOpenCard} />
-          )}
-        </div>
+            {/* The wanted card's picture first: it is what you look for. Tapping it opens that card. */}
+            <ul className="grid gap-1">
+              {slot.wantedCards.map((want, index) => {
+                const detail = [
+                  want.card_set,
+                  want.card_language ? formatCardLanguageLabel(want.card_language) : null,
+                  want.card_finish ? formatCardFinishLabel(want.card_finish) : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ');
+                const picture = toCardImageSrc(want.card_image) ?? want.card_image;
+                const body = (
+                  <>
+                    <span className="trading-card bg-muted relative block w-16 shrink-0 overflow-hidden rounded-md border border-amber-400/40">
+                      {picture && <CardImage src={picture} alt="" fill sizes="64px" className="object-cover" />}
+                    </span>
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="block text-sm font-semibold [overflow-wrap:anywhere] break-words">
+                        {want.card_name}
+                      </span>
+                      {detail && (
+                        <span className="text-muted-foreground block text-xs [overflow-wrap:anywhere] break-words">
+                          {detail}
+                        </span>
+                      )}
+                    </span>
+                  </>
+                );
+                return (
+                  // oxlint-disable-next-line react-doctor/no-array-index-as-key -- a slot's wants have no id of their own; read-only, in stored order
+                  <li key={index} className="min-w-0">
+                    {host?.onOpenWant ? (
+                      <button
+                        type="button"
+                        aria-label={`Open wanted card ${want.card_name}${detail ? `, ${detail}` : ''}`}
+                        onClick={() => host.onOpenWant!(want)}
+                        className="flex min-h-11 w-full items-center gap-3 rounded-xl p-1 hover:bg-amber-400/10 focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:outline-none"
+                      >
+                        {body}
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-3 p-1">{body}</div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+        {slot.card?.illustrator &&
+          (host?.onIllustrator ? (
+            <button
+              type="button"
+              onClick={() => host.onIllustrator!(slot.card!.illustrator!)}
+              aria-label={`Illustrator ${slot.card.illustrator}: show all their cards`}
+              className="border-border/60 bg-background/25 hover:border-primary/30 hover:bg-primary/10 flex h-12 w-full items-center gap-2.5 rounded-2xl border px-3 text-left transition-colors dark:border-white/10 dark:bg-white/[0.03]"
+            >
+              <Palette className="text-muted-foreground h-4 w-4 shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="text-muted-foreground block text-[10px] font-semibold tracking-[0.14em] uppercase">
+                  Illustrator
+                </span>
+                <span className="text-primary block truncate text-sm font-semibold">{slot.card.illustrator}</span>
+              </span>
+            </button>
+          ) : (
+            <p className="text-muted-foreground text-xs">Illustrated by {slot.card.illustrator}</p>
+          ))}
+        {slot.card?.rarity && <p className="text-muted-foreground text-xs">{slot.card.rarity}</p>}
+        {grade && (
+          <dl
+            className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs [overflow-wrap:anywhere] break-words"
+            aria-label="Grading"
+          >
+            <dt className="text-muted-foreground">Graded by</dt>
+            <dd>{grade.provider.kind === 'known' ? grade.provider.id.toUpperCase() : grade.provider.name}</dd>
+            <dt className="text-muted-foreground">Grade</dt>
+            <dd>
+              {grade.grade ?? 'Unknown'}
+              {grade.scale ? ` / ${grade.scale}` : ''}
+            </dd>
+            {grade.designation && (
+              <>
+                <dt className="text-muted-foreground">Designation</dt>
+                <dd>{grade.designation}</dd>
+              </>
+            )}
+            {grade.holder && (
+              <>
+                <dt className="text-muted-foreground">Holder</dt>
+                <dd>{grade.holder}</dd>
+              </>
+            )}
+            {grade.subgrades.map((s, index) => (
+              // oxlint-disable-next-line react-doctor/no-array-index-as-key -- a grade's subgrades have no id; read-only, in stored order
+              <div key={index} className="contents">
+                <dt className="text-muted-foreground">{s.name}</dt>
+                <dd>{s.grade}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {!slot.item && !slot.wantedCards.length && (
+          <p className="text-muted-foreground text-xs">
+            {slot.target ? 'Nothing in this pocket yet.' : 'This pocket is empty.'}
+          </p>
+        )}
+        {identity && host?.onOpenCard && isCardLanguage(identity.language) && (
+          <SimilarCardsRow cardId={identity.cardId} language={identity.language} onOpenCard={host.onOpenCard} />
+        )}
       </div>
-    </div>
+    </CardDetailSheet>
   );
 }
