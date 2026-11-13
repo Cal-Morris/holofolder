@@ -7,7 +7,7 @@ import {
   binderSpread,
   binderTurnPage,
   binderPocket,
-  BINDER_PAGE,
+  binderPage,
   pageTurnPoint,
   binderFill,
   cardTextureSources,
@@ -185,29 +185,48 @@ test('page taps read native pointer fields from inherited getters', () => {
 });
 
 test('pockets and cards stay inside both mirrored cover footprints through a leaf turn', () => {
-  const width = BINDER_PAGE.width + BINDER_PAGE.inset;
   for (const [rows, cols] of [
     [3, 3],
     [4, 4],
     [2, 3],
-  ])
+    [2, 6],
+  ]) {
+    const page = binderPage(rows, cols),
+      width = page.width + page.inset;
     for (let i = 0; i < rows * cols; i++) {
       const front = binderPocket(rows, cols, i, 1),
         back = binderPocket(rows, cols, i, -1);
-      const cardWidth = Math.min(front.w * 0.88, (front.h * 0.88 * 63) / 88);
+      const cardWidth = Math.min(front.w * 0.92, (front.h * 0.92 * 63) / 88);
       for (const [p, progress] of [
         [front, 0],
         [back, 1],
       ] as const) {
-        const centre = BINDER_PAGE.hingeX + pageTurnPoint(p.x, 0, width, progress).x;
-        const min = progress === 0 ? -1.3 : -3.9,
-          max = progress === 0 ? 1.3 : -1.3;
+        const centre = page.hingeX + pageTurnPoint(p.x, 0, width, progress).x;
+        const min = progress === 0 ? page.hingeX : page.hingeX - page.coverWidth,
+          max = progress === 0 ? -page.hingeX : page.hingeX;
         assert.ok(centre - p.w * 0.47 > min && centre + p.w * 0.47 < max);
         assert.ok(cardWidth / 2 < p.w * 0.47);
+        assert.ok(Math.abs(p.y) + p.h / 2 < page.height / 2);
       }
       assert.ok(Math.abs(front.y - back.y) < 1e-9);
-      assert.ok(Math.abs(front.x + back.x - (BINDER_PAGE.width + 2 * BINDER_PAGE.inset)) < 1e-9);
+      assert.ok(Math.abs(front.x + back.x - (page.width + 2 * page.inset)) < 1e-9);
     }
+  }
+});
+
+test('3x3 keeps the original footprint and pockets stay card shaped for every layout', () => {
+  assert.deepEqual(
+    Object.values(binderPage(3, 3)).map((v) => Math.round(v * 1000) / 1000),
+    [-1.3, 0.23, 2.25, 3.13, 2.6, 3.5],
+  );
+  for (const [rows, cols] of [
+    [1, 1],
+    [2, 6],
+    [4, 4],
+  ]) {
+    const { w, h } = binderPocket(rows, cols, 0, 1);
+    assert.ok(Math.abs(w / h - 63 / 88) < 0.01);
+  }
 });
 
 test('3D card textures use the public asset with a proxy fallback and drop anything that would taint WebGL', () => {
