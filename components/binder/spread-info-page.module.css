@@ -6,7 +6,7 @@
   border: 1px solid;
   border-radius: 16px;
   padding: 5px;
-  container-type: size;
+  container: cover / size;
 }
 
 .paper {
@@ -124,15 +124,21 @@
   z-index: -1;
 }
 .progressLabel {
+  /* Same box as .ring, so the number scales with the ring rather than the page. */
+  position: absolute;
+  height: min(48cqi, 32cqh, 84%);
+  aspect-ratio: 1;
+  container-type: size;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   color: #aaa6b9;
   font-size: clamp(9px, 2.5cqi, 14px);
 }
 .progressLabel strong {
   color: #f4f3f8;
-  font-size: clamp(26px, min(11cqi, 9cqh), 72px);
+  font-size: min(26cqh, 72px);
   font-weight: 500;
   letter-spacing: -0.07em;
   line-height: 1.15;
@@ -196,7 +202,7 @@
   color: #c4bfd2;
 }
 
-@container (max-width: 240px) {
+@container cover (max-width: 240px) {
   .content {
     padding: 10px;
     gap: 8px;
@@ -230,9 +236,6 @@
   .ring {
     mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
   }
-  .progressLabel strong {
-    font-size: 24px;
-  }
   .progressLabel {
     font-size: 8px;
   }
@@ -241,7 +244,7 @@
   }
 }
 
-@container (max-height: 300px) {
+@container cover (max-height: 300px) {
   .header h2 {
     display: none;
   }
@@ -256,7 +259,7 @@
   }
 }
 
-@container (max-height: 220px) {
+@container cover (max-height: 220px) {
   .content {
     padding: 7px;
     gap: 4px;
@@ -288,6 +291,10 @@
       #ffffff12;
   }
   .progressLabel {
+    position: static;
+    height: auto;
+    aspect-ratio: auto;
+    container-type: normal;
     flex-direction: row;
     gap: 3px;
     font-size: 7px;
