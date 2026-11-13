@@ -33,6 +33,7 @@ import { useInventoryPriceState } from '@/hooks/use-inventory-prices';
 import type { PricingRegion } from '@/lib/pricing-region';
 import type { InventoryOwnershipBinding } from '@/lib/inventory-actions';
 import styles from './inventory.module.css';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const InventoryBulkReview = dynamic(
   () => import('./inventory-ownership').then((module) => module.InventoryBulkReview),
@@ -597,7 +598,10 @@ function InventoryResults({
                           ) : (
                             <span className={styles.muted}>
                               {priceStatus === 'loading' ? (
-                                <span className={styles.priceSkeleton} aria-label="Loading price" />
+                                <>
+                                  <Skeleton className="inline-block h-[0.7rem] w-[2.6rem] align-middle" />
+                                  <span className="sr-only">Loading price</span>
+                                </>
                               ) : r.graded ? (
                                 'Not valued'
                               ) : (

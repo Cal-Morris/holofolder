@@ -70,6 +70,7 @@ import {
 } from 'lucide-react';
 import { SelectorMenu } from '@/components/collection-navigation/selector-menu';
 import { cardMatchesLanguages, type CardSearchLanguage } from '@/lib/card-languages';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export type CardSelectorMode = 'collect' | 'wishlist';
 
@@ -231,9 +232,7 @@ function CardSelectorImage({
   // The holo shimmer shows until the image arrives, then goes so hundreds of tiles don't keep animating.
   return (
     <>
-      {shimmer && loadedSrc !== src && (
-        <div aria-hidden="true" className="holo-loading absolute inset-0 rounded-[inherit]" />
-      )}
+      {shimmer && loadedSrc !== src && <Skeleton className="absolute inset-0 rounded-[inherit]" />}
       <CardImage
         sizes={sizes}
         src={src!}
@@ -1505,15 +1504,15 @@ export default function CardSelector({
                       aria-hidden="true"
                       className="bg-card overflow-hidden rounded-xl border-2 border-transparent"
                     >
-                      <div className="holo-loading holo-loading-card aspect-[63/88] w-full rounded-[10px]" />
+                      <Skeleton variant="card" className="aspect-[63/88] w-full rounded-[10px]" />
                       <div className="space-y-1.5 p-1.5 sm:p-2">
-                        <div className="holo-loading holo-loading-bar h-2.5 w-3/4 rounded-full" />
-                        <div className="holo-loading holo-loading-bar h-2 w-1/2 rounded-full" />
+                        <Skeleton className="h-2.5 w-3/4" />
+                        <Skeleton className="h-2 w-1/2" />
                         <div className="grid h-[1.125rem] grid-cols-2 gap-1 sm:h-5">
-                          <div className="holo-loading holo-loading-bar rounded-md" />
-                          <div className="holo-loading holo-loading-bar rounded-md" />
+                          <Skeleton className="rounded-md" />
+                          <Skeleton className="rounded-md" />
                         </div>
-                        <div className="holo-loading holo-loading-bar h-2 w-1/4 rounded-full" />
+                        <Skeleton className="h-2 w-1/4" />
                       </div>
                     </div>
                   ))}
@@ -1671,14 +1670,8 @@ export default function CardSelector({
                               </>
                             ) : (
                               <>
-                                <span
-                                  aria-hidden="true"
-                                  className="bg-muted/70 animate-pulse rounded-md motion-reduce:animate-none"
-                                />
-                                <span
-                                  aria-hidden="true"
-                                  className="bg-muted/70 animate-pulse rounded-md motion-reduce:animate-none"
-                                />
+                                <Skeleton className="rounded-md" />
+                                <Skeleton className="rounded-md" />
                                 <span className="sr-only">Loading price</span>
                               </>
                             )}
