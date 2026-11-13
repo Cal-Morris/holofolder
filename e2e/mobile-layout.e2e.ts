@@ -1,6 +1,6 @@
 import { test, expect, type Harness } from './fixtures';
 
-const header = (harness: Harness) => harness.page.locator('nav').first();
+const header = (harness: Harness) => harness.page.getByTestId('app-header');
 const pager = (harness: Harness) => harness.page.getByTestId('mobile-header-pager');
 
 test('active binder page outline stays inside every clipping container', async ({ harness }) => {
@@ -46,7 +46,7 @@ test('desktop attribution reserves space below the whole binder', async ({ harne
     { width: 1920, height: 1080 },
   ]) {
     await harness.page.setViewportSize(viewport);
-    const footer = harness.page.locator('footer').filter({ hasText: 'Data:' });
+    const footer = harness.page.locator('footer').filter({ has: harness.page.getByTestId('credits-notice') });
     await expect(footer).toBeVisible();
     await expect
       .poll(async () => {
@@ -104,7 +104,7 @@ for (const signedIn of [false, true]) {
     });
 
     test('is not shown outside the binder view', async ({ harness }) => {
-      await harness.dock().getByRole('button', { name: 'List', exact: true }).click();
+      await harness.listTab().click();
       await expect(pager(harness)).toHaveCount(0);
     });
   });
@@ -169,7 +169,7 @@ test('binder controls stay reachable and cards keep their full proportions', asy
   await page.getByRole('button', { name: 'Close view options', exact: true }).click();
   await checkSlots();
   await page.goto('/app/e2e-harness?cardArtwork=1');
-  await expect(page.locator('button[data-dex-id="1"] img').first()).toHaveCSS('object-fit', 'contain');
+  await expect(page.locator('button[data-dex-id="1"] img').first()).toHaveCSS('object-fit', 'cover');
   for (const viewport of [
     { width: 768, height: 667 },
     { width: 1280, height: 800 },
@@ -188,7 +188,15 @@ test('binder controls stay reachable and cards keep their full proportions', asy
     await harness.expectHittable(desktopDisplay.getByRole('button', { name: '3D', exact: true }));
     await menu.getByRole('button', { name: 'Close view options', exact: true }).click();
     await expect
-      .poll(async () => (await page.locator('footer').filter({ hasText: 'Data:' }).boundingBox())?.height ?? Infinity)
+      .poll(
+        async () =>
+          (
+            await page
+              .locator('footer')
+              .filter({ has: page.getByTestId('credits-notice') })
+              .boundingBox()
+          )?.height ?? Infinity,
+      )
       .toBeLessThan(36);
     await harness.expectNoHorizontalOverflow();
   }

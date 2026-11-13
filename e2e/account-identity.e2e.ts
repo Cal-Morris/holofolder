@@ -1,4 +1,4 @@
-import { test, expect, E2E_USER, SUPABASE_URL } from './fixtures';
+import { test, expect, E2E_USER, SUPABASE_URL, settingsRow } from './fixtures';
 import type { Harness } from './fixtures';
 
 async function openAccount(harness: Harness) {
@@ -6,7 +6,7 @@ async function openAccount(harness: Harness) {
   await page.getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Settings' });
-  await dialog.getByRole('button', { name: 'Account', exact: true }).click();
+  await settingsRow(dialog, 'Profile').click();
   return dialog;
 }
 

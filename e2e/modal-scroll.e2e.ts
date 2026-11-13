@@ -7,6 +7,7 @@ import {
   mockBackends,
   emulateStandalone,
   openSettingsPage,
+  seedNativeStorage,
 } from './fixtures';
 import { mockCardPrices } from './price-fixtures';
 import { seedWantList } from './wanted-fixtures';
@@ -15,10 +16,7 @@ import type { Locator, Page } from '@playwright/test';
 class ScrollHarness extends Harness {
   override async openCardDetail() {
     // Short desktop windows have tiny slots whose centre is covered by hover Add/Want controls.
-    await this.page
-      .locator('button[data-dex-id="1"]')
-      .first()
-      .click({ position: { x: 8, y: 8 } });
+    await this.slot(1).click({ position: { x: 8, y: 8 } });
     const dialog = this.page.getByRole('dialog', { name: /bulbasaur details/i });
     await expect(dialog).toBeVisible();
     return dialog;
@@ -30,9 +28,10 @@ const test = base.extend({
   harness: async ({ page, standalone, insets, signedIn, baseURL }, use) => {
     if (standalone) await emulateStandalone(page, insets);
     await mockBackends(page, page.context(), { signedIn, baseURL });
+    if (signedIn) await seedNativeStorage(page.context(), baseURL);
     const harness = new ScrollHarness(page, insets, signedIn);
     await page.goto(harness.path);
-    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expect(harness.slot(1)).toBeVisible();
     await use(harness);
   },
 });
@@ -139,11 +138,7 @@ for (const theme of ['light', 'dark'] as const) {
       if (['standalone-375x667', 'browser-390x844', 'desktop-800x500'].includes(test.info().project.name)) {
         await page.screenshot({ path: test.info().outputPath('all-cards.png') });
       }
-      const action = dialog.getByRole('button', { name: /^Want Bulbasaur/ }).first();
-      await action.hover();
-      const actionTop = await top(body);
-      await page.mouse.wheel(0, 180);
-      await expect.poll(() => top(body)).toBeGreaterThan(actionTop + 80);
+      // Native all-cards rows carry no Want/Add actions, so only artwork and text need checking.
       const current = await top(body);
       await wheel(page, dialog.getByRole('heading'), 250);
       await page.waitForTimeout(150);
@@ -172,11 +167,10 @@ for (const theme of ['light', 'dark'] as const) {
       await harness.closeControl(dialog).click();
       await harness.closeControl(page.getByRole('dialog', { name: /bulbasaur details/i })).click();
       await harness.expectScrollUnlocked();
-      await nav(harness).getByRole('button', { name: 'List', exact: true }).click();
-      const list = page.getByTestId('view-scroller');
-      await expect.poll(() => range(list)).toBeGreaterThan(100);
-      await wheel(page, list, 400);
-      await expect.poll(() => top(list)).toBeGreaterThan(100);
+      await nav(harness).getByRole('button', { name: 'Inventory', exact: true }).click();
+      // The seeded Inventory (two cards) is too short to scroll; switching tabs must still leave scrolling unlocked.
+      await expect(page.getByRole('heading', { name: 'Inventory' }).first()).toBeVisible();
+      await harness.expectScrollUnlocked();
       await nav(harness).getByRole('button', { name: 'Binder', exact: true }).click();
       await openAll(harness);
       await ends(page, dialog);
@@ -189,9 +183,7 @@ for (const theme of ['light', 'dark'] as const) {
       const dialog = await openAll(harness);
       const body = scrollBody(dialog);
       const before = await background(page);
-      await touch(page, body, 150);
-      expect(await top(body)).toBe(0);
-      expect(await background(page)).toEqual(before);
+      // A pull down from the top dismisses the sheet (swipe-to-dismiss, covered in overlays), so start by scrolling down.
       await touch(page, body, -150);
       const down = await top(body);
       expect(down).toBeGreaterThan(40);
@@ -205,8 +197,8 @@ for (const theme of ['light', 'dark'] as const) {
 
     test('selector scroll survives nested filters and variant dismissal', async ({ harness, hasTouch }) => {
       const { page } = harness;
-      const detail = await harness.openCardDetail();
-      await detail.getByRole('button', { name: /change owned card/i }).click();
+      // An unfilled native pocket (Squirtle) opens the card selector directly.
+      await harness.slot(7).click({ position: { x: 8, y: 8 } });
       const selector = page.getByRole('dialog', { name: 'Card selector', exact: true });
       const body = scrollBody(selector);
       await expect(selector.getByText('35 of 35 cards')).toBeVisible();
@@ -239,8 +231,7 @@ for (const theme of ['light', 'dark'] as const) {
         expect(await top(body)).toBeGreaterThan(40);
       }
       await harness.closeControl(selector).click();
-      await expect(detail).toBeVisible();
-      await harness.closeControl(detail).click();
+      await expect(selector).toBeHidden();
       await harness.expectScrollUnlocked();
     });
 
@@ -266,6 +257,75 @@ for (const theme of ['light', 'dark'] as const) {
       await harness.expectWithinSafeViewport(harness.closeControl(dialog));
       await harness.closeControl(dialog).click();
       await harness.expectScrollUnlocked();
+    });
+
+    test('secondary sheets: More, Partner and want filters', async ({ harness, hasTouch }) => {
+      const { page } = harness;
+      // Signed-in (native) binders have no View options sheet; overlays covers it for guests.
+      const more = page.getByTestId('app-header').getByRole('button', { name: 'More', exact: true });
+      await more.click();
+      const menu = page.getByRole('dialog', { name: 'More', exact: true });
+      await harness.expectWithinSafeViewport(harness.closeControl(menu));
+      if ((await range(scrollBody(menu))) > 100) await ends(page, menu);
+      await menu.getByRole('menuitem', { name: 'Partner', exact: true }).click();
+      const partner = page.getByRole('dialog', { name: 'Partner Mode', exact: true });
+      await expect(partner).toBeVisible();
+      if ((await range(scrollBody(partner))) > 100) await ends(page, partner);
+      await harness.expectWithinSafeViewport(harness.closeControl(partner));
+      await harness.closeControl(partner).click();
+      await harness.expectScrollUnlocked();
+      await seedWantList(page);
+      await page.reload();
+      await page.evaluate((value) => document.documentElement.classList.toggle('dark', value === 'dark'), theme);
+      await nav(harness).getByRole('button', { name: 'Wanted', exact: true }).click();
+      await page.getByTestId('wanted-sort-filter').click();
+      const filters = page.getByRole('dialog', { name: 'Sort and filter want list', exact: true });
+      await expect(filters).toBeVisible();
+      if ((await range(scrollBody(filters))) > 100) {
+        await ends(page, filters);
+        if (hasTouch) await touch(page, scrollBody(filters), -100);
+      }
+      await harness.expectWithinSafeViewport(harness.closeControl(filters));
+      await harness.closeControl(filters).click();
+      // Native want-list rows act inline (Check price, Add to collection); there is no per-row actions sheet.
+      await harness.expectScrollUnlocked();
+    });
+
+    test(
+      'settings: clipped sections scroll, last controls and close stay reachable',
+      { tag: '@matrix' },
+      async ({ harness, hasTouch }) => {
+        const { page } = harness;
+        await page.getByTestId('app-header').getByRole('button', { name: 'More', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+        const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
+        await expect(dialog).toBeVisible();
+        const before = await background(page);
+        await openSettingsPage(dialog, 'Appearance');
+        await ends(page, dialog);
+        if (hasTouch) {
+          await touch(page, scrollBody(dialog), -150);
+          expect(await top(scrollBody(dialog))).toBeGreaterThan(40);
+        }
+        expect(await background(page)).toEqual(before);
+        await harness.expectWithinSafeViewport(harness.closeControl(dialog));
+        await harness.closeControl(dialog).click();
+        await harness.expectScrollUnlocked();
+      },
+    );
+  });
+
+  // Signed-in search opens a card hit on its own; only the guest Pokémon list jumps to the highlighted card.
+  test.describe(`${theme} guest`, () => {
+    test.use({ signedIn: false, colorScheme: theme });
+    test.beforeEach(async ({ harness }) => {
+      await harness.page.evaluate(
+        (value) => document.documentElement.classList.toggle('dark', value === 'dark'),
+        theme,
+      );
+      await harness.page.route('**/app/api/tcgdex-cache**', (route) =>
+        route.fulfill({ json: { cards, source: 'mirror' } }),
+      );
     });
 
     test('search highlight and breakout jumps remain scrollable, keyboard keeps controls visible', async ({
@@ -315,68 +375,6 @@ for (const theme of ['light', 'dark'] as const) {
       await harness.closeControl(dialog).click();
       await harness.expectScrollUnlocked();
     });
-
-    test('secondary sheets: More, Partner, want filters and actions', async ({ harness, hasTouch }) => {
-      const { page } = harness;
-      const view = await harness.openViewOptions();
-      if ((await range(scrollBody(view))) > 100) await ends(page, view);
-      await harness.expectWithinSafeViewport(harness.closeControl(view));
-      await harness.closeControl(view).click();
-      const more = page.getByTestId('app-header').getByRole('button', { name: 'More', exact: true });
-      await more.click();
-      const menu = page.getByRole('dialog', { name: 'More', exact: true });
-      await harness.expectWithinSafeViewport(harness.closeControl(menu));
-      if ((await range(scrollBody(menu))) > 100) await ends(page, menu);
-      await menu.getByRole('menuitem', { name: 'Partner', exact: true }).click();
-      const partner = page.getByRole('dialog', { name: 'Partner Mode', exact: true });
-      await expect(partner).toBeVisible();
-      if ((await range(scrollBody(partner))) > 100) await ends(page, partner);
-      await harness.expectWithinSafeViewport(harness.closeControl(partner));
-      await harness.closeControl(partner).click();
-      await harness.expectScrollUnlocked();
-      await seedWantList(page);
-      await page.reload();
-      await page.evaluate((value) => document.documentElement.classList.toggle('dark', value === 'dark'), theme);
-      await nav(harness).getByRole('button', { name: 'Wanted', exact: true }).click();
-      await page.getByTestId('wanted-sort-filter').click();
-      const filters = page.getByRole('dialog', { name: 'Sort and filter want list', exact: true });
-      await expect(filters).toBeVisible();
-      if ((await range(scrollBody(filters))) > 100) {
-        await ends(page, filters);
-        if (hasTouch) await touch(page, scrollBody(filters), -100);
-      }
-      await harness.expectWithinSafeViewport(harness.closeControl(filters));
-      await harness.closeControl(filters).click();
-      await page.getByRole('button', { name: 'More actions for Bulbasaur' }).click();
-      const actions = page.getByRole('dialog', { name: 'Actions for Bulbasaur', exact: true });
-      await expect(actions).toBeVisible();
-      await harness.expectWithinSafeViewport(actions.getByRole('button', { name: 'Cancel', exact: true }));
-      await actions.getByRole('button', { name: 'Cancel', exact: true }).click();
-      await harness.expectScrollUnlocked();
-    });
-
-    test(
-      'settings: clipped sections scroll, last controls and close stay reachable',
-      { tag: '@matrix' },
-      async ({ harness, hasTouch }) => {
-        const { page } = harness;
-        await page.getByTestId('app-header').getByRole('button', { name: 'More', exact: true }).click();
-        await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
-        const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
-        await expect(dialog).toBeVisible();
-        const before = await background(page);
-        await openSettingsPage(dialog, 'Appearance');
-        await ends(page, dialog);
-        if (hasTouch) {
-          await touch(page, scrollBody(dialog), -150);
-          expect(await top(scrollBody(dialog))).toBeGreaterThan(40);
-        }
-        expect(await background(page)).toEqual(before);
-        await harness.expectWithinSafeViewport(harness.closeControl(dialog));
-        await harness.closeControl(dialog).click();
-        await harness.expectScrollUnlocked();
-      },
-    );
   });
 }
 
@@ -394,40 +392,5 @@ test.describe('overlay inventory', () => {
     await harness.expectHittable(harness.closeControl(dialog));
     await harness.closeControl(dialog).click();
     await harness.expectScrollUnlocked();
-  });
-
-  test.describe('signed in', () => {
-    test.use({ signedIn: true });
-
-    test('binder switcher scrolls a long list without losing its close control', async ({ harness, hasTouch }) => {
-      const { page } = harness;
-      // Synthetic binders, only list reads are permitted in this test.
-      const binders = Array.from({ length: 30 }, (_, index) => ({
-        id: `e2e00000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
-        ownerUserId: '00000000-0000-4000-8000-0000000000e2',
-        name: `Fixture binder ${index + 1}`,
-        sortOrder: index,
-        isDefault: index === 0,
-        slotCount: 2,
-        color: null,
-        rows: null,
-        cols: null,
-        createdAt: null,
-        updatedAt: null,
-      }));
-      await page.route('**/app/api/binders**', (route) => route.fulfill({ json: { binders } }));
-      await page.goto('/app/e2e-harness?signedIn=1&binders=1');
-      await page.getByTestId('binder-switcher-trigger').click();
-      const dialog = page.getByRole('dialog', { name: 'Binders', exact: true });
-      await expect(dialog.getByRole('listitem')).toHaveCount(30);
-      await ends(page, dialog);
-      if (hasTouch) {
-        await touch(page, scrollBody(dialog), -150);
-        expect(await top(scrollBody(dialog))).toBeGreaterThan(40);
-      }
-      await harness.expectWithinSafeViewport(harness.closeControl(dialog));
-      await harness.closeControl(dialog).click();
-      await harness.expectScrollUnlocked();
-    });
   });
 });

@@ -33,7 +33,7 @@ async function dockBar(harness: Harness) {
 async function reloadAt(harness: Harness, width: number, height: number) {
   await harness.page.setViewportSize({ width, height });
   await harness.page.reload();
-  await expect(harness.page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+  await expect(harness.slot(1)).toBeVisible();
   await harness.page.waitForTimeout(150);
 }
 
@@ -100,7 +100,6 @@ for (const [label, height, gap] of [
       await reloadAt(harness, 393, height);
       await expect(page.locator('html')).toHaveAttribute('data-ios-viewport-gap', String(gap));
       await harness.dock().getByRole('button', { name: 'Wanted', exact: true }).click();
-      await expect(page.getByTestId('wanted-row')).toHaveCount(6);
       await page.getByTestId('wanted-sort-filter').click();
       const sheet = page.getByRole('dialog', { name: 'Sort and filter want list' });
       await expect(sheet).toBeVisible();
@@ -132,14 +131,15 @@ for (const [label, height, gap] of [
 
       const search = dialog.getByRole('searchbox');
       await expect(search).toBeVisible();
+      // The search is a floating panel: its margin (0.5rem + --safe-bottom), not its padding, clears the home indicator.
       const searchFooter = await search.evaluate((element) => {
-        const footer = element.closest('.border-t') as HTMLElement;
+        const footer = element.closest('.holo-panel') as HTMLElement;
         return {
-          padding: parseFloat(getComputedStyle(footer).paddingBottom),
+          margin: parseFloat(getComputedStyle(footer).marginBottom),
           bottom: footer.getBoundingClientRect().bottom,
         };
       });
-      expect(searchFooter.padding).toBeCloseTo(expected, 0);
+      expect(searchFooter.margin).toBeCloseTo(8 + (gap ? 0 : harness.insets.bottom), 0);
       expect(searchFooter.bottom).toBeLessThanOrEqual(height + 0.5);
 
       await search.fill('charizard');

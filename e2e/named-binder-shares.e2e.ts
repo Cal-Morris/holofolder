@@ -34,7 +34,9 @@ test('owner explicitly saves account username and binder slug, then gets the sav
       },
     }),
   );
-  await page.goto('/app/e2e-harness?signedIn=1&binders=1');
+  await page.goto('/app/e2e-harness?signedIn=1&browserHost=1');
+  // Sharing appears once the live binder replaces this device's saved copy (as in Harness.reload()).
+  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeEnabled({ timeout: 30_000 });
   const dialog = await settings(harness);
   await openSettingsPage(dialog, 'Profile');
   const account = dialog.getByRole('region', { name: 'Your profile' });
@@ -69,7 +71,7 @@ test('partner sees owner address but cannot rename it, unavailable schema preser
   await page.route('**/app/api/account-identity', (route) =>
     route.fulfill({ status: 503, json: { error: 'Usernames are not available yet' } }),
   );
-  await page.goto('/app/e2e-harness?signedIn=1&binders=1&partner=1');
+  await page.goto('/app/e2e-harness?signedIn=1&browserHost=1&partner=1');
   const dialog = await settings(harness);
   await openSettingsPage(dialog, 'Sharing');
   const binder = dialog.getByRole('region', { name: 'Binder address' });
@@ -98,7 +100,9 @@ test('share pricing defaults off and owner can enable and disable it', async ({ 
       },
     });
   });
-  await page.goto('/app/e2e-harness?signedIn=1&binders=1');
+  await page.goto('/app/e2e-harness?signedIn=1&browserHost=1');
+  // Sharing appears once the live binder replaces this device's saved copy (as in Harness.reload()).
+  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeEnabled({ timeout: 30_000 });
   const dialog = await settings(harness);
   await openSettingsPage(dialog, 'Sharing');
   const toggle = dialog.getByRole('switch', { name: 'Show prices on shared binder' });
@@ -123,7 +127,9 @@ test('shared binder without pricing cannot load prices or expose price details',
   const controls = await harness.openViewOptions();
   await expect(controls.getByRole('button', { name: 'Prices', exact: true })).toHaveCount(0);
   await harness.closeControl(controls).click();
-  await harness.openCardDetail();
+  // Read-only shares render the dex grid, not the signed-in owner's native slots.
+  await page.locator('button[data-dex-id="1"]').first().click();
+  await expect(page.getByRole('dialog', { name: /bulbasaur.* details/i })).toBeVisible();
   await expect(page.getByText('Price details', { exact: true })).toHaveCount(0);
   expect(priceRequests).toEqual([]);
   await harness.expectNoHorizontalOverflow();
@@ -137,6 +143,8 @@ test('shared binder with pricing enabled retains the pricing view', async ({ har
     'true',
   );
   await harness.closeControl(controls).click();
-  await harness.openCardDetail();
+  // Read-only shares render the dex grid, not the signed-in owner's native slots.
+  await page.locator('button[data-dex-id="1"]').first().click();
+  await expect(page.getByRole('dialog', { name: /bulbasaur.* details/i })).toBeVisible();
   await expect(page.getByText('Price details', { exact: true })).toBeVisible();
 });

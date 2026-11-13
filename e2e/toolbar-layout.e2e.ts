@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures';
 
-test.use({ signedIn: true });
+// Guests: signed-in (native) binders have no header View options; their view is the Collection view picker.
+test.use({ signedIn: false });
 
 for (const width of [768, 1024, 1280, 1440]) {
   test(`desktop toolbar fits at ${width}px without scrolling`, async ({ harness }, testInfo) => {
@@ -29,7 +30,7 @@ for (const width of [768, 1024, 1280, 1440]) {
     expect((await menu.boundingBox())!.width).toBeLessThanOrEqual(340);
     await harness.expectMinTapTarget(menu.getByRole('button', { name: 'Close view options', exact: true }), 36);
     await expect(menu.getByRole('group', { name: 'Binder display' })).toBeVisible();
-    await harness.expectHittable(menu.getByRole('button', { name: 'Perfect', exact: true }));
+    await harness.expectHittable(menu.getByRole('button', { name: '3D', exact: true }));
     await menu.getByRole('combobox', { name: 'Generation', exact: true }).selectOption('2');
     await expect(harness.page.getByRole('spinbutton', { name: 'Binder page number' })).toHaveValue('10');
     await harness.page.keyboard.press('Escape');
@@ -51,7 +52,7 @@ for (const width of [768, 1024, 1280, 1440]) {
       await harness.page.getByRole('button', { name: 'More', exact: true }).click();
       await harness.page.getByRole('menuitem', { name: 'Light mode', exact: true }).click();
       await opener.click();
-      await harness.expectHittable(menu.getByRole('button', { name: 'Perfect', exact: true }));
+      await harness.expectHittable(menu.getByRole('button', { name: '3D', exact: true }));
       await testInfo.attach('desktop-view-menu-light', {
         body: await harness.page.screenshot({ path: testInfo.outputPath('view-options-light.png') }),
         contentType: 'image/png',
