@@ -11,6 +11,7 @@ import {
   type BinderPrepStatus,
 } from '@/lib/binder-offline-prep';
 import { getOfflineStore } from '@/lib/offline-store/kv';
+import { readSavedNativeSnapshot } from '@/lib/collection/native-startup';
 import { loadPriceEvidence, saveCardPricesForOffline } from '@/hooks/use-card-prices';
 import { requestPersistentStorage } from '@/lib/service-worker-registration';
 import { formatPriceCheckAge } from '@/lib/card-price-check-cache';
@@ -18,9 +19,11 @@ import { formatPriceCheckAge } from '@/lib/card-price-check-cache';
 export interface BinderOfflineSource {
   collection: readonly CollectedPokemon[];
   scope: BinderPrepScope;
+  /** The signed-in account, which keys this device's saved native copy of the owner's collection. */
+  accountUserId: string | null;
 }
 
-async function dependencies() {
+async function dependencies(accountUserId: string | null, ownerUserId: string | null) {
   const store = getOfflineStore();
   if (!store || !window.caches) throw new Error('Offline storage is unavailable on this device.');
   return {
@@ -28,12 +31,14 @@ async function dependencies() {
     shellReady: Boolean(await caches.match('/app/app-shell')),
     cache: await caches.open(BINDER_IMAGE_CACHE),
     loadPrices: loadPriceEvidence,
+    loadSavedSnapshot: () => readSavedNativeSnapshot(store, localStorage, accountUserId, ownerUserId),
   };
 }
 
 export default function BinderOfflinePrep({
   collection,
   scope,
+  accountUserId,
   isOnline,
 }: BinderOfflineSource & { isOnline: boolean }) {
   const cards = useMemo(() => binderPrintings(collection), [collection]);
@@ -41,11 +46,11 @@ export default function BinderOfflinePrep({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('Checking saved binder…');
   const controller = useRef<AbortController | null>(null);
-  const { ownerUserId, binderId, isDefault } = scope;
-  const stableScope = useMemo(() => ({ ownerUserId, binderId, isDefault }), [ownerUserId, binderId, isDefault]);
+  const { ownerUserId, binderId } = scope;
+  const stableScope = useMemo(() => ({ ownerUserId, binderId }), [ownerUserId, binderId]);
   const inspect = useCallback(async () => {
-    return inspectBinderPrep(cards, stableScope, await dependencies());
-  }, [cards, stableScope]);
+    return inspectBinderPrep(cards, stableScope, await dependencies(accountUserId, ownerUserId));
+  }, [cards, stableScope, accountUserId, ownerUserId]);
   // oxlint-disable-next-line react-doctor/no-cascading-set-state -- the setters run when the check settles, not during the effect
   useEffect(() => {
     let active = true;
@@ -79,7 +84,7 @@ export default function BinderOfflinePrep({
     try {
       setMessage('Saving card data…');
       const result = await downloadBinderPrep(cards, stableScope, {
-        ...(await dependencies()),
+        ...(await dependencies(accountUserId, ownerUserId)),
         signal: abort.signal,
         savePrices: saveCardPricesForOffline,
         onProgress: (phase, done, total) =>

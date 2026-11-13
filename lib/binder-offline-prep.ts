@@ -16,8 +16,7 @@ import {
   PRICE_CHECK_SOURCES,
   readPinnedCardPriceCheck,
 } from '@/lib/card-price-check-cache';
-import { collectionRecordKey } from '@/lib/binders/offline';
-import { loadCollectionRecord } from '@/lib/offline-store/records';
+import type { InventorySnapshot } from '@/lib/domain/inventory';
 import type { OfflineKeyValueStore } from '@/lib/offline-store/kv';
 import { mapWithConcurrency } from '@/lib/card-db-sync-concurrency';
 
@@ -25,7 +24,6 @@ export const BINDER_IMAGE_CACHE = 'binderdex-v1-show-images';
 export interface BinderPrepScope {
   ownerUserId: string | null;
   binderId: string | null;
-  isDefault: boolean;
 }
 export interface BinderPrinting {
   cardId: string;
@@ -61,6 +59,25 @@ export function binderPrintings(items: readonly CollectedPokemon[]): BinderPrint
   return [...cards.values()];
 }
 
+/** Printings of one binder in the native snapshot saved on this device: placed copies and slot wants. */
+export function savedBinderPrintingKeys(snapshot: InventorySnapshot | null, scope: BinderPrepScope) {
+  const keys = new Set<string>();
+  if (!snapshot || !scope.binderId || snapshot.ownerUserId !== scope.ownerUserId) return keys;
+  const add = (cardId: string, language: CardLanguage | null | undefined, finish: CardFinish | null | undefined) =>
+    keys.add(printingKey({ cardId, language: language ?? 'en', finish: finish ?? 'normal', images: [] }));
+  const placed = new Set<string>();
+  for (const placement of snapshot.placements)
+    if (placement.collectionId === scope.binderId) placed.add(placement.inventoryItemId);
+  for (const item of snapshot.items)
+    if (placed.has(item.id) && item.identity.kind === 'card')
+      add(item.identity.cardId, item.identity.language, item.identity.finish);
+  for (const binder of snapshot.binders)
+    if (binder.collectionId === scope.binderId)
+      for (const slot of binder.slots)
+        for (const want of slot.wantedCards) if (want.card_id) add(want.card_id, want.card_language, want.card_finish);
+  return keys;
+}
+
 export const supportsSavedChecks = (card: BinderPrinting) => card.language === 'en' && card.finish !== 'jumbo';
 const checkReceipt = (scope: BinderPrepScope, card: BinderPrinting, source: string) =>
   `${binderPrepKey(scope)}:check:${card.cardId}:${priceCheckFinish(card.finish)}:${source}`;
@@ -88,6 +105,8 @@ interface Dependencies {
   store: OfflineKeyValueStore;
   cache: Cache;
   loadPrices: (lookups: { cardId: string; language: CardLanguage }[]) => Promise<readonly CardPriceSnapshot[]>;
+  /** The owner's native snapshot saved on this device (with its queued edits), or null. */
+  loadSavedSnapshot: () => Promise<InventorySnapshot | null>;
 }
 
 const isSavedImage = (response: Response | undefined) =>
@@ -123,11 +142,7 @@ export async function inspectBinderPrep(
     complete: false,
     shell: deps.shellReady,
   };
-  const record = await loadCollectionRecord(deps.store, collectionRecordKey(scope.binderId, scope.isDefault));
-  const savedCards =
-    record?.ownerUserId === scope.ownerUserId && (record.binderId ?? null) === scope.binderId
-      ? new Set(binderPrintings(record.collection).map(printingKey))
-      : new Set<string>();
+  const savedCards = savedBinderPrintingKeys(await deps.loadSavedSnapshot(), scope);
   const prices = new Map(
     (await deps.loadPrices(cards)).map((price) => [getCardPriceKey(price.cardId, price.language), price]),
   );

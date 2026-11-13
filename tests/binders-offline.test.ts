@@ -2,13 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Binder } from '../lib/binders/model';
 import {
-  collectionRecordKey,
   DEVICE_BINDERS_KEY,
-  markBinderSavedOnDevice,
   offlineAvailableBinderIds,
   pickOfflineBinder,
   readDeviceBinders,
   rememberDeviceBinders,
+  rememberSavedBinders,
 } from '../lib/binders/offline';
 import { readOfflineBinderBoot } from '../lib/offline-shell';
 
@@ -45,16 +44,10 @@ function memoryStorage(entries: Record<string, unknown> = {}) {
   };
 }
 
-test('the default binder keeps the original IndexedDB key; other binders get their own', () => {
-  assert.equal(collectionRecordKey(MAIN, true), 'collection');
-  assert.equal(collectionRecordKey(TRADES, false), `collection:${TRADES}`);
-});
-
 test('the binder list is remembered per owner, and saved binders are tracked', () => {
   const storage = memoryStorage();
   rememberDeviceBinders(storage, 'owner', BINDERS);
-  markBinderSavedOnDevice(storage, 'owner', TRADES);
-  markBinderSavedOnDevice(storage, 'owner', TRADES);
+  rememberSavedBinders(storage, 'owner', [TRADES, TRADES]);
   const device = readDeviceBinders(storage, 'owner')!;
   assert.deepEqual(
     device.binders.map((item) => item.name),
@@ -75,7 +68,7 @@ test('the binder list is remembered per owner, and saved binders are tracked', (
 test('a binder opens offline only when this device has a copy of it', () => {
   const storage = memoryStorage();
   rememberDeviceBinders(storage, 'owner', BINDERS);
-  markBinderSavedOnDevice(storage, 'owner', TRADES);
+  rememberSavedBinders(storage, 'owner', [TRADES]);
   assert.deepEqual([...offlineAvailableBinderIds(storage, 'owner', BINDERS)], [TRADES]);
   assert.deepEqual([...offlineAvailableBinderIds(storage, 'stranger', BINDERS)], []);
 });
@@ -117,9 +110,31 @@ test("offline boot keeps each binder's own custom layout and queued device dimen
     'owner',
     BINDERS.map((binder) => ({ ...binder, rows: 2, cols: 2 })),
   );
-  markBinderSavedOnDevice(storage, 'owner', MAIN);
-  markBinderSavedOnDevice(storage, 'owner', TRADES);
+  rememberSavedBinders(storage, 'owner', [MAIN, TRADES]);
   assert.equal(readOfflineBinderBoot(storage, '', 'owner', MAIN, null).settings.binderRows, 2);
   assert.equal(readOfflineBinderBoot(storage, '', 'owner', TRADES, null).settings.binderRows, 8);
   assert.equal(readOfflineBinderBoot(storage, '', 'owner', TRADES, null).settings.binderCols, 7);
+});
+
+test('the saved set follows the latest saved snapshot, before or after the binder list arrives', () => {
+  const storage = memoryStorage();
+  // The snapshot can be saved before BinderApp remembers the list.
+  rememberSavedBinders(storage, 'owner', [MAIN, TRADES]);
+  rememberDeviceBinders(storage, 'owner', BINDERS);
+  assert.deepEqual([...offlineAvailableBinderIds(storage, 'owner', BINDERS)], [MAIN, TRADES]);
+  // A later snapshot without Trades replaces the set.
+  rememberSavedBinders(storage, 'owner', [MAIN]);
+  assert.deepEqual([...offlineAvailableBinderIds(storage, 'owner', BINDERS)], [MAIN]);
+  assert.equal(readDeviceBinders(storage, 'owner')!.binders.length, 3);
+});
+
+test('a binder link by slug opens offline', () => {
+  const storage = memoryStorage();
+  rememberDeviceBinders(
+    storage,
+    'owner',
+    BINDERS.map((item) => ({ ...item, slug: item.name.toLowerCase().replace(/\s+/g, '-') })),
+  );
+  rememberSavedBinders(storage, 'owner', [MAIN, TRADES]);
+  assert.equal(readOfflineBinderBoot(storage, '', 'owner', 'trades', null).binderId, TRADES);
 });

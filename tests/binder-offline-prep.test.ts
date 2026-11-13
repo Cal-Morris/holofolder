@@ -5,14 +5,30 @@ import {
   downloadBinderPrep,
   inspectBinderPrep,
   binderPrepKey,
+  savedBinderPrintingKeys,
+  printingKey,
   type BinderPrepScope,
 } from '@/lib/binder-offline-prep';
+import type { InventorySnapshot } from '@/lib/domain/inventory';
 import { createMemoryStore } from '@/lib/offline-store/kv';
 import type { CollectedPokemon } from '@/lib/domain/cards';
 import type { CardPriceSnapshot } from '@/lib/card-pricing';
 import { readPinnedCardPriceCheck } from '@/lib/card-price-check-cache';
 
-const scope: BinderPrepScope = { ownerUserId: 'synthetic-owner', binderId: null, isDefault: true };
+const scope: BinderPrepScope = { ownerUserId: 'synthetic-owner', binderId: 'synthetic-binder' };
+/** A synthetic native snapshot holding `rows` as copies placed in the binder (only the fields the prep reads). */
+const nativeSnapshot = (rows: CollectedPokemon[]) =>
+  ({
+    ownerUserId: 'synthetic-owner',
+    inventoryRevision: 1,
+    items: rows.map((row) => ({
+      id: row.id,
+      identity: { kind: 'card', cardId: row.card_id, language: row.card_language, finish: row.card_finish },
+    })),
+    placements: rows.map((row) => ({ inventoryItemId: row.id, collectionId: 'synthetic-binder' })),
+    collections: [],
+    binders: [],
+  }) as unknown as InventorySnapshot;
 // Synthetic cards and evidence, never provider data.
 const collection = (count: number): CollectedPokemon[] =>
   Array.from({ length: count }, (_, i) => ({
@@ -34,9 +50,7 @@ const check = (kind: 'asking' | 'sold') => ({
   ...(kind === 'sold' ? { sales: [{ amount: 2, soldAt: '2026-01-01' }] } : { listings: [{ amount: 2 }] }),
 });
 function setup(rows: CollectedPokemon[]) {
-  const store = createMemoryStore({
-    collection: { ...scope, collection: rows, pendingOperations: [{ keep: true }], savedAt: '2026-01-01' },
-  });
+  const store = createMemoryStore();
   const images = new Map<string, Response>();
   const cache = {
     match: async (url: string) => images.get(url)?.clone(),
@@ -83,6 +97,7 @@ function setup(rows: CollectedPokemon[]) {
     signal: new AbortController().signal,
     onProgress: () => {},
     loadPrices: async () => [...prices.values()],
+    loadSavedSnapshot: async () => nativeSnapshot(rows),
     savePrices: async (values: unknown[]) => {
       for (const price of values as CardPriceSnapshot[]) prices.set(`${price.cardId}:${price.language}`, price);
     },
@@ -90,6 +105,31 @@ function setup(rows: CollectedPokemon[]) {
 }
 
 describe('binder offline prep', () => {
+  test('counts saved cards from the native snapshot on this device: placed copies and wants of this binder only', () => {
+    const snapshot = {
+      ...nativeSnapshot(collection(2)),
+      placements: [
+        { inventoryItemId: 'slot-0', collectionId: 'synthetic-binder' },
+        { inventoryItemId: 'slot-1', collectionId: 'synthetic-other' },
+      ],
+      binders: [
+        {
+          collectionId: 'synthetic-binder',
+          slots: [{ wantedCards: [{ card_id: 'synthetic-want', card_language: 'ja', card_finish: 'holo' }] }],
+        },
+        { collectionId: 'synthetic-other', slots: [{ wantedCards: [{ card_id: 'synthetic-elsewhere' }] }] },
+      ],
+    } as unknown as InventorySnapshot;
+    const key = (cardId: string, language = 'en', finish = 'normal') =>
+      printingKey({ cardId, language, finish, images: [] } as Parameters<typeof printingKey>[0]);
+    assert.deepEqual(
+      [...savedBinderPrintingKeys(snapshot, scope)],
+      [key('synthetic-0'), key('synthetic-want', 'ja', 'holo')],
+    );
+    assert.equal(savedBinderPrintingKeys(snapshot, { ...scope, ownerUserId: 'someone-else' }).size, 0);
+    assert.equal(savedBinderPrintingKeys(null, scope).size, 0);
+  });
+
   test('keeps exact stamped ids, languages and finishes, deduping owned/wanted printings', () => {
     const rows = collection(1);
     rows[0].card_id = 'base1-4-stamped';
@@ -142,7 +182,6 @@ describe('binder offline prep', () => {
     assert.equal(deps.requests.filter((url) => url.includes('card-price-checks?')).length, 6);
     assert.equal(deps.prices.get('synthetic-0:en')?.marketGbpAmount, 4);
     assert.equal((await readPinnedCardPriceCheck('synthetic-0', 'normal', 'soldcomps', deps.store))?.summary.median, 9);
-    assert.equal((await deps.store.get<{ pendingOperations: unknown[] }>('collection'))?.pendingOperations.length, 1);
     assert.equal(result.oldestCheck, '2026-01-01T00:00:00Z');
     assert.ok(
       [...deps.prices.values()].every(
@@ -167,7 +206,7 @@ describe('binder offline prep', () => {
     deps.images.clear();
     assert.equal((await inspectBinderPrep(cards, scope, deps)).images, 0);
     assert.notEqual(binderPrepKey(scope), binderPrepKey({ ...scope, ownerUserId: 'other' }));
-    const other = await inspectBinderPrep(cards, { ...scope, binderId: 'other', isDefault: false }, deps);
+    const other = await inspectBinderPrep(cards, { ...scope, binderId: 'other' }, deps);
     assert.equal(other.cards, 0);
     assert.equal(other.prices, 0);
     assert.equal(other.sold, 0);

@@ -20,6 +20,7 @@ import type { SlotOfflineIntent } from '@/lib/collection/slot-optimistic';
 import { inventoryGradingReference, prepareInventoryGradingIntent } from '@/lib/grading/inventory-edit';
 import CollectionNavigationHost, { type NavigationSurface } from './navigation-host';
 import { useSlotOfflineQueue } from '@/hooks/use-slot-offline-queue';
+import { rememberSavedBinders } from '@/lib/binders/offline';
 import {
   CollectionNavigationReadError,
   readCurrentCollectionNavigation,
@@ -331,6 +332,13 @@ function ScopedBrowserSession({
       if (!valid() || request !== sequence.current) throw new Error('inventory_read_scope_changed');
       setUpdateFailed(false);
       await getOfflineStore()?.set(metadataKey, { catalog: fresh.catalog, layouts: fresh.layouts });
+      // Every binder in the saved owner snapshot now opens offline (the offline shell and binder switcher read this).
+      if (!pending)
+        rememberSavedBinders(
+          localStorage,
+          scope.ownerUserId,
+          fresh.evidence.snapshot.binders.map((binder) => binder.collectionId),
+        );
       if (valid() && request === sequence.current) onReady();
       return fresh;
     } catch (error) {
