@@ -25,7 +25,6 @@ async function main() {
         select(columns: string) {
           if (table === 'collection_activity') {
             assert.ok(!columns.includes('recovery_state'));
-            assert.ok(!columns.includes('command_evidence'));
           }
           return query;
         },

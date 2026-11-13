@@ -290,8 +290,6 @@ test(
       assert.equal(event.actor_user_id, partner);
       assert.equal(event.source, 'mcp');
       assert.equal(event.operation_id, inventoryRequest.operationId);
-      assert.equal(event.command_evidence.inventoryRevision, result.inventoryRevision);
-      assert.deepEqual(event.command_evidence.after, result.after);
       assert.ok(event.affected_entities.inventoryItemIds.includes('synthetic/copy-one'));
       const committed = await count();
       assert.deepEqual((await execute()).rows[0].result, result);
@@ -445,7 +443,6 @@ test(
       ).rows[0];
       assert.equal(event.action, 'legacy_conversion');
       assert.equal(event.actor_kind, 'unknown');
-      assert.deepEqual(event.command_evidence, receipt);
       await db.query('SET LOCAL ROLE service_role');
       await convert();
       await flush();

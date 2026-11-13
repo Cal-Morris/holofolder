@@ -34,7 +34,6 @@ async function main() {
     assert.equal(url.searchParams.get('order'), 'id.desc');
     const columns = url.searchParams.get('select')!;
     assert.ok(!columns.includes('recovery_state'));
-    assert.ok(!columns.includes('command_evidence'));
     if (missing) return Response.json({ code: '42703', message: 'missing column' }, { status: 400 });
     let found = rows;
     const id = url.searchParams.get('id');

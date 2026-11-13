@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { projectActivityChanges } from '@/lib/collection-activity';
 
 // changes holds whole rows; every row is projected to the shown fields before it leaves the server,
-// so certificates, labels and artwork uploads never do. command_evidence is never read.
+// so certificates, labels and artwork uploads never do.
 export const AUDIT_READ_COLUMNS =
   'id::text,recorded_at,format_version,actor_kind,actor_user_id,actor_job,source,client_id,operation_id,batch_id,client_occurred_at,action,affected_entities,changes,recovery_of_event_id::text';
 export function isAuditId(value: unknown): value is string {
