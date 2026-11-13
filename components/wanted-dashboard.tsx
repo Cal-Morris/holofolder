@@ -160,10 +160,12 @@ export default function WantedDashboard({
   handlePokemonSelect,
   jumpToWantedPokemonPage,
   onCheckAnyCardPrice,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: WantedDashboardProps) {
   const { partner } = usePartner({ user });
   const personLabel = (ids: string[] | undefined) =>
     wantedPeopleLabel(ids, user?.id ?? null, partner?.id ?? null, partner?.email ?? 'Partner');
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- the navigation effect waits for this and for the actions sheet to close
   const [pendingBinder, setPendingBinder] = useState<string | null>(null);
   const openWantedBinder = (binderId: string) => {
     rememberBinderScope('wanted', 'binder');
@@ -279,10 +281,8 @@ export default function WantedDashboard({
       readOnlyMode={readOnlyMode}
       otherBinderName={
         isAllBinders
-          ? (wantedCard.locations
-              ?.map((location) => location.binderName)
-              .filter((name, index, names) => names.indexOf(name) === index)
-              .join(', ') ??
+          ? ((wantedCard.locations &&
+              Array.from(new Set(wantedCard.locations.map((location) => location.binderName))).join(', ')) ??
             wantedCard.binderName ??
             null)
           : null
@@ -621,6 +621,7 @@ function WantedRow({
       >
         <span className="trading-card border-border/55 bg-muted relative w-11 shrink-0 border dark:border-white/10">
           {card.card_image ? (
+            // oxlint-disable-next-line nextjs/no-img-element -- card image from assets.holofolder.com or the image proxy, cached by the service worker for offline use; next/image would bypass that cache
             <img
               src={toCardImageSrc(card.card_image) ?? undefined}
               alt=""
@@ -712,15 +713,17 @@ function WantedInsights({
           {highest && highestLabel ? ` · top ${highest.card.card_name} ${highestLabel}` : ''}
         </p>
         <ul className="space-y-1" aria-label="Cards by price">
-          {wantedDashboard.priceBands
-            .filter((band) => band.count > 0)
-            .map((band) => (
-              <li key={band.id} className="flex items-center gap-2">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${BAND_DOT[band.id]}`} aria-hidden="true" />
-                <span className="min-w-0 flex-1">{band.label}</span>
-                <span className="text-muted-foreground tabular-nums">{band.count}</span>
-              </li>
-            ))}
+          {wantedDashboard.priceBands.flatMap((band) =>
+            band.count > 0
+              ? [
+                  <li key={band.id} className="flex items-center gap-2">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${BAND_DOT[band.id]}`} aria-hidden="true" />
+                    <span className="min-w-0 flex-1">{band.label}</span>
+                    <span className="text-muted-foreground tabular-nums">{band.count}</span>
+                  </li>,
+                ]
+              : [],
+          )}
         </ul>
         {topSets.length > 1 ? (
           <ul className="border-border/40 space-y-1 border-t pt-2 dark:border-white/10" aria-label="Most wanted sets">

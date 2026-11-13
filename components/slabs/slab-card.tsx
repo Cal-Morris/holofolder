@@ -52,8 +52,8 @@ function Subgrades({ slab }: { slab: SlabPresentation }) {
   return (
     <div className={styles.subgrades}>
       {slab.subgrades.length ? (
-        slab.subgrades.map((s, i) => (
-          <span key={i}>
+        slab.subgrades.map((s) => (
+          <span key={s.name}>
             {s.name} <b>{s.grade}</b>
           </span>
         ))

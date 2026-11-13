@@ -139,6 +139,9 @@ interface SettingsModalProps {
 const PANE =
   'absolute inset-0 overflow-y-auto overscroll-contain transition-[translate,opacity,visibility] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none';
 const PANE_STYLE = { WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' } as const;
+const appearanceColorName = (color: string) =>
+  BINDER_COLOR_PRESETS.find((preset) => preset.swatch[0].toLowerCase() === color.toLowerCase())?.label ??
+  'a custom colour';
 
 function SettingsGroup({ label, quiet = false, children }: { label: string; quiet?: boolean; children: ReactNode }) {
   return (
@@ -153,6 +156,7 @@ function SettingsGroup({ label, quiet = false, children }: { label: string; quie
   );
 }
 
+// oxlint-disable-next-line react-doctor/no-many-boolean-props -- existing prop API shared with BinderApp; splitting it is beyond a lint pass
 export default function SettingsModal({
   binderId,
   binderName,
@@ -198,6 +202,7 @@ export default function SettingsModal({
   motionGlintStatus,
   motionGlintMessage,
   onRequestMotionGlint,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: SettingsModalProps) {
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -207,28 +212,31 @@ export default function SettingsModal({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const backRef = useRef<HTMLButtonElement | null>(null);
   const focusAfterNavigation = useRef(false);
+  // oxlint-disable-next-line react-doctor/no-derived-useState -- seeded from the prop and re-synced on open and page changes below
   const [selectedBinderColorId, setSelectedBinderColorId] = useState<BinderColorId>(currentPageBinderColorId);
   const [pageRangeInput, setPageRangeInput] = useState(String(currentBinderPage));
   const pageScrollRef = useRef<HTMLDivElement | null>(null);
+  // oxlint-disable-next-line react-doctor/no-event-handler -- the focus-after-navigation effect has to run after the pane commits
   const [page, setPage] = useState<SettingsPageId | null>(isOpen ? (initialPage ?? null) : null);
   // The last opened page stays rendered while the pane slides back out.
+  // oxlint-disable-next-line react-doctor/no-event-handler -- the focus-after-navigation effect has to run after the pane commits
   const [shownPage, setShownPage] = useState<SettingsPageId | null>(page);
-  const [wasOpen, setWasOpen] = useState(isOpen);
-  if (wasOpen !== isOpen) {
-    setWasOpen(isOpen);
+  // Opening resets the pane and the page fields; while open, the page fields follow the binder page.
+  const openKey = isOpen ? `${currentBinderPage}:${currentPageBinderColorId}` : null;
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- React's store-the-previous-value pattern for resetting when the modal opens
+  const [syncedOpenKey, setSyncedOpenKey] = useState(openKey);
+  if (syncedOpenKey !== openKey) {
+    setSyncedOpenKey(openKey);
     if (isOpen) {
-      setPage(initialPage ?? null);
-      setShownPage(initialPage ?? null);
-    }
-  }
-
-  useEffect(() => {
-    if (isOpen) {
+      if (syncedOpenKey === null) {
+        setPage(initialPage ?? null);
+        setShownPage(initialPage ?? null);
+      }
       setSelectedBinderColorId(currentPageBinderColorId);
       setPageRangeInput(String(currentBinderPage));
       setBackupMessage(null);
     }
-  }, [currentBinderPage, currentPageBinderColorId, isOpen]);
+  }
 
   useOverlay(isOpen, onClose, { containerRef: dialogRef });
   const swipe = useSwipeToDismiss(dialogRef, onClose, isOpen);
@@ -334,6 +342,7 @@ export default function SettingsModal({
     if (!focusAfterNavigation.current) return;
     focusAfterNavigation.current = false;
     if (activePage) backRef.current?.focus({ preventScroll: true });
+    // oxlint-disable-next-line react-doctor/no-event-handler -- the focus-after-navigation effect has to run after the pane commits
     else if (shownPage)
       dialogRef.current
         ?.querySelector<HTMLElement>(`[data-settings-row="${shownPage}"]`)
@@ -360,9 +369,6 @@ export default function SettingsModal({
   const hasPageColorOverride = appearance
     ? Boolean(appearance.pageColors[String(currentBinderPage)])
     : Boolean(settings.binderPageColors[String(currentBinderPage)]);
-  const appearanceColorName = (color: string) =>
-    BINDER_COLOR_PRESETS.find((preset) => preset.swatch[0].toLowerCase() === color.toLowerCase())?.label ??
-    'a custom colour';
   const fullShareUrl =
     sharePath && typeof window !== 'undefined' ? buildBinderShareUrl(window.location.origin, sharePath) : sharePath;
 
@@ -879,14 +885,19 @@ export default function SettingsModal({
   };
 
   return (
-    <div data-overlay-backdrop className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-40">
+      <div
+        data-overlay-backdrop
+        aria-hidden="true"
+        className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
         className="holo-panel border-border/50 bg-card animate-slide-up absolute inset-x-3 top-[calc(var(--top-inset)+0.5rem)] bottom-[calc(var(--dock-clearance)+0.75rem)] mx-auto flex w-auto max-w-md flex-col overflow-hidden rounded-[1.5rem] border shadow-2xl backdrop-blur-xl md:inset-auto md:top-1/2 md:left-1/2 md:h-[min(85vh,48rem)] md:w-full md:-translate-x-1/2 md:-translate-y-1/2"
-        onClick={(e) => e.stopPropagation()}
       >
         <div
           data-sheet-grabber
@@ -914,6 +925,7 @@ export default function SettingsModal({
             <h2 className="px-2 text-lg font-semibold tracking-tight">Settings</h2>
           )}
           <button
+            type="button"
             onClick={onClose}
             aria-label="Close settings"
             className="hover:bg-muted/70 mr-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors"
@@ -991,6 +1003,7 @@ export default function SettingsModal({
             className={`${PANE} px-5 py-5 sm:px-6 ${activePage ? 'visible translate-x-0 opacity-100' : 'invisible translate-x-full opacity-0'}`}
             style={PANE_STYLE}
           >
+            {/* oxlint-disable-next-line react-doctor/no-render-in-render -- renderPage is a plain helper called inline, not a component type, so nothing remounts */}
             {renderedPage && <div key={renderedPage}>{renderPage(renderedPage)}</div>}
           </div>
         </div>

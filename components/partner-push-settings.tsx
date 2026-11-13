@@ -1,16 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import { bindPushAccount, clearPushDevice, reconcilePushAccount } from '@/lib/push-device-client';
 
 type Device = { id: string; endpoint: string; label: string };
+const subscribeToNothing = () => () => {};
+const pushAvailable = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const isIOS = () =>
+  /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const serverFalse = () => false;
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string | null; isInstalledApp: boolean }) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [endpoint, setEndpoint] = useState<string | null>(null);
   const [configured, setConfigured] = useState(false);
-  const [supported, setSupported] = useState(false);
-  const [needsInstall, setNeedsInstall] = useState(false);
+  const supported = useSyncExternalStore(subscribeToNothing, pushAvailable, serverFalse);
+  const needsInstall = useSyncExternalStore(subscribeToNothing, isIOS, serverFalse) && !isInstalledApp;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const refresh = useCallback(async () => {
@@ -26,19 +32,12 @@ export function PartnerPushSettings({ userId, isInstalledApp }: { userId: string
     setEndpoint(subscription?.endpoint ?? null);
   }, [userId]);
   useEffect(() => {
-    const available = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-    const ios =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    queueMicrotask(() => {
-      setSupported(available);
-      setNeedsInstall(ios && !isInstalledApp);
-    });
-    if (available)
+    if (supported)
       queueMicrotask(() => {
         void refresh().catch((error) => setMessage(error.message));
       });
-  }, [refresh, isInstalledApp]);
+    // oxlint-disable-next-line react-doctor/prefer-use-effect-event -- refresh changes with userId, and a different user must reload the device list
+  }, [refresh, supported]);
 
   const sendTest = async (id: string) => {
     const response = await fetch('/app/api/push/test', {

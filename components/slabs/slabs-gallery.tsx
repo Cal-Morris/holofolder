@@ -19,7 +19,7 @@ function SlabDetail({ copy, onClose }: { copy: SlabGalleryCopy; onClose: () => v
   const p = copy.slab;
   return (
     <div className={styles.overlay}>
-      <div className={styles.backdrop} data-overlay-backdrop onClick={onClose} />
+      <div className={styles.backdrop} data-overlay-backdrop aria-hidden="true" onClick={onClose} />
       <div
         className={styles.sheet}
         role="dialog"
@@ -34,7 +34,7 @@ function SlabDetail({ copy, onClose }: { copy: SlabGalleryCopy; onClose: () => v
             className="bg-muted-foreground/30 pointer-events-none absolute top-1 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full"
           />
           <h2>Copy details</h2>
-          <button aria-label="Close slab details" onClick={onClose}>
+          <button type="button" aria-label="Close slab details" onClick={onClose}>
             <X size={20} />
           </button>
         </header>
@@ -53,8 +53,8 @@ function SlabDetail({ copy, onClose }: { copy: SlabGalleryCopy; onClose: () => v
               <p>{p.note ?? 'Supported holder and label layout'}</p>
               <dl className={styles.fullSubgrades}>
                 {p.subgrades.length ? (
-                  p.subgrades.map((s, i) => (
-                    <div key={i}>
+                  p.subgrades.map((s) => (
+                    <div key={s.name}>
                       <dt>{s.name}</dt>
                       <dd>{s.grade}</dd>
                     </div>
@@ -125,6 +125,7 @@ export default function SlabsGallery({
         {filtered.slice(window * 24, (window + 1) * 24).map((copy) => (
           <li key={copy.itemId}>
             <button
+              type="button"
               className={styles.copy}
               data-item-id={copy.itemId}
               onClick={() => setSelectedId(copy.itemId)}
@@ -140,13 +141,13 @@ export default function SlabsGallery({
       {!filtered.length && <p>No saved copies match this view.</p>}
       {filtered.length > 24 && (
         <div className={styles.pagination}>
-          <button disabled={window === 0} onClick={() => setPage(window - 1)}>
+          <button type="button" disabled={window === 0} onClick={() => setPage(window - 1)}>
             Previous copies
           </button>
           <span>
             Page {window + 1} of {Math.ceil(filtered.length / 24)}
           </span>
-          <button disabled={(window + 1) * 24 >= filtered.length} onClick={() => setPage(window + 1)}>
+          <button type="button" disabled={(window + 1) * 24 >= filtered.length} onClick={() => setPage(window + 1)}>
             Next copies
           </button>
         </div>
