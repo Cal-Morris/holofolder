@@ -1,9 +1,7 @@
 'use client';
 
-import { useRef, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import type { ReactNode } from 'react';
+import { OverlayCloseButton, OverlayDialog, OverlayGrabber } from '@/components/ui/overlay-dialog';
 
 /** The card picker's small bottom sheet (variant, copy and save questions), on the shared overlay primitive. */
 export default function CardPickerSheet({
@@ -17,49 +15,30 @@ export default function CardPickerSheet({
   onClose: () => void;
   children: ReactNode;
 }) {
-  const sheetRef = useRef<HTMLDivElement | null>(null);
-  useOverlay(true, onClose, { containerRef: sheetRef });
-  const swipe = useSwipeToDismiss(sheetRef, onClose);
-
-  if (typeof document === 'undefined') return null;
-
-  return createPortal(
-    <div
-      data-overlay-backdrop
-      role="presentation"
-      className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-[2px]"
-      onClick={onClose}
+  return (
+    <OverlayDialog
+      onClose={onClose}
+      aria-label={title}
+      // Taps inside stay out of the overlays and rows behind it in the React tree.
+      onClick={(event) => event.stopPropagation()}
+      className="max-h-none px-4 pt-3 pb-[calc(var(--safe-bottom)+0.75rem)]"
     >
-      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops taps inside the sheet reaching the backdrop's close handler */}
-      <div
-        ref={sheetRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="border-border/65 bg-card absolute inset-x-0 bottom-0 mx-auto w-full max-w-md rounded-t-[1.6rem] border-t px-4 pt-3 pb-[calc(var(--safe-bottom)+0.75rem)] shadow-[0_-24px_64px_-32px_rgba(15,23,42,0.35)] outline-none sm:bottom-4 sm:rounded-[1.6rem] sm:border"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div data-sheet-grabber className="-mx-4 -mt-3 px-4 pt-3" {...swipe}>
-          <div aria-hidden="true" className="bg-muted-foreground/30 mx-auto mb-2 h-1.5 w-10 rounded-full" />
-          <div className="mb-3 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">{title}</p>
-              <p className="text-muted-foreground truncate text-xs">{subtitle}</p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Back to cards"
-              className="text-muted-foreground hover:bg-muted/70 hover:text-foreground -mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-            >
-              <X className="h-4 w-4" />
-            </button>
+      <div data-sheet-grabber className="-mx-4 -mt-3 px-4 pt-3">
+        <OverlayGrabber />
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">{title}</p>
+            <p className="text-muted-foreground truncate text-xs">{subtitle}</p>
           </div>
+          <OverlayCloseButton
+            label="Back to cards"
+            onClick={onClose}
+            className="text-muted-foreground hover:bg-muted/70 hover:text-foreground -mr-1 h-9 w-9"
+          />
         </div>
-        {children}
       </div>
-    </div>,
-    document.body,
+      {children}
+    </OverlayDialog>
   );
 }
 
