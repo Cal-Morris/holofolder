@@ -114,6 +114,14 @@ export const API_SMOKE_ASSERTIONS: Record<string, Check> = {
   list_languages: (value) => assert.ok(array(value.data).includes('en')),
   list_pokemon: page,
   get_pokemon: (value, input) => assert.equal(value.id, Number(input.id)),
+  get_similar_cards: (value, input) => {
+    assert.equal(value.cardId, input.id);
+    for (const entry of [...array(value.sameArtwork), ...array(value.similarLook)]) {
+      const row = object(entry);
+      assert.ok(typeof row.similarity === 'number' && row.similarity <= 1, 'Expected a similarity up to 1');
+      catalog(object(row.card), input);
+    }
+  },
   list_illustrators: page,
   list_binders: binders,
   create_binder: (value, input) => {
