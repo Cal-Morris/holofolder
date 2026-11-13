@@ -16,6 +16,16 @@ import {
   type TCGSetSummary,
 } from '@/lib/tcg-set-slots';
 import { cacheLife, cacheTag } from 'next/cache';
+import { EMBEDDING_MODEL } from '@/lib/card-assets/embeddings-db';
+import {
+  normalizeSimilarNeighbours,
+  SIMILAR_NEIGHBOUR_LIMIT,
+  splitSimilarNeighbours,
+  type CardSubject,
+  type SimilarCard,
+  type SimilarCardsResponse,
+  type SplitNeighbour,
+} from '@/lib/similar-cards';
 import { buildTcgdexAssetImageUrl, pickImageLanguage, pickLocalizedText } from '@/lib/tcgdex-shared';
 import { pickCardImageUrl, pickExternalCardImageUrl } from '@/lib/card-image-sources';
 import {
@@ -787,6 +797,7 @@ export async function searchMirroredCards(
 }
 
 const ILLUSTRATOR_DIRECTORY_FUNCTION = 'tcg_illustrator_directory';
+const SIMILAR_CARDS_FUNCTION = 'similar_tcg_cards';
 const MIRROR_PAGE_SIZE = 1000;
 const MAX_ILLUSTRATOR_DIRECTORY_PAGES = 60;
 const MAX_ILLUSTRATOR_CARDS = 3000;
@@ -955,4 +966,82 @@ export async function getMirroredCardsByIllustrator(
     .map((row) => toIllustratorCard(row, language))
     .filter((card): card is IllustratorCard => Boolean(card))
     .sort(compareBrowseCards);
+}
+
+/**
+ * The nearest neighbours of a card's picture, split into other printings of the same artwork and cards with a
+ * similar look (lib/similar-cards.ts). Reads the `similar_tcg_cards` function (migration 116) for the card's print in
+ * `language`, falling back to its English print. Empty when the card has no fingerprint yet.
+ */
+export async function getSimilarCardNeighbours(cardId: string, language: CardLanguage = 'en') {
+  'use cache: remote';
+  cacheLife(MIRROR_CACHE_LIFE);
+  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION, cacheSafeTag('similar', cardId), cacheSafeTag('language', language));
+
+  const admin = createAdminClient();
+  const readNeighbours = async (lang: string) => {
+    const { data, error } = await admin.rpc(SIMILAR_CARDS_FUNCTION, {
+      p_card_id: cardId,
+      p_lang: lang,
+      p_model: EMBEDDING_MODEL,
+      p_limit: SIMILAR_NEIGHBOUR_LIMIT,
+    });
+    if (error) throw error;
+    return normalizeSimilarNeighbours(data);
+  };
+  let neighbours = await readNeighbours(language);
+  if (!neighbours.length && language !== 'en') neighbours = await readNeighbours('en');
+  if (!neighbours.length) return { sameArtwork: [], similarLook: [] };
+  const { data, error } = await admin
+    .from('tcg_cards')
+    .select('id,name_json,category,illustrator,tcg_card_dex_ids(dex_id)')
+    .in('id', [...new Set([cardId, ...neighbours.map((neighbour) => neighbour.cardId)])]);
+  if (error) throw error;
+  type SubjectRow = {
+    id: string;
+    name_json?: unknown;
+    category?: unknown;
+    illustrator?: unknown;
+    tcg_card_dex_ids?: Array<{ dex_id?: unknown }>;
+  };
+  const subjects = new Map<string, CardSubject>(
+    ((data || []) as SubjectRow[]).map((row) => [
+      row.id,
+      {
+        dexIds: (row.tcg_card_dex_ids ?? []).flatMap((link) => (typeof link.dex_id === 'number' ? [link.dex_id] : [])),
+        illustrator: typeof row.illustrator === 'string' ? row.illustrator : null,
+        category: typeof row.category === 'string' ? row.category : null,
+        // Only a real English name: Japanese-only cards have none (name_en falls back to the Japanese one).
+        name:
+          typeof (row.name_json as { en?: unknown } | null)?.en === 'string'
+            ? (row.name_json as { en: string }).en
+            : null,
+      },
+    ]),
+  );
+  return splitSimilarNeighbours(cardId, neighbours, subjects);
+}
+
+/** Similar cards for the app's card detail, as browse cards in each print's own language. */
+export async function getSimilarMirroredCards(
+  cardId: string,
+  language: CardLanguage = 'en',
+): Promise<Omit<SimilarCardsResponse, 'cardId' | 'language'>> {
+  'use cache: remote';
+  cacheLife(MIRROR_CACHE_LIFE);
+  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION, cacheSafeTag('similar', cardId), cacheSafeTag('language', language));
+
+  const split = await getSimilarCardNeighbours(cardId, language);
+  const ids = [...split.sameArtwork, ...split.similarLook].map((neighbour) => neighbour.cardId);
+  if (!ids.length) return { sameArtwork: [], similarLook: [] };
+  const { data, error } = await createAdminClient().from('tcg_cards').select(ILLUSTRATOR_CARD_SELECT).in('id', ids);
+  if (error) throw error;
+  const rows = new Map(((data || []) as unknown as IllustratorCardRow[]).map((row) => [row.id, row]));
+  const toCards = (group: readonly SplitNeighbour[]): SimilarCard[] =>
+    group.flatMap((neighbour) => {
+      const row = rows.get(neighbour.cardId);
+      const card = row ? toIllustratorCard(row, neighbour.lang) : null;
+      return card ? [{ ...card, similarity: Number(neighbour.similarity.toFixed(3)) }] : [];
+    });
+  return { sameArtwork: toCards(split.sameArtwork), similarLook: toCards(split.similarLook) };
 }

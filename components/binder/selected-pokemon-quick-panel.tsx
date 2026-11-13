@@ -10,6 +10,8 @@ import {
 } from '@/components/binder/binder-app-model';
 import type { CardPriceCheck } from '@/lib/card-price-checks';
 import { CardPriceComparison } from '@/components/card-price-comparison';
+import { SimilarCardsRow } from '@/components/similar-cards-row';
+import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 import { CardPriceEvidence } from '@/components/card-price-evidence';
 import { Button } from '@/components/ui/button';
 import { getCardPriceKey } from '@/hooks/use-card-prices';
@@ -76,6 +78,7 @@ export interface SelectedPokemonQuickPanelContext {
     options?: { highlightCardId?: string | null | undefined; fromDetail?: boolean | undefined },
   ) => void;
   openIllustratorBrowser: (name: string, options?: { fromDetail?: boolean | undefined }) => void;
+  openSimilarCard: (card: SearchCardResult) => void;
   priceFormat: {
     label: (price: CardPriceSnapshot | undefined) => string | null;
     amount: (amount: number | null | undefined, price?: CardPriceSnapshot | undefined) => string | null;
@@ -153,6 +156,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
     isSearchOpen,
     openCardBrowser,
     openIllustratorBrowser,
+    openSimilarCard,
     priceFormat,
     pricesByCardId,
     quickPanelPosition,
@@ -778,6 +782,13 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                   ) : null}
                 </div>
               </details>
+              {selectedPrimaryCardPreview?.cardId ? (
+                <SimilarCardsRow
+                  cardId={selectedPrimaryCardPreview.cardId}
+                  language={selectedPrimaryCardPreview.cardLanguage ?? 'en'}
+                  onOpenCard={openSimilarCard}
+                />
+              ) : null}
               <details className="group border-border/60 rounded-2xl border p-2.5">
                 <summary className="flex min-h-9 cursor-pointer items-center justify-between gap-2 text-xs font-semibold">
                   Collection options

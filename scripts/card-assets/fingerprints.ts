@@ -12,6 +12,10 @@
  * read per embedded card, none for unchanged ones; --recheck adds one HEAD per card). Writes only --out unless
  * --publish, which uploads the changed language files and the manifest: at most 3 Class A writes per changed
  * language plus 1. --publish needs CARD_IMAGE_STORE=r2 and the app's R2_* variables.
+ *
+ * --db also mirrors the index into public.tcg_card_embeddings (see fingerprints-db.ts): new or changed cards only,
+ * so a re-run with nothing changed writes nothing, and an empty table is backfilled from the index without
+ * embedding again. With --dry-run it only reports what it would write.
  */
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -43,6 +47,7 @@ import { getMirrorDatabaseUrl } from '../../lib/card-db-sync';
 import { createR2Deps, getR2BucketEndpoint, getR2Config, normalizePublicBaseUrl } from '../../lib/card-image-r2';
 import { loadProjectEnvFiles } from '../../lib/load-project-env';
 import { createPoliteFetch } from './mirror-tcgdex';
+import { syncEmbeddings, type EmbeddingLanguage } from './fingerprints-db';
 
 function arg(name: string) {
   const index = process.argv.indexOf(`--${name}`);
@@ -112,7 +117,22 @@ export async function run() {
       }),
     );
   }
-  if (dryRun) return;
+  const db = flag('db');
+  if (dryRun) {
+    if (db)
+      await syncEmbeddings(
+        languages.map((language) => {
+          const plan = plans.get(language)!;
+          return {
+            language,
+            rows: [...plan.keep, ...plan.embed],
+            fresh: new Map(plan.embed.map((want) => [want.id, new Float32Array()])),
+          };
+        }),
+        { dryRun },
+      );
+    return;
+  }
 
   const languageFiles: Record<string, FingerprintLanguageFiles> = Object.fromEntries(
     Object.entries(previous.manifest?.languages ?? {}).filter(([language]) => !languages.includes(language)),
@@ -126,9 +146,12 @@ export async function run() {
   let embedded = 0;
   let embedMs = 0;
   const failures: string[] = [];
+  const dbLanguages: EmbeddingLanguage[] = [];
   for (const language of languages) {
     const plan = plans.get(language)!;
     const rows = [...plan.keep];
+    const fresh = new Map<string, Float32Array>();
+    dbLanguages.push({ language, rows, fresh });
     const save = async () => {
       const { info, files } = encodeFingerprintFiles(language, rows, FINGERPRINT_MODEL.dim);
       languageFiles[language] = info;
@@ -160,6 +183,7 @@ export async function run() {
       const vector = await embedder!(item.body);
       embedMs += performance.now() - started;
       rows.push({ id: item.want.id, key: item.want.key, etag: item.etag, vector: quantizeInt8(vector) });
+      if (db) fresh.set(item.want.id, vector);
       embedded++;
       if (embedded % 500 === 0)
         console.log(`embedded ${embedded} (${(embedMs / embedded).toFixed(1)} ms/card), ${language} ${rows.length - plan.keep.length}/${plan.embed.length}`);
@@ -185,6 +209,7 @@ export async function run() {
     ),
   );
   if (failures.length) process.exitCode = 1;
+  if (db) await syncEmbeddings(dbLanguages, { dryRun: false });
   if (publish) await publishFiles(out, manifest, publicBase, r2!);
 }
 

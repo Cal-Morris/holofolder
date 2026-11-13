@@ -195,6 +195,7 @@ async function main() {
     await read('list_languages');
     await read('list_cards');
     await read('get_card', { id: 'base1-1' });
+    await read('get_similar_cards', { id: 'base1-4' });
     await read('list_sets');
     await read('get_set', { id: 'base1' });
     await read('list_series');

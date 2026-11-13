@@ -19,12 +19,16 @@ import type { TCGCard } from '@/lib/domain/cards';
 import { isCardLanguage } from '@/lib/domain/cards';
 import { displaySlotName, formatGradeLabel } from '@/lib/pocket-labels';
 import { formatDexNumber, getOfficialArtworkUrl } from '@/lib/pokemon-catalog';
+import type { SearchCardResult } from '@/lib/pokemon-card-browse';
+import { SimilarCardsRow } from '@/components/similar-cards-row';
 
 /** What the host adds to a card's details: saved prices (never in shares), its routes and where the card sits. */
 export interface CardDetailHost {
   pricing?: NativeCardPricing;
   onAllCards?: (pokemon: { id: number; name: string }, cardId: string | null) => void;
   onIllustrator?: (name: string) => void;
+  /** Opens a card from the Same artwork and Similar look rows. */
+  onOpenCard?: (card: SearchCardResult) => void;
   /** Open one of this pocket's wanted cards as its own card, in the finish that is wanted. */
   onOpenWant?: (want: WantedCard) => void;
   /** Opens layout editing with this pocket selected; structure is never edited from the card's details. */
@@ -465,6 +469,9 @@ export default function SlotDetail({
             <p className="text-muted-foreground text-xs">
               {slot.target ? 'Nothing in this pocket yet.' : 'This pocket is empty.'}
             </p>
+          )}
+          {identity && host?.onOpenCard && isCardLanguage(identity.language) && (
+            <SimilarCardsRow cardId={identity.cardId} language={identity.language} onOpenCard={host.onOpenCard} />
           )}
         </div>
       </div>

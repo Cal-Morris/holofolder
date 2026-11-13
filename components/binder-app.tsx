@@ -3856,6 +3856,7 @@ function BinderAppSurface(props: BinderAppProps) {
           isSearchOpen,
           openCardBrowser,
           openIllustratorBrowser,
+          openSimilarCard: openIllustratorCard,
           priceFormat,
           pricesByCardId,
           quickPanelPosition,
@@ -4872,6 +4873,7 @@ function BinderAppSurface(props: BinderAppProps) {
                 onAllCards: (pokemon, cardId) =>
                   openCardBrowser(pokemon, { highlightCardId: cardId, fromDetail: true }),
                 onIllustrator: (name) => openIllustratorBrowser(name, { fromDetail: true }),
+                onOpenCard: openIllustratorCard,
                 onArrange: layoutBoundary
                   ? () => startLayoutEditing({ ids: [selectedDisplaySlot.id], moving: false })
                   : undefined,

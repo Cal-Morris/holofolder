@@ -35,7 +35,13 @@ import { normalizeCardLanguage, CARD_LANGUAGES } from '@/lib/domain/cards';
 import { collectionFingerprint } from '@/lib/collection/sync';
 import { normalizeCollectionItem } from '@/lib/collection/normalize';
 import { sanitizeDeveloperImages } from '@/lib/server/developer-image-fields';
-import { listCatalogCards, getCatalogCard, listCatalogGroups, getCatalogGroup } from './catalog';
+import {
+  listCatalogCards,
+  getCatalogCard,
+  getCatalogSimilarCards,
+  listCatalogGroups,
+  getCatalogGroup,
+} from './catalog';
 import { listBinders, createBinder, updateBinder, deleteBinder } from './binders';
 import { getCollectionSettings, saveCollectionSettings } from './settings';
 import { getMirroredIllustratorDirectory, getMirroredSetDexSlots } from '@/lib/tcg-mirror';
@@ -129,6 +135,11 @@ async function dispatchDeveloperOperation(
       const card = await getCatalogCard(String(input.id), normalizeCardLanguage(input.language));
       if (!card) throw new DeveloperAccessError('not_found', 'Card not found.', 404);
       return card;
+    }
+    case 'get_similar_cards': {
+      const similar = await getCatalogSimilarCards(String(input.id), normalizeCardLanguage(input.language));
+      if (!similar) throw new DeveloperAccessError('not_found', 'Card not found.', 404);
+      return similar;
     }
     case 'list_sets':
       return listCatalogGroups('sets', params.toString());
