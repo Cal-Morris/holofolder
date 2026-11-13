@@ -132,6 +132,8 @@ const CARD_SCAN_FRAME_DELAY_MS = 450;
 const CARD_SCAN_MIN_USABLE_FRAMES = 3;
 const CARD_SCAN_OCR_FRAME_LIMIT = 4;
 const CARD_SCAN_CANDIDATE_ASSET_OCR_LIMIT = 18;
+// 60 fills whole rows at 2 to 5 columns.
+const CARD_RENDER_BATCH = 60;
 const CARD_GUIDE_INSET_X = SINGLE_CARD_GUIDE.insetX;
 const CARD_GUIDE_INSET_Y = SINGLE_CARD_GUIDE.insetY;
 const CARD_ASPECT_RATIO = SINGLE_CARD_GUIDE.aspectRatio;
@@ -571,6 +573,18 @@ export default function CardSelector({
     },
     [activeSelectedCardId, filters.searchQuery, isWishlistMode, selectedWantedCardId],
   );
+  // Tiles mount in batches as the list scrolls (a search can return hundreds), the next batch well before the end.
+  // A new search, filter or sort starts again from the first batch.
+  // Keyed on values: some inputs to filteredCards are new arrays on every render.
+  const renderKey = JSON.stringify([anyCardQuery, filters, variantFilter, sort]);
+  const [renderLimit, setRenderLimit] = useState({ key: renderKey, count: CARD_RENDER_BATCH });
+  if (renderLimit.key !== renderKey) setRenderLimit({ key: renderKey, count: CARD_RENDER_BATCH });
+  const showMoreCards = useCallback(
+    () => setRenderLimit((current) => ({ ...current, count: current.count + CARD_RENDER_BATCH })),
+    [],
+  );
+  const resultsScrollRef = useRef<HTMLDivElement>(null);
+  const moreCardsRef = useRef<HTMLButtonElement>(null);
   const displayedCards = useMemo(() => {
     if (scanRankById.size === 0) {
       return sortCardPickerCards(
@@ -601,6 +615,21 @@ export default function CardSelector({
       return left.localId.localeCompare(right.localId, undefined, { numeric: true, sensitivity: 'base' });
     });
   }, [filteredCards, pricesByCardId, pricingRegion, scanRankById, priceLanguage, finishFor, likelyRank, sort]);
+  const renderedCards = useMemo(() => displayedCards.slice(0, renderLimit.count), [displayedCards, renderLimit.count]);
+  const hasMoreCards = renderedCards.length < displayedCards.length;
+  // About two screens ahead of the end of the list, so tiles and their images are ready before they scroll into view.
+  useEffect(() => {
+    const button = moreCardsRef.current;
+    if (!button || !hasMoreCards || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) showMoreCards();
+      },
+      { root: resultsScrollRef.current, rootMargin: '0px 0px 1600px 0px' },
+    );
+    observer.observe(button);
+    return () => observer.disconnect();
+  }, [hasMoreCards, renderLimit.count, showMoreCards]);
 
   const uniqueSets = useMemo(() => {
     return [...new Map(cards.map((card) => [card.set.id, card.set])).values()]
@@ -1358,6 +1387,7 @@ export default function CardSelector({
           )}
 
           <div
+            ref={resultsScrollRef}
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
             style={{
               WebkitOverflowScrolling: 'touch',
@@ -1557,7 +1587,7 @@ export default function CardSelector({
                   aria-busy={isLoading}
                   className={`grid grid-cols-2 gap-2 transition-opacity min-[400px]:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5 ${isLoading ? 'opacity-50' : ''}`}
                 >
-                  {displayedCards.map((card) => {
+                  {renderedCards.map((card) => {
                     const price = pricesByCardId[getCardPriceKey(card.id, priceLanguage(card))];
                     const priceLabels = getCardSelectorPriceLabels(price, formatAmount);
                     const pickNumber = several ? picks.findIndex((pick) => pick.card.id === card.id) + 1 : 0;
@@ -1678,6 +1708,17 @@ export default function CardSelector({
                     );
                   })}
                 </div>
+              )}
+              {hasMoreCards && (
+                <Button
+                  ref={moreCardsRef}
+                  variant="outline"
+                  size="sm"
+                  className="mx-auto mt-4 flex h-10 rounded-2xl px-4"
+                  onClick={showMoreCards}
+                >
+                  Show more cards
+                </Button>
               )}
               {!filtersMatchBinder && !isLoading && (
                 <p role="status" className="mt-4 px-2 text-center text-xs text-amber-700 dark:text-amber-300">
