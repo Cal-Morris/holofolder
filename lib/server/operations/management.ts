@@ -1,3 +1,4 @@
+import { expirePublicBinders } from '@/lib/server/public-binder-cache';
 import { serializeDeveloperAppearance, restoreDeveloperAppearance } from '@/lib/server/developer-appearance';
 import { requireArtworkStore } from '@/lib/server/binder-appearance';
 import { BINDER_ARTWORK_TYPES, MAX_BINDER_ARTWORK_BYTES, isBinderUploadId } from '@/lib/binder-appearance';
@@ -55,6 +56,7 @@ export async function updateDeveloperIdentity(context: OperationContext, input: 
       slug: null,
     });
     managementDatabaseError(error);
+    expirePublicBinders(context.principal.actorId, { links: true });
   }
   if (input.displayName !== undefined) {
     const name = normalizeDisplayName(input.displayName);
@@ -85,6 +87,7 @@ export async function developerBinderIdentity(
       slug,
     });
     managementDatabaseError(error);
+    expirePublicBinders(context.ownerUserId, { links: true });
   }
   return {
     ...(await readBinderIdentity(context.ownerUserId, binder)),
@@ -133,6 +136,7 @@ export async function developerSharing(context: OperationContext, input: Record<
       managementDatabaseError(result.error);
       share = result.data;
     }
+    expirePublicBinders(context.ownerUserId, { links: true });
   }
   return {
     share: share

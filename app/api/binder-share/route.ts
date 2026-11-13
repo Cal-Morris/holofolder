@@ -1,3 +1,4 @@
+import { expirePublicBinders } from '@/lib/server/public-binder-cache';
 import { getFirstPartyUser } from '@/lib/supabase/session-user';
 import { randomBytes } from 'node:crypto';
 import { createClient } from '@/lib/supabase/server';
@@ -138,6 +139,7 @@ export async function POST(request: Request) {
       ({ data, error } = await save(legacyValues));
     }
     if (error) throw error;
+    expirePublicBinders(ownerUserId, { links: true });
 
     return identityJson({
       share: {
@@ -177,6 +179,7 @@ export async function DELETE(request: Request) {
     if (error) {
       throw error;
     }
+    expirePublicBinders(ownerUserId);
 
     return identityJson({
       share: data

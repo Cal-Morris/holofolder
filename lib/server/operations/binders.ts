@@ -1,3 +1,4 @@
+import { expirePublicBinders } from '@/lib/server/public-binder-cache';
 import { createHash, randomUUID } from 'node:crypto';
 import type { User } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -146,6 +147,7 @@ export async function updateBinder(request: NextRequest, actor: Pick<User, 'id'>
     if (error && isMissingColumnError(error))
       return NextResponse.json({ error: 'Card languages are not available yet' }, { status: 503 });
     if (error) throw error;
+    expirePublicBinders(ownerUserId);
     return respond(await listWithCounts(admin, ownerUserId));
   } catch (error) {
     return failure('update the binder', error);
@@ -181,6 +183,7 @@ export async function deleteBinder(request: NextRequest, actor: Pick<User, 'id'>
       );
     }
 
+    expirePublicBinders(ownerUserId);
     return respond(await listWithCounts(admin, ownerUserId), { deletedBinderId: binderId });
   } catch (error) {
     return failure('delete the binder', error);

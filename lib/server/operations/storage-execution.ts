@@ -1,3 +1,4 @@
+import { expirePublicBinders } from '@/lib/server/public-binder-cache';
 import { isRawRestoreReceipt as isBoundRawRestoreReceipt } from '@/lib/collection/raw-restore-delivery';
 import { RAW_RESTORE_V2_LIMITS, isRawRestoreRejection, type RawRestoreCommand } from '@/lib/domain/raw-restore';
 import { isCreationRejection, isImportRejection } from '@/lib/collection/creation-import-rejection';
@@ -152,6 +153,7 @@ async function executeStorageRpc(
       .rpc('storage_execute_v1', { operation, owner_id: ownerId, request: input })
       .abortSignal(AbortSignal.timeout(10000));
     if (error) throw storageExecutionError(error);
+    expirePublicBinders(ownerId);
     if ((operation === 'slots' || operation === 'inventory') && isStorageCommandRejection(data, operationId))
       return { ...data };
     if ((operation === 'recovery.apply' || operation === 'recovery.apply.v2') && isRecoveryRejection(data, operationId))
