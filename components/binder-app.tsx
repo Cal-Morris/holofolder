@@ -127,6 +127,7 @@ import { useSlotLabels } from '@/hooks/use-slot-labels';
 import { useShowSession } from '@/hooks/use-show-session';
 import { useBinderHistory } from '@/hooks/use-binder-history';
 import { useShowPurchaseSync } from '@/hooks/use-show-purchase-sync';
+import { useShowBought } from '@/hooks/use-show-bought';
 import { summarizeShowSession } from '@/lib/show-session';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 import { clampGlareValue, getPokemonOfficialArtworkUrl, resolveSlotImageUrl } from '@/components/binder/pokemon-slot';
@@ -593,8 +594,8 @@ function BinderAppSurface(props: BinderAppProps) {
   const { isShowModeOn, setShowMode } = useShowMode();
   const [slotLabelsOn] = useSlotLabels();
   const showSession = useShowSession();
-  const { logPurchases, removePurchases } = showSession;
-  const showPurchaseTally = useMemo(() => ({ logPurchases, removePurchases }), [logPurchases, removePurchases]);
+  // Bought adds the card to the collection (where it was wanted, else unassigned) and logs it to the show tally.
+  const showPurchaseTally = useShowBought(browserSurface?.nativeConsumer?.acquire, showSession);
   const quickPressTimerRef = useRef<number | null>(null);
   const quickPressFiredRef = useRef(false);
   const [isPriceMode, setIsPriceMode] = useState(pricingEnabled && initialPriceMode);

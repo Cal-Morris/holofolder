@@ -601,6 +601,7 @@ export default function QuickCardCheck({
                     ? {
                         entries: [
                           {
+                            card,
                             cardId: card.id,
                             cardName: card.name,
                             language,

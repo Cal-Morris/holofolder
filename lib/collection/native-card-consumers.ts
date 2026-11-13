@@ -43,6 +43,15 @@ export interface NativeConsumerBinding {
     context: OperationIntentContext;
     receive: SlotCommandSink;
   } | null;
+  /**
+   * Show's Bought: the read this device shows (its queued edits included), a fresh operation context per call and the
+   * device queue's sink. Unlike `admit` it works offline and behind queued edits, like any binder edit. Null denies.
+   */
+  acquire?: () => {
+    read: CollectionNavigationRead;
+    context: () => OperationIntentContext;
+    receive: SlotCommandSink;
+  } | null;
 }
 
 function publicWant(card: WantedCard): PublicWantedCard {
