@@ -32,12 +32,14 @@ import {
   useLayoutEffect,
   useRef,
   useCallback,
+  useSyncExternalStore,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import dashboardStyles from '@/components/dashboard-binder-preview.module.css';
 import { BillingContext, useBilling } from '@/hooks/use-billing';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { CreditsNotice } from '@/components/credits';
 import type { SettingsPageId } from '@/components/settings-modal';
 import { useRouter } from 'next/navigation';
@@ -195,7 +197,6 @@ import {
 } from '@/lib/collection-view-filter';
 import { useNativeBinderValue } from '@/components/binder-value';
 import { nativeValueLabel, sumCopyValues } from '@/lib/collection/native-analytics';
-import { rememberBinderScope } from '@/lib/binders/all-binders';
 import {
   buildSlotDisplay,
   displaySlotImageUrl,
@@ -264,6 +265,31 @@ interface BinderAppProps {
   startGrid?: { rows: number; cols: number };
 }
 
+function subscribeOnline(onChange: () => void) {
+  window.addEventListener('online', onChange);
+  window.addEventListener('offline', onChange);
+  return () => {
+    window.removeEventListener('online', onChange);
+    window.removeEventListener('offline', onChange);
+  };
+}
+const readOnline = () => navigator.onLine;
+const readOnlineOnServer = () => true;
+/** Whether the browser is online (true during SSR and hydration). */
+const useOnline = () => useSyncExternalStore(subscribeOnline, readOnline, readOnlineOnServer);
+const subscribeNever = () => () => {};
+const readHost = () => location.host;
+const readNoHost = () => null;
+function subscribeStandalone(onChange: () => void) {
+  const list = window.matchMedia('(display-mode: standalone)');
+  list.addEventListener?.('change', onChange);
+  return () => list.removeEventListener?.('change', onChange);
+}
+const readStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+const readNotStandalone = () => false;
+
 /** Authenticated lifetimes never mount the writable legacy collection hook. */
 export default function BinderApp(props: BinderAppProps) {
   const nativeHost = Boolean(
@@ -278,10 +304,8 @@ export default function BinderApp(props: BinderAppProps) {
     props.initialCollectionOwnerUserId ?? null,
     nativeHost,
   );
-  const [host, setHost] = useState<string | null>(null);
-  useEffect(() => {
-    queueMicrotask(() => setHost(location.host));
-  }, []);
+  // Known on the client only: null through SSR and hydration.
+  const host = useSyncExternalStore(subscribeNever, readHost, readNoHost);
   // Fetch the session's code while the account check runs, not after it.
   useEffect(() => {
     if (nativeHost) void import('@/components/collection-navigation/browser-session');
@@ -297,7 +321,7 @@ export default function BinderApp(props: BinderAppProps) {
     setDisplayedSession(paintableSession);
   const [startupError, setStartupError] = useState('');
   const [resetting, setResetting] = useState(false);
-  const [startupOnline, setStartupOnline] = useState(true);
+  const startupOnline = useOnline();
   // Once the binder has opened, startup is over for this tab: a later scope blip or rotation never resets it.
   const [everOpened, setEverOpened] = useState(false);
   const openedNow = Boolean(scope && completedSession === scope.sessionId);
@@ -329,29 +353,20 @@ export default function BinderApp(props: BinderAppProps) {
     },
     [opened],
   );
-  useEffect(() => {
-    const update = () => setStartupOnline(navigator.onLine);
-    update();
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
-    };
-  }, []);
+  const failStartupLater = useEffectEvent((reason: string) => failStartup(reason));
   useEffect(() => {
     // Only storage that hangs after the account check passed is reset. A check still retrying (dead Wi-Fi)
     // keeps the saved copy on screen instead.
     if (!nativeHost || opened || !scope || paintableSession === scope.sessionId || !startupOnline || !navigator.onLine)
       return;
-    const timer = setTimeout(() => failStartup(CHECKED_STARTUP_TIMEOUT_ERROR), CHECKED_STARTUP_TIMEOUT_MS);
+    const timer = setTimeout(() => failStartupLater(CHECKED_STARTUP_TIMEOUT_ERROR), CHECKED_STARTUP_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [nativeHost, opened, scope, paintableSession, startupOnline, failStartup]);
+  }, [nativeHost, opened, scope, paintableSession, startupOnline]);
   useEffect(() => {
     if (!nativeHost || opened || !browserScope.error) return;
-    const timer = setTimeout(() => failStartup(browserScope.error!), 0);
+    const timer = setTimeout(() => failStartupLater(browserScope.error!), 0);
     return () => clearTimeout(timer);
-  }, [nativeHost, opened, browserScope.error, failStartup]);
+  }, [nativeHost, opened, browserScope.error]);
   if (!nativeHost) return <BinderAppSurface {...props} />;
   if (startupError && startupOnline && !opened)
     return (
@@ -546,7 +561,6 @@ function BinderAppSurface(props: BinderAppProps) {
   const [isBinderSwitcherOpen, setIsBinderSwitcherOpen] = useState(false);
   const [binders, setBinders] = useState<Binder[]>(initialBinders);
   const activeBinder = binders.find((binder) => binder.id === initialBinderId) ?? null;
-  const [themeCookieChoice, setThemeCookieChoice] = useState<'dark' | 'light' | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isQuickModeOpen, setIsQuickModeOpen] = useState(false);
   // The want list's "Check price of any card": Quick mode as a price lookup (deal checker) outside Show mode.
@@ -604,21 +618,13 @@ function BinderAppSurface(props: BinderAppProps) {
     const set = browserSurface?.surface.state.requestedSet;
     return set ? { set, key: 0 } : null;
   });
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const transitionContent = useNavigationTransition(prefersReducedMotion);
   usePressFeedback();
   useFreezeBlurOnScroll();
   const mainViewRef = useRef<HTMLDivElement>(null);
   useViewScrollRestoration(mainViewRef, activeMainView);
   const viewRequestRef = useRef(0);
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setPrefersReducedMotion(query.matches);
-    update();
-    query.addEventListener?.('change', update);
-    return () => query.removeEventListener?.('change', update);
-  }, []);
   // Once the binder has painted, fetch the other tabs' code in idle time so the first switch
   // doesn't wait on a download. The frame callback pushes the idle wait past that first paint.
   useEffect(() => {
@@ -641,13 +647,16 @@ function BinderAppSurface(props: BinderAppProps) {
   const [isShareLoading, setIsShareLoading] = useState(false);
   const [isRefreshingPrices, setIsRefreshingPrices] = useState(false);
   const [priceRefreshMessage, setPriceRefreshMessage] = useState<string | null>(null);
-  const [isOnline, setIsOnline] = useState(true);
-  const [isInstalledApp, setIsInstalledApp] = useState(false);
+  const isOnline = useOnline();
+  const isStandaloneDisplay = useSyncExternalStore(subscribeStandalone, readStandalone, readNotStandalone);
+  // Installed from this tab (appinstalled), which doesn't switch the tab itself to standalone.
+  const [installedHere, setInstalledHere] = useState(false);
+  const isInstalledApp = isStandaloneDisplay || installedHere;
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [pwaStatusMessage, setPwaStatusMessage] = useState<string | null>(null);
-  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
-  const [isCompactViewport, setIsCompactViewport] = useState(false);
-  const [isWideBinderSpread, setIsWideBinderSpread] = useState(false);
+  const isDesktopViewport = useMediaQuery('(min-width: 640px)');
+  const isCompactViewport = useMediaQuery('(max-width: 767px)');
+  const isWideBinderSpread = useMediaQuery('(min-width: 1280px)');
   const [binderCardDisplay, setBinderCardDisplay] = useState<BinderCardDisplay>('mixed');
   const [binderDimension, setBinderDimension] = useState<'2d' | '3d'>('2d');
   const [isMobileSpreadPreview, setIsMobileSpreadPreview] = useState(false);
@@ -973,52 +982,8 @@ function BinderAppSurface(props: BinderAppProps) {
     ],
   );
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const desktopMediaQuery = window.matchMedia('(min-width: 640px)');
-    const compactMediaQuery = window.matchMedia('(max-width: 767px)');
-    const spreadMediaQuery = window.matchMedia('(min-width: 1280px)');
-    const updateViewportMode = () => {
-      setIsDesktopViewport(desktopMediaQuery.matches);
-      setIsCompactViewport(compactMediaQuery.matches);
-      setIsWideBinderSpread(spreadMediaQuery.matches);
-    };
-
-    updateViewportMode();
-
-    if (
-      typeof desktopMediaQuery.addEventListener === 'function' &&
-      typeof compactMediaQuery.addEventListener === 'function' &&
-      typeof spreadMediaQuery.addEventListener === 'function'
-    ) {
-      desktopMediaQuery.addEventListener('change', updateViewportMode);
-      compactMediaQuery.addEventListener('change', updateViewportMode);
-      spreadMediaQuery.addEventListener('change', updateViewportMode);
-      return () => {
-        desktopMediaQuery.removeEventListener('change', updateViewportMode);
-        compactMediaQuery.removeEventListener('change', updateViewportMode);
-        spreadMediaQuery.removeEventListener('change', updateViewportMode);
-      };
-    }
-
-    desktopMediaQuery.addListener(updateViewportMode);
-    compactMediaQuery.addListener(updateViewportMode);
-    spreadMediaQuery.addListener(updateViewportMode);
-    return () => {
-      desktopMediaQuery.removeListener(updateViewportMode);
-      compactMediaQuery.removeListener(updateViewportMode);
-      spreadMediaQuery.removeListener(updateViewportMode);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isCompactViewport && isMobileSpreadPreview) {
-      setIsMobileSpreadPreview(false);
-    }
-  }, [isCompactViewport, isMobileSpreadPreview]);
+  // The spread preview only exists on compact screens; leaving one turns it off.
+  if (!isCompactViewport && isMobileSpreadPreview) setIsMobileSpreadPreview(false);
 
   useLayoutEffect(() => {
     const stage = binderStageRef.current;
@@ -2822,15 +2787,10 @@ function BinderAppSurface(props: BinderAppProps) {
       void updateSettings({ darkMode: next });
     }
     document.documentElement.classList.toggle('dark', next);
-    setThemeCookieChoice(next ? 'dark' : 'light');
-  };
-
-  // Only a theme the user picked here is saved to the cookie, not one synced from settings.
-  useEffect(() => {
-    if (!themeCookieChoice) return;
+    // Only a theme the user picked here is saved to the cookie, not one synced from settings.
     const maxAge = 60 * 60 * 24 * 365;
-    document.cookie = `binderdex_theme=${themeCookieChoice}; path=/; max-age=${maxAge}; samesite=lax`;
-  }, [themeCookieChoice]);
+    document.cookie = `binderdex_theme=${next ? 'dark' : 'light'}; path=/; max-age=${maxAge}; samesite=lax`;
+  };
 
   useEffect(() => {
     setIsDarkMode(settings.darkMode);
@@ -2868,21 +2828,6 @@ function BinderAppSurface(props: BinderAppProps) {
       return;
     }
 
-    setIsOnline(window.navigator.onLine);
-    const standaloneMatch = window.matchMedia('(display-mode: standalone)');
-    const updateStandaloneMode = () => {
-      const isStandalone =
-        standaloneMatch.matches ||
-        (typeof window.navigator !== 'undefined' &&
-          'standalone' in window.navigator &&
-          Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone));
-      setIsInstalledApp(isStandalone);
-    };
-
-    updateStandaloneMode();
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setInstallPromptEvent(event as BeforeInstallPromptEvent);
@@ -2890,30 +2835,18 @@ function BinderAppSurface(props: BinderAppProps) {
     };
     const handleAppInstalled = () => {
       setInstallPromptEvent(null);
-      setIsInstalledApp(true);
+      setInstalledHere(true);
       setPwaStatusMessage('Holo Folder installed. The app shell and cached assets are now available offline.');
     };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
-
-    if (typeof standaloneMatch.addEventListener === 'function') {
-      standaloneMatch.addEventListener('change', updateStandaloneMode);
-    }
 
     registerServiceWorker();
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
-
-      if (typeof standaloneMatch.removeEventListener === 'function') {
-        standaloneMatch.removeEventListener('change', updateStandaloneMode);
-      }
     };
   }, []);
 
