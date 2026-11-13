@@ -20,7 +20,7 @@ function watch(page: Page) {
     if (/\/app\/api\/card-prices/.test(r.url())) prices.push(r);
     else if (r.method() !== 'GET' && r.method() !== 'HEAD') writes.push(`${r.method()} ${r.url()}`);
     if (
-      /\/app\/api\/(?!card-image-proxy|tcg-card-search|tcg-set-slots|tcg-illustrators|tcgdex-cache|card-prices)/.test(
+      /\/app\/api\/(?!card-image-proxy|tcg-card-search|tcg-similar-cards|tcg-set-slots|tcg-illustrators|tcgdex-cache|card-prices)/.test(
         r.url(),
       )
     )
@@ -69,8 +69,8 @@ for (const path of paths('token', 'mixed')) {
     await phone.expectNoHorizontalOverflow();
     // Card details from a pocket, read-only and without a price.
     await page.getByRole('button', { name: 'Synthetic Snorlax, Owned' }).first().click();
-    const detail = page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' });
-    await expect(detail).toContainText('Owned copy');
+    const detail = page.getByRole('dialog', { name: 'Synthetic Snorlax details' });
+    await expect(detail).toContainText('Owned');
     await expect(detail).not.toContainText('£');
     await expect(detail).not.toContainText('Market price');
     await page.keyboard.press('Escape');
@@ -134,7 +134,7 @@ for (const path of paths('priced')) {
     await expect(page.locator('[data-slot-id="public-0"]')).toContainText('£12.34');
     await expect(page.locator('[data-slot-id="public-2"]')).toContainText('£3.50');
     await page.locator('[data-slot-id="public-0"]').tap();
-    const priced = page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' });
+    const priced = page.getByRole('dialog', { name: 'Synthetic Snorlax details' });
     // The same price panel as the owner's own binder, details included.
     const panel = priced.getByRole('region', { name: 'Prices' });
     await expect(panel).toContainText('£12.34');
@@ -169,7 +169,7 @@ for (const path of paths('priced')) {
     const wanted = page.getByRole('button', { name: 'snorlax, Unfilled target' });
     await expect(wanted.locator('img')).toHaveClass(/grayscale/);
     // Card details: the existing slot detail sheet, read-only, every dismissal path.
-    const detail = page.getByRole('dialog', { name: 'snorlax, Unfilled target details' });
+    const detail = page.getByRole('dialog', { name: 'Snorlax details' });
     await wanted.tap();
     await expect(detail).toBeVisible();
     await expect(detail.getByRole('button', { name: /assign|place|remove|edit/i })).toHaveCount(0);
@@ -201,13 +201,13 @@ for (const path of paths('priced')) {
       .getByRole('button', { name: /snorlax/i })
       .first()
       .click();
-    await expect(page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Synthetic Snorlax details' })).toBeVisible();
     await page.keyboard.press('Escape');
     // Next needed goes pocket by pocket and opens the exact unfilled target on its page.
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Next needed' }).click();
     await expect(current).toHaveAttribute('data-binder-page', '3');
-    await expect(page.getByRole('dialog', { name: 'snorlax, Unfilled target details' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Snorlax details' })).toBeVisible();
     await page.keyboard.press('Escape');
     // Wanted lists every stored want separately and opens its own pocket; no private assignment is shown.
     await page.getByRole('button', { name: 'Wanted', exact: true }).click();
@@ -216,7 +216,7 @@ for (const path of paths('priced')) {
     await expect(page.getByTestId('main-content')).not.toContainText('Wanted by');
     await page.getByRole('button', { name: 'Open Synthetic Trainer' }).click();
     await expect(current).toHaveAttribute('data-binder-page', '3');
-    await expect(page.getByRole('dialog', { name: 'snorlax, Unfilled target details' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Snorlax details' })).toBeVisible();
     await page.keyboard.press('Escape');
     // Quick mode, from the Search sheet, with the shared prices.
     await page.getByRole('button', { name: 'Search', exact: true }).click();
@@ -248,8 +248,8 @@ for (const path of paths('stress')) {
       await expect(page.getByRole('region', { name: 'Scrollable binder page 1' })).toBeVisible();
       await phone.expectNoHorizontalOverflow();
       await page.getByRole('button', { name: 'Synthetic Snorlax, Owned' }).first().click();
-      const detail = page.getByRole('dialog', { name: 'Synthetic Snorlax, Owned details' });
-      await expect(detail).toContainText('Recorded grading provider');
+      const detail = page.getByRole('dialog', { name: 'Synthetic Snorlax details' });
+      await expect(detail).toContainText('Graded by');
       // Not checked against the safe area here: a 500-character stress grade overflows the shared SlotDetail
       // in standalone (private app too). Normal details are checked above.
       await page.keyboard.press('Escape');

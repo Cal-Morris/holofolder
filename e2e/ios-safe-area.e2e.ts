@@ -100,9 +100,8 @@ test(
     }
     await harness.page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
-    await header.getByRole('button', { name: 'View', exact: true }).click();
-    await expect(menu).toHaveCount(0);
-    await expect(harness.page.getByRole('button', { name: 'Close view options', exact: true })).toBeVisible();
+    // Native binders pick their view in the toolbar's Collection view picker, not a header View sheet.
+    await expect(header.getByRole('button', { name: 'View', exact: true })).toHaveCount(0);
   },
 );
 
@@ -115,7 +114,7 @@ test(
     await expect(offer).toHaveCount(0);
     await harness.page.reload();
     await expect(harness.dock()).toBeVisible();
-    await expect(harness.page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expect(harness.slot(1)).toBeVisible();
     await expect(offer).toHaveCount(0);
   },
 );

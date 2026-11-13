@@ -21,7 +21,7 @@ const overlays: OverlaySpec[] = [
   {
     name: 'card detail',
     open: async (harness) => {
-      const opener = harness.page.locator('button[data-dex-id="1"]').first();
+      const opener = harness.slot(1);
       await opener.click();
       return { dialog: harness.page.getByRole('dialog', { name: /bulbasaur/i }), opener };
     },
@@ -85,13 +85,12 @@ const overlays: OverlaySpec[] = [
   {
     name: 'card selector',
     open: async (harness) => {
-      const detail = await harness.openCardDetail();
-      const opener = detail.getByRole('button', { name: /change owned card|add owned card/i }).first();
+      // An unfilled native pocket (Squirtle) opens the card selector directly.
+      const opener = harness.slot(7);
       await opener.click();
       return { dialog: harness.page.getByRole('dialog', { name: /card selector/i }), opener };
     },
     signedIn: true,
-    returnsTo: /bulbasaur/i,
     bottomSheet: true,
     backdrop: true,
   },
@@ -236,10 +235,9 @@ test('a scrolled sheet body scrolls back up instead of closing', async ({ harnes
   expect(await dialog.evaluate((sheet) => sheet.style.translate)).toBe('');
 });
 
-const dockTabs = ['Binder', 'List', 'Wanted', 'Browse', 'Search'] as const;
-const binderOverlays = overlays.filter((overlay) =>
-  ['card detail', 'view options', 'search', 'all cards view'].includes(overlay.name),
-);
+const dockTabs = ['Binder', 'Inventory', 'Wanted', 'Browse', 'Search'] as const;
+// Signed-in (native) binders have no View options sheet; guests cover it above.
+const binderOverlays = overlays.filter((overlay) => ['card detail', 'search', 'all cards view'].includes(overlay.name));
 
 test.describe('bottom navigation', () => {
   // Signed in so every dock control (including the collection filter) is enabled.
@@ -250,6 +248,9 @@ test.describe('bottom navigation', () => {
       for (const tab of dockTabs) {
         await harness.page.goto(harness.path);
         await expect(harness.dock()).toBeVisible();
+        // Native navigation reopens the last surface on this device (Inventory after that tab), so return to the binder.
+        await harness.dock().getByRole('button', { name: 'Binder', exact: true }).click();
+        await expect(harness.slot(1)).toBeVisible();
         const { dialog } = await overlay.open(harness);
         await expect(dialog).toBeVisible();
 
@@ -280,28 +281,33 @@ test.describe('bottom navigation', () => {
     await expect(harness.dialogs()).toHaveCount(1);
   });
 
-  test('opening view options replaces the card detail', async ({ harness }) => {
-    await harness.openCardDetail();
-    await header(harness.page).getByRole('button', { name: 'View', exact: true }).dispatchEvent('click');
-    await expect(harness.page.getByRole('dialog', { name: 'View options', exact: true })).toBeVisible();
-    await expect(harness.dialogs()).toHaveCount(1);
-  });
-
   test(
     'every main view has no horizontal overflow and keeps the dock usable',
     { tag: '@matrix' },
     async ({ harness }) => {
-      for (const tab of ['List', 'Wanted', 'Browse', 'Binder'] as const) {
+      for (const tab of ['Inventory', 'Wanted', 'Browse', 'Binder'] as const) {
         await harness.dock().getByRole('button', { name: tab, exact: true }).click();
         await harness.expectNoHorizontalOverflow();
         // The nav's own box extends behind the home indicator; its visible bar must clear it.
-        await harness.expectWithinSafeViewport(harness.dock().locator(':scope > div').first());
+        const bar = harness.dock().locator(':scope > div').first();
+        // Opening Inventory can remount the dock while its view transition runs, so measure once it settles.
+        await expect(() => harness.expectWithinSafeViewport(bar)).toPass({ timeout: 2000 });
         await expect(() =>
           harness.expectHittable(harness.dock().getByRole('button', { name: tab, exact: true })),
         ).toPass({ timeout: 1000 });
       }
     },
   );
+});
+
+// Guests keep the View options sheet and Prev/Next in card details; native slot details have neither.
+test.describe('guest header and card detail', () => {
+  test('opening view options replaces the card detail', async ({ harness }) => {
+    await harness.openCardDetail();
+    await header(harness.page).getByRole('button', { name: 'View', exact: true }).dispatchEvent('click');
+    await expect(harness.page.getByRole('dialog', { name: 'View options', exact: true })).toBeVisible();
+    await expect(harness.dialogs()).toHaveCount(1);
+  });
 
   test('card detail Prev/Next moves between slots without closing', async ({ harness }) => {
     const detail = await harness.openCardDetail();

@@ -45,7 +45,7 @@ test.describe('pressed state', () => {
   });
 
   test('binder slots press with their subtle scale', async ({ harness }) => {
-    const result = await press(harness, harness.page.locator('button[data-dex-id="4"]').first());
+    const result = await press(harness, harness.slot(4));
     expectPressed(result, 0.985);
   });
 

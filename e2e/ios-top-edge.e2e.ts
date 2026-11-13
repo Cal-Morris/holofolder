@@ -72,14 +72,14 @@ test(
       'one installed-app run at 393x852',
     );
     const { page } = harness;
-    await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
+    await expect(harness.slot(1)).toBeVisible();
     await expectClearTopBand(harness, 'loaded');
     await expectHeaderRoom(harness, 'loaded');
 
     await scrollEverything(harness);
     await expectClearTopBand(harness, 'binder scrolled');
 
-    await harness.dock().getByRole('button', { name: 'List', exact: true }).click();
+    await harness.listTab().click();
     await scrollEverything(harness);
     await expectClearTopBand(harness, 'list scrolled');
     await harness.dock().getByRole('button', { name: 'Binder', exact: true }).click();

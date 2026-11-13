@@ -68,7 +68,7 @@ test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
     const dialog = page.getByRole('dialog', { name: 'Quick mode' });
     const search = dialog.getByRole('searchbox');
     await expect(search).toBeVisible();
-    const footer = search.locator("xpath=ancestor::div[contains(@class,'border-t')][1]");
+    const footer = search.locator("xpath=ancestor::div[contains(@class,'holo-panel')][1]");
     const restingBottom = (await footer.boundingBox())!;
     await search.focus();
 
@@ -91,24 +91,25 @@ test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
 
   test('List search: the dock steps aside while typing and comes back when the field blurs', async ({ harness }) => {
     const { page } = harness;
-    await harness.dock().getByRole('button', { name: 'List', exact: true }).click();
-    const search = page.getByPlaceholder('Search name, card, set, or dex #');
+    await harness.listTab().click();
+    const search = page.getByRole('searchbox', { name: 'Search inventory' });
     await search.focus();
     await setKeyboard(page, KEYBOARD);
     await expect(html(page)).toHaveAttribute('data-keyboard-open', '');
     await expect(harness.dock()).toBeHidden();
     await expectAboveKeyboard(harness, search, 'List search');
     // Content pads to the keyboard's top edge so the last rows can scroll above it.
+    // Inventory pads by --dock-clearance (the keyboard inset while typing) plus 1.5rem.
     const padding = await page
-      .getByTestId('main-content')
+      .getByRole('region', { name: 'Inventory', exact: true })
       .evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom));
     const isPhone = harness.viewport.width < 640;
-    if (isPhone) expect(padding).toBeCloseTo(KEYBOARD + 8, 0);
+    if (isPhone) expect(padding).toBeCloseTo(KEYBOARD + 24, 0);
 
     await search.blur();
     await expect(html(page)).not.toHaveAttribute('data-keyboard-open');
     await expect(harness.dock()).toBeVisible();
-    for (const name of ['Search', 'Binder', 'List', 'Wanted', 'Browse'])
+    for (const name of ['Search', 'Binder', 'Inventory', 'Wanted', 'Browse'])
       await harness.expectHittable(harness.dock().getByRole('button', { name, exact: true }));
     await setKeyboard(page, 0);
   });
@@ -117,7 +118,7 @@ test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
     harness,
   }) => {
     const { page } = harness;
-    await mockCardPrices(page, { 'sv03.5-006': { market: 10, confidence: 'high' } });
+    await mockCardPrices(page, { 'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high' } });
     await page.getByRole('button', { name: 'Show mode', exact: true }).click();
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Quick mode' });
@@ -141,11 +142,8 @@ test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
     await expect(html(page)).toHaveAttribute('data-keyboard-open', '');
     await expect(harness.dock()).toBeHidden();
     // The native keyboard handles entry; actions wait for Done.
-    await expectTypingLayout(harness, check, input, 'deal-verdict-pinned', 'deal-verdict', [
-      'Add owned',
-      'Want',
-      'Add to bundle',
-    ]);
+    // Native binders own and want from the binder and Inventory, so Show's only check action is the bundle.
+    await expectTypingLayout(harness, check, input, 'deal-verdict-pinned', 'deal-verdict', ['Add to bundle']);
 
     // Typing filters to digits, comma and dot, as before, and the pinned verdict follows it.
     await input.fill('');
@@ -168,8 +166,7 @@ test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
     await expect(check.getByTestId('deal-verdict')).toBeVisible();
     await expect(check.getByTestId('deal-verdict')).toHaveAttribute('data-verdict', 'great');
     await expect(check.getByTestId('deal-verdict-pinned')).toBeHidden();
-    for (const name of ['Add owned', 'Want', 'Add to bundle'])
-      await expect(check.getByRole('button', { name, exact: true })).toBeVisible();
+    await expect(check.getByRole('button', { name: 'Add to bundle', exact: true })).toBeVisible();
     await input.evaluate((element: HTMLInputElement) => element.setSelectionRange(0, 0));
     await input.click({ position: { x: 4, y: 10 } });
     expect(await input.evaluate((element: HTMLInputElement) => [element.selectionStart, element.selectionEnd])).toEqual(
@@ -190,7 +187,7 @@ test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
     harness,
   }) => {
     const { page } = harness;
-    await mockCardPrices(page, { 'sv03.5-006': { market: 10, confidence: 'high' } });
+    await mockCardPrices(page, { 'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high' } });
     const search = harness.dock().getByRole('button', { name: 'Search', exact: true });
     const box = (await search.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -207,25 +204,21 @@ test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
       .click();
     const check = dialog.getByTestId('quick-card-check');
     const input = check.getByRole('textbox', { name: 'Asking price' });
-    // Outside Show mode the keyboard stays down: price, verdict and Own / Want come first.
+    // Outside Show mode the keyboard stays down, and a native check has no Own / Want actions.
     await expect(input).not.toBeFocused();
-    for (const name of ['Add owned', 'Want'])
-      await expect(check.getByRole('button', { name, exact: true })).toBeVisible();
     await input.click();
     await expect(input).toBeFocused();
 
     await setKeyboard(page, KEYBOARD);
     await expect(html(page)).toHaveAttribute('data-keyboard-open', '');
     await input.fill('7');
-    await expectTypingLayout(harness, check, input, 'deal-verdict-pinned', 'deal-verdict', ['Add owned', 'Want']);
+    await expectTypingLayout(harness, check, input, 'deal-verdict-pinned', 'deal-verdict', []);
     await expect(check.getByTestId('deal-verdict-pinned')).toHaveAttribute('data-verdict', 'great');
 
     await check.getByRole('button', { name: 'Done editing price' }).click();
     await setKeyboard(page, 0);
     await expect(html(page)).not.toHaveAttribute('data-keyboard-open');
     await expect(check.getByTestId('deal-verdict')).toBeVisible();
-    for (const name of ['Add owned', 'Want'])
-      await expect(check.getByRole('button', { name, exact: true })).toBeVisible();
   });
 
   test('Show mode deal check: counts as typing when iOS pans the page up by the whole keyboard', async ({
@@ -234,7 +227,7 @@ test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
     // The installed iPhone app: the asking field is at the bottom, so iOS scrolls the visual viewport up
     // by the keyboard's height. Nothing at the layout viewport's bottom is covered, but the keyboard is up.
     const { page } = harness;
-    await mockCardPrices(page, { 'sv03.5-006': { market: 10, confidence: 'high' } });
+    await mockCardPrices(page, { 'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high' } });
     await page.getByRole('button', { name: 'Show mode', exact: true }).click();
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Quick mode' });
@@ -268,7 +261,7 @@ test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
       // Callum's iPhone: with the asking field focused, iOS slid the whole full-height dialog up with the
       // keyboard, card off the top. The dialog must instead fit the visible part of the page.
       const { page } = harness;
-      await mockCardPrices(page, { 'sv03.5-006': { market: 10, confidence: 'high' } });
+      await mockCardPrices(page, { 'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high' } });
       await page.getByRole('button', { name: 'Show mode', exact: true }).click();
       await page.getByRole('button', { name: 'Search', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: 'Quick mode' });
@@ -316,8 +309,8 @@ test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
   test('Show mode bundle check: the verdict pins above the bundle price while typing', async ({ harness }) => {
     const { page } = harness;
     await mockCardPrices(page, {
-      'sv03.5-006': { market: 10, confidence: 'high' },
-      'sv03.5-007': { market: 4, confidence: 'high' },
+      'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high' },
+      'sv03.5-007': { finish: 'normal', market: 4, confidence: 'high' },
     });
     await page.getByRole('button', { name: 'Show mode', exact: true }).click();
     await page.getByRole('button', { name: 'Search', exact: true }).click();
@@ -369,8 +362,8 @@ test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
 
   test('a shortcut-bar-sized change while typing (hardware keyboard) keeps the dock', async ({ harness }) => {
     const { page } = harness;
-    await harness.dock().getByRole('button', { name: 'List', exact: true }).click();
-    await page.getByPlaceholder('Search name, card, set, or dex #').focus();
+    await harness.listTab().click();
+    await page.getByRole('searchbox', { name: 'Search inventory' }).focus();
     await setKeyboard(page, 70);
     await page.waitForTimeout(100);
     await expect(html(page)).not.toHaveAttribute('data-keyboard-open');

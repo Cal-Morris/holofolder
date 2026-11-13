@@ -1,4 +1,4 @@
-import { test, expect, mockBackends } from './fixtures';
+import { test, expect, mockBackends, collectionPicker, seedNativeStorage } from './fixtures';
 
 test.use({ signedIn: true });
 
@@ -8,13 +8,12 @@ for (const theme of ['light', 'dark']) {
     { tag: theme === 'light' ? '@matrix' : [] },
     async ({ harness }, info) => {
       const page = harness.page;
-      await page.goto('/app/e2e-harness?signedIn=1&binders=1');
       await page.getByRole('button', { name: 'More', exact: true }).click();
       const themeAction = page.getByRole('menuitem', { name: theme === 'light' ? 'Light mode' : 'Dark mode' });
       if (await themeAction.isVisible()) await themeAction.click();
       else await page.keyboard.press('Escape');
       const header = page.getByTestId('app-header');
-      await expect(header.getByTestId('binder-switcher-trigger')).toContainText('My binder');
+      await expect(collectionPicker(page)).toContainText('My binder');
       await expect(harness.dock().getByRole('button', { name: 'Binder', exact: true })).toHaveAttribute(
         'aria-pressed',
         'true',
@@ -40,14 +39,8 @@ for (const theme of ['light', 'dark']) {
       await expect(header.getByRole('spinbutton')).not.toHaveValue('1');
       await header.getByRole('button', { name: /Previous binder/ }).click();
       await expect(header.getByRole('spinbutton')).toHaveValue('1');
-      await header.getByRole('button', { name: 'View', exact: true }).click();
-      const view = page.getByRole('dialog', { name: 'View options' });
-      await expect(view).toBeVisible();
-      await expect(view.getByRole('group', { name: 'Binder display' })).toBeVisible();
-      await harness.expectWithinSafeViewport(view.getByRole('button', { name: 'Close view options' }));
-      await page.screenshot({ path: `/tmp/header-view-${info.project.name}-${theme}.png` });
-      await harness.swipeDown(view);
-      await expect(view).toBeHidden();
+      // Native binders choose their view from the Collection view picker; the header has no View options sheet.
+      await expect(header.getByRole('button', { name: 'View', exact: true })).toHaveCount(0);
       await header.getByRole('button', { name: 'Show mode', exact: true }).click();
       const show = page.getByRole('region', { name: 'Show mode' });
       await expect(show).toBeVisible();
@@ -93,13 +86,14 @@ for (const width of [1280, 1440])
       });
       const page = await context.newPage();
       await mockBackends(page, context, { signedIn: true, baseURL });
-      await page.goto(`${baseURL}/app/e2e-harness?signedIn=1&binders=1`);
+      await seedNativeStorage(context, baseURL);
+      await page.goto(`${baseURL}/app/e2e-harness?signedIn=1&browserHost=1`);
       await page.getByRole('button', { name: 'More', exact: true }).click();
       const themeAction = page.getByRole('menuitem', { name: colorScheme === 'light' ? 'Light mode' : 'Dark mode' });
       if (await themeAction.isVisible()) await themeAction.click();
       else await page.keyboard.press('Escape');
       const header = page.getByTestId('app-header');
-      await expect(header.getByRole('button', { name: 'View', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Collection view', exact: true })).toBeVisible();
       await header.getByRole('button', { name: 'Show mode', exact: true }).click();
       await expect(page.getByRole('region', { name: 'Show mode' })).toBeVisible();
       expect((await header.boundingBox())!.height).toBeLessThan(125);

@@ -531,6 +531,11 @@ export class Harness {
     return this.page.getByRole('navigation', { name: 'Main navigation' });
   }
 
+  /** The dock's list tab: "Inventory" for signed-in native binders, "List" for guests. */
+  listTab() {
+    return this.dock().getByRole('button', { name: this.signedIn ? 'Inventory' : 'List', exact: true });
+  }
+
   /** The binder pocket for a National Dex number: a native storage slot when signed in, the guest dex grid otherwise. */
   slot(dex: number) {
     return this.signedIn
@@ -652,10 +657,13 @@ export class Harness {
       const insideDialog =
         point.x >= box.x && point.x <= box.x + box.width && point.y >= box.y && point.y <= box.y + box.height;
       if (insideDialog) continue;
-      const isBackdrop = await this.page.evaluate(({ x, y }) => {
+      const isBackdrop = await dialog.evaluate((sheet, { x, y }) => {
         const element = document.elementFromPoint(x, y) as HTMLElement | null;
-        // A native modal <dialog> paints its own ::backdrop, which hit-tests as the dialog element.
-        return Boolean(element?.matches('[data-overlay-backdrop], dialog:modal'));
+        // A native modal <dialog> paints its own ::backdrop, which hit-tests as the dialog element (the point is
+        // already outside its box). A backdrop's padding wrapper passes its taps up to the backdrop's close handler.
+        if (!element) return false;
+        if (element.matches('dialog:modal')) return true;
+        return !sheet.contains(element) && Boolean(element.closest('[data-overlay-backdrop]'));
       }, point);
       if (isBackdrop) {
         await this.page.mouse.click(point.x, point.y);
