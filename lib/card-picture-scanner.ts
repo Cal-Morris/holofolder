@@ -224,15 +224,43 @@ function startWorker() {
   return ready;
 }
 
+const ONLINE_LANGUAGES = ['en', 'ja'];
+
+async function matchCardPictureOnline(blob: Blob): Promise<PictureScan | null> {
+  if (!navigator.onLine) return null;
+  try {
+    const languages = pictureIndexLanguages(collectedLanguages, ONLINE_LANGUAGES).join(',');
+    const response = await fetch(`/app/api/card-identify?languages=${languages}`, {
+      method: 'POST',
+      body: blob,
+      headers: { 'Content-Type': blob.type || 'image/jpeg' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const { matches, ms } = (await response.json()) as {
+      matches?: PictureMatch[];
+      ms?: { decode: number; embed: number; search: number };
+    };
+    if (!Array.isArray(matches)) return null;
+    return { matches, ms: { embed: (ms?.decode ?? 0) + (ms?.embed ?? 0), match: ms?.search ?? 0 } };
+  } catch (error) {
+    console.info('[holofolder] Online picture match failed:', error);
+    return null;
+  }
+}
+
 export interface PictureScan {
   matches: PictureMatch[];
   ms: { embed: number; match: number };
 }
 
-/** The closest cards to a crop (data URL or image), or null when the picture scanner isn't on this device. */
+/**
+ * The closest cards to a crop (data URL or image): on this device when the scanner is downloaded, else from the
+ * server matcher when online (the same model and index, so the same matches), else null.
+ */
 export async function matchCardPicture(image: string | Blob): Promise<PictureScan | null> {
-  if (!(await startWorker()) || !worker) return null;
   const blob = typeof image === 'string' ? await (await fetch(image)).blob() : image;
+  if (!(await startWorker()) || !worker) return matchCardPictureOnline(blob);
   // One crop at a time: the WASM session runs one inference at a time anyway.
   const run = queue.then(
     () =>
