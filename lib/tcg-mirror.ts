@@ -824,6 +824,29 @@ export async function searchMirroredCards(
     return { cards: result.cards.filter((card) => hasRarity(card, rarity.rarities)), correction: null };
   }
 
+  // "2026", "sv 2024": every card from the sets released that year (narrowed by set or series), newest set first.
+  if (isSetYearQuery(query)) {
+    cacheTag(
+      'tcg-mirror',
+      MIRROR_CACHE_VERSION,
+      'tcg-card-search',
+      cacheSafeTag('card-year-query', query.trim().toLowerCase()),
+      cacheSafeTag('language', language),
+    );
+    const sets = rankSetMatches(
+      (await getBrowsableMirroredSets()).filter(
+        (set) => !HIDDEN_SET_IDS.has(set.id) && (language !== 'en' || isSetInLanguage(set, 'en')),
+      ),
+      query,
+      Infinity,
+    );
+    const rows = await cardsInSets(
+      sets.map((set) => set.id),
+      cardSearchSelect(includeNonPokemon),
+    );
+    return { cards: toSearchCardResults(rows, language, includeNonPokemon), correction: null };
+  }
+
   let parsed = { ...parseCardSearchQuery(query), setIds: [] as string[] };
   cacheTag(
     'tcg-mirror',
@@ -942,11 +965,27 @@ export async function searchMirroredCards(
   const literal = parseCardSearchQuery(query);
   if (parsed.setIds.length && !literal.number && literal.text.length >= 2)
     responses.push(await admin.from('tcg_cards').select(select).or(cardNameSearchFilter(literal.text)).limit(limit));
-  const results = new Map<string, SearchCardResult>();
   for (const response of responses) {
     if (response.error) throw response.error;
   }
-  for (const row of deduplicateCatalogCards(responses.flatMap((response) => response.data || []))) {
+  const cards = toSearchCardResults(
+    responses.flatMap((response) => response.data || []),
+    language,
+    includeNonPokemon,
+  );
+  if (!cards.length && correction) {
+    const retry = await searchMirroredCards(correction, language, limit, includeNonPokemon);
+    return { cards: retry.cards, correction: retry.cards.length ? correction : null };
+  }
+  return { cards, correction: null };
+}
+
+/** An untyped mirror card row, as `toSearchCardResult` reads it. */
+type SearchCardRow = Parameters<typeof toSearchCardResult>[0];
+
+function toSearchCardResults(rows: SearchCardRow[], language: CardSearchLanguage, includeNonPokemon: boolean) {
+  const results = new Map<string, SearchCardResult>();
+  for (const row of deduplicateCatalogCards(rows)) {
     // A card printed only in another language (an imported Japanese promo found by its English name) keeps that
     // language; English printings stand in for the other languages, as before.
     const printedIn = (code: string) => Boolean(row.name_json?.[code]?.trim?.());
@@ -957,13 +996,36 @@ export async function searchMirroredCards(
     const card = toSearchCardResult(row, rowLanguage, includeNonPokemon);
     if (card && !results.has(card.id)) results.set(card.id, card);
   }
+  return Array.from(results.values());
+}
 
-  const cards = Array.from(results.values());
-  if (!cards.length && correction) {
-    const retry = await searchMirroredCards(correction, language, limit, includeNonPokemon);
-    return { cards: retry.cards, correction: retry.cards.length ? correction : null };
+/** Every card in the given sets, in that set order and by card number within each set. */
+async function cardsInSets(setIds: string[], select: string) {
+  if (!setIds.length) return [];
+  const admin = createAdminClient();
+  const page = (from: number) =>
+    admin
+      .from('tcg_cards')
+      .select(select, from === 0 ? { count: 'exact' } : undefined)
+      .in('set_id', setIds)
+      .order('local_id_sort', { ascending: true, nullsFirst: false })
+      .order('id', { ascending: true })
+      .range(from, from + MIRROR_PAGE_SIZE - 1);
+  // The first page also counts the rows, so the rest (past PostgREST's 1000-row cap) load together.
+  const first = await page(0);
+  if (first.error) throw first.error;
+  const rest = await Promise.all(
+    Array.from({ length: Math.ceil((first.count ?? 0) / MIRROR_PAGE_SIZE) - 1 }, (_, index) =>
+      page((index + 1) * MIRROR_PAGE_SIZE),
+    ),
+  );
+  const rows: SearchCardRow[] = [];
+  for (const response of [first, ...rest]) {
+    if (response.error) throw response.error;
+    rows.push(...((response.data ?? []) as SearchCardRow[]));
   }
-  return { cards, correction: null };
+  const setOrder = new Map(setIds.map((id, index) => [id, index]));
+  return rows.toSorted((left, right) => (setOrder.get(left.set_id) ?? 0) - (setOrder.get(right.set_id) ?? 0));
 }
 
 /** Ids per nickname query, so a group nickname ("shiny vault") keeps the request URL short. */
