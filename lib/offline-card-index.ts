@@ -1,7 +1,7 @@
 import { isSetYearQuery, rankSetMatches } from '@/lib/set-search';
 import { appPath } from '@/lib/app-path';
 import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
-import { matchCardNicknames, matchesNicknameRest } from '@/lib/card-nicknames';
+import { hasRarity, matchCardNicknames, matchesNicknameRest, matchRarityWords } from '@/lib/card-nicknames';
 import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
 // Offline card search: an index built from what is already on the device (the user's own cards and the card
 // data the service worker cached: set coverage, per-Pokémon card lists and earlier search results), matched
@@ -180,6 +180,12 @@ export function mergeSearchCards(lists: SearchCardResult[][]): SearchCardResult[
 
 /** Same rules as the server search: card id, or name / set name / set id containing the text, optionally a number. */
 export function searchOfflineCards(cards: SearchCardResult[], query: string, limit = 60): SearchCardResult[] {
+  // "charizard sir": the search without the rarity word, kept to that rarity, like the server search.
+  const rarity = matchRarityWords(query);
+  if (rarity)
+    return searchOfflineCards(cards, rarity.rest, Infinity)
+      .filter((card) => hasRarity(card, rarity.rarities))
+      .slice(0, limit);
   // Supplement identities can have stamped suffixes that the collector-number parser cannot infer.
   const exactId = cards.filter((card) =>
     [card.id, card.canonicalId, ...(card.aliasIds ?? [])].some(
