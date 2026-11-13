@@ -202,6 +202,15 @@ export async function openStorage(page: Page) {
 export async function storageAction(page: Page, name: string) {
   return (await openStorage(page)).getByRole('button', { name, exact: true });
 }
+/** Layout editing: opens Edit layout unless already editing, then Add → At the end of the binder (one empty pocket). */
+export async function appendPocket(page: Page) {
+  const edit = page.getByRole('button', { name: 'Edit layout', exact: true });
+  const add = page.locator('[data-layout-bar]').getByRole('button', { name: 'Add', exact: true });
+  await expect(edit.or(add)).toBeVisible();
+  if (await edit.isVisible()) await edit.click();
+  await add.click();
+  await page.getByRole('menuitem', { name: 'At the end of the binder', exact: true }).click();
+}
 export async function closeStorage(page: Page) {
   const close = page.getByRole('button', { name: 'Close storage', exact: true });
   if (await close.isVisible()) await close.click();
@@ -233,6 +242,10 @@ async function choose(page: Page, trigger: Locator, menu: string, value: string)
 export const chooseCollection = (page: Page, id: string) =>
   choose(page, collectionPicker(page), 'Choose collection', id);
 export const chooseView = (page: Page, view: string) => choose(page, viewPicker(page), 'Choose view', view);
+/** The binder's pocket filter ("Show pockets"): all, owned, wanted or needed (shown as Missing). */
+export const pocketFilter = (page: Page) => page.getByRole('button', { name: 'Show pockets', exact: true });
+export const choosePockets = (page: Page, filter: 'all' | 'owned' | 'wanted' | 'needed') =>
+  choose(page, pocketFilter(page), 'Choose pockets', filter);
 
 export async function emulateStandalone(page: Page, insets: typeof SAFE_AREA) {
   await page.addInitScript(() => {

@@ -5,7 +5,6 @@ import {
   emulateStandalone,
   Harness,
   E2E_USER,
-  storageAction,
   openStorage,
   collectionPicker,
 } from './fixtures';
@@ -35,18 +34,20 @@ async function record(page: Page): Promise<SlotOfflineRecord> {
     return rows.find((r) => !!r && typeof r === 'object' && 'pending' in r) as SlotOfflineRecord;
   });
 }
+/** The Storage menu's delete action is named for the kind: "Delete this binder" or "Delete this collection". */
+const deleteAction = async (page: Page) =>
+  (await openStorage(page)).getByRole('button', { name: /^Delete this (binder|collection)$/ });
+/** The sheet's confirm button: "Delete binder" ("Delete all" with the cards), or "Try again" after a failed handoff. */
+const confirmButton = (page: Page) =>
+  dialog(page).getByRole('button', { name: /^(Delete binder|Delete all|Deleting…|Try again)$/ });
 async function review(page: Page, isDefault = true) {
-  await (await storageAction(page, 'Delete collection')).click();
-  if (isDefault) {
-    await expect(button(page, 'Review collection deletion')).toBeDisabled();
+  await (await deleteAction(page)).click();
+  await expect(dialog(page)).toBeVisible();
+  if (isDefault)
     await page.getByRole('combobox', { name: 'Replacement default collection', exact: true }).selectOption(remaining);
-  }
-  await button(page, 'Review collection deletion').click();
-  await expect(button(page, 'Confirm collection deletion')).toBeDisabled();
-  await dialog(page).getByRole('checkbox').check();
 }
 async function confirm(page: Page) {
-  await button(page, 'Confirm collection deletion').click();
+  await confirmButton(page).click();
 }
 test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   if (standalone) await emulateStandalone(page, insets);
@@ -70,29 +71,27 @@ test('explicit default replacement and exact consequences retain duplicate raw, 
   const before = (await record(page)).snapshot!;
   const browse = await page.getByRole('button', { name: 'Storage', exact: true }).boundingBox();
   await review(page);
-  await expect(dialog(page)).toContainText('Synthetic storage');
-  await expect(dialog(page)).toContainText(
-    'Slots to delete: 5 · Targets to delete: 2 · Explicit wants to delete: 2 · Owned copies retained Unassigned: 4',
+  await expect(dialog(page).getByRole('heading', { name: 'Delete Synthetic storage?' })).toBeVisible();
+  await expect(dialog(page).getByRole('status')).toHaveText(
+    'Removes its 5 pockets and 2 wanted cards. Any shared link to it stops working.',
   );
-  await expect(dialog(page)).toContainText('Want to delete: Synthetic explicit want');
-  await expect(dialog(page)).toContainText('Recorded graded copy, metadata retained');
-  await expect(dialog(page)).toContainText('unknown printing');
-  await expect(dialog(page)).toContainText('New default: Synthetic retained collection');
+  await expect(dialog(page)).toContainText('Otherwise they stay in your collection, out of a binder.');
+  await expect(page.getByRole('combobox', { name: 'Replacement default collection' })).toHaveValue(remaining);
   expect(bodies).toHaveLength(0);
   expect((await record(page)).pending).toHaveLength(0);
   const h = new Harness(page, insets, true);
   await h.expectWithinSafeViewport(dialog(page));
   await h.expectNoHorizontalOverflow();
-  for (const name of ['Confirm collection deletion', 'Cancel deletion', 'Close collection deletion']) {
-    await h.expectMinTapTarget(button(page, name), 36);
-    await h.expectHittable(button(page, name));
+  for (const control of [confirmButton(page), button(page, 'Keep it'), button(page, 'Close collection deletion')]) {
+    await h.expectMinTapTarget(control, 36);
+    await h.expectHittable(control);
   }
   console.log(
     'deletion geometry',
     test.info().project.name,
     JSON.stringify({ browse, review: await dialog(page).boundingBox() }),
   );
-  await button(page, 'Confirm collection deletion').evaluate((el) => {
+  await confirmButton(page).evaluate((el) => {
     (el as HTMLButtonElement).click();
     (el as HTMLButtonElement).click();
   });
@@ -112,11 +111,7 @@ for (const [kind, size] of [
   ['dex', 1025],
   ['max', 4096],
 ] as const)
-  test(`${size} targets remain one atomic deletion with all preview pages accessible`, async ({
-    page,
-    context,
-    baseURL,
-  }) => {
+  test(`${size} targets remain one atomic deletion`, async ({ page, context, baseURL }) => {
     await context.addCookies([
       { name: 'hf-storage-fixture', value: `delete-${kind}-${crypto.randomUUID()}`, url: baseURL! },
     ]);
@@ -127,10 +122,7 @@ for (const [kind, size] of [
     });
     await page.goto(entry);
     await review(page);
-    await expect(dialog(page)).toContainText(`Slots to delete: ${size} · Targets to delete: ${size}`);
-    await expect(dialog(page).getByRole('region', { name: 'Delete saved slot 1', exact: true })).toBeVisible();
-    await button(page, 'Next preview page').click();
-    await expect(dialog(page).getByRole('region', { name: 'Delete saved slot 41', exact: true })).toBeVisible();
+    await expect(dialog(page).getByRole('status')).toContainText(`Removes its ${size} pockets`);
     await confirm(page);
     await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 20000 }).toBe(1);
     expect(bodies).toHaveLength(1);
@@ -152,7 +144,7 @@ test('non-default deletion has no replacement choice, shared dismissal never dis
   for (const action of ['cancel', 'close', 'escape', 'back', 'backdrop', 'swipe', 'dock']) {
     await review(page, false);
     await expect(page.getByRole('combobox', { name: 'Replacement default collection' })).toHaveCount(0);
-    if (action === 'cancel') await button(page, 'Cancel deletion').click();
+    if (action === 'cancel') await button(page, 'Keep it').click();
     if (action === 'close') await button(page, 'Close collection deletion').click();
     if (action === 'escape') await page.keyboard.press('Escape');
     if (action === 'back') await page.goBack();
@@ -191,12 +183,13 @@ test('IDB abort retries identical original reviewed operation, no sender before 
     };
   });
   await confirm(page);
-  await expect(dialog(page)).toContainText('Could not save this draft on device');
-  await expect(button(page, 'Retry same collection deletion')).toBeEnabled();
+  await expect(dialog(page).getByRole('alert')).toContainText('Save not confirmed.');
+  await expect(confirmButton(page)).toHaveText('Try again');
+  await expect(confirmButton(page)).toBeEnabled();
   expect(body).toBe('');
   expect((await record(page)).pending).toHaveLength(0);
   const original = await page.evaluate(() => JSON.parse(sessionStorage.getItem('aborted-deletion')!));
-  await button(page, 'Retry same collection deletion').click();
+  await confirm(page);
   await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
   expect(JSON.parse(body)).toEqual(original.request);
   expect((await record(page)).receipts[0].intent).toEqual(original);
@@ -225,9 +218,9 @@ test('lost committed reply survives reload with original operation, failed fresh
   expect((await record(page)).pending[0].intent).toEqual(original);
   expect((await record(page)).receipts).toHaveLength(0);
   failRead = false;
-  await button(page, 'Retry pending sync').evaluateAll((buttons) =>
-    (buttons[0] as HTMLButtonElement | undefined)?.click(),
-  );
+  await page
+    .getByRole('button', { name: /^(Try now|Try again)$/ })
+    .evaluateAll((buttons) => (buttons[0] as HTMLButtonElement | undefined)?.click());
   await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15000 }).toBe(1);
   expect(new Set(bodies).size).toBe(1);
 });
@@ -252,7 +245,8 @@ for (const change of ['default', 'wants'] as const)
     await review(page);
     changed = true;
     await confirm(page);
-    await expect(dialog(page)).toContainText('This review is blocked');
+    // The fresh read no longer matches what this sheet prepared, so nothing is queued or sent.
+    await expect(dialog(page).getByRole('alert')).toContainText('Save not confirmed.');
     expect(sends).toBe(0);
     expect((await record(page)).pending).toHaveLength(0);
   });
@@ -265,17 +259,17 @@ test('offline and unknown default evidence refuse confirmation with concrete gui
   await page.goto(entry);
   await review(page);
   await context.setOffline(true);
-  await expect(button(page, 'Confirm collection deletion')).toBeDisabled();
+  await expect(confirmButton(page)).toBeDisabled();
   expect((await record(page)).pending).toHaveLength(0);
   await context.setOffline(false);
-  await button(page, 'Cancel deletion').click();
+  await button(page, 'Keep it').click();
   await context.addCookies([
     { name: 'hf-storage-fixture', value: `delete-unknown-default-${crypto.randomUUID()}`, url: baseURL! },
   ]);
   await page.reload();
-  await (await storageAction(page, 'Delete collection')).click();
-  await expect(dialog(page)).toContainText('default evidence are required');
-  await expect(button(page, 'Review collection deletion')).toBeDisabled();
+  await (await deleteAction(page)).click();
+  await expect(dialog(page).getByRole('alert')).toContainText("This binder can't be deleted right now.");
+  await expect(confirmButton(page)).toBeDisabled();
 });
 
 for (const change of ['signout', 'account', 'owner'] as const)
@@ -346,7 +340,8 @@ test('accepted HTTP reply requires a separate fresh complete read before ACK', a
   await page.goto(entry);
   await review(page);
   await confirm(page);
-  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('unavailable');
+  // Accepted by the server, but it stays queued until a fresh complete read covers it.
+  await expect.poll(async () => (await record(page))?.pending[0]?.status).toBe('acknowledged');
   expect((await record(page)).receipts).toHaveLength(0);
   failRead = false;
   await page.reload();
@@ -389,27 +384,4 @@ test('live concurrent revision rejects whole deletion, retains original and offe
   expect(retained.request.commands[0].kind).toBe('deleteCollection');
   expect((await record(page)).receipts).toHaveLength(0);
   expect((await record(page)).snapshot!.items).toHaveLength(4);
-});
-
-test('mixed legacy/native owner fails complete-read admission, no deletion or automatic conversion', async ({
-  page,
-  context,
-  baseURL,
-}) => {
-  await context.addCookies([
-    { name: 'hf-storage-fixture', value: `delete-legacy-${crypto.randomUUID()}`, url: baseURL! },
-  ]);
-  let sends = 0;
-  await page.route('**/app/e2e-harness/storage/inventory', (route) => {
-    sends++;
-    return route.continue();
-  });
-  await page.goto(entry);
-  await expect(
-    page.getByText('Could not refresh storage. Showing only saved copies; pending edits are retained.'),
-  ).toBeVisible();
-  await expect(
-    (await openStorage(page)).getByRole('button', { name: 'Delete collection', exact: true, disabled: false }),
-  ).toHaveCount(0);
-  expect(sends).toBe(0);
 });

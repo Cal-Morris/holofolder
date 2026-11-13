@@ -1,4 +1,14 @@
-import { test, expect, mockBackends, emulateStandalone, chooseCollection, E2E_USER, Harness } from './fixtures';
+import {
+  test,
+  expect,
+  mockBackends,
+  emulateStandalone,
+  chooseCollection,
+  choosePockets,
+  pocketFilter,
+  E2E_USER,
+  Harness,
+} from './fixtures';
 import { inventoryBrowseFixture } from '../tests/fixtures/inventory-browse';
 import { fixture, catalogRows, snapshotCardIds } from '../tests/fixtures/inventory-read-server';
 import { buildInventoryCatalog } from '../lib/server/inventory-read-catalog';
@@ -131,8 +141,8 @@ test('binder filter bar shows owned, wanted and missing pockets and resets per b
   });
   await page.goto(`/app/e2e-harness?signedIn=1&binder=${alpha}`);
 
-  const bar = page.getByRole('group', { name: 'Show pockets', exact: true });
-  const pill = (name: string) => bar.getByRole('button', { name, exact: true });
+  // The filter is one toolbar menu ("Show pockets"); data-value carries the current filter.
+  const filter = pocketFilter(page);
   const shown = () =>
     page
       .locator('[data-slot-id]')
@@ -142,33 +152,31 @@ test('binder filter bar shows owned, wanted and missing pockets and resets per b
           .filter((label) => label && !/Free slot|Empty spacer/.test(label)),
       );
   await expect(page.getByRole('button', { name: 'Charizard, Owned', exact: true })).toBeVisible();
-  await expect(pill('All')).toHaveAttribute('aria-pressed', 'true');
+  await expect(filter).toHaveAttribute('data-value', 'all');
 
   const h = new Harness(page, insets, true);
   await h.expectNoHorizontalOverflow();
-  await h.expectWithinSafeViewport(bar);
-  for (const name of ['All', 'Owned', 'Wanted', 'Missing']) {
-    await h.expectMinTapTarget(pill(name));
-    await h.expectHittable(pill(name));
-  }
+  await h.expectWithinSafeViewport(filter);
+  await h.expectMinTapTarget(filter);
+  await h.expectHittable(filter);
 
-  await pill('Owned').click();
-  await expect(pill('Owned')).toHaveAttribute('aria-pressed', 'true');
+  await choosePockets(page, 'owned');
+  await expect(filter).toHaveAttribute('data-value', 'owned');
   await expect.poll(shown).toEqual(['Charizard, Owned', 'Blastoise, Owned']);
   await page.screenshot({ path: info.outputPath(`binder-filter-owned-${info.project.name}.png`) });
-  await pill('Wanted').click();
+  await choosePockets(page, 'wanted');
   await expect.poll(shown).toEqual(['Venusaur, Unfilled target']);
-  await pill('Missing').click();
+  await choosePockets(page, 'needed');
   await expect.poll(shown).toEqual(['Venusaur, Unfilled target', 'Bulbasaur, Unfilled target']);
   await h.expectNoHorizontalOverflow();
-  await pill('All').click();
+  await choosePockets(page, 'all');
   await expect
     .poll(shown)
     .toEqual(['Charizard, Owned', 'Blastoise, Owned', 'Venusaur, Unfilled target', 'Bulbasaur, Unfilled target']);
 
   // A filter belongs to the binder it was set on.
-  await pill('Owned').click();
+  await choosePockets(page, 'owned');
   await chooseCollection(page, beta);
   await expect(page.getByRole('button', { name: 'Pikachu, Unfilled target', exact: true })).toBeVisible();
-  await expect(pill('All')).toHaveAttribute('aria-pressed', 'true');
+  await expect(filter).toHaveAttribute('data-value', 'all');
 });

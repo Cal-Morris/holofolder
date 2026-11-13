@@ -4066,7 +4066,8 @@ function BinderAppSurface(props: BinderAppProps) {
           readOnlyMode,
           selectedPokemon,
           settings: binderEffectSettings,
-          showSlotLabels: !readOnlyMode && slotLabelsOn,
+          // Only shared links hide pocket positions; readOnlyMode also covers every native owner binder.
+          showSlotLabels: !legacyReadOnlyMode && !shareViewToken && slotLabelsOn,
           slotActions,
           slotGlareOverlayStyle,
           user,

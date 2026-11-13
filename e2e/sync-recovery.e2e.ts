@@ -39,9 +39,10 @@ async function drag(page: Page, from: number, to: number) {
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 6 });
   await page.mouse.up();
 }
+/** A quick drop onto another pocket swaps the two (lib/pocket-drop.ts). */
 const moved = (ids: (string | null)[], from: number, to: number) => {
   const next = [...ids];
-  next.splice(to, 0, ...next.splice(from, 1));
+  [next[from], next[to]] = [next[to], next[from]];
   return next;
 };
 /** Storage writes get no answer, as on Wi-Fi with no internet behind it. */

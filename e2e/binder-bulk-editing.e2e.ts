@@ -4,9 +4,21 @@ import type { SlotOfflineRecord } from '../lib/collection/slot-offline-queue';
 
 const record = async (page: Page): Promise<SlotOfflineRecord> =>
   JSON.parse((await page.getByLabel('Bulk record', { exact: true }).textContent()) ?? 'null');
-const bulk = (page: Page) => page.getByRole('region', { name: 'Bulk layout actions', exact: true });
+/** The layout bar while editing (Browse shows only the Edit layout control). */
+const bulk = (page: Page) => page.locator('[data-layout-bar]');
+const count = (page: Page) => bulk(page).getByRole('status');
 const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
-const select = async (page: Page, n: number) => button(page, `Select slot ${n}`).click();
+/** Selection happens on the pockets themselves; slot N is slot-a, slot-b… in the synthetic binder. */
+const pocket = (page: Page, n: number) => page.locator(`button[data-slot-id="slot-${'abcdefg'[n - 1]}"]`);
+const select = async (page: Page, n: number) => pocket(page, n).click();
+const moveTo = async (page: Page, where: 'To the start' | 'To the end') => {
+  await bulk(page).getByRole('button', { name: 'Move', exact: true }).click();
+  await bulk(page).getByRole('button', { name: where, exact: true }).click();
+};
+const add = async (page: Page, item: string | RegExp) => {
+  await bulk(page).getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('menu', { name: 'Add an empty pocket' }).getByRole('menuitem', { name: item }).click();
+};
 const control = async (page: Page, mode: string) => {
   const before = Number(await page.getByLabel('Bulk controls').textContent());
   await page.evaluate(
@@ -36,8 +48,8 @@ test.describe('bulk layout private durable boundary', () => {
     await button(page, 'Edit layout').focus();
     await page.keyboard.press('Enter');
     await visible.dispatchEvent('click', { detail: 1 });
-    await expect(bulk(page)).toContainText('0 selected');
-    const target = button(page, 'Select slot 1');
+    await expect(count(page)).toHaveText('Tap pockets to select');
+    const target = pocket(page, 1);
     for (const cancel of ['pointercancel', 'pointermove']) {
       await target.dispatchEvent('pointerdown', { clientX: 20, clientY: 20 });
       await target.dispatchEvent(cancel, { clientX: 100, clientY: 20 });
@@ -45,7 +57,7 @@ test.describe('bulk layout private durable boundary', () => {
       await expect(target).toHaveAttribute('aria-pressed', 'false');
     }
     await target.focus();
-    await page.keyboard.press('Space');
+    await page.keyboard.press('Enter');
     await expect(target).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(async () => (await record(page)).pending.length).toBe(0);
   });
@@ -58,16 +70,14 @@ test.describe('bulk layout private durable boundary', () => {
     await edit(page);
     await select(page, 3);
     await select(page, 1);
-    await expect(bulk(page)).toContainText('2 selected');
-    await page.getByLabel('Bulk destination slot').selectOption('slot-a');
-    await expect(button(page, 'Move group after')).toBeDisabled();
-    await page.getByLabel('Bulk destination slot').selectOption('slot-d');
-    await button(page, 'Move group after').focus();
+    await expect(count(page)).toHaveText('2 selected');
+    await bulk(page).getByRole('button', { name: 'Move', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    await bulk(page).getByRole('button', { name: 'To the end', exact: true }).focus();
     await page.keyboard.press('Enter');
     await expect
       .poll(() => order(page))
-      .toEqual(['slot-b', 'slot-d', 'slot-a', 'slot-c', 'slot-e', 'slot-f', 'slot-g']);
-    await expect(bulk(page)).toContainText('Saved on device');
+      .toEqual(['slot-b', 'slot-d', 'slot-e', 'slot-f', 'slot-g', 'slot-a', 'slot-c']);
     const saved = (await record(page))!;
     expect(saved.pending).toHaveLength(1);
     expect(
@@ -90,39 +100,33 @@ test.describe('bulk layout private durable boundary', () => {
     );
   });
 
-  test('selection survives paging, select page excludes padding, clear and Done preserve queue', async ({
-    harness,
-  }) => {
+  test('selection survives paging, Done clears it and preserves the queue', async ({ harness }) => {
     const { page } = harness;
     await open(page);
     await edit(page);
     await select(page, 1);
     await button(page, 'Next page').click();
-    await button(page, 'Select page').click();
-    await expect(bulk(page)).toContainText('4 selected');
-    await expect(bulk(page).getByRole('button', { name: /^Select slot/ })).toHaveCount(3);
-    await button(page, 'Move group to beginning').click();
+    for (const n of [5, 6, 7]) await select(page, n);
+    await expect(count(page)).toHaveText('4 selected');
+    await moveTo(page, 'To the start');
     await expect
       .poll(() => order(page))
       .toEqual(['slot-a', 'slot-e', 'slot-f', 'slot-g', 'slot-b', 'slot-c', 'slot-d']);
     await button(page, 'Previous page').click();
-    await expect(button(page, 'Select slot 1')).toHaveAttribute('aria-pressed', 'true');
-    await button(page, 'Clear selection').click();
-    await expect(bulk(page)).toContainText('0 selected');
+    await expect(pocket(page, 1)).toHaveAttribute('aria-pressed', 'true');
     await button(page, 'Done').click();
     await edit(page);
-    await expect(bulk(page)).toContainText('0 selected');
+    await expect(count(page)).toHaveText('Tap pockets to select');
     expect((await record(page)).pending).toHaveLength(1);
   });
 
-  test('page and N insertion shift at exact anchors across pages, grid changes only repaginate', async ({
-    harness,
-  }) => {
+  test('page insertion shifts at exact anchors across pages, grid changes only repaginate', async ({ harness }) => {
     const { page } = harness;
     await open(page);
     await edit(page);
-    await page.getByLabel('Bulk destination slot').selectOption('slot-d');
-    await button(page, 'Insert page after').click();
+    await button(page, 'Next page').click();
+    await select(page, 5);
+    await add(page, /^A new page before/);
     await expect.poll(async () => (await record(page)).pending.length).toBe(1);
     const saved = (await record(page)).pending[0].intent;
     expect('commands' in saved.request ? saved.request.commands[0] : undefined).toMatchObject({
@@ -135,23 +139,17 @@ test.describe('bulk layout private durable boundary', () => {
     expect(new Set(slots).size).toBe(11);
     await page.getByLabel('Synthetic grid').selectOption('1x1');
     await edit(page);
-    await button(page, 'Select page').click();
-    await expect(bulk(page)).toContainText('1 selected');
-    await page.getByLabel('Bulk destination slot').selectOption('slot-a');
-    await button(page, 'Insert page before').click();
+    await select(page, 1);
+    await expect(count(page)).toHaveText('1 selected');
+    await add(page, /^A new page before \(1 pockets?\)/);
     await expect.poll(async () => (await record(page)).pending.length).toBe(2);
     await page.getByLabel('Synthetic grid').selectOption('2x3');
     await edit(page);
-    await expect(bulk(page)).toContainText('0 selected');
-    await page.getByLabel('Free slots to insert').fill('3');
-    await button(page, 'Append N free slots').click();
+    await expect(count(page)).toHaveText('Tap pockets to select');
+    await add(page, 'At the end of the binder');
     await expect.poll(async () => (await record(page)).pending.length).toBe(3);
-    expect(await order(page)).toHaveLength(15);
+    expect(await order(page)).toHaveLength(13);
     expect((await record(page)).pending[0].intent).toEqual(saved);
-    await page.getByLabel('Free slots to insert').fill('257');
-    await button(page, 'Append N free slots').click();
-    await expect(bulk(page).getByRole('alert')).toContainText('1 to 256');
-    expect((await record(page)).pending).toHaveLength(3);
   });
 
   test('layout review retains selected IDs, a partner copy change blocks the whole selection', async ({ harness }) => {
@@ -160,20 +158,19 @@ test.describe('bulk layout private durable boundary', () => {
     await edit(page);
     await select(page, 1);
     await select(page, 3);
+    const move = bulk(page).getByRole('button', { name: 'Move', exact: true });
+    const update = bulk(page).getByRole('button', { name: 'Update selection', exact: true });
     await control(page, 'layout');
-    await expect(bulk(page)).toContainText('2 selected');
-    await expect(button(page, 'Move group to end')).toBeDisabled();
-    await expect(bulk(page)).toContainText('selected copies are unchanged');
-    await button(page, 'Use latest layout').click();
-    await expect(button(page, 'Move group to end')).toBeEnabled();
+    await expect(count(page)).toHaveText('2 selected');
+    await expect(move).toBeDisabled();
+    await expect(bulk(page).getByRole('alert')).toContainText('These pockets changed since you selected them.');
+    await update.click();
+    await expect(move).toBeEnabled();
     await control(page, 'copy');
-    await expect(bulk(page)).toContainText('Selected slots or copies changed');
-    await expect(bulk(page)).toContainText('2 selected');
-    await expect(button(page, 'Move group to end')).toBeDisabled();
-    await expect(button(page, 'Use latest layout')).toHaveCount(0);
+    await expect(bulk(page).getByRole('alert')).toContainText('These pockets changed since you selected them.');
+    await expect(count(page)).toHaveText('2 selected');
+    await expect(move).toBeDisabled();
     expect((await record(page)).pending).toHaveLength(0);
-    await button(page, 'Clear selection').click();
-    await expect(bulk(page)).toContainText('0 selected');
   });
 
   test('aborted transaction never claims saved, retry retains the complete original group', async ({ harness }) => {
@@ -193,14 +190,14 @@ test.describe('bulk layout private durable boundary', () => {
         return request;
       };
     });
-    await button(page, 'Move group to end').click();
-    await expect(bulk(page)).toContainText('Nothing is confirmed');
+    await moveTo(page, 'To the end');
+    await expect(bulk(page).getByRole('alert')).toContainText('Save not confirmed.');
     const original = JSON.parse((await page.getByLabel('Bulk attempted draft').textContent()) ?? 'null');
     expect((await record(page)).pending).toHaveLength(0);
     await expect(page.getByLabel('Bulk acceptance', { exact: true })).toHaveText('null');
-    await button(page, 'Retry same group').click();
+    await bulk(page).getByRole('button', { name: 'Try again', exact: true }).click();
     await expect.poll(async () => (await record(page)).pending[0]?.intent).toEqual(original.intent);
-    await expect(bulk(page)).toContainText('2 selected');
+    await expect(count(page)).toHaveText('2 selected');
   });
 
   test('whole-group acceptance waits for transaction completion, Done during commit retains accepted work', async ({
@@ -233,15 +230,16 @@ test.describe('bulk layout private durable boundary', () => {
         return request;
       };
     });
-    await button(page, 'Move group to end').click();
-    await expect(bulk(page)).toContainText('Saving group on device');
+    await moveTo(page, 'To the end');
     await expect(page.getByLabel('Bulk acceptance', { exact: true })).toHaveText('null');
-    await expect(button(page, 'Clear selection')).toBeDisabled();
+    await expect(bulk(page).getByRole('button', { name: 'To the end', exact: true })).toBeDisabled();
+    // Moving shows Cancel in place of Done: leave the move, then editing, while the commit is held.
+    await bulk(page).getByRole('button', { name: 'Cancel', exact: true }).click();
     await button(page, 'Done').click();
     await page.evaluate(() => window.dispatchEvent(new Event('synthetic-bulk-release-commit')));
     await expect.poll(async () => (await record(page)).pending.length).toBe(1);
     await edit(page);
-    await expect(bulk(page)).toContainText('0 selected');
+    await expect(count(page)).toHaveText('Tap pockets to select');
     expect(await order(page)).toEqual(['slot-b', 'slot-d', 'slot-e', 'slot-f', 'slot-g', 'slot-a', 'slot-c']);
   });
 
@@ -252,25 +250,27 @@ test.describe('bulk layout private durable boundary', () => {
     const { page } = harness;
     const writes: string[] = [];
     page.on('request', (r) => {
-      if (r.method() !== 'GET') writes.push(r.url());
+      // Price lookups are POSTs too, but they are reads; only storage writes count.
+      if (r.method() !== 'GET' && !r.url().includes('/api/card-prices')) writes.push(r.url());
     });
     await open(page);
     await edit(page);
     await select(page, 1);
     await select(page, 3);
     await context.setOffline(true);
-    await button(page, 'Move group to end').click();
+    await moveTo(page, 'To the end');
     await expect.poll(async () => (await record(page)).pending.length).toBe(1);
     const original = (await record(page)).pending[0].intent;
     await button(page, 'Change view').click();
     await expect(bulk(page)).toHaveCount(0);
     await button(page, 'Change view').click();
     await edit(page);
-    await expect(bulk(page)).toContainText('0 selected');
-    await select(page, 1);
+    await expect(count(page)).toHaveText('Tap pockets to select');
+    // The moved pockets are now at the end, so slot-b leads the first page.
+    await select(page, 2);
     await control(page, 'scope');
     await edit(page);
-    await expect(bulk(page)).toContainText('0 selected');
+    await expect(count(page)).toHaveText('Tap pockets to select');
     await context.setOffline(false);
     await page.reload();
     await expect(button(page, 'Edit layout')).toBeVisible();
@@ -289,7 +289,7 @@ test.describe('bulk layout private durable boundary', () => {
     await edit(page);
     await select(page, 1);
     await select(page, 3);
-    await button(page, 'Move group to end').click();
+    await moveTo(page, 'To the end');
     await expect.poll(async () => (await record(page)).pending.length).toBe(1);
     const original = (await record(page)).pending[0].intent;
     const moved = await order(page);

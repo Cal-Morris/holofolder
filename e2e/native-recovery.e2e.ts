@@ -67,7 +67,7 @@ async function history(page: Page, id = '101') {
 async function open(page: Page) {
   await (await storageAction(page, 'Activity')).click();
   const dialog = page.getByRole('dialog', { name: 'Collection Activity', exact: true });
-  await expect(dialog.getByRole('button', { name: 'Review recovery', exact: true }).first()).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'See what undoing does', exact: true }).first()).toBeVisible();
   return dialog;
 }
 test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
@@ -111,23 +111,23 @@ test('native event review, exact durable lost-reply retry, post-reply read ACK a
   const box = (await dialog.boundingBox())!,
     dock = (await h.dock().boundingBox())!;
   expect(box.y + box.height).toBeLessThanOrEqual(dock.y);
-  await dialog.getByRole('button', { name: 'Review recovery', exact: true }).click();
+  await dialog.getByRole('button', { name: 'See what undoing does', exact: true }).click();
   await expect(dialog.getByRole('region', { name: 'Review recovery' })).toBeVisible();
-  const confirm = dialog.getByRole('button', { name: 'Confirm recovery' });
+  const confirm = dialog.getByRole('button', { name: 'Undo this change', exact: true });
   await h.expectMinTapTarget(confirm);
   await h.expectWithinSafeViewport(confirm);
   await h.expectHittable(confirm);
   await confirm.click();
-  await expect(dialog.getByText(/shared result is not yet verified/)).toBeVisible();
+  await expect(dialog.getByText('Undo saved on this device. It has not been confirmed yet.')).toBeVisible();
   await expect(dialog.getByRole('alert')).toBeVisible();
   const original = (await stored(page))[0].intent.request;
   await page.reload();
   dialog = await openSaved(page);
-  await dialog.getByRole('button', { name: 'Retry exact recovery' }).click();
+  await dialog.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect.poll(async () => (await stored(page))[0]?.synchronized).toBe(true);
   expect(requests).toEqual([JSON.stringify(original), JSON.stringify(original)]);
   expect(reads).toBeGreaterThan(0);
-  await expect(dialog.getByText('Recovery verified against current storage.').last()).toBeVisible();
+  await expect(dialog.getByText('Undone. Your collection is up to date.').last()).toBeVisible();
   const selected = page.waitForRequest((r) => r.url().includes('/api/collection-activity?id=101'));
   await dialog.getByRole('button', { name: 'View original' }).click();
   expect([...new URL((await selected).url()).searchParams.keys()]).toEqual(['id']);
@@ -137,7 +137,7 @@ test('native event review, exact durable lost-reply retry, post-reply read ACK a
 async function openSaved(page: Page) {
   await (await storageAction(page, 'Activity')).click();
   const dialog = page.getByRole('dialog', { name: 'Collection Activity', exact: true });
-  await expect(dialog.getByRole('button', { name: 'Retry exact recovery' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Try again', exact: true })).toBeVisible();
   return dialog;
 }
 for (const id of ['102', '103'])
@@ -145,9 +145,11 @@ for (const id of ['102', '103'])
     await history(page, id);
     await page.goto(entry);
     const dialog = await open(page);
-    await dialog.getByRole('button', { name: 'Review recovery', exact: true }).click();
-    await expect(dialog.getByText(id === '102' ? /private_assets_unverifiable/ : /slot_version_changed/)).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Confirm recovery' })).toHaveCount(0);
+    await dialog.getByRole('button', { name: 'See what undoing does', exact: true }).click();
+    await expect(
+      dialog.getByTitle(id === '102' ? /private_assets_unverifiable/ : /slot_version_changed/),
+    ).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Undo this change', exact: true })).toHaveCount(0);
     await expect(dialog.getByRole('button', { name: 'Undo', exact: true })).toHaveCount(0);
     expect(await stored(page)).toEqual([]);
   });
@@ -198,15 +200,15 @@ test('accepted receipt survives failed read and reload, verification never reapp
   });
   await page.goto(entry);
   let dialog = await open(page);
-  await dialog.getByRole('button', { name: 'Review recovery', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Confirm recovery' }).click();
+  await dialog.getByRole('button', { name: 'See what undoing does', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Undo this change', exact: true }).click();
   await expect.poll(async () => !!(await stored(page))[0]?.receipt).toBe(true);
   expect((await stored(page))[0].synchronized).toBe(false);
   failRead = false;
   await page.reload();
   await (await storageAction(page, 'Activity')).click();
   dialog = page.getByRole('dialog', { name: 'Collection Activity', exact: true });
-  await dialog.getByRole('button', { name: 'Verify current storage' }).click();
+  await dialog.getByRole('button', { name: 'Check my collection', exact: true }).click();
   await expect.poll(async () => (await stored(page))[0]?.synchronized).toBe(true);
   expect(applied).toBe(1);
 });
@@ -226,19 +228,19 @@ test('unclassified apply 409 retains exact identity through offline display and 
   });
   await page.goto(entry);
   const dialog = await open(page);
-  await dialog.getByRole('button', { name: 'Review recovery', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Confirm recovery' }).click();
-  await expect(dialog.getByRole('button', { name: 'Retry exact recovery' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'See what undoing does', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Undo this change', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Try again', exact: true })).toBeVisible();
   expect((await stored(page))[0].synchronized).toBe(false);
   await context.setOffline(true);
   await page.evaluate(() => window.dispatchEvent(new Event('offline')));
-  await expect(dialog.getByRole('button', { name: 'Retry exact recovery' })).toBeDisabled();
-  await expect(dialog.getByText(/Reconnect with current access/)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Try again', exact: true })).toBeDisabled();
+  await expect(dialog.getByText('You need to be online, with your latest changes saved, to undo this.')).toBeVisible();
   await context.setOffline(false);
   deny = false;
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await expect(dialog.getByRole('button', { name: 'Retry exact recovery' })).toBeEnabled();
-  await dialog.getByRole('button', { name: 'Retry exact recovery' }).click();
+  await expect(dialog.getByRole('button', { name: 'Try again', exact: true })).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect.poll(async () => (await stored(page))[0]?.synchronized).toBe(true);
   expect(requests).toHaveLength(2);
   expect(requests[0]).toBe(requests[1]);
@@ -264,8 +266,8 @@ test('account teardown during apply retains original durable intent and ignores 
   });
   await page.goto(entry);
   const dialog = await open(page);
-  await dialog.getByRole('button', { name: 'Review recovery', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Confirm recovery' }).click();
+  await dialog.getByRole('button', { name: 'See what undoing does', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Undo this change', exact: true }).click();
   await sending;
   const original = (await stored(page))[0].intent;
   await page.evaluate(() => {
@@ -306,13 +308,13 @@ test('removed copy requires an explicit Unassigned choice included in preview an
   });
   await page.goto(entry);
   const dialog = await open(page);
-  const choice = dialog.getByRole('checkbox', { name: 'Restore synthetic-removed-copy as Unassigned' });
+  const choice = dialog.getByRole('checkbox', { name: 'Bring back this card' });
   await expect(choice).not.toBeChecked();
   await choice.check();
-  await dialog.getByRole('button', { name: 'Review recovery', exact: true }).click();
+  await dialog.getByRole('button', { name: 'See what undoing does', exact: true }).click();
   await expect(dialog.getByRole('region', { name: 'Review recovery' })).toBeVisible();
   expect(inputs[0].restoreUnassignedItemIds).toEqual(['synthetic-removed-copy']);
-  await dialog.getByRole('button', { name: 'Confirm recovery' }).click();
+  await dialog.getByRole('button', { name: 'Undo this change', exact: true }).click();
   await expect.poll(async () => (await stored(page))[0]?.synchronized).toBe(true);
   expect(inputs[1].restoreUnassignedItemIds).toEqual(['synthetic-removed-copy']);
 });
@@ -348,20 +350,20 @@ test('default creation needs explicit nominated replacement and exact fresh prec
   });
   await page.goto(entry);
   const dialog = await open(page);
-  const review = dialog.getByRole('button', { name: 'Review recovery', exact: true });
+  const review = dialog.getByRole('button', { name: 'See what undoing does', exact: true });
   await expect(review).toBeDisabled();
-  await dialog.getByRole('combobox', { name: 'Replacement default collection' }).selectOption(collection);
+  await dialog.getByRole('combobox', { name: /Which binder should open first instead/ }).selectOption(collection);
   await review.click();
   await expect(dialog.getByRole('region', { name: 'Review recovery' })).toBeVisible();
   await expect(dialog.getByText('Default collection: false → true')).toBeVisible();
   const h = new Harness(page, insets, true);
-  await h.expectMinTapTarget(dialog.getByRole('button', { name: 'Confirm recovery' }));
-  await h.expectWithinSafeViewport(dialog.getByRole('button', { name: 'Confirm recovery' }));
-  await h.expectHittable(dialog.getByRole('button', { name: 'Confirm recovery' }));
+  await h.expectMinTapTarget(dialog.getByRole('button', { name: 'Undo this change', exact: true }));
+  await h.expectWithinSafeViewport(dialog.getByRole('button', { name: 'Undo this change', exact: true }));
+  await h.expectHittable(dialog.getByRole('button', { name: 'Undo this change', exact: true }));
   expect(inputs[0].planVersion).toBe(2);
   expect(inputs[0].replacementDefaultCollectionId).toBe(collection);
   expect(inputs[0].collections).toEqual([{ collectionId: collection, version: 3, layoutRevision: 4 }]);
-  await dialog.getByRole('button', { name: 'Confirm recovery' }).click();
+  await dialog.getByRole('button', { name: 'Undo this change', exact: true }).click();
   await expect.poll(async () => (await stored(page))[0]?.synchronized).toBe(true);
   expect(inputs[1].collections).toEqual(inputs[0].collections);
 });
@@ -376,7 +378,7 @@ test('aborted recovery persistence retries the same confirmed intent before any 
   });
   await page.goto(entry);
   const dialog = await open(page);
-  await dialog.getByRole('button', { name: 'Review recovery', exact: true }).click();
+  await dialog.getByRole('button', { name: 'See what undoing does', exact: true }).click();
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put;
     let aborted = false;
@@ -390,12 +392,12 @@ test('aborted recovery persistence retries the same confirmed intent before any 
       return request;
     };
   });
-  await dialog.getByRole('button', { name: 'Confirm recovery' }).click();
+  await dialog.getByRole('button', { name: 'Undo this change', exact: true }).click();
   await expect(dialog.getByRole('alert')).toBeVisible();
   expect(await stored(page)).toEqual([]);
   expect(sent).toBe('');
   const original = JSON.parse((await page.evaluate(() => sessionStorage.getItem('synthetic-aborted-recovery')))!);
-  await dialog.getByRole('button', { name: 'Confirm recovery' }).click();
+  await dialog.getByRole('button', { name: 'Undo this change', exact: true }).click();
   await expect.poll(async () => (await stored(page))[0]?.synchronized).toBe(true);
   expect((await stored(page))[0].intent).toEqual(original);
   expect(JSON.parse(sent)).toEqual(original.request);
@@ -443,18 +445,18 @@ test('terminal noncommit survives failed read/reload, explicit discard retains p
   });
   await page.goto(entry);
   let dialog = await open(page);
-  await dialog.getByRole('button', { name: 'Review recovery', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Confirm recovery' }).click();
-  await expect(dialog.getByText(/Recovery did not commit. Review current storage/)).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Discard noncommitted recovery' })).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'See what undoing does', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Undo this change', exact: true }).click();
+  await expect(dialog.getByText(/This undo was not applied because your collection has changed/)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Discard this undo', exact: true })).toHaveCount(0);
   const original = (await stored(page))[0].intent.request;
   failedRead = false;
   await page.reload();
   await (await storageAction(page, 'Activity')).click();
   dialog = page.getByRole('dialog', { name: 'Collection Activity', exact: true });
-  await expect(dialog.getByRole('button', { name: 'Discard noncommitted recovery' })).toHaveCount(0);
-  await dialog.getByRole('button', { name: 'Refresh current storage', exact: true }).click();
-  const discard = dialog.getByRole('button', { name: 'Discard noncommitted recovery' });
+  await expect(dialog.getByRole('button', { name: 'Discard this undo', exact: true })).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Check my collection', exact: true }).click();
+  const discard = dialog.getByRole('button', { name: 'Discard this undo', exact: true });
   await expect(discard).toBeVisible();
   const h = new Harness(page, insets, true);
   await h.expectMinTapTarget(discard);
@@ -476,9 +478,9 @@ test('terminal noncommit survives failed read/reload, explicit discard retains p
   });
   await discard.click();
   await expect(dialog.getByRole('alert')).toBeVisible();
-  await expect(dialog.getByText(/Saved request discarded/)).toHaveCount(0);
+  await expect(dialog.getByText('This undo was not applied and has been discarded.')).toHaveCount(0);
   await discard.click();
-  await expect(dialog.getByText(/Saved request discarded/)).toBeVisible();
+  await expect(dialog.getByText('This undo was not applied and has been discarded.')).toBeVisible();
   const retained = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((yes) => {
       const r = indexedDB.open('binderdex-offline');
@@ -501,11 +503,11 @@ test('terminal noncommit survives failed read/reload, explicit discard retains p
   expect(retained.receipt).toBeNull();
   expect(retained.rejection).toBeTruthy();
   expect(applies).toBe(1);
-  await dialog.getByRole('button', { name: 'Review new recovery' }).click();
-  await expect(dialog.getByRole('button', { name: 'Confirm recovery' })).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Start a new undo', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Undo this change', exact: true })).toHaveCount(0);
   terminal = false;
-  await dialog.getByRole('button', { name: 'Review recovery', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Confirm recovery' }).click();
+  await dialog.getByRole('button', { name: 'See what undoing does', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Undo this change', exact: true }).click();
   await expect.poll(async () => (await stored(page))[1]?.synchronized).toBe(true);
   expect(requests[1].operationId).not.toBe(original.operationId);
   expect((await stored(page))[0].intent.request).toEqual(original);
@@ -529,7 +531,7 @@ test('Activity keeps one overlay while access verification finishes, Back stays 
     Object.assign(window, { syntheticActivityPanel: element });
   });
   release();
-  await expect(dialog.getByRole('button', { name: 'Review recovery', exact: true }).first()).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'See what undoing does', exact: true }).first()).toBeVisible();
   expect(
     await dialog.evaluate(
       (element) => element === (window as unknown as { syntheticActivityPanel: Element }).syntheticActivityPanel,

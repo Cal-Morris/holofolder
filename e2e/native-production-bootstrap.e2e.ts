@@ -10,6 +10,7 @@ import {
   settingsRow,
   storageAction,
   closeStorage,
+  appendPocket,
   collectionPicker,
   viewPicker,
   chooseView,
@@ -31,7 +32,7 @@ async function inventory(
   route: Route,
   owner = E2E_USER.id,
   empty = false,
-  created?: { collectionId: string; name: string },
+  created?: { collectionId: string; name: string; slotIds?: string[] },
 ) {
   const snapshot = inventoryBrowseFixture(5),
     url = new URL(route.request().url());
@@ -74,7 +75,23 @@ async function inventory(
       },
     ];
     snapshot.binders = [
-      { ownerUserId: owner, collectionId: created.collectionId, layoutRevision: 0, presetManifest: null, slots: [] },
+      {
+        ownerUserId: owner,
+        collectionId: created.collectionId,
+        layoutRevision: 0,
+        presetManifest: null,
+        slots: (created.slotIds ?? []).map((slotId) => ({
+          id: slotId,
+          ownerUserId: owner,
+          collectionId: created.collectionId,
+          inventoryItemId: null,
+          target: null,
+          status: null,
+          wantedCards: [],
+          version: 0,
+          presetOrigin: null,
+        })),
+      },
     ];
   }
   await route.fulfill({
@@ -192,15 +209,7 @@ test('fresh browser shows the server collection, refocus neither restarts the re
   await expect(page.locator(`[data-slot-id="trades-empty-0"]`)).toBeVisible();
   // Collection first: the old staging rows stay out of the page.
   await expect(page.getByText('Inventory is what you own and where', { exact: false })).toHaveCount(0);
-  for (const name of [
-    'Backup',
-    'New storage',
-    'Refresh storage',
-    'Delete collection',
-    'Settings',
-    'Sign out',
-    'National Dex',
-  ])
+  for (const name of ['Backup', 'New binder', 'Refresh', 'Delete this binder', 'Settings', 'Sign out', 'National Dex'])
     await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Storage dashboard' })).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Binder navigation' })).toBeVisible();
@@ -236,21 +245,23 @@ test('fresh browser shows the server collection, refocus neither restarts the re
   await expect(page.locator(`[data-slot-id="trades-empty-0"]`)).toBeVisible();
 });
 
-test('failed complete refresh retains the view, disables new edits and can recover', async ({ page }) => {
+// A failed refresh is a blip: the last complete read stays the base for edits and the read retries by itself.
+test('failed complete refresh retains the view and recovers on the next refresh', async ({ page }) => {
   await page.goto(entry);
-  await expect(await storageAction(page, 'New storage')).toBeEnabled();
+  await expect(await storageAction(page, 'New binder')).toBeEnabled();
   await closeStorage(page);
-  await page.route('**/app/api/inventory?*', (route) =>
-    route.fulfill({ status: 503, json: { error: 'inventory_read_unavailable' } }),
-  );
-  await (await storageAction(page, 'Refresh storage')).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Could not refresh storage' })).toBeVisible();
+  let failed = 0;
+  await page.route('**/app/api/inventory?*', (route) => {
+    failed++;
+    return route.fulfill({ status: 503, json: { error: 'inventory_read_unavailable' } });
+  });
+  await (await storageAction(page, 'Refresh')).click();
+  await expect.poll(() => failed).toBeGreaterThan(0);
   await expect(collectionPicker(page)).toHaveAttribute('data-value', trades);
-  await expect(await storageAction(page, 'New storage')).toBeDisabled();
-  await closeStorage(page);
+  await expect(page.locator('[data-slot-id]').first()).toBeVisible();
   await page.route('**/app/api/inventory?*', (route) => inventory(route));
-  await (await storageAction(page, 'Refresh storage')).click();
-  await expect(await storageAction(page, 'New storage')).toBeEnabled();
+  await (await storageAction(page, 'Refresh')).click();
+  await expect(await storageAction(page, 'New binder')).toBeEnabled();
   await closeStorage(page);
 });
 
@@ -258,10 +269,10 @@ for (const code of ['inventory_not_initialized', 'legacy_inventory_incomplete'])
   test(`onboarding reports the trusted provisioning prerequisite: ${code}`, async ({ page, insets }) => {
     await page.route('**/app/api/inventory?*', (route) => route.fulfill({ status: 503, json: { error: code } }));
     await page.goto(entry);
-    await expect(page.getByRole('status').filter({ hasText: /administrator/ })).toBeVisible();
-    await expect(await storageAction(page, 'New storage')).toBeDisabled();
+    await expect(page.getByRole('status').filter({ hasText: 'still being set up' })).toBeVisible();
+    await expect(await storageAction(page, 'New binder')).toBeDisabled();
     await closeStorage(page);
-    await expect(await storageAction(page, 'Refresh storage')).toBeEnabled();
+    await expect(await storageAction(page, 'Refresh')).toBeEnabled();
     await closeStorage(page);
     await new Harness(page, insets, true).expectNoHorizontalOverflow();
   });
@@ -293,7 +304,7 @@ test('membership pause closes the old private lifetime, recheck resolves the new
 
 // Synthetic creation response only; parent 098 remains a hosted first-creation prerequisite.
 test('untouched revision-zero owner can review and persist the existing first storage command', async ({ page }) => {
-  let created: { collectionId: string; name: string } | undefined;
+  let created: { collectionId: string; name: string; slotIds: string[] } | undefined;
   let finish!: () => void;
   const held = new Promise<void>((resolve) => {
     finish = resolve;
@@ -304,7 +315,7 @@ test('untouched revision-zero owner can review and persist the existing first st
     const request = route.request().postDataJSON();
     sent.push(request);
     await held;
-    created = { collectionId: request.collectionId, name: request.name };
+    created = { collectionId: request.collectionId, name: request.name, slotIds: request.slotIds };
     await route.fulfill({
       headers: { 'Cache-Control': 'private, no-store' },
       json: {
@@ -316,29 +327,37 @@ test('untouched revision-zero owner can review and persist the existing first st
           collectionVersion: 0,
           layoutRevision: 0,
           changed: true,
-          slotIds: [],
+          slotIds: request.slotIds,
           recoverySupported: false,
         },
       },
     });
   });
   await page.goto(entry);
-  await expect(page.getByRole('status').filter({ hasText: 'Create your first storage' })).toBeVisible();
-  await (await storageAction(page, 'New storage')).click();
-  const dialog = page.getByRole('dialog', { name: 'New storage', exact: true });
+  await expect(page.getByText('Start your first binder', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'New binder', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'New binder', exact: true });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('textbox', { name: 'Storage name', exact: true }).fill('My first binder');
-  await dialog.getByRole('combobox', { name: 'Starting arrangement' }).selectOption('blank');
-  await dialog.getByRole('button', { name: 'Review storage', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Confirm create storage', exact: true }).click();
-  await expect(dialog).toContainText('Creation pending sync');
+  await dialog
+    .getByRole('group', { name: 'What is this binder for?' })
+    .getByRole('button', { name: /^Blank/ })
+    .click();
+  const name = dialog.getByRole('textbox', { name: 'Binder name' });
+  const progress = dialog.getByRole('progressbar', { name: 'Progress' });
+  for (let i = 0; i < 4 && !(await name.isVisible()); i++) {
+    const step = await progress.getAttribute('aria-valuenow');
+    await dialog.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(progress).not.toHaveAttribute('aria-valuenow', step!);
+  }
+  await name.fill('My first binder');
+  await dialog.getByRole('button', { name: 'Preview', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Create binder', exact: true }).click();
   await expect.poll(() => sent.length).toBe(1);
-  expect(sent[0]).toMatchObject({
-    version: 1,
-    inventoryRevision: 0,
-    name: 'My first binder',
-    manifest: { entries: [] },
-  });
+  expect(sent[0]).toMatchObject({ version: 1, inventoryRevision: 0, name: 'My first binder' });
+  // Blank starts with empty pages: every pocket is open to any card.
+  const { entries } = (sent[0] as { manifest: { entries: { target: unknown }[] } }).manifest;
+  expect(entries.length).toBeGreaterThan(0);
+  expect(entries.every((entry) => entry.target === null)).toBe(true);
   await expect(collectionPicker(page)).toHaveAttribute('data-value', '');
   finish();
   await expect(collectionPicker(page)).toHaveAttribute(
@@ -391,11 +410,7 @@ for (const outcome of ['recovered', 'account', 'membership', 'denied', 'unavaila
       }),
     );
     await page.goto(`${entry}&binder=${alpha}`);
-    await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
-    await page
-      .getByRole('region', { name: 'Layout editing', exact: true })
-      .getByRole('button', { name: 'Append free slot', exact: true })
-      .click();
+    await appendPocket(page);
     await expect
       .poll(async () =>
         (await savedQueue(page)).some((row) =>
@@ -478,13 +493,14 @@ for (const outcome of ['recovered', 'account', 'membership', 'denied', 'unavaila
     if (outcome === 'recovered') {
       await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeEnabled();
       // First reconcile the saved command before opening an unrelated creation plan.
-      await expect(await storageAction(page, 'New storage')).toBeDisabled();
+      await expect(await storageAction(page, 'New binder')).toBeDisabled();
       await closeStorage(page);
       // Unavailable commands do not auto-retry, and a checked read cannot ACK them.
       expect(await savedQueue(page)).toEqual(before);
     } else {
       await expect(collectionPicker(page)).not.toBeVisible();
-      expect(await savedQueue(page)).toEqual(before);
+      // An expired session may reload the page; the saved queue must come through unchanged either way.
+      await expect.poll(() => savedQueue(page).catch(() => null)).toEqual(before);
       release();
     }
   });
@@ -516,7 +532,7 @@ test('focus during startup keeps the single inventory read and it finishes openi
   await expect(collectionPicker(page)).toHaveAttribute('data-value', trades);
   expect(requests).toBe(1);
   expect(failed).toEqual([]);
-  await expect(await storageAction(page, 'New storage')).toBeEnabled();
+  await expect(await storageAction(page, 'New binder')).toBeEnabled();
   await closeStorage(page);
   await page.clock.fastForward(46_000);
   await expect(collectionPicker(page)).toHaveAttribute('data-value', trades);
@@ -575,7 +591,7 @@ test('native owner can open Account and save pricing preferences without legacy 
   expect(saves[0]).toMatchObject({ preferredCurrency: 'USD', binderId: alpha, binderRows: 3, binderCols: 3 });
   await expect(dialog.getByRole('combobox', { name: 'Currency', exact: true })).toHaveValue('USD');
   await h.expectNoHorizontalOverflow();
-  await dialog.getByRole('button', { name: 'Binder', exact: true }).click();
+  await openSettingsPage(dialog, 'Layout');
   await expect(dialog.getByRole('button', { name: /2x2/ })).toBeDisabled();
   await page
     .getByRole('navigation', { name: 'Main navigation', exact: true })
@@ -594,11 +610,7 @@ test('native owner can open Account and save pricing preferences without legacy 
       },
     }),
   );
-  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
-  await page
-    .getByRole('region', { name: 'Layout editing', exact: true })
-    .getByRole('button', { name: 'Append free slot', exact: true })
-    .click();
+  await appendPocket(page);
   await expect
     .poll(async () =>
       (await savedQueue(page)).some((row) =>
