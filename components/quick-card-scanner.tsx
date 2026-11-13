@@ -7,8 +7,8 @@
 // sure, Quick mode gets the text it read so the search field can finish the job.
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { useMachine } from '@/hooks/use-machine';
-import { Camera, ImageIcon, Keyboard, Loader2, X } from 'lucide-react';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import { Camera, ImageIcon, Keyboard, Loader2 } from 'lucide-react';
+import { useOverlay } from '@/hooks/use-overlay';
 import { useCameraStream } from '@/hooks/use-camera-stream';
 import { SINGLE_CARD_GUIDE, captureSingleCardFrame, delay } from '@/lib/camera-frame';
 import { mergeCardTextSignals, type CardTextSignals } from '@/lib/card-scan-text';
@@ -38,7 +38,8 @@ import {
   type ScanDestinationAdmission,
   type ScanDestinationCapture,
 } from '@/lib/scan-destinations';
-import ScanDestinationReview, { type ScanReviewCell } from '@/components/scan-destination-review';
+import ScanDestinationReview, { ScanSheet, type ScanReviewCell } from '@/components/scan-destination-review';
+import { OverlayCloseButton } from '@/components/ui/overlay-dialog';
 import CameraControls from '@/components/camera-controls';
 
 const SCAN_FRAMES = 3;
@@ -119,7 +120,7 @@ function NativeQuickCardScanner({
     <QuickCardScannerCamera
       {...props}
       onClose={close}
-      managedContainerRef={panel as unknown as RefObject<HTMLDivElement | null>}
+      managedContainerRef={panel}
       onReadStarted={() => {
         captured.current = captureScanDestination(admission.snapshot, admission.view);
       }}
@@ -143,9 +144,8 @@ function QuickCardScannerCamera({
   getOfflineCards,
   onReadStarted,
   managedContainerRef,
-}: QuickCardScannerProps & { onReadStarted?: () => void; managedContainerRef?: RefObject<HTMLDivElement | null> }) {
-  const ownContainerRef = useRef<HTMLDivElement | null>(null);
-  const containerRef = managedContainerRef ?? ownContainerRef;
+}: QuickCardScannerProps & { onReadStarted?: () => void; managedContainerRef?: RefObject<HTMLDialogElement | null> }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [scan, send] = useMachine(cardScanTransition, IDLE_CARD_SCAN);
@@ -170,8 +170,6 @@ function QuickCardScannerCamera({
     if (!busy || onReadStarted) onClose();
   }, [busy, onClose, onReadStarted]);
   useOverlay(!managedContainerRef, closeSafely, { containerRef, autoFocus: false });
-
-  const swipe = useSwipeToDismiss(containerRef, closeSafely, !!managedContainerRef);
 
   /** Freezes the scan's destination as the read begins; false when it can't be. */
   const captureDestination = useCallback(() => {
@@ -295,127 +293,135 @@ function QuickCardScannerCamera({
     [readFrames],
   );
 
-  return (
-    <div className={managedContainerRef ? 'fixed inset-0 z-40' : 'contents'}>
-      {managedContainerRef && (
-        <div data-overlay-backdrop className="absolute inset-0 bg-black/55" onClick={closeSafely} />
-      )}
+  const body = (
+    <>
+      <canvas ref={canvasRef} className="hidden" />
+      <div
+        className={
+          managedContainerRef
+            ? 'mx-auto flex h-full w-full max-w-md flex-col p-3 text-white'
+            : 'mx-auto flex h-full w-full max-w-md flex-col px-3 pt-[calc(var(--top-inset)+0.25rem)] pb-[calc(var(--safe-bottom)+0.75rem)] text-white'
+        }
+      >
+        <div data-sheet-grabber className="flex shrink-0 touch-none items-center gap-2 py-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-base leading-tight font-bold">Scan a card</p>
+            <p className="truncate text-xs text-white/65">Fill the frame with one card, name and number in view.</p>
+          </div>
+          <OverlayCloseButton
+            label="Close scanner"
+            onClick={closeSafely}
+            disabled={busy && !onReadStarted}
+            className="h-12 w-12 bg-white/10 hover:bg-white/10 disabled:opacity-40"
+            iconClassName="h-5 w-5"
+          />
+        </div>
+
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[2rem] border border-white/10 bg-black">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="h-full w-full object-cover"
+            data-testid="card-scan-video"
+          />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div
+              className="rounded-[1.75rem] border-2 border-white/85 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]"
+              style={{
+                width: `${(1 - SINGLE_CARD_GUIDE.insetX * 2) * 100}%`,
+                aspectRatio: `${SINGLE_CARD_GUIDE.aspectRatio}`,
+                maxHeight: `${(1 - SINGLE_CARD_GUIDE.insetY * 2) * 100}%`,
+              }}
+            />
+          </div>
+          {!camera.ready && !camera.error && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Starting camera
+              </span>
+            </div>
+          )}
+          <CameraControls track={camera.track} />
+        </div>
+
+        <div className="shrink-0 space-y-2 pt-3">
+          <p role="status" className="min-h-5 text-center text-sm text-white/75" data-testid="card-scan-status">
+            {cardScanStatus(scan, {
+              cameraReady: camera.ready,
+              cameraError: camera.error,
+              isOnline,
+              pictureReady,
+            })}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={typeInstead}
+              disabled={busy}
+              className="flex h-14 shrink-0 items-center gap-2 rounded-2xl border border-white/20 px-4 text-sm font-semibold disabled:opacity-40"
+            >
+              <Keyboard className="h-4 w-4" aria-hidden />
+              Type instead
+            </button>
+            <label className="flex h-14 shrink-0 cursor-pointer items-center gap-2 rounded-2xl border border-white/20 px-4 text-sm font-semibold has-[:disabled]:opacity-40">
+              <ImageIcon className="h-4 w-4" aria-hidden />
+              Photo
+              <input
+                aria-label="Card photo"
+                type="file"
+                accept="image/*"
+                disabled={busy}
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) void readPhoto(file);
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => void read()}
+              disabled={!camera.ready || busy}
+              className="holo-action flex h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-4 text-base font-semibold disabled:opacity-50"
+            >
+              {busy ? (
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+              ) : (
+                <Camera className="h-5 w-5" aria-hidden />
+              )}
+              {busy ? 'Reading…' : 'Read card'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  // Inside Quick mode (no review to follow) it is a full-screen layer of Quick mode's own.
+  if (!managedContainerRef)
+    return (
       <div
         ref={containerRef}
         role="dialog"
         aria-modal="true"
         aria-label="Scan a card"
-        className={
-          managedContainerRef
-            ? 'absolute inset-x-2 bottom-[var(--dock-clearance)] mx-auto h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg overflow-hidden rounded-2xl bg-black outline-none'
-            : 'fixed inset-0 z-[60] bg-black outline-none'
-        }
+        className="fixed inset-0 z-[60] bg-black outline-none"
       >
-        <canvas ref={canvasRef} className="hidden" />
-        <div
-          className={
-            managedContainerRef
-              ? 'mx-auto flex h-full w-full max-w-md flex-col p-3 text-white'
-              : 'mx-auto flex h-full w-full max-w-md flex-col px-3 pt-[calc(var(--top-inset)+0.25rem)] pb-[calc(var(--safe-bottom)+0.75rem)] text-white'
-          }
-        >
-          <div data-sheet-grabber {...swipe} className="flex shrink-0 items-center gap-2 py-2">
-            <div className="min-w-0 flex-1">
-              <p className="text-base leading-tight font-bold">Scan a card</p>
-              <p className="truncate text-xs text-white/65">Fill the frame with one card, name and number in view.</p>
-            </div>
-            <button
-              type="button"
-              onClick={closeSafely}
-              disabled={busy && !onReadStarted}
-              aria-label="Close scanner"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 disabled:opacity-40"
-            >
-              <X className="h-5 w-5" aria-hidden />
-            </button>
-          </div>
-
-          <div className="relative min-h-0 flex-1 overflow-hidden rounded-[2rem] border border-white/10 bg-black">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="h-full w-full object-cover"
-              data-testid="card-scan-video"
-            />
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div
-                className="rounded-[1.75rem] border-2 border-white/85 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]"
-                style={{
-                  width: `${(1 - SINGLE_CARD_GUIDE.insetX * 2) * 100}%`,
-                  aspectRatio: `${SINGLE_CARD_GUIDE.aspectRatio}`,
-                  maxHeight: `${(1 - SINGLE_CARD_GUIDE.insetY * 2) * 100}%`,
-                }}
-              />
-            </div>
-            {!camera.ready && !camera.error && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Starting camera
-                </span>
-              </div>
-            )}
-            <CameraControls track={camera.track} />
-          </div>
-
-          <div className="shrink-0 space-y-2 pt-3">
-            <p role="status" className="min-h-5 text-center text-sm text-white/75" data-testid="card-scan-status">
-              {cardScanStatus(scan, {
-                cameraReady: camera.ready,
-                cameraError: camera.error,
-                isOnline,
-                pictureReady,
-              })}
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={typeInstead}
-                disabled={busy}
-                className="flex h-14 shrink-0 items-center gap-2 rounded-2xl border border-white/20 px-4 text-sm font-semibold disabled:opacity-40"
-              >
-                <Keyboard className="h-4 w-4" aria-hidden />
-                Type instead
-              </button>
-              <label className="flex h-14 shrink-0 cursor-pointer items-center gap-2 rounded-2xl border border-white/20 px-4 text-sm font-semibold has-[:disabled]:opacity-40">
-                <ImageIcon className="h-4 w-4" aria-hidden />
-                Photo
-                <input
-                  aria-label="Card photo"
-                  type="file"
-                  accept="image/*"
-                  disabled={busy}
-                  className="sr-only"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = '';
-                    if (file) void readPhoto(file);
-                  }}
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => void read()}
-                disabled={!camera.ready || busy}
-                className="holo-action flex h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-4 text-base font-semibold disabled:opacity-50"
-              >
-                {busy ? (
-                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                ) : (
-                  <Camera className="h-5 w-5" aria-hidden />
-                )}
-                {busy ? 'Reading…' : 'Read card'}
-              </button>
-            </div>
-          </div>
-        </div>
+        {body}
       </div>
-    </div>
+    );
+  return (
+    <ScanSheet
+      ref={managedContainerRef}
+      managed
+      onClose={closeSafely}
+      aria-label="Scan a card"
+      className="h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] bg-black"
+    >
+      {body}
+    </ScanSheet>
   );
 }
