@@ -33,7 +33,9 @@ export default function CardShowPrep({
 }: {
   embedded?: boolean;
   candidateSets: TCGSetSummary[];
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent prep controls and device status; one reducer would not read better
 }) {
+  // oxlint-disable-next-line react-doctor/no-derived-useState, react-doctor/no-event-handler -- initial value only: embedded prep starts open, then the toggle owns it
   const [open, setOpen] = useState(embedded);
   const [chosen, setChosen] = useState<Set<string>>(() => new Set());
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
@@ -54,6 +56,7 @@ export default function CardShowPrep({
     [],
   );
   useEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-event-handler -- inspects saved data whenever the panel is open, including an embedded one that starts open
     if (open) void inspect();
   }, [open, inspect]);
   const abortRef = useRef<AbortController | null>(null);
@@ -63,6 +66,7 @@ export default function CardShowPrep({
       setIsOnline(navigator.onLine !== false);
       setCanStoreOffline(Boolean(navigator.serviceWorker?.controller));
     };
+    // oxlint-disable-next-line react-doctor/no-initialize-state -- reads navigator state, which isn't known during server render
     update();
     window.addEventListener('online', update);
     window.addEventListener('offline', update);
@@ -118,6 +122,7 @@ export default function CardShowPrep({
     // Ask the browser not to evict the saved show data under storage pressure. Best effort, never fails the prep.
     void requestPersistentStorage();
     try {
+      // oxlint-disable-next-line react-doctor/async-defer-await -- images download before prices, one phase at a time
       const progress = await downloadCardShowImages(plan, {
         signal: controller.signal,
         onProgress: (next) => {
@@ -126,6 +131,7 @@ export default function CardShowPrep({
       });
       if (controller.signal.aborted) return;
       setPhase({ kind: 'prices', plan, done: 0, total: plan.priceLookups.length });
+      // oxlint-disable-next-line react-doctor/async-defer-await -- prices download after the images, one phase at a time
       const prices = await downloadCardShowPrices(plan, {
         signal: controller.signal,
         savePrices: saveCardPricesForOffline,

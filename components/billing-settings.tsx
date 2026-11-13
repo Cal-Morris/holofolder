@@ -8,6 +8,7 @@ export function BillingSettings({ signedIn, onSignIn }: { signedIn: boolean; onS
   const billing = useBillingContext();
   const track = useTrackCollectorEvent();
   const accountId =
+    // oxlint-disable-next-line react-doctor/no-event-handler -- records that a free account viewed the plan, once it is known
     signedIn && billing?.canManage && billing.access?.tier === 'free' ? billing.access.ownerUserId : null;
   useEffect(() => {
     if (accountId) void track('upgrade_viewed', accountId);

@@ -25,6 +25,7 @@ function captureSource() {
 }
 export function CollectorFunnelProvider({ enabled, children }: { enabled: boolean; children: ReactNode }) {
   useEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-event-handler -- records the visit's source once tracking is enabled, not in response to a user event
     if (enabled) captureSource();
   }, [enabled]);
   return <Enabled.Provider value={enabled}>{children}</Enabled.Provider>;
