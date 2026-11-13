@@ -79,6 +79,7 @@ export function measurePriceMomentum(price: MomentumPriceInput | null | undefine
 
   const measurements: PriceMomentum[] = [];
   for (const [source, labels] of bySource) {
+    // oxlint-disable-next-line react-doctor/js-index-maps -- first match in a fixed priority list
     const currentLabel = CURRENT_LABELS.find((label) => labels.has(label));
     const current = currentLabel ? labels.get(currentLabel)! : null;
     if (current == null || current < MIN_MOMENTUM_PRICE_GBP) continue;

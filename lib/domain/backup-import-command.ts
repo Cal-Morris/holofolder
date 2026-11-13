@@ -28,6 +28,7 @@ export interface BackupArrangementCommand {
   slots: Omit<BinderSlot, 'collectionId' | 'ownerUserId' | 'version'>[];
   copies: { kind: 'add' | 'existing'; item: Omit<InventoryItem, 'ownerUserId'>; ref: InventoryItemRef | null }[];
 }
+const CARD_IMAGE_HOSTS = new Set(['assets.tcgdex.net', 'assets.holofolder.com']);
 const invalid = (): never => {
   throw new Error('Invalid or unsupported atomic arrangement import');
 };
@@ -152,7 +153,7 @@ export function parseBackupArrangementCommand(value: unknown): BackupArrangement
         const u = new URL(w.card_image);
         if (
           u.protocol !== 'https:' ||
-          !['assets.tcgdex.net', 'assets.holofolder.com'].includes(u.hostname) ||
+          !CARD_IMAGE_HOSTS.has(u.hostname) ||
           u.username ||
           u.password ||
           u.port ||

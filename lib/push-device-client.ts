@@ -4,6 +4,7 @@ import { getOfflineStore } from '@/lib/offline-store/kv';
 const ACCOUNT_KEY = 'push:account';
 export async function clearPushDevice() {
   // Clear the worker's account binding before any network request, including when offline.
+  // oxlint-disable-next-line react-doctor/async-defer-await -- the binding must be cleared even when push is unsupported
   await getOfflineStore()?.delete(ACCOUNT_KEY);
   if (!('serviceWorker' in navigator)) return;
   const registration = await navigator.serviceWorker.getRegistration('/app');

@@ -29,14 +29,18 @@ export function buildNativeAnalytics(
   const copies = value.copies;
   const priced = copies.filter((c) => c.amountGbp !== null);
   const dates = priced.flatMap((c) => (c.quote?.updatedAt ? [c.quote.updatedAt] : [])).sort();
-  const goals = snapshot.binders
-    .filter((b) => !collectionId || b.collectionId === collectionId)
-    .map((b) => ({
-      collectionId: b.collectionId,
-      name: index.collections.find((c) => c.id === b.collectionId)!.name,
-      slots: b.slots.length,
-      ...getBinderGoalPresentation(snapshot, b, browserHostCatalog(read.catalog)),
-    }));
+  const goals = snapshot.binders.flatMap((b) =>
+    !collectionId || b.collectionId === collectionId
+      ? [
+          {
+            collectionId: b.collectionId,
+            name: index.collections.find((c) => c.id === b.collectionId)!.name,
+            slots: b.slots.length,
+            ...getBinderGoalPresentation(snapshot, b, browserHostCatalog(read.catalog)),
+          },
+        ]
+      : [],
+  );
   const itemIds = new Set(projection.owned.map((i) => i.itemId));
   return {
     kind: index.kind,

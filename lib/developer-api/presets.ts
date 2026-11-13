@@ -74,14 +74,20 @@ export const COPIED_PRESETS: z.infer<typeof preset>[] = [
     scope: 'bundled species, Dex order',
     limitation: 'Species only, no form targets or printings.',
   },
-  ...GENERATIONS.filter((g) => g.id > 0).map((g) => ({
-    id: `generation-${g.id}`,
-    version: '1' as const,
-    name: g.region,
-    supported: true,
-    scope: 'bundled generation species, Dex order',
-    limitation: 'Species only, no form targets or printings.',
-  })),
+  ...GENERATIONS.flatMap((g) =>
+    g.id > 0
+      ? [
+          {
+            id: `generation-${g.id}`,
+            version: '1' as const,
+            name: g.region,
+            supported: true,
+            scope: 'bundled generation species, Dex order',
+            limitation: 'Species only, no form targets or printings.',
+          },
+        ]
+      : [],
+  ),
   {
     id: 'selected-species',
     version: '1',

@@ -27,6 +27,7 @@ export async function sendNativeRecovery(
     throw new Error('Reconnect to review or retry recovery. Your saved request is retained.');
   const captured = { ...scope },
     request = parseNativeRecoveryRequest(operation, input);
+  // oxlint-disable-next-line react-doctor/async-defer-await -- the account scope is rechecked after the response lands
   const response = await fetch(
     appPath(`${localHarness ? '/e2e-harness/storage/recovery' : '/api/native-recovery'}?operation=${operation}`),
     {

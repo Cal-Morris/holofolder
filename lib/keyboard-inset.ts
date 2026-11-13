@@ -129,7 +129,7 @@ function install(
       if (!frame) frame = requestAnimationFrame(apply);
     };
     vv.addEventListener('resize', schedule);
-    vv.addEventListener('scroll', schedule);
+    vv.addEventListener('scroll', schedule, { passive: true });
     // focusout fires before focus lands on the next field, so wait a frame before deciding.
     document.addEventListener('focusin', schedule);
     document.addEventListener('focusout', schedule);
