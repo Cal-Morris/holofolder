@@ -111,22 +111,26 @@ test.describe('Cardmarket catalog in the deal checker', () => {
       await mockEvidence(harness);
       // Synthetic matching sales across three dates and an independent asking sample.
       await harness.page.route('**/app/api/card-price-checks?**', (route) =>
+        // Native checks first read what's saved (nothing yet); Check prices runs a new one.
         route.fulfill({
-          json: {
-            ebay: {
-              checkedAt: new Date().toISOString(),
-              summary: { kind: 'asking', currency: 'GBP', count: 1, low: 9, median: 9, high: 9 },
-            },
-            soldcomps: {
-              checkedAt: new Date().toISOString(),
-              summary: { kind: 'sold', currency: 'GBP', count: 12, low: 7.8, median: 7.8, high: 7.8 },
-              sales: Array.from({ length: 12 }, (_, i) => ({
-                amount: 7.8,
-                soldAt: new Date(Date.now() - ((i % 3) + 1) * 86400000).toISOString().slice(0, 10),
-              })),
-            },
-            errors: {},
-          },
+          json:
+            route.request().method() === 'GET'
+              ? { ebay: null, soldcomps: null, errors: {} }
+              : {
+                  ebay: {
+                    checkedAt: new Date().toISOString(),
+                    summary: { kind: 'asking', currency: 'GBP', count: 1, low: 9, median: 9, high: 9 },
+                  },
+                  soldcomps: {
+                    checkedAt: new Date().toISOString(),
+                    summary: { kind: 'sold', currency: 'GBP', count: 12, low: 7.8, median: 7.8, high: 7.8 },
+                    sales: Array.from({ length: 12 }, (_, i) => ({
+                      amount: 7.8,
+                      soldAt: new Date(Date.now() - ((i % 3) + 1) * 86400000).toISOString().slice(0, 10),
+                    })),
+                  },
+                  errors: {},
+                },
         }),
       );
       const check = await openCheck(harness, show);
@@ -166,9 +170,9 @@ test.describe('Cardmarket catalog in the deal checker', () => {
       await input.fill('7');
       await input.press('Enter');
       await expect(check.getByTestId('deal-verdict')).toHaveAttribute('data-verdict', 'good');
-      const action = check.getByRole('button', { name: 'Add owned', exact: true });
-      await harness.expectWithinSafeViewport(action);
-      await harness.expectHittable(action);
+      // Native checks have no Add owned: the asking price field is what stays reachable.
+      await harness.expectWithinSafeViewport(input);
+      await harness.expectHittable(input);
       await harness.expectNoHorizontalOverflow();
     });
   }
@@ -198,8 +202,8 @@ test.describe('Cardmarket catalog in the deal checker', () => {
       await expect(sources).not.toContainText('Wrong headline finish');
       const comparisons = check.getByRole('region', { name: 'Price comparisons' });
       await expect(comparisons).not.toContainText('Cardmarket');
-      // Native checks read saved comparisons only; there is no paid Check prices control.
-      await expect(comparisons.getByRole('button', { name: 'Check prices', exact: true })).toHaveCount(0);
+      // The same paid Check prices control as card details, next to the saved comparisons.
+      await expect(comparisons.getByRole('button', { name: 'Check prices', exact: true })).toBeVisible();
       const action = check.getByRole('textbox', { name: 'Asking price' });
       await harness.expectWithinSafeViewport(action);
       await harness.expectHittable(action);

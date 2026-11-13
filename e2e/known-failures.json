@@ -15,26 +15,6 @@
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('dialog', { name: /details$/ })"
     },
     {
-      "file": "deal-cardmarket.e2e.ts",
-      "title": [
-        "Cardmarket catalog in the deal checker",
-        "Show keeps the buying summary clear and Check prices charts available"
-      ],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the native Show/Quick deal check has no paid Check prices control."
-    },
-    {
-      "file": "deal-cardmarket.e2e.ts",
-      "title": [
-        "Cardmarket catalog in the deal checker",
-        "Quick keeps the buying summary clear and Check prices charts available"
-      ],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the native Show/Quick deal check has no paid Check prices control."
-    },
-    {
       "file": "docs.e2e.ts",
       "title": ["docs search finds setup guides and keeps direct-origin navigation working"],
       "cause": "stale-selector-or-flow",
@@ -1045,16 +1025,6 @@
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByTestId('app-header').getByRole('button', { name: 'View', exact: true })"
     },
     {
-      "file": "deal-check.e2e.ts",
-      "title": [
-        "manual bundle price checks",
-        "checks every card independently, updates the range and offer dot, and retains catalogue fallback"
-      ],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: native Bundle has no paid Check bundle prices control (docs/native-search-show-consumers.md)."
-    },
-    {
       "file": "developer-access.e2e.ts",
       "title": ["developer docs stay within the phone viewport with searchable mobile navigation"],
       "cause": "stale-selector-or-flow",
@@ -1084,20 +1054,6 @@
     },
     {
       "file": "ebay-listings.e2e.ts",
-      "title": ["Show mode checks both sources on tap and resets comparisons when the finish changes"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the native Show/Quick deal check has no paid Check prices control."
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
-      "title": ["qualified sold guide changes Show mode verdict, plots an overlay and resets on finish change"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the native Show/Quick deal check has no paid Check prices control."
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
       "title": ["card details updates its good-price band only after a user checks qualifying sold evidence"],
       "cause": "app-bug",
       "batch": 2,
@@ -1109,20 +1065,6 @@
       "cause": "app-bug",
       "batch": 2,
       "failure": "Native parity gap: native card details have no Card & variant switcher or sold-price band."
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
-      "title": ["switching finishes cancels the old check before it can overwrite new evidence"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the native Show/Quick deal check has no paid Check prices control."
-    },
-    {
-      "file": "ebay-listings.e2e.ts",
-      "title": ["fair market bands, quick eBay link and individually verifiable source records"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the native Show/Quick deal check has no paid Check prices control."
     },
     {
       "file": "first-use.e2e.ts",
