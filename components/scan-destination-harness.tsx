@@ -31,11 +31,22 @@ filledSeed.placements = [
 const syntheticCrop = (text: string) =>
   `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="63" height="88"><rect width="63" height="88" fill="#345"/><!--${text}--></svg>`)}`;
 /** Synthetic OCR, not an accuracy claim: FAIL throws, HANG never answers, anything else is the card's text. */
+const cropText = (crop: unknown) => decodeURIComponent(String(crop)).match(/<!--([\s\S]*)-->/)?.[1] ?? '';
 const syntheticRecognize = async (crop: unknown) => {
-  const text = decodeURIComponent(String(crop)).match(/<!--([\s\S]*)-->/)?.[1] ?? '';
+  const text = cropText(crop).split('||')[0];
   if (text === 'FAIL') throw new Error('synthetic-reader-failure');
   if (text === 'HANG') return new Promise<never>(() => {});
   return extractCardTextSignals(text);
+};
+/** Synthetic picture matches, not a matcher claim: text after `||` lists `cardId@score` pairs, best first. */
+const syntheticPicture = async (crop: string) => {
+  const listed = cropText(crop).split('||')[1];
+  if (!listed) return null;
+  const matches = listed.split(',').map((entry) => {
+    const [id, score] = entry.split('@');
+    return { id, language: 'en', score: Number(score) };
+  });
+  return { matches };
 };
 /** A page photo may be JSON naming what each pocket reads: `{ "cells": [{ "index": 0, "text": "Snorlax" }] }`. */
 async function syntheticPagePhoto(file: File, cols: number): Promise<ScanCell[] | null> {
@@ -185,7 +196,11 @@ export default function ScanDestinationHarness() {
             getOfflineCards,
             // Short limit so a pocket that never answers is given up on within the test, not after 30 s.
             identifyPocket: (crop) =>
-              identifyPocketCrop(crop, getOfflineCards, { recognize: syntheticRecognize, timeoutMs: 1500 }),
+              identifyPocketCrop(crop, getOfflineCards, {
+                recognize: syntheticRecognize,
+                matchPicture: syntheticPicture,
+                timeoutMs: 1500,
+              }),
             detectPage: async (file, rows, cols) => {
               if (deferred.current)
                 await new Promise<void>((resolve) =>

@@ -14,7 +14,7 @@ import {
   type ScanDestinationCapture,
 } from '@/lib/scan-destinations';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
-import { identifyPocketCrop } from '@/lib/card-scan-search';
+import { identifyPocketCrop, type PocketRead } from '@/lib/card-scan-search';
 import { warmCardTextReader } from '@/lib/card-scan-ocr';
 import { getPictureScannerLanguages, matchCardPicture, warmPictureScanner } from '@/lib/card-picture-scanner';
 import ScanDestinationReview, { type ScanReviewCell } from '@/components/scan-destination-review';
@@ -25,7 +25,7 @@ export interface NativePageScanAdmission extends ScanDestinationAdmission {
   /** Occupancy detector adapter. Default is the existing browser page detector. */
   detectPage?: (file: File, rows: number, cols: number) => Promise<ScanCell[]>;
   /** Pocket reader adapter for the e2e harness. Default reads the crop with identifyPocketCrop. */
-  identifyPocket?: (crop: string) => Promise<{ candidates: SearchCardResult[]; query: string }>;
+  identifyPocket?: (crop: string) => Promise<PocketRead>;
 }
 const detectPage = async (file: File, rows: number, cols: number) =>
   (await scanBinderPageImage(file, rows, cols)).slots;

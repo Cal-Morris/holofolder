@@ -10,6 +10,7 @@ import {
   type ScannedCardRead,
 } from '@/lib/card-scan-identify';
 import {
+  confidentPicture,
   decidePictureScan,
   orderByLanguage,
   pictureIndexLanguages,
@@ -101,8 +102,9 @@ export function pictureMatchOutcome(card: SearchCardResult, read: ScannedCardRea
 }
 
 /**
- * Reads one pocket's crop from a page photo. `candidates` is the one clear match, or a handful of likely cards to
- * tap, or empty; `query` is what was read (a name, maybe a number) so the picker can open already searched.
+ * Reads one pocket's crop from a page photo. `candidates` is the one clear match, a confident picture suggestion
+ * ahead of its alternatives, or a handful of likely cards to tap, or empty; `query` is what was read (a name, maybe a
+ * number) so the picker can open already searched.
  * Never throws: a pocket that can't be read is simply left for you to choose.
  */
 export async function identifyPocketCrop(
@@ -114,9 +116,9 @@ export async function identifyPocketCrop(
     collected = ['en'] as readonly string[],
     timeoutMs = POCKET_READ_TIMEOUT_MS,
   }: PocketReadOptions = {},
-): Promise<{ candidates: SearchCardResult[]; query: string }> {
+): Promise<PocketRead> {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const unread = new Promise<{ candidates: SearchCardResult[]; query: string }>((resolve) => {
+  const unread = new Promise<PocketRead>((resolve) => {
     timer = setTimeout(() => resolve({ candidates: [], query: '' }), timeoutMs);
   });
   try {
@@ -124,6 +126,13 @@ export async function identifyPocketCrop(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** `suggested`: `candidates[0]` is a confident picture match to pre-select, the rest are the other picture choices. */
+export interface PocketRead {
+  candidates: SearchCardResult[];
+  query: string;
+  suggested?: boolean;
 }
 
 export interface PocketReadOptions {
@@ -143,7 +152,7 @@ async function readPocket(
   recognize: typeof recognizeCardTextSignalsFromImage,
   matchPicture: NonNullable<PocketReadOptions['matchPicture']>,
   collected: readonly string[],
-): Promise<{ candidates: SearchCardResult[]; query: string }> {
+): Promise<PocketRead> {
   try {
     // The picture and the text are read in separate workers, so they run side by side.
     const [signals, picture] = await Promise.all([
@@ -155,9 +164,11 @@ async function readPocket(
       const decision = decidePictureScan(
         await resolvePictureCandidates(picture.matches, collected, getOfflineCards),
         read,
+        confidentPicture(picture.matches),
       );
       const query = read.pokemon?.name ?? read.query;
       if (decision.kind === 'match') return { candidates: [decision.card], query };
+      if (decision.kind === 'suggest') return { candidates: decision.candidates, query, suggested: true };
       if (decision.candidates.length) return { candidates: decision.candidates, query };
     }
     if (!read.query) return { candidates: [], query: '' };
