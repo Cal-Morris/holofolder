@@ -1,19 +1,10 @@
-import { test, expect, SEEDED_COLLECTION, SUPABASE_URL } from './fixtures';
+import { test, expect } from './fixtures';
 
 test.use({ signedIn: true });
 
 test('prepares the whole next page while keeping the current page visible', async ({ harness }) => {
   const { page } = harness;
   // Synthetic next-page cards, with every response held to expose preload waterfalls.
-  const rows = Array.from({ length: 16 }, (_, index) => ({
-    ...SEEDED_COLLECTION[0],
-    pokemon_id: 17 + index,
-    card_id: `synthetic-${index}`,
-    card_image: `https://assets.tcgdex.net/en/mock/next/${index}/high.webp`,
-  }));
-  await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-    route.fulfill({ json: [...SEEDED_COLLECTION, ...rows] }),
-  );
   let release!: () => void;
   const pending = new Promise<void>((resolve) => {
     release = resolve;
@@ -73,15 +64,6 @@ for (const action of ['cancel', 'skip ahead', 'switch tab', 'open card'] as cons
   test(`a pending page change can ${action} without applying a late result`, async ({ harness }) => {
     const { page } = harness;
     // Synthetic second-page printings with a held response; page three uses cached mock artwork.
-    const rows = Array.from({ length: 16 }, (_, index) => ({
-      ...SEEDED_COLLECTION[0],
-      pokemon_id: 17 + index,
-      card_id: `synthetic-${index}`,
-      card_image: `https://assets.tcgdex.net/en/mock/pending/${index}/high.webp`,
-    }));
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-      route.fulfill({ json: [...SEEDED_COLLECTION, ...rows] }),
-    );
     let release!: () => void;
     const pending = new Promise<void>((resolve) => {
       release = resolve;

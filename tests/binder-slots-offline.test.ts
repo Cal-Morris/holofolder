@@ -106,6 +106,15 @@ describe('staged durable slot intent', () => {
     );
     assert.equal(restored.pending[0].status, 'pending');
   });
+  test('a pending edit saved with the retired empty legacy list still reopens', async () => {
+    const store = createMemoryStore(),
+      queue = createSlotOfflineQueue(store, scope);
+    await queue.saveSnapshot(await complete(snapshot()));
+    await queue.enqueue(intent(), catalog);
+    const saved = await store.get<Record<string, unknown>>(offlineScopeKey(scope));
+    await store.set(offlineScopeKey(scope), { ...saved, legacy: [] });
+    assert.deepEqual((await createSlotOfflineQueue(store, scope).read()).pending[0].intent, intent());
+  });
   test('concurrent tabs append without replacing either durable edit', async () => {
     const store = createMemoryStore(),
       a = createSlotOfflineQueue(store, scope),
@@ -273,28 +282,6 @@ describe('staged durable slot intent', () => {
     await assert.rejects(q.read(), /unsupported|malformed/);
     await assert.rejects(q.enqueue(intent(), catalog), /unsupported|malformed/);
     assert.deepEqual(await store.get(offlineScopeKey(scope)), raw);
-  });
-  test('guest work never uploads or retargets on sign-in', async () => {
-    const guest = { ...scope, accountId: null, ownerUserId: null },
-      store = createMemoryStore(),
-      q = createSlotOfflineQueue(store, guest);
-    await q.preserveLegacy({
-      workspaceId: guest.workspaceId,
-      collectionId,
-      rawSnapshot: 'synthetic-snapshot',
-      rawQueue: '[{"id":"legacy-op","pokemonId":25}]',
-    });
-    let sent = false;
-    await q.replay(
-      async () => {
-        sent = true;
-        return { status: 503 };
-      },
-      () => scope,
-    );
-    assert.equal(sent, false);
-    assert.equal((await q.read()).legacy[0].mapping[0].slotId, `legacy-dex-v1/${collectionId}/25`);
-    assert.equal((await createSlotOfflineQueue(store, scope).read()).legacy.length, 0);
   });
   test('late success must match real local operation ID and be a complete snapshot', async () => {
     const q = createSlotOfflineQueue(createMemoryStore(), scope);
@@ -569,30 +556,6 @@ describe('staged durable slot intent', () => {
     await assert.rejects(q.enqueue(spoofed, catalog), /invalid-intent/);
     assert.equal((await q.read()).pending.length, 0);
   });
-  test('legacy preservation is nondestructive, preserves distinct copy operations and malformed bytes', async () => {
-    const store = createMemoryStore(),
-      q = createSlotOfflineQueue(store, { ...scope, accountId: null, ownerUserId: null });
-    const rawQueue = JSON.stringify([
-      { id: 'copy-one', pokemonId: 25 },
-      { id: 'copy-two', pokemonId: 25 },
-      { id: 'unknown', future: true },
-    ]);
-    await q.preserveLegacy({ workspaceId: scope.workspaceId, collectionId, rawSnapshot: 'not-json', rawQueue });
-    await q.preserveLegacy({
-      workspaceId: scope.workspaceId,
-      collectionId,
-      rawSnapshot: 'not-json',
-      rawQueue: '[broken',
-    });
-    const record = await q.read();
-    assert.equal(record.legacy[0].rawQueue, rawQueue);
-    assert.deepEqual(
-      record.legacy[0].mapping.map((m) => m.operationId),
-      ['copy-one', 'copy-two'],
-    );
-    assert.equal(record.legacy[1].rawQueue, '[broken');
-  });
-
   test('idempotency or unclassified 409 cannot be rewritten as a fresh copy-creating operation', async () => {
     for (const code of ['idempotency_conflict', undefined]) {
       const q = createSlotOfflineQueue(createMemoryStore(), scope);

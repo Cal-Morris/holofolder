@@ -1,13 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
-import {
-  expect,
-  MOCK_CARDS,
-  openSettingsPage,
-  placeholderSvg,
-  SEEDED_COLLECTION,
-  SUPABASE_URL,
-  test,
-} from './fixtures';
+import { expect, MOCK_CARDS, openSettingsPage, placeholderSvg, test } from './fixtures';
 
 const BASE_SET = {
   id: 'base1',
@@ -415,19 +407,6 @@ test.describe('offline search and card show prep', () => {
   }) => {
     const { page } = harness;
     await mockNetwork(context, page);
-    // Synthetic wanted printing uses a real candidate set, with no catalog request needed.
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-      route.fulfill({
-        json: [
-          {
-            ...SEEDED_COLLECTION[0],
-            wanted_cards: [
-              { card_id: 'base1-44', card_name: 'Bulbasaur', card_set: 'Base Set', added_at: '2026-01-01' },
-            ],
-          },
-        ],
-      }),
-    );
     await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
     await page.reload();
     await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);

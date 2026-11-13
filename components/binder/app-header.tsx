@@ -40,7 +40,6 @@ export interface AppHeaderContext {
   activeJumpLabel: 'Perfect' | 'Upgrade' | 'Wanted' | 'Needed';
   activeJumpPokemonList: PokemonEntry[];
   activeMainView: ActiveMainView;
-  binderCardControls: JSX.Element;
   binderDimension: '2d' | '3d';
   binderDisplayControls: JSX.Element;
   binders: Binder[];

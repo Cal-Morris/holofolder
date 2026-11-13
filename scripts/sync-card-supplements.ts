@@ -19,7 +19,6 @@ const reportPath = args.includes('--report')
   ? path.resolve(option('--report'))
   : path.join(sourceDir, 'supplement-report.json');
 const BACKUP_TABLES = [
-  'pokemon_collection',
   'user_settings',
   'partnerships',
   'partner_invites',

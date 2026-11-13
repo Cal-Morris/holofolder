@@ -1,14 +1,8 @@
 // Keeps small device prefs (Show mode, settings, the show tally) saveable when localStorage is full.
-// The big reclaimable entries are other binders' collection snapshots: each also has a durable IndexedDB copy
-// (lib/offline-store/collection-mirror.ts) that useCollection falls back to, so dropping the localStorage copy
-// only costs a slightly slower first paint of that binder. The default binder's snapshot is never evicted:
-// the offline shell boots from it synchronously.
-import { LEGACY_COLLECTION_SNAPSHOT_KEY } from '@/lib/binders/offline';
+// The reclaimable entries are per-binder collection snapshots left by the retired legacy collection model;
+// nothing reads them any more.
 
-/** Other binders' snapshots kept in localStorage at once; older ones live on in IndexedDB only. */
-export const MAX_LOCAL_BINDER_SNAPSHOTS = 3;
-
-const BINDER_SNAPSHOT_PREFIX = `${LEGACY_COLLECTION_SNAPSHOT_KEY}:`;
+const BINDER_SNAPSHOT_PREFIX = 'pokemon_collection_snapshot_v1:';
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>;
 
@@ -40,21 +34,6 @@ export function evictableSnapshotKeys(storage: StorageLike, keep: readonly strin
     .map((key) => ({ key, savedAt: savedAtOf(storage, key) }))
     .sort((a, b) => a.savedAt - b.savedAt)
     .map(({ key }) => key);
-}
-
-/** Drops the oldest other-binder snapshots beyond `max` (the one at `keep` is never dropped or counted). */
-export function capBinderSnapshots(storage: StorageLike, keep: string | null, max = MAX_LOCAL_BINDER_SNAPSHOTS) {
-  const keys = evictableSnapshotKeys(storage, keep ? [keep] : []);
-  const room = keep?.startsWith(BINDER_SNAPSHOT_PREFIX) ? max - 1 : max;
-  const drop = keys.slice(0, Math.max(0, keys.length - Math.max(0, room)));
-  for (const key of drop) {
-    try {
-      storage.removeItem(key);
-    } catch {
-      // Nothing more to do.
-    }
-  }
-  return drop;
 }
 
 /**

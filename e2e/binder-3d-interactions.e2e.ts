@@ -1,7 +1,7 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import { binderCameraFrame } from '../lib/binder-camera';
 import sharp from 'sharp';
-import { test, expect, E2E_USER, SEEDED_COLLECTION, SUPABASE_URL } from './fixtures';
+import { test, expect, E2E_USER } from './fixtures';
 import { binderDimensions, binderPocket, BINDER_PAGE, BINDER_LAYERS, defaultBinderDesign } from '../lib/binder-design';
 
 test.describe('3D binder gestures', () => {
@@ -69,18 +69,6 @@ test.describe('3D binder gestures', () => {
       route.fulfill({ json: { ownerId: E2E_USER.id, design, revision: 1 } }),
     );
     // Synthetic artwork and a card on the next spread to verify preloading before navigation.
-    const collection = [
-      ...SEEDED_COLLECTION,
-      { ...SEEDED_COLLECTION[0], pokemon_id: 18, pokemon_name: 'Pidgeot', card_id: 'base1-8', card_name: 'Pidgeot' },
-    ];
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-      route.fulfill({
-        json: collection.map((item) => ({
-          ...item,
-          card_image: `https://assets.tcgdex.net/en/base/base1/${item.pokemon_id === 18 ? '8' : '44'}/high.webp`,
-        })),
-      }),
-    );
     const preload = page.waitForRequest(
       (request) =>
         request.url().includes('card-image-proxy') && decodeURIComponent(request.url()).includes('/8/high.webp'),
@@ -430,20 +418,6 @@ test.describe('3D binder gestures', () => {
     const { page } = harness;
     await page.route('**/app/api/binder-appearance', (route) =>
       route.fulfill({ json: { ownerId: E2E_USER.id, design: defaultBinderDesign(), revision: 1 } }),
-    );
-    // Synthetic second-spread printing with a deliberately delayed image.
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-      route.fulfill({
-        json: [
-          ...SEEDED_COLLECTION,
-          {
-            ...SEEDED_COLLECTION[0],
-            pokemon_id: 18,
-            card_id: 'base1-8',
-            card_image: 'https://assets.tcgdex.net/en/base/base1/8/high.webp',
-          },
-        ],
-      }),
     );
     let release!: () => void;
     const loaded = new Promise<void>((resolve) => {

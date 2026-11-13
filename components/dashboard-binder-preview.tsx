@@ -16,7 +16,7 @@ import {
   type BinderPart,
   type BinderView,
 } from '@/lib/binder-design';
-import { getBinderDisplayCard, type BinderCardDisplay } from '@/lib/selected-slot-card-display';
+import { getBinderDisplayCard } from '@/lib/selected-slot-card-display';
 import type { CollectedPokemon } from '@/lib/domain/cards';
 import { getPokemonSummary, type PokemonSummary } from '@/lib/pokemon-catalog';
 import styles from '@/components/dashboard-binder-preview.module.css';
@@ -36,7 +36,6 @@ export default function DashboardBinderPreview({
   artwork,
   loading,
   collection,
-  cardDisplay,
   enabled,
   page,
   onPageChange,
@@ -50,7 +49,6 @@ export default function DashboardBinderPreview({
   artwork: Record<string, string>;
   loading: boolean;
   collection: CollectedPokemon[];
-  cardDisplay: BinderCardDisplay;
   enabled: boolean;
   page: number;
   onPageChange: (page: number) => void;
@@ -68,7 +66,7 @@ export default function DashboardBinderPreview({
       slots.flatMap((slot, position) => {
         if (!slot) return [];
         const legacy = slot.legacyItem;
-        const card = legacy ? getBinderDisplayCard(legacy, cardDisplay) : null;
+        const card = legacy ? getBinderDisplayCard(legacy, 'mixed') : null;
         const image = toCardImageProxySrc(slot.legacyPokemonId ? card?.card_image : slot.card?.image) ?? '';
         if (slot.legacyPokemonId && !card?.card_id) return [];
         return [
@@ -89,7 +87,7 @@ export default function DashboardBinderPreview({
           },
         ];
       }),
-    [slots, cardDisplay],
+    [slots],
   );
   const occupied = slots.filter(
     (slot) => slot?.item || (slot?.legacyItem && ['collected', 'finalized'].includes(slot.legacyItem.status)),

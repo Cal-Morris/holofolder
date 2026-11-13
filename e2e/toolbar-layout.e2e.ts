@@ -14,7 +14,6 @@ for (const width of [768, 1024, 1280, 1440]) {
       (width >= 1280 ? 80 : 125) + harness.insets.top,
     );
     await expect(toolbar.getByRole('combobox')).toHaveCount(0);
-    await expect(toolbar.getByRole('group', { name: 'Binder cards' })).toHaveCount(0);
     const opener = toolbar.getByRole('button', { name: 'View', exact: true });
     await opener.click();
     const menu = harness.page.getByRole('dialog', { name: 'View options', exact: true });
@@ -30,19 +29,9 @@ for (const width of [768, 1024, 1280, 1440]) {
     expect((await menu.boundingBox())!.width).toBeLessThanOrEqual(340);
     await harness.expectMinTapTarget(menu.getByRole('button', { name: 'Close view options', exact: true }), 36);
     await expect(menu.getByRole('group', { name: 'Binder display' })).toBeVisible();
-    await expect(
-      menu.getByRole('group', { name: 'Binder cards' }).getByRole('button', { name: 'Mixed', exact: true }),
-    ).toHaveAttribute('aria-pressed', 'true');
     await harness.expectHittable(menu.getByRole('button', { name: 'Perfect', exact: true }));
     await menu.getByRole('combobox', { name: 'Generation', exact: true }).selectOption('2');
     await expect(harness.page.getByRole('spinbutton', { name: 'Binder page number' })).toHaveValue('10');
-    await menu
-      .getByRole('group', { name: 'Binder cards' })
-      .getByRole('button', { name: 'Wanted', exact: true })
-      .click();
-    await expect(
-      menu.getByRole('group', { name: 'Binder cards' }).getByRole('button', { name: 'Wanted', exact: true }),
-    ).toHaveAttribute('aria-pressed', 'true');
     await harness.page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
     await expect(opener).toBeFocused();

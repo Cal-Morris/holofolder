@@ -30,17 +30,6 @@ export const CARD_IMAGE_SOURCE_HOSTS: Readonly<Record<string, CardImageSource>> 
 /** Sources on a host that also serves other content: only URLs matching the source's path rule are card images. */
 const SHARED_HOST_SOURCES: ReadonlySet<CardImageSource> = new Set(['playshop', 'pokemoncom', 'malie']);
 
-/** Source priority when several are known for a card (best scans first). */
-export const CARD_IMAGE_SOURCE_PRIORITY: readonly CardImageSource[] = [
-  'malie',
-  'pokemoncom',
-  'limitless',
-  'scrydex',
-  'pokemontcg',
-  'tcgplayer',
-  'playshop',
-];
-
 /** Sources whose stored copy is trimmed of the plain white margin around the card (retailer photos). */
 export const TRIMMED_CARD_IMAGE_SOURCES: ReadonlySet<CardImageSource> = new Set(['playshop']);
 

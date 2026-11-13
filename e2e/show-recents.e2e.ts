@@ -1,6 +1,6 @@
 import { emptyHistory, historyStorageKey } from '../lib/binder-history';
-import { test, expect, SUPABASE_URL } from './fixtures';
-import { HUNT_COLLECTION, HUNT_PRICES } from './hunt-fixtures';
+import { test, expect } from './fixtures';
+import { HUNT_PRICES } from './hunt-fixtures';
 import { mockCardPrices } from './price-fixtures';
 
 const scopedKey = historyStorageKey({
@@ -40,9 +40,6 @@ test.describe('Show recently viewed', () => {
     harness,
     page,
   }, info) => {
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-      route.request().method() === 'GET' ? route.fulfill({ json: HUNT_COLLECTION }) : route.fallback(),
-    );
     let meteredRequests = 0;
     await page.route('**/app/api/card-price-checks**', (route) => {
       meteredRequests++;

@@ -3,7 +3,6 @@
 import CardImage from '@/components/card-image';
 import { BinderSlotGlare, TRADING_CARD_CORNER_RADIUS } from '@/components/binder/pokemon-slot';
 import { displaySlotLabel, displaySlotPreview, type ReadOnlyDisplaySlot } from '@/lib/binder-display-model';
-import type { BinderCardDisplay } from '@/lib/selected-slot-card-display';
 import { formatPokemonDisplayName } from '@/lib/pokemon-catalog';
 import { Check } from 'lucide-react';
 import type { PocketDropMode } from '@/lib/pocket-drop';
@@ -589,12 +588,10 @@ export function OrderedSlot({
   glareStyle,
   glare,
   interactionKey,
-  cardDisplay,
   priceLabel,
 }: {
   /** The saved market price shown on the pocket in the Prices view. */
   priceLabel?: string | null;
-  cardDisplay?: BinderCardDisplay;
   interactionKey?: string;
   slot: ReadOnlyDisplaySlot;
   slotLabel?: string;
@@ -633,7 +630,7 @@ export function OrderedSlot({
     },
     [],
   );
-  const { image, isCard: hasCardImage, tone } = displaySlotPreview(slot, cardDisplay);
+  const { image, isCard: hasCardImage, tone } = displaySlotPreview(slot);
   return (
     <button
       ref={ref}

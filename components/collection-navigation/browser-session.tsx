@@ -788,7 +788,6 @@ function ScopedBrowserSession({
         read.evidence.kind !== 'complete' ||
         !record ||
         record.pending.length ||
-        record.legacy.length ||
         record.recovery?.some(recoveryUnresolved)
       )
         return null;
@@ -877,7 +876,6 @@ function ScopedBrowserSession({
       refreshing.current ||
       !record ||
       record.pending.length ||
-      record.legacy.length ||
       record.recovery?.some(recoveryUnresolved)
     ) {
       throw new Error('Finish pending edits, creation or recovery before exporting or comparing a preview.');
@@ -891,7 +889,6 @@ function ScopedBrowserSession({
       read.evidence.kind === 'complete' &&
       !!queue.record &&
       !queue.record.pending.length &&
-      !queue.record.legacy.length &&
       !queue.record.recovery?.some(recoveryUnresolved),
     revisionKey:
       read.evidence.kind === 'unavailable'
@@ -985,8 +982,7 @@ function ScopedBrowserSession({
   const ownershipReady = useRef(false);
   const ownershipRevision = useRef<number | null>(null);
   useLayoutEffect(() => {
-    ownershipReady.current =
-      bulkFillAvailable && !queue.record?.legacy.length && (!creation.current || creation.current.opened);
+    ownershipReady.current = bulkFillAvailable && (!creation.current || creation.current.opened);
     ownershipRevision.current = read.evidence.kind === 'complete' ? read.evidence.snapshot.inventoryRevision : null;
   });
   const ownership: InventoryOwnershipBinding | undefined =
@@ -994,8 +990,7 @@ function ScopedBrowserSession({
       ? {
           snapshot: read.evidence.snapshot,
           catalog,
-          available:
-            bulkFillAvailable && !queue.record?.legacy.length && (!creation.current || creation.current.opened),
+          available: bulkFillAvailable && (!creation.current || creation.current.opened),
           receive: async (intent, selectedCatalog) => {
             if (
               !valid() ||
@@ -1014,7 +1009,6 @@ function ScopedBrowserSession({
               !navigator.onLine ||
               !record ||
               record.pending.length ||
-              record.legacy.length ||
               record.recovery?.some(recoveryUnresolved) ||
               record.snapshot?.inventoryRevision !== intent.request.inventoryRevision
             )
@@ -1036,7 +1030,6 @@ function ScopedBrowserSession({
               !navigator.onLine ||
               !current ||
               current.pending.length ||
-              current.legacy.length ||
               current.recovery?.some(recoveryUnresolved) ||
               current.snapshot?.inventoryRevision !== intent.request.inventoryRevision
             )
@@ -1052,18 +1045,12 @@ function ScopedBrowserSession({
         }
       : undefined;
 
-  const deletionAvailable = bulkFillAvailable && !queue.record?.legacy.length;
+  const deletionAvailable = bulkFillAvailable;
   const receiveDeletion = async (draft: CollectionDeletionDraft) => {
     if (!valid() || refreshing.current || sending.current || !navigator.onLine)
       throw new Error('fresh-scoped-read-required');
     const record = await latest.current.queue.queue?.read();
-    if (
-      !valid() ||
-      !record ||
-      record.pending.length ||
-      record.legacy.length ||
-      record.recovery?.some(recoveryUnresolved)
-    )
+    if (!valid() || !record || record.pending.length || record.recovery?.some(recoveryUnresolved))
       throw new Error('pending-reconciliation');
     // Reauthenticate membership/default and every current revision before durable acceptance.
     const fresh = await refresh();
@@ -1081,7 +1068,7 @@ function ScopedBrowserSession({
       () => valid() && navigator.onLine,
     );
   };
-  const creationAvailable = bulkFillAvailable && !queue.record?.legacy.length && read.evidence.kind === 'complete';
+  const creationAvailable = bulkFillAvailable && read.evidence.kind === 'complete';
   const create = async (
     draft: BinderCreationDraft,
     open: NavigationSurface['openCreated'],
@@ -1090,13 +1077,7 @@ function ScopedBrowserSession({
     if (!valid() || refreshing.current || sending.current || !navigator.onLine || read.evidence.kind !== 'complete')
       throw new Error('fresh-scoped-read-required');
     const record = await latest.current.queue.queue?.read();
-    if (
-      !valid() ||
-      !record ||
-      record.pending.length ||
-      record.legacy.length ||
-      record.recovery?.some(recoveryUnresolved)
-    )
+    if (!valid() || !record || record.pending.length || record.recovery?.some(recoveryUnresolved))
       throw new Error('pending-reconciliation');
     if (creation.current?.intent.request.operationId !== draft.operationId) {
       creation.current = {
@@ -1280,7 +1261,7 @@ function ScopedBrowserSession({
                     surface.state.main === 'inventory'
                       ? surface.state.inventory.query.collectionId || undefined
                       : (surface.state.collectionId ?? undefined),
-                  editingAvailable: bulkFillAvailable && !queue.record?.legacy.length,
+                  editingAvailable: bulkFillAvailable,
                   admit: () => consumerAdmission.current(),
                   acquire: () => acquireAdmission.current(),
                 },

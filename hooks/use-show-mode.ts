@@ -3,19 +3,11 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { setItemMakingRoom } from '@/lib/storage/make-room';
 import { trackGoogleEvent } from '@/lib/google-analytics';
-import {
-  SHOW_MODE_EVENT,
-  SHOW_MODE_KEY,
-  SHOW_MODE_PROMPT_KEY,
-  isStoredOn,
-  parsePromptSnooze,
-  parseShowMode,
-  serializeShowMode,
-} from '@/lib/show-mode';
+import { SHOW_MODE_EVENT, SHOW_MODE_KEY, isStoredOn, parseShowMode, serializeShowMode } from '@/lib/show-mode';
 
 function subscribe(onChange: () => void) {
   const onStorage = (event: StorageEvent) => {
-    if (event.key === null || event.key === SHOW_MODE_KEY || event.key === SHOW_MODE_PROMPT_KEY) onChange();
+    if (event.key === null || event.key === SHOW_MODE_KEY) onChange();
   };
   window.addEventListener('storage', onStorage);
   window.addEventListener(SHOW_MODE_EVENT, onChange);
@@ -46,9 +38,6 @@ function touchShowMode() {
   try {
     const raw = window.localStorage.getItem(SHOW_MODE_KEY);
     const state = parseShowMode(raw);
-    // Someone who has used Show mode doesn't need the binder's offer.
-    if (isStoredOn(raw) && window.localStorage.getItem(SHOW_MODE_PROMPT_KEY) === null)
-      window.localStorage.setItem(SHOW_MODE_PROMPT_KEY, String(Date.now()));
     if (state.on) {
       window.localStorage.setItem(SHOW_MODE_KEY, serializeShowMode(true, new Date(), state.since));
     } else if (isStoredOn(raw)) {
@@ -61,33 +50,6 @@ function touchShowMode() {
 }
 
 const TOUCH_EVERY_MS = 60 * 1000;
-
-function readOfferDismissedAt() {
-  try {
-    return parsePromptSnooze(window.localStorage.getItem(SHOW_MODE_PROMPT_KEY));
-  } catch {
-    return null;
-  }
-}
-
-/** Hides the binder's "At a card show?" offer for good ("Not now", or Show mode was used). */
-export function dismissShowModeOffer() {
-  try {
-    if (window.localStorage.getItem(SHOW_MODE_PROMPT_KEY) === null)
-      window.localStorage.setItem(SHOW_MODE_PROMPT_KEY, String(Date.now()));
-  } catch {
-    // Storage unavailable: nothing to remember.
-  }
-  window.dispatchEvent(new Event(SHOW_MODE_EVENT));
-}
-
-/**
- * When the offer was dismissed (null: never). Undefined during the server render and hydration, so the
- * offer only appears once the device's choice is known.
- */
-export function useShowModeOfferDismissedAt() {
-  return useSyncExternalStore<number | null | undefined>(subscribe, readOfferDismissedAt, () => undefined);
-}
 
 interface WakeLockLike {
   release: () => Promise<void>;
@@ -107,13 +69,6 @@ export function useShowMode() {
     } catch {
       // Private mode or full storage: the switch still works for this page view.
       unsavedOn = on;
-    }
-    try {
-      // Once it has been used, the binder stops offering it; the header's Show button stays.
-      if (on && window.localStorage.getItem(SHOW_MODE_PROMPT_KEY) === null)
-        window.localStorage.setItem(SHOW_MODE_PROMPT_KEY, String(Date.now()));
-    } catch {
-      // Storage full: the offer is hidden while Show mode is on anyway.
     }
     window.dispatchEvent(new Event(SHOW_MODE_EVENT));
     navigator.vibrate?.(on ? [15, 40, 15] : 15);

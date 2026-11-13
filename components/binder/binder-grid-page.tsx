@@ -30,7 +30,6 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import type { BinderCardDisplay } from '@/lib/selected-slot-card-display';
 import type { BinderColorTheme } from '@/lib/binder-colors';
 
 export interface BinderGridPageContext {
@@ -44,7 +43,6 @@ export interface BinderGridPageContext {
   onSlotMenu?: (id: string, point: { x: number; y: number }) => void;
   onSlotDrag?: PocketDrag;
   binderSlotImageSizes: string;
-  binderCardDisplay: BinderCardDisplay;
   cardFinishEffectStyle: CSSProperties;
   cardFinishGlint: { x: number; y: number; angle: number };
   currentBinderPage: number;
@@ -209,7 +207,6 @@ const BinderGridSlot = memo(function BinderGridSlot({ pageNumber, actions, ...sl
 export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber: number, side: 'left' | 'right') {
   const {
     binderSlotImageSizes,
-    binderCardDisplay,
     cardFinishEffectStyle,
     cardFinishGlint,
     currentBinderPage,
@@ -309,7 +306,6 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
                       : null
                   }
                   slotLabel={showSlotLabels ? slotLabel : undefined}
-                  cardDisplay={binderCardDisplay}
                   interactionKey={ctx.slotInteractionKey}
                   selected={ctx.selectedSlotId === displaySlot.id}
                   onSelect={ctx.onSelectSlot!}
@@ -351,9 +347,8 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
             const isSelected = selectedPokemon?.id === pokemon.id;
             const isLongPressed = longPressedPokemon?.id === pokemon.id;
             const item = getCollectionItem(pokemon.id);
-            const isCurrentWishlisted =
-              binderCardDisplay !== 'current' && (item?.status === 'wishlisted' || Boolean(item?.wanted_cards?.length));
-            const displayCard = getBinderDisplayCard(item, binderCardDisplay);
+            const isCurrentWishlisted = item?.status === 'wishlisted' || Boolean(item?.wanted_cards?.length);
+            const displayCard = getBinderDisplayCard(item, 'mixed');
             const slotCardImage = getSlotCardImage(pokemon.id);
             const slotCardName = displayCard?.card_name;
             const slotCardFinish = displayCard?.card_finish;
@@ -363,13 +358,13 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
               <BinderGridSlot
                 key={displaySlot!.id}
                 pokemon={pokemon}
-                isCollected={binderCardDisplay !== 'wanted' && isCurrentCollected}
+                isCollected={isCurrentCollected}
                 isWishlisted={isCurrentWishlisted}
                 isSelected={isSelected}
                 isLongPressed={isLongPressed}
                 slotLabel={slotLabel}
                 showSlotLabel={showSlotLabels}
-                status={binderCardDisplay !== 'wanted' ? item?.status : undefined}
+                status={item?.status}
                 cardImage={slotCardImage}
                 imageSizes={binderSlotImageSizes}
                 cardName={slotCardName}

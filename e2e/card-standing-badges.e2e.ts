@@ -1,5 +1,4 @@
-import { test, expect, SUPABASE_URL, type Harness } from './fixtures';
-import { HUNT_COLLECTION } from './hunt-fixtures';
+import { test, expect, type Harness } from './fixtures';
 
 // Outside Show mode, Search and Quick mode stamp each printing Owned / Wanted like Show mode does,
 // and Quick mode lists wanted printings first. (Owned: Base Set Bulbasaur; wanted: 151 #166 and Phantasmal Flames #001.)
@@ -13,9 +12,6 @@ async function screenshot(harness: Harness, name: string) {
 
 async function seedCollection(harness: Harness) {
   const { page } = harness;
-  await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) =>
-    route.request().method() === 'GET' ? route.fulfill({ json: HUNT_COLLECTION }) : route.fallback(),
-  );
   await page.reload();
   await expect(page.locator('button[data-dex-id="1"]').first()).toBeVisible();
 }

@@ -170,7 +170,7 @@ export function speciesPocket(
 /** Legacy PokemonSlot wishlisted tone, shared so native pockets dim wants the same way. */
 export const WANTED_PREVIEW_TONE = 'grayscale saturate-[0.75] brightness-[0.92] contrast-[0.95] opacity-90';
 
-/** Like legacy getBinderDisplayCard: outside "current", a want previews its printing dimmed. Owned copies without wants stay full colour, except in "wanted", which dims everything else so only wants stand out. */
+/** Like getBinderDisplayCard: outside "current", a want previews its printing dimmed. Owned copies without wants stay full colour. */
 export function displaySlotPreview(slot: ReadOnlyDisplaySlot, display: BinderCardDisplay = 'mixed') {
   const wanted = display !== 'current' && Boolean(slot.wantedCards?.length);
   const wantImage = wanted ? slot.wantedCards![0].card_image : undefined;
@@ -179,7 +179,7 @@ export function displaySlotPreview(slot: ReadOnlyDisplaySlot, display: BinderCar
   return {
     image,
     isCard: wanted ? Boolean(wantImage) : Boolean(slot.card?.image),
-    tone: wanted ? WANTED_PREVIEW_TONE : slot.item && display !== 'wanted' ? '' : 'grayscale opacity-45',
+    tone: wanted ? WANTED_PREVIEW_TONE : slot.item ? '' : 'grayscale opacity-45',
   };
 }
 

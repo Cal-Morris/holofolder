@@ -4,31 +4,15 @@
 import type { Binder } from '@/lib/binders/model';
 import { matchBinder } from '@/lib/binders/url';
 
-export const LEGACY_COLLECTION_SNAPSHOT_KEY = 'pokemon_collection_snapshot_v1';
-export const LEGACY_COLLECTION_RECORD_KEY = 'collection';
 /** The owner's binder list as this device last saw it, plus the binders saved here. */
 export const DEVICE_BINDERS_KEY = 'binderdex_device_binders_v1';
 
 type ReadableStorage = Pick<Storage, 'getItem'>;
 type WritableStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
-/** A binder with its own keys; the default binder (and the single-binder layout) use the original ones. */
-export function hasOwnOfflineKeys(binderId: string | null | undefined, isDefault: boolean): binderId is string {
-  return Boolean(binderId) && !isDefault;
-}
-
-/** The localStorage key of a binder's collection snapshot. */
-export function collectionSnapshotKey(binderId: string | null | undefined, isDefault: boolean) {
-  return hasOwnOfflineKeys(binderId, isDefault)
-    ? `${LEGACY_COLLECTION_SNAPSHOT_KEY}:${binderId}`
-    : LEGACY_COLLECTION_SNAPSHOT_KEY;
-}
-
 /** The IndexedDB record key of a binder's collection copy. Pending edits stay in the default record (one queue). */
 export function collectionRecordKey(binderId: string | null | undefined, isDefault: boolean) {
-  return hasOwnOfflineKeys(binderId, isDefault)
-    ? `${LEGACY_COLLECTION_RECORD_KEY}:${binderId}`
-    : LEGACY_COLLECTION_RECORD_KEY;
+  return binderId && !isDefault ? `collection:${binderId}` : 'collection';
 }
 
 export interface DeviceBinders {
@@ -121,22 +105,6 @@ export function markBinderSavedOnDevice(
   });
 }
 
-/** Whether the snapshot under a binder's key really is of that binder. */
-export function storedSnapshotIsOf(storage: ReadableStorage, binder: Pick<Binder, 'id' | 'isDefault'>) {
-  try {
-    const snapshot = JSON.parse(storage.getItem(collectionSnapshotKey(binder.id, binder.isDefault)) ?? 'null') as {
-      binderId?: unknown;
-      collection?: unknown;
-    } | null;
-    if (!snapshot || !Array.isArray(snapshot.collection)) return false;
-    const snapshotBinderId = typeof snapshot.binderId === 'string' && snapshot.binderId ? snapshot.binderId : null;
-    // The original key also holds snapshots from before binders (no binderId): those are the default binder's.
-    return snapshotBinderId === binder.id || (snapshotBinderId === null && binder.isDefault);
-  } catch {
-    return false;
-  }
-}
-
 /** Binders this device can open without a connection: the ones it has a saved copy of. */
 export function offlineAvailableBinderIds(
   storage: ReadableStorage,
@@ -144,9 +112,7 @@ export function offlineAvailableBinderIds(
   binders: readonly Binder[],
 ) {
   const saved = new Set((ownerUserId ? readDeviceBinders(storage, ownerUserId) : null)?.savedBinderIds ?? []);
-  return new Set(
-    binders.flatMap((binder) => (saved.has(binder.id) || storedSnapshotIsOf(storage, binder) ? [binder.id] : [])),
-  );
+  return new Set(binders.flatMap((binder) => (saved.has(binder.id) ? [binder.id] : [])));
 }
 
 /**

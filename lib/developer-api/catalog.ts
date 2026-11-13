@@ -81,8 +81,6 @@ export const identifyCardSchema = z.strictObject({
 });
 export const catalogPageSchema = (row: z.ZodType) =>
   z.looseObject({ data: z.array(row), nextCursor: z.string().nullable() });
-export type DeveloperCatalogCard = z.infer<typeof catalogCardSchema>;
-export type DeveloperCatalogGroup = z.infer<typeof catalogGroupSchema>;
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};

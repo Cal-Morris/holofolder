@@ -11,7 +11,6 @@ export const FUNNEL_EVENTS = [
   'cancelled',
 ] as const;
 export type FunnelEventName = (typeof FUNNEL_EVENTS)[number];
-export const DURABLE_FUNNEL_EVENTS = ['first_save', 'activated', 'first_paid'] as const;
 const approved = {
   source: new Set([
     'direct',

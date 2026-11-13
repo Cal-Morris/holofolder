@@ -36,7 +36,6 @@ import {
   type InventorySnapshot,
   type InventoryCatalogResolver,
 } from '@/lib/domain/inventory';
-import { legacySlotId } from '@/lib/legacy-binder-transition';
 import {
   parseSlotIntent,
   projectSlotIntent,
@@ -49,13 +48,6 @@ export interface SlotOfflineScope {
   workspaceId: string;
   accountId: string | null;
   ownerUserId: string | null;
-}
-export interface LegacySlotArchive {
-  workspaceId: string;
-  collectionId: string;
-  rawSnapshot: string | null;
-  rawQueue: string | null;
-  mapping: { operationId: string; slotId: string }[];
 }
 export interface CreationProof {
   family: 'collection.create';
@@ -125,7 +117,6 @@ export interface SlotOfflineRecord {
     resolution: 'discarded';
   }[];
   recovery?: RetainedRecovery[];
-  legacy: LegacySlotArchive[];
 }
 export type SlotReplayResult = {
   rawRestoreProof?: RawRestoreProof;
@@ -173,37 +164,6 @@ function scopedSnapshot(value: unknown, scope: SlotOfflineScope): InventorySnaps
     return fail('invalid-scoped-snapshot');
   return snapshot;
 }
-function archive(input: Omit<LegacySlotArchive, 'mapping'>): LegacySlotArchive {
-  if (
-    !isContractRecord(input, ['workspaceId', 'collectionId', 'rawSnapshot', 'rawQueue']) ||
-    !isSlotContractId(input.workspaceId) ||
-    !isSlotContractId(input.collectionId) ||
-    ![input.rawSnapshot, input.rawQueue].every((v) => v === null || typeof v === 'string')
-  )
-    return fail('invalid-legacy-archive');
-  const mapping: LegacySlotArchive['mapping'] = [];
-  // Raw bytes are retained even when a legacy payload is malformed/unknown. Never filter the source queue.
-  try {
-    const ops: unknown = JSON.parse(input.rawQueue ?? 'null');
-    if (Array.isArray(ops))
-      for (const op of ops) {
-        if (
-          op &&
-          typeof op === 'object' &&
-          'id' in op &&
-          'pokemonId' in op &&
-          typeof op.id === 'string' &&
-          typeof op.pokemonId === 'number'
-        ) {
-          const binderId = 'binderId' in op && typeof op.binderId === 'string' ? op.binderId : input.collectionId;
-          mapping.push({ operationId: op.id, slotId: legacySlotId(binderId, op.pokemonId) });
-        }
-      }
-  } catch {
-    /* Preserve unknown legacy bytes for explicit recovery, without inferring ownership. */
-  }
-  return { ...input, mapping };
-}
 function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
   if (raw === undefined)
     return {
@@ -213,7 +173,6 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
       optimistic: null,
       pending: [],
       receipts: [],
-      legacy: [],
     };
   if (
     !isContractRecord(raw, [
@@ -223,6 +182,7 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
       'optimistic',
       'pending',
       'receipts',
+      // Records saved before the archive of pre-native edits was removed still carry an empty list here.
       'legacy',
       'recovery',
       'creationDiscards',
@@ -230,8 +190,7 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
     raw.version !== 1 ||
     !sameValue(raw.scope, scope) ||
     !Array.isArray(raw.pending) ||
-    !Array.isArray(raw.receipts) ||
-    !Array.isArray(raw.legacy)
+    !Array.isArray(raw.receipts)
   )
     return fail('unsupported-or-malformed-offline-record');
   const snapshot = raw.snapshot === null ? null : scopedSnapshot(raw.snapshot, scope);
@@ -347,15 +306,6 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
   ];
   if (new Set(ids).size !== ids.length || (pending.length && (!snapshot || !optimistic)))
     return fail('malformed-operation-ledger');
-  const legacy = raw.legacy.map((a) => {
-    if (!isContractRecord(a, ['workspaceId', 'collectionId', 'rawSnapshot', 'rawQueue', 'mapping']))
-      return fail('malformed-legacy-archive');
-    const { mapping, ...source } = a;
-    const normalized = archive(source as unknown as Omit<LegacySlotArchive, 'mapping'>);
-    if (!sameValue(mapping, normalized.mapping) || normalized.workspaceId !== scope.workspaceId)
-      return fail('malformed-legacy-mapping');
-    return normalized;
-  });
   const recovery = raw.recovery === undefined ? [] : raw.recovery;
   if (!Array.isArray(recovery)) return fail('malformed-recovery-intents');
   const retained = recovery.map((r) => {
@@ -400,7 +350,6 @@ function parseRecord(raw: unknown, scope: SlotOfflineScope): SlotOfflineRecord {
     optimistic,
     pending,
     receipts,
-    legacy,
     ...(raw.creationDiscards === undefined ? {} : { creationDiscards: discarded }),
     ...(raw.recovery === undefined ? {} : { recovery: retained }),
   };
@@ -439,8 +388,7 @@ function adoptSnapshot(record: SlotOfflineRecord, snapshot: InventorySnapshot, c
   reproject(record, catalog);
 }
 
-/** One authoritative staged queue/snapshot record in binderdex-offline, no localStorage shadow queue.
- * Deliberately unused by the legacy application until conversion/rollout gates pass. */
+/** One authoritative staged queue/snapshot record in binderdex-offline, no localStorage shadow queue. */
 export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: SlotOfflineScope) {
   const scope = structuredClone(inputScope),
     key = offlineScopeKey(scope);
@@ -591,7 +539,6 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           record.receipts.some((r) => r.operationId === intent.request.operationId) ||
           record.creationDiscards?.some((r) => r.intent.request.operationId === intent.request.operationId) ||
           record.recovery?.some(recoveryUnresolved) ||
-          record.legacy.length ||
           record.pending.some(
             (p) =>
               p.intent.kind === 'creation' ||
@@ -966,7 +913,6 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           deletesCollection(intent) &&
           (!isCompleteInventorySnapshot(planningBase) ||
             record.pending.length ||
-            record.legacy.length ||
             !sameValue(record.snapshot, planningBase) ||
             intent.request.inventoryRevision !== planningBase.inventoryRevision)
         )
@@ -980,7 +926,6 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
             !isCompleteInventorySnapshot(planningBase) ||
             !sameValue(record.snapshot, planningBase) ||
             record.pending.length ||
-            record.legacy.length ||
             intent.request.inventoryRevision !== planningBase.inventoryRevision ||
             intent.context.clientId !== scope.deviceId ||
             intent.context.source !== 'app' ||
@@ -1025,13 +970,6 @@ export function createSlotOfflineQueue(store: AtomicOfflineStore, inputScope: Sl
           conflict: null,
         });
         record.optimistic = next;
-      });
-    },
-    async preserveLegacy(input: Omit<LegacySlotArchive, 'mapping'>) {
-      const saved = archive(input);
-      if (saved.workspaceId !== scope.workspaceId) fail('workspace-mismatch');
-      await update((record) => {
-        if (!record.legacy.some((a) => sameValue(a, saved))) record.legacy.push(saved);
       });
     },
     /** Explicit retry keeps the original operation ID even after an unknown outcome. */

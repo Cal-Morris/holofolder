@@ -1,13 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  SHOW_MODE_IDLE_MS,
-  isStoredOn,
-  parsePromptSnooze,
-  parseShowMode,
-  serializeShowMode,
-  shouldOfferShowMode,
-} from '@/lib/show-mode';
+import { SHOW_MODE_IDLE_MS, isStoredOn, parseShowMode, serializeShowMode } from '@/lib/show-mode';
 
 describe('show mode storage', () => {
   test('round-trips on and off', () => {
@@ -43,26 +36,5 @@ describe('show mode storage', () => {
     assert.equal(parseShowMode(legacy, start.getTime() + 1000).on, true);
     assert.equal(parseShowMode(legacy, start.getTime() + SHOW_MODE_IDLE_MS).on, false);
     assert.equal(parseShowMode(JSON.stringify({ on: true, since: null })).on, false);
-  });
-
-  test('parses the prompt dismissal', () => {
-    assert.equal(parsePromptSnooze('1700000000000'), 1700000000000);
-    assert.equal(parsePromptSnooze(null), null);
-    assert.equal(parsePromptSnooze('abc'), null);
-    assert.equal(parsePromptSnooze('0'), null);
-  });
-});
-
-describe('shouldOfferShowMode', () => {
-  test("never while it's on", () => {
-    assert.equal(shouldOfferShowMode({ showModeOn: true, dismissedAt: null }), false);
-  });
-  test('offers it until dismissed or used, then never again', () => {
-    assert.equal(shouldOfferShowMode({ showModeOn: false, dismissedAt: null }), true);
-    assert.equal(shouldOfferShowMode({ showModeOn: false, dismissedAt: 1 }), false);
-    assert.equal(
-      shouldOfferShowMode({ showModeOn: false, dismissedAt: Date.now() - 365 * 24 * 60 * 60 * 1000 }),
-      false,
-    );
   });
 });

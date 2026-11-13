@@ -24,12 +24,6 @@ export function getKnownCardIllustrator(
   return loaded.find((card) => matchesCatalogCardId(card, cardId))?.illustrator?.trim() || '';
 }
 
-export const PAGE_SCAN_OCR_BASE_CROP_LIMIT = 2;
-
-export const PAGE_SCAN_OCR_AMBIGUOUS_CROP_LIMIT = 4;
-
-export const PAGE_SCAN_CANDIDATE_ASSET_OCR_LIMIT = 18;
-
 export const BINDER_PAGE_QUERY_PARAM = 'page';
 
 export const THEME_COLOR_LIGHT = '#f7f6fb';

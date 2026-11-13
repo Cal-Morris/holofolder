@@ -29,7 +29,7 @@ import type { QuickPanelPosition } from '@/components/binder/binder-app-model';
 import type { RegionalCardPriceSnapshot } from '@/lib/regional-price';
 import type { CardPriceSnapshot, SupportedCurrency } from '@/hooks/use-card-prices';
 import type { CollectedPokemon, WantedCard } from '@/lib/domain/cards';
-import type { BinderCardDisplay, SelectedSlotDisplayCard } from '@/lib/selected-slot-card-display';
+import type { SelectedSlotDisplayCard } from '@/lib/selected-slot-card-display';
 import type { PokemonEntry, PokemonSummary } from '@/lib/pokemon-catalog';
 
 export interface SelectedPokemonQuickPanelContext {
@@ -37,7 +37,6 @@ export interface SelectedPokemonQuickPanelContext {
   selectedUsesSoldGuide: boolean;
   onSelectedSoldCheck: (check: CardPriceCheck) => void;
   activeJumpPokemonList: PokemonEntry[];
-  binderCardDisplay: BinderCardDisplay;
   closeSelectedPokemon: () => void;
   collected: boolean;
   collectionItem: CollectedPokemon | null | undefined;
@@ -135,7 +134,6 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
     selectedUsesSoldGuide,
     onSelectedSoldCheck,
     activeJumpPokemonList,
-    binderCardDisplay,
     closeSelectedPokemon,
     collected,
     collectionItem,
@@ -197,9 +195,9 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
 
   const selectedStatusPill = selectedHasWantedCard
     ? { label: 'Wanted', className: 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400' }
-    : binderCardDisplay !== 'wanted' && selectedPokemonIsFavorite
+    : selectedPokemonIsFavorite
       ? { label: 'Perfect', className: 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400' }
-      : binderCardDisplay !== 'wanted' && collected
+      : collected
         ? {
             label: 'Owned',
             className: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
@@ -215,11 +213,9 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
             ? 'Assigned card selected'
             : 'Tracked card selected'
           : selectedPrimaryCardPreview.cardName
-        : binderCardDisplay === 'wanted'
-          ? 'No wanted card selected'
-          : collected
-            ? 'No card assigned yet'
-            : 'Choose how you want to track this slot.';
+        : collected
+          ? 'No card assigned yet'
+          : 'Choose how you want to track this slot.';
   const selectedPreviewImage =
     toCardImageSrc(selectedPrimaryCardPreview?.cardImage) ??
     selectedPokemonDisplayImage ??
@@ -355,7 +351,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                     alt={selectedPreviewAlt}
                     className={`${selectedPreviewImageClass} ${selectedPreviewFit} ${selectedPreviewTone}`}
                   />
-                  {binderCardDisplay !== 'wanted' && collected && !selectedPreviewIsCard && (
+                  {collected && !selectedPreviewIsCard && (
                     <div
                       className={`absolute flex h-4 w-4 items-center justify-center rounded-full bg-green-500 shadow-sm ${selectedPreviewBadgeClass}`}
                     >

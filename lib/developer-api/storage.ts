@@ -292,7 +292,7 @@ export const nativeArrangementSchema = z
       .max(5000),
   })
   .refine(canonical(parseBackupArrangementCommand), 'Invalid or unsupported atomic arrangement import.');
-export const rawRestoreV4Schema = z
+export const rawRestoreSchema = z
   .strictObject({
     version: z.literal(4),
     operationId,
@@ -340,7 +340,6 @@ export const rawRestoreV4Schema = z
     releaseItemIds: z.array(id).max(RAW_RESTORE_V2_LIMITS.items),
   })
   .refine(canonical(parseRawRestoreCommand), 'Invalid or unsupported raw content restore.');
-export const rawRestoreSchema = rawRestoreV4Schema;
 const eventId = z
   .string()
   .regex(/^[1-9]\d{0,18}$/)

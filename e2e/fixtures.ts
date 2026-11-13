@@ -414,8 +414,7 @@ export async function mockBackends(
     ]);
   }
   const showPurchases = new Map<string, unknown>();
-  // Mock the Supabase API: auth returns the e2e user, the collection returns the seeded rows,
-  // every other table read is empty and writes succeed.
+  // Mock the Supabase API: auth returns the e2e user, every other table read is empty and writes succeed.
   await target.route(`${SUPABASE_URL}/**`, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -429,9 +428,6 @@ export async function mockBackends(
     if (url.pathname === '/auth/v1/passkeys' && request.method() === 'GET') return route.fulfill({ json: [] });
     if (url.pathname.startsWith('/auth/v1/')) {
       return route.fulfill({ json: {} });
-    }
-    if (url.pathname === '/rest/v1/pokemon_collection' && request.method() === 'GET') {
-      return route.fulfill({ json: SEEDED_COLLECTION });
     }
     // Show purchases behave like the real table (what's written reads back), so synced tallies stay put.
     if (url.pathname === '/rest/v1/show_purchases') {

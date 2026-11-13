@@ -1,5 +1,5 @@
 import type { Page, Route, TestInfo } from '@playwright/test';
-import { expect, MOCK_CARDS, SEEDED_COLLECTION, SUPABASE_URL, test, type Harness } from './fixtures';
+import { expect, MOCK_CARDS, test, type Harness } from './fixtures';
 
 const MY_BINDER = 'e2e00000-0000-4000-8000-000000000001';
 const TRADES = 'e2e00000-0000-4000-8000-000000000002';
@@ -37,12 +37,6 @@ class FakeBinders {
   }
 
   async install(page: Page, ownerUserId = '00000000-0000-4000-8000-0000000000e2') {
-    await page.route(`${SUPABASE_URL}/rest/v1/pokemon_collection**`, (route) => {
-      const binder = new URL(route.request().url()).searchParams.get('binder_id');
-      const rows =
-        binder === `eq.${TRADES}` ? SEEDED_COLLECTION.filter((row) => row.pokemon_id === 4) : SEEDED_COLLECTION;
-      return route.fulfill({ json: rows });
-    });
     await page.route('**/app/api/binders**', (route) => this.handle(route, ownerUserId));
   }
 

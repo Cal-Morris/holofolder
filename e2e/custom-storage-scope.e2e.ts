@@ -1,13 +1,4 @@
-import {
-  test,
-  expect,
-  mockBackends,
-  emulateStandalone,
-  E2E_USER,
-  storageAction,
-  closeStorage,
-  viewPicker,
-} from './fixtures';
+import { test, expect, mockBackends, emulateStandalone, E2E_USER, storageAction, viewPicker } from './fixtures';
 import type { Page } from '@playwright/test';
 
 // Synthetic transport, real native creation, owner-scoped complete reads and durable record.
@@ -33,7 +24,6 @@ async function saved(page: Page) {
     return rows.find((r) => !!r && typeof r === 'object' && 'pending' in r && 'scope' in r) as {
       scope: { ownerUserId: string; accountId: string };
       pending: unknown[];
-      legacy: unknown[];
       receipts: { intent: { request: { collectionId: string; kind: string; location: string | null } } }[];
       snapshot: {
         items: unknown[];
@@ -106,55 +96,4 @@ test('partner creates Custom under shared owner without changing existing graded
     location: 'Synthetic private shelf',
   });
   await expect(viewPicker(page)).toHaveAttribute('data-value', 'list');
-});
-test('retained legacy work arriving during Custom review fences confirmation and survives reload', async ({ page }) => {
-  await page.goto(entry);
-  const dialog = await review(page);
-  await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((yes, no) => {
-      const r = ((q) => (
-        (q.onupgradeneeded = () => {
-          if (!q.result.objectStoreNames.contains('records')) q.result.createObjectStore('records');
-        }),
-        q
-      ))(indexedDB.open('binderdex-offline', 1));
-      r.onsuccess = () => yes(r.result);
-      r.onerror = () => no(r.error);
-    });
-    await new Promise<void>((yes, no) => {
-      const tx = db.transaction('records', 'readwrite'),
-        cursor = tx.objectStore('records').openCursor();
-      cursor.onsuccess = () => {
-        const c = cursor.result;
-        if (!c) return;
-        const r = c.value;
-        if (r?.scope && r?.pending) {
-          r.legacy = [
-            {
-              workspaceId: r.scope.workspaceId,
-              collectionId: '22222222-2222-4222-8222-222222222222',
-              rawSnapshot: null,
-              rawQueue: 'synthetic unresolved legacy bytes',
-              mapping: [],
-            },
-          ];
-          c.update(r);
-        }
-        c.continue();
-      };
-      tx.oncomplete = () => yes();
-      tx.onerror = tx.onabort = () => no(tx.error);
-    });
-    db.close();
-    const c = new BroadcastChannel('binderdex-slot-intent-v1');
-    c.postMessage('changed');
-    c.close();
-  });
-  await expect(dialog.getByRole('button', { name: 'Confirm create storage', exact: true })).toBeDisabled();
-  expect((await saved(page)).pending).toHaveLength(0);
-  await page.reload();
-  await expect(await storageAction(page, 'New storage')).toBeDisabled();
-  await closeStorage(page);
-  expect((await saved(page)).legacy).toHaveLength(1);
-  expect((await saved(page)).receipts).toHaveLength(0);
 });

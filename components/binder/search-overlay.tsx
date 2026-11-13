@@ -16,12 +16,11 @@ import type { PokemonSearchResultMeta } from '@/components/pokemon-search';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 import type { PokemonEntry, PokemonSummary } from '@/lib/pokemon-catalog';
 import type { TCGSetSummary } from '@/lib/tcg-set-slots';
-import type { BinderCardDisplay, SelectedSlotDisplayCard } from '@/lib/selected-slot-card-display';
+import type { SelectedSlotDisplayCard } from '@/lib/selected-slot-card-display';
 
 export interface SearchOverlayContext {
   nativeConsumer?: NativeConsumerBinding;
   history: BinderHistory;
-  binderCardDisplay: BinderCardDisplay;
   closeSearch: () => void;
   collected: boolean;
   currentPagePokemon: PokemonSummary[];
@@ -68,7 +67,6 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
   const {
     nativeConsumer,
     history,
-    binderCardDisplay,
     closeSearch,
     collected,
     currentPagePokemon,
@@ -197,8 +195,6 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
                         <p className="truncate text-xs text-amber-500">Wanted: {selectedPrimaryCardPreview.cardName}</p>
                       ) : selectedPrimaryCardPreview?.cardName ? (
                         <p className="text-primary truncate text-xs">{selectedPrimaryCardPreview.cardName}</p>
-                      ) : binderCardDisplay === 'wanted' ? (
-                        <p className="text-muted-foreground text-xs">No wanted card selected</p>
                       ) : collected ? (
                         <p className="text-muted-foreground text-xs">Collected, no card assigned</p>
                       ) : readOnlyMode ? (

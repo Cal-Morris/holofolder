@@ -77,8 +77,3 @@ export async function loadIllustratorCards(
     return fromDevice((store) => loadStoredIllustratorCards(store, illustrator, language));
   }
 }
-
-/** Test helper. */
-export function resetIllustratorDirectoryCache() {
-  directoryPromise = null;
-}

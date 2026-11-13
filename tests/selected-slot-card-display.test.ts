@@ -17,44 +17,14 @@ test('an explicitly opened wanted printing overrides the binder display without 
     status: 'collected' as const,
     wanted_cards: [first, tapped],
   };
-  const display = getSelectedSlotCardDisplay(item, 'current', tapped);
+  const display = getSelectedSlotCardDisplay(item, tapped);
   assert.equal(display.primaryCard?.cardId, tapped.card_id);
   assert.equal(display.primaryCard?.cardLanguage, 'ja');
   assert.equal(display.primaryCard?.cardFinish, 'holo');
   assert.equal(display.currentCard?.cardId, item.card_id);
 });
 
-test('getSelectedSlotCardDisplay follows the selected mode and retains owned metadata', () => {
-  const display = getSelectedSlotCardDisplay(
-    {
-      card_id: 'current-1',
-      card_name: 'Allocated Pikachu',
-      card_image: 'current.png',
-      card_set: 'Base Set',
-      card_language: 'en',
-      card_finish: 'holo',
-      wanted_cards: [
-        {
-          card_id: 'wanted-1',
-          card_name: 'Wanted Pikachu',
-          card_image: 'wanted.png',
-          card_set: 'Jungle',
-          card_language: 'ja',
-          card_finish: 'reverse_holo',
-          added_at: '2026-06-28T12:00:00.000Z',
-        },
-      ],
-    },
-    'wanted',
-  );
-
-  assert.equal(display.primaryCard?.cardId, 'wanted-1');
-  assert.equal(display.primaryCard?.cardName, 'Wanted Pikachu');
-  assert.equal(display.currentCard?.cardId, 'current-1');
-  assert.equal(display.currentCard?.cardName, 'Allocated Pikachu');
-});
-
-test("owned and wanted mode keeps each printing's metadata together", () => {
+test('current mode keeps only the owned printing', () => {
   const current = {
     card_id: 'current',
     card_name: 'Current',
@@ -73,10 +43,7 @@ test("owned and wanted mode keeps each printing's metadata together", () => {
   };
   const item = { ...current, wanted_cards: [wanted] };
   assert.equal(getBinderDisplayCard(item, 'current'), item);
-  assert.equal(getBinderDisplayCard(item, 'wanted'), wanted);
-  assert.equal(getBinderDisplayCard(current, 'wanted'), null);
   assert.equal(getBinderDisplayCard({ ...item, status: 'wishlisted' }, 'current'), null);
-  assert.equal(getBinderDisplayCard({ ...item, status: 'wishlisted' }, 'wanted'), wanted);
   assert.equal(getBinderDisplayCard(null, 'current'), null);
 });
 
@@ -89,8 +56,7 @@ test('legacy wishlisted printings remain wanted and never become current', () =>
     wanted_cards: [],
   };
   assert.equal(getBinderDisplayCard(item, 'current'), null);
-  assert.equal(getBinderDisplayCard(item, 'wanted'), item);
-  const display = getSelectedSlotCardDisplay(item, 'wanted');
+  const display = getSelectedSlotCardDisplay(item);
   assert.equal(display.primaryCard?.cardId, 'legacy');
   assert.equal(display.currentCard, null);
 });
@@ -104,9 +70,8 @@ test('current details do not borrow wanted metadata, and missing wanted stays mi
       { card_id: 'wanted', card_name: 'Wanted', card_set: 'Wanted Set', added_at: '2026-10-11T00:00:00Z' },
     ],
   };
-  assert.equal(getSelectedSlotCardDisplay(item, 'current').primaryCard?.cardId, 'owned');
-  assert.equal(getSelectedSlotCardDisplay(item, 'current').primaryCard?.cardSet, undefined);
-  assert.equal(getSelectedSlotCardDisplay({ ...item, wanted_cards: [] }, 'wanted').primaryCard, null);
+  assert.equal(getSelectedSlotCardDisplay(item).currentCard?.cardId, 'owned');
+  assert.equal(getSelectedSlotCardDisplay(item).currentCard?.cardSet, undefined);
 });
 
 test('mixed restores wanted-first printings alongside owned and legacy wanted slots', () => {
@@ -120,6 +85,6 @@ test('mixed restores wanted-first printings alongside owned and legacy wanted sl
   assert.equal(getBinderDisplayCard(legacy, 'mixed'), legacy);
   assert.equal(getBinderDisplayCard(null, 'mixed'), null);
   assert.equal(getBinderDisplayCard({ wanted_cards: [] }, 'mixed'), null);
-  assert.equal(getSelectedSlotCardDisplay(both, 'mixed').primaryCard?.cardId, 'wanted');
-  assert.equal(getSelectedSlotCardDisplay(both, 'mixed').currentCard?.cardId, 'owned');
+  assert.equal(getSelectedSlotCardDisplay(both).primaryCard?.cardId, 'wanted');
+  assert.equal(getSelectedSlotCardDisplay(both).currentCard?.cardId, 'owned');
 });

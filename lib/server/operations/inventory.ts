@@ -2,18 +2,8 @@ import { parseInventoryCommand } from '@/lib/domain/inventory-commands';
 import type { InventoryCommandRequest } from '@/lib/domain/inventory-commands';
 import { normalizeAuditContext } from '@/lib/domain/audit-context';
 import type { AuditContext } from '@/lib/domain/audit-context';
-export {
-  INVENTORY_COLLECTION_DELETE_LIMITS,
-  INVENTORY_LIMITS,
-  parseInventoryCommand,
-} from '@/lib/domain/inventory-commands';
-export type {
-  InventorySlotRef,
-  InventoryItemRef,
-  SelectedWant,
-  InventoryCommand,
-  InventoryCommandRequest,
-} from '@/lib/domain/inventory-commands';
+export { parseInventoryCommand } from '@/lib/domain/inventory-commands';
+export type { InventoryCommandRequest } from '@/lib/domain/inventory-commands';
 const uuid = (v: unknown): v is string =>
   typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 function invalid(): never {
