@@ -860,6 +860,19 @@ export function storageCommandHarness(id: string) {
             }
           }
           state.tables.inventory_owner_state[0].inventory_revision = next.inventoryRevision;
+          // A `layout` command (SQL 118) changes only the binder's stored grid; pockets keep their order.
+          if (input.operation === 'slots') {
+            const slots = request as import('@/lib/domain/slot-commands').SlotCommandRequest;
+            for (const c of slots.commands)
+              if (c.kind === 'layout')
+                Object.assign(
+                  state.tables.binders.find((b) => b.id === slots.collectionId)!,
+                  {
+                    binder_rows: c.rows,
+                    binder_cols: c.cols,
+                  },
+                );
+          }
           for (const binder of next.binders) {
             const stored = state.tables.storage_collection_state.find((c) => c.collection_id === binder.collectionId)!;
             stored.version = next.collections.find((c) => c.id === binder.collectionId)!.version;

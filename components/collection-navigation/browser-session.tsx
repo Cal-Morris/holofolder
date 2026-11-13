@@ -944,7 +944,7 @@ function ScopedBrowserSession({
       ? {
           ...shownRead,
           evidence: { kind: 'cached', snapshot: queue.record.optimistic },
-          layouts: projectPendingLayouts(read.layouts, queue.record.optimistic.binders),
+          layouts: projectPendingLayouts(read.layouts, queue.record.optimistic.binders, queue.record.pending),
         }
       : !online && read.evidence.kind === 'complete'
         ? { ...shownRead, evidence: { kind: 'cached', snapshot: read.evidence.snapshot } }

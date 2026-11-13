@@ -189,6 +189,12 @@ export function projectSlotIntent(
       used = new Set<string>();
     for (const command of intent.request.commands) {
       const binder = binderOf(id);
+      // The grid isn't in the snapshot (read layouts carry it); pockets don't move, but SQL 118 always advances the layout.
+      if (command.kind === 'layout') {
+        touched.add(id);
+        structural.add(id);
+        continue;
+      }
       const ids =
         command.kind === 'create'
           ? command.ids
@@ -483,7 +489,7 @@ export function projectSlotIntent(
       if (!sameValue(before, state)) for (const ref of refs) touched.add(ref.collectionId);
     }
   }
-  if (!sameValue(original, state)) {
+  if (structural.size || !sameValue(original, state)) {
     state.inventoryRevision = original.inventoryRevision + 1;
     state.collections = state.collections.map((c) => ({
       ...c,

@@ -62,14 +62,24 @@ const integer = (v: unknown, max: number, min = 0) =>
 export function projectPendingLayouts(
   layouts: readonly InventoryLayoutEvidence[],
   projected: readonly { collectionId: string; layoutRevision: number }[] | undefined,
+  pending: readonly PendingLayoutSource[] = [],
 ): InventoryLayoutEvidence[] {
+  // A queued grid change shows at once, like the queue's projection: in order, up to the first unresolved edit.
+  const grids = new Map<string, { rows: number; cols: number }>();
+  for (const p of pending) {
+    if (p.status === 'conflict' || p.status === 'blocked') break;
+    if (p.intent.kind !== 'slots') continue;
+    for (const c of p.intent.request.commands)
+      if (c.kind === 'layout') grids.set(p.intent.request.collectionId, { rows: c.rows, cols: c.cols });
+  }
   return layouts.map((layout) => {
     const binder = projected?.find((b) => b.collectionId === layout.collectionId);
     return binder && layout.layoutRevision <= binder.layoutRevision
-      ? { ...layout, layoutRevision: binder.layoutRevision }
+      ? { ...layout, ...grids.get(layout.collectionId), layoutRevision: binder.layoutRevision }
       : layout;
   });
 }
+type PendingLayoutSource = Pick<import('@/lib/collection/slot-offline-queue').PendingSlotIntent, 'status' | 'intent'>;
 
 export const defaultCollectionView = (view: CollectionViewState['view'] = 'binder'): CollectionViewState => ({
   view,
