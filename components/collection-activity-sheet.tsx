@@ -1,9 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import { useEffect, useState, type FormEvent } from 'react';
+import { OverlayCloseButton, OverlayDialog, OverlayGrabber } from '@/components/ui/overlay-dialog';
 import {
   activityChanges,
   activityActor,
@@ -43,9 +41,6 @@ const control = 'min-h-10 w-full min-w-0 rounded-lg border border-border bg-back
 
 export default function CollectionActivitySheet(props: Props) {
   const { scope, initialFilter, binderId, binders, pendingCount, isOnline, onClose } = props;
-  const panel = useRef<HTMLDivElement | null>(null);
-  useOverlay(true, onClose, { containerRef: panel });
-  const swipe = useSwipeToDismiss(panel, onClose);
   const [filters, setFilters] = useState(() =>
     new URLSearchParams({
       limit: '50',
@@ -84,156 +79,131 @@ export default function CollectionActivitySheet(props: Props) {
     setShowFilters(false);
   };
   const selected = new URLSearchParams(filters);
-  return createPortal(
-    <div className="fixed inset-0 z-40">
-      <div
-        data-overlay-backdrop
-        aria-hidden="true"
-        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
-        onClick={onClose}
-      />
-      <section
-        ref={panel}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Collection Activity"
-        className="border-border bg-card text-foreground absolute inset-x-0 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-0.5rem)] w-full max-w-lg flex-col rounded-t-3xl border shadow-xl sm:rounded-3xl"
-      >
-        <header data-sheet-grabber className="shrink-0 px-4 pt-3 pb-2" {...swipe}>
-          <div aria-hidden className="bg-muted-foreground/30 mx-auto mb-2 h-1 w-10 rounded-full" />
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold">Activity</h2>
-            <button
-              type="button"
-              aria-label="Close Activity"
-              className="hover:bg-muted flex h-10 w-10 items-center justify-center rounded-full"
-              onClick={onClose}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </header>
-        <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 text-sm [overflow-wrap:anywhere]">
-          {pendingCount > 0 && (
-            <p role="status" className="bg-muted/60 mb-3 rounded-xl p-3 text-xs">
-              {pendingCount} {pendingCount === 1 ? 'change waiting' : 'changes waiting'} to sync. Undo will be available
-              once they’re saved.
-            </p>
-          )}
-          <div className="mb-2 flex gap-2">
-            <button
-              type="button"
-              className="border-border min-h-10 rounded-lg border px-3"
-              aria-expanded={showFilters}
-              onClick={() => setShowFilters((v) => !v)}
-            >
-              Filters
-            </button>
-            <button
-              type="button"
-              className="border-border min-h-10 rounded-lg border px-3"
-              disabled={!isOnline}
-              onClick={() => {
-                if (scope) setRevision((v) => v + 1);
-                else props.onVerify();
-              }}
-            >
-              Refresh
-            </button>
-          </div>
-          <p className="text-muted-foreground mb-2 text-xs">
-            {selected.has('collectionId')
-              ? (binders.find((b) => b.id === selected.get('collectionId'))?.name ?? 'Previous collection')
-              : selected.has('id')
-                ? 'Selected change'
-                : selected.has('recoveryOfEventId')
-                  ? 'Undo history'
-                  : 'All collections'}
-            {selected.has('pokemonId') ? ` · Pokémon #${selected.get('pokemonId')}` : ''}
-            {selected.has('inventoryItemId') ? ' · Selected copy' : ''}
-          </p>
-          {showFilters && (
-            <form onSubmit={apply} className="border-border mb-3 grid grid-cols-2 gap-2 rounded-xl border p-3">
-              <label className="col-span-2 text-xs">
-                Collection
-                <Select name="collectionId" defaultValue={selected.get('collectionId') ?? ''} className="w-full">
-                  <option value="">All collections</option>
-                  {binders.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-              <label className="col-span-2 text-xs">
-                Person
-                <Select name="actorId" defaultValue={selected.get('actorId') ?? ''} className="w-full">
-                  <option value="">Everyone</option>
-                  {scope && <option value={scope.accountId}>You</option>}
-                  {scope?.memberIds?.flatMap((id) =>
-                    id === scope.accountId
-                      ? []
-                      : [
-                          <option key={id} value={id}>
-                            Collection partner
-                          </option>,
-                        ],
-                  )}
-                </Select>
-              </label>
-              <label className="text-xs">
-                From (UTC)
-                <input
-                  type="date"
-                  name="since"
-                  defaultValue={selected.get('since')?.slice(0, 10)}
-                  className={control}
-                />
-              </label>
-              <label className="text-xs">
-                Through (UTC)
-                <input
-                  type="date"
-                  name="until"
-                  defaultValue={selected.get('until')?.slice(0, 10)}
-                  className={control}
-                />
-              </label>
-              {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- wraps the native <select> that Select renders */}
-              <label className="col-span-2 text-xs">
-                Action
-                <Select name="action" defaultValue={selected.get('action') ?? ''} className="w-full">
-                  <option value="">All changes</option>
-                  <option value="collection_item">Cards and wanted lists</option>
-                  <option value="collection_change">Collections and settings</option>
-                  <option value="legacy">Older recorded changes</option>
-                </Select>
-              </label>
-              <button
-                type="submit"
-                className="bg-primary text-primary-foreground col-span-2 min-h-10 rounded-lg px-3 font-medium"
-              >
-                Apply filters
-              </button>
-            </form>
-          )}
-          {scope ? (
-            <ActivityResults
-              key={`${JSON.stringify(scope)}:${filters}:${revision}`}
-              {...props}
-              scope={scope}
-              query={filters}
-              onSelectEvent={(id) => setFilters(new URLSearchParams({ id }).toString())}
-            />
-          ) : (
-            <p role="status" className="py-4">
-              {isOnline ? 'Loading activity…' : 'Connect to load activity.'}
-            </p>
-          )}
+  return (
+    <OverlayDialog
+      modal={false}
+      onClose={onClose}
+      layerClassName="z-40"
+      backdropProps={{ className: 'bg-black/45 backdrop-blur-[2px]' }}
+      aria-label="Collection Activity"
+      className="border-border bg-card text-foreground absolute inset-x-0 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-0.5rem)] w-full max-w-lg flex-col rounded-t-3xl border shadow-xl sm:rounded-3xl"
+    >
+      <header data-sheet-grabber className="shrink-0 px-4 pt-3 pb-2">
+        <OverlayGrabber className="h-1" />
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-base font-semibold">Activity</h2>
+          <OverlayCloseButton label="Close Activity" onClick={onClose} className="shrink" />
         </div>
-      </section>
-    </div>,
-    document.body,
+      </header>
+      <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 text-sm [overflow-wrap:anywhere]">
+        {pendingCount > 0 && (
+          <p role="status" className="bg-muted/60 mb-3 rounded-xl p-3 text-xs">
+            {pendingCount} {pendingCount === 1 ? 'change waiting' : 'changes waiting'} to sync. Undo will be available
+            once they’re saved.
+          </p>
+        )}
+        <div className="mb-2 flex gap-2">
+          <button
+            type="button"
+            className="border-border min-h-10 rounded-lg border px-3"
+            aria-expanded={showFilters}
+            onClick={() => setShowFilters((v) => !v)}
+          >
+            Filters
+          </button>
+          <button
+            type="button"
+            className="border-border min-h-10 rounded-lg border px-3"
+            disabled={!isOnline}
+            onClick={() => {
+              if (scope) setRevision((v) => v + 1);
+              else props.onVerify();
+            }}
+          >
+            Refresh
+          </button>
+        </div>
+        <p className="text-muted-foreground mb-2 text-xs">
+          {selected.has('collectionId')
+            ? (binders.find((b) => b.id === selected.get('collectionId'))?.name ?? 'Previous collection')
+            : selected.has('id')
+              ? 'Selected change'
+              : selected.has('recoveryOfEventId')
+                ? 'Undo history'
+                : 'All collections'}
+          {selected.has('pokemonId') ? ` · Pokémon #${selected.get('pokemonId')}` : ''}
+          {selected.has('inventoryItemId') ? ' · Selected copy' : ''}
+        </p>
+        {showFilters && (
+          <form onSubmit={apply} className="border-border mb-3 grid grid-cols-2 gap-2 rounded-xl border p-3">
+            <label className="col-span-2 text-xs">
+              Collection
+              <Select name="collectionId" defaultValue={selected.get('collectionId') ?? ''} className="w-full">
+                <option value="">All collections</option>
+                {binders.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="col-span-2 text-xs">
+              Person
+              <Select name="actorId" defaultValue={selected.get('actorId') ?? ''} className="w-full">
+                <option value="">Everyone</option>
+                {scope && <option value={scope.accountId}>You</option>}
+                {scope?.memberIds?.flatMap((id) =>
+                  id === scope.accountId
+                    ? []
+                    : [
+                        <option key={id} value={id}>
+                          Collection partner
+                        </option>,
+                      ],
+                )}
+              </Select>
+            </label>
+            <label className="text-xs">
+              From (UTC)
+              <input type="date" name="since" defaultValue={selected.get('since')?.slice(0, 10)} className={control} />
+            </label>
+            <label className="text-xs">
+              Through (UTC)
+              <input type="date" name="until" defaultValue={selected.get('until')?.slice(0, 10)} className={control} />
+            </label>
+            {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- wraps the native <select> that Select renders */}
+            <label className="col-span-2 text-xs">
+              Action
+              <Select name="action" defaultValue={selected.get('action') ?? ''} className="w-full">
+                <option value="">All changes</option>
+                <option value="collection_item">Cards and wanted lists</option>
+                <option value="collection_change">Collections and settings</option>
+                <option value="legacy">Older recorded changes</option>
+              </Select>
+            </label>
+            <button
+              type="submit"
+              className="bg-primary text-primary-foreground col-span-2 min-h-10 rounded-lg px-3 font-medium"
+            >
+              Apply filters
+            </button>
+          </form>
+        )}
+        {scope ? (
+          <ActivityResults
+            key={`${JSON.stringify(scope)}:${filters}:${revision}`}
+            {...props}
+            scope={scope}
+            query={filters}
+            onSelectEvent={(id) => setFilters(new URLSearchParams({ id }).toString())}
+          />
+        ) : (
+          <p role="status" className="py-4">
+            {isOnline ? 'Loading activity…' : 'Connect to load activity.'}
+          </p>
+        )}
+      </div>
+    </OverlayDialog>
   );
 }
 

@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { Check, ChevronDown, Plus, X } from 'lucide-react';
-import { useOverlay } from '@/hooks/use-overlay';
+import { Check, ChevronDown, Plus } from 'lucide-react';
+import { OverlayMenu } from '@/components/ui/overlay-dialog';
 import { useMenuAction } from '@/components/collection-navigation/storage-menu';
 
 export interface SelectorOption {
@@ -65,12 +65,11 @@ export function SelectorMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState({ left: 8, top: 0 });
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const textId = useId();
   const defer = useMenuAction(open);
   const close = () => setOpen(false);
-  useOverlay(open, close, { containerRef: menuRef });
   useEffect(() => {
     if (!open) return;
     const items = menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitemradio"]');
@@ -112,83 +111,70 @@ export function SelectorMenu({
         {!icon && <ChevronDown className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden />}
       </button>
       {open && (
-        <>
-          <div className="fixed inset-0 z-40" data-overlay-backdrop aria-hidden onClick={close} />
+        <OverlayMenu
+          ref={menuRef}
+          onClose={close}
+          label={menuLabel}
+          heading={heading}
+          closeLabel={`Close ${heading.toLowerCase()}`}
+          style={{
+            left: anchor.left,
+            top: anchor.top,
+            width,
+            maxHeight: `calc(100dvh - ${anchor.top}px - var(--dock-clearance) - 0.5rem)`,
+          }}
+          className="fixed max-w-[calc(100vw-1rem)]"
+        >
           <div
-            ref={menuRef}
-            role="dialog"
-            aria-modal="true"
+            role="menu"
             aria-label={menuLabel}
-            style={{
-              left: anchor.left,
-              top: anchor.top,
-              width,
-              maxHeight: `calc(100dvh - ${anchor.top}px - var(--dock-clearance) - 0.5rem)`,
-            }}
-            className="border-border/60 bg-card fixed z-50 flex max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-2xl border p-1.5 shadow-xl outline-none"
+            tabIndex={-1}
+            onKeyDown={move}
+            className="flex min-h-0 flex-col gap-0.5 overflow-y-auto overscroll-contain p-1 text-sm"
           >
-            <div className="flex shrink-0 items-center justify-between pl-3">
-              <p className="text-sm font-semibold">{heading}</p>
-              <button
-                type="button"
-                onClick={close}
-                aria-label={`Close ${heading.toLowerCase()}`}
-                className="hover:bg-muted flex h-9 w-9 items-center justify-center rounded-full"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div
-              role="menu"
-              aria-label={menuLabel}
-              tabIndex={-1}
-              onKeyDown={move}
-              className="flex min-h-0 flex-col gap-0.5 overflow-y-auto overscroll-contain p-1 text-sm"
-            >
-              {options.map((option) => {
-                const selected = option.value === value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={selected}
-                    data-value={option.value}
-                    onClick={() => {
-                      defer(() => onSelect(option.value));
-                      close();
-                    }}
-                    className={`hover:bg-muted/70 focus-visible:bg-muted/70 flex min-h-11 w-full shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-left leading-snug focus-visible:outline-none ${selected ? 'bg-muted font-semibold' : 'font-medium'}`}
-                  >
-                    <span className="min-w-0 flex-1 break-words">{option.label}</span>
-                    {selected && <Check className="text-primary h-4 w-4 shrink-0" aria-hidden />}
-                  </button>
-                );
-              })}
-            </div>
-            {action && (
-              <div className="border-border/60 shrink-0 border-t p-1 pt-1.5">
+            {options.map((option) => {
+              const selected = option.value === value;
+              return (
                 <button
+                  key={option.value}
                   type="button"
-                  disabled={action.disabled}
+                  role="menuitemradio"
+                  aria-checked={selected}
+                  data-value={option.value}
                   onClick={() => {
-                    defer(action.onSelect);
+                    defer(() => onSelect(option.value));
                     close();
                   }}
-                  className="text-primary hover:bg-primary/10 focus-visible:bg-primary/10 flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold focus-visible:outline-none disabled:opacity-45"
+                  className={`hover:bg-muted/70 focus-visible:bg-muted/70 flex min-h-11 w-full shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-left leading-snug focus-visible:outline-none ${selected ? 'bg-muted font-semibold' : 'font-medium'}`}
                 >
-                  <Plus className="h-4 w-4 shrink-0" aria-hidden />
-                  <span className="min-w-0 flex-1">
-                    <span className="block">{action.label}</span>
-                    {action.hint && (
-                      <span className="text-muted-foreground block text-xs font-normal">{action.hint}</span>
-                    )}
-                  </span>
+                  <span className="min-w-0 flex-1 break-words">{option.label}</span>
+                  {selected && <Check className="text-primary h-4 w-4 shrink-0" aria-hidden />}
                 </button>
-              </div>
-            )}
+              );
+            })}
           </div>
-        </>
+          {action && (
+            <div className="border-border/60 shrink-0 border-t p-1 pt-1.5">
+              <button
+                type="button"
+                disabled={action.disabled}
+                onClick={() => {
+                  defer(action.onSelect);
+                  close();
+                }}
+                className="text-primary hover:bg-primary/10 focus-visible:bg-primary/10 flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold focus-visible:outline-none disabled:opacity-45"
+              >
+                <Plus className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="block">{action.label}</span>
+                  {action.hint && (
+                    <span className="text-muted-foreground block text-xs font-normal">{action.hint}</span>
+                  )}
+                </span>
+              </button>
+            </div>
+          )}
+        </OverlayMenu>
       )}
     </div>
   );

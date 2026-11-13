@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { X } from 'lucide-react';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import { OverlayDialog, OverlayGrabber } from '@/components/ui/overlay-dialog';
 import type { SlabPresentation } from '@/lib/slabs/presentation';
 import { slabSummary } from '@/lib/slabs/presentation';
 import SlabCard from './slab-card';
@@ -13,68 +13,60 @@ export interface SlabGalleryCopy {
   slab: SlabPresentation;
 }
 function SlabDetail({ copy, onClose }: { copy: SlabGalleryCopy; onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useOverlay(true, onClose, { containerRef: ref });
-  const swipe = useSwipeToDismiss(ref, onClose);
   const p = copy.slab;
   return (
-    <div className={styles.overlay}>
-      <div className={styles.backdrop} data-overlay-backdrop aria-hidden="true" onClick={onClose} />
-      <div
-        className={styles.sheet}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Slab copy details"
-        tabIndex={-1}
-        ref={ref}
-      >
-        <header className={`${styles.sheetHeader} relative`} data-sheet-grabber {...swipe}>
-          <span
-            aria-hidden="true"
-            className="bg-muted-foreground/30 pointer-events-none absolute top-1 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full"
-          />
-          <h2>Copy details</h2>
-          <button type="button" aria-label="Close slab details" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </header>
-        <div className={styles.sheetBody}>
-          <h3>{p.name}</h3>
-          <p>{slabSummary(p)}</p>
-          <p>
-            {p.set ?? 'Set unknown'}
-            {p.number ? ` · #${p.number}` : ''}
-          </p>
-          {p.style !== 'raw' && (
-            <>
-              <p>User-recorded grading, not verified</p>
-              {p.designation && <p>{p.designation}</p>}
-              <p>Scale: {p.scale ?? 'Unknown'}</p>
-              <p>{p.note ?? 'Supported holder and label layout'}</p>
-              <dl className={styles.fullSubgrades}>
-                {p.subgrades.length ? (
-                  p.subgrades.map((s) => (
-                    <div key={s.name}>
-                      <dt>{s.name}</dt>
-                      <dd>{s.grade}</dd>
-                    </div>
-                  ))
-                ) : (
-                  <div>
-                    <dt>Subgrades</dt>
-                    <dd>Unknown</dd>
+    <OverlayDialog
+      modal={false}
+      portal={false}
+      onClose={onClose}
+      layerClassName={styles.overlay}
+      backdropProps={{ className: styles.backdrop }}
+      aria-label="Slab copy details"
+      className={styles.sheet}
+    >
+      <header className={`${styles.sheetHeader} relative`} data-sheet-grabber>
+        <OverlayGrabber floating />
+        <h2>Copy details</h2>
+        <button type="button" aria-label="Close slab details" onClick={onClose}>
+          <X size={20} />
+        </button>
+      </header>
+      <div className={styles.sheetBody}>
+        <h3>{p.name}</h3>
+        <p>{slabSummary(p)}</p>
+        <p>
+          {p.set ?? 'Set unknown'}
+          {p.number ? ` · #${p.number}` : ''}
+        </p>
+        {p.style !== 'raw' && (
+          <>
+            <p>User-recorded grading, not verified</p>
+            {p.designation && <p>{p.designation}</p>}
+            <p>Scale: {p.scale ?? 'Unknown'}</p>
+            <p>{p.note ?? 'Supported holder and label layout'}</p>
+            <dl className={styles.fullSubgrades}>
+              {p.subgrades.length ? (
+                p.subgrades.map((s) => (
+                  <div key={s.name}>
+                    <dt>{s.name}</dt>
+                    <dd>{s.grade}</dd>
                   </div>
-                )}
-              </dl>
-            </>
-          )}
-          <div className={styles.enlarged}>
-            <SlabCard slab={p} sizes="(max-width: 639px) 80vw, 320px" />
-          </div>
-          <p className={styles.copyId}>Copy {copy.itemId}</p>
+                ))
+              ) : (
+                <div>
+                  <dt>Subgrades</dt>
+                  <dd>Unknown</dd>
+                </div>
+              )}
+            </dl>
+          </>
+        )}
+        <div className={styles.enlarged}>
+          <SlabCard slab={p} sizes="(max-width: 639px) 80vw, 320px" />
         </div>
+        <p className={styles.copyId}>Copy {copy.itemId}</p>
       </div>
-    </div>
+    </OverlayDialog>
   );
 }
 /** Only already-scoped/redacted copies enter the gallery. No mutation, asset fetch or pricing. */
