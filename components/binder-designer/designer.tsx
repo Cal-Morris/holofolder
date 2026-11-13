@@ -275,6 +275,7 @@ export default function BinderDesigner({
         </Link>
         <div>
           <button
+            type="button"
             disabled={!history.length || saving}
             onClick={() => {
               const previous = history.at(-1);
@@ -289,6 +290,7 @@ export default function BinderDesigner({
             Undo
           </button>
           <button
+            type="button"
             disabled={saving}
             onClick={() => {
               uploadGeneration.current++;
@@ -303,6 +305,7 @@ export default function BinderDesigner({
             Cancel
           </button>
           <button
+            type="button"
             className="studio-primary holo-action"
             aria-label="Save appearance"
             disabled={!ready || saving}
@@ -357,7 +360,7 @@ export default function BinderDesigner({
           )}
           <div className="studio-views holo-toolbar" role="group" aria-label="Preview angle">
             {views.map(({ view: v, label }) => (
-              <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>
+              <button type="button" key={v} aria-pressed={view === v} onClick={() => setView(v)}>
                 {label}
               </button>
             ))}
@@ -365,6 +368,7 @@ export default function BinderDesigner({
           {view === 'inside' && (
             <div className="studio-pagination">
               <button
+                type="button"
                 aria-label="Previous preview page"
                 disabled={binderTurnPage(previewPage, maxPreviewPages, -1) === previewPage}
                 onClick={() => setPage((p) => binderTurnPage(p, maxPreviewPages, -1))}
@@ -373,6 +377,7 @@ export default function BinderDesigner({
               </button>
               <span>Page {previewPage}</span>
               <button
+                type="button"
                 aria-label="Next preview page"
                 disabled={binderTurnPage(previewPage, maxPreviewPages, 1) === previewPage}
                 onClick={() => setPage((p) => binderTurnPage(p, maxPreviewPages, 1))}
@@ -385,7 +390,13 @@ export default function BinderDesigner({
         <div className="studio-editor holo-panel">
           <nav ref={parts} className="studio-parts holo-toolbar" aria-label="Binder parts">
             {(Object.keys(labels) as BinderPart[]).map((p) => (
-              <button key={p} disabled={!ready || saving} aria-pressed={part === p} onClick={() => select(p)}>
+              <button
+                type="button"
+                key={p}
+                disabled={!ready || saving}
+                aria-pressed={part === p}
+                onClick={() => select(p)}
+              >
                 {labels[p]}
               </button>
             ))}
@@ -529,7 +540,11 @@ export default function BinderDesigner({
                           step={0.01}
                           onChange={(y) => editSurface({ frame: { ...selected.frame, y } })}
                         />
-                        <button onClick={() => editSurface({ artwork: null })} className="studio-remove-artwork">
+                        <button
+                          type="button"
+                          onClick={() => editSurface({ artwork: null })}
+                          className="studio-remove-artwork"
+                        >
                           Remove artwork
                         </button>
                       </details>
@@ -555,6 +570,7 @@ export default function BinderDesigner({
                       <div className="studio-card-picker">
                         {picker.map((c) => (
                           <button
+                            type="button"
                             key={c.id}
                             aria-label={`Use ${c.name} ${c.num} artwork`}
                             onClick={() => {
@@ -642,6 +658,7 @@ export default function BinderDesigner({
                     />
                   </label>
                   <button
+                    type="button"
                     onClick={() =>
                       edit((d) => {
                         const pageColors = { ...d.pageColors };
@@ -715,6 +732,7 @@ export default function BinderDesigner({
       </p>
       {owner && appearance.message.includes('changed on another device') && (
         <button
+          type="button"
           disabled={saving}
           onClick={async () => {
             setSaving(true);

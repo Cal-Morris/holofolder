@@ -146,6 +146,7 @@ export default function BulkLayoutHarness() {
           </select>
         </label>
         <button
+          type="button"
           className={controlClass}
           onClick={() => {
             setView(view === 'binder' ? 'list' : 'binder');
@@ -158,13 +159,19 @@ export default function BulkLayoutHarness() {
       {snapshot && view === 'binder' && (
         <>
           <nav aria-label="Synthetic pages" className="flex flex-wrap gap-2">
-            <button className={controlClass} disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>
+            <button
+              type="button"
+              className={controlClass}
+              disabled={currentPage === 0}
+              onClick={() => setPage(currentPage - 1)}
+            >
               Previous page
             </button>
             <span className="self-center">
               Page {currentPage + 1} of {pages}
             </span>
             <button
+              type="button"
               className={controlClass}
               disabled={currentPage === pages - 1}
               onClick={() => setPage(currentPage + 1)}

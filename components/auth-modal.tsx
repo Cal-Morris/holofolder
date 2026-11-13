@@ -189,6 +189,7 @@ export default function AuthModal({ isOpen, initialMode = 'sign-in', returnTo, o
             className="bg-muted-foreground/30 pointer-events-none absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full sm:hidden"
           />
           <button
+            type="button"
             onClick={onClose}
             aria-label={isSignUp ? 'Close create account' : 'Close sign in'}
             className="hover:bg-muted/60 absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full transition-colors"

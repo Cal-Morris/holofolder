@@ -70,6 +70,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
       <div data-scroll-blur="card" className="mx-auto h-[calc(var(--dock-bar)-1px)] w-full max-w-xl min-w-0">
         <div className="grid h-full min-w-0 grid-cols-5 items-center">
           <button
+            type="button"
             onClick={() => {
               if (quickPressFiredRef.current) {
                 quickPressFiredRef.current = false;
@@ -93,6 +94,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             <span className="text-[10px] font-medium">Search</span>
           </button>
           <button
+            type="button"
             onClick={() => void switchMainView('binder')}
             aria-label="Binder"
             aria-pressed={binderActive}
@@ -107,6 +109,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             <span className="text-[10px] font-medium">Binder</span>
           </button>
           <button
+            type="button"
             // Start fetching the tab's code on press, ahead of the click, in case idle preload hasn't run yet.
             onPointerDown={() => preloadTabView('list')}
             onTouchStart={() => preloadTabView('list')}
@@ -133,6 +136,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             <span className="text-[10px] font-medium">{ctx.inventoryNavigation ? 'Inventory' : 'List'}</span>
           </button>
           <button
+            type="button"
             onPointerDown={() => preloadTabView('wanted')}
             onTouchStart={() => preloadTabView('wanted')}
             onClick={() => {
@@ -151,6 +155,7 @@ export function renderBottomNavView(ctx: BottomNavContext) {
             <span className="text-[10px] font-medium">Wanted</span>
           </button>
           <button
+            type="button"
             onPointerDown={() => preloadTabView(lastBrowseViewRef.current)}
             onTouchStart={() => preloadTabView(lastBrowseViewRef.current)}
             onClick={() => {

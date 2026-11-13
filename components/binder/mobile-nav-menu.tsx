@@ -164,6 +164,7 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
 
                 {isCompactViewport && (
                   <button
+                    type="button"
                     onClick={() => setIsMobileSpreadPreview((current) => !current)}
                     aria-pressed={isMobileSpreadPreview}
                     className={`flex h-11 w-full items-center justify-between rounded-2xl border px-4 text-sm font-semibold transition-[background-color,border-color,color] ${
@@ -193,6 +194,7 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
 
                         return (
                           <button
+                            type="button"
                             key={filterOption.id}
                             onClick={() => {
                               setCollectionViewFilter(filterOption.id);
@@ -218,6 +220,7 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
                 >
                   {hasTrackedCards && ctx.pricingEnabled && (
                     <button
+                      type="button"
                       onClick={() => setIsPriceMode((current) => !current)}
                       aria-pressed={isPriceMode}
                       className={`md:hover:bg-muted h-11 rounded-2xl border px-3 text-sm font-semibold transition-[background-color,border-color,color] md:flex md:h-9 md:items-center md:justify-between md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:text-xs dark:md:bg-transparent ${
@@ -231,6 +234,7 @@ export function renderMobileNavMenuView(ctx: MobileNavMenuContext) {
                     </button>
                   )}
                   <button
+                    type="button"
                     onClick={() => {
                       closeControlsSheet();
                       handlePhotoButtonClick();

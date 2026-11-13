@@ -65,7 +65,7 @@ export default function GradingHarness() {
       </label>
       {items.map((i) => (
         <section key={i.id}>
-          <button style={{ minHeight: 44 }} onClick={() => setSelected(i.id)}>
+          <button type="button" style={{ minHeight: 44 }} onClick={() => setSelected(i.id)}>
             Edit {i.id}
           </button>
           <output aria-label={`Draft ${i.id}`}>{JSON.stringify(i)}</output>
@@ -108,7 +108,7 @@ export default function GradingHarness() {
           display: 'grid',
         }}
       >
-        <button style={{ minHeight: 44 }} onClick={closeAllOverlays}>
+        <button type="button" style={{ minHeight: 44 }} onClick={closeAllOverlays}>
           Host tab switch
         </button>
       </nav>

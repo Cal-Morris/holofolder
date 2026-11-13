@@ -473,6 +473,7 @@ export function renderMainContentView(ctx: MainContentContext) {
 
                         return (
                           <button
+                            type="button"
                             key={`${pokemonId}-${card.card_id}-${card.card_finish ?? 'normal'}`}
                             onClick={() => {
                               const pokemon = getPokemonSummary(pokemonId);

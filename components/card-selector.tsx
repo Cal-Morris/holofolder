@@ -1365,6 +1365,7 @@ export default function CardSelector({
 
                           return (
                             <button
+                              type="button"
                               key={match.card.id}
                               onClick={() => pickCard(match.card)}
                               className={`border-border bg-muted/40 hover:bg-muted/60 flex items-center gap-3 rounded-2xl border p-3 text-left transition-[background-color,border-color,transform,scale] ${intentHoverCardClass}`}

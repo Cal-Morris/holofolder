@@ -191,7 +191,7 @@ function AnalyticsContent({
         <ul className="divide-border/50 mt-3 divide-y">
           {entries.slice(0, 10).map((entry) => (
             <li key={entry.key} className="py-3">
-              <button className="min-h-9 w-full text-left" onClick={() => inspect(entry.key)}>
+              <button type="button" className="min-h-9 w-full text-left" onClick={() => inspect(entry.key)}>
                 <span className="flex items-start justify-between gap-3">
                   <span className="min-w-0 font-medium break-words">{entry.card.card_name}</span>
                   <span className="shrink-0 font-semibold tabular-nums">
@@ -308,6 +308,7 @@ function AnalyticsContent({
         )}
         {selected && (
           <button
+            type="button"
             className={`${button} mt-2`}
             onClick={() => onBrowsePokemon({ id: selected.pokemonId, name: selected.pokemonName })}
           >
@@ -459,6 +460,7 @@ function AnalyticsContent({
         )}
         {ownerId && isOnline && !readOnly && (
           <button
+            type="button"
             className={`${button} mt-3`}
             disabled={loading}
             onClick={() => {
@@ -470,7 +472,12 @@ function AnalyticsContent({
           </button>
         )}
         {history.nextCursor && !error && isOnline && (
-          <button className={`${button} mt-3`} disabled={loading} onClick={() => setCursor(history.nextCursor)}>
+          <button
+            type="button"
+            className={`${button} mt-3`}
+            disabled={loading}
+            onClick={() => setCursor(history.nextCursor)}
+          >
             Load older activity
           </button>
         )}

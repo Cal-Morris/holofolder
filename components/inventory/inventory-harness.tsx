@@ -110,10 +110,11 @@ function InventoryBrowseHarness() {
             <option value="synthetic-other">Other account, stale evidence</option>
           </select>
         </label>
-        <button style={{ minHeight: 44 }} onClick={() => setWide((v) => !v)}>
+        <button type="button" style={{ minHeight: 44 }} onClick={() => setWide((v) => !v)}>
           Change grid
         </button>
         <button
+          type="button"
           style={{ minHeight: 44 }}
           onClick={() => {
             if (snapshot) {
@@ -127,7 +128,11 @@ function InventoryBrowseHarness() {
         >
           Reverse Alpha slots
         </button>
-        <button style={{ minHeight: 44 }} onClick={() => setNotice('Host refreshed without changing evidence')}>
+        <button
+          type="button"
+          style={{ minHeight: 44 }}
+          onClick={() => setNotice('Host refreshed without changing evidence')}
+        >
           Refresh host
         </button>
         <output aria-label="Location result" style={{ overflowWrap: 'anywhere' }}>
@@ -161,7 +166,7 @@ function InventoryBrowseHarness() {
           placeItems: 'center',
         }}
       >
-        <button style={{ minHeight: 44, width: '100%' }} onClick={closeAllOverlays}>
+        <button type="button" style={{ minHeight: 44, width: '100%' }} onClick={closeAllOverlays}>
           Host tab switch
         </button>
       </nav>

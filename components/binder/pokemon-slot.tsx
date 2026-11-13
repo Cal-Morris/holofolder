@@ -352,6 +352,7 @@ export const PokemonSlot = memo(function PokemonSlot({
   return (
     <div className="group/slot relative">
       <button
+        type="button"
         ref={buttonRef}
         data-dex-id={pokemon.id}
         aria-label={`${slotLabel} ${formatPokemonDisplayName(pokemon.name)} ${formatDexNumber(pokemon.id)}`}

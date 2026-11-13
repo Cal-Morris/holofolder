@@ -101,6 +101,7 @@ export function CollectionAnalyticsOverview({
             {summary.estimatedFinishCards > 0 ? ` · ${summary.estimatedFinishCards} finish estimates` : ''}.
           </p>
           <button
+            type="button"
             onClick={() => {
               setTab('Unpriced');
               setSetName(null);
@@ -144,6 +145,7 @@ export function CollectionAnalyticsOverview({
               {(showAllSets ? breakdown.sets : breakdown.sets.slice(0, 6)).map((set) => (
                 <li key={set.name}>
                   <button
+                    type="button"
                     aria-pressed={setName === set.name}
                     onClick={() => {
                       setSetName(set.name);
@@ -174,6 +176,7 @@ export function CollectionAnalyticsOverview({
           )}
           {breakdown.sets.length > 6 && (
             <button
+              type="button"
               className="min-h-10 text-sm underline underline-offset-4"
               onClick={() => setShowAllSets(!showAllSets)}
             >
@@ -186,6 +189,7 @@ export function CollectionAnalyticsOverview({
             <h2 className="truncate text-lg font-semibold tracking-tight">{setName ?? 'Cards worth a closer look'}</h2>
             {setName && (
               <button
+                type="button"
                 className="min-h-9 shrink-0 text-sm underline underline-offset-4"
                 onClick={() => setSetName(null)}
               >
@@ -197,6 +201,7 @@ export function CollectionAnalyticsOverview({
             <div className="border-border/60 mt-3 flex gap-4 border-b" role="group" aria-label="Cards to explore">
               {tabs.map((value) => (
                 <button
+                  type="button"
                   key={value}
                   aria-pressed={tab === value}
                   onClick={() => {
@@ -215,6 +220,7 @@ export function CollectionAnalyticsOverview({
               {(showAll ? entries : entries.slice(0, 5)).map((card) => (
                 <li key={card.key} className="flex items-center gap-3 py-3">
                   <button
+                    type="button"
                     onClick={() => open(card)}
                     className="focus-visible:outline-ring flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:outline-2"
                     aria-label={`Browse ${card.card.card_name} cards`}
@@ -245,6 +251,7 @@ export function CollectionAnalyticsOverview({
                     </span>
                   </button>
                   <button
+                    type="button"
                     onClick={() => onInspect(card.key)}
                     aria-label={`Price details for ${card.card.card_name}`}
                     className="focus-visible:outline-ring flex min-h-11 shrink-0 items-center gap-1 rounded-lg text-right text-sm tabular-nums focus-visible:outline-2"
@@ -270,7 +277,11 @@ export function CollectionAnalyticsOverview({
             </p>
           )}
           {entries.length > 5 && (
-            <button className="min-h-10 text-sm underline underline-offset-4" onClick={() => setShowAll(!showAll)}>
+            <button
+              type="button"
+              className="min-h-10 text-sm underline underline-offset-4"
+              onClick={() => setShowAll(!showAll)}
+            >
               {showAll ? 'Show fewer cards' : `View all ${entries.length} cards`}
             </button>
           )}
