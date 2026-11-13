@@ -1,6 +1,7 @@
 'use client';
 
 import { useId } from 'react';
+// oxlint-disable-next-line react-doctor/prefer-dynamic-import -- this chart is itself loaded on demand by card-price-evidence.tsx
 import { Area, AreaChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { ChartContainer } from '@/components/ui/chart';
 import { formatGbpAmount } from '@/lib/price-format';

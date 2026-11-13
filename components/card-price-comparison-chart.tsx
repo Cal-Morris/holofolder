@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+// oxlint-disable-next-line react-doctor/prefer-dynamic-import -- this chart is itself loaded on demand by card-price-comparison.tsx
 import {
   Area,
   ComposedChart,
@@ -18,6 +19,9 @@ import { buildSoldPriceChart } from '@/lib/sold-price-guide';
 import { buildDealPriceBands, type DealThresholds } from '@/lib/deal-check';
 import { formatGbpAmount } from '@/lib/price-format';
 import type { CardPriceCheck } from '@/lib/card-price-checks';
+
+const date = (time: number) =>
+  new Date(time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 export default function CardPriceComparisonChart({
   sold,
@@ -49,8 +53,6 @@ export default function CardPriceComparisonChart({
   const min = Math.min(...bounds),
     max = Math.max(...bounds),
     padding = Math.max((max - min) * 0.15, max * 0.05);
-  const date = (time: number) =>
-    new Date(time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
   return (
     <figure aria-label="Sold price history" className="mt-2">
       <figcaption className="flex items-center justify-between gap-2 font-semibold">
@@ -93,7 +95,7 @@ export default function CardPriceComparisonChart({
                     { low: bands.fair.low, high: bands.fair.high, color: '#0284c7' },
                     { low: bands.fair.high, high: bands.walkAwayAbove, color: '#d97706' },
                     { low: bands.walkAwayAbove, high: max + padding, color: '#dc2626' },
-                  ].map((zone, i) =>
+                  ].map((zone) =>
                     Math.min(zone.high, max + padding) > Math.max(zone.low, min - padding) ? (
                       <ReferenceArea
                         key={zone.color}
