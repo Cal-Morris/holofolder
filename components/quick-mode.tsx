@@ -66,8 +66,6 @@ import {
 } from '@/lib/show-hunt';
 import { searchOfflineCards } from '@/lib/offline-card-index';
 // Bundled with Quick mode (not split) so the finder never needs a network round trip at a show.
-import type { BinderOfflineSource } from '@/components/binder-offline-prep';
-import ShowOfflinePrep from '@/components/show-offline-prep';
 import type { BinderHistory } from '@/hooks/use-binder-history';
 import RecentSearches from '@/components/recent-searches';
 import ShowRecentCards from '@/components/show-recent-cards';
@@ -162,7 +160,6 @@ export interface QuickModePokemonState {
 
 export interface QuickModeProps {
   nativeConsumer?: NativeConsumerBinding;
-  offlineBinder?: BinderOfflineSource;
   history: BinderHistory;
   onClose: () => void;
   onNavigate: (destination: QuickDestinationId) => void;
@@ -228,12 +225,10 @@ function QuickMode({
   initialQuery = '',
   lookupOnly = false,
   cardStanding,
-  offlineBinder,
   // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: QuickModeProps) {
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
   const revisit = useShowRevisit(cardCheck?.revisitKey ?? null);
-  const [preparingOffline, setPreparingOffline] = useState(false);
   const [moveSort, setMoveSort] = useState<MomentumSort>('default');
   const [checking, setChecking] = useState<{
     card: SearchCardResult;
@@ -271,7 +266,7 @@ function QuickMode({
   // Cards the scanned picture looked like, when the read didn't settle which one it is.
   const [scanChoices, setScanChoices] = useState<SearchCardResult[]>([]);
   const dialogRef = useRef<HTMLDivElement | null>(null);
-  const prepSwipe = useSwipeToDismiss(dialogRef, onClose, preparingOffline || Boolean(nativeConsumer && isBundleOpen));
+  const headerSwipe = useSwipeToDismiss(dialogRef, onClose, Boolean(nativeConsumer && isBundleOpen));
   const inputRef = useRef<HTMLInputElement | null>(null);
   useOverlay(true, onClose, { containerRef: dialogRef, autoFocus: false });
   const isWide = useMediaQuery('(min-width: 768px)');
@@ -699,23 +694,14 @@ function QuickMode({
       >
         <header
           data-sheet-grabber
-          {...prepSwipe}
+          {...headerSwipe}
           className={`flex shrink-0 items-center gap-2 ${palette ? 'mx-3 mb-2 pl-2' : 'holo-panel border-border/60 mx-3 mb-3 rounded-3xl border px-3 py-2'}`}
         >
           <div className="min-w-0 flex-1">
             <h2 className="text-base leading-tight font-bold">
-              {preparingOffline ? 'Prepare offline' : lookupOnly ? 'Price check' : show ? 'Show mode' : 'Quick mode'}
+              {lookupOnly ? 'Price check' : show ? 'Show mode' : 'Quick mode'}
             </h2>
           </div>
-          {show && (
-            <button
-              type="button"
-              onClick={() => setPreparingOffline((value) => !value)}
-              className="bg-muted min-h-10 shrink-0 rounded-full px-3 text-xs font-semibold"
-            >
-              {preparingOffline ? 'Back' : 'Prepare offline'}
-            </button>
-          )}
           {!isOnline && (
             <span
               role="status"
@@ -734,9 +720,7 @@ function QuickMode({
           </button>
         </header>
 
-        {preparingOffline ? (
-          <ShowOfflinePrep binder={offlineBinder} items={huntItems ?? []} isOnline={isOnline} />
-        ) : detailOpen && !twoPane ? (
+        {detailOpen && !twoPane ? (
           (checkView ?? bundleView)
         ) : (
           // Keep the finder mounted when detail opens so filters and scroll position survive selection.

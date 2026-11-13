@@ -1,58 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import BinderOfflinePrep, { type BinderOfflineSource } from '@/components/binder-offline-prep';
+import { useState } from 'react';
 import CardShowPrep from '@/components/card-show-prep';
-import PictureScannerPrep from '@/components/picture-scanner-prep';
-import { getSetIdFromCardId, type HuntSourceItem } from '@/lib/show-hunt';
 import type { TCGSetSummary } from '@/lib/tcg-set-slots';
 
-/** Runs inside Quick mode's existing overlay, including its focus trap and history entry. */
-export default function ShowOfflinePrep({
-  items,
-  isOnline,
-  binder,
-}: {
-  items: readonly HuntSourceItem[];
-  isOnline: boolean;
-  binder?: BinderOfflineSource;
-}) {
-  const wantedSets = useMemo(() => {
-    const sets = new Map<string, TCGSetSummary>();
-    for (const card of items.flatMap((item) => item.wanted_cards ?? [])) {
-      const id = getSetIdFromCardId(card.card_id);
-      sets.set(id, { id, name: card.card_set || id });
-    }
-    return [...sets.values()];
-  }, [items]);
-  return (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3 pb-[var(--dock-clearance)]">
-      {binder && <BinderOfflinePrep {...binder} isOnline={isOnline} />}
-      <PictureScannerPrep isOnline={isOnline} />
-      <p className="text-muted-foreground mt-4 mb-3 text-sm">Optional extra sets</p>
-      <OfflineSetPicker seedSets={wantedSets} isOnline={isOnline} />
-    </div>
-  );
-}
-
-const NO_SETS: readonly TCGSetSummary[] = [];
-
-/** Find sets by name or code and save them for offline use (Quick mode's show prep and Settings). */
-export function OfflineSetPicker({
-  seedSets = NO_SETS,
-  isOnline,
-}: {
-  seedSets?: readonly TCGSetSummary[];
-  isOnline: boolean;
-}) {
+/** Find sets by name or code and save them for offline use (Settings → Offline & app). */
+export function OfflineSetPicker({ isOnline }: { isOnline: boolean }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<TCGSetSummary[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const candidates = useMemo(
-    () => [...new Map([...seedSets, ...results].map((set) => [set.id, set])).values()],
-    [seedSets, results],
-  );
   const search = async () => {
     if (!navigator.onLine || !query.trim() || searching) return;
     setSearching(true);
@@ -103,7 +60,7 @@ export function OfflineSetPicker({
           {error}
         </p>
       )}
-      <CardShowPrep embedded candidateSets={candidates} />
+      <CardShowPrep embedded candidateSets={results} />
     </>
   );
 }

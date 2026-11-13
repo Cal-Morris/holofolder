@@ -51,11 +51,15 @@ import { BINDER_COLOR_PRESETS, type BinderColorId } from '@/lib/binder-colors';
 import { buildBinderShareUrl } from '@/lib/binder-share';
 import { trackGoogleEvent } from '@/lib/google-analytics';
 import type { User } from '@supabase/supabase-js';
+import type { BinderOfflineSource } from '@/components/binder-offline-prep';
 
 const OfflineSetPicker = dynamic(
-  () => import('@/components/show-offline-prep').then((module) => module.OfflineSetPicker),
+  () => import('@/components/offline-set-picker').then((module) => module.OfflineSetPicker),
   { loading: () => <p className="text-muted-foreground text-xs">Loading offline tools…</p> },
 );
+const BinderOfflinePrep = dynamic(() => import('@/components/binder-offline-prep'), {
+  loading: () => <p className="text-muted-foreground text-xs">Loading binder download…</p>,
+});
 const PictureScannerPrep = dynamic(() => import('@/components/picture-scanner-prep'), {
   loading: () => <p className="text-muted-foreground text-xs">Loading scanner settings…</p>,
 });
@@ -135,6 +139,8 @@ interface SettingsModalProps {
   motionGlintStatus: 'disabled' | 'needs-permission' | 'requesting' | 'active' | 'fallback' | 'denied' | 'unsupported';
   motionGlintMessage: string | null;
   onRequestMotionGlint: () => void;
+  /** This binder's owned and wanted printings, for "Prepare this binder" in Offline & app. Omitted for guests and shares. */
+  offlineBinder?: BinderOfflineSource;
 }
 
 /** Root and page panes slide and fade (panes are transparent, so they'd show through each other mid-slide); `visibility` flips after the slide out so hidden panes leave focus and the a11y tree. */
@@ -204,6 +210,7 @@ export default function SettingsModal({
   onRefreshPrices,
   motionGlintStatus,
   motionGlintMessage,
+  offlineBinder,
   onRequestMotionGlint,
   // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: SettingsModalProps) {
@@ -845,6 +852,7 @@ export default function SettingsModal({
               </div>
               <OfflineSetPicker isOnline={isOnline} />
             </section>
+            {offlineBinder && <BinderOfflinePrep {...offlineBinder} isOnline={isOnline} />}
             <PictureScannerPrep isOnline={isOnline} />
           </div>
         );
