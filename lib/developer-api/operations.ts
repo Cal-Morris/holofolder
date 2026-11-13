@@ -56,7 +56,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       'Browse all card printings, including Trainers and Energy, with pagination. Records declare game:pokemon; IDs are globally unique opaque application IDs, not provider-local keys.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.object(catalog).strict(),
+    schema: z.strictObject(catalog),
   },
   {
     name: 'get_card',
@@ -68,7 +68,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       'Look up a printing by its exact global application ID. game:pokemon is the only implemented catalog. externalIds are provider-local evidence scoped by game and source, never aliases.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.object({ id, language }).strict(),
+    schema: z.strictObject({ id, language }),
   },
   {
     name: 'get_similar_cards',
@@ -120,17 +120,15 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       'List card sets with game:pokemon and global application IDs. Filter by release year, for example 2017. Available symbol and logo URLs are served from the Holo Folder CDN.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z
-      .object({
-        ...paging,
-        language,
-        series: id.optional(),
-        year: z
-          .string()
-          .regex(/^(19|20)\d{2}$/)
-          .optional(),
-      })
-      .strict(),
+    schema: z.strictObject({
+      ...paging,
+      language,
+      series: id.optional(),
+      year: z
+        .string()
+        .regex(/^(19|20)\d{2}$/)
+        .optional(),
+    }),
   },
   {
     name: 'get_set',
@@ -141,7 +139,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Look up a card set by global application ID, with game:pokemon.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.object({ id, language }).strict(),
+    schema: z.strictObject({ id, language }),
   },
   {
     name: 'list_series',
@@ -152,7 +150,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'List card series with game:pokemon and global application IDs.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.object({ ...paging, language }).strict(),
+    schema: z.strictObject({ ...paging, language }),
   },
   {
     name: 'get_series',
@@ -163,7 +161,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Look up a card series by global application ID, with game:pokemon.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.object({ id, language }).strict(),
+    schema: z.strictObject({ id, language }),
   },
   {
     name: 'list_languages',
@@ -172,7 +170,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'List supported card languages.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.object({}).strict(),
+    schema: z.strictObject({}),
   },
   {
     name: 'list_pokemon',
@@ -181,7 +179,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'List Pokédex entries.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.object({ ...paging, q: z.string().max(80).optional() }).strict(),
+    schema: z.strictObject({ ...paging, q: z.string().max(80).optional() }),
   },
   {
     name: 'get_pokemon',
@@ -190,7 +188,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Look up a Pokédex entry.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.object({ id: z.string().regex(/^\d{1,4}$/) }).strict(),
+    schema: z.strictObject({ id: z.string().regex(/^\d{1,4}$/) }),
   },
   {
     name: 'list_illustrators',
@@ -199,7 +197,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'List card illustrators.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.object({ ...paging, q: z.string().max(80).optional() }).strict(),
+    schema: z.strictObject({ ...paging, q: z.string().max(80).optional() }),
   },
   {
     name: 'list_binders',
@@ -208,7 +206,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'List your accessible binders with slot counts.',
     permissions: ['binders:read'],
     write: false,
-    schema: z.object({}).strict(),
+    schema: z.strictObject({}),
   },
   {
     name: 'create_binder',
@@ -217,7 +215,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Create a named binder.',
     permissions: ['binders:write'],
     write: true,
-    schema: z.object({ name: z.string().min(1).max(40), idempotencyKey: z.string().min(8).max(100) }).strict(),
+    schema: z.strictObject({ name: z.string().min(1).max(40), idempotencyKey: z.string().min(8).max(100) }),
   },
   {
     name: 'update_binder',
@@ -228,12 +226,11 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     permissions: ['binders:write'],
     write: true,
     schema: z
-      .object({
+      .strictObject({
         id: binderId,
         name: z.string().min(1).max(40).optional(),
         cardLanguages: z.array(z.enum(CARD_LANGUAGES)).min(1).max(CARD_LANGUAGES.length).optional(),
       })
-      .strict()
       .refine((input) => input.name !== undefined || input.cardLanguages !== undefined, {
         message: 'Send name or cardLanguages.',
       }),
@@ -245,7 +242,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Reorder all your binders.',
     permissions: ['binders:write'],
     write: true,
-    schema: z.object({ order: z.array(binderId).min(1).max(100) }).strict(),
+    schema: z.strictObject({ order: z.array(binderId).min(1).max(100) }),
   },
   {
     name: 'delete_binder',
@@ -254,7 +251,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Delete a binder. Populated binders need explicit confirmation.',
     permissions: ['binders:write'],
     write: true,
-    schema: z.object({ id: binderId, confirm: z.boolean().optional() }).strict(),
+    schema: z.strictObject({ id: binderId, confirm: z.boolean().optional() }),
   },
   {
     name: 'get_settings',
@@ -263,7 +260,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Read persisted binder settings.',
     permissions: ['settings:read'],
     write: false,
-    schema: z.object({ binderId: binderId.optional() }).strict(),
+    schema: z.strictObject({ binderId: binderId.optional() }),
   },
   {
     name: 'get_prices',
@@ -272,14 +269,12 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Read existing price evidence without contacting providers.',
     permissions: ['prices:read'],
     write: false,
-    schema: z
-      .object({
-        cards: z
-          .array(z.object({ cardId: id, language: language, finish: z.string().max(50).optional() }).strict())
-          .min(1)
-          .max(25),
-      })
-      .strict(),
+    schema: z.strictObject({
+      cards: z
+        .array(z.strictObject({ cardId: id, language: language, finish: z.string().max(50).optional() }))
+        .min(1)
+        .max(25),
+    }),
   },
 
   {
@@ -289,23 +284,21 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Replace persisted collection settings and optionally a binder layout.',
     permissions: ['settings:write'],
     write: true,
-    schema: z
-      .object({
-        baseFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
-        binderId: binderId.optional(),
-        binderRows: z.number().int().min(1).max(8),
-        binderCols: z.number().int().min(1).max(8),
-        binderColorId: z.string().max(100),
-        binderPageColors: z.record(z.string().max(10), z.string().max(100)),
-        binderSlotGlareEnabled: z.boolean(),
-        cardFinishEffectsEnabled: z.boolean(),
-        darkMode: z.boolean(),
-        showBinderValue: z.boolean(),
-        pricingRegion: z.enum(PRICING_REGIONS).nullable(),
-        preferredCurrency: z.enum(DISPLAY_CURRENCIES).nullable(),
-        preferredCardLanguage: z.enum(CARD_LANGUAGES).nullable(),
-      })
-      .strict(),
+    schema: z.strictObject({
+      baseFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+      binderId: binderId.optional(),
+      binderRows: z.number().int().min(1).max(8),
+      binderCols: z.number().int().min(1).max(8),
+      binderColorId: z.string().max(100),
+      binderPageColors: z.record(z.string().max(10), z.string().max(100)),
+      binderSlotGlareEnabled: z.boolean(),
+      cardFinishEffectsEnabled: z.boolean(),
+      darkMode: z.boolean(),
+      showBinderValue: z.boolean(),
+      pricingRegion: z.enum(PRICING_REGIONS).nullable(),
+      preferredCurrency: z.enum(DISPLAY_CURRENCIES).nullable(),
+      preferredCardLanguage: z.enum(CARD_LANGUAGES).nullable(),
+    }),
   },
   {
     name: 'refresh_prices',
@@ -314,14 +307,12 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Refresh a bounded batch of card prices with existing provider cooldowns.',
     permissions: ['prices:refresh'],
     write: true,
-    schema: z
-      .object({
-        cards: z
-          .array(z.object({ cardId: id, language }).strict())
-          .min(1)
-          .max(5),
-      })
-      .strict(),
+    schema: z.strictObject({
+      cards: z
+        .array(z.strictObject({ cardId: id, language }))
+        .min(1)
+        .max(5),
+    }),
   },
   {
     name: 'get_price_checks',
@@ -330,13 +321,11 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Read existing exact-printing market comparisons.',
     permissions: ['prices:read'],
     write: false,
-    schema: z
-      .object({
-        id,
-        finish: z.enum(['normal', 'holo', 'reverse_holo', 'any']).optional(),
-        source: z.enum(['ebay', 'soldcomps']).optional(),
-      })
-      .strict(),
+    schema: z.strictObject({
+      id,
+      finish: z.enum(['normal', 'holo', 'reverse_holo', 'any']).optional(),
+      source: z.enum(['ebay', 'soldcomps']).optional(),
+    }),
   },
   {
     name: 'refresh_price_checks',
@@ -346,13 +335,11 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       'Refresh eBay asking comparisons within provider limits. Set source to ebay; sold-comps refreshes are app-only.',
     permissions: ['prices:refresh'],
     write: true,
-    schema: z
-      .object({
-        id,
-        finish: z.enum(['normal', 'holo', 'reverse_holo', 'any']).optional(),
-        source: z.enum(['ebay', 'soldcomps']).optional(),
-      })
-      .strict(),
+    schema: z.strictObject({
+      id,
+      finish: z.enum(['normal', 'holo', 'reverse_holo', 'any']).optional(),
+      source: z.enum(['ebay', 'soldcomps']).optional(),
+    }),
   },
   {
     name: 'get_comparison_job',
@@ -361,7 +348,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Read a background comparison job.',
     permissions: ['prices:read'],
     write: false,
-    schema: z.object({ id: z.uuid() }).strict(),
+    schema: z.strictObject({ id: z.uuid() }),
   },
   {
     name: 'inspect_comparison_job',
@@ -370,14 +357,12 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Estimate comparison work and inspect existing jobs before starting.',
     permissions: ['prices:read'],
     write: false,
-    schema: z
-      .object({
-        cards: z
-          .array(z.object({ cardId: id, finish: z.enum(['normal', 'holo', 'reverse_holo', 'any']) }).strict())
-          .min(1)
-          .max(100),
-      })
-      .strict(),
+    schema: z.strictObject({
+      cards: z
+        .array(z.strictObject({ cardId: id, finish: z.enum(['normal', 'holo', 'reverse_holo', 'any']) }))
+        .min(1)
+        .max(100),
+    }),
   },
   {
     name: 'start_comparison_job',
@@ -387,16 +372,14 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       'App-only: starting background comparisons through REST or MCP returns ui_only. Read, inspect and cancel existing jobs instead.',
     permissions: ['prices:refresh'],
     write: true,
-    schema: z
-      .object({
-        cards: z
-          .array(z.object({ cardId: id, finish: z.enum(['normal', 'holo', 'reverse_holo', 'any']) }).strict())
-          .min(1)
-          .max(100),
-        confirmed: z.boolean(),
-        idempotencyKey: z.string().min(8).max(100),
-      })
-      .strict(),
+    schema: z.strictObject({
+      cards: z
+        .array(z.strictObject({ cardId: id, finish: z.enum(['normal', 'holo', 'reverse_holo', 'any']) }))
+        .min(1)
+        .max(100),
+      confirmed: z.boolean(),
+      idempotencyKey: z.string().min(8).max(100),
+    }),
   },
   {
     name: 'cancel_comparison_job',
@@ -405,7 +388,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Cancel your accessible comparison job.',
     permissions: ['prices:refresh'],
     write: true,
-    schema: z.object({ id: z.uuid() }).strict(),
+    schema: z.strictObject({ id: z.uuid() }),
   },
   {
     name: 'get_price_history',
@@ -414,7 +397,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Read all recorded price evidence with bounded keyset pagination.',
     permissions: ['prices:read'],
     write: false,
-    schema: z.object({ id, language, ...paging }).strict(),
+    schema: z.strictObject({ id, language, ...paging }),
   },
   {
     name: 'list_collection_audit',
@@ -424,30 +407,28 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       'Read private account-lifetime committed collection history. Filter operationId for the exact original acknowledged command; zero or multiple entries do not identify a single recovery event. Keyset cursor is bound to filters; private certificates and label assets are redacted. Legacy actors are Unknown. Requires current collection access.',
     permissions: ['collection:read'],
     write: false,
-    schema: z
-      .object({
-        ...paging,
-        operationId: z
-          .string()
-          .min(1)
-          .max(200)
-          .regex(/^\S(?:.*\S)?$/)
-          .optional(),
-        collectionId: binderId.optional(),
-        inventoryItemId: id.optional(),
-        slotId: id.optional(),
-        pokemonId: z.number().int().positive().max(9999).optional(),
-        cardId: id.optional(),
-        actorId: z.uuid().optional(),
-        action: z.string().max(80).optional(),
-        recoveryOfEventId: z
-          .string()
-          .regex(/^[1-9]\d{0,18}$/)
-          .optional(),
-        since: z.iso.datetime().optional(),
-        until: z.iso.datetime().optional(),
-      })
-      .strict(),
+    schema: z.strictObject({
+      ...paging,
+      operationId: z
+        .string()
+        .min(1)
+        .max(200)
+        .regex(/^\S(?:.*\S)?$/)
+        .optional(),
+      collectionId: binderId.optional(),
+      inventoryItemId: id.optional(),
+      slotId: id.optional(),
+      pokemonId: z.number().int().positive().max(9999).optional(),
+      cardId: id.optional(),
+      actorId: z.uuid().optional(),
+      action: z.string().max(80).optional(),
+      recoveryOfEventId: z
+        .string()
+        .regex(/^[1-9]\d{0,18}$/)
+        .optional(),
+      since: z.iso.datetime().optional(),
+      until: z.iso.datetime().optional(),
+    }),
   },
   {
     name: 'get_collection_audit',
@@ -457,7 +438,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       'Read one private committed audit event, including safe retained deltas and the original event ID for an undo.',
     permissions: ['collection:read'],
     write: false,
-    schema: z.object({ id: z.string().regex(/^[1-9]\d{0,18}$/) }).strict(),
+    schema: z.strictObject({ id: z.string().regex(/^[1-9]\d{0,18}$/) }),
   },
   {
     name: 'check_deal',
@@ -466,23 +447,21 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Evaluate an asking price using existing saved market evidence.',
     permissions: ['prices:read'],
     write: false,
-    schema: z
-      .object({
-        cardId: id,
-        language,
-        askingPrice: z.number().positive().max(10000000),
-        currency: z.enum(DISPLAY_CURRENCIES),
-        region: z.enum(PRICING_REGIONS).optional(),
-        finish: z.enum(['normal', 'holo', 'reverse_holo']).optional(),
-        thresholds: z
-          .object({
-            greatPct: z.number().min(0).max(100),
-            fairPct: z.number().min(0).max(100),
-            walkAwayPct: z.number().min(0).max(1000),
-          })
-          .optional(),
-      })
-      .strict(),
+    schema: z.strictObject({
+      cardId: id,
+      language,
+      askingPrice: z.number().positive().max(10000000),
+      currency: z.enum(DISPLAY_CURRENCIES),
+      region: z.enum(PRICING_REGIONS).optional(),
+      finish: z.enum(['normal', 'holo', 'reverse_holo']).optional(),
+      thresholds: z
+        .object({
+          greatPct: z.number().min(0).max(100),
+          fairPct: z.number().min(0).max(100),
+          walkAwayPct: z.number().min(0).max(1000),
+        })
+        .optional(),
+    }),
   },
 
   {
@@ -493,7 +472,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       'Read Pokémon species grouped by National Dex number within a set. These are not stable storage slots. Use list_cards for all printings, including Trainers and Energy.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.object({ id, language, ...paging }).strict(),
+    schema: z.strictObject({ id, language, ...paging }),
   },
   {
     name: 'get_listings',
@@ -502,7 +481,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Read current eBay listings. May contact the provider.',
     permissions: ['prices:refresh'],
     write: true,
-    schema: z.object({ id, finish: z.enum(['normal', 'holo', 'reverse_holo']).optional() }).strict(),
+    schema: z.strictObject({ id, finish: z.enum(['normal', 'holo', 'reverse_holo']).optional() }),
   },
   {
     name: 'get_identity',
@@ -511,7 +490,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Read your account username and display name.',
     permissions: ['settings:read'],
     write: false,
-    schema: z.object({}).strict(),
+    schema: z.strictObject({}),
   },
   {
     name: 'update_identity',
@@ -520,9 +499,10 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Update your own public username or display name.',
     permissions: ['settings:write'],
     write: true,
-    schema: z
-      .object({ username: z.string().min(3).max(60).optional(), displayName: z.string().min(1).max(60).optional() })
-      .strict(),
+    schema: z.strictObject({
+      username: z.string().min(3).max(60).optional(),
+      displayName: z.string().min(1).max(60).optional(),
+    }),
   },
   {
     name: 'get_binder_identity',
@@ -531,7 +511,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Read the public identity assigned to an accessible binder.',
     permissions: ['binders:read'],
     write: false,
-    schema: z.object({ binderId }).strict(),
+    schema: z.strictObject({ binderId }),
   },
   {
     name: 'update_binder_identity',
@@ -540,7 +520,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Set a public slug on a binder you own.',
     permissions: ['sharing:manage'],
     write: true,
-    schema: z.object({ binderId, slug: z.string().min(1).max(60) }).strict(),
+    schema: z.strictObject({ binderId, slug: z.string().min(1).max(60) }),
   },
   {
     name: 'get_sharing',
@@ -549,7 +529,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Read sharing state. Only the collection owner may access share tokens.',
     permissions: ['sharing:manage'],
     write: false,
-    schema: z.object({ binderId }).strict(),
+    schema: z.strictObject({ binderId }),
   },
   {
     name: 'update_sharing',
@@ -558,7 +538,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Enable or disable sharing on a binder you own, with explicit price disclosure.',
     permissions: ['sharing:manage'],
     write: true,
-    schema: z.object({ binderId, enabled: z.boolean(), showPrices: z.boolean().optional() }).strict(),
+    schema: z.strictObject({ binderId, enabled: z.boolean(), showPrices: z.boolean().optional() }),
   },
   {
     name: 'get_appearance',
@@ -567,7 +547,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Read the collection binder appearance and revision.',
     permissions: ['binders:read'],
     write: false,
-    schema: z.object({}).strict(),
+    schema: z.strictObject({}),
   },
   {
     name: 'update_appearance',
@@ -576,16 +556,14 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Save a binder appearance only if its revision still matches.',
     permissions: ['binders:write'],
     write: true,
-    schema: z
-      .object({
-        baseRevision: z
-          .number()
-          .int()
-          .nonnegative()
-          .max(Number.MAX_SAFE_INTEGER - 1),
-        design: z.record(z.string(), z.unknown()),
-      })
-      .strict(),
+    schema: z.strictObject({
+      baseRevision: z
+        .number()
+        .int()
+        .nonnegative()
+        .max(Number.MAX_SAFE_INTEGER - 1),
+      design: z.record(z.string(), z.unknown()),
+    }),
   },
   {
     name: 'list_partners',
@@ -594,7 +572,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Read your current partnership and paginated invitations.',
     permissions: ['partners:manage'],
     write: false,
-    schema: z.object(paging).strict(),
+    schema: z.strictObject(paging),
   },
   {
     name: 'invite_partner',
@@ -603,7 +581,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Invite a partner. Repeating a pending invitation does not create another.',
     permissions: ['partners:manage'],
     write: true,
-    schema: z.object({ email: z.email().max(254) }).strict(),
+    schema: z.strictObject({ email: z.email().max(254) }),
   },
   {
     name: 'accept_partner_invite',
@@ -612,7 +590,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Accept an invitation addressed to your verified account email.',
     permissions: ['partners:manage'],
     write: true,
-    schema: z.object({ inviteId: z.uuid() }).strict(),
+    schema: z.strictObject({ inviteId: z.uuid() }),
   },
   {
     name: 'reject_partner_invite',
@@ -621,7 +599,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Reject an invitation addressed to your account.',
     permissions: ['partners:manage'],
     write: true,
-    schema: z.object({ inviteId: z.uuid() }).strict(),
+    schema: z.strictObject({ inviteId: z.uuid() }),
   },
   {
     name: 'disconnect_partner',
@@ -630,7 +608,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Disconnect your partnership. This removes your access to a partner-owned collection.',
     permissions: ['partners:manage'],
     write: true,
-    schema: z.object({}).strict(),
+    schema: z.strictObject({}),
   },
   {
     name: 'list_show_purchases',
@@ -639,7 +617,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Read paginated account show purchases.',
     permissions: ['collection:read'],
     write: false,
-    schema: z.object({ ...paging, since: z.iso.datetime().optional() }).strict(),
+    schema: z.strictObject({ ...paging, since: z.iso.datetime().optional() }),
   },
   {
     name: 'add_show_purchase',
@@ -648,20 +626,18 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Record a purchase once using a client-generated purchase ID.',
     permissions: ['collection:write'],
     write: true,
-    schema: z
-      .object({
-        clientId: z.uuid(),
-        cardId: z.string().min(1).max(64),
-        cardName: z.string().min(1).max(200),
-        language,
-        finish: z.enum(CARD_FINISHES).optional(),
-        price: z.number().nonnegative().max(9999999999).multipleOf(0.01),
-        marketPrice: z.number().nonnegative().max(9999999999).multipleOf(0.01).nullable().optional(),
-        currency: z.enum(DISPLAY_CURRENCIES),
-        boughtAt: z.iso.datetime(),
-        bundleId: z.uuid().nullable().optional(),
-      })
-      .strict(),
+    schema: z.strictObject({
+      clientId: z.uuid(),
+      cardId: z.string().min(1).max(64),
+      cardName: z.string().min(1).max(200),
+      language,
+      finish: z.enum(CARD_FINISHES).optional(),
+      price: z.number().nonnegative().max(9999999999).multipleOf(0.01),
+      marketPrice: z.number().nonnegative().max(9999999999).multipleOf(0.01).nullable().optional(),
+      currency: z.enum(DISPLAY_CURRENCIES),
+      boughtAt: z.iso.datetime(),
+      bundleId: z.uuid().nullable().optional(),
+    }),
   },
   {
     name: 'remove_show_purchase',
@@ -670,7 +646,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Undo a purchase from your accessible collection account.',
     permissions: ['collection:write'],
     write: true,
-    schema: z.object({ clientId: z.uuid() }).strict(),
+    schema: z.strictObject({ clientId: z.uuid() }),
   },
 
   {
@@ -681,17 +657,15 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       'Create a signed private R2 upload URL and artworkRef for the appearance design. Send the returned headers and exact file bytes.',
     permissions: ['binders:write'],
     write: true,
-    schema: z
-      .object({
-        id: z.uuid(),
-        mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
-        size: z
-          .number()
-          .int()
-          .positive()
-          .max(5 * 1024 * 1024),
-      })
-      .strict(),
+    schema: z.strictObject({
+      id: z.uuid(),
+      mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+      size: z
+        .number()
+        .int()
+        .positive()
+        .max(5 * 1024 * 1024),
+    }),
   },
   {
     name: 'get_artwork',
@@ -700,7 +674,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Get a five-minute download URL for your private binder artwork.',
     permissions: ['binders:read'],
     write: false,
-    schema: z.object({ id: z.uuid() }).strict(),
+    schema: z.strictObject({ id: z.uuid() }),
   },
 ] as const;
 export function matchRestOperation(method: string, path: string) {

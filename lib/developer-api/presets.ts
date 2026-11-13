@@ -19,50 +19,50 @@ const id = z
   .min(1)
   .max(200)
   .refine((value) => value.trim() === value);
-const source = z.object({ id, version: id }).strict();
-const printing = z
-  .object({ cardId: id, language: z.enum(CARD_LANGUAGES), finish: z.enum(CARD_FINISHES).optional() })
-  .strict();
+const source = z.strictObject({ id, version: id });
+const printing = z.strictObject({
+  cardId: id,
+  language: z.enum(CARD_LANGUAGES),
+  finish: z.enum(CARD_FINISHES).optional(),
+});
 const target = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('pokemon'), pokemonId: z.number().int().min(1).max(1025) }).strict(),
+  z.strictObject({ kind: z.literal('pokemon'), pokemonId: z.number().int().min(1).max(1025) }),
   printing.extend({ kind: z.literal('card') }).strict(),
 ]);
-const preset = z
-  .object({
-    id,
-    version: z.literal('1'),
-    name: id,
-    supported: z.boolean(),
-    scope: z.string(),
-    limitation: z.string().nullable(),
-  })
-  .strict();
+const preset = z.strictObject({
+  id,
+  version: z.literal('1'),
+  name: id,
+  supported: z.boolean(),
+  scope: z.string(),
+  limitation: z.string().nullable(),
+});
 const envelope = { projection: z.literal('copied-preset-preview-v1'), completeSnapshot: z.literal(false) };
-export const presetPreviewInput = z
-  .object({
-    presetId: id,
-    version: z.literal('1'),
-    speciesIds: z.array(z.number().int().min(1).max(1025)).max(PRESET_PREVIEW_LIMITS.species).optional(),
-    printings: z.array(printing).max(PRESET_PREVIEW_LIMITS.printings).optional(),
-  })
-  .strict();
-export const presetPreviewResponse = z
-  .object({
-    ...envelope,
-    preset: source,
-    manifest: z
-      .object({ source, name: id, entries: z.array(z.object({ id, target: target.nullable() }).strict()).max(1025) })
-      .strict(),
-    scope: z
-      .object({ kind: id, speciesIds: z.array(z.number().int()).optional(), printings: z.array(printing).optional() })
-      .strict(),
-    targetCount: z.number().int().nonnegative(),
-    freeSlotCount: z.literal(0),
-    ownershipCreated: z.literal(false),
-    exclusions: z.array(z.string()),
-    unknowns: z.array(z.string()),
-  })
-  .strict();
+export const presetPreviewInput = z.strictObject({
+  presetId: id,
+  version: z.literal('1'),
+  speciesIds: z.array(z.number().int().min(1).max(1025)).max(PRESET_PREVIEW_LIMITS.species).optional(),
+  printings: z.array(printing).max(PRESET_PREVIEW_LIMITS.printings).optional(),
+});
+export const presetPreviewResponse = z.strictObject({
+  ...envelope,
+  preset: source,
+  manifest: z.strictObject({
+    source,
+    name: id,
+    entries: z.array(z.strictObject({ id, target: target.nullable() })).max(1025),
+  }),
+  scope: z.strictObject({
+    kind: id,
+    speciesIds: z.array(z.number().int()).optional(),
+    printings: z.array(printing).optional(),
+  }),
+  targetCount: z.number().int().nonnegative(),
+  freeSlotCount: z.literal(0),
+  ownershipCreated: z.literal(false),
+  exclusions: z.array(z.string()),
+  unknowns: z.array(z.string()),
+});
 
 export const COPIED_PRESETS: z.infer<typeof preset>[] = [
   { id: 'blank', version: '1', name: 'Blank', supported: true, scope: 'zero stored slots', limitation: null },
@@ -119,19 +119,18 @@ export const PRESET_OPERATIONS: readonly DeveloperOperation[] = [
     idempotent: true,
     description:
       'Discover versioned copied target presets and explicit unsupported scopes. Metadata only, no owner planning snapshot or creation intent. Existing Premium/lifetime key or OAuth authority is required.',
-    schema: z
-      .object({ limit: z.number().int().min(1).max(100).optional(), cursor: z.string().min(1).max(1024).optional() })
-      .strict(),
-    responseSchema: z
-      .object({
-        ...envelope,
-        data: z.array(preset),
-        nextCursor: z.string().nullable(),
-        limits: z
-          .object(Object.fromEntries(Object.entries(PRESET_PREVIEW_LIMITS).map(([k, v]) => [k, z.literal(v)])))
-          .strict(),
-      })
-      .strict(),
+    schema: z.strictObject({
+      limit: z.number().int().min(1).max(100).optional(),
+      cursor: z.string().min(1).max(1024).optional(),
+    }),
+    responseSchema: z.strictObject({
+      ...envelope,
+      data: z.array(preset),
+      nextCursor: z.string().nullable(),
+      limits: z.strictObject(
+        Object.fromEntries(Object.entries(PRESET_PREVIEW_LIMITS).map(([k, v]) => [k, z.literal(v)])),
+      ),
+    }),
   },
   {
     name: 'preview_storage_preset',

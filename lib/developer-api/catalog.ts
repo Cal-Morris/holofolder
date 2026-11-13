@@ -9,53 +9,49 @@ const catalogId = z
   .describe('Globally unique opaque application ID, never a reusable provider-local key.');
 const game = z.literal(CATALOG_GAME);
 const names = z.record(z.string(), z.unknown());
-export const catalogGroupSchema = z
-  .object({
-    id: catalogId,
-    game,
-    name: z.string(),
-    names,
-    symbol: z.url().optional().describe('Available set symbol on the Holo Folder CDN.'),
-    logo: z.url().optional().describe('Available set logo on the Holo Folder CDN.'),
-  })
-  .passthrough();
+export const catalogGroupSchema = z.looseObject({
+  id: catalogId,
+  game,
+  name: z.string(),
+  names,
+  symbol: z.url().optional().describe('Available set symbol on the Holo Folder CDN.'),
+  logo: z.url().optional().describe('Available set logo on the Holo Folder CDN.'),
+});
 // Detail reads retain their existing database-shaped fields.
-export const catalogGroupDetailSchema = z.object({ id: catalogId, game, name_json: names }).passthrough();
-export const catalogCardSchema = z
-  .object({
+export const catalogGroupDetailSchema = z.looseObject({ id: catalogId, game, name_json: names });
+export const catalogCardSchema = z.strictObject({
+  id: catalogId,
+  game,
+  canonicalId: catalogId,
+  aliasIds: z.array(catalogId),
+  localId: z.string(),
+  name: z.string(),
+  names,
+  language: z.string(),
+  set: z.object({
     id: catalogId,
     game,
-    canonicalId: catalogId,
-    aliasIds: z.array(catalogId),
-    localId: z.string(),
     name: z.string(),
-    names,
-    language: z.string(),
-    set: z.object({
-      id: catalogId,
-      game,
-      name: z.string(),
-      officialCardCount: z.number().nullable(),
-      releaseDate: z.string().nullable(),
-    }),
-    seriesId: catalogId,
-    category: z.string().nullable(),
-    rarity: z.string().nullable(),
-    hp: z.number().nullable(),
-    illustrator: z.string().nullable(),
-    types: z.array(z.string()),
-    variants: z.record(z.string(), z.boolean()),
-    externalIds: z
-      .record(z.string(), z.array(z.string()))
-      .describe('Provider-local IDs keyed by source, scoped to this record game. Not application IDs or aliases.'),
-    details: z.record(z.string(), z.unknown()),
-    artworkRef: z.string().nullable(),
-    image: z.string().nullable(),
-    imageAvailability: z.enum(['available', 'missing', 'unavailable']),
-    imageLanguage: z.string().nullable(),
-    attribution: z.string(),
-  })
-  .strict();
+    officialCardCount: z.number().nullable(),
+    releaseDate: z.string().nullable(),
+  }),
+  seriesId: catalogId,
+  category: z.string().nullable(),
+  rarity: z.string().nullable(),
+  hp: z.number().nullable(),
+  illustrator: z.string().nullable(),
+  types: z.array(z.string()),
+  variants: z.record(z.string(), z.boolean()),
+  externalIds: z
+    .record(z.string(), z.array(z.string()))
+    .describe('Provider-local IDs keyed by source, scoped to this record game. Not application IDs or aliases.'),
+  details: z.record(z.string(), z.unknown()),
+  artworkRef: z.string().nullable(),
+  image: z.string().nullable(),
+  imageAvailability: z.enum(['available', 'missing', 'unavailable']),
+  imageLanguage: z.string().nullable(),
+  attribution: z.string(),
+});
 const similarEntrySchema = z.strictObject({ similarity: z.number().min(-1).max(1), card: catalogCardSchema });
 export const similarCardsSchema = z.strictObject({
   cardId: catalogId,
@@ -84,7 +80,7 @@ export const identifyCardSchema = z.strictObject({
   ),
 });
 export const catalogPageSchema = (row: z.ZodType) =>
-  z.object({ data: z.array(row), nextCursor: z.string().nullable() }).passthrough();
+  z.looseObject({ data: z.array(row), nextCursor: z.string().nullable() });
 export type DeveloperCatalogCard = z.infer<typeof catalogCardSchema>;
 export type DeveloperCatalogGroup = z.infer<typeof catalogGroupSchema>;
 
