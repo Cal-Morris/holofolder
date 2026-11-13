@@ -466,6 +466,15 @@ export type SeedRow = {
   collected_at?: string | null;
 };
 
+/** A synthetic catalogue card for the seeded mirror, beyond MOCK_CARDS (e.g. long synthetic want lists). */
+export type SeedCard = {
+  id: string;
+  localId: string;
+  name: string;
+  set: { id: string; name: string };
+  dexIds: number[];
+};
+
 /**
  * Signed-in harness storage: the real browser session, IDB queue and storage handlers over the synthetic
  * in-process ledger in tests/fixtures/storage-command-harness.ts, seeded as a 4×4 National Dex binder with
@@ -475,9 +484,13 @@ export async function seedNativeStorage(
   context: BrowserContext,
   baseURL = 'http://localhost:3210',
   collection: SeedRow[] = SEEDED_COLLECTION,
+  extraCards: SeedCard[] = [],
 ) {
   await context.addCookies([{ name: 'hf-storage-fixture', value: `harness-${crypto.randomUUID()}`, url: baseURL }]);
-  const cards = MOCK_CARDS.map(({ id, localId, name, set, dexIds }) => ({ id, localId, name, set, dexIds }));
+  const cards = [
+    ...MOCK_CARDS.map(({ id, localId, name, set, dexIds }) => ({ id, localId, name, set, dexIds })),
+    ...extraCards,
+  ];
   const seeded = await context.request.post(`${baseURL}/app/e2e-harness/storage/seed`, {
     data: { rows: collection, cards },
   });
@@ -485,8 +498,8 @@ export async function seedNativeStorage(
 }
 
 /** Replace the signed-in owner's synthetic collection; reload or reopen the binder afterwards. */
-export async function seedCollection(page: Page, collection: SeedRow[]) {
-  await seedNativeStorage(page.context(), new URL(page.url()).origin, collection);
+export async function seedCollection(page: Page, collection: SeedRow[], extraCards: SeedCard[] = []) {
+  await seedNativeStorage(page.context(), new URL(page.url()).origin, collection, extraCards);
 }
 
 type Fixtures = {

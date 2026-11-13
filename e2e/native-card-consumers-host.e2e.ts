@@ -153,12 +153,16 @@ for (const desktop of [false, true])
     await quick.getByRole('button', { name: /^Show mode/ }).click();
     await quick.getByRole('searchbox').fill('');
     await expect(quick.getByRole('region', { name: 'Show budget' })).toBeVisible();
-    const wants = quick.getByRole('region', { name: 'Hunting' });
+    const wants = quick.getByRole('region', { name: 'Hunting', exact: true });
     await expect(wants.getByRole('heading', { name: 'Hunting · 3 cards' })).toBeVisible();
     await expect(wants.getByText('Synthetic Native Trainer', { exact: true })).toHaveCount(3);
+    // Wanted printings with no species are their own group, not dropped.
+    await expect(wants.getByRole('region', { name: 'Hunting Trainers & Energy' })).toBeVisible();
     await expect(wants).not.toContainText(raw);
     const h = new Harness(page, insets, true);
-    const check = wants.getByRole('button', { name: 'Check price', exact: true }).first();
+    const check = wants.locator('button[data-standing]').first();
+    // On a short phone the first row starts below the budget and filters, under the search bar.
+    await check.scrollIntoViewIfNeeded();
     await h.expectMinTapTarget(check);
     await h.expectHittable(check);
     await h.expectNoHorizontalOverflow();

@@ -2213,20 +2213,6 @@
     },
     {
       "file": "show-any-card.e2e.ts",
-      "title": ["Show mode: look up any card", "finds any card, wanted first, labelled Wanted / Owned / Not in binder"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show opens a flat wanted list for native binders, not the show-hunt Hunting list this test starts from."
-    },
-    {
-      "file": "show-any-card.e2e.ts",
-      "title": ["Show mode: look up any card", "searches by illustrator too"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Suspected app bug: online Show search labels the wanted Bulbasaur 151 166/165 (an Illustration Rare holo want) 'No exact saved match' instead of Wanted, while offline search marks wanted printings 'Wanted ×1'."
-    },
-    {
-      "file": "show-any-card.e2e.ts",
       "title": ["want list: check any card's price", "a search with no wanted match offers the same lookup"],
       "cause": "harness-or-fixture",
       "batch": 2,
@@ -2283,88 +2269,6 @@
       "failure": "Test timeout of 20000ms exceeded. || Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
     },
     {
-      "file": "show-hunt.e2e.ts",
-      "title": [
-        "Show mode finder",
-        "opens on the Hunting list: the want list by Pokémon, most wanted or top value first, with pay-up-to prices"
-      ],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
-    },
-    {
-      "file": "show-hunt.e2e.ts",
-      "title": [
-        "Show mode finder",
-        "Good pickups: wanted cards whose price dropped, biggest fall first, one tap to the deal check"
-      ],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
-    },
-    {
-      "file": "show-hunt.e2e.ts",
-      "title": [
-        "Show mode finder",
-        "% down / % up sort the Hunting list, a Pokémon's cards and the card search by price move"
-      ],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
-    },
-    {
-      "file": "show-hunt.e2e.ts",
-      "title": ["Show mode finder", "Check comps bakes sold comps for the Hunting cards, dearest first, with progress"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
-    },
-    {
-      "file": "show-hunt.e2e.ts",
-      "title": ["Show mode finder", "Check comps big run: in-app confirm Cancel aborts, Check now proceeds"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
-    },
-    {
-      "file": "show-hunt.e2e.ts",
-      "title": [
-        "Show mode finder",
-        "lifetime Check prices covers the whole want list and resumes its background job after reload"
-      ],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
-    },
-    {
-      "file": "show-hunt.e2e.ts",
-      "title": ["Show mode finder", "no Good pickups strip when nothing on the want list has dropped"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
-    },
-    {
-      "file": "show-hunt.e2e.ts",
-      "title": ["Show mode finder", "era, set and illustrator filters narrow the Hunting list"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
-    },
-    {
-      "file": "show-hunt.e2e.ts",
-      "title": ["Show mode finder", "search by Pokémon: wanted first with what to pay, the rest, owned dimmed last"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
-    },
-    {
-      "file": "show-hunt.e2e.ts",
-      "title": ["Show mode finder", "works offline from the want list on this device"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: Show's Hunting list is a flat list of wanted entries for native binders (ShowHuntConsumer renders NativeWantedEntries): no grouping by Pokémon, sort, filters, pay-up-to, Good pickups or Check comps."
-    },
-    {
       "file": "show-purchase-sync.e2e.ts",
       "title": ["show purchases on the account", "a fresh install or a partner's phone shows the show's purchases"],
       "cause": "app-bug",
@@ -2416,20 +2320,6 @@
       "failure": "TimeoutError: locator.fill: Timeout 5000ms exceeded. — getByRole('dialog', { name: 'Quick mode' }).getByTestId('quick-card-check').getByRole('textbox', { name: 'Stall or condition note' })"
     },
     {
-      "file": "show-scroll.e2e.ts",
-      "title": ["long Hunting list does not read layout on every touch move"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the grouped Hunting list (show-hunt sections) is not rendered for native binders."
-    },
-    {
-      "file": "show-scroll.e2e.ts",
-      "title": ["touch guard keeps axis changes, headers and native controls working"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the grouped Hunting list (show-hunt sections) is not rendered for native binders."
-    },
-    {
       "file": "show-workspace-navigation.e2e.ts",
       "title": [
         "desktop Show workspace navigation",
@@ -2448,20 +2338,6 @@
       "cause": "stale-selector-or-flow",
       "batch": 2,
       "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('button', { name: 'Show mode', exact: true })"
-    },
-    {
-      "file": "show-workspace.e2e.ts",
-      "title": ["Show workspace light", "471-card hunt stays usable, with detail only on selection"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the grouped Hunting list (show-hunt sections) is not rendered for native binders."
-    },
-    {
-      "file": "show-workspace.e2e.ts",
-      "title": ["Show workspace dark", "471-card hunt stays usable, with detail only on selection"],
-      "cause": "app-bug",
-      "batch": 2,
-      "failure": "Native parity gap: the grouped Hunting list (show-hunt sections) is not rendered for native binders."
     },
     {
       "file": "slabs.e2e.ts",

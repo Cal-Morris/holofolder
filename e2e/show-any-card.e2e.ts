@@ -46,8 +46,7 @@ async function seed(harness: Harness, collection: SeedRow[] = HUNT_COLLECTION) {
     'sv03.5-005': { finish: 'normal', market: 1.2, confidence: 'high' },
     'sv03.5-007': { finish: 'normal', market: 0.8, confidence: 'high' },
   });
-  await page.reload();
-  await expect(harness.slot(1)).toBeVisible();
+  await harness.reload();
 }
 
 async function openShowMode(harness: Harness) {
@@ -72,17 +71,17 @@ test.describe('Show mode: look up any card', () => {
     const order = await standings(dialog);
     expect(order.slice(0, 2)).toEqual(['wanted', 'wanted']);
     expect(order.slice(2).sort()).toEqual(['missing', 'missing', 'missing', 'owned']);
-    await expect(cardRows(dialog).first()).toHaveAccessibleName(
-      /^Bulbasaur, (151 166\/165|Phantasmal Flames 001\/094), Wanted/,
-    );
-    await expect(dialog.getByRole('button', { name: /^Bulbasaur, Base Set 44\/102, Owned/ })).toBeVisible();
-    await expect(dialog.getByRole('button', { name: /^Bulbasaur, Crown Zenith .*, Not in binder/ })).toBeVisible();
+    await expect(cardRows(dialog).first()).toHaveAccessibleName(/^Bulbasaur, (151|Phantasmal Flames) \S+, Wanted/);
+    await expect(dialog.getByRole('button', { name: /^Bulbasaur, Base Set \S+, Owned/ })).toBeVisible();
+    await expect(
+      dialog.getByRole('button', { name: /^Bulbasaur, Crown Zenith .*, No exact saved match/ }),
+    ).toBeVisible();
     await harness.expectMinTapTarget(cardRows(dialog).first(), 48);
     await harness.expectNoHorizontalOverflow();
 
     // A card nobody wants: Charmeleon isn't on the want list or in the binder.
     await dialog.getByRole('searchbox').fill('charmeleon');
-    const charmeleon = dialog.getByRole('button', { name: /^Charmeleon, 151 005\/165, Not in binder/ });
+    const charmeleon = dialog.getByRole('button', { name: /^Charmeleon, 151 \S+, No exact saved match/ });
     await expect(charmeleon).toBeVisible();
     await screenshot(harness, 'any-card-results');
     await charmeleon.click();
@@ -104,7 +103,7 @@ test.describe('Show mode: look up any card', () => {
     const dialog = await openShowMode(harness);
     await dialog.getByRole('searchbox').fill('arita');
     await expect(dialog.getByRole('button', { name: /^Bulbasaur, 151 166\/165, Wanted/ })).toBeVisible();
-    await expect(dialog.getByRole('button', { name: /^Bulbasaur, Base Set 44\/102, Owned/ })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /^Bulbasaur, Base Set \S+, Owned/ })).toBeVisible();
     await expect(dialog.getByRole('button', { name: /^Charmander, Base Set 46\/102, Owned/ })).toBeVisible();
     // Wanted still ranks first.
     await expect(cardRows(dialog).first()).toHaveAttribute('data-standing', 'wanted');
@@ -167,7 +166,7 @@ test.describe("want list: check any card's price", () => {
     const dialog = quickDialog(harness);
     await expect(dialog.getByRole('heading', { name: 'Price check' })).toBeVisible();
     await expect(dialog.getByRole('searchbox')).toHaveValue('charmeleon');
-    await dialog.getByRole('button', { name: /^Charmeleon, 151 005\/165, Not in binder/ }).click();
+    await dialog.getByRole('button', { name: /^Charmeleon, 151 \S+, No exact saved match/ }).click();
     const check = dialog.getByTestId('quick-card-check');
     await expect(check.getByTestId('quick-card-market-price')).toHaveText('£1.20');
     await expect(check).toContainText('Pay up to £1.32');

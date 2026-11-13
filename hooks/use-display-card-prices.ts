@@ -6,6 +6,7 @@ import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { getCardPriceKey } from '@/hooks/use-card-prices';
 import { convertGbpForDisplay, getRegionalFinishPrice, type DisplayFxRates } from '@/lib/regional-price';
 import type { DisplayCurrency, PricingRegion } from '@/lib/pricing-region';
+import { isMomentumEligibleConfidence } from '@/lib/price-momentum';
 
 export interface DisplayPriceLookup {
   cardId: string;
@@ -41,8 +42,14 @@ export function useDisplayCardPrices(
       const snapshot = pricesByCardId[getCardPriceKey(lookup.cardId, lookup.language)];
       if (!snapshot) return null;
       const finishPrice = getRegionalFinishPrice(snapshot, region, lookup.finish);
-      const gbp = (finishPrice ?? snapshot).gbpAmount;
-      return typeof gbp === 'number' && gbp > 0 ? convertGbpForDisplay(gbp, { currency, fxRates }, snapshot) : null;
+      const quote = finishPrice ?? snapshot;
+      const gbp = quote.gbpAmount;
+      if (typeof gbp !== 'number' || gbp <= 0) return null;
+      // Pay-up-to is a buy signal: only high or medium confidence quotes earn one.
+      return {
+        ...convertGbpForDisplay(gbp, { currency, fxRates }, snapshot),
+        confident: isMomentumEligibleConfidence(quote.confidence),
+      };
     },
     [currency, fxRates, pricesByCardId, region],
   );

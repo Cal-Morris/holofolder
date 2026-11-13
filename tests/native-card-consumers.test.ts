@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   nativeCardConsumers,
   nativeCardState,
+  nativeHuntItems,
+  NO_SPECIES_HUNT_ID,
   nativeSavedFinish,
   nativeSpeciesCollection,
   nativeWantSelections,
@@ -371,4 +373,34 @@ test('an exact saved printing supplies the finish a rarity-less card cannot infe
   assert.equal(nativeSavedFinish(model([], [entry(null)]), charizard), undefined);
   assert.equal(nativeSavedFinish(model([], []), charizard), undefined);
   assert.equal(nativeSavedFinish(null, charizard), undefined);
+});
+
+test('Hunting list: explicit wants by species, species-less wants in their own group, no target wants', async () => {
+  const { binding, snapshot } = await nativeConsumerFixture();
+  const snorlaxWant = {
+    card_id: 'synthetic-snorlax',
+    card_name: 'Synthetic Snorlax',
+    card_language: 'en' as const,
+    card_finish: 'holo' as const,
+    added_at: '2026-11-09T00:00:00Z',
+  };
+  snapshot.binders[1].slots[2].wantedCards = [snorlaxWant];
+  snapshot.binders[1].slots[3].target = { kind: 'pokemon', pokemonId: 25 };
+  binding.read = {
+    ...binding.read,
+    evidence: { kind: 'complete', snapshot: await completeInventoryBrowseFixture(snapshot) },
+  };
+  const items = nativeHuntItems(binding)!;
+  const snorlax = items.find((item) => item.pokemon_id === 143)!;
+  assert.deepEqual(snorlax.wanted_cards, [snorlaxWant]);
+  assert.equal(snorlax.status, 'wishlisted');
+  // Trainer and Energy wants have no species: they stay on the list, grouped together.
+  const other = items.find((item) => item.pokemon_id === NO_SPECIES_HUNT_ID)!;
+  assert.equal(other.wanted_cards?.length, 3);
+  // A Pokémon target is not a want.
+  assert.equal(
+    items.some((item) => item.pokemon_id === 25),
+    false,
+  );
+  assert.equal(nativeHuntItems({ ...binding, collectionId: 'missing' }), null);
 });
