@@ -136,10 +136,14 @@ const CARD_GUIDE_INSET_X = SINGLE_CARD_GUIDE.insetX;
 const CARD_GUIDE_INSET_Y = SINGLE_CARD_GUIDE.insetY;
 const CARD_ASPECT_RATIO = SINGLE_CARD_GUIDE.aspectRatio;
 
+const GBP_AMOUNT_FORMAT = new Intl.NumberFormat('en-GB', {
+  style: 'currency',
+  currency: 'GBP',
+  maximumFractionDigits: 2,
+});
+
 function formatGbpAmount(amount: number | null | undefined) {
-  return typeof amount === 'number' && Number.isFinite(amount)
-    ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 2 }).format(amount)
-    : null;
+  return typeof amount === 'number' && Number.isFinite(amount) ? GBP_AMOUNT_FORMAT.format(amount) : null;
 }
 
 function getCardSelectorPriceLabels(
@@ -204,12 +208,10 @@ function CardSelectorImage({
   className: string;
   fallbackClassName?: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  // Remembers which src failed, so a new src gets a fresh try.
+  const [failedSrc, setFailedSrc] = useState<string>();
+  const failed = failedSrc !== undefined && failedSrc === src;
   const imageSrc = toCardImageSrc(src);
-
-  useEffect(() => {
-    setFailed(false);
-  }, [src]);
 
   if (!imageSrc || failed) {
     return (
@@ -227,7 +229,7 @@ function CardSelectorImage({
       alt={alt}
       className={className}
       loading="lazy"
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(src)}
     />
   );
 }
@@ -249,6 +251,7 @@ export default function CardSelector({
   formatAmount = formatGbpAmount,
   native,
   anyCard,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of picker and scanner UI state; one reducer would not read better
 }: CardSelectorProps) {
   const { fetchCardsForPokemon, filterCards, isLoading: isLoadingSpecies, error: speciesError } = useTCGdex();
   const [speciesCards, setCards] = useState<TCGCard[]>([]);
@@ -277,23 +280,26 @@ export default function CardSelector({
           // in English that means no English print (a Japanese-only card), so it is dropped unless it is the reserved
           // printing. Other languages price English prints, so their unset cards stay. One found on this device with no
           // language recorded stays unknown rather than being guessed.
-          catalogSearch.cards
-            .filter((card) => !reservedCardId || matchesCatalogCardId(card, reservedCardId))
-            .filter(
-              (card) =>
-                reservedCardId ||
-                catalogSearch.offline ||
-                selectedCardLanguage !== 'en' ||
-                isCardLanguage(card.language),
+          catalogSearch.cards.flatMap((card) => {
+            if (reservedCardId && !matchesCatalogCardId(card, reservedCardId)) return [];
+            if (
+              !reservedCardId &&
+              !catalogSearch.offline &&
+              selectedCardLanguage === 'en' &&
+              !isCardLanguage(card.language)
             )
-            .map((card) => ({
-              ...card,
-              language: isCardLanguage(card.language)
-                ? card.language
-                : catalogSearch.offline
-                  ? undefined
-                  : fixedLanguage,
-            })),
+              return [];
+            return [
+              {
+                ...card,
+                language: isCardLanguage(card.language)
+                  ? card.language
+                  : catalogSearch.offline
+                    ? undefined
+                    : fixedLanguage,
+              },
+            ];
+          }),
     [
       isAnyCard,
       reservedCardId,
@@ -306,7 +312,11 @@ export default function CardSelector({
   );
   const isLoading = anyCard ? catalogSearch.loading : isLoadingSpecies;
   const error = anyCard ? null : speciesError;
-  const [selectionMode, setSelectionMode] = useState<CardSelectorMode>(mode);
+  // Follows the `mode` prop, and the Add/Want toggle can switch it until the prop next changes.
+  const [modeChoice, setModeChoice] = useState<{ prop: CardSelectorMode; value: CardSelectorMode } | null>(null);
+  if (modeChoice && modeChoice.prop !== mode) setModeChoice(null);
+  const selectionMode = modeChoice?.prop === mode ? modeChoice.value : mode;
+  const setSelectionMode = (value: CardSelectorMode) => setModeChoice({ prop: mode, value });
   const [variantChoice, setVariantChoice] = useState<CardPickerVariantChoice>('any');
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
@@ -322,8 +332,8 @@ export default function CardSelector({
   const [cardFramesProcessed, setCardFramesProcessed] = useState(0);
   const [cardUsableFrames, setCardUsableFrames] = useState(0);
   const [lastFramePreviewUrl, setLastFramePreviewUrl] = useState<string | null>(null);
-  const descriptorCacheRef = useRef<Map<string, Promise<CardImageDescriptor | null>>>(new Map());
-  const cardTextSignalCacheRef = useRef<Map<string, Promise<CardTextSignals>>>(new Map());
+  const [descriptorCache] = useState(() => new Map<string, Promise<CardImageDescriptor | null>>());
+  const [cardTextSignalCache] = useState(() => new Map<string, Promise<CardTextSignals>>());
   const cardVideoRef = useRef<HTMLVideoElement | null>(null);
   const cardCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isWishlistMode = selectionMode === 'wishlist';
@@ -465,10 +475,6 @@ export default function CardSelector({
   }, [activeSelectedCardId, cards, finishFor, onClose, onSelect, selectionMode]);
 
   useEffect(() => {
-    setSelectionMode(mode);
-  }, [mode]);
-
-  useEffect(() => {
     if (isAnyCard) return;
     const load = async () => {
       const cardsData = await fetchCardsForPokemon(pokemonId, 'en');
@@ -477,19 +483,21 @@ export default function CardSelector({
     load();
   }, [pokemonId, fetchCardsForPokemon, isAnyCard]);
 
-  useEffect(() => {
-    descriptorCacheRef.current.clear();
-    cardTextSignalCacheRef.current.clear();
+  // A different Pokémon starts the scan afresh. The preview URL is revoked by the effect below.
+  // oxlint-disable-next-line react-doctor/no-derived-useState, react-doctor/rerender-state-only-in-handlers -- React's "previous prop" pattern: remembers the last pokemonId to reset the scan during render
+  const [scanPokemonId, setScanPokemonId] = useState(pokemonId);
+  if (scanPokemonId !== pokemonId) {
+    setScanPokemonId(pokemonId);
     setScanError(null);
     setScanMatches([]);
-    setScanPreviewUrl((currentUrl) => {
-      if (currentUrl) {
-        URL.revokeObjectURL(currentUrl);
-      }
-      return null;
-    });
+    setScanPreviewUrl(null);
     setLastFramePreviewUrl(null);
-  }, [pokemonId]);
+  }
+
+  useEffect(() => {
+    descriptorCache.clear();
+    cardTextSignalCache.clear();
+  }, [pokemonId, descriptorCache, cardTextSignalCache]);
 
   useEffect(() => {
     return () => {
@@ -524,7 +532,7 @@ export default function CardSelector({
     () =>
       pokemonFilter === undefined
         ? null
-        : new Set(catalogSearch.cards.filter((card) => card.dexIds.includes(pokemonFilter)).map((card) => card.id)),
+        : new Set(catalogSearch.cards.flatMap((card) => (card.dexIds.includes(pokemonFilter) ? [card.id] : []))),
     [catalogSearch.cards, pokemonFilter],
   );
   const filteredCards = useMemo(
@@ -570,7 +578,7 @@ export default function CardSelector({
       );
     }
 
-    return [...filteredCards].sort((left, right) => {
+    return filteredCards.toSorted((left, right) => {
       const leftRank = scanRankById.get(left.id) ?? Number.POSITIVE_INFINITY;
       const rightRank = scanRankById.get(right.id) ?? Number.POSITIVE_INFINITY;
 
@@ -593,7 +601,7 @@ export default function CardSelector({
   }, [cards]);
 
   const uniqueRarities = useMemo(() => {
-    return [...new Set(cards.map((c) => c.rarity).filter(Boolean))] as string[];
+    return [...new Set(cards.flatMap((c) => (c.rarity ? [c.rarity] : [])))];
   }, [cards]);
 
   const defaultLanguage = defaultCardLanguage ?? 'en';
@@ -634,53 +642,59 @@ export default function CardSelector({
   const closeMoreMenu = useCallback(() => setIsMoreOpen(false), []);
   useOverlay(isMoreOpen, closeMoreMenu, { containerRef: moreMenuRef, lockScroll: false, history: false });
 
-  const getDescriptorForCard = useCallback(async (card: TCGCard) => {
-    if (!card.image) {
-      return null;
-    }
+  const getDescriptorForCard = useCallback(
+    async (card: TCGCard) => {
+      if (!card.image) {
+        return null;
+      }
 
-    const existingPromise = descriptorCacheRef.current.get(card.id);
-    if (existingPromise) {
-      return existingPromise;
-    }
+      const existingPromise = descriptorCache.get(card.id);
+      if (existingPromise) {
+        return existingPromise;
+      }
 
-    const proxyUrl = card.image.startsWith('/')
-      ? toCardImageSrc(card.image)!
-      : `/app/api/card-image-proxy?url=${encodeURIComponent(card.image)}`;
+      const proxyUrl = card.image.startsWith('/')
+        ? toCardImageSrc(card.image)!
+        : `/app/api/card-image-proxy?url=${encodeURIComponent(card.image)}`;
 
-    const descriptorPromise = buildCardImageDescriptor(proxyUrl).catch(() => null);
-    descriptorCacheRef.current.set(card.id, descriptorPromise);
-    return descriptorPromise;
-  }, []);
+      const descriptorPromise = buildCardImageDescriptor(proxyUrl).catch(() => null);
+      descriptorCache.set(card.id, descriptorPromise);
+      return descriptorPromise;
+    },
+    [descriptorCache],
+  );
 
-  const getTextSignalsForCard = useCallback((card: TCGCard) => {
-    const existingPromise = cardTextSignalCacheRef.current.get(card.id);
-    if (existingPromise) {
-      return existingPromise;
-    }
+  const getTextSignalsForCard = useCallback(
+    (card: TCGCard) => {
+      const existingPromise = cardTextSignalCache.get(card.id);
+      if (existingPromise) {
+        return existingPromise;
+      }
 
-    const metadataSignals = buildCardMetadataTextSignals(card);
-    const proxyUrl = card.image?.startsWith('/')
-      ? toCardImageSrc(card.image)!
-      : card.image
-        ? `/app/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
-        : null;
+      const metadataSignals = buildCardMetadataTextSignals(card);
+      const proxyUrl = card.image?.startsWith('/')
+        ? toCardImageSrc(card.image)!
+        : card.image
+          ? `/app/api/card-image-proxy?url=${encodeURIComponent(card.image)}`
+          : null;
 
-    const textSignalPromise = proxyUrl
-      ? import('@/lib/card-scan-ocr')
-          .then(({ recognizeCardTextSignalsFromImage }) =>
-            recognizeCardTextSignalsFromImage(proxyUrl, { exhaustive: true }),
-          )
-          .then((imageSignals) => mergeCardTextSignals([metadataSignals, imageSignals]) ?? metadataSignals)
-          .catch((error) => {
-            console.info('[holofolder] Skipping candidate card OCR scan:', error);
-            return metadataSignals;
-          })
-      : Promise.resolve(metadataSignals);
+      const textSignalPromise = proxyUrl
+        ? import('@/lib/card-scan-ocr')
+            .then(({ recognizeCardTextSignalsFromImage }) =>
+              recognizeCardTextSignalsFromImage(proxyUrl, { exhaustive: true }),
+            )
+            .then((imageSignals) => mergeCardTextSignals([metadataSignals, imageSignals]) ?? metadataSignals)
+            .catch((error) => {
+              console.info('[holofolder] Skipping candidate card OCR scan:', error);
+              return metadataSignals;
+            })
+        : Promise.resolve(metadataSignals);
 
-    cardTextSignalCacheRef.current.set(card.id, textSignalPromise);
-    return textSignalPromise;
-  }, []);
+      cardTextSignalCache.set(card.id, textSignalPromise);
+      return textSignalPromise;
+    },
+    [cardTextSignalCache],
+  );
 
   const getTextSignalsForCards = useCallback(
     async (
@@ -697,6 +711,7 @@ export default function CardSelector({
       });
 
       for (const card of assetOcrCandidates) {
+        // oxlint-disable-next-line react-doctor/async-await-in-loop -- exhaustive OCR is heavy on phones, so candidates run one at a time
         textSignalMap.set(card.id, await getTextSignalsForCard(card));
       }
 
@@ -812,6 +827,7 @@ export default function CardSelector({
 
       for (let index = 0; index < CARD_SCAN_FRAME_COUNT; index += 1) {
         setCardFramesProcessed(index + 1);
+        // oxlint-disable-next-line react-doctor/async-await-in-loop -- frames are captured one after another, spaced over time
         const frame = await captureSingleCardFrame(video, canvas, index);
         setLastFramePreviewUrl(frame.previewUrl);
 
@@ -931,6 +947,7 @@ export default function CardSelector({
                 />
                 {lastFramePreviewUrl ? (
                   <div className="absolute inset-0">
+                    {/* oxlint-disable-next-line nextjs/no-img-element -- blob: URL of a camera frame, next/image can't load it */}
                     <img
                       src={lastFramePreviewUrl}
                       alt="Last scanned card frame"
@@ -1031,7 +1048,9 @@ export default function CardSelector({
         </div>
       )}
 
+      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- backdrop tap; keyboard users close with Escape via useOverlay */}
       <div data-overlay-backdrop className="fixed inset-0 z-50 bg-black/80" onClick={onClose} />
+      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- only stops taps bubbling to parent overlays through the React tree */}
       <div
         ref={selectorDialogRef}
         role="dialog"
@@ -1339,6 +1358,7 @@ export default function CardSelector({
                 <div className="flex flex-col gap-3 lg:flex-row">
                   {scanPreviewUrl && (
                     <div className="border-border bg-muted w-full max-w-[140px] shrink-0 overflow-hidden rounded-2xl border sm:max-w-[180px]">
+                      {/* oxlint-disable-next-line nextjs/no-img-element -- blob: URL of a scanned frame, next/image can't load it */}
                       <img src={scanPreviewUrl} alt="Scanned card preview" className="h-full w-full object-cover" />
                     </div>
                   )}
