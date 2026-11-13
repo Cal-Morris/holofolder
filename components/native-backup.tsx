@@ -26,13 +26,14 @@ export default function NativeBackup({
   restore?: NativeRawRestoreBinding;
   collectionId: string | null;
   onClose: () => void;
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }) {
   const panel = useRef<HTMLDivElement>(null),
     alive = useRef(false),
     generation = useRef(0),
     running = useRef(false);
   const latest = useRef(binding),
-    urls = useRef(new Set<string>());
+    urls = useRef<Set<string> | null>(null);
   const [scope, setScope] = useState<BinderBackupV2['scope']>('all-inventory');
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
@@ -44,6 +45,7 @@ export default function NativeBackup({
   const [releaseConsent, setReleaseConsent] = useState<string[]>([]);
   const [command, setCommand] = useState<RawRestoreCommand | null>(null);
   const contextKey = JSON.stringify([binding.available, binding.revisionKey]);
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- React's store-the-previous-value pattern for resetting when the binding changes
   const [context, setContext] = useState(contextKey);
   if (context !== contextKey) {
     setContext(contextKey);
@@ -64,7 +66,8 @@ export default function NativeBackup({
   }, [binding.available, binding.revisionKey]);
   useLayoutEffect(() => {
     alive.current = true;
-    const ownedUrls = urls.current;
+    const ownedUrls = new Set<string>();
+    urls.current = ownedUrls;
     const cancel = () => {
       alive.current = false;
       generation.current++;
@@ -105,7 +108,7 @@ export default function NativeBackup({
   const buttonClass = 'min-h-10 rounded-lg border px-3 text-sm disabled:opacity-50';
   return (
     <div className="fixed inset-0 z-[42] flex items-end justify-center pb-[var(--dock-clearance)] sm:items-center">
-      <div data-overlay-backdrop className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div data-overlay-backdrop aria-hidden="true" className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div
         ref={panel}
         role="dialog"
@@ -120,6 +123,7 @@ export default function NativeBackup({
           />
           <h2 className="font-semibold">Back up your collection</h2>
           <button
+            type="button"
             className="flex h-9 w-9 shrink-0 items-center justify-center"
             aria-label="Close backup"
             onClick={onClose}
@@ -151,6 +155,7 @@ export default function NativeBackup({
             </Select>
           </label>
           <button
+            type="button"
             className={buttonClass}
             disabled={busy || !binding.available}
             onClick={() =>
@@ -158,7 +163,7 @@ export default function NativeBackup({
                 const result = await prepareNativeBackup(latest.current, scope, collectionId ?? undefined, active);
                 result.assertCurrent();
                 const url = URL.createObjectURL(result.blob);
-                urls.current.add(url);
+                urls.current?.add(url);
                 const link = document.createElement('a');
                 link.href = url;
                 link.download = binderBackupFilename(
@@ -176,7 +181,7 @@ export default function NativeBackup({
                 }
                 setTimeout(() => {
                   URL.revokeObjectURL(url);
-                  urls.current.delete(url);
+                  urls.current?.delete(url);
                 }, 60_000);
                 if (active())
                   setMessage('Download started. Collection data only; no account, billing or external asset bytes.');
@@ -266,6 +271,7 @@ export default function NativeBackup({
               </p>
               {!rawReview && (
                 <button
+                  type="button"
                   className={buttonClass}
                   disabled={busy || !binding.available}
                   onClick={() =>
@@ -324,6 +330,7 @@ export default function NativeBackup({
                   {rawReview.placements.length > 50 && (
                     <nav aria-label="Copy review pages" className="flex flex-wrap items-center gap-2">
                       <button
+                        type="button"
                         className={buttonClass}
                         disabled={copyPage === 0}
                         onClick={() => setCopyPage((p) => p - 1)}
@@ -334,6 +341,7 @@ export default function NativeBackup({
                         Copy page {copyPage + 1} of {Math.ceil(rawReview.placements.length / 50)}
                       </span>
                       <button
+                        type="button"
                         className={buttonClass}
                         disabled={(copyPage + 1) * 50 >= rawReview.placements.length}
                         onClick={() => setCopyPage((p) => p + 1)}
@@ -364,6 +372,7 @@ export default function NativeBackup({
                     {rawReview.slots.length > 50 && (
                       <nav aria-label="Slot review pages" className="flex flex-wrap items-center gap-2">
                         <button
+                          type="button"
                           className={buttonClass}
                           disabled={slotPage === 0}
                           onClick={() => setSlotPage((p) => p - 1)}
@@ -374,6 +383,7 @@ export default function NativeBackup({
                           Slot page {slotPage + 1} of {Math.ceil(rawReview.slots.length / 50)}
                         </span>
                         <button
+                          type="button"
                           className={buttonClass}
                           disabled={(slotPage + 1) * 50 >= rawReview.slots.length}
                           onClick={() => setSlotPage((p) => p + 1)}
@@ -389,6 +399,7 @@ export default function NativeBackup({
                   </p>
                   {!command && (
                     <button
+                      type="button"
                       className={buttonClass}
                       disabled={
                         busy || !binding.available || releaseConsent.length !== rawReview.choices.releaseItemIds.length
@@ -396,6 +407,7 @@ export default function NativeBackup({
                       onClick={() =>
                         void run(async (active) => {
                           const planned = await restore.plan(
+                            // oxlint-disable-next-line react-doctor/rendering-hydration-mismatch-time -- runs in an event handler, never during render
                             { text: fileText!, choices: rawReview.choices, operationId: crypto.randomUUID() },
                             active,
                           );
@@ -417,6 +429,7 @@ export default function NativeBackup({
                         caught up.
                       </p>
                       <button
+                        type="button"
                         className={buttonClass}
                         disabled={busy || !binding.available}
                         onClick={() =>

@@ -12,7 +12,10 @@ import { inventoryProjectionCatalog } from '@/tests/fixtures/inventory-browse';
 import type { NativeConsumerBinding } from '@/lib/collection/native-card-consumers';
 import type { StagedSlotCommandIntent } from '@/lib/binder-slot-editing';
 
+const noop = () => {};
+
 /** Actual consumers with a synthetic read/admission and draft sink. No BrowserSession/IDB/HTTP acceptance. */
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 export default function NativeCardConsumersHarness() {
   const [binding, setBinding] = useState<NativeConsumerBinding | null>(null);
   const [usd, setUsd] = useState(false);
@@ -73,7 +76,6 @@ export default function NativeCardConsumersHarness() {
         : null;
     },
   };
-  const noop = () => {};
   const legacy = async () => {
     setLegacyWrites((n) => n + 1);
   };
@@ -87,14 +89,20 @@ export default function NativeCardConsumersHarness() {
     <main className="flex h-dvh flex-col overflow-hidden pt-[var(--top-inset)] pb-[var(--dock-clearance)]">
       <div className="bg-background z-50 flex shrink-0 flex-wrap gap-1 p-1" aria-label="Synthetic harness controls">
         {['show', 'search', 'browser', 'details', 'wanted'].map((value) => (
-          <button className="min-h-9 rounded border px-2 text-xs" key={value} onClick={() => setMode(value)}>
+          <button
+            type="button"
+            className="min-h-9 rounded border px-2 text-xs"
+            key={value}
+            onClick={() => setMode(value)}
+          >
             {value}
           </button>
         ))}
-        <button className="min-h-9 rounded border px-2 text-xs" onClick={() => setUsd((value) => !value)}>
+        <button type="button" className="min-h-9 rounded border px-2 text-xs" onClick={() => setUsd((value) => !value)}>
           Toggle currency
         </button>
         <button
+          type="button"
           className="min-h-9 rounded border px-2 text-xs"
           onClick={() =>
             setBinding({
@@ -110,6 +118,7 @@ export default function NativeCardConsumersHarness() {
           Toggle scope
         </button>
         <button
+          type="button"
           className="min-h-9 rounded border px-2 text-xs"
           onClick={() =>
             binding.read.evidence.kind !== 'unavailable' &&
@@ -123,6 +132,7 @@ export default function NativeCardConsumersHarness() {
           Cached read
         </button>
         <button
+          type="button"
           className="min-h-9 rounded border px-2 text-xs"
           onClick={() => {
             live.current = null;

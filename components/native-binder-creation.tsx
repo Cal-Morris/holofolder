@@ -64,6 +64,7 @@ export interface NativeBinderCreationBinding {
 }
 
 const offlineCards = () => buildOfflineCardIndex([]);
+const NUMBERED_GENERATIONS = GENERATIONS.filter((g) => g.id > 0);
 const field =
   'min-h-11 w-full rounded-2xl border border-border/60 bg-background/60 px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/50 md:text-sm';
 const choice =
@@ -171,6 +172,7 @@ export default function NativeBinderCreation({
 }: {
   binding: NativeBinderCreationBinding;
   onClose: () => void;
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }) {
   const sheet = useRef<HTMLDivElement | null>(null);
   useOverlay(true, onClose, { containerRef: sheet });
@@ -233,7 +235,7 @@ export default function NativeBinderCreation({
             : preset === 'generation'
               ? speciesPreset(
                   gen.region,
-                  POKEMON_CATALOG.filter((p) => p.id >= gen.start && p.id <= gen.end).map((p) => p.id),
+                  POKEMON_CATALOG.flatMap((p) => (p.id >= gen.start && p.id <= gen.end ? [p.id] : [])),
                   `generation-${gen.id}`,
                 )
               : preset === 'species'
@@ -341,13 +343,18 @@ export default function NativeBinderCreation({
     'min-h-11 flex-1 rounded-2xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-45';
   const secondary = 'min-h-11 rounded-2xl border border-border/60 px-4 text-sm font-medium';
   return createPortal(
-    <div data-overlay-backdrop className="fixed inset-0 z-[42] bg-black/55 backdrop-blur-[2px]" onClick={onClose}>
+    <div className="fixed inset-0 z-[42]">
+      <div
+        data-overlay-backdrop
+        aria-hidden="true"
+        className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
       <div
         ref={sheet}
         role="dialog"
         aria-modal="true"
         aria-label="New binder"
-        onClick={(e) => e.stopPropagation()}
         className="border-border/70 bg-card absolute inset-x-0 mx-auto flex w-full max-w-md flex-col overflow-hidden rounded-t-[1.6rem] border shadow-xl sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:rounded-[1.6rem]"
         style={{
           bottom: 'var(--dock-clearance)',
@@ -449,7 +456,7 @@ export default function NativeBinderCreation({
                 )}
                 {step === 'scope' && preset === 'generation' && (
                   <div role="group" aria-label="Generation" className="grid grid-cols-3 gap-1.5">
-                    {GENERATIONS.filter((g) => g.id > 0).map((g) => (
+                    {NUMBERED_GENERATIONS.map((g) => (
                       <button
                         key={g.id}
                         type="button"

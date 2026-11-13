@@ -55,6 +55,7 @@ export default function NativeCollectionDeletion({
             clientId: null,
             operationId: crypto.randomUUID(),
             batchId: null,
+            // oxlint-disable-next-line react/purity -- intent metadata for a draft that is only sent on confirm; a recomputed memo just restamps it before anything is sent
             clientOccurredAt: new Date().toISOString(),
           },
           removeOwned,
@@ -71,14 +72,16 @@ export default function NativeCollectionDeletion({
   const namer = browserHostDisplayCatalog(binding.read.catalog);
   const cards =
     draft?.rows.flatMap((row) =>
-      row.item ? [{ ...describeIdentity(row.item.identity, namer), graded: row.item.grading !== null }] : [],
+      row.item
+        ? [{ ...describeIdentity(row.item.identity, namer), itemId: row.item.id, graded: row.item.grading !== null }]
+        : [],
     ) ?? [];
   const shown = cards.slice(page * PAGE, (page + 1) * PAGE);
   const counts = draft?.counts;
 
   return (
     <div className="fixed inset-0 z-[42]">
-      <div data-overlay-backdrop className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div data-overlay-backdrop aria-hidden="true" className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div
         ref={ref}
         role="dialog"
@@ -134,6 +137,7 @@ export default function NativeCollectionDeletion({
           )}
           {counts && counts.cards > 0 && (
             <div className="border-border/60 rounded-xl border">
+              {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- the label text is two spans deep, past the rule's search depth */}
               <label className="flex min-h-11 items-start gap-3 p-3">
                 <input
                   type="checkbox"
@@ -163,8 +167,8 @@ export default function NativeCollectionDeletion({
                   Cards in this binder ({cards.length})
                 </summary>
                 <ul className="space-y-1 pb-3 text-xs">
-                  {shown.map((card, index) => (
-                    <li key={index}>
+                  {shown.map((card) => (
+                    <li key={card.itemId}>
                       <span className="font-semibold">{card.name}</span>{' '}
                       <span className="text-muted-foreground">
                         {card.detail}

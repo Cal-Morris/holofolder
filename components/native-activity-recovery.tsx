@@ -33,12 +33,13 @@ export function NativeActivityRecovery({
   event: ActivityEvent;
   binding: NativeRecoveryBinding;
   disabled: boolean;
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }) {
   const [preview, setPreview] = useState<NativeRecoveryPreview | null>(null);
   const [saved, setSaved] = useState<RetainedRecovery | null>(null);
   const [choices, setChoices] = useState<string[]>([]);
   const [replacement, setReplacement] = useState('');
-  const [reviewedRequest, setReviewedRequest] = useState<Record<string, unknown> | null>(null);
+  const reviewedRequest = useRef<Record<string, unknown> | null>(null);
   const [error, setError] = useState('');
   const [terminalReviewed, setTerminalReviewed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -70,14 +71,14 @@ export function NativeActivityRecovery({
     setBusy(true);
     setError('');
     try {
-      if (retry || (reviewedRequest && preview?.planToken)) {
+      if (retry || (reviewedRequest.current && preview?.planToken)) {
         let retained = saved;
         if (!retained) {
-          if (!reviewedRequest || !preview?.planToken) return;
+          if (!reviewedRequest.current || !preview?.planToken) return;
           const intent = confirmedIntent.current ?? {
             operation: nativeRecoveryOperation(true, preview.planVersion) as 'recovery.apply' | 'recovery.apply.v2',
             request: {
-              ...reviewedRequest,
+              ...reviewedRequest.current,
               planVersion: preview.planVersion,
               planToken: preview.planToken,
               operationId: crypto.randomUUID(),
@@ -93,9 +94,10 @@ export function NativeActivityRecovery({
           if (!current()) return;
           setSaved(retained);
           setPreview(null);
-          setReviewedRequest(null);
+          reviewedRequest.current = null;
           await binding.refresh();
         }
+        // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
         const verified = await binding.queue.replayRecovery(
           String(retained.intent.request.operationId),
           (intent) =>
@@ -115,6 +117,7 @@ export function NativeActivityRecovery({
           window.dispatchEvent(new Event('holofolder-activity-updated'));
       } else {
         // Preview always begins with a newly authorized complete read, never a cached snapshot.
+        // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
         const snapshot = await binding.readCurrent();
         if (!current()) return;
         const target = snapshot.collections.find((c) => c.id === replacement);
@@ -132,6 +135,7 @@ export function NativeActivityRecovery({
               ],
             }
           : { eventId: event.id, restoreUnassignedItemIds: choices };
+        // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
         const value = (await sendNativeRecovery(
           nativeRecoveryOperation(false, version),
           request,
@@ -141,7 +145,7 @@ export function NativeActivityRecovery({
         if (!current()) return;
         confirmedIntent.current = null;
         setPreview(value);
-        setReviewedRequest(request);
+        reviewedRequest.current = request;
       }
     } catch (e) {
       if (current() && binding.queue) {
@@ -162,12 +166,14 @@ export function NativeActivityRecovery({
     setBusy(true);
     setError('');
     try {
+      // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
       await binding.queue.discardRecovery(
         String(saved.intent.request.operationId),
         binding.readCurrent,
         binding.activeQueueScope,
       );
       if (!current()) return;
+      // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
       const record = await binding.queue.read();
       if (!current()) return;
       setSaved(record.recovery!.find((r) => r.intent.request.operationId === saved.intent.request.operationId)!);
@@ -229,7 +235,7 @@ export function NativeActivityRecovery({
                 confirmedIntent.current = null;
                 setSaved(null);
                 setPreview(null);
-                setReviewedRequest(null);
+                reviewedRequest.current = null;
                 setChoices([]);
                 setReplacement('');
               }}
@@ -282,17 +288,16 @@ export function NativeActivityRecovery({
                 }}
               >
                 <option value="">Choose a binder</option>
-                {binding.snapshot?.collections
-                  .filter(
-                    (c) =>
-                      !event.affected_entities.collectionIds?.includes(c.id) &&
-                      binding.snapshot?.binders.some((b) => b.collectionId === c.id),
-                  )
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
+                {binding.snapshot?.collections.flatMap((c) =>
+                  !event.affected_entities.collectionIds?.includes(c.id) &&
+                  binding.snapshot?.binders.some((b) => b.collectionId === c.id)
+                    ? [
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>,
+                      ]
+                    : [],
+                )}
               </Select>
             </label>
           )}
@@ -307,11 +312,7 @@ export function NativeActivityRecovery({
             </button>
           )}
           {preview && (
-            <section
-              role="region"
-              aria-label="Review recovery"
-              className="border-border space-y-2 rounded-xl border p-3"
-            >
+            <section aria-label="Review recovery" className="border-border space-y-2 rounded-xl border p-3">
               <p className="font-medium">
                 {preview.planToken ? 'Undoing will do this' : 'This change can no longer be undone'}
               </p>
@@ -333,14 +334,14 @@ export function NativeActivityRecovery({
                   onClick={() => {
                     confirmedIntent.current = null;
                     setPreview(null);
-                    setReviewedRequest(null);
+                    reviewedRequest.current = null;
                   }}
                 >
                   {preview.planToken ? 'Not now' : 'Close'}
                 </button>
               </div>
-              {description.map((c, i) => (
-                <div key={i}>
+              {description.map((c) => (
+                <div key={`${c.table}:${c.id}`}>
                   <p>{c.title}</p>
                   {c.fields.map((f) => (
                     <p key={f.label}>
@@ -350,6 +351,7 @@ export function NativeActivityRecovery({
                 </div>
               ))}
               {[...preview.unsupported, ...preview.conflicts.map((c) => c.reason)].map((reason, i) => (
+                // oxlint-disable-next-line react-doctor/no-array-index-as-key -- static derived list; the same reason can repeat, so the text alone is not unique
                 <p key={i} title={reason}>
                   {recoveryExplanation(reason)}
                 </p>
