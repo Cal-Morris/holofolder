@@ -3613,12 +3613,14 @@ function BinderAppSurface(props: BinderAppProps) {
   );
 
   /**
-   * One card from an illustrator's grid: its own details open above the grid, for exactly that card, and closing
-   * them returns to the grid. A card detail the grid was opened from is closed first so only two levels are open.
+   * One card from an all-cards grid (a Pokémon's or an illustrator's): its own details open above the grid, for exactly
+   * that card, and closing them returns to the grid. A card detail the grid was opened from is closed first so only two
+   * levels are open.
    */
-  const openIllustratorCard = useCallback(
+  const openGridCard = useCallback(
     (card: SearchCardResult) => {
       setIllustratorBrowser((current) => (current ? { ...current, nested: false } : current));
+      setCardBrowser((current) => (current ? { ...current, nested: false } : current));
       setSelectedSlotId(null);
       setSelectedPokemon(null);
       if (hasNativeConsumer) {
@@ -3930,7 +3932,7 @@ function BinderAppSurface(props: BinderAppProps) {
           isSearchOpen,
           openCardBrowser,
           openIllustratorBrowser,
-          openSimilarCard: openIllustratorCard,
+          openSimilarCard: openGridCard,
           priceFormat,
           pricesByCardId,
           quickPanelPosition,
@@ -4869,6 +4871,10 @@ function BinderAppSurface(props: BinderAppProps) {
               isDesktop={isDesktopViewport}
               readOnly={nativeReadOnly}
               onClose={closeCardBrowser}
+              // Native binders want and add from the card's own details, so a tap opens exactly that printing.
+              onOpenCard={
+                hasNativeConsumer ? (card) => openGridCard({ ...card, dexIds: [cardBrowser.pokemon.id] }) : undefined
+              }
               onWantCard={readOnlyMode ? undefined : requireAccount}
               onAddCard={readOnlyMode ? undefined : requireAccount}
               formatPrice={priceFormat.label}
@@ -4886,7 +4892,7 @@ function BinderAppSurface(props: BinderAppProps) {
               isDesktop={isDesktopViewport}
               pricingRegion={pricingPreferences.region}
               formatPrice={priceFormat.label}
-              onOpenCard={openIllustratorCard}
+              onOpenCard={openGridCard}
               onClose={closeIllustratorBrowser}
             />
           ) : null}
@@ -4932,7 +4938,7 @@ function BinderAppSurface(props: BinderAppProps) {
                 onAllCards: (pokemon, cardId) =>
                   openCardBrowser(pokemon, { highlightCardId: cardId, fromDetail: true }),
                 onIllustrator: (name) => openIllustratorBrowser(name, { fromDetail: true }),
-                onOpenCard: openIllustratorCard,
+                onOpenCard: openGridCard,
                 onArrange: layoutBoundary
                   ? () => startLayoutEditing({ ids: [selectedDisplaySlot.id], moving: false })
                   : undefined,
