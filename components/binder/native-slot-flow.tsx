@@ -54,8 +54,9 @@ export default function NativeSlotFlow({
   page?: PageGrid;
 }) {
   const { slot, picker, onClose } = detail;
-  // Decided once from the pocket as it was tapped; a pocket filled meanwhile falls back to its details.
-  const [choosing] = useState(() => Boolean(picker && !slot.item));
+  // Decided once from the pocket as it was tapped; a pocket filled meanwhile falls back to its details. The picker can
+  // be missing for a moment (the session dips while syncing), so an empty pocket opens search as soon as it's back.
+  const [choosing] = useState(() => !slot.item);
   const selecting = choosing && picker && !slot.item;
   const closeOffline = useEffectEvent(() => onClose());
   useEffect(() => {
@@ -66,6 +67,8 @@ export default function NativeSlotFlow({
   }, [selecting]);
   if (selecting)
     return <PocketSelector boundary={picker} slot={slot} pricing={pricing} page={page} onClose={onClose} />;
+  // A free empty pocket with no wants has nothing to show; never open a sheet that only says it's empty.
+  if (!slot.item && !slot.target && !slot.wantedCards.length) return null;
   return <SlotDetail {...detail} />;
 }
 
