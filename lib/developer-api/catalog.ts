@@ -59,6 +59,10 @@ export const similarCardsSchema = z.strictObject({
   sameArtwork: z.array(similarEntrySchema),
   similarLook: z.array(similarEntrySchema),
 });
+export const suggestedCardsSchema = z.strictObject({
+  language: z.string(),
+  cards: z.array(catalogCardSchema).describe('Most alike first.'),
+});
 const hintFlag = z.boolean().nullable();
 export const identifyCardSchema = z.strictObject({
   model: z.string().describe('The picture model the fingerprints come from.'),

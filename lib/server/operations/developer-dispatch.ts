@@ -41,6 +41,7 @@ import {
   listCatalogCards,
   getCatalogCard,
   getCatalogSimilarCards,
+  suggestCatalogCards,
   getCatalogCardsByIds,
   listCatalogGroups,
   getCatalogGroup,
@@ -179,6 +180,12 @@ async function dispatchDeveloperOperation(
       if (!similar) throw new DeveloperAccessError('not_found', 'Card not found.', 404);
       return similar;
     }
+    case 'suggest_cards':
+      return suggestCatalogCards(
+        input.cardIds as string[],
+        (input.pokemon as number[] | undefined) ?? [],
+        normalizeCardLanguage(input.language),
+      );
     case 'identify_card':
       return identifyCatalogCard(context.principal.actorId, input);
     case 'list_sets':

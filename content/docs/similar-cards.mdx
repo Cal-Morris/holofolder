@@ -1,6 +1,6 @@
 ---
 title: Similar cards
-description: Find other printings of a card's artwork and cards with a similar look.
+description: Find other printings of a card's artwork, cards with a similar look and cards to fill a binder page.
 ---
 
 A card's details end with two rows of cards picked by their picture. **Same artwork** lists other printings of the same
@@ -33,3 +33,28 @@ Each `card` is the same record `get_card` returns, in the language of the matchi
 with Japanese names. `similarity` is the cosine similarity of the two pictures, from 0 to 1. Both lists are empty when
 the card has no fingerprint yet, and an unknown card ID returns `404 not_found`. Same artwork returns at most 24 cards
 and Similar look at most 12.
+
+## Suggestions for a binder page
+
+Tapping an empty pocket that isn't kept for a Pokémon or a card opens the card picker. Turn on the sparkle button in its
+search box to see cards that would fit the page while the search is empty. The choice is remembered on the device, and
+typing a search shows the usual results. Suggestions need a connection; offline the picker only searches.
+
+Cards that look like several cards on the page come first: each page card's Similar look neighbours (never other
+printings of the same artwork) add up their similarity. The list is then filled with cards sharing a Pokémon,
+illustrator, energy type or set with the page, which also covers cards that have no fingerprint yet. Cards already in
+the binder are left out.
+
+`POST /app/api/v1/cards/suggest` and MCP `suggest_cards` take the page's cards and return the same list, at most 60
+cards, most alike first:
+
+```json
+{ "cardIds": ["base1-4", "base1-2"], "pokemon": [25], "language": "en" }
+```
+
+```json
+{ "language": "en", "cards": [{ "id": "base4-12", "name": "Nidoqueen", "…": "…" }] }
+```
+
+`pokemon` adds Pokédex numbers for pockets kept for a Pokémon without a card. Each card is the record `get_card`
+returns. The given cards are never returned; leave out any other cards you already have yourself.

@@ -196,6 +196,7 @@ async function main() {
     await read('list_cards');
     await read('get_card', { id: 'base1-1' });
     await read('get_similar_cards', { id: 'base1-4' });
+    await read('suggest_cards', { cardIds: ['base1-4', 'base1-2'], language: 'en' });
     // A catalogue picture of base1-4 (synthetic for this purpose: no user photo), with its printed number.
     const picture = await fetch('https://assets.holofolder.com/pokemon/tcg/cards/en/base1/4/low.webp');
     assert.ok(picture.ok, 'Smoke picture unavailable');

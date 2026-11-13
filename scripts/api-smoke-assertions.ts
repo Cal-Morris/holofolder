@@ -122,6 +122,12 @@ export const API_SMOKE_ASSERTIONS: Record<string, Check> = {
       catalog(object(row.card), input);
     }
   },
+  suggest_cards: (value, input) => {
+    const cards = array(value.cards).map(object);
+    assert.ok(cards.length > 0, 'Expected suggestions');
+    for (const card of cards) catalog(card, input);
+    assert.ok(!cards.some((card) => array(input.cardIds).includes(card.id)), 'Expected the given cards left out');
+  },
   identify_card: (value, input) => {
     assert.ok(['confirmed', 'high', 'medium', 'low', 'none'].includes(String(value.confidence)));
     const candidates = array(value.candidates).map(object);
