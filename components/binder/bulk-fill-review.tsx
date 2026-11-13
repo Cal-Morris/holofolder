@@ -1,10 +1,8 @@
 'use client';
 
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import CardImage from '@/components/card-image';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import { OverlayCloseButton, OverlayDialog, OverlayFooter, OverlayHeader } from '@/components/ui/overlay-dialog';
 import { useSlotDraftAcceptance } from '@/hooks/use-slot-draft-acceptance';
 import type { LayoutBoundary } from '@/components/binder/layout-editor';
 import type { BulkSelection } from '@/lib/binder-bulk-editing';
@@ -51,9 +49,6 @@ export default function BulkFillReview({
   const binder = original.binders.find((b) => b.collectionId === boundary.scope.collectionId)!;
   const [choices, setChoices] = useState<BulkFillChoices>({});
   const [error, setError] = useState<string | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-  useOverlay(true, onClose, { containerRef: ref });
-  const swipe = useSwipeToDismiss(ref, onClose);
   const stale = !sameValue(original, boundary.snapshot);
   // A pocket with no card chosen is simply left as it is.
   const settled: BulkFillChoices = Object.fromEntries(
@@ -111,157 +106,139 @@ export default function BulkFillReview({
     }
   };
   // Portalled above the sticky app header (z-40), below the dock (z-45), like native-binder-creation.
-  return createPortal(
-    <div className="fixed inset-0 z-[42]">
-      <div data-overlay-backdrop aria-hidden="true" className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Fill pockets"
-        className="border-border bg-card text-foreground absolute inset-x-3 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl border shadow-xl"
-      >
-        <header
-          data-sheet-grabber
-          {...swipe}
-          className="border-border relative flex shrink-0 items-center justify-between gap-2 border-b p-3"
-        >
-          <span
-            aria-hidden="true"
-            className="bg-muted-foreground/30 pointer-events-none absolute top-1 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full"
-          />
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold">Fill pockets from spare cards</h2>
-            <p className="text-muted-foreground text-xs">
-              Spare cards are ones you own that aren&apos;t in a pocket yet.
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-label="Close"
-            className="hover:bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-            onClick={onClose}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </header>
-        <div className="min-h-0 space-y-2 overflow-y-auto overscroll-contain p-3 text-sm [overflow-wrap:anywhere]">
-          {!spare.length ? (
-            <p className="text-muted-foreground py-4 text-center">
-              You have no spare cards. Every card you own is already in a pocket.
-            </p>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="border-border min-h-10 w-full rounded-xl border px-3 text-sm font-medium disabled:opacity-50"
-                disabled={locked}
-                onClick={() => {
-                  setChoices(automaticBulkFillChoices(original, boundary.scope, selection, boundary.catalog));
-                  setError(null);
-                }}
-              >
-                Match my spare cards
-              </button>
-              {fillable.map(({ slot }) => {
-                const row = preview.rows.find((r) => r.slotId === slot.id)!;
-                const chosen = choices[slot.id] ? label(choices[slot.id]!) : null;
-                const wants = slot.target ? describeIdentity(slot.target, boundary.resolveCard) : null;
-                const problem = choices[slot.id] ? fillProblem(row.reason) : null;
-                const place = grid ? pocketPlace(row.position - 1, grid.rows, grid.cols) : `Pocket ${row.position}`;
-                return (
-                  <section
-                    key={slot.id}
-                    aria-label={place}
-                    className="border-border/60 flex items-center gap-3 rounded-xl border p-2"
-                  >
-                    <span className="trading-card bg-muted relative w-10 shrink-0 overflow-hidden rounded">
-                      {chosen?.image && (
-                        <CardImage src={chosen.image} alt="" fill sizes="40px" className="object-cover" />
-                      )}
-                    </span>
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="text-muted-foreground truncate text-xs">
-                        {place}
-                        {wants ? ` · for ${wants.name}` : ' · any card'}
-                      </p>
-                      <Select
-                        aria-label={`Card for ${place}`}
-                        className="w-full"
-                        disabled={locked}
-                        value={choices[slot.id] ?? ''}
-                        onChange={(event) =>
-                          setChoices((current) => ({ ...current, [slot.id]: event.target.value || null }))
-                        }
-                      >
-                        <option value="">Leave empty</option>
-                        {spare.map((item) => {
-                          const card = label(item.id)!;
-                          return (
-                            <option key={item.id} value={item.id}>
-                              {card.name} · {card.detail}
-                            </option>
-                          );
-                        })}
-                      </Select>
-                      {problem && (
-                        <p role="status" className="text-xs text-amber-700 dark:text-amber-300">
-                          {problem}
-                        </p>
-                      )}
-                    </div>
-                  </section>
-                );
-              })}
-              {!fillable.length && (
-                <p className="text-muted-foreground py-2 text-center">Every selected pocket already has a card.</p>
-              )}
-              {untouched > 0 && fillable.length > 0 && (
-                <p className="text-muted-foreground text-xs">
-                  {untouched} selected pocket{untouched === 1 ? '' : 's'} already{' '}
-                  {untouched === 1 ? 'has a card and stays' : 'have cards and stay'} as{' '}
-                  {untouched === 1 ? 'it is' : 'they are'}.
-                </p>
-              )}
-            </>
-          )}
-          {message && <p role="alert">{message}</p>}
-          {(stale || error) && (
-            <p role="alert">
-              {stale ? 'Your binder changed while this was open. Close this and select the pockets again.' : error}
-            </p>
-          )}
+  return (
+    <OverlayDialog
+      modal={false}
+      onClose={onClose}
+      layerClassName="z-[42]"
+      backdropProps={{ className: 'bg-black/60' }}
+      aria-label="Fill pockets"
+      className="border-border bg-card text-foreground absolute inset-x-3 bottom-[var(--dock-clearance)] mx-auto flex max-h-[calc(100dvh-var(--top-inset)-var(--dock-clearance)-1rem)] max-w-lg flex-col overflow-hidden rounded-2xl border shadow-xl"
+    >
+      <OverlayHeader>
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold">Fill pockets from spare cards</h2>
+          <p className="text-muted-foreground text-xs">
+            Spare cards are ones you own that aren&apos;t in a pocket yet.
+          </p>
         </div>
-        <footer className="border-border flex shrink-0 gap-2 border-t p-3">
+        <OverlayCloseButton label="Close" onClick={onClose} />
+      </OverlayHeader>
+      <div className="min-h-0 space-y-2 overflow-y-auto overscroll-contain p-3 text-sm [overflow-wrap:anywhere]">
+        {!spare.length ? (
+          <p className="text-muted-foreground py-4 text-center">
+            You have no spare cards. Every card you own is already in a pocket.
+          </p>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="border-border min-h-10 w-full rounded-xl border px-3 text-sm font-medium disabled:opacity-50"
+              disabled={locked}
+              onClick={() => {
+                setChoices(automaticBulkFillChoices(original, boundary.scope, selection, boundary.catalog));
+                setError(null);
+              }}
+            >
+              Match my spare cards
+            </button>
+            {fillable.map(({ slot }) => {
+              const row = preview.rows.find((r) => r.slotId === slot.id)!;
+              const chosen = choices[slot.id] ? label(choices[slot.id]!) : null;
+              const wants = slot.target ? describeIdentity(slot.target, boundary.resolveCard) : null;
+              const problem = choices[slot.id] ? fillProblem(row.reason) : null;
+              const place = grid ? pocketPlace(row.position - 1, grid.rows, grid.cols) : `Pocket ${row.position}`;
+              return (
+                <section
+                  key={slot.id}
+                  aria-label={place}
+                  className="border-border/60 flex items-center gap-3 rounded-xl border p-2"
+                >
+                  <span className="trading-card bg-muted relative w-10 shrink-0 overflow-hidden rounded">
+                    {chosen?.image && (
+                      <CardImage src={chosen.image} alt="" fill sizes="40px" className="object-cover" />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="text-muted-foreground truncate text-xs">
+                      {place}
+                      {wants ? ` · for ${wants.name}` : ' · any card'}
+                    </p>
+                    <Select
+                      aria-label={`Card for ${place}`}
+                      className="w-full"
+                      disabled={locked}
+                      value={choices[slot.id] ?? ''}
+                      onChange={(event) =>
+                        setChoices((current) => ({ ...current, [slot.id]: event.target.value || null }))
+                      }
+                    >
+                      <option value="">Leave empty</option>
+                      {spare.map((item) => {
+                        const card = label(item.id)!;
+                        return (
+                          <option key={item.id} value={item.id}>
+                            {card.name} · {card.detail}
+                          </option>
+                        );
+                      })}
+                    </Select>
+                    {problem && (
+                      <p role="status" className="text-xs text-amber-700 dark:text-amber-300">
+                        {problem}
+                      </p>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+            {!fillable.length && (
+              <p className="text-muted-foreground py-2 text-center">Every selected pocket already has a card.</p>
+            )}
+            {untouched > 0 && fillable.length > 0 && (
+              <p className="text-muted-foreground text-xs">
+                {untouched} selected pocket{untouched === 1 ? '' : 's'} already{' '}
+                {untouched === 1 ? 'has a card and stays' : 'have cards and stay'} as{' '}
+                {untouched === 1 ? 'it is' : 'they are'}.
+              </p>
+            )}
+          </>
+        )}
+        {message && <p role="alert">{message}</p>}
+        {(stale || error) && (
+          <p role="alert">
+            {stale ? 'Your binder changed while this was open. Close this and select the pockets again.' : error}
+          </p>
+        )}
+      </div>
+      <OverlayFooter>
+        <button
+          type="button"
+          className="border-border min-h-11 flex-1 rounded-xl border px-3 text-sm font-medium"
+          onClick={onClose}
+        >
+          Cancel
+        </button>
+        {pending ? (
           <button
             type="button"
-            className="border-border min-h-11 flex-1 rounded-xl border px-3 text-sm font-medium"
-            onClick={onClose}
+            className="bg-primary text-primary-foreground min-h-11 flex-1 rounded-xl px-3 text-sm font-semibold disabled:opacity-50"
+            disabled={busy}
+            onClick={() => handoff(pending)}
           >
-            Cancel
+            Try again
           </button>
-          {pending ? (
-            <button
-              type="button"
-              className="bg-primary text-primary-foreground min-h-11 flex-1 rounded-xl px-3 text-sm font-semibold disabled:opacity-50"
-              disabled={busy}
-              onClick={() => handoff(pending)}
-            >
-              Try again
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="bg-primary text-primary-foreground min-h-11 flex-1 rounded-xl px-3 text-sm font-semibold disabled:opacity-50"
-              disabled={locked || !preview.ready}
-              onClick={confirm}
-            >
-              {busy ? 'Adding…' : adding ? `Add ${adding} card${adding === 1 ? '' : 's'}` : 'Choose a card'}
-            </button>
-          )}
-        </footer>
-      </div>
-    </div>,
-    document.body,
+        ) : (
+          <button
+            type="button"
+            className="bg-primary text-primary-foreground min-h-11 flex-1 rounded-xl px-3 text-sm font-semibold disabled:opacity-50"
+            disabled={locked || !preview.ready}
+            onClick={confirm}
+          >
+            {busy ? 'Adding…' : adding ? `Add ${adding} card${adding === 1 ? '' : 's'}` : 'Choose a card'}
+          </button>
+        )}
+      </OverlayFooter>
+    </OverlayDialog>
   );
 }
