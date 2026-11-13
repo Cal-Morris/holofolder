@@ -23,6 +23,7 @@ export function DocsLink({ prefetch: _prefetch, href, ...props }: ComponentProps
     () => window.location.pathname,
     () => '',
   );
+  // oxlint-disable-next-line jsx-a11y/anchor-has-content -- the link's children arrive through the props spread
   return <a {...props} href={href ? docsHref(href, pathname) : href} />;
 }
 
