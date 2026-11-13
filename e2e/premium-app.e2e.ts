@@ -9,15 +9,15 @@ test('binder settings retain page colours and expose the 3D studio', async ({ ha
   await harness.expectMinTapTarget(studio);
   await harness.expectWithinSafeViewport(studio);
   await openSettingsPage(settings, 'Appearance');
-  await expect(settings.getByRole('button', { name: 'Page 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(settings.getByRole('spinbutton', { name: 'From page' })).toHaveValue('1');
   await settings.getByRole('button', { name: 'Ruby', exact: true }).click();
-  await expect(settings.getByRole('button', { name: 'Page 1, own colour', exact: true })).toBeVisible();
+  await expect(settings.getByRole('button', { name: 'Reset to binder colour', exact: true })).toBeVisible();
   const hex = settings.getByRole('textbox', { name: 'Hex colour' });
   await hex.fill('#3366ff');
   await hex.press('Enter');
   await expect(hex).toHaveValue('#3366ff');
   await settings.getByRole('button', { name: 'Reset to binder colour', exact: true }).click();
-  await expect(settings.getByRole('button', { name: 'Page 1', exact: true })).toBeVisible();
+  await expect(settings.getByRole('button', { name: 'Reset to binder colour', exact: true })).toBeHidden();
   await harness.expectNoHorizontalOverflow();
 });
 
@@ -44,6 +44,6 @@ test.describe('signed-in native binder', () => {
     const settings = harness.page.getByRole('dialog', { name: /settings/i });
     await expect(settings.getByRole('switch', { name: 'Toggle card finish glints' })).toBeEnabled();
     await settings.getByRole('button', { name: 'Ruby', exact: true }).click();
-    await expect(settings.getByRole('button', { name: 'Page 1, own colour', exact: true })).toBeVisible();
+    await expect(settings.getByRole('button', { name: 'Reset to binder colour', exact: true })).toBeVisible();
   });
 });
