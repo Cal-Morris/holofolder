@@ -446,3 +446,17 @@ test('show image resume skips durably saved files and awaits each cache write', 
   assert.equal(saved.size, 2);
   assert.equal(result.failed, 0);
 });
+
+test('a word that partly names a set falls back to card names when the set has no match', () => {
+  // Synthetic cards: a set whose name holds "Pikachu", and a promo named after the Pokémon elsewhere.
+  const detective = { id: 'det1', name: 'Detective Pikachu' };
+  const promos = { id: 'jp-xy-promos', name: 'XY-P: XY Promos' };
+  const cards = [
+    { id: 'det1-1', name: 'Detective Pikachu', localId: '1', set: detective, dexIds: [25] },
+    { id: 'tcgplayer-1', name: 'Mario Pikachu', localId: '294', set: promos, dexIds: [25] },
+  ];
+  assert.deepEqual(
+    searchOfflineCards(cards, 'mario pikachu').map((card) => card.id),
+    ['tcgplayer-1'],
+  );
+});

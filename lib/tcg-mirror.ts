@@ -845,6 +845,15 @@ export async function searchMirroredCards(
   }
 
   const responses = await Promise.all(requests);
+  // "mario pikachu": a word that partly names a set ("Detective Pikachu") but finds nothing there is a card name.
+  const literal = parseCardSearchQuery(query);
+  if (
+    parsed.setIds.length &&
+    !literal.number &&
+    literal.text.length >= 2 &&
+    responses.every((response) => !response.data?.length)
+  )
+    responses.push(await admin.from('tcg_cards').select(select).or(cardNameSearchFilter(literal.text)).limit(limit));
   const results = new Map<string, SearchCardResult>();
   for (const response of responses) {
     if (response.error) throw response.error;
