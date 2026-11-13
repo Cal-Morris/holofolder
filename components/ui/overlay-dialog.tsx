@@ -323,6 +323,31 @@ export function OverlayFooter({ className, children }: { className?: string; chi
   );
 }
 
+const INSET_SHEET_CLASSES =
+  'border-border bg-background text-foreground absolute inset-x-3 bottom-[calc(var(--dock-clearance)+0.5rem)] mx-auto flex max-h-[calc(100dvh-env(safe-area-inset-top,0px)-var(--dock-clearance)-2rem)] max-w-xl flex-col overflow-hidden rounded-2xl border';
+
+/**
+ * The inset sheet above the dock (grading, slab details, moving inventory): non-modal and rendered in place, in a
+ * z-40 layer over a black/50 backdrop, so the dock stays usable. A feature's CSS module can style what's inside
+ * through `className`.
+ */
+export function OverlayInsetSheet({
+  className,
+  backdropClassName,
+  ...props
+}: ComponentProps<typeof OverlayDialog> & { backdropClassName?: string }) {
+  return (
+    <OverlayDialog
+      modal={false}
+      portal={false}
+      layerClassName="z-40"
+      backdropProps={{ className: cn('bg-black/50', backdropClassName) }}
+      {...props}
+      className={cn(INSET_SHEET_CLASSES, className)}
+    />
+  );
+}
+
 /**
  * A small anchored menu (header and toolbar "more" menus): non-modal and rendered in place, with a clear backdrop
  * under the dock and the panel at z-50. `className`/`style` place it; `heading` and an X head the list.

@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import CardImage from '@/components/card-image';
 import CardPickerSheet, { cardPickerSheetChoice } from '@/components/card-picker-sheet';
 import { CardSelector } from '@/components/binder/lazy-views';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import { OverlayFooter, OverlayGrabber, OverlayInsetSheet } from '@/components/ui/overlay-dialog';
 import { matchesCatalogCardId } from '@/lib/card-catalog';
 import { formatCardFinishLabel } from '@/lib/card-labels';
 import { isCardLanguage, type CardFinish } from '@/lib/domain/cards';
@@ -423,115 +423,99 @@ export function InventoryBulkReview({
   onClose: () => void;
   onAccepted: () => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useOverlay(true, onClose, { containerRef: ref });
-  const swipe = useSwipeToDismiss(ref, onClose);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const save = useInventorySave(binding, onAccepted);
   const placed = (id: string) => binding.snapshot.placements.find((p) => p.inventoryItemId === id);
   const allPlaced = itemIds.every((id) => placed(id));
   const allMapped = itemIds.every((id) => mapping[id]);
   return (
-    <div className={styles.overlay}>
-      <div data-overlay-backdrop aria-hidden="true" className={styles.backdrop} onClick={onClose} />
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Move selected cards"
-        className={styles.sheet}
-        tabIndex={-1}
-      >
-        <header {...swipe} data-sheet-grabber className={`${styles.sheetHeader} relative`}>
-          <span
-            aria-hidden="true"
-            className="bg-muted-foreground/30 pointer-events-none absolute top-1 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full"
-          />
-          <h2>
-            Move {itemIds.length} {itemIds.length === 1 ? 'card' : 'cards'}
-          </h2>
-          <button type="button" aria-label="Close" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </header>
-        <div className={`${styles.sheetBody} space-y-3`}>
-          <SaveProblem save={save} />
-          <fieldset disabled={!binding.available || save.busy} className="grid gap-2 border-0 p-0">
-            {itemIds.map((id) => {
-              const card = itemLabel(binding.snapshot, labels, id),
-                at = placed(id);
-              return (
-                <div key={id} className="border-border/60 flex items-center gap-3 rounded-2xl border p-2">
-                  {card.image && (
-                    <span className="trading-card bg-muted relative w-9 shrink-0 overflow-hidden rounded">
-                      <CardImage src={card.image} alt="" fill sizes="36px" className="object-cover" />
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <p className="truncate text-sm font-semibold">{card.name}</p>
-                    <p className="text-muted-foreground truncate text-xs">
-                      {at ? labels.place(at.collectionId, at.slotId) : 'Not in a binder'}
-                    </p>
-                    <Select
-                      aria-label={`Pocket for ${card.name}`}
-                      className="w-full"
-                      value={mapping[id] ?? ''}
-                      onChange={(e) => setMapping((m) => ({ ...m, [id]: e.target.value }))}
-                    >
-                      <option value="">Choose an empty pocket</option>
-                      {inventoryActionDestinations(binding.snapshot, id, binding.catalog)
-                        .filter((d) => d.slot.inventoryItemId === null)
-                        .map((d) => {
-                          const key = JSON.stringify([d.collectionId, d.slot.id]);
-                          return (
-                            <option
-                              key={key}
-                              value={key}
-                              disabled={itemIds.some((other) => other !== id && mapping[other] === key)}
-                            >
-                              {labels.place(d.collectionId, d.slot.id)}
-                            </option>
-                          );
-                        })}
-                    </Select>
-                  </div>
+    <OverlayInsetSheet onClose={onClose} aria-label="Move selected cards" className={styles.sheet}>
+      <header data-sheet-grabber className={`${styles.sheetHeader} relative`}>
+        <OverlayGrabber floating />
+        <h2>
+          Move {itemIds.length} {itemIds.length === 1 ? 'card' : 'cards'}
+        </h2>
+        <button type="button" aria-label="Close" onClick={onClose}>
+          <X size={20} />
+        </button>
+      </header>
+      <div className={`${styles.sheetBody} space-y-3`}>
+        <SaveProblem save={save} />
+        <fieldset disabled={!binding.available || save.busy} className="grid gap-2 border-0 p-0">
+          {itemIds.map((id) => {
+            const card = itemLabel(binding.snapshot, labels, id),
+              at = placed(id);
+            return (
+              <div key={id} className="border-border/60 flex items-center gap-3 rounded-2xl border p-2">
+                {card.image && (
+                  <span className="trading-card bg-muted relative w-9 shrink-0 overflow-hidden rounded">
+                    <CardImage src={card.image} alt="" fill sizes="36px" className="object-cover" />
+                  </span>
+                )}
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="truncate text-sm font-semibold">{card.name}</p>
+                  <p className="text-muted-foreground truncate text-xs">
+                    {at ? labels.place(at.collectionId, at.slotId) : 'Not in a binder'}
+                  </p>
+                  <Select
+                    aria-label={`Pocket for ${card.name}`}
+                    className="w-full"
+                    value={mapping[id] ?? ''}
+                    onChange={(e) => setMapping((m) => ({ ...m, [id]: e.target.value }))}
+                  >
+                    <option value="">Choose an empty pocket</option>
+                    {inventoryActionDestinations(binding.snapshot, id, binding.catalog)
+                      .filter((d) => d.slot.inventoryItemId === null)
+                      .map((d) => {
+                        const key = JSON.stringify([d.collectionId, d.slot.id]);
+                        return (
+                          <option
+                            key={key}
+                            value={key}
+                            disabled={itemIds.some((other) => other !== id && mapping[other] === key)}
+                          >
+                            {labels.place(d.collectionId, d.slot.id)}
+                          </option>
+                        );
+                      })}
+                  </Select>
                 </div>
-              );
-            })}
-          </fieldset>
-          <p className="text-muted-foreground text-xs">
-            Each card moves to the empty pocket you choose. The pockets they leave stay where they are, empty.
-          </p>
-        </div>
-        <footer className="border-border flex shrink-0 flex-wrap gap-2 border-t p-3">
+              </div>
+            );
+          })}
+        </fieldset>
+        <p className="text-muted-foreground text-xs">
+          Each card moves to the empty pocket you choose. The pockets they leave stay where they are, empty.
+        </p>
+      </div>
+      <OverlayFooter className="flex-wrap">
+        <button
+          type="button"
+          className={primary}
+          disabled={!allMapped || save.busy || !binding.available}
+          onClick={() =>
+            save.run({
+              kind: 'move',
+              mapping: itemIds.map((itemId) => {
+                const [collectionId, slotId] = JSON.parse(mapping[itemId]) as [string, string];
+                return { itemId, collectionId, slotId };
+              }),
+            })
+          }
+        >
+          {save.busy ? 'Moving…' : `Move ${itemIds.length === 1 ? 'card' : 'cards'}`}
+        </button>
+        {allPlaced && (
           <button
             type="button"
-            className={primary}
-            disabled={!allMapped || save.busy || !binding.available}
-            onClick={() =>
-              save.run({
-                kind: 'move',
-                mapping: itemIds.map((itemId) => {
-                  const [collectionId, slotId] = JSON.parse(mapping[itemId]) as [string, string];
-                  return { itemId, collectionId, slotId };
-                }),
-              })
-            }
+            className={secondary}
+            disabled={save.busy || !binding.available}
+            onClick={() => save.run({ kind: 'unassign', itemIds })}
           >
-            {save.busy ? 'Moving…' : `Move ${itemIds.length === 1 ? 'card' : 'cards'}`}
+            Take out of binders
           </button>
-          {allPlaced && (
-            <button
-              type="button"
-              className={secondary}
-              disabled={save.busy || !binding.available}
-              onClick={() => save.run({ kind: 'unassign', itemIds })}
-            >
-              Take out of binders
-            </button>
-          )}
-        </footer>
-      </div>
-    </div>
+        )}
+      </OverlayFooter>
+    </OverlayInsetSheet>
   );
 }

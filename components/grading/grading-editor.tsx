@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { OverlayDialog, OverlayGrabber } from '@/components/ui/overlay-dialog';
+import { OverlayGrabber, OverlayInsetSheet } from '@/components/ui/overlay-dialog';
 import type { SlotLocalAcceptance } from '@/lib/binder-slot-editing';
 import type { GradingRecord, InventoryItem } from '@/lib/domain/inventory';
 import type { InventoryItemRef } from '@/lib/domain/inventory-commands';
@@ -114,15 +114,7 @@ function EditorSession({
     }
   };
   return (
-    <OverlayDialog
-      modal={false}
-      portal={false}
-      onClose={onClose}
-      layerClassName={styles.overlay}
-      backdropProps={{ className: styles.backdrop }}
-      aria-label="Edit copy grading"
-      className={styles.sheet}
-    >
+    <OverlayInsetSheet onClose={onClose} aria-label="Edit copy grading" className={styles.sheet}>
       <header data-sheet-grabber className={`${styles.header} relative`}>
         <OverlayGrabber floating />
         <h2>Edit grading</h2>
@@ -319,6 +311,6 @@ function EditorSession({
         {busy && !onQueue && <p role="status">Saving…</p>}
         {error && <p role="alert">{error}</p>}
       </div>
-    </OverlayDialog>
+    </OverlayInsetSheet>
   );
 }
