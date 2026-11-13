@@ -1,9 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, Heart, Loader2, Palette, Search as SearchIcon, X } from 'lucide-react';
-import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
+import CardsBrowserSheet from '@/components/cards-browser-sheet';
 import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { PriceRisingBadge } from '@/components/price-rising-badge';
@@ -52,14 +51,10 @@ export default function IllustratorCardsBrowser({
   onOpenCard,
   onClose,
 }: IllustratorCardsBrowserProps) {
-  const dialogRef = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [filter, setFilter] = useState<IllustratorCardFilter>('all');
   const [sort, setSort] = useState<IllustratorCardSort>('newest');
   const [textFilter, setTextFilter] = useState('');
-
-  useOverlay(true, onClose, { containerRef: dialogRef });
-  const swipe = useSwipeToDismiss(dialogRef, onClose, !isDesktop);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,41 +95,14 @@ export default function IllustratorCardsBrowser({
   const isPriceSort = sort === 'price-desc' || sort === 'price-asc';
   const setCount = useMemo(() => new Set((cards ?? []).map((card) => card.set.id)).size, [cards]);
 
-  const content = (
-    <>
-      <div data-overlay-backdrop aria-hidden="true" className="fixed inset-0 z-[43] bg-black/55" onClick={onClose} />
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Cards illustrated by ${illustrator}`}
-        className="border-border/70 bg-card dark:border-border/50 fixed z-[44] flex flex-col overflow-hidden rounded-[1.6rem] border shadow-[0_28px_80px_-30px_rgba(15,23,42,0.6)] outline-none"
-        style={
-          isDesktop
-            ? {
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 'min(calc(100vw - 2rem), 52rem)',
-                maxHeight: 'min(85vh, 56rem)',
-              }
-            : {
-                left: '0.5rem',
-                right: '0.5rem',
-                // Sits above the bottom dock (which stays usable) and never under the status bar.
-                bottom: 'calc(var(--dock-clearance) + 0.375rem)',
-                height: 'calc(100dvh - env(safe-area-inset-top) - var(--dock-clearance) - 0.375rem - 0.5rem)',
-              }
-        }
-      >
-        <div
-          data-sheet-grabber
-          className="border-border/50 shrink-0 border-b px-4 pt-2 pb-3"
-          {...(isDesktop ? {} : swipe)}
-        >
-          {!isDesktop ? (
-            <div className="bg-muted-foreground/30 mx-auto mb-2 h-1.5 w-10 rounded-full" aria-hidden="true" />
-          ) : null}
+  return (
+    <CardsBrowserSheet
+      isDesktop={isDesktop}
+      onClose={onClose}
+      aria-label={`Cards illustrated by ${illustrator}`}
+      phoneHeight="calc(100dvh - env(safe-area-inset-top) - var(--dock-clearance) - 0.375rem - 0.5rem)"
+      header={
+        <>
           <div className="flex items-center gap-3">
             <div className="from-muted to-muted/30 text-muted-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br">
               <Palette className="h-6 w-6" />
@@ -206,132 +174,126 @@ export default function IllustratorCardsBrowser({
               </select>
             </label>
           </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-4">
-          {isPriceSort && state.status === 'ready' && visibleEntries.length > 0 ? (
-            <p className="text-muted-foreground mb-2 text-[11px]" data-testid="illustrator-price-sort-note">
-              {isLoadingPrices ? 'Loading prices…' : 'Cards without a price are listed last.'}
-            </p>
-          ) : null}
-          {state.status === 'ready' && state.fromDevice ? (
-            <p className="border-border/50 bg-muted/40 text-muted-foreground mb-2 rounded-xl border px-3 py-2 text-xs">
-              Offline: showing the copy saved on this device.
-            </p>
-          ) : null}
-          {state.status === 'loading' ? (
-            <div className="text-muted-foreground flex h-40 items-center justify-center text-sm">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading cards…
-            </div>
-          ) : state.status === 'unavailable' ? (
-            <div className="text-muted-foreground flex h-40 items-center justify-center px-6 text-center text-sm">
-              Could not load this illustrator&apos;s cards. Offline, only illustrators you opened before are available.
-            </div>
-          ) : visibleEntries.length === 0 ? (
-            <div className="text-muted-foreground flex h-40 items-center justify-center px-6 text-center text-sm">
-              {counts.all === 0
-                ? 'No mirrored cards found for this illustrator yet.'
-                : filter === 'owned'
-                  ? "You don't own any of these cards yet."
-                  : filter === 'wanted'
-                    ? 'None of these cards are on your wanted list.'
-                    : 'No cards match that filter.'}
-            </div>
-          ) : (
-            <ul
-              className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4"
-              aria-label={`Cards by ${illustrator}`}
-            >
-              {visibleEntries.map((entry) => {
-                const { card } = entry;
-                const image = getProxiedThumbnailUrl(card.image);
-                const priceSnapshot = pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')];
-                const price = formatPrice(priceSnapshot)?.split(' (')[0] ?? null;
-                return (
-                  <li
-                    key={card.id}
-                    data-card-id={card.id}
-                    aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${entry.owned ? ', owned' : ''}${entry.wanted ? ', wanted' : ''}`}
-                    data-price={price ?? undefined}
-                    className={`bg-background/60 relative flex min-w-0 flex-col overflow-hidden rounded-2xl border ${
-                      entry.owned ? 'border-emerald-400/45' : entry.wanted ? 'border-amber-400/45' : 'border-border/50'
-                    } ${onOpenCard ? 'focus-within:border-primary/60 hover:border-primary/45 transition-colors' : ''}`}
-                  >
-                    {/* One button over the whole tile, so the exact card tapped is the one that opens. */}
-                    {onOpenCard ? (
-                      <button
-                        type="button"
-                        aria-label={`Open ${card.name}, ${card.set.name} ${entry.numberLabel}`}
-                        onClick={() => onOpenCard(card)}
-                        className="focus-visible:ring-primary/70 absolute inset-0 z-[1] rounded-2xl focus-visible:ring-2 focus-visible:outline-none"
+        </>
+      }
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-4">
+        {isPriceSort && state.status === 'ready' && visibleEntries.length > 0 ? (
+          <p className="text-muted-foreground mb-2 text-[11px]" data-testid="illustrator-price-sort-note">
+            {isLoadingPrices ? 'Loading prices…' : 'Cards without a price are listed last.'}
+          </p>
+        ) : null}
+        {state.status === 'ready' && state.fromDevice ? (
+          <p className="border-border/50 bg-muted/40 text-muted-foreground mb-2 rounded-xl border px-3 py-2 text-xs">
+            Offline: showing the copy saved on this device.
+          </p>
+        ) : null}
+        {state.status === 'loading' ? (
+          <div className="text-muted-foreground flex h-40 items-center justify-center text-sm">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading cards…
+          </div>
+        ) : state.status === 'unavailable' ? (
+          <div className="text-muted-foreground flex h-40 items-center justify-center px-6 text-center text-sm">
+            Could not load this illustrator&apos;s cards. Offline, only illustrators you opened before are available.
+          </div>
+        ) : visibleEntries.length === 0 ? (
+          <div className="text-muted-foreground flex h-40 items-center justify-center px-6 text-center text-sm">
+            {counts.all === 0
+              ? 'No mirrored cards found for this illustrator yet.'
+              : filter === 'owned'
+                ? "You don't own any of these cards yet."
+                : filter === 'wanted'
+                  ? 'None of these cards are on your wanted list.'
+                  : 'No cards match that filter.'}
+          </div>
+        ) : (
+          <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4" aria-label={`Cards by ${illustrator}`}>
+            {visibleEntries.map((entry) => {
+              const { card } = entry;
+              const image = getProxiedThumbnailUrl(card.image);
+              const priceSnapshot = pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')];
+              const price = formatPrice(priceSnapshot)?.split(' (')[0] ?? null;
+              return (
+                <li
+                  key={card.id}
+                  data-card-id={card.id}
+                  aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${entry.owned ? ', owned' : ''}${entry.wanted ? ', wanted' : ''}`}
+                  data-price={price ?? undefined}
+                  className={`bg-background/60 relative flex min-w-0 flex-col overflow-hidden rounded-2xl border ${
+                    entry.owned ? 'border-emerald-400/45' : entry.wanted ? 'border-amber-400/45' : 'border-border/50'
+                  } ${onOpenCard ? 'focus-within:border-primary/60 hover:border-primary/45 transition-colors' : ''}`}
+                >
+                  {/* One button over the whole tile, so the exact card tapped is the one that opens. */}
+                  {onOpenCard ? (
+                    <button
+                      type="button"
+                      aria-label={`Open ${card.name}, ${card.set.name} ${entry.numberLabel}`}
+                      onClick={() => onOpenCard(card)}
+                      className="focus-visible:ring-primary/70 absolute inset-0 z-[1] rounded-2xl focus-visible:ring-2 focus-visible:outline-none"
+                    />
+                  ) : null}
+                  <div className="trading-card bg-muted/40 relative w-full">
+                    {image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={image}
+                        alt={`${card.name} – ${card.set.name} ${entry.numberLabel}`}
+                        loading="lazy"
+                        className="h-full w-full object-cover"
                       />
-                    ) : null}
-                    <div className="trading-card bg-muted/40 relative w-full">
-                      {image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={image}
-                          alt={`${card.name} – ${card.set.name} ${entry.numberLabel}`}
-                          loading="lazy"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="text-muted-foreground flex h-full items-center justify-center p-2 text-center text-[11px]">
-                          No image
-                        </div>
-                      )}
-                      <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
-                        {entry.owned ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
-                            <Check className="h-3 w-3" /> Owned
-                          </span>
-                        ) : null}
-                        {entry.wanted ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
-                            <Heart className="h-3 w-3 fill-current" /> Wanted
-                          </span>
-                        ) : null}
+                    ) : (
+                      <div className="text-muted-foreground flex h-full items-center justify-center p-2 text-center text-[11px]">
+                        No image
                       </div>
-                      <PriceRisingBadge price={priceSnapshot} className="absolute top-1.5 right-1.5" />
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5 p-2">
-                      <p className="truncate text-xs font-semibold" title={card.name}>
-                        {card.name}
-                      </p>
-                      <p className="text-muted-foreground truncate text-[11px]" title={card.set.name}>
-                        {card.set.name}
-                      </p>
-                      <div className="text-muted-foreground flex items-center justify-between gap-1 text-[10px]">
-                        <span className="tabular-nums">{entry.numberLabel}</span>
-                        {card.set.releaseDate ? (
-                          <span className="tabular-nums">{card.set.releaseDate.slice(0, 4)}</span>
-                        ) : null}
-                      </div>
-                      <p className="truncate text-xs font-bold tabular-nums" data-testid="illustrator-card-price">
-                        {price ? (
-                          <span className="text-foreground">{price}</span>
-                        ) : (
-                          <span className="text-muted-foreground font-medium">
-                            {isLoadingPrices ? 'Pricing…' : 'No price'}
-                          </span>
-                        )}
-                      </p>
-                      {card.rarity || entry.variantLabels.length > 0 ? (
-                        <p className="text-muted-foreground truncate text-[10px]">
-                          {[card.rarity, ...entry.variantLabels].filter(Boolean).join(' · ')}
-                        </p>
+                    )}
+                    <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
+                      {entry.owned ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
+                          <Check className="h-3 w-3" /> Owned
+                        </span>
+                      ) : null}
+                      {entry.wanted ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
+                          <Heart className="h-3 w-3 fill-current" /> Wanted
+                        </span>
                       ) : null}
                     </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+                    <PriceRisingBadge price={priceSnapshot} className="absolute top-1.5 right-1.5" />
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5 p-2">
+                    <p className="truncate text-xs font-semibold" title={card.name}>
+                      {card.name}
+                    </p>
+                    <p className="text-muted-foreground truncate text-[11px]" title={card.set.name}>
+                      {card.set.name}
+                    </p>
+                    <div className="text-muted-foreground flex items-center justify-between gap-1 text-[10px]">
+                      <span className="tabular-nums">{entry.numberLabel}</span>
+                      {card.set.releaseDate ? (
+                        <span className="tabular-nums">{card.set.releaseDate.slice(0, 4)}</span>
+                      ) : null}
+                    </div>
+                    <p className="truncate text-xs font-bold tabular-nums" data-testid="illustrator-card-price">
+                      {price ? (
+                        <span className="text-foreground">{price}</span>
+                      ) : (
+                        <span className="text-muted-foreground font-medium">
+                          {isLoadingPrices ? 'Pricing…' : 'No price'}
+                        </span>
+                      )}
+                    </p>
+                    {card.rarity || entry.variantLabels.length > 0 ? (
+                      <p className="text-muted-foreground truncate text-[10px]">
+                        {[card.rarity, ...entry.variantLabels].filter(Boolean).join(' · ')}
+                      </p>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
-    </>
+    </CardsBrowserSheet>
   );
-
-  if (typeof document === 'undefined') return null;
-  return createPortal(content, document.body);
 }
