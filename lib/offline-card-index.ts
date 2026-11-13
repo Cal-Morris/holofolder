@@ -1,6 +1,7 @@
 import { isSetYearQuery, rankSetMatches } from '@/lib/set-search';
 import { appPath } from '@/lib/app-path';
 import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
+import { matchCardNicknames, matchesNicknameRest } from '@/lib/card-nicknames';
 import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
 // Offline card search: an index built from what is already on the device (the user's own cards and the card
 // data the service worker cached: set coverage, per-Pokémon card lists and earlier search results), matched
@@ -196,11 +197,24 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
   }
   if (!parsed.text && !parsed.number && !parsed.setIds.length) return [];
 
+  // Nicknames ("moonbreon", "gold star rayquaza") first, like the server search.
+  const nickname = matchCardNicknames(query);
+  const nicknameIds = new Set(nickname?.ids);
+  const results = nickname
+    ? cards.filter(
+        (card) =>
+          [card.id, card.canonicalId, ...(card.aliasIds ?? [])].some((id) => id && nicknameIds.has(id)) &&
+          matchesNicknameRest(card.name, nickname.rest),
+      )
+    : [];
+  if (results.length >= limit) return results.slice(0, limit);
+  const named = new Set(results);
+
   const text = parsed.text;
   const number = parsed.number ? normalizeLocalId(parsed.number) : null;
-  const results: SearchCardResult[] = [];
   const setIds = new Set(parsed.setIds);
   for (const card of cards) {
+    if (named.has(card)) continue;
     if (setIds.size && !setIds.has(card.set.id)) continue;
     if (text) {
       const matchesText =

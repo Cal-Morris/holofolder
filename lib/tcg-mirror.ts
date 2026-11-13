@@ -1,3 +1,4 @@
+import { matchCardNicknames, matchesNicknameRest } from '@/lib/card-nicknames';
 import { cardSearchSetCandidates, correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
 import type { ImportLookup } from '@/lib/collection-import';
 import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
@@ -750,6 +751,22 @@ export async function searchMirroredCards(
   const numberCandidates = parsed.number ? localIdCandidates(parsed.number) : null;
   const requests: Array<PromiseLike<{ data: any[] | null; error: unknown }>> = [];
 
+  // Nicknames ("moonbreon", "gold star rayquaza") go first, so the cards they name lead the results.
+  const nickname = matchCardNicknames(query);
+  for (let start = 0; nickname && start < nickname.ids.length; start += NICKNAME_ID_CHUNK) {
+    const ids = nickname.ids.slice(start, start + NICKNAME_ID_CHUNK);
+    requests.push(
+      admin
+        .from('tcg_cards')
+        .select(select)
+        .in('id', ids)
+        .then(({ data, error }) => {
+          const rows = data as unknown as Array<{ name_en?: string | null }> | null;
+          return { error, data: rows?.filter((row) => matchesNicknameRest(row.name_en ?? '', nickname.rest)) ?? null };
+        }),
+    );
+  }
+
   if (parsed.cardId) {
     requests.push(admin.from('tcg_cards').select(select).ilike('id', parsed.cardId).limit(5));
   }
@@ -827,6 +844,8 @@ export async function searchMirroredCards(
   return { cards, correction: null };
 }
 
+/** Ids per nickname query, so a group nickname ("shiny vault") keeps the request URL short. */
+const NICKNAME_ID_CHUNK = 150;
 const ILLUSTRATOR_DIRECTORY_FUNCTION = 'tcg_illustrator_directory';
 const SIMILAR_CARDS_FUNCTION = 'similar_tcg_cards';
 const MIRROR_PAGE_SIZE = 1000;
