@@ -1501,12 +1501,21 @@ export default function CardSelector({
                   aria-label="Loading cards"
                   className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5"
                 >
-                  {Array.from({ length: 6 }, (_, index) => (
-                    <div key={index} aria-hidden="true" className="bg-muted/40 overflow-hidden rounded-xl">
-                      <div className="holo-loading trading-card w-full" />
-                      <div className="space-y-1 p-1.5">
-                        <div className="bg-muted h-2.5 w-3/4 rounded" />
-                        <div className="bg-muted h-2.5 w-1/2 rounded" />
+                  {Array.from({ length: 20 }, (_, index) => (
+                    <div
+                      key={index}
+                      aria-hidden="true"
+                      className="bg-card overflow-hidden rounded-xl border-2 border-transparent"
+                    >
+                      <div className="holo-loading holo-loading-card aspect-[63/88] w-full rounded-[10px]" />
+                      <div className="space-y-1.5 p-1.5 sm:p-2">
+                        <div className="holo-loading holo-loading-bar h-2.5 w-3/4 rounded-full" />
+                        <div className="holo-loading holo-loading-bar h-2 w-1/2 rounded-full" />
+                        <div className="grid h-[1.125rem] grid-cols-2 gap-1 sm:h-5">
+                          <div className="holo-loading holo-loading-bar rounded-md" />
+                          <div className="holo-loading holo-loading-bar rounded-md" />
+                        </div>
+                        <div className="holo-loading holo-loading-bar h-2 w-1/4 rounded-full" />
                       </div>
                     </div>
                   ))}

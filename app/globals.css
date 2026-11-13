@@ -3,7 +3,8 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Slow state indication while data loads, with a solid centre to keep the foil soft. */
+/* Loading state: a soft foil edge with a neutral grey shimmer. The shimmer is pinned to the viewport, so every
+   placeholder on screen shows a slice of one wave instead of running its own sweep. */
 .holo-loading {
   position: relative;
   overflow: hidden;
@@ -11,46 +12,80 @@
   border: 1px solid transparent;
   background:
     linear-gradient(var(--muted), var(--muted)) padding-box,
-    linear-gradient(135deg, #ff9ad540, #b9a6ff60 35%, #7fe7ff40 65%, #b8ffcf40) border-box;
+    linear-gradient(135deg, #ff9ad566, #b9a6ff80 35%, #7fe7ff66 65%, #b8ffcf66) border-box;
 }
 .holo-loading::after {
   content: '';
   position: absolute;
-  inset: -40% -140%;
+  inset: 0;
   pointer-events: none;
-  background: linear-gradient(
-    115deg,
-    transparent 20%,
-    #ff9ad508 30%,
-    #ff9ad51c 40%,
-    #b9a6ff30 48%,
-    #7fe7ff30 56%,
-    #b8ffcf1c 65%,
-    #b8ffcf08 75%,
-    transparent 85%
-  );
-  animation: holo-loading-sweep 5.5s ease-in-out infinite;
+  background: linear-gradient(105deg, transparent 38%, #ffffff08 44%, #ffffff14 50%, #ffffff08 56%, transparent 62%);
+  background-attachment: fixed;
+  background-size: 200% 100%;
+  background-repeat: repeat-x;
+  animation: holo-loading-sweep 2.4s linear infinite;
 }
+/* Moves the repeating wave exactly one tile (200% wide, so -200%), so the loop has no seam or restart. */
 @keyframes holo-loading-sweep {
-  0%,
-  15% {
-    transform: translateX(-22%);
-    opacity: 0;
+  from {
+    background-position: 0% 0;
   }
-  35% {
-    opacity: 1;
+  to {
+    background-position: -200% 0;
   }
-  70%,
-  100% {
-    transform: translateX(22%);
-    opacity: 0;
+}
+/* Text-line placeholders: no foil edge, just the grey shimmer. */
+.holo-loading-bar {
+  border-width: 0;
+}
+/* A card-shaped placeholder: the rotating holo edge from the holofolder.com plan card (same conic stops),
+   with a faint inner frame and fine foil lines so it reads as a card back. */
+@property --holo-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.holo-loading-card {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--muted), var(--muted)) padding-box,
+    conic-gradient(
+        from var(--holo-angle),
+        #ff9ad500 0deg,
+        #ff9ad5 35deg,
+        #b9a6ff 70deg,
+        #b9a6ff00 105deg,
+        #b9a6ff00 180deg,
+        #7fe7ff 215deg,
+        #b8ffcf 250deg,
+        #b8ffcf00 285deg,
+        #ff9ad500 360deg
+      )
+      border-box,
+    color-mix(in oklab, var(--foreground) 8%, transparent) border-box;
+  animation: holo-loading-turn 4s linear infinite;
+}
+@keyframes holo-loading-turn {
+  to {
+    --holo-angle: 360deg;
   }
+}
+.holo-loading-card::before {
+  content: '';
+  position: absolute;
+  inset: 6%;
+  border-radius: 6px;
+  border: 1px solid color-mix(in oklab, var(--foreground) 9%, transparent);
+  background: repeating-linear-gradient(115deg, #ffffff06 0 1px, transparent 1px 5px);
 }
 @media (prefers-reduced-motion: reduce) {
   .holo-loading::after {
     animation: none;
-    transform: none;
-    opacity: 0.35;
+    background-position: 50% 0;
+    opacity: 0.4;
+  }
+  .holo-loading-card {
+    animation: none;
   }
 }
 
