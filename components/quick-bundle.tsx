@@ -41,6 +41,9 @@ export interface QuickBundleProps {
   tally?: ShowTally;
 }
 
+const FOOTER_CLASS =
+  'border-border/50 bg-card/95 min-w-0 shrink-0 border-t px-3 pt-2 pb-[calc(var(--safe-bottom)+0.75rem)]';
+
 export default function QuickBundle({
   nativeConsumer,
   budgetKey,
@@ -313,10 +316,7 @@ export default function QuickBundle({
         <DealVerdictPanel deal={result.deal} money={money} testId="bundle-verdict" emptyText={verdictEmptyText} />
       </div>
 
-      <div
-        {...TOAST_ANCHOR}
-        className="border-border/50 bg-card/95 min-w-0 shrink-0 border-t px-3 pt-2 pb-[calc(var(--safe-bottom)+0.75rem)]"
-      >
+      <div {...TOAST_ANCHOR} className={FOOTER_CLASS}>
         {guide.marketTotal > 0 && (!nativeConsumer || guide.complete) ? (
           <DealPriceScale
             market={guide.marketTotal}
