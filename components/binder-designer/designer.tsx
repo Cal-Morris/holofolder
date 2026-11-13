@@ -71,6 +71,7 @@ export default function BinderDesigner({
   occupiedSlots,
   settings,
   collectionError,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent editor controls; one reducer would not read better
 }: DesignerProps) {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', settings.darkMode);
@@ -79,14 +80,12 @@ export default function BinderDesigner({
   const initial = useMemo(() => defaultBinderDesign(settings), [settings]);
   const [preset, setPreset] = useState<string | null>(null);
   const [draft, setDraft] = useState(initial),
-    [saved, setSaved] = useState(initial),
     [history, setHistory] = useState<BinderDesign[]>([]);
   const [mode, setMode] = useState<'sample' | 'collection'>(owner ? 'collection' : 'sample'),
     [part, setPart] = useState<BinderPart>('cover'),
     [view, setView] = useState<BinderView>('front'),
     [page, setPage] = useState(1);
-  const [uploads, setUploads] = useState<Record<string, Blob>>({}),
-    [artwork, setArtwork] = useState<Record<string, string>>({}),
+  const [artwork, setArtwork] = useState<Record<string, string>>({}),
     [message, setMessage] = useState(''),
     [ready, setReady] = useState(false),
     [saving, setSaving] = useState(false),
@@ -104,7 +103,8 @@ export default function BinderDesigner({
     draftRef.current = value;
     setDraft(value);
   }, []);
-  const urlsRef = useRef<Record<string, string>>({}),
+  const uploadsRef = useRef<Record<string, Blob>>({}),
+    urlsRef = useRef<Record<string, string>>({}),
     uploadGeneration = useRef(0),
     mounted = useRef(true);
   useEffect(() => {
@@ -122,7 +122,7 @@ export default function BinderDesigner({
     );
     for (const [id, url] of Object.entries(urlsRef.current)) if (!urls[id]) URL.revokeObjectURL(url);
     urlsRef.current = urls;
-    setUploads(next);
+    uploadsRef.current = next;
     setArtwork(urls);
   }, []);
   useEffect(() => {
@@ -137,7 +137,6 @@ export default function BinderDesigner({
         draftRevision.current = appearance.revision;
       }
       savedRef.current = appearance.design;
-      setSaved(appearance.design);
       setReady(true);
     });
     return () => {
@@ -242,7 +241,7 @@ export default function BinderDesigner({
       await validateArtwork(file);
       if (!mounted.current || token !== uploadGeneration.current) return;
       const id = `upload:${crypto.randomUUID()}`;
-      installUploads({ ...uploads, [id]: file });
+      installUploads({ ...uploadsRef.current, [id]: file });
       editSurface({ artwork: id, frame: { fit: 'fill', zoom: 1, x: 0, y: 0 } }, target);
     } catch (e) {
       if (mounted.current) setMessage(e instanceof Error ? e.message : 'Could not open artwork.');
@@ -253,11 +252,10 @@ export default function BinderDesigner({
     const snapshot = draft;
     setSaving(true);
     try {
-      const result = await appearance.save(snapshot, uploads, draftRevision.current);
+      const result = await appearance.save(snapshot, uploadsRef.current, draftRevision.current);
       if (mounted.current) {
         draftRevision.current = result.revision;
         savedRef.current = snapshot;
-        setSaved(snapshot);
         setMessage('');
       }
     } catch (e) {
@@ -294,7 +292,7 @@ export default function BinderDesigner({
             disabled={saving}
             onClick={() => {
               uploadGeneration.current++;
-              replaceDraft(saved);
+              replaceDraft(savedRef.current);
               installUploads(appearance.uploads);
               draftRevision.current = appearance.revision;
               setPreset(null);
@@ -743,7 +741,6 @@ export default function BinderDesigner({
               installUploads(latest?.uploads ?? {});
               savedRef.current = next;
               draftRevision.current = latest?.revision ?? 0;
-              setSaved(next);
               setHistory([]);
               setMessage('');
             } catch (e) {
@@ -807,7 +804,9 @@ function ArtworkCrop({
     image = useRef<HTMLImageElement | null>(null),
     drag = useRef<{ x: number; y: number; frame: typeof frame } | null>(null);
   const [error, setError] = useState(''),
+    // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- `loaded` is a repaint counter: bumping it re-runs the paint effect once the image arrives
     [loaded, setLoaded] = useState(0);
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- the setters run in the image load callbacks, not during the effect
   useEffect(() => {
     let active = true;
     const im = new Image();
