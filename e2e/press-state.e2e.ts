@@ -82,7 +82,7 @@ test('reduced motion stops decorative loading and foil animations', async ({ har
   const animations = await harness.page.evaluate(() => {
     const classes = [
       'animate-pulse',
-      'animate-shimmer',
+      'holo-loading-card',
       'animate-holographic-foil',
       'card-finish-holo',
       'animate-slide-up',

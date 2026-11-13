@@ -31,6 +31,7 @@ import type { CardPriceSnapshot, SupportedCurrency } from '@/hooks/use-card-pric
 import type { CollectedPokemon, WantedCard } from '@/lib/domain/cards';
 import type { SelectedSlotDisplayCard } from '@/lib/selected-slot-card-display';
 import type { PokemonEntry, PokemonSummary } from '@/lib/pokemon-catalog';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface SelectedPokemonQuickPanelContext {
   selectedComparisonMarketGbp: number | null;
@@ -526,10 +527,7 @@ export function renderSelectedPokemonQuickPanelView(ctx: SelectedPokemonQuickPan
                           Illustrator
                         </span>
                         {selectedIllustratorState === null ? (
-                          <span
-                            aria-hidden="true"
-                            className="bg-muted-foreground/25 mt-1 block h-3.5 w-28 animate-pulse rounded motion-reduce:animate-none"
-                          />
+                          <Skeleton className="mt-1 h-3.5 w-28" />
                         ) : (
                           <span className="text-muted-foreground block truncate text-sm">Not listed</span>
                         )}

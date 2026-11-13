@@ -3,8 +3,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Loading state: a soft foil edge with a neutral grey shimmer. The shimmer is pinned to the viewport, so every
-   placeholder on screen shows a slice of one wave instead of running its own sweep. */
+/* Loading state, used through <Skeleton> (components/ui/skeleton.tsx): a soft foil edge with a neutral grey
+   shimmer. The shimmer is pinned to the viewport, so every placeholder on screen shows a slice of one wave
+   instead of running its own sweep. */
 .holo-loading {
   position: relative;
   overflow: hidden;
@@ -19,7 +20,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(105deg, transparent 38%, #ffffff08 44%, #ffffff14 50%, #ffffff08 56%, transparent 62%);
+  background: linear-gradient(105deg, transparent 38%, #ffffff05 44%, #ffffff0d 50%, #ffffff05 56%, transparent 62%);
   background-attachment: fixed;
   background-size: 200% 100%;
   background-repeat: repeat-x;
@@ -52,12 +53,12 @@
     conic-gradient(
         from var(--holo-angle),
         #ff9ad500 0deg,
-        #ff9ad5 35deg,
-        #b9a6ff 70deg,
+        #ff9ad5a6 35deg,
+        #b9a6ffa6 70deg,
         #b9a6ff00 105deg,
         #b9a6ff00 180deg,
-        #7fe7ff 215deg,
-        #b8ffcf 250deg,
+        #7fe7ffa6 215deg,
+        #b8ffcfa6 250deg,
         #b8ffcf00 285deg,
         #ff9ad500 360deg
       )
@@ -352,15 +353,6 @@
     }
   }
 
-  @keyframes shimmer {
-    0% {
-      background-position: -200% 0;
-    }
-    100% {
-      background-position: 200% 0;
-    }
-  }
-
   @keyframes bounce-in {
     0% {
       transform: scale(0.9);
@@ -372,16 +364,6 @@
     100% {
       transform: scale(1);
       opacity: 1;
-    }
-  }
-
-  @keyframes pulse-soft {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
     }
   }
 
@@ -440,18 +422,8 @@
     animation: scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
-  .animate-shimmer {
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite;
-  }
-
   .animate-bounce-in {
     animation: bounce-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  }
-
-  .animate-pulse-soft {
-    animation: pulse-soft 2s ease-in-out infinite;
   }
 
   .animate-slot-glare-sweep {
@@ -1125,9 +1097,7 @@ html[data-edge-back] body::after {
   .animate-slide-up,
   .animate-scale-in,
   .animate-bounce-in,
-  .animate-pulse,
-  .animate-pulse-soft,
-  .animate-shimmer {
+  .animate-pulse {
     animation: none;
   }
 }

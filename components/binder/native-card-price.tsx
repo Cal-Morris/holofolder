@@ -18,6 +18,7 @@ import { buildSoldPriceGuide } from '@/lib/sold-price-guide';
 import { readDealThresholds } from '@/lib/deal-check';
 import { nativeSoldEvidenceAllowed } from '@/lib/native-price-evidence';
 import type { CardPriceCheck } from '@/lib/card-price-checks';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface NativeCardPricing {
   region: PricingRegion;
@@ -32,7 +33,7 @@ export interface NativeCardPricing {
 const valueSkeleton = (
   <>
     <span className="sr-only">Loading</span>
-    <span aria-hidden="true" className="holo-loading inline-block h-3.5 w-14 rounded align-middle" />
+    <Skeleton className="inline-block h-3.5 w-14 align-middle" />
   </>
 );
 
@@ -139,10 +140,10 @@ export default function NativeCardPrice({
       {isLoading && (
         <div aria-hidden="true">
           <div className="mt-2 flex px-1 text-[10px] text-transparent">
-            <span className="holo-loading rounded-full px-2 py-0.5">Medium confidence</span>
+            <Skeleton className="px-2 py-0.5">Medium confidence</Skeleton>
           </div>
           <p className="mt-2 px-1 text-xs">
-            <span className="holo-loading inline-block h-3 w-44 max-w-full rounded align-middle" />
+            <Skeleton className="inline-block h-3 w-44 max-w-full align-middle" />
           </p>
         </div>
       )}

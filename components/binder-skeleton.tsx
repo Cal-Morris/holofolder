@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { BINDER_GRID_COOKIE } from '@/lib/binders/model';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // The binder while it starts: the app's real frame (header, binder toolbar row, dock) with the page of
 // pockets still empty, so opening fills the page in place and nothing moves. The frame's classes mirror
@@ -66,7 +67,7 @@ export function BinderSkeleton({
       }}
     >
       {Array.from({ length: rows * cols }, (_, index) => (
-        <div key={index} data-skeleton="pocket" className="bg-muted/70 rounded-md" />
+        <Skeleton key={index} variant="card" data-skeleton="pocket" />
       ))}
     </div>
   );
@@ -106,7 +107,7 @@ export function BinderSkeleton({
               ))}
             </div>
             <div className="flex h-11 shrink-0 items-center px-3">
-              <span className="bg-muted h-4 w-20 rounded" />
+              <Skeleton className="h-4 w-20" />
             </div>
             <div className="text-muted-foreground flex h-11 w-11 shrink-0 items-center justify-center">
               {icon('h-4 w-4', <path d="M5 12h.01M12 12h.01M19 12h.01" />)}
@@ -114,9 +115,9 @@ export function BinderSkeleton({
           </div>
         </div>
       </div>
-      <div aria-hidden="true" className="flex shrink-0 items-center gap-1 px-3 pb-1 sm:px-4 md:px-7">
-        <span className="border-border/60 bg-muted/40 h-9 w-32 rounded-full border" />
-        <span className="border-border/60 bg-muted/40 h-9 w-20 rounded-full border" />
+      <div aria-hidden="true" className="flex shrink-0 items-center gap-2 px-3 pb-1 sm:px-4 md:px-7">
+        <Skeleton className="h-9 w-32" />
+        <Skeleton className="h-9 w-20" />
       </div>
       <div
         aria-hidden="true"
@@ -125,7 +126,7 @@ export function BinderSkeleton({
         <div data-skeleton="stage" className="binder-skeleton-stage flex h-full w-full items-center justify-center">
           <div
             data-skeleton="spread"
-            className="binder-skeleton-spread motion-safe:animate-pulse"
+            className="binder-skeleton-spread"
             style={{ '--r': rows, '--c': cols } as CSSProperties}
           >
             {page(false)}

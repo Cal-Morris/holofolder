@@ -45,6 +45,7 @@ import type { CardFinish } from '@/lib/domain/cards';
 import { Select } from '@/components/ui/select';
 import CollectionPriceCheck from '@/components/collection-price-check';
 import type { CollectedPokemon } from '@/lib/domain/cards';
+import { Skeleton } from '@/components/ui/skeleton';
 
 /** Explicit wanted entries, not species groups or a second inventory store. Used by Wanted, Hunting and card details. */
 export default function NativeWantedEntries({
@@ -361,10 +362,10 @@ export default function NativeWantedEntries({
                     {priced?.effectiveGbpAmount != null ? (
                       (format(priced.effectiveGbpAmount, priced.price) ?? gbp(priced.effectiveGbpAmount))
                     ) : saved.status === 'loading' ? (
-                      <span
-                        aria-label="Loading price"
-                        className="bg-muted inline-block h-3 w-10 animate-pulse rounded align-middle motion-reduce:animate-none"
-                      />
+                      <>
+                        <Skeleton className="inline-block h-3 w-10 align-middle" />
+                        <span className="sr-only">Loading price</span>
+                      </>
                     ) : (
                       <span className="text-muted-foreground font-normal">No price</span>
                     )}

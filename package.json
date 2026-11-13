@@ -8,7 +8,7 @@
     "format": "bun fmt",
     "format:check": "bun fmt --check",
     "knip": "knip --no-progress",
-    "lint": "oxlint --report-unused-disable-directives --max-warnings=584 .",
+    "lint": "oxlint --report-unused-disable-directives --max-warnings=579 .",
     "sync-card-db": "bun scripts/sync-card-db.ts",
     "sync-card-prices": "bun scripts/sync-card-prices.ts",
     "sync-card-supplements": "bun scripts/sync-card-supplements.ts",

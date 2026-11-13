@@ -504,14 +504,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.priceSkeleton {
-  display: inline-block;
-  width: 2.6rem;
-  height: 0.7rem;
-  border-radius: 0.25rem;
-  background: var(--muted);
-  vertical-align: middle;
-}
 .tileSelect {
   position: absolute;
   top: 0.1rem;
