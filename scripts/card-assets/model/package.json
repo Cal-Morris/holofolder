@@ -1,0 +1,8 @@
+{
+  "name": "holofolder-card-assets-model",
+  "private": true,
+  "description": "The picture-matching model library for `bun run card-assets fingerprints` only. It pulls in about 450 MB of onnxruntime, so it lives outside the root package: CI and Vercel never install it.",
+  "dependencies": {
+    "@huggingface/transformers": "4.3.2"
+  }
+}

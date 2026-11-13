@@ -33,7 +33,13 @@ Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are 
    - TCGdex images are mirrored, plus fallback-source images (TCGplayer, pokemontcg.io, Scrydex, Limitless) for cards without a TCGdex image. See `docs/card-image-store.md`.
    - Keep within the R2 free tier: 10 GB-month storage and 1M Class A operations per month. The whole mirror is about 40k objects and 2 GB.
    - TCGdex 404s are permanent; don't retry them in a loop.
-6. **Verify.**
+6. **Update the picture-matching fingerprints** once the set's images are in R2 (and in `card_image_inventory`):
+   ```sh
+   bun run card-assets fingerprints --set <id> --dry-run   # how many cards are new or changed
+   bun run card-assets fingerprints --set <id> --publish   # embed only those, then upload the new index files
+   ```
+   It resumes from the published index, so only the new set is embedded (about 20 ms per card on a Mac). Publishing is a handful of Class A writes: three files per changed language plus the manifest. Without `--publish` it writes `.cache/card-fingerprints/` only. Add `--lang ja` for a Japanese set (the default is `en,ja`).
+7. **Verify.**
    - The set shows in the Sets view and in search.
    - This should return `x-card-image-source: r2` (the first fetch of an un-mirrored image says `tcgdex`):
      ```sh
