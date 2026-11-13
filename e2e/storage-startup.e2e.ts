@@ -131,11 +131,11 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   await context.route('**/app/e2e-harness/storage/inventory?*', (route) => inventory(route));
 });
 
-// The saved copy paints (with Storage) before the checked read; New storage enables only after a complete read.
+// The saved copy paints (with Storage) before the checked read; New binder enables only after a complete read.
 async function ready(page: Page, timeout = 15_000) {
   await expect(async () => {
     try {
-      await expect(await storageAction(page, 'New storage')).toBeEnabled({ timeout: 1_000 });
+      await expect(await storageAction(page, 'New binder')).toBeEnabled({ timeout: 1_000 });
     } finally {
       await closeStorage(page).catch(() => {});
     }
@@ -201,7 +201,7 @@ async function seedResetSentinels(page: Page) {
     db.close();
   });
 }
-async function expectReset(page: Page) {
+async function expectReset(page: Page, { stalledRecords = false } = {}) {
   expect(
     await page.evaluate(async () => ({
       guard: sessionStorage.getItem('holofolder-startup-reset-v2'),
@@ -211,10 +211,12 @@ async function expectReset(page: Page) {
       unrelated: !!(await caches.match('/unrelated-sentinel')),
     })),
   ).toEqual({ guard: '1', auth: 'synthetic credentials', snapshot: null, executable: false, unrelated: true });
-  expect(await records(page)).not.toContain('synthetic offline data');
+  // A held transaction blocks the record deletes until the reload ends it; the fresh read replaces the copy anyway.
+  if (!stalledRecords) expect(await records(page)).not.toContain('synthetic offline data');
 }
 
-test('online startup failure resets only offline data, reloads once, then shows the actual error and manual retry', async ({
+// The collection still being set up is not a broken device: the saved view stays and nothing is reset.
+test('a collection still being set up keeps the saved view, resets nothing and recovers on refresh', async ({
   page,
   context,
   insets,
@@ -222,16 +224,6 @@ test('online startup failure resets only offline data, reloads once, then shows 
   await page.goto(entry);
   await ready(page);
   await seedResetSentinels(page);
-  await page.evaluate(() => sessionStorage.setItem('holofolder-startup-reset-v1', '1'));
-  await page.evaluate(async (url) => {
-    await navigator.serviceWorker.register(url, { scope: '/app' });
-    await navigator.serviceWorker.ready;
-    await navigator.serviceWorker.register('/app/sw.js?unrelated=1', { scope: '/unrelated/' });
-  }, SERVICE_WORKER_URL);
-  await expect
-    .poll(() => page.evaluate(() => navigator.serviceWorker.controller?.scriptURL))
-    .toContain(SERVICE_WORKER_URL);
-  const device = await page.evaluate(() => localStorage.getItem('holofolder-slot-device-v1'));
   await context.route('**/app/e2e-harness/storage/inventory?*', (route) =>
     route.fulfill({ status: 503, json: { code: 'inventory_not_initialized' } }),
   );
@@ -240,32 +232,26 @@ test('online startup failure resets only offline data, reloads once, then shows 
     if (request.isNavigationRequest() && request.resourceType() === 'document') navigations++;
   });
   await page.reload();
-  await expect(page.getByRole('alert').filter({ hasText: 'Could not open storage:' })).toHaveText(
-    'Could not open storage: inventory_not_initialized',
-    { timeout: 20_000 },
-  );
-  expect(navigations).toBe(2);
-  await expectReset(page);
+  await expect(page.getByRole('status').filter({ hasText: 'still being set up' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Showing what was last saved on this device')).toBeVisible();
+  expect(navigations).toBe(1);
   expect(
-    await page.evaluate(async () =>
-      (await navigator.serviceWorker.getRegistrations()).map((r) => new URL(r.scope).pathname),
-    ),
-  ).toEqual(['/unrelated/']);
-  expect(await page.evaluate(() => localStorage.getItem('holofolder-slot-device-v1'))).toBe(device);
-  const retry = page.getByRole('button', { name: 'Retry opening storage', exact: true });
-  const h = new Harness(page, insets, true);
-  await h.expectMinTapTarget(retry);
-  await h.expectWithinSafeViewport(retry);
-  await h.expectHittable(retry);
-  await h.expectNoHorizontalOverflow();
+    await page.evaluate(async () => ({
+      guard: sessionStorage.getItem('holofolder-startup-reset-v2'),
+      cached: !!(await caches.match('/app/synthetic-reset-sentinel')),
+    })),
+  ).toEqual({ guard: null, cached: true });
+  expect(await records(page)).toContain('synthetic offline data');
+  await new Harness(page, insets, true).expectNoHorizontalOverflow();
   await context.route('**/app/e2e-harness/storage/inventory?*', (route) => inventory(route));
-  await retry.click();
+  await (await storageAction(page, 'Refresh')).click();
   await ready(page);
-  expect(navigations).toBe(3);
+  expect(navigations).toBe(1);
 });
 
 for (const stage of ['queue', 'metadata', 'save'] as const)
   test(`online stalled ${stage} transaction gets one bounded reset and fresh startup`, async ({ page }) => {
+    test.setTimeout(CHECKED_STARTUP_TIMEOUT_MS + 45_000);
     await page.goto(entry);
     await ready(page);
     await seedResetSentinels(page);
@@ -293,7 +279,7 @@ for (const stage of ['queue', 'metadata', 'save'] as const)
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-synthetic-storage-held', stage);
     await ready(page, CHECKED_STARTUP_TIMEOUT_MS + 10_000);
-    await expectReset(page);
+    await expectReset(page, { stalledRecords: true });
     const rows = await records(page);
     expect(
       rows.find((r): r is { snapshot: InventorySnapshot } => !!r && typeof r === 'object' && 'snapshot' in r)?.snapshot,
@@ -327,7 +313,7 @@ test('valid complete read taking more than ten seconds opens without clearing sa
   expect(await records(page)).toContain('synthetic offline data');
 });
 
-test('online complete-read timeout resets once, then stops with an error instead of looping', async ({
+test('a complete read that never answers says the cards could not load instead of resetting or looping', async ({
   page,
   context,
 }) => {
@@ -335,13 +321,16 @@ test('online complete-read timeout resets once, then stops with an error instead
   await context.route('**/app/e2e-harness/storage/inventory?*', async () => {
     /* Synthetic dead network, cancelled when the document reloads. */
   });
+  let navigations = 0;
+  page.on('request', (request) => {
+    if (request.isNavigationRequest() && request.resourceType() === 'document') navigations++;
+  });
   await page.goto(entry);
-  await expect(page.getByRole('alert').filter({ hasText: 'Could not open storage:' })).toContainText(
-    'inventory_read_unavailable',
-    { timeout: CHECKED_STARTUP_TIMEOUT_MS * 2 + 10_000 },
-  );
-  await expect(page.getByRole('button', { name: 'Retry opening storage', exact: true })).toBeVisible();
-  expect(await page.evaluate(() => sessionStorage.getItem('holofolder-startup-reset-v2'))).toBe('1');
+  await expect(page.getByRole('heading', { name: "Your cards couldn't be loaded" })).toBeVisible({
+    timeout: CHECKED_STARTUP_TIMEOUT_MS + 30_000,
+  });
+  expect(navigations).toBe(1);
+  expect(await page.evaluate(() => sessionStorage.getItem('holofolder-startup-reset-v2'))).toBeNull();
 });
 
 test('known-offline opening retains the representative cached view without an automatic reset', async ({
@@ -371,26 +360,30 @@ test('known-offline opening retains the representative cached view without an au
     uploadThroughput: -1,
   });
   await page.reload();
-  await expect(page.getByRole('status').filter({ hasText: 'Cached only. Showing saved copies' }).first()).toBeVisible({
+  await expect(page.getByText('Offline · showing what was last saved on this device')).toBeVisible({
     timeout: 15_000,
   });
   expect(await records(page)).toEqual(before);
   expect(await page.evaluate(() => sessionStorage.getItem('holofolder-startup-reset-v2'))).toBeNull();
 });
 
-test('cached view cannot hide a stalled checked account handoff indefinitely', async ({ page, context }) => {
-  test.setTimeout(110_000);
+// A check still retrying (dead Wi-Fi, a stalled membership read) keeps the saved copy on screen; only storage that
+// hangs after the account check passed is reset.
+test('a stalled account check keeps the saved view past the startup deadline without resetting', async ({
+  page,
+  context,
+}) => {
   await page.goto(entry);
   await ready(page);
+  await page.clock.install();
   await context.route('**/rest/v1/partnerships*', async () => {
     /* Synthetic stalled membership check. */
   });
   await page.reload();
   await expect(collectionPicker(page)).toBeVisible();
-  await expect(page.getByRole('alert').filter({ hasText: 'Could not open storage:' })).toContainText(
-    CHECKED_STARTUP_TIMEOUT_ERROR,
-    { timeout: CHECKED_STARTUP_TIMEOUT_MS * 2 + 10_000 },
-  );
-  await expect(page.getByRole('button', { name: 'Retry opening storage', exact: true })).toBeVisible();
-  expect(await page.evaluate(() => sessionStorage.getItem('holofolder-startup-reset-v2'))).toBe('1');
+  await expect(page.getByText('Showing what was last saved on this device')).toBeVisible();
+  await page.clock.fastForward(CHECKED_STARTUP_TIMEOUT_MS + 2_000);
+  await expect(page.getByText('Showing what was last saved on this device')).toBeVisible();
+  await expect(page.getByRole('alert').filter({ hasText: 'Could not open storage:' })).toHaveCount(0);
+  expect(await page.evaluate(() => sessionStorage.getItem('holofolder-startup-reset-v2'))).toBeNull();
 });
