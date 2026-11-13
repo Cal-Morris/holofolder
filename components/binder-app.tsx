@@ -32,12 +32,14 @@ import {
   useLayoutEffect,
   useRef,
   useCallback,
+  useSyncExternalStore,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import dashboardStyles from '@/components/dashboard-binder-preview.module.css';
 import { BillingContext, useBilling } from '@/hooks/use-billing';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { CreditsNotice } from '@/components/credits';
 import type { SettingsPageId } from '@/components/settings-modal';
 import { useRouter } from 'next/navigation';
@@ -195,7 +197,6 @@ import {
 } from '@/lib/collection-view-filter';
 import { useNativeBinderValue } from '@/components/binder-value';
 import { nativeValueLabel, sumCopyValues } from '@/lib/collection/native-analytics';
-import { rememberBinderScope } from '@/lib/binders/all-binders';
 import {
   buildSlotDisplay,
   displaySlotImageUrl,
@@ -264,9 +265,40 @@ interface BinderAppProps {
   startGrid?: { rows: number; cols: number };
 }
 
+function rememberThemeChoice(theme: 'dark' | 'light') {
+  const maxAge = 60 * 60 * 24 * 365;
+  document.cookie = `binderdex_theme=${theme}; path=/; max-age=${maxAge}; samesite=lax`;
+}
+function subscribeOnline(onChange: () => void) {
+  window.addEventListener('online', onChange);
+  window.addEventListener('offline', onChange);
+  return () => {
+    window.removeEventListener('online', onChange);
+    window.removeEventListener('offline', onChange);
+  };
+}
+const readOnline = () => navigator.onLine;
+const readOnlineOnServer = () => true;
+/** Whether the browser is online (true during SSR and hydration). */
+const useOnline = () => useSyncExternalStore(subscribeOnline, readOnline, readOnlineOnServer);
+const subscribeNever = () => () => {};
+const readHost = () => location.host;
+const readNoHost = () => null;
+function subscribeStandalone(onChange: () => void) {
+  const list = window.matchMedia('(display-mode: standalone)');
+  list.addEventListener?.('change', onChange);
+  return () => list.removeEventListener?.('change', onChange);
+}
+const readStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+const readNotStandalone = () => false;
+
 /** Authenticated lifetimes never mount the writable legacy collection hook. */
+// oxlint-disable-next-line react-doctor/prefer-useReducer -- independent startup flags, each set from a different callback (session ready, displayed, startup failure); React batches them, a reducer would only add indirection
 export default function BinderApp(props: BinderAppProps) {
   const nativeHost = Boolean(
+    // oxlint-disable-next-line react-doctor/no-event-handler -- nativeHost is fixed for the mount; the effects keyed on it preload the session code and arm startup timeouts, not user events
     props.initialUser &&
     !props.readOnlyMode &&
     !props.shareViewToken &&
@@ -278,10 +310,8 @@ export default function BinderApp(props: BinderAppProps) {
     props.initialCollectionOwnerUserId ?? null,
     nativeHost,
   );
-  const [host, setHost] = useState<string | null>(null);
-  useEffect(() => {
-    queueMicrotask(() => setHost(location.host));
-  }, []);
+  // Known on the client only: null through SSR and hydration.
+  const host = useSyncExternalStore(subscribeNever, readHost, readNoHost);
   // Fetch the session's code while the account check runs, not after it.
   useEffect(() => {
     if (nativeHost) void import('@/components/collection-navigation/browser-session');
@@ -297,7 +327,7 @@ export default function BinderApp(props: BinderAppProps) {
     setDisplayedSession(paintableSession);
   const [startupError, setStartupError] = useState('');
   const [resetting, setResetting] = useState(false);
-  const [startupOnline, setStartupOnline] = useState(true);
+  const startupOnline = useOnline();
   // Once the binder has opened, startup is over for this tab: a later scope blip or rotation never resets it.
   const [everOpened, setEverOpened] = useState(false);
   const openedNow = Boolean(scope && completedSession === scope.sessionId);
@@ -329,29 +359,20 @@ export default function BinderApp(props: BinderAppProps) {
     },
     [opened],
   );
-  useEffect(() => {
-    const update = () => setStartupOnline(navigator.onLine);
-    update();
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
-    };
-  }, []);
+  const failStartupLater = useEffectEvent((reason: string) => failStartup(reason));
   useEffect(() => {
     // Only storage that hangs after the account check passed is reset. A check still retrying (dead Wi-Fi)
     // keeps the saved copy on screen instead.
     if (!nativeHost || opened || !scope || paintableSession === scope.sessionId || !startupOnline || !navigator.onLine)
       return;
-    const timer = setTimeout(() => failStartup(CHECKED_STARTUP_TIMEOUT_ERROR), CHECKED_STARTUP_TIMEOUT_MS);
+    const timer = setTimeout(() => failStartupLater(CHECKED_STARTUP_TIMEOUT_ERROR), CHECKED_STARTUP_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [nativeHost, opened, scope, paintableSession, startupOnline, failStartup]);
+  }, [nativeHost, opened, scope, paintableSession, startupOnline]);
   useEffect(() => {
     if (!nativeHost || opened || !browserScope.error) return;
-    const timer = setTimeout(() => failStartup(browserScope.error!), 0);
+    const timer = setTimeout(() => failStartupLater(browserScope.error!), 0);
     return () => clearTimeout(timer);
-  }, [nativeHost, opened, browserScope.error, failStartup]);
+  }, [nativeHost, opened, browserScope.error]);
   if (!nativeHost) return <BinderAppSurface {...props} />;
   if (startupError && startupOnline && !opened)
     return (
@@ -512,6 +533,7 @@ function BinderAppSurface(props: BinderAppProps) {
     initialSharePath = null,
     initialBinders = [],
     initialBinderId = null,
+    // oxlint-disable-next-line react-doctor/no-event-handler -- attributed to destructured props that feed the page-from-URL, host page sync, layout reset, filter clamp and theme sync effects below, which react to data changes, not user events
   } = props;
   const publicIndex = stagedSlotDisplay && !browserSurface ? props.publicIndex : undefined;
   const readOnlyMode = legacyReadOnlyMode || Boolean(stagedSlotDisplay) || Boolean(browserSurface);
@@ -546,7 +568,6 @@ function BinderAppSurface(props: BinderAppProps) {
   const [isBinderSwitcherOpen, setIsBinderSwitcherOpen] = useState(false);
   const [binders, setBinders] = useState<Binder[]>(initialBinders);
   const activeBinder = binders.find((binder) => binder.id === initialBinderId) ?? null;
-  const [themeCookieChoice, setThemeCookieChoice] = useState<'dark' | 'light' | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isQuickModeOpen, setIsQuickModeOpen] = useState(false);
   // The want list's "Check price of any card": Quick mode as a price lookup (deal checker) outside Show mode.
@@ -580,7 +601,12 @@ function BinderAppSurface(props: BinderAppProps) {
   const [currentBinderPage, setCurrentBinderPage] = useState(browserSurface?.surface.collection?.state.page ?? 1);
   const [pageNavigation, setPageNavigation] = useState<{ page: number; direction: 'left' | 'right' } | null>(null);
   const pendingBinderPage = pageNavigation?.page ?? null;
-  const [pageInputValue, setPageInputValue] = useState('1');
+  const [pageInputValue, setPageInputValue] = useState(() =>
+    String(browserSurface?.surface.collection?.state.page ?? 1),
+  );
+  // The page the input and pending navigation were last reset for.
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- previous-value tracking for the render-time reset below (the documented React pattern for adjusting state when a value changes)
+  const [pageInputPage, setPageInputPage] = useState(() => browserSurface?.surface.collection?.state.page ?? 1);
   const [collectionViewFilter, setCollectionViewFilter] = useState<CollectionViewFilter>('all');
   const [isMobileNavExpanded, setIsMobileNavExpanded] = useState(false);
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false);
@@ -604,21 +630,13 @@ function BinderAppSurface(props: BinderAppProps) {
     const set = browserSurface?.surface.state.requestedSet;
     return set ? { set, key: 0 } : null;
   });
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const transitionContent = useNavigationTransition(prefersReducedMotion);
   usePressFeedback();
   useFreezeBlurOnScroll();
   const mainViewRef = useRef<HTMLDivElement>(null);
   useViewScrollRestoration(mainViewRef, activeMainView);
   const viewRequestRef = useRef(0);
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setPrefersReducedMotion(query.matches);
-    update();
-    query.addEventListener?.('change', update);
-    return () => query.removeEventListener?.('change', update);
-  }, []);
   // Once the binder has painted, fetch the other tabs' code in idle time so the first switch
   // doesn't wait on a download. The frame callback pushes the idle wait past that first paint.
   useEffect(() => {
@@ -631,6 +649,7 @@ function BinderAppSurface(props: BinderAppProps) {
       cancelPreload?.();
     };
   }, []);
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- bumping it refetches the share state in the effect that depends on it
   const [shareIdentityRevision, setShareIdentityRevision] = useState(0);
   const handlePublicIdentityChange = useCallback(() => setShareIdentityRevision((value) => value + 1), []);
   const [sharePath, setSharePath] = useState<string | null>(
@@ -641,19 +660,23 @@ function BinderAppSurface(props: BinderAppProps) {
   const [isShareLoading, setIsShareLoading] = useState(false);
   const [isRefreshingPrices, setIsRefreshingPrices] = useState(false);
   const [priceRefreshMessage, setPriceRefreshMessage] = useState<string | null>(null);
-  const [isOnline, setIsOnline] = useState(true);
-  const [isInstalledApp, setIsInstalledApp] = useState(false);
+  const isOnline = useOnline();
+  const isStandaloneDisplay = useSyncExternalStore(subscribeStandalone, readStandalone, readNotStandalone);
+  // Installed from this tab (appinstalled), which doesn't switch the tab itself to standalone.
+  const [installedHere, setInstalledHere] = useState(false);
+  const isInstalledApp = isStandaloneDisplay || installedHere;
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [pwaStatusMessage, setPwaStatusMessage] = useState<string | null>(null);
-  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
-  const [isCompactViewport, setIsCompactViewport] = useState(false);
-  const [isWideBinderSpread, setIsWideBinderSpread] = useState(false);
+  const isDesktopViewport = useMediaQuery('(min-width: 640px)');
+  const isCompactViewport = useMediaQuery('(max-width: 767px)');
+  const isWideBinderSpread = useMediaQuery('(min-width: 1280px)');
   const [binderCardDisplay, setBinderCardDisplay] = useState<BinderCardDisplay>('mixed');
   const [binderDimension, setBinderDimension] = useState<'2d' | '3d'>('2d');
   const [isMobileSpreadPreview, setIsMobileSpreadPreview] = useState(false);
   const [slotGlareState, setSlotGlareState] = useState(DEFAULT_SLOT_GLARE_STATE);
   const [motionGlintStatus, setMotionGlintStatus] = useState<MotionGlintStatus>('fallback');
   const [motionGlintMessage, setMotionGlintMessage] = useState<string | null>(null);
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- bumping it rebinds the motion sensor listeners in the effect that depends on it
   const [motionSensorVersion, setMotionSensorVersion] = useState(0);
   const [quickPanelPosition, setQuickPanelPosition] = useState<QuickPanelPosition | null>(null);
   const [binderStageSize, setBinderStageSize] = useState({ width: 0, height: 0 });
@@ -662,7 +685,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const quickPanelRef = useRef<HTMLDivElement | null>(null);
   const binderStageRef = useRef<HTMLDivElement | null>(null);
   const binderPageRef = useRef<HTMLDivElement | null>(null);
-  const slotButtonRefs = useRef(new Map<number, HTMLButtonElement>());
+  const [slotButtons] = useState(() => new Map<number, HTMLButtonElement>());
   const shellNavRef = useRef<HTMLElement | null>(null);
   const motionSensorsEnabledRef = useRef(false);
   const hasAutoRequestedMotionPermissionRef = useRef(false);
@@ -748,6 +771,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const history = useBinderHistory(historyScope);
   const refreshHistory = history.refresh;
   useEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-event-handler, react-doctor/no-pass-data-to-parent -- refreshes history while Search or Quick mode is open, whichever of their many entry points opened them
     if (isSearchOpen || isQuickModeOpen) refreshHistory();
   }, [isSearchOpen, isQuickModeOpen, refreshHistory]);
 
@@ -758,6 +782,7 @@ function BinderAppSurface(props: BinderAppProps) {
     isShowModeOn,
   });
 
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- a render must commit the closed switcher first so its history entry pops before navigating (see the effect below)
   const [pendingBinderSwitch, setPendingBinderSwitch] = useState<string | null>(null);
   const switchBinder = useCallback(
     (binderId: string) => {
@@ -779,6 +804,7 @@ function BinderAppSurface(props: BinderAppProps) {
       );
       // Offline, a full load lets the service worker open that binder's saved copy from the app shell.
       if (typeof navigator !== 'undefined' && navigator.onLine === false) window.location.assign(appPath(href));
+      // oxlint-disable-next-line react-doctor/nextjs-no-client-side-redirect -- a user-chosen binder switch, deferred until the switcher has closed; not a redirect
       else router.push(href);
     });
   }, [binders, isBinderSwitcherOpen, pendingBinderSwitch, router]);
@@ -973,52 +999,8 @@ function BinderAppSurface(props: BinderAppProps) {
     ],
   );
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const desktopMediaQuery = window.matchMedia('(min-width: 640px)');
-    const compactMediaQuery = window.matchMedia('(max-width: 767px)');
-    const spreadMediaQuery = window.matchMedia('(min-width: 1280px)');
-    const updateViewportMode = () => {
-      setIsDesktopViewport(desktopMediaQuery.matches);
-      setIsCompactViewport(compactMediaQuery.matches);
-      setIsWideBinderSpread(spreadMediaQuery.matches);
-    };
-
-    updateViewportMode();
-
-    if (
-      typeof desktopMediaQuery.addEventListener === 'function' &&
-      typeof compactMediaQuery.addEventListener === 'function' &&
-      typeof spreadMediaQuery.addEventListener === 'function'
-    ) {
-      desktopMediaQuery.addEventListener('change', updateViewportMode);
-      compactMediaQuery.addEventListener('change', updateViewportMode);
-      spreadMediaQuery.addEventListener('change', updateViewportMode);
-      return () => {
-        desktopMediaQuery.removeEventListener('change', updateViewportMode);
-        compactMediaQuery.removeEventListener('change', updateViewportMode);
-        spreadMediaQuery.removeEventListener('change', updateViewportMode);
-      };
-    }
-
-    desktopMediaQuery.addListener(updateViewportMode);
-    compactMediaQuery.addListener(updateViewportMode);
-    spreadMediaQuery.addListener(updateViewportMode);
-    return () => {
-      desktopMediaQuery.removeListener(updateViewportMode);
-      compactMediaQuery.removeListener(updateViewportMode);
-      spreadMediaQuery.removeListener(updateViewportMode);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isCompactViewport && isMobileSpreadPreview) {
-      setIsMobileSpreadPreview(false);
-    }
-  }, [isCompactViewport, isMobileSpreadPreview]);
+  // The spread preview only exists on compact screens; leaving one turns it off.
+  if (!isCompactViewport && isMobileSpreadPreview) setIsMobileSpreadPreview(false);
 
   useLayoutEffect(() => {
     const stage = binderStageRef.current;
@@ -1125,6 +1107,15 @@ function BinderAppSurface(props: BinderAppProps) {
     }
   }, [motionGlintEffectsEnabled]);
 
+  const requestMotionFromGesture = useEffectEvent(() => {
+    if (hasAutoRequestedMotionPermissionRef.current) {
+      return;
+    }
+
+    hasAutoRequestedMotionPermissionRef.current = true;
+    void handleRequestMotionGlint();
+  });
+
   useEffect(() => {
     if (
       typeof window === 'undefined' ||
@@ -1145,34 +1136,31 @@ function BinderAppSurface(props: BinderAppProps) {
       return;
     }
 
-    const requestFromGesture = () => {
-      if (hasAutoRequestedMotionPermissionRef.current) {
-        return;
-      }
-
-      hasAutoRequestedMotionPermissionRef.current = true;
-      void handleRequestMotionGlint();
-    };
+    const requestFromGesture = () => requestMotionFromGesture();
 
     window.addEventListener('click', requestFromGesture, { capture: true, once: true });
-    window.addEventListener('touchend', requestFromGesture, { capture: true, once: true });
+    window.addEventListener('touchend', requestFromGesture, { capture: true, once: true, passive: true });
 
     return () => {
       window.removeEventListener('click', requestFromGesture, true);
       window.removeEventListener('touchend', requestFromGesture, true);
     };
-  }, [handleRequestMotionGlint, motionGlintStatus, motionGlintEffectsEnabled]);
+  }, [motionGlintStatus, motionGlintEffectsEnabled]);
 
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
 
+    // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
     setSlotGlareState(DEFAULT_SLOT_GLARE_STATE);
 
     if (!motionGlintEffectsEnabled) {
       // Pausing rendering does not revoke an iOS motion permission already granted.
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintStatus('disabled');
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintMessage(null);
       return;
     }
@@ -1358,14 +1346,20 @@ function BinderAppSurface(props: BinderAppProps) {
 
     if (!hasSensorApi) {
       motionSensorsEnabledRef.current = false;
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintStatus('unsupported');
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintMessage('Motion sensors are not exposed here. Touch and pointer movement still move the shine.');
     } else if (needsExplicitPermission && !motionSensorsEnabledRef.current) {
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintStatus((status) => (status === 'denied' ? status : 'needs-permission'));
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintMessage((message) => message ?? 'Tap Enable motion glint in settings, then tilt the phone.');
     } else {
       motionSensorsEnabledRef.current = true;
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       bindSensorListeners();
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
       setMotionGlintStatus((status) => (status === 'active' ? status : 'fallback'));
     }
 
@@ -1488,7 +1482,9 @@ function BinderAppSurface(props: BinderAppProps) {
     }
 
     const nextPage = Math.min(Math.max(parsedPage, 1), totalBinderPages);
+    // oxlint-disable-next-line react-doctor/no-event-handler -- one-time read of ?page= after hydration; the server render cannot see it, so it cannot be the initial state
     if (nextPage !== currentBinderPage) {
+      // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-chain-state-updates, react-doctor/no-derived-state -- one-time read of ?page= after hydration; the server render cannot see it, so it cannot be the initial state
       setCurrentBinderPage(nextPage);
     }
   }, [localBrowserHost, browserSurface, currentBinderPage, totalBinderPages]);
@@ -1510,10 +1506,12 @@ function BinderAppSurface(props: BinderAppProps) {
     window.history.replaceState(window.history.state, '', url);
   }, [localBrowserHost, browserSurface, currentBinderPage]);
 
-  useEffect(() => {
+  // A new current page resets the page input and ends any pending page navigation.
+  if (pageInputPage !== currentBinderPage) {
+    setPageInputPage(currentBinderPage);
     setPageInputValue(String(currentBinderPage));
     setPageNavigation(null);
-  }, [currentBinderPage]);
+  }
 
   const orderedDisplayPages = useMemo(
     () =>
@@ -1544,8 +1542,10 @@ function BinderAppSurface(props: BinderAppProps) {
   useEffect(() => {
     if (
       browserSurface?.surface.state.main === 'collection' &&
+      // oxlint-disable-next-line react-doctor/no-event-handler -- tells the navigation host the committed page so it lands in the URL and history; the page changes from many places (swipes, keys, jumps, filter clamps)
       browserSurface.surface.collection?.state.page !== currentBinderPage
     )
+      // oxlint-disable-next-line react-doctor/no-pass-live-state-to-parent -- tells the navigation host the committed page so it lands in the URL and history; the page changes from many places (swipes, keys, jumps, filter clamps)
       browserSurface.surface.collection?.onChange({ page: currentBinderPage });
   }, [browserSurface, currentBinderPage]);
   const layoutScopeKey = JSON.stringify([
@@ -1593,13 +1593,14 @@ function BinderAppSurface(props: BinderAppProps) {
   );
   const canEditLayout = layoutPlace && (!browserSurface || browserSurface.editingAvailable);
   const editingLayout = canEditLayout && layoutSession?.scope === layoutScopeKey;
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state -- three resets in one microtask, which React batches into a single render
   useEffect(() => {
     queueMicrotask(() => {
       setLayoutSession(null);
       setPocketMenu(null);
-      closeSlotDetail();
+      setSelectedSlotId(null);
     });
-  }, [layoutScopeKey, layoutPlace, closeSlotDetail]);
+  }, [layoutScopeKey, layoutPlace]);
   const layoutBoundary =
     canEditLayout && stagedSlotDisplay && stagedSlotCatalog && onStagedSlotCommandIntent
       ? {
@@ -1675,10 +1676,9 @@ function BinderAppSurface(props: BinderAppProps) {
     queueMicrotask(() => {
       const pending = pendingPublicSlotRef.current;
       pendingPublicSlotRef.current = null;
-      if (pending) setSelectedSlotId(pending);
-      else closeSlotDetail();
+      setSelectedSlotId(pending || null);
     });
-  }, [currentBinderPage, binderDimension, activeMainView, collectionViewFilter, selectedGen, closeSlotDetail]);
+  }, [currentBinderPage, binderDimension, activeMainView, collectionViewFilter, selectedGen]);
   // The next start's skeleton shows this binder's grid. Only an owner's binder on screen counts.
   const binderGridShown =
     !shareViewToken &&
@@ -1762,6 +1762,7 @@ function BinderAppSurface(props: BinderAppProps) {
   });
 
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-derived-state, react-doctor/no-pass-data-to-parent, react-doctor/no-pass-live-state-to-parent -- clamps the page once when filters or the grid change; the user pages freely afterwards, so the page is not derivable
     adjustPageForFilters();
   }, [
     selectedGen,
@@ -2014,11 +2015,8 @@ function BinderAppSurface(props: BinderAppProps) {
     () => buildWantedDashboardSummary(wantedCardEntries, pricesByCardId),
     [pricesByCardId, wantedCardEntries],
   );
-  useEffect(() => {
-    if (!hasTrackedCards && isPriceMode) {
-      setIsPriceMode(false);
-    }
-  }, [hasTrackedCards, isPriceMode]);
+  // Price mode needs tracked cards; losing the last one turns it off.
+  if (!hasTrackedCards && isPriceMode) setIsPriceMode(false);
 
   const neededPokemonList = useMemo(
     () => generationFilteredPokemonList.filter((pokemon) => !isCollected(pokemon.id)),
@@ -2764,28 +2762,28 @@ function BinderAppSurface(props: BinderAppProps) {
     handleJumpBetweenTargets('prev');
   }, [handleJumpBetweenTargets]);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (isSearchOpen) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
+  const onJumpKey = useEffectEvent((event: KeyboardEvent) => {
+    if (isSearchOpen) return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
 
-      const target = event.target as HTMLElement | null;
-      if (target?.isContentEditable) return;
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.isContentEditable) return;
+    if (target && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)) return;
 
-      if (event.key.toLowerCase() === 'n') {
-        event.preventDefault();
-        if (event.shiftKey) {
-          handleJumpToPreviousNeeded();
-        } else {
-          handleJumpToNextNeeded();
-        }
+    if (event.key.toLowerCase() === 'n') {
+      event.preventDefault();
+      if (event.shiftKey) {
+        handleJumpToPreviousNeeded();
+      } else {
+        handleJumpToNextNeeded();
       }
-    };
-
+    }
+  });
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => onJumpKey(event);
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleJumpToNextNeeded, handleJumpToPreviousNeeded, isSearchOpen]);
+  }, []);
 
   const handleSlotClick = (pokemon: { id: number; name: string }) => {
     if (isSwiping || didSwipe()) return;
@@ -2822,20 +2820,16 @@ function BinderAppSurface(props: BinderAppProps) {
       void updateSettings({ darkMode: next });
     }
     document.documentElement.classList.toggle('dark', next);
-    setThemeCookieChoice(next ? 'dark' : 'light');
+    // Only a theme the user picked here is saved to the cookie, not one synced from settings.
+    rememberThemeChoice(next ? 'dark' : 'light');
   };
 
-  // Only a theme the user picked here is saved to the cookie, not one synced from settings.
   useEffect(() => {
-    if (!themeCookieChoice) return;
-    const maxAge = 60 * 60 * 24 * 365;
-    document.cookie = `binderdex_theme=${themeCookieChoice}; path=/; max-age=${maxAge}; samesite=lax`;
-  }, [themeCookieChoice]);
-
-  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-derived-state -- the server paints the cookie theme; saved settings take over after mount and on change, and the toggle can differ from them until they save
     setIsDarkMode(settings.darkMode);
   }, [settings.darkMode]);
 
+  // oxlint-disable-next-line react-doctor/no-effect-chain -- applies the theme to <html> and its meta tags (DOM outside React) whenever it changes, from the toggle or from settings
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
 
@@ -2868,21 +2862,6 @@ function BinderAppSurface(props: BinderAppProps) {
       return;
     }
 
-    setIsOnline(window.navigator.onLine);
-    const standaloneMatch = window.matchMedia('(display-mode: standalone)');
-    const updateStandaloneMode = () => {
-      const isStandalone =
-        standaloneMatch.matches ||
-        (typeof window.navigator !== 'undefined' &&
-          'standalone' in window.navigator &&
-          Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone));
-      setIsInstalledApp(isStandalone);
-    };
-
-    updateStandaloneMode();
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setInstallPromptEvent(event as BeforeInstallPromptEvent);
@@ -2890,30 +2869,18 @@ function BinderAppSurface(props: BinderAppProps) {
     };
     const handleAppInstalled = () => {
       setInstallPromptEvent(null);
-      setIsInstalledApp(true);
+      setInstalledHere(true);
       setPwaStatusMessage('Holo Folder installed. The app shell and cached assets are now available offline.');
     };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
-
-    if (typeof standaloneMatch.addEventListener === 'function') {
-      standaloneMatch.addEventListener('change', updateStandaloneMode);
-    }
 
     registerServiceWorker();
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
-
-      if (typeof standaloneMatch.removeEventListener === 'function') {
-        standaloneMatch.removeEventListener('change', updateStandaloneMode);
-      }
     };
   }, []);
 
@@ -2979,12 +2946,16 @@ function BinderAppSurface(props: BinderAppProps) {
     }
   }, [installPromptEvent]);
 
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state, react-doctor/no-fetch-in-effect -- cancellable load of the share link for the current binder and identity; the app has no client data layer
   useEffect(() => {
     if (!canManageShare) {
       if (!legacyReadOnlyMode && !shareViewToken) {
+        // oxlint-disable-next-line react/set-state-in-effect -- clears the share state when this binder stops being shareable here (signed out, read-only, partner view)
         setSharePath(null);
         setIsShareEnabled(false);
+        // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- clears the share state when this binder stops being shareable here (signed out, read-only, partner view)
         setShareShowPrices(false);
+        // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- clears the share state when this binder stops being shareable here (signed out, read-only, partner view)
         setIsShareLoading(false);
       }
       return;
@@ -3034,6 +3005,7 @@ function BinderAppSurface(props: BinderAppProps) {
       setIsShareLoading(true);
 
       try {
+        // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after this await checks the share scope did not change during it, so it has to run after it
         const response = await fetch('/app/api/binder-share', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3085,6 +3057,7 @@ function BinderAppSurface(props: BinderAppProps) {
     setIsShareLoading(true);
 
     try {
+      // oxlint-disable-next-line react-doctor/async-defer-await -- the guard after this await checks the share scope did not change during it, so it has to run after it
       const response = await fetch(binderShareUrl(shareBinderId), {
         method: 'DELETE',
       });
@@ -3255,14 +3228,17 @@ function BinderAppSurface(props: BinderAppProps) {
   const selectedCollectedDateLabel =
     collectionItem?.status !== 'wishlisted' ? formatCollectedDate(collectionItem?.collected_at) : null;
 
-  const registerSlotButtonRef = useCallback((pokemonId: number, node: HTMLButtonElement | null) => {
-    if (node) {
-      slotButtonRefs.current.set(pokemonId, node);
-      return;
-    }
+  const registerSlotButtonRef = useCallback(
+    (pokemonId: number, node: HTMLButtonElement | null) => {
+      if (node) {
+        slotButtons.set(pokemonId, node);
+        return;
+      }
 
-    slotButtonRefs.current.delete(pokemonId);
-  }, []);
+      slotButtons.delete(pokemonId);
+    },
+    [slotButtons],
+  );
 
   const updateQuickPanelPosition = useCallback(() => {
     if (typeof window === 'undefined' || !selectedPokemon || isSearchOpen) {
@@ -3275,7 +3251,7 @@ function BinderAppSurface(props: BinderAppProps) {
       return;
     }
 
-    const slotButton = slotButtonRefs.current.get(selectedPokemon.id);
+    const slotButton = slotButtons.get(selectedPokemon.id);
     const quickPanelNode = quickPanelRef.current;
 
     if (!slotButton || !quickPanelNode) {
@@ -3321,45 +3297,46 @@ function BinderAppSurface(props: BinderAppProps) {
 
       return { top, left, maxHeight };
     });
-  }, [isDesktopViewport, isSearchOpen, selectedPokemon]);
+  }, [isDesktopViewport, isSearchOpen, selectedPokemon, slotButtons]);
+  const layoutQuickPanel = useEffectEvent(() => updateQuickPanelPosition());
 
   useEffect(() => {
     if (!selectedPokemon || isSearchOpen || typeof window === 'undefined') {
+      // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-adjust-state-on-prop-change -- drops the measured position when the panel hides, so a reopened panel never paints at a stale spot
       setQuickPanelPosition(null);
       return;
     }
 
     if (!isDesktopViewport) {
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- drops the measured position when the panel hides, so a reopened panel never paints at a stale spot
       setQuickPanelPosition(null);
       return;
     }
 
-    const frame = window.requestAnimationFrame(() => {
-      updateQuickPanelPosition();
-    });
+    const update = () => layoutQuickPanel();
+    const frame = window.requestAnimationFrame(update);
 
-    const observer = new ResizeObserver(updateQuickPanelPosition);
+    const observer = new ResizeObserver(update);
     if (quickPanelRef.current) observer.observe(quickPanelRef.current);
-    window.addEventListener('resize', updateQuickPanelPosition, { passive: true });
-    window.addEventListener('scroll', updateQuickPanelPosition, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
+    window.addEventListener('scroll', update, { passive: true });
 
     return () => {
       window.cancelAnimationFrame(frame);
       observer.disconnect();
-      window.removeEventListener('resize', updateQuickPanelPosition);
-      window.removeEventListener('scroll', updateQuickPanelPosition);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update);
     };
   }, [
     collectionItem?.card_name,
     collected,
     isDesktopViewport,
     isSearchOpen,
-    selectedPokemon?.id,
+    selectedPokemon,
     selectedCurrentCardPreview?.cardId,
     selectedHasWantedCard,
     selectedPokemonHasAssignedCard,
     selectedPokemonIsFavorite,
-    updateQuickPanelPosition,
     wishlisted,
   ]);
 
@@ -3611,9 +3588,11 @@ function BinderAppSurface(props: BinderAppProps) {
         item.identity.kind === 'card' ? [{ card_id: item.identity.cardId, status: 'collected' }] : [],
       ),
       ...snapshot.binders.flatMap((binder) =>
-        binder.slots
-          .filter((slot) => slot.wantedCards.length > 0)
-          .map((slot) => ({ wanted_cards: slot.wantedCards.map((want) => ({ card_id: want.card_id })) })),
+        binder.slots.flatMap((slot) =>
+          slot.wantedCards.length > 0
+            ? [{ wanted_cards: slot.wantedCards.map((want) => ({ card_id: want.card_id })) }]
+            : [],
+        ),
       ),
     ];
   }, [illustratorBrowser, nativeRead, collection]);
@@ -3827,8 +3806,11 @@ function BinderAppSurface(props: BinderAppProps) {
 
   // Full-screen dialogs replace the card detail instead of stacking on top of it.
   useEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-event-handler -- closes the card detail whenever a full-screen dialog opens; they open from many call sites
     if (isSettingsOpen || isAuthOpen || isPartnerOpen || isMobileNavExpanded) {
+      // oxlint-disable-next-line react/set-state-in-effect, react-doctor/no-chain-state-updates -- closes the card detail whenever a full-screen dialog opens; they open from many call sites
       setSelectedPokemon(null);
+      // oxlint-disable-next-line react-doctor/no-chain-state-updates -- closes the card detail whenever a full-screen dialog opens; they open from many call sites
       setLongPressedPokemon(null);
     }
   }, [isAuthOpen, isMobileNavExpanded, isPartnerOpen, isSettingsOpen]);
@@ -3918,31 +3900,32 @@ function BinderAppSurface(props: BinderAppProps) {
       setSelectedPokemon,
     });
 
+  const onPageKey = useEffectEvent((e: KeyboardEvent) => {
+    if (isSearchOpen) return;
+    if (e.key === 'ArrowLeft') {
+      if (isSpreadLayout) {
+        goToPrevSpread();
+      } else {
+        goToPrevPage();
+      }
+    }
+    if (e.key === 'ArrowRight') {
+      if (isSpreadLayout) {
+        goToNextSpread();
+      } else {
+        goToNextPage();
+      }
+    }
+    if (e.key === 'Escape') {
+      setSelectedPokemon(null);
+      setLongPressedPokemon(null);
+    }
+  });
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isSearchOpen) return;
-      if (e.key === 'ArrowLeft') {
-        if (isSpreadLayout) {
-          goToPrevSpread();
-        } else {
-          goToPrevPage();
-        }
-      }
-      if (e.key === 'ArrowRight') {
-        if (isSpreadLayout) {
-          goToNextSpread();
-        } else {
-          goToNextPage();
-        }
-      }
-      if (e.key === 'Escape') {
-        setSelectedPokemon(null);
-        setLongPressedPokemon(null);
-      }
-    };
+    const handleKeyDown = (e: KeyboardEvent) => onPageKey(e);
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [goToNextPage, goToNextSpread, goToPrevPage, goToPrevSpread, isSearchOpen, isSpreadLayout]);
+  }, []);
 
   useEffect(() => {
     if (!longPressedPokemon || !isDesktopViewport) return;
@@ -4612,9 +4595,9 @@ function BinderAppSurface(props: BinderAppProps) {
             legacyMainContent
           )}
 
-          {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
+          {/* eslint-disable-next-line react-hooks/refs, react-doctor/no-render-in-render -- the helper only passes refs through as `ref` props, and it is a render helper called inline, not a component type, so nothing remounts */}
           {renderSelectedPokemonQuickPanel()}
-          {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
+          {/* eslint-disable-next-line react-hooks/refs, react-doctor/no-render-in-render -- the helper only passes refs through as `ref` props, and it is a render helper called inline, not a component type, so nothing remounts */}
           {renderMobileSlotActionBar()}
 
           {isQuickModeOpen && (
@@ -4650,13 +4633,13 @@ function BinderAppSurface(props: BinderAppProps) {
             />
           )}
 
-          {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
+          {/* eslint-disable-next-line react-hooks/refs, react-doctor/no-render-in-render -- the helper only passes refs through as `ref` props, and it is a render helper called inline, not a component type, so nothing remounts */}
           {renderSearchOverlay()}
 
-          {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
+          {/* eslint-disable-next-line react-hooks/refs, react-doctor/no-render-in-render -- the helper only passes refs through as `ref` props, and it is a render helper called inline, not a component type, so nothing remounts */}
           {renderMobileNavMenu()}
 
-          {/* eslint-disable-next-line react-hooks/refs -- the helper only passes refs through as `ref` props */}
+          {/* eslint-disable-next-line react-hooks/refs, react-doctor/no-render-in-render -- the helper only passes refs through as `ref` props, and it is a render helper called inline, not a component type, so nothing remounts */}
           {renderBottomNav()}
 
           {/* Modals */}

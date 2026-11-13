@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
 import SlabsGallery from '@/components/slabs/slabs-gallery';
 import { slabCollectionCopies } from '@/lib/slabs/collection';
 import { SelectorMenu } from '@/components/collection-navigation/selector-menu';
@@ -78,6 +78,7 @@ export interface CollectionNavigationHostProps {
   renderNationalDex: () => ReactNode;
 }
 const NO_BINDERS: readonly { id: string; slug?: string | null }[] = [];
+const VIEW_LABELS: Record<CollectionViewState['view'], string> = { binder: 'Binder', list: 'List', slabs: 'Slabs' };
 /** Shared navigation for checked authenticated sessions and read-only cached display. */
 export default function CollectionNavigationHost(props: CollectionNavigationHostProps) {
   if (!props.scope) return <p role="status">Sign in to open your collections.</p>;
@@ -133,7 +134,17 @@ function ScopedNavigation({
     const deferred = read.evidence.kind !== 'complete' && (params.has('slot') || params.has('item'));
     return { ...resolved, notice: deferred ? '' : resolved.notice, deferred: deferred ? { remembered, params } : null };
   });
-  const [state, setState] = useState<CollectionNavigationState | null>(initial.state);
+  // What the host shows: the destination, its notice and pocket highlight, and a visit count that remounts the view.
+  // They always change together, so they are one state.
+  const [shown, setShown] = useState<{
+    state: CollectionNavigationState | null;
+    notice: string;
+    highlight: CollectionNavigationFocus | null;
+    visit: number;
+  }>({ state: initial.state, notice: initial.notice, highlight: initial.highlight, visit: 0 });
+  const { state, notice, highlight, visit } = shown;
+  const setNotice = (next: string) => setShown((current) => ({ ...current, notice: next }));
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- a render must commit first so overlay cleanup reaches history before this navigation (see the effect below)
   const [pendingNavigation, setPendingNavigation] = useState<{
     state: CollectionNavigationState;
     highlight: CollectionNavigationFocus | null;
@@ -141,9 +152,6 @@ function ScopedNavigation({
     sequence: number;
   } | null>(null);
   const entryId = useRef('');
-  const [visit, setVisit] = useState(0);
-  const [notice, setNotice] = useState(initial.notice);
-  const [highlight, setHighlight] = useState<CollectionNavigationFocus | null>(initial.highlight);
   const [fresh, setFresh] = useState<{ base: CollectionNavigationRead; value: CollectionNavigationRead } | null>(null);
   const currentRead = fresh?.base === read ? fresh.value : read;
   const index = navigationIndex(scope, currentRead);
@@ -155,9 +163,9 @@ function ScopedNavigation({
   }, [state]);
   const deferredLink = useRef(initial.deferred),
     navigated = useRef(false);
-  useEffect(() => {
+  const resolveDeferredLink = useEffectEvent(() => {
     const link = deferredLink.current;
-    if (!link || read.evidence.kind !== 'complete') return;
+    if (!link) return;
     deferredLink.current = null;
     // A navigation since the first paint (any request, or a view change) wins over the original link.
     const moved = () => navigated.current || request.current !== 0;
@@ -167,16 +175,22 @@ function ScopedNavigation({
       if (!alive.current || moved()) return;
       const changed = JSON.stringify(result.state) !== JSON.stringify(stateRef.current);
       stateRef.current = result.state;
-      setState(result.state);
-      setNotice(result.notice);
-      setHighlight(result.highlight);
-      if (changed) setVisit((v) => v + 1);
+      setShown((current) => ({
+        state: result.state,
+        notice: result.notice,
+        highlight: result.highlight,
+        visit: changed ? current.visit + 1 : current.visit,
+      }));
       history.replaceState(
         { ...history.state, collectionNavigation: { key, id: entryId.current, state: result.state } },
         '',
       );
     });
-  }, [read, initial, scope, stagedSlabs, key]);
+  });
+  useEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-event-handler, react-doctor/no-derived-state -- reacts to the parent's read becoming complete (data arriving, not a user event), and resolves a deep link once against it
+    if (read.evidence.kind === 'complete') resolveDeferredLink();
+  }, [read]);
   const persist = useCallback(
     (next: CollectionNavigationState) => {
       try {
@@ -203,41 +217,39 @@ function ScopedNavigation({
     // Scope changes remount this entire private host. Evidence updates are checked below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+  const onPop = useEffectEvent((event: PopStateEvent) => {
+    if (isOverlayHistoryCleanup(event)) return;
+    const entry = event.state?.collectionNavigation;
+    // Shared overlay entries inherit this ID. Their dismissal is not a main-view traversal.
+    if (entry?.key === key && entry.id === entryId.current) return;
+    entryId.current = entry?.id ?? crypto.randomUUID();
+    request.current++;
+    closeAllOverlays();
+    const result = resolveNavigation(
+      normalizeNavigationState(entry?.key === key ? entry.state : null),
+      scope,
+      currentRead,
+      entry?.key === key ? undefined : navigationParams(location, binders),
+      stagedSlabs,
+    );
+    stateRef.current = result.state;
+    setShown((current) => ({ state: result.state, notice: result.notice, highlight: null, visit: current.visit + 1 }));
+    persist(result.state);
+  });
   useEffect(() => {
-    const onPop = (event: PopStateEvent) => {
-      if (isOverlayHistoryCleanup(event)) return;
-      const entry = event.state?.collectionNavigation;
-      // Shared overlay entries inherit this ID. Their dismissal is not a main-view traversal.
-      if (entry?.key === key && entry.id === entryId.current) return;
-      entryId.current = entry?.id ?? crypto.randomUUID();
-      request.current++;
-      closeAllOverlays();
-      setHighlight(null);
-      const result = resolveNavigation(
-        normalizeNavigationState(entry?.key === key ? entry.state : null),
-        scope,
-        currentRead,
-        entry?.key === key ? undefined : navigationParams(location, binders),
-        stagedSlabs,
-      );
-      stateRef.current = result.state;
-      setState(result.state);
-      setNotice(result.notice);
-      setVisit((v) => v + 1);
-      persist(result.state);
-    };
+    const pop = (event: PopStateEvent) => onPop(event);
     const onTraversal = (event: NavigationCurrentEntryChangeEvent) => {
       if (event.navigationType === 'traverse') onPop(new PopStateEvent('popstate', { state: history.state }));
     };
     // A native traversal can commit its entry before a framework releases popstate.
     // Entry IDs deduplicate this early notification and the eventual popstate.
     window.navigation?.addEventListener('currententrychange', onTraversal);
-    window.addEventListener('popstate', onPop);
+    window.addEventListener('popstate', pop);
     return () => {
       window.navigation?.removeEventListener('currententrychange', onTraversal);
-      window.removeEventListener('popstate', onPop);
+      window.removeEventListener('popstate', pop);
     };
-  }, [key, scope, currentRead, persist, stagedSlabs, binders]);
+  }, []);
   const safe = state ? resolveNavigation(state, scope, currentRead, undefined, stagedSlabs) : null;
   const visible = safe?.state;
   const destinationKey = visible
@@ -265,26 +277,28 @@ function ScopedNavigation({
     // Query edits should not reset scroll. Restore only when the destination changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destinationKey, visit, scrollElement, scrollContainerId]);
+  const saveScroll = useEffectEvent((event: Event) => {
+    if (scrollContainerId && event.type === 'scroll' && event.target !== scrollElement()) return;
+    if (!stateRef.current) return;
+    const next = captureNavigationScroll(stateRef.current, scrollTop());
+    stateRef.current = next;
+    persist(next);
+    history.replaceState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: next } }, '');
+  });
   useEffect(() => {
-    const save = (event: Event) => {
-      if (scrollContainerId && event.type === 'scroll' && event.target !== scrollElement()) return;
-      if (!stateRef.current) return;
-      const next = captureNavigationScroll(stateRef.current, scrollTop());
-      stateRef.current = next;
-      persist(next);
-      history.replaceState({ ...history.state, collectionNavigation: { key, id: entryId.current, state: next } }, '');
-    };
+    const save = (event: Event) => saveScroll(event);
     document.addEventListener('scroll', save, { passive: true, capture: true });
     window.addEventListener('pagehide', save);
     return () => {
       document.removeEventListener('scroll', save, true);
       window.removeEventListener('pagehide', save);
     };
-  }, [key, persist, scrollTop, scrollElement, scrollContainerId]);
+  }, []);
   const update = useCallback(
     (mutate: (s: CollectionNavigationState) => CollectionNavigationState) => {
-      setState((old) => {
-        if (!old) return old;
+      setShown((current) => {
+        const old = current.state;
+        if (!old) return current;
         navigated.current = true;
         const next = mutate(captureNavigationScroll(old, scrollTop()));
         stateRef.current = next;
@@ -304,7 +318,7 @@ function ScopedNavigation({
           '',
           url,
         );
-        return next;
+        return { ...current, state: next };
       });
     },
     [persist, key, scrollTop, binders],
@@ -353,10 +367,12 @@ function ScopedNavigation({
       );
       stateRef.current = result.state;
       persist(result.state);
-      setState(result.state);
-      setHighlight(pendingNavigation.highlight);
-      setNotice(result.notice);
-      setVisit((v) => v + 1);
+      setShown((current) => ({
+        state: result.state,
+        notice: result.notice,
+        highlight: pendingNavigation.highlight,
+        visit: current.visit + 1,
+      }));
       setPendingNavigation(null);
     });
   }, [pendingNavigation, scope, key, persist, scrollTop, stagedSlabs, binders]);
@@ -364,6 +380,7 @@ function ScopedNavigation({
   const openLocation = async (intent: InventoryLocationIntent) => {
     const sequence = ++request.current;
     try {
+      // oxlint-disable-next-line react-doctor/async-defer-await -- the guard below checks whether another navigation started during this await, so it must run after it
       const latest = await readCurrent();
       if (!alive.current || request.current !== sequence) return;
       const location = navigationLocation(scope, latest, intent);
@@ -404,9 +421,8 @@ function ScopedNavigation({
       ? { ...savedCollectionState, view: 'binder' as const }
       : savedCollectionState;
   // Compact: enclosed selectors, so the active collection name reads as a control. National Dex and Inventory live in the dock.
-  const viewLabels: Record<CollectionViewState['view'], string> = { binder: 'Binder', list: 'List', slabs: 'Slabs' };
   const views: CollectionViewState['view'][] = slabsOffered ? ['binder', 'list', 'slabs'] : ['binder', 'list'];
-  const viewOptions = views.map((value) => ({ value, label: viewLabels[value] }));
+  const viewOptions = views.map((value) => ({ value, label: VIEW_LABELS[value] }));
   const creationEntry = entryId.current,
     creationRequest = request.current;
   const openCreated: NavigationSurface['openCreated'] = (id, latest) => {
@@ -469,7 +485,7 @@ function ScopedNavigation({
           className="shrink-0"
           textClassName="text-xs font-medium"
           value={collectionState.view}
-          valueLabel={viewLabels[collectionState.view] ?? collectionState.view}
+          valueLabel={VIEW_LABELS[collectionState.view] ?? collectionState.view}
           options={viewOptions}
           onSelect={(view) =>
             navigate({
@@ -520,6 +536,7 @@ function ScopedNavigation({
           onOpenLocation={(intent) => void openLocation(intent)}
         />
       ) : visible.main === 'dex' ? (
+        // oxlint-disable-next-line react-doctor/no-render-in-render -- render prop from the parent, called once per render; it does not define a component, so nothing remounts
         <div key="dex">{renderNationalDex()}</div>
       ) : collectionId && index.kind !== 'unavailable' && collectionState.view === 'slabs' && stagedSlabs ? (
         <SlabsGallery
@@ -532,6 +549,7 @@ function ScopedNavigation({
         />
       ) : collectionId && index.kind !== 'unavailable' ? (
         <div key={`${destinationKey}:${visit}`}>
+          {/* oxlint-disable-next-line react-doctor/no-render-in-render -- render prop from the parent, called once per render; it does not define a component, so nothing remounts */}
           {renderCollection({
             read: currentRead,
             collectionId,
@@ -593,6 +611,7 @@ function ScopedNavigation({
       {content}
       <nav aria-label="Collection navigation" className={styles.dock}>
         <button
+          type="button"
           aria-current={visible.main === 'collection' ? 'page' : undefined}
           disabled={!collectionId}
           onClick={() => navigate({ ...visible, main: 'collection' })}
@@ -600,12 +619,14 @@ function ScopedNavigation({
           Collections
         </button>
         <button
+          type="button"
           aria-current={visible.main === 'inventory' ? 'page' : undefined}
           onClick={() => navigate({ ...visible, main: 'inventory' })}
         >
           Inventory
         </button>
         <button
+          type="button"
           aria-current={visible.main === 'dex' ? 'page' : undefined}
           onClick={() => navigate({ ...visible, main: 'dex' })}
         >

@@ -77,6 +77,7 @@ export default function CollectionSlotList({
               .filter(Boolean)
               .join(' · ');
             return (
+              // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- pointer-only hit-area extension; the row's OrderedSlot button is the keyboard and screen reader control
               <li
                 key={slot.id}
                 onClick={(e) => {

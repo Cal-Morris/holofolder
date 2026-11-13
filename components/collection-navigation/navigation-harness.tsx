@@ -99,6 +99,7 @@ function CollectionPresentation({ read, collectionId, state, highlight, onChange
       </div>
       <div className="flex gap-3">
         <button
+          type="button"
           className="min-h-11 border p-2"
           disabled={page <= 1}
           onClick={() => {
@@ -110,6 +111,7 @@ function CollectionPresentation({ read, collectionId, state, highlight, onChange
           Previous page
         </button>
         <button
+          type="button"
           className="min-h-11 border p-2"
           disabled={page >= pages.length}
           onClick={() => {
