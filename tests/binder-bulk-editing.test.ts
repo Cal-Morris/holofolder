@@ -7,6 +7,7 @@ import {
   preparePocketMoves,
   savedPageSlotIds,
   pageMove,
+  pageMoveOrder,
 } from '@/lib/binder-bulk-editing';
 import { planPocketDrop } from '@/lib/pocket-drop';
 import { projectSlotIntent } from '@/lib/collection/slot-optimistic';
@@ -359,4 +360,17 @@ test('a whole page moves to another page number in either direction, full pages 
   assert.throws(() => pageMove(inventory, scope, 4, 1, 1, 2), /page-not-full/);
   assert.throws(() => pageMove(inventory, scope, 1, 4, 1, 2), /page-not-full/);
   assert.throws(() => pageMove(inventory, scope, 2, 2, 1, 2), /page-not-full/);
+});
+
+test('page move order anchors on the page that will follow, or the end', () => {
+  const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
+  assert.deepEqual(pageMoveOrder(ids, 3, 1, 2), { moved: ['e', 'f'], beforeSlotId: 'a' });
+  assert.deepEqual(pageMoveOrder(ids, 1, 2, 2), { moved: ['a', 'b'], beforeSlotId: 'e' });
+  assert.deepEqual(pageMoveOrder(ids, 1, 3, 2), { moved: ['a', 'b'], beforeSlotId: null });
+  for (const [from, to] of [
+    [0, 1],
+    [1, 4],
+    [1.5, 2],
+  ])
+    assert.throws(() => pageMoveOrder(ids, from, to, 2), /page-not-full/);
 });

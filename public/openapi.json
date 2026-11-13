@@ -21090,6 +21090,105 @@
         }
       }
     },
+    "/binders/{id}/pages/move": {
+      "post": {
+        "operationId": "move_binder_page",
+        "summary": "Move binder page",
+        "description": "Move a whole page of a binder to another page number, like Move page in the app’s layout editing: page `from` becomes page `to` and the pages in between shift by one. Pages are one-based and paged by the binder’s grid (list_binders). Only full pages move: a partial last page, or moving past one, returns 400 page_not_movable. Cards keep their pockets; only pocket order changes. Send a retry-stable operationId; a retry with the same body returns the stored receipt, and a change by someone else mid-request returns 409 to try again with a new operationId. Recorded in Activity and undoable.\n\nRequired permissions: `collection:read`, `binders:read`, `collection:write`, `binders:write`. MCP tool: `move_binder_page`.",
+        "tags": [
+          "Collection"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4096,
+                    "description": "The page to move, one-based."
+                  },
+                  "to": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4096,
+                    "description": "The page number it should become, one-based."
+                  },
+                  "operationId": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 100,
+                    "description": "Retry-stable: keep it across retries of this move."
+                  }
+                },
+                "required": [
+                  "from",
+                  "to",
+                  "operationId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "See the API conventions page."
+          },
+          "401": {
+            "description": "See the API conventions page."
+          },
+          "402": {
+            "description": "See the API conventions page."
+          },
+          "403": {
+            "description": "See the API conventions page."
+          },
+          "404": {
+            "description": "See the API conventions page."
+          },
+          "409": {
+            "description": "See the API conventions page."
+          },
+          "413": {
+            "description": "See the API conventions page."
+          },
+          "422": {
+            "description": "See the API conventions page."
+          },
+          "429": {
+            "description": "See the API conventions page."
+          },
+          "503": {
+            "description": "See the API conventions page."
+          }
+        }
+      }
+    },
     "/binders/order": {
       "put": {
         "operationId": "reorder_binders",

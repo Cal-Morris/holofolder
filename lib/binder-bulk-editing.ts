@@ -48,9 +48,28 @@ export function savedPageSlotIds(snapshot: InventorySnapshot, scope: Scope, page
     .map((s) => s.id);
 }
 /**
- * Pages are one-based. Moves saved page `from` so it becomes page `to`, shifting the pages between by one. Only full
- * pages move: a partial page would push every later page off its grid.
+ * Pages are one-based. Moves page `from` of these ordered pocket IDs so it becomes page `to`, shifting the pages
+ * between by one: the moved IDs and the pocket they go before (null for the end). Only full pages move: a partial
+ * page would push every later page off its grid. Shared by the app and the developer API.
  */
+export function pageMoveOrder(ids: readonly string[], from: number, to: number, pageSize: number) {
+  const page = (n: number) => ids.slice((n - 1) * pageSize, n * pageSize);
+  const moved = page(from);
+  if (
+    !Number.isSafeInteger(from) ||
+    !Number.isSafeInteger(to) ||
+    from < 1 ||
+    to < 1 ||
+    from === to ||
+    moved.length !== pageSize ||
+    page(to).length !== pageSize
+  )
+    throw new Error('page-not-full');
+  const rest = ids.filter((id) => !moved.includes(id));
+  // Moving back lands at the target page's start; moving forward, after the target page.
+  return { moved, beforeSlotId: rest[(to - 1) * pageSize] ?? null };
+}
+/** {@link pageMoveOrder} on a saved binder, as a bulk move. */
 export function pageMove(
   snapshot: InventorySnapshot,
   scope: Scope,
@@ -59,13 +78,14 @@ export function pageMove(
   rows: number,
   cols: number,
 ): { ids: string[]; destination: BulkDestination } {
-  const ids = savedPageSlotIds(snapshot, scope, from - 1, rows, cols);
-  const target = savedPageSlotIds(snapshot, scope, to - 1, rows, cols);
-  if (from === to || ids.length !== rows * cols || target.length !== rows * cols) throw new Error('page-not-full');
-  return {
-    ids,
-    destination: to < from ? { kind: 'before', slotId: target[0] } : { kind: 'after', slotId: target.at(-1)! },
-  };
+  savedPageSlotIds(snapshot, scope, 0, rows, cols); // validates the grid and scope
+  const { moved, beforeSlotId } = pageMoveOrder(
+    layout(snapshot, scope).binder.slots.map((s) => s.id),
+    from,
+    to,
+    rows * cols,
+  );
+  return { ids: moved, destination: beforeSlotId ? { kind: 'before', slotId: beforeSlotId } : { kind: 'end' } };
 }
 /** Keep evidence, not just IDs, so a partner's replacement cannot silently become selected. */
 export function captureBulkSelection(snapshot: InventorySnapshot, scope: Scope, ids: readonly string[]): BulkSelection {

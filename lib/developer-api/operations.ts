@@ -291,6 +291,26 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       ),
   },
   {
+    name: 'move_binder_page',
+    method: 'POST',
+    path: '/binders/{id}/pages/move',
+    description:
+      'Move a whole page of a binder to another page number, like Move page in the app’s layout editing: page `from` becomes page `to` and the pages in between shift by one. Pages are one-based and paged by the binder’s grid (list_binders). Only full pages move: a partial last page, or moving past one, returns 400 page_not_movable. Cards keep their pockets; only pocket order changes. Send a retry-stable operationId; a retry with the same body returns the stored receipt, and a change by someone else mid-request returns 409 to try again with a new operationId. Recorded in Activity and undoable.',
+    permissions: ['collection:read', 'binders:read', 'collection:write', 'binders:write'],
+    write: true,
+    schema: z.strictObject({
+      id: binderId,
+      from: z.number().int().min(1).max(4096).describe('The page to move, one-based.'),
+      to: z.number().int().min(1).max(4096).describe('The page number it should become, one-based.'),
+      operationId: z
+        .string()
+        .min(8)
+        .max(100)
+        .refine((v) => v.trim() === v)
+        .describe('Retry-stable: keep it across retries of this move.'),
+    }),
+  },
+  {
     name: 'reorder_binders',
     method: 'PUT',
     path: '/binders/order',
