@@ -65,14 +65,9 @@ export const CARD_PRICE_CACHE_MAX_ENTRIES = 500;
 /** Times a write is retried, halving the kept quotes each time, after the browser reports a full quota. */
 export const CARD_PRICE_CACHE_QUOTA_RETRIES = 4;
 
-export interface CardPriceFetchBatch {
-  force: boolean;
-  lookups: CardPriceLookup[];
-}
-
 export interface CardPriceFetchPlan {
   cachedPrices: Record<string, CardPriceSnapshot>;
-  fetchBatches: CardPriceFetchBatch[];
+  fetchBatches: CardPriceLookup[][];
 }
 
 export function buildCardPriceFetchPlan(
@@ -102,15 +97,11 @@ export function buildCardPriceFetchPlan(
     }
   }
 
-  const fetchBatches: CardPriceFetchBatch[] = [];
-  if (options.isOnline !== false) {
-    for (const batch of chunkCardPriceLookups(staleLookups, batchSize)) {
-      fetchBatches.push({ force: true, lookups: batch });
-    }
-    for (const batch of chunkCardPriceLookups(missingLookups, batchSize)) {
-      fetchBatches.push({ force: false, lookups: batch });
-    }
-  }
+  // No force flag: the server serves its shared row while it's fresh and only calls providers once that's stale.
+  const fetchBatches =
+    options.isOnline === false
+      ? []
+      : [...chunkCardPriceLookups(staleLookups, batchSize), ...chunkCardPriceLookups(missingLookups, batchSize)];
 
   return { cachedPrices, fetchBatches };
 }
@@ -263,7 +254,7 @@ export function useCardPrices(cardLookups: Array<string | CardPriceLookup>, enab
                 headers: {
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ cards: batch.lookups, force: batch.force }),
+                body: JSON.stringify({ cards: batch }),
               })
                 .then(async (response) => {
                   if (!response.ok) {

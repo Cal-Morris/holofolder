@@ -140,7 +140,7 @@ test('missing prices retry after five minutes, while legacy evidence stays avail
   const empty = { ...priceSnapshot('fixture-1', now - 300_000), gbpAmount: null, marketGbpAmount: null };
   const legacy = { ...priceSnapshot('fixture-2', now), historyPoints: undefined };
   const cache = { 'fixture-1::en': empty, 'fixture-2::en': legacy };
-  assert.equal(buildCardPriceFetchPlan(['fixture-1', 'fixture-2'], cache, { now }).fetchBatches[0].lookups.length, 2);
+  assert.equal(buildCardPriceFetchPlan(['fixture-1', 'fixture-2'], cache, { now }).fetchBatches[0].length, 2);
   assert.equal(
     buildCardPriceFetchPlan(['fixture-1'], { 'fixture-1::en': { ...empty, fetchedAt: now - 299_999 } }, { now })
       .fetchBatches.length,
@@ -152,7 +152,7 @@ test('missing prices retry after five minutes, while legacy evidence stays avail
   );
 });
 
-test('buildCardPriceFetchPlan shows stale cached prices while force-refreshing them', () => {
+test('buildCardPriceFetchPlan shows stale cached prices while refreshing them', () => {
   const cacheKey = getCardPriceKey('sv1-001', 'en');
   const plan = buildCardPriceFetchPlan(
     [{ cardId: 'sv1-001', language: 'en' }],
@@ -164,11 +164,10 @@ test('buildCardPriceFetchPlan shows stale cached prices while force-refreshing t
 
   assert.equal(plan.cachedPrices[cacheKey]?.gbpAmount, 12);
   assert.equal(plan.fetchBatches.length, 1);
-  assert.equal(plan.fetchBatches[0].force, true);
-  assert.deepEqual(plan.fetchBatches[0].lookups, [{ cardId: 'sv1-001', language: 'en' }]);
+  assert.deepEqual(plan.fetchBatches[0], [{ cardId: 'sv1-001', language: 'en' }]);
 });
 
-test('buildCardPriceFetchPlan keeps fresh cache local and fetches missing prices without force', () => {
+test('buildCardPriceFetchPlan keeps fresh cache local and fetches missing prices', () => {
   const freshKey = getCardPriceKey('sv1-001', 'en');
   const plan = buildCardPriceFetchPlan(
     [
@@ -182,12 +181,7 @@ test('buildCardPriceFetchPlan keeps fresh cache local and fetches missing prices
   );
 
   assert.equal(plan.cachedPrices[freshKey]?.gbpAmount, 12);
-  assert.deepEqual(plan.fetchBatches, [
-    {
-      force: false,
-      lookups: [{ cardId: 'sv1-002', language: 'fr' }],
-    },
-  ]);
+  assert.deepEqual(plan.fetchBatches, [[{ cardId: 'sv1-002', language: 'fr' }]]);
 });
 
 test('buildCardPriceFetchPlan does not fetch while offline', () => {
@@ -217,14 +211,8 @@ test('buildCardPriceFetchPlan chunks stale refreshes under the configured batch 
   const plan = buildCardPriceFetchPlan(['sv1-001', 'sv1-002', 'sv1-003'], cache, { batchSize: 2, now });
 
   assert.deepEqual(
-    plan.fetchBatches.map((batch) => ({
-      force: batch.force,
-      cards: batch.lookups.map((lookup) => lookup.cardId),
-    })),
-    [
-      { force: true, cards: ['sv1-001', 'sv1-002'] },
-      { force: true, cards: ['sv1-003'] },
-    ],
+    plan.fetchBatches.map((batch) => batch.map((lookup) => lookup.cardId)),
+    [['sv1-001', 'sv1-002'], ['sv1-003']],
   );
 });
 
@@ -234,7 +222,7 @@ test('legacy cache is retained while finish evidence refreshes, and remains usab
   delete legacy.finishPrices;
   const plan = buildCardPriceFetchPlan(['sv1-001'], { [key]: legacy }, { now });
   assert.equal(plan.cachedPrices[key].marketGbpAmount, 12);
-  assert.equal(plan.fetchBatches[0].force, true);
+  assert.equal(plan.fetchBatches.length, 1);
   assert.deepEqual(buildCardPriceFetchPlan(['sv1-001'], { [key]: legacy }, { now, isOnline: false }).fetchBatches, []);
 });
 

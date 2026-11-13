@@ -18,13 +18,12 @@ export async function POST(request: NextRequest) {
         ? payload.cardIds
         : [];
     const lookups = normalizeCardPriceLookups(requestedCards).slice(0, MAX_CARD_IDS);
-    const force = payload?.force === true;
 
     if (lookups.length === 0) {
       return NextResponse.json({ prices: [] });
     }
 
-    const [result, fx] = await Promise.all([refreshCardPriceLookups(lookups, { force }), loadDisplayFxRates()]);
+    const [result, fx] = await Promise.all([refreshCardPriceLookups(lookups), loadDisplayFxRates()]);
     // Older clients send batches of 200; keep their quotes below the response-size limit.
     const prices =
       lookups.length <= 25 ? result.prices : result.prices.map((price) => ({ ...price, historyPoints: undefined }));
