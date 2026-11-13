@@ -93,53 +93,54 @@ for (const width of [1280, 1920])
     await new Harness(page, { top: 0, bottom: 0, left: 0, right: 0 }, true).expectNoHorizontalOverflow();
   });
 
-test('phone: one comfortable column, no overflow, 36px targets, nothing under the dock, long names stay inside', async ({
-  page,
-  insets,
-}) => {
-  const wants = await open(page);
-  const rows = wants.getByRole('listitem');
-  await expect(rows).toHaveCount(WANT_TOTAL);
-  const h = new Harness(page, insets, true);
-  await h.expectNoHorizontalOverflow();
-  const a = (await rows.nth(0).boundingBox())!,
-    b = (await rows.nth(1).boundingBox())!;
-  expect(b.y, 'single column').toBeGreaterThan(a.y + a.height - 1);
-  const art = (await firstArt(rows, page).boundingBox())!;
-  expect(art.width, 'phone artwork is not smaller than before').toBeGreaterThanOrEqual(44);
-  const choice = copyChoice(wants).first();
-  await choice.scrollIntoViewIfNeeded();
-  await h.expectMinTapTarget(choice);
-  await h.expectMinTapTarget(wants.getByRole('button', { name: 'Add to collection' }).first());
-  await h.expectMinTapTarget(wants.getByRole('button', { name: 'Check price' }).first());
-  await h.expectWithinSafeViewport(choice);
-  await h.expectHittable(choice);
-  // Long card name wraps inside its tile; it never escapes the row.
-  const long = rows.filter({ hasText: 'extraordinarily long card display name' }).first();
-  await long.scrollIntoViewIfNeeded();
-  const row = (await long.boundingBox())!,
-    name = (await long.locator('p').first().boundingBox())!;
-  expect(name.x + name.width).toBeLessThanOrEqual(row.x + row.width);
-  await h.expectNoHorizontalOverflow();
-  // The end of the list stays reachable above the dock.
-  // Rows outside the viewport use an estimated height until they render, so keep scrolling until the height stops changing.
-  expect(
-    await wants.evaluate(async (el) => {
-      const scroller = el.parentElement as HTMLElement;
-      let last = -1;
-      for (let i = 0; i < 30; i++) {
-        scroller.scrollTop = scroller.scrollHeight;
-        await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-        if (scroller.scrollHeight === last && scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2)
-          return true;
-        last = scroller.scrollHeight;
-      }
-      return false;
-    }),
-  ).toBe(true);
-  await h.expectWithinSafeViewport(rows.last());
-  await h.expectHittable(rows.last());
-});
+test(
+  'phone: one comfortable column, no overflow, 36px targets, nothing under the dock, long names stay inside',
+  { tag: '@matrix' },
+  async ({ page, insets }) => {
+    const wants = await open(page);
+    const rows = wants.getByRole('listitem');
+    await expect(rows).toHaveCount(WANT_TOTAL);
+    const h = new Harness(page, insets, true);
+    await h.expectNoHorizontalOverflow();
+    const a = (await rows.nth(0).boundingBox())!,
+      b = (await rows.nth(1).boundingBox())!;
+    expect(b.y, 'single column').toBeGreaterThan(a.y + a.height - 1);
+    const art = (await firstArt(rows, page).boundingBox())!;
+    expect(art.width, 'phone artwork is not smaller than before').toBeGreaterThanOrEqual(44);
+    const choice = copyChoice(wants).first();
+    await choice.scrollIntoViewIfNeeded();
+    await h.expectMinTapTarget(choice);
+    await h.expectMinTapTarget(wants.getByRole('button', { name: 'Add to collection' }).first());
+    await h.expectMinTapTarget(wants.getByRole('button', { name: 'Check price' }).first());
+    await h.expectWithinSafeViewport(choice);
+    await h.expectHittable(choice);
+    // Long card name wraps inside its tile; it never escapes the row.
+    const long = rows.filter({ hasText: 'extraordinarily long card display name' }).first();
+    await long.scrollIntoViewIfNeeded();
+    const row = (await long.boundingBox())!,
+      name = (await long.locator('p').first().boundingBox())!;
+    expect(name.x + name.width).toBeLessThanOrEqual(row.x + row.width);
+    await h.expectNoHorizontalOverflow();
+    // The end of the list stays reachable above the dock.
+    // Rows outside the viewport use an estimated height until they render, so keep scrolling until the height stops changing.
+    expect(
+      await wants.evaluate(async (el) => {
+        const scroller = el.parentElement as HTMLElement;
+        let last = -1;
+        for (let i = 0; i < 30; i++) {
+          scroller.scrollTop = scroller.scrollHeight;
+          await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+          if (scroller.scrollHeight === last && scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2)
+            return true;
+          last = scroller.scrollHeight;
+        }
+        return false;
+      }),
+    ).toBe(true);
+    await h.expectWithinSafeViewport(rows.last());
+    await h.expectHittable(rows.last());
+  },
+);
 
 async function records(page: Page) {
   return page.evaluate(async () => {

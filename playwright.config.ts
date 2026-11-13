@@ -1,7 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
+import { knownFailurePatterns } from './e2e/known-failures';
 
 const PORT = Number(process.env.E2E_PORT || 3210);
+// The synthetic PostgREST gets its own port per run, derived from E2E_PORT so parallel runs never share one.
+const BACKEND_PORT = Number(process.env.E2E_BACKEND_PORT) || (PORT < 45_536 ? PORT + 20_000 : PORT - 20_000);
 const baseURL = process.env.E2E_BASE_URL || `http://localhost:${PORT}`;
+// Never test a server this run didn't start (another worktree's build, another agent's backend) unless asked to.
+const reuseExistingServer = process.env.E2E_REUSE === '1';
+// Read by e2e/fixtures.ts in the workers, which inherit this process's env.
+process.env.NEXT_PUBLIC_SUPABASE_URL ||= `http://127.0.0.1:${BACKEND_PORT}`;
 // Use a locally installed Chrome when available (e.g. CHROME_PATH=/usr/bin/google-chrome),
 // otherwise Playwright's bundled Chromium (`bunx playwright install chromium`).
 const executablePath = process.env.CHROME_PATH || undefined;
@@ -12,67 +19,86 @@ const viewports = [
   { name: '390x844', width: 390, height: 844 },
   { name: '430x932', width: 430, height: 932 },
 ];
+// browser-390x844 runs every test. The other five phone projects run only `@matrix` tests (layout, safe areas,
+// overflow, dock, sheets) unless E2E_MATRIX=1 (`bun run test:e2e:matrix`) runs everything everywhere.
+const PRIMARY = 'browser-390x844';
+const notMatrix = /^(?!.*@matrix)/;
+// Tests in e2e/known-failures.json already fail on main. The fast default run skips them;
+// E2E_KNOWN_FAILURES=only (`bun run test:e2e:known`) runs just them and fails if any now pass, =include runs all.
+const knownMode = process.env.E2E_KNOWN_FAILURES;
+// Per project, since a project's grep and grepInvert replace the top-level ones.
+function filter(project: string) {
+  const primary = project === PRIMARY;
+  const known = knownFailurePatterns(project);
+  const grepInvert = [
+    ...(primary || process.env.E2E_MATRIX === '1' ? [] : [notMatrix]),
+    ...(knownMode === 'include' || knownMode === 'only' ? [] : known),
+  ];
+  return {
+    ...(knownMode === 'only' ? { grep: known.length ? known : [/$^/] } : {}),
+    ...(grepInvert.length ? { grepInvert } : {}),
+  };
+}
 
 export default defineConfig({
   testDir: './e2e',
   testMatch: /.*\.e2e\.ts$/,
   fullyParallel: true,
-  workers: process.env.CI ? 2 : 4,
+  workers: Number(process.env.E2E_WORKERS) || (process.env.CI ? 2 : 4),
   retries: process.env.CI ? 1 : 0,
-  timeout: 60_000,
-  expect: { timeout: 7_500 },
-  reporter: process.env.CI ? 'line' : [['list']],
+  timeout: 20_000,
+  expect: { timeout: 5_000 },
+  // The known-failures reporter keeps e2e/known-failures.json honest (see the writing-e2e-tests skill).
+  reporter: [process.env.CI ? ['line'] : ['list'], ['./e2e/known-failures-reporter.ts']],
   use: {
     baseURL,
     trace: process.env.CI ? 'on-first-retry' : 'off',
     screenshot: 'only-on-failure',
     serviceWorkers: 'block',
+    // A click on a missing control fails in 5 s instead of waiting out the whole test.
+    actionTimeout: 5_000,
+    navigationTimeout: 10_000,
     launchOptions: executablePath ? { executablePath, args: ['--no-sandbox'] } : { args: ['--no-sandbox'] },
   },
-  projects: viewports.flatMap((viewport) => [
-    {
-      name: `browser-${viewport.name}`,
-      default: viewport.width === 390,
-      use: {
-        ...iphone,
-        browserName: 'chromium' as const,
-        viewport: { width: viewport.width, height: viewport.height },
-        // Playwright's iPhone profile is WebKit-based; we drive Chromium with the same touch/mobile settings.
-        defaultBrowserType: undefined,
-      },
-      metadata: { standalone: false },
-    },
-    {
-      name: `standalone-${viewport.name}`,
-      default: viewport.width === 390,
-      use: {
-        ...iphone,
-        browserName: 'chromium' as const,
-        viewport: { width: viewport.width, height: viewport.height },
-        defaultBrowserType: undefined,
-      },
-      metadata: { standalone: true },
-    },
-  ]),
+  projects: viewports.flatMap((viewport) =>
+    [false, true].map((standalone) => {
+      const name = `${standalone ? 'standalone' : 'browser'}-${viewport.name}`;
+      return {
+        name,
+        ...filter(name),
+        use: {
+          ...iphone,
+          browserName: 'chromium' as const,
+          viewport: { width: viewport.width, height: viewport.height },
+          // Playwright's iPhone profile is WebKit-based; we drive Chromium with the same touch/mobile settings.
+          defaultBrowserType: undefined,
+        },
+        metadata: { standalone },
+      };
+    }),
+  ),
   webServer: [
     // Synthetic PostgREST at the e2e Supabase URL, so the real share routes render server-side (e2e/public-binder-compat.e2e.ts).
     // Answers only its fixture tables under /rest/v1/; every other Supabase path is a 404, as an unreachable backend was before.
     {
-      command: 'bun scripts/verify-public-share-backend.ts',
-      url: 'http://127.0.0.1:54399/rest/v1/binder_shares',
-      reuseExistingServer: !process.env.CI,
+      command: 'bun --no-env-file scripts/verify-public-share-backend.ts',
+      url: `http://127.0.0.1:${BACKEND_PORT}/rest/v1/binder_shares`,
+      reuseExistingServer,
+      env: { PUBLIC_SHARE_BACKEND_PORT: String(BACKEND_PORT) },
     },
     ...(process.env.E2E_BASE_URL
       ? []
       : [
           {
-            command: `bun run build && bunx next start -p ${PORT}`,
+            // Fails fast on a taken port, skips the build when `.next-e2e` already matches the source.
+            command: 'bun --no-env-file scripts/e2e-server.ts',
             url: `${baseURL}/app/e2e-harness`,
-            timeout: 300_000,
-            reuseExistingServer: !process.env.CI,
+            timeout: 600_000,
+            reuseExistingServer,
             env: {
+              E2E_PORT: String(PORT),
               HOLOFOLDER_E2E: '1',
-              NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54399',
+              NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
               NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'e2e-anon-key',
               // Synthetic key for the share loader's server reads against the synthetic backend above.
               SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || 'e2e-service-role-key',

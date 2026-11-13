@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 
-test.describe('card detail sheet on phones', () => {
+test.describe('card detail sheet on phones', { tag: '@matrix' }, () => {
   test('uses the full height above the dock, the full width and shows a large card preview', async ({ harness }) => {
     const dialog = await harness.openCardDetail();
     const dockTop = (await harness.dock().locator(':scope > div').first().boundingBox())!.y;
@@ -29,7 +29,7 @@ test.describe('card detail sheet on phones', () => {
   });
 });
 
-test.describe('card detail actions on phones', () => {
+test.describe('card detail actions on phones', { tag: '@matrix' }, () => {
   for (const dexId of [1, 2]) {
     test(`primary actions are visible without scrolling (dex #${dexId})`, async ({ harness }) => {
       await harness.page.locator(`button[data-dex-id="${dexId}"]`).first().click();

@@ -355,30 +355,34 @@ for (const theme of ['light', 'dark'] as const) {
       await harness.expectScrollUnlocked();
     });
 
-    test('settings: clipped sections scroll, last controls and close stay reachable', async ({ harness, hasTouch }) => {
-      const { page } = harness;
-      await page.getByTestId('app-header').getByRole('button', { name: 'More', exact: true }).click();
-      await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
-      const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
-      await expect(dialog).toBeVisible();
-      const before = await background(page);
-      await openSettingsPage(dialog, 'Appearance');
-      await ends(page, dialog);
-      if (hasTouch) {
-        await touch(page, scrollBody(dialog), -150);
-        expect(await top(scrollBody(dialog))).toBeGreaterThan(40);
-      }
-      expect(await background(page)).toEqual(before);
-      await harness.expectWithinSafeViewport(harness.closeControl(dialog));
-      await harness.closeControl(dialog).click();
-      await harness.expectScrollUnlocked();
-    });
+    test(
+      'settings: clipped sections scroll, last controls and close stay reachable',
+      { tag: '@matrix' },
+      async ({ harness, hasTouch }) => {
+        const { page } = harness;
+        await page.getByTestId('app-header').getByRole('button', { name: 'More', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+        const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
+        await expect(dialog).toBeVisible();
+        const before = await background(page);
+        await openSettingsPage(dialog, 'Appearance');
+        await ends(page, dialog);
+        if (hasTouch) {
+          await touch(page, scrollBody(dialog), -150);
+          expect(await top(scrollBody(dialog))).toBeGreaterThan(40);
+        }
+        expect(await background(page)).toEqual(before);
+        await harness.expectWithinSafeViewport(harness.closeControl(dialog));
+        await harness.closeControl(dialog).click();
+        await harness.expectScrollUnlocked();
+      },
+    );
   });
 }
 
 // Smaller overlays get reachability checks; they do not all have enough content to overflow.
 test.describe('overlay inventory', () => {
-  test('auth form fits and keeps its close control reachable', async ({ harness }) => {
+  test('auth form fits and keeps its close control reachable', { tag: '@matrix' }, async ({ harness }) => {
     const { page } = harness;
     await page.getByTestId('app-header').getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Sign in', exact: true }).click();

@@ -299,49 +299,53 @@ test.describe('Cardmarket catalog in the deal checker', () => {
 test.describe('deal scale geometry', () => {
   test.use({ signedIn: true });
   for (const size of [null, { width: 1238, height: 500 }, { width: 667, height: 375 }, { width: 844, height: 300 }]) {
-    test(`labels and actions fit ${size ? `${size.width}x${size.height}` : 'phone'}`, async ({ harness }) => {
-      if (size) await harness.page.setViewportSize(size);
-      await mockEvidence(harness);
-      const check = await openCheck(harness, true);
-      const scale = check.getByRole('figure', { name: 'Buying range' });
-      const svg = scale.locator('svg');
-      const bounds = await svg.evaluate((el) => {
-        const svg = el as SVGSVGElement;
-        return {
-          height: svg.viewBox.baseVal.height,
-          labels: Array.from(svg.querySelectorAll('text')).map((text) => ({
-            text: text.textContent,
-            bottom: text.getBBox().y + text.getBBox().height,
-          })),
-        };
-      });
-      for (const label of bounds.labels)
-        expect.soft(label.bottom, `${label.text} fits in SVG`).toBeLessThanOrEqual(bounds.height);
-      const field = check.getByRole('textbox', { name: 'Asking price' }).locator('xpath=ancestor::label[1]');
-      const scaleBox = (await scale.boundingBox())!;
-      const fieldBox = (await field.boundingBox())!;
-      expect
-        .soft(fieldBox.y - scaleBox.y - scaleBox.height, 'gap clears 2px input focus ring')
-        .toBeGreaterThanOrEqual(4);
-      await check.getByText('Catalog price sources', { exact: true }).click();
-      const sources = check.getByRole('region', { name: 'Catalog price sources' });
-      await sources.scrollIntoViewIfNeeded();
-      await expect(sources).toContainText('Original €10.00 EUR');
-      await expect(sources).toBeInViewport({ ratio: 0.1 });
-      const height = size?.height ?? harness.viewport.height;
-      for (const name of ['Add owned', 'Want', 'Add to bundle']) {
-        const button = check.getByRole('button', { name, exact: true });
-        await button.scrollIntoViewIfNeeded();
-        const box = (await button.boundingBox())!;
-        expect(box.y, `${name} top`).toBeGreaterThanOrEqual(harness.insets.top);
-        expect(box.y + box.height, `${name} bottom`).toBeLessThanOrEqual(height - harness.insets.bottom);
-        await harness.expectHittable(button);
-      }
-      await harness.expectNoHorizontalOverflow();
-      if (!size || size.width === 1238)
-        await harness.page.screenshot({
-          path: `/tmp/cardmarket-${test.info().project.name}-${size ? 'desktop' : 'phone'}.png`,
+    test(
+      `labels and actions fit ${size ? `${size.width}x${size.height}` : 'phone'}`,
+      { tag: size ? [] : '@matrix' },
+      async ({ harness }) => {
+        if (size) await harness.page.setViewportSize(size);
+        await mockEvidence(harness);
+        const check = await openCheck(harness, true);
+        const scale = check.getByRole('figure', { name: 'Buying range' });
+        const svg = scale.locator('svg');
+        const bounds = await svg.evaluate((el) => {
+          const svg = el as SVGSVGElement;
+          return {
+            height: svg.viewBox.baseVal.height,
+            labels: Array.from(svg.querySelectorAll('text')).map((text) => ({
+              text: text.textContent,
+              bottom: text.getBBox().y + text.getBBox().height,
+            })),
+          };
         });
-    });
+        for (const label of bounds.labels)
+          expect.soft(label.bottom, `${label.text} fits in SVG`).toBeLessThanOrEqual(bounds.height);
+        const field = check.getByRole('textbox', { name: 'Asking price' }).locator('xpath=ancestor::label[1]');
+        const scaleBox = (await scale.boundingBox())!;
+        const fieldBox = (await field.boundingBox())!;
+        expect
+          .soft(fieldBox.y - scaleBox.y - scaleBox.height, 'gap clears 2px input focus ring')
+          .toBeGreaterThanOrEqual(4);
+        await check.getByText('Catalog price sources', { exact: true }).click();
+        const sources = check.getByRole('region', { name: 'Catalog price sources' });
+        await sources.scrollIntoViewIfNeeded();
+        await expect(sources).toContainText('Original €10.00 EUR');
+        await expect(sources).toBeInViewport({ ratio: 0.1 });
+        const height = size?.height ?? harness.viewport.height;
+        for (const name of ['Add owned', 'Want', 'Add to bundle']) {
+          const button = check.getByRole('button', { name, exact: true });
+          await button.scrollIntoViewIfNeeded();
+          const box = (await button.boundingBox())!;
+          expect(box.y, `${name} top`).toBeGreaterThanOrEqual(harness.insets.top);
+          expect(box.y + box.height, `${name} bottom`).toBeLessThanOrEqual(height - harness.insets.bottom);
+          await harness.expectHittable(button);
+        }
+        await harness.expectNoHorizontalOverflow();
+        if (!size || size.width === 1238)
+          await harness.page.screenshot({
+            path: `/tmp/cardmarket-${test.info().project.name}-${size ? 'desktop' : 'phone'}.png`,
+          });
+      },
+    );
   }
 });

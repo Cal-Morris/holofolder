@@ -7,6 +7,7 @@ __v0_jsx-dev-runtime.ts
 node_modules
 .worktrees/
 .next/
+.next-e2e/
 app/.well-known/
 !app/.well-known/
 app/.well-known/*

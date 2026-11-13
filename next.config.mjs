@@ -8,6 +8,8 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   basePath: '/app',
+  // e2e builds (scripts/e2e-server.ts) go to their own folder so they never replace a real build.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   async redirects() {
     return [
       {
@@ -49,8 +51,9 @@ const nextConfig = {
   allowedDevOrigins: ['localhost', '10.4.1.154'],
   cacheComponents: true,
   typescript: {
-    // Typecheck CI checks the full repo with bun check before building; keep local builds checked too.
-    ignoreBuildErrors: process.env.VERCEL === '1' || Boolean(process.env.CI),
+    // Typecheck CI checks the full repo with bun check before building; keep local builds checked too, except e2e
+    // builds, which only need to run.
+    ignoreBuildErrors: process.env.VERCEL === '1' || Boolean(process.env.CI) || process.env.HOLOFOLDER_E2E === '1',
   },
   turbopack: {
     root: projectRoot,

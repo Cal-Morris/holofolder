@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 
-test('editing keeps the binder and save action in view', async ({ harness }) => {
+test('editing keeps the binder and save action in view', { tag: '@matrix' }, async ({ harness }) => {
   const { page } = harness;
   await page.goto('/app/e2e-harness/studio?theme=light');
   const save = page.getByRole('button', { name: 'Save appearance', exact: true });

@@ -46,30 +46,31 @@ for (const width of [1280, 1440]) {
   });
 }
 
-test('phone: one comfortable column, no overflow, 36px targets, long names stay inside the row', async ({
-  page,
-  insets,
-}) => {
-  await page.goto(listEntry);
-  await expect(rows(page)).toHaveCount(LIST_SLOTS);
-  const h = new Harness(page, insets, true);
-  await h.expectNoHorizontalOverflow();
-  const first = rows(page).nth(0),
-    second = rows(page).nth(1);
-  const a = (await first.boundingBox())!,
-    b = (await second.boundingBox())!;
-  expect(b.y, 'single column').toBeGreaterThan(a.y + a.height - 1);
-  expect(a.height).toBeLessThanOrEqual(80);
-  await h.expectMinTapTarget(first.locator('[data-slot-id]'));
-  // Row 0 carries the long synthetic card name; it must not escape its row.
-  const name = first.locator('p').first(),
-    box = (await name.boundingBox())!;
-  expect(box.x + box.width).toBeLessThanOrEqual(a.x + a.width);
-  expect(
-    await name.evaluate((el) => el.scrollWidth > el.clientWidth),
-    'long name is truncated, not wrapped over the row',
-  ).toBe(true);
-});
+test(
+  'phone: one comfortable column, no overflow, 36px targets, long names stay inside the row',
+  { tag: '@matrix' },
+  async ({ page, insets }) => {
+    await page.goto(listEntry);
+    await expect(rows(page)).toHaveCount(LIST_SLOTS);
+    const h = new Harness(page, insets, true);
+    await h.expectNoHorizontalOverflow();
+    const first = rows(page).nth(0),
+      second = rows(page).nth(1);
+    const a = (await first.boundingBox())!,
+      b = (await second.boundingBox())!;
+    expect(b.y, 'single column').toBeGreaterThan(a.y + a.height - 1);
+    expect(a.height).toBeLessThanOrEqual(80);
+    await h.expectMinTapTarget(first.locator('[data-slot-id]'));
+    // Row 0 carries the long synthetic card name; it must not escape its row.
+    const name = first.locator('p').first(),
+      box = (await name.boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(a.x + a.width);
+    expect(
+      await name.evaluate((el) => el.scrollWidth > el.clientWidth),
+      'long name is truncated, not wrapped over the row',
+    ).toBe(true);
+  },
+);
 
 test('selecting a row, by artwork or anywhere on the row, selects that exact slot', async ({ page }) => {
   await page.goto(listEntry);

@@ -34,7 +34,7 @@ async function expectBannerClearOf(harness: Harness, dialog: Locator) {
 }
 
 test.describe('top banner slot (offline / sync pill) with overlays', () => {
-  test('card detail close button is never covered by the offline banner', async ({ harness }) => {
+  test('card detail close button is never covered by the offline banner', { tag: '@matrix' }, async ({ harness }) => {
     await goOffline(harness);
     const dialog = await harness.openCardDetail();
     await expectBannerClearOf(harness, dialog);

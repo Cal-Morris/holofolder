@@ -251,48 +251,52 @@ test('keyboard opens, moves, selects, and Escape returns focus to the trigger', 
 });
 
 for (const kind of ['long', 'many'] as const)
-  test(`${kind} collection names stay bounded and keep the toolbar on screen`, async ({ page, insets }) => {
-    await open(page, kind, kind === 'many' ? uuid(5, 3) : alpha);
-    const h = new Harness(page, insets, true);
-    const trigger = collectionPicker(page),
-      view = viewPicker(page),
-      storage = page.getByRole('button', { name: 'Storage', exact: true });
-    await expect(trigger).toContainText('SYNTHETIC very long');
-    await expect(trigger.locator('span')).toHaveCSS('text-overflow', 'ellipsis');
-    for (const control of [trigger, view, storage]) {
-      await h.expectWithinSafeViewport(control);
-      await h.expectHittable(control);
-    }
-    await h.expectNoHorizontalOverflow();
-    const [t, v, s] = [await trigger.boundingBox(), await view.boundingBox(), await storage.boundingBox()];
-    expect(t!.x + t!.width).toBeLessThanOrEqual(v!.x + 1);
-    expect(v!.x + v!.width).toBeLessThanOrEqual(s!.x);
-    await trigger.click();
-    const menu = collectionMenu(page);
-    await expect(menu).toBeVisible();
-    const box = (await menu.boundingBox())!;
-    expect(box.width).toBeLessThanOrEqual(288);
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(h.viewport.width);
-    expect(box.y + box.height).toBeLessThanOrEqual(h.viewport.height);
-    await h.expectWithinSafeViewport(menu.getByRole('button', { name: 'Close collection', exact: true }));
-    const list = menu.getByRole('menu', { name: 'Choose collection', exact: true });
-    if (kind === 'many') {
-      expect(await list.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
-      await menu.getByRole('menuitemradio', { name: /SYNTHETIC binder 18/ }).scrollIntoViewIfNeeded();
-    }
-    // A wrapped long name keeps its own row: no option is squeezed so its text spills over a neighbour.
-    const rows = await menu.getByRole('menuitemradio').evaluateAll((els) =>
-      els.map((e) => {
-        const r = e.getBoundingClientRect();
-        return [r.top, r.bottom, e.scrollHeight, e.clientHeight];
-      }),
-    );
-    rows.forEach((row, i) => {
-      expect(row[2]).toBeLessThanOrEqual(row[3] + 1);
-      if (i) expect(row[0]).toBeGreaterThanOrEqual(rows[i - 1][1] - 0.5);
-    });
-    expect(await menu.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-    await h.expectNoHorizontalOverflow();
-    await page.keyboard.press('Escape');
-  });
+  test(
+    `${kind} collection names stay bounded and keep the toolbar on screen`,
+    { tag: '@matrix' },
+    async ({ page, insets }) => {
+      await open(page, kind, kind === 'many' ? uuid(5, 3) : alpha);
+      const h = new Harness(page, insets, true);
+      const trigger = collectionPicker(page),
+        view = viewPicker(page),
+        storage = page.getByRole('button', { name: 'Storage', exact: true });
+      await expect(trigger).toContainText('SYNTHETIC very long');
+      await expect(trigger.locator('span')).toHaveCSS('text-overflow', 'ellipsis');
+      for (const control of [trigger, view, storage]) {
+        await h.expectWithinSafeViewport(control);
+        await h.expectHittable(control);
+      }
+      await h.expectNoHorizontalOverflow();
+      const [t, v, s] = [await trigger.boundingBox(), await view.boundingBox(), await storage.boundingBox()];
+      expect(t!.x + t!.width).toBeLessThanOrEqual(v!.x + 1);
+      expect(v!.x + v!.width).toBeLessThanOrEqual(s!.x);
+      await trigger.click();
+      const menu = collectionMenu(page);
+      await expect(menu).toBeVisible();
+      const box = (await menu.boundingBox())!;
+      expect(box.width).toBeLessThanOrEqual(288);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(h.viewport.width);
+      expect(box.y + box.height).toBeLessThanOrEqual(h.viewport.height);
+      await h.expectWithinSafeViewport(menu.getByRole('button', { name: 'Close collection', exact: true }));
+      const list = menu.getByRole('menu', { name: 'Choose collection', exact: true });
+      if (kind === 'many') {
+        expect(await list.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+        await menu.getByRole('menuitemradio', { name: /SYNTHETIC binder 18/ }).scrollIntoViewIfNeeded();
+      }
+      // A wrapped long name keeps its own row: no option is squeezed so its text spills over a neighbour.
+      const rows = await menu.getByRole('menuitemradio').evaluateAll((els) =>
+        els.map((e) => {
+          const r = e.getBoundingClientRect();
+          return [r.top, r.bottom, e.scrollHeight, e.clientHeight];
+        }),
+      );
+      rows.forEach((row, i) => {
+        expect(row[2]).toBeLessThanOrEqual(row[3] + 1);
+        if (i) expect(row[0]).toBeGreaterThanOrEqual(rows[i - 1][1] - 0.5);
+      });
+      expect(await menu.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+      await h.expectNoHorizontalOverflow();
+      await page.keyboard.press('Escape');
+    },
+  );

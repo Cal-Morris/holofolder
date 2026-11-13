@@ -114,7 +114,7 @@ for (const overlay of overlays) {
   test.describe(overlay.name, () => {
     test.use({ signedIn: Boolean(overlay.signedIn) });
 
-    test('fits the safe viewport with a reachable close control', async ({ harness }) => {
+    test('fits the safe viewport with a reachable close control', { tag: '@matrix' }, async ({ harness }) => {
       const { dialog } = await overlay.open(harness);
       await expect(dialog).toBeVisible();
       await expect(harness.dialogs()).toHaveCount(1);
@@ -287,17 +287,21 @@ test.describe('bottom navigation', () => {
     await expect(harness.dialogs()).toHaveCount(1);
   });
 
-  test('every main view has no horizontal overflow and keeps the dock usable', async ({ harness }) => {
-    for (const tab of ['List', 'Wanted', 'Browse', 'Binder'] as const) {
-      await harness.dock().getByRole('button', { name: tab, exact: true }).click();
-      await harness.expectNoHorizontalOverflow();
-      // The nav's own box extends behind the home indicator; its visible bar must clear it.
-      await harness.expectWithinSafeViewport(harness.dock().locator(':scope > div').first());
-      await expect(() => harness.expectHittable(harness.dock().getByRole('button', { name: tab, exact: true }))).toPass(
-        { timeout: 1000 },
-      );
-    }
-  });
+  test(
+    'every main view has no horizontal overflow and keeps the dock usable',
+    { tag: '@matrix' },
+    async ({ harness }) => {
+      for (const tab of ['List', 'Wanted', 'Browse', 'Binder'] as const) {
+        await harness.dock().getByRole('button', { name: tab, exact: true }).click();
+        await harness.expectNoHorizontalOverflow();
+        // The nav's own box extends behind the home indicator; its visible bar must clear it.
+        await harness.expectWithinSafeViewport(harness.dock().locator(':scope > div').first());
+        await expect(() =>
+          harness.expectHittable(harness.dock().getByRole('button', { name: tab, exact: true })),
+        ).toPass({ timeout: 1000 });
+      }
+    },
+  );
 
   test('card detail Prev/Next moves between slots without closing', async ({ harness }) => {
     const detail = await harness.openCardDetail();

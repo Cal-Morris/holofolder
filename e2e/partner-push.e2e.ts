@@ -181,7 +181,7 @@ test.describe('notification permission', () => {
   });
 });
 
-test.describe('installed Show mode notification prompt', () => {
+test.describe('installed Show mode notification prompt', { tag: '@matrix' }, () => {
   test.use({ signedIn: true });
   test('offers setup without requesting permission and opens the Account controls', async ({ harness }, testInfo) => {
     test.skip(!testInfo.project.metadata.standalone, 'Contextual prompt is for installed apps.');

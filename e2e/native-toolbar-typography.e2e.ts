@@ -219,9 +219,13 @@ async function checkToolbar(
   await h.expectNoHorizontalOverflow();
 }
 
-test('native toolbar inherits the app font and compact control hierarchy', async ({ page, insets }, info) => {
-  await checkToolbar(page, insets, info, info.project.name);
-});
+test(
+  'native toolbar inherits the app font and compact control hierarchy',
+  { tag: '@matrix' },
+  async ({ page, insets }, info) => {
+    await checkToolbar(page, insets, info, info.project.name);
+  },
+);
 test('native toolbar keeps desktop typography and controls', async ({ page }, info) => {
   test.skip(info.project.name !== 'browser-390x844', 'one desktop check');
   await page.setViewportSize({ width: 1440, height: 900 });
