@@ -18,6 +18,8 @@ export const PROVIDER_PERFORMANCE_OPERATIONS = new Set([
   'refresh_price_checks',
   'get_listings',
   'start_comparison_job',
+  // Runs the picture model (about 200 ms of CPU), so the 30 ms target doesn't apply either.
+  'identify_card',
 ]);
 export function readServerTiming(header: string | null, name: string): number | null {
   const match = header

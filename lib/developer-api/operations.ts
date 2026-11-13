@@ -4,7 +4,9 @@ import {
   catalogGroupDetailSchema,
   catalogPageSchema,
   similarCardsSchema,
+  identifyCardSchema,
 } from './catalog';
+import { IDENTIFY_DEFAULT_LIMIT, IDENTIFY_MAX_LIMIT, IDENTIFY_MAX_REQUEST_BYTES } from '@/lib/card-identify';
 import { PRESET_OPERATIONS } from './presets';
 import { NATIVE_READ_OPERATIONS } from './native-read';
 import { DISPLAY_CURRENCIES, PRICING_REGIONS } from '@/lib/pricing-region';
@@ -79,6 +81,34 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     permissions: ['catalog:read'],
     write: false,
     schema: z.strictObject({ id, language }),
+  },
+  {
+    name: 'identify_card',
+    idempotent: true,
+    responseSchema: identifyCardSchema,
+    method: 'POST',
+    path: '/cards/identify',
+    description: `Identify a card from a photo. Send the picture as base64 (JPEG, PNG or WebP, at most 3 MB; a card cropped to about 500-1000 px works best), optionally with the name and collector number you read from it. Returns the closest cards by picture, most similar first, with a confidence label. It never picks a card for you: confidence is "confirmed" only when your number and set total agree with one of the top five candidates and no other agrees as well, which is then marked confirmed. language limits the search to that print language's pictures (Japanese prints have their own; other languages share the English picture). Limited to 20 requests per minute per API key or connection.`,
+    permissions: ['catalog:read'],
+    write: false,
+    maxBytes: IDENTIFY_MAX_REQUEST_BYTES,
+    schema: z.strictObject({
+      image: z
+        .string()
+        .min(1)
+        .max(IDENTIFY_MAX_REQUEST_BYTES)
+        .describe('The photo, base64 (a data: URL prefix is allowed).'),
+      name: z.string().max(80).optional().describe('The card name as read, e.g. "Charizard ex".'),
+      number: z.string().max(20).optional().describe('The collector number as printed, e.g. "025/165" or "TG05".'),
+      language,
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(IDENTIFY_MAX_LIMIT)
+        .optional()
+        .describe(`Candidates to return (default ${IDENTIFY_DEFAULT_LIMIT}).`),
+    }),
   },
   {
     name: 'list_sets',

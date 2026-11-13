@@ -410,7 +410,9 @@ function QuickCardScannerCamera({
                         : 'Looking it up on this device…'
                       : camera.ready
                         ? `${isOnline ? 'Hold steady, then tap Read card.' : 'Offline: reads the card and looks it up on this device.'}${
-                            pictureReady ? '' : ' Picture scanner not downloaded, so only the name and number are read.'
+                            pictureReady || isOnline
+                              ? ''
+                              : ' Picture scanner not downloaded, so only the name and number are read.'
                           }`
                         : '')}
             </p>

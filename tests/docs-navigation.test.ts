@@ -52,7 +52,7 @@ test('long reference sections become one level of small, collapsed subject group
     Inventory: 2,
     Presets: 2,
     'Native storage': 12,
-    Catalog: 12,
+    Catalog: 13,
     Account: 9,
     Prices: 5,
     Comparisons: 4,

@@ -5,23 +5,14 @@
 import { getOfflineStore, type OfflineKeyValueStore } from '@/lib/offline-store/kv';
 import { pictureIndexLanguages, type PictureMatch } from '@/lib/card-picture-match';
 import type { PictureWorkerRequest, PictureWorkerResponse } from '@/lib/card-picture-worker';
+import { PICTURE_MODEL_BASE_URL, PICTURE_MODEL_FILES } from '@/lib/card-picture-fingerprint';
 
 const ASSETS = 'https://assets.holofolder.com/pokemon/tcg';
-/** Model weights, their licence and the WASM runtime (overridable for dev, e.g. a local folder served over HTTP). */
-export const PICTURE_MODEL_BASE_URL = withSlash(
-  process.env.NEXT_PUBLIC_PICTURE_MODEL_BASE_URL || `${ASSETS}/models/dinov3-vits16-q8/`,
-);
+export { ONNX_RUNTIME_VERSION, PICTURE_MODEL_BASE_URL, PICTURE_MODEL_FILES } from '@/lib/card-picture-fingerprint';
 /** The published fingerprint index (lib/card-assets/fingerprints.ts FINGERPRINT_PREFIX). */
 export const PICTURE_INDEX_BASE_URL = withSlash(
   process.env.NEXT_PUBLIC_PICTURE_INDEX_BASE_URL || `${ASSETS}/fingerprints/v1/dinov3-vits16-q8/`,
 );
-/** Must match the installed onnxruntime-web: its JS and WASM halves only work together (a unit test checks). */
-export const ONNX_RUNTIME_VERSION = '1.31.1';
-export const PICTURE_MODEL_FILES = {
-  model: 'model_quantized.onnx',
-  modelData: 'model_quantized.onnx_data',
-  runtime: `ort-wasm-simd-threaded-${ONNX_RUNTIME_VERSION}.wasm`,
-} as const;
 /** Download size of the model and runtime, for the switch's label before anything is fetched. */
 export const PICTURE_MODEL_BYTES = 183_889 + 21_762_048 + 14_848_852;
 
@@ -233,15 +224,43 @@ function startWorker() {
   return ready;
 }
 
+const ONLINE_LANGUAGES = ['en', 'ja'];
+
+async function matchCardPictureOnline(blob: Blob): Promise<PictureScan | null> {
+  if (!navigator.onLine) return null;
+  try {
+    const languages = pictureIndexLanguages(collectedLanguages, ONLINE_LANGUAGES).join(',');
+    const response = await fetch(`/app/api/card-identify?languages=${languages}`, {
+      method: 'POST',
+      body: blob,
+      headers: { 'Content-Type': blob.type || 'image/jpeg' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const { matches, ms } = (await response.json()) as {
+      matches?: PictureMatch[];
+      ms?: { decode: number; embed: number; search: number };
+    };
+    if (!Array.isArray(matches)) return null;
+    return { matches, ms: { embed: (ms?.decode ?? 0) + (ms?.embed ?? 0), match: ms?.search ?? 0 } };
+  } catch (error) {
+    console.info('[holofolder] Online picture match failed:', error);
+    return null;
+  }
+}
+
 export interface PictureScan {
   matches: PictureMatch[];
   ms: { embed: number; match: number };
 }
 
-/** The closest cards to a crop (data URL or image), or null when the picture scanner isn't on this device. */
+/**
+ * The closest cards to a crop (data URL or image): on this device when the scanner is downloaded, else from the
+ * server matcher when online (the same model and index, so the same matches), else null.
+ */
 export async function matchCardPicture(image: string | Blob): Promise<PictureScan | null> {
-  if (!(await startWorker()) || !worker) return null;
   const blob = typeof image === 'string' ? await (await fetch(image)).blob() : image;
+  if (!(await startWorker()) || !worker) return matchCardPictureOnline(blob);
   // One crop at a time: the WASM session runs one inference at a time anyway.
   const run = queue.then(
     () =>

@@ -120,16 +120,22 @@ export function collectedCardLanguages(
   return [...languages];
 }
 
-export interface PictureCandidate {
-  card: SearchCardResult;
+/** What the decision rule reads from a card (a search result, or a catalog card from the developer API). */
+export type PictureAgreementCard = Pick<SearchCardResult, 'id' | 'name' | 'localId'> & {
+  dexIds?: readonly number[];
+  set: { officialCardCount?: number | null };
+};
+
+export interface PictureCandidate<T extends PictureAgreementCard = SearchCardResult> {
+  card: T;
   score: number;
 }
 
-export type PictureScanDecision =
-  | { kind: 'match'; card: SearchCardResult }
+export type PictureScanDecision<T extends PictureAgreementCard = SearchCardResult> =
+  | { kind: 'match'; card: T }
   /** The picture alone cleared the suggestion gate: `candidates[0]` is pre-selected, the rest stay one tap away. */
-  | { kind: 'suggest'; card: SearchCardResult; candidates: SearchCardResult[] }
-  | { kind: 'choose'; candidates: SearchCardResult[] };
+  | { kind: 'suggest'; card: T; candidates: T[] }
+  | { kind: 'choose'; candidates: T[] };
 
 /**
  * The best raw picture match (`findPictureMatches` output, best first), when it is sure and far enough ahead of the
@@ -141,14 +147,15 @@ export function confidentPicture(matches: readonly PictureMatch[]) {
   return !next || best.score - next.score >= PICTURE_SUGGEST_MARGIN ? best : null;
 }
 
-function agreement(card: SearchCardResult, read: ScannedCardRead) {
+/** Which parts of a read (or a caller's hints) agree with a card; `score` ranks the agreeing ones. */
+export function pictureReadAgreement(card: PictureAgreementCard, read: ScannedCardRead) {
   const name =
     !!read.pokemon &&
-    (card.dexIds?.includes(read.pokemon.id) ||
+    (!!card.dexIds?.includes(read.pokemon.id) ||
       scanWords(read.pokemon.name).every((word) => scanWords(card.name).includes(word)));
   const number = !!read.number && normalizeLocalId(card.localId) === normalizeLocalId(read.number.number);
   const total = number && !!read.number?.total && card.set.officialCardCount === Number(read.number.total);
-  return { score: (name ? 2 : 0) + (number ? 2 : 0) + (total ? 1 : 0), fullNumber: total };
+  return { name, number, total, score: (name ? 2 : 0) + (number ? 2 : 0) + (total ? 1 : 0), fullNumber: total };
 }
 
 /**
@@ -158,12 +165,12 @@ function agreement(card: SearchCardResult, read: ScannedCardRead) {
  * suggested ahead of the other choices, or up to five pictures (the agreeing ones first) become tap-to-pick choices.
  * Never one choice on its own: the review pre-selects a lone candidate.
  */
-export function decidePictureScan(
-  pictures: readonly PictureCandidate[],
+export function decidePictureScan<T extends PictureAgreementCard = SearchCardResult>(
+  pictures: readonly PictureCandidate<T>[],
   read: ScannedCardRead,
   confident: PictureMatch | null = null,
-): PictureScanDecision {
-  const top = pictures.slice(0, PICTURE_AGREE_TOP).map(({ card }) => ({ card, ...agreement(card, read) }));
+): PictureScanDecision<T> {
+  const top = pictures.slice(0, PICTURE_AGREE_TOP).map(({ card }) => ({ card, ...pictureReadAgreement(card, read) }));
   const best = Math.max(0, ...top.map((entry) => entry.score));
   const agreeing = top.filter((entry) => entry.score === best && best > 0);
   if (agreeing.length === 1 && agreeing[0].fullNumber) return { kind: 'match', card: agreeing[0].card };

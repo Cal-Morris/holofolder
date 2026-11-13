@@ -39,9 +39,20 @@ import {
   listCatalogCards,
   getCatalogCard,
   getCatalogSimilarCards,
+  getCatalogCardsByIds,
   listCatalogGroups,
   getCatalogGroup,
 } from './catalog';
+import {
+  decodeIdentifyImage,
+  identifyLanguages,
+  shapeIdentifyResult,
+  IDENTIFY_DEFAULT_LIMIT,
+  IDENTIFY_RATE_LIMITS,
+} from '@/lib/card-identify';
+import { identifyCardPicture } from '@/lib/server/card-identify';
+import { consumeCardIdentifyLimit } from '@/lib/server/developer-access/limits';
+import { EMBEDDING_MODEL } from '@/lib/card-assets/embeddings-db';
 import { listBinders, createBinder, updateBinder, deleteBinder } from './binders';
 import { getCollectionSettings, saveCollectionSettings } from './settings';
 import { getMirroredIllustratorDirectory, getMirroredSetDexSlots } from '@/lib/tcg-mirror';
@@ -108,6 +119,31 @@ async function sanitizeImages(value: unknown): Promise<unknown> {
   return output;
 }
 
+/** identify_card: candidates for a photo, never a pick (lib/card-identify.ts). Costs CPU, so it has its own budget. */
+async function identifyCatalogCard(actorId: string, input: Record<string, unknown>) {
+  const image = decodeIdentifyImage(String(input.image));
+  if (typeof image === 'string') throw new DeveloperAccessError('invalid_image', image, 400);
+  await consumeCardIdentifyLimit(`developer:${actorId}`, IDENTIFY_RATE_LIMITS.developer);
+  const language = typeof input.language === 'string' ? normalizeCardLanguage(input.language) : undefined;
+  const { matches } = await identifyCardPicture(image, identifyLanguages(language));
+  // A match on the shared English picture is shown in the language asked for.
+  const cardLanguage = (match: { language: string }) =>
+    normalizeCardLanguage(match.language === 'en' && language ? language : match.language);
+  const cards = await getCatalogCardsByIds(matches.map((m) => ({ id: m.id, language: cardLanguage(m) })));
+  const found = matches.flatMap((m) => {
+    const card = cards.get(`${cardLanguage(m)}:${m.id}`) as Parameters<typeof shapeIdentifyResult>[0][number]['card'];
+    return card ? [{ card, similarity: m.score }] : [];
+  });
+  const hints = {
+    name: typeof input.name === 'string' ? input.name : undefined,
+    number: typeof input.number === 'string' ? input.number : undefined,
+  };
+  return {
+    model: EMBEDDING_MODEL,
+    ...shapeIdentifyResult(found, hints, Number(input.limit ?? IDENTIFY_DEFAULT_LIMIT)),
+  };
+}
+
 function sliceEntries<T>(entries: T[], input: Record<string, unknown>, key: (entry: T) => string) {
   return paginateEntries(entries, paramsOf(input), key);
 }
@@ -141,6 +177,8 @@ async function dispatchDeveloperOperation(
       if (!similar) throw new DeveloperAccessError('not_found', 'Card not found.', 404);
       return similar;
     }
+    case 'identify_card':
+      return identifyCatalogCard(context.principal.actorId, input);
     case 'list_sets':
       return listCatalogGroups('sets', params.toString());
     case 'list_series':

@@ -196,6 +196,14 @@ async function main() {
     await read('list_cards');
     await read('get_card', { id: 'base1-1' });
     await read('get_similar_cards', { id: 'base1-4' });
+    // A catalogue picture of base1-4 (synthetic for this purpose: no user photo), with its printed number.
+    const picture = await fetch('https://assets.holofolder.com/pokemon/tcg/cards/en/base1/4/low.webp');
+    assert.ok(picture.ok, 'Smoke picture unavailable');
+    await read('identify_card', {
+      image: Buffer.from(await picture.arrayBuffer()).toString('base64'),
+      number: '4/102',
+      language: 'en',
+    });
     await read('list_sets');
     await read('get_set', { id: 'base1' });
     await read('list_series');

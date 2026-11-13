@@ -268,3 +268,24 @@ export async function getCatalogSimilarCards(id: string, lang: CardLanguage) {
     similarLook: toEntries(split.similarLook),
   };
 }
+
+/** Catalog cards for (id, language) pairs, keyed `${language}:${id}`; ids not in the mirror are left out. */
+export async function getCatalogCardsByIds(entries: ReadonlyArray<{ id: string; language: CardLanguage }>) {
+  const ids = [...new Set(entries.map((entry) => entry.id))];
+  const found = new Map<string, unknown>();
+  if (!ids.length) return found;
+  const { data, error } = await createAdminClient().from('tcg_cards').select(CARD_COLUMNS).in('id', ids);
+  if (error) throw new Error('Card lookup unavailable');
+  const rows = new Map((data ?? []).map((row) => [String(record(row).id), row]));
+  await Promise.all(
+    [...new Set(entries.map((entry) => entry.language))].map(async (language) => {
+      const group = entries.filter((entry) => entry.language === language && rows.has(entry.id));
+      const cards = await cardPage(
+        group.map((entry) => rows.get(entry.id)),
+        language,
+      );
+      group.forEach((entry, index) => found.set(`${language}:${entry.id}`, cards[index]));
+    }),
+  );
+  return found;
+}
