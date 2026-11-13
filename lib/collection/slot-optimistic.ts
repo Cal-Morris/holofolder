@@ -38,6 +38,10 @@ export type SlotOfflineIntent =
   | { kind: 'slots'; request: SlotCommandRequest; context: OperationIntentContext }
   | { kind: 'inventory'; request: InventoryCommandRequest; context: OperationIntentContext };
 export const sameValue = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+const slotIndex = (slots: readonly { id: string }[], id: string) => slots.findIndex((s) => s.id === id);
+const findSlot = <T extends { id: string }>(slots: readonly T[], id: string): T | undefined =>
+  slots[slotIndex(slots, id)];
+
 function fail(reason: string): never {
   throw new Error(reason);
 }
@@ -137,11 +141,16 @@ export function projectSlotIntent(
           },
         ]
       : intent.request.collections;
+  // Lookups read the current `state`, which commands below replace and mutate as they apply.
+  const collectionOf = (collectionId: string) => state.collections.find((c) => c.id === collectionId);
+  const findBinder = (collectionId: string) => state.binders.find((b) => b.collectionId === collectionId);
+  const binderOf = (collectionId: string) => findBinder(collectionId)!;
+  const slotAt = (collectionId: string, slotId: string) => binderOf(collectionId).slots.find((s) => s.id === slotId)!;
+  const itemOf = (itemId: string | null) => state.items.find((i) => i.id === itemId);
+  const placementOf = (itemId: string | null) => state.placements.find((p) => p.inventoryItemId === itemId);
   for (const ref of collections) {
-    if (state.collections.find((c) => c.id === ref.collectionId)?.version !== ref.version)
-      return fail('collection-conflict');
-    if (state.binders.find((b) => b.collectionId === ref.collectionId)?.layoutRevision !== ref.layoutRevision)
-      return fail('layout-conflict');
+    if (collectionOf(ref.collectionId)?.version !== ref.version) return fail('collection-conflict');
+    if (findBinder(ref.collectionId)?.layoutRevision !== ref.layoutRevision) return fail('layout-conflict');
   }
   const context = {
     ...intent.context,
@@ -153,7 +162,7 @@ export function projectSlotIntent(
     collectionId: ref.collectionId,
     slotId: ref.slot.id,
     slotVersion: ref.slot.version,
-    layoutRevision: state.binders.find((b) => b.collectionId === ref.collectionId)!.layoutRevision,
+    layoutRevision: binderOf(ref.collectionId).layoutRevision,
   });
   const placedInput = (ref: InventoryItemRef) => {
     if (!ref.placement) return fail('placement-conflict');
@@ -179,7 +188,7 @@ export function projectSlotIntent(
     const id = intent.request.collectionId,
       used = new Set<string>();
     for (const command of intent.request.commands) {
-      const binder = state.binders.find((b) => b.collectionId === id)!;
+      const binder = binderOf(id);
       const ids =
         command.kind === 'create'
           ? command.ids
@@ -229,8 +238,8 @@ export function projectSlotIntent(
                 command.slots.map((s) => s.id),
               );
       } else if (command.kind === 'update') {
-        const slot = binder.slots.find((s) => s.id === command.slot.id)!;
-        const item = state.items.find((i) => i.id === slot.inventoryItemId);
+        const slot = slotAt(id, command.slot.id);
+        const item = itemOf(slot.inventoryItemId);
         plan =
           'target' in command
             ? planChangeSlotTarget(
@@ -248,7 +257,7 @@ export function projectSlotIntent(
                 unassignedInventoryItemIds: [],
               };
         if (plan.ok && command.wantedCards) {
-          const updated = plan.snapshot.slots.find((s) => s.id === slot.id)!;
+          const updated = findSlot(plan.snapshot.slots, slot.id)!;
           if (!sameValue(updated.wantedCards, command.wantedCards)) {
             updated.wantedCards = structuredClone(command.wantedCards);
             updated.version = slot.version + 1;
@@ -259,7 +268,8 @@ export function projectSlotIntent(
       if (!sameValue(binder, plan.snapshot)) touched.add(id);
       if (binder.layoutRevision !== plan.snapshot.layoutRevision) structural.add(id);
       state.binders = state.binders.map((b) => (b.collectionId === id ? plan.snapshot : b));
-      state.placements = state.placements.filter((p) => !plan.unassignedInventoryItemIds.includes(p.inventoryItemId));
+      const unassigned = new Set(plan.unassignedInventoryItemIds);
+      state.placements = state.placements.filter((p) => !unassigned.has(p.inventoryItemId));
     }
   } else {
     const used = new Set<string>(),
@@ -270,11 +280,12 @@ export function projectSlotIntent(
       if (c.kind === 'patchGrading' || ('fulfillWant' in c && c.fulfillWant && 'expectedPublic' in c.fulfillWant))
         return fail('server-only-private-patch');
       const before = structuredClone(state);
-      if ('item' in c && insertedItems.has(c.item.itemId)) return fail('overlapping-command');
+      const item = 'item' in c ? c.item : undefined;
+      if (item && insertedItems.has(item.itemId)) return fail('overlapping-command');
       const refs: InventorySlotRef[] = [];
-      if ('item' in c) {
-        checkItem(c.item);
-        if (c.item.placement) refs.push(c.item.placement);
+      if (item) {
+        checkItem(item);
+        if (item.placement) refs.push(item.placement);
       }
       if ('destination' in c) refs.push(c.destination);
       if (c.kind === 'removeSlots') refs.push(...c.slots);
@@ -285,22 +296,24 @@ export function projectSlotIntent(
         used.add(ref.slot.id);
       }
       if (c.kind === 'insertAssign') {
-        const binder = state.binders.find((b) => b.collectionId === c.collectionId)!;
+        const binder = binderOf(c.collectionId);
         if (c.target?.kind === 'pokemon' && c.target.pokemonId > 1025) return fail('catalog-unavailable');
         if (c.target?.kind === 'card' && !catalog(c.target.cardId)) return fail('catalog-unavailable');
         if (c.before) {
           if (used.has(c.before.id)) return fail('overlapping-command');
           checkSlotRef(original, c.collectionId, c.before);
         }
-        const index = c.before === null ? binder.slots.length : binder.slots.findIndex((s) => s.id === c.before!.id);
+        const slots = binder.slots,
+          before = c.before;
+        const index = before === null ? slots.length : slotIndex(slots, before.id);
         if (index < 0) return fail('slot-conflict');
-        insertionWork += binder.slots.length + 1;
-        if (insertionWork > INVENTORY_INSERT_LIMITS.work || binder.slots.length >= INVENTORY_INSERT_LIMITS.slots)
+        insertionWork += slots.length + 1;
+        if (insertionWork > INVENTORY_INSERT_LIMITS.work || slots.length >= INVENTORY_INSERT_LIMITS.slots)
           return fail('slot-capacity-exceeded');
         if (used.has(c.slotId) || state.binders.some((b) => b.slots.some((s) => s.id === c.slotId)))
           return fail('slot-conflict');
         used.add(c.slotId);
-        binder.slots.splice(index, 0, {
+        slots.splice(index, 0, {
           id: c.slotId,
           ownerUserId: state.ownerUserId,
           collectionId: c.collectionId,
@@ -318,18 +331,18 @@ export function projectSlotIntent(
           usedItems.add(itemId);
           insertedItems.add(itemId);
           if (selection.kind === 'new') {
-            if (selection.identity.kind === 'pokemon' && selection.identity.pokemonId > 1025)
-              return fail('catalog-unavailable');
+            const identity = selection.identity;
+            if (identity.kind === 'pokemon' && identity.pokemonId > 1025) return fail('catalog-unavailable');
             if (state.items.some((i) => i.id === itemId)) return fail('item-conflict');
-            const candidate = selection.identity.kind === 'card' ? catalog(selection.identity.cardId) : undefined;
-            if (selection.identity.kind === 'card' && !candidate) return fail('catalog-unavailable');
+            const candidate = identity.kind === 'card' ? catalog(identity.cardId) : undefined;
+            if (identity.kind === 'card' && !candidate) return fail('catalog-unavailable');
             state.items.push({
               id: itemId,
               ownerUserId: state.ownerUserId,
               identity:
-                selection.identity.kind === 'card' && candidate?.kind === 'card'
-                  ? { ...selection.identity, cardId: candidate.canonicalId ?? candidate.id }
-                  : selection.identity,
+                identity.kind === 'card' && candidate?.kind === 'card'
+                  ? { ...identity, cardId: candidate.canonicalId ?? candidate.id }
+                  : identity,
               grading: selection.grading,
               acquiredAt: selection.acquiredAt,
               version: 0,
@@ -369,26 +382,21 @@ export function projectSlotIntent(
           acquiredAt: c.acquiredAt,
           version: 0,
         });
-      } else if (c.kind === 'edit')
+      } else if (c.kind === 'edit') {
+        const { itemId, itemVersion } = c.item;
         apply(
-          planEditInventoryMetadata(state, {
-            ...input(),
-            inventoryItemId: c.item.itemId,
-            itemVersion: c.item.itemVersion,
-            grading: c.grading,
-          }),
+          planEditInventoryMetadata(state, { ...input(), inventoryItemId: itemId, itemVersion, grading: c.grading }),
         );
-      else if (c.kind === 'setFinish') state = projectSetFinish(state, c, catalog);
+      } else if (c.kind === 'setFinish') state = projectSetFinish(state, c, catalog);
       else if (c.kind === 'removeOwned' || c.kind === 'unassign') {
-        if (c.item.placement) apply(planUnassignInventory(state, placedInput(c.item)));
-        if (c.kind === 'removeOwned') state.items = state.items.filter((i) => i.id !== c.item.itemId);
+        const ref = c.item;
+        if (ref.placement) apply(planUnassignInventory(state, placedInput(ref)));
+        if (c.kind === 'removeOwned') state.items = state.items.filter((i) => i.id !== ref.itemId);
       } else if (c.kind === 'assign' || c.kind === 'move') {
-        const destination = state.binders
-          .find((b) => b.collectionId === c.destination.collectionId)!
-          .slots.find((s) => s.id === c.destination.slot.id)!;
+        const destination = slotAt(c.destination.collectionId, c.destination.slot.id);
         const displacedId = destination.inventoryItemId;
-        const displaced = state.items.find((i) => i.id === displacedId),
-          placement = state.placements.find((p) => p.inventoryItemId === displacedId);
+        const displaced = itemOf(displacedId),
+          placement = placementOf(displacedId);
         if (displacedId !== null && c.occupied === 'cancel') return fail('destination-occupied');
         if (c.kind === 'assign' && c.selection.kind === 'existing') {
           if (insertedItems.has(c.selection.inventoryItemId)) return fail('overlapping-command');
@@ -408,9 +416,7 @@ export function projectSlotIntent(
           if (!preview.ok) return fail(preview.error);
           apply(planMoveInventory(state, move, catalog));
           if (c.occupied === 'swap' && displaced && placement) {
-            const source = state.binders
-              .find((b) => b.collectionId === c.item.placement!.collectionId)!
-              .slots.find((s) => s.id === c.item.placement!.slot.id)!;
+            const source = slotAt(c.item.placement!.collectionId, c.item.placement!.slot.id);
             apply(
               planAssignInventory(
                 state,
@@ -421,26 +427,22 @@ export function projectSlotIntent(
                     collectionId: source.collectionId,
                     slotId: source.id,
                     slotVersion: source.version,
-                    layoutRevision: state.binders.find((b) => b.collectionId === source.collectionId)!.layoutRevision,
+                    layoutRevision: binderOf(source.collectionId).layoutRevision,
                   },
                 },
                 catalog,
               ),
             );
             // SQL versions each swapped slot once, including the cleared source.
-            state.binders
-              .find((b) => b.collectionId === source.collectionId)!
-              .slots.find((s) => s.id === source.id)!.version = source.version;
-            state.placements.find((p) => p.inventoryItemId === displaced.id)!.version = placement.version + 1;
+            slotAt(source.collectionId, source.id).version = source.version;
+            placementOf(displaced.id)!.version = placement.version + 1;
           }
         }
         if (c.fulfillWant) {
           if (!('expected' in c.fulfillWant)) return fail('server-only-private-patch');
-          const slot = state.binders
-            .find((b) => b.collectionId === c.destination.collectionId)!
-            .slots.find((s) => s.id === c.destination.slot.id)!;
+          const slot = slotAt(c.destination.collectionId, c.destination.slot.id);
           if (!sameValue(slot.wantedCards[c.fulfillWant.index], c.fulfillWant.expected)) return fail('wanted-conflict');
-          const assigned = state.items.find((i) => i.id === slot.inventoryItemId)!;
+          const assigned = itemOf(slot.inventoryItemId)!;
           const candidate = inventoryItemCandidate(assigned, catalog),
             want = c.fulfillWant.expected;
           if (
@@ -457,10 +459,7 @@ export function projectSlotIntent(
         }
       } else {
         const ids = new Set(refs.map((r) => r.slot.id));
-        if (
-          c.kind === 'deleteCollection' &&
-          state.binders.find((b) => b.collectionId === c.collectionId)!.slots.length !== ids.size
-        )
+        if (c.kind === 'deleteCollection' && binderOf(c.collectionId).slots.length !== ids.size)
           return fail('partial-collection');
         state.placements = state.placements.filter((p) => !ids.has(p.slotId));
         state.binders = state.binders.map((b) => {
