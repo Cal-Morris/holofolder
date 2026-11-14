@@ -129,6 +129,14 @@ async function putInCache(cache, cacheName, request, response) {
   }
 }
 
+// A set coverage lookup saved before the slim `v=2` response; the app reads either shape.
+function unversionedSetSlotsRequest(request) {
+  const url = new URL(request.url);
+  if (!url.pathname.endsWith('/api/tcg-set-slots') || !url.searchParams.has('v')) return null;
+  url.searchParams.delete('v');
+  return url.href;
+}
+
 function legacyApiRequest(request) {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || !url.pathname.startsWith('/app/api/')) return request;
@@ -257,7 +265,11 @@ const DATA_NETWORK_TIMEOUT_MS = 5000;
 
 async function networkFirst(request, cacheName, event) {
   const cache = await caches.open(cacheName);
-  const cached = (await cache.match(request)) ?? (await cache.match(legacyApiRequest(request)));
+  const unversioned = unversionedSetSlotsRequest(request);
+  const cached =
+    (await cache.match(request)) ??
+    (await cache.match(legacyApiRequest(request))) ??
+    (unversioned ? await cache.match(unversioned) : undefined);
 
   const network = fetch(request).then((response) => {
     if (isCacheableResponse(response)) {

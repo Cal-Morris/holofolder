@@ -182,3 +182,27 @@ test('evicted startup chunks return a static recovery notice without private dat
   assert.match(await response.text(), /Pending edits have not been removed/);
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
 });
+
+test('offline, a set lookup saved before the slim v=2 response still answers from its old cached copy', async () => {
+  const { context } = worker();
+  const old = '/app/api/tcg-set-slots?query=Base+Set&setId=base1';
+  context.setTimeout = setTimeout;
+  context.clearTimeout = clearTimeout;
+  context.fetch = async () => {
+    throw new Error('synthetic offline network');
+  };
+  context.caches = {
+    open: async () => ({
+      match: async (key: { url?: string } | string) => {
+        const url = typeof key === 'string' ? key : key.url;
+        return url === `https://holofolder.com${old}` ? 'synthetic saved set' : undefined;
+      },
+    }),
+  };
+  const request = { url: `https://holofolder.com${old}&v=2` };
+  assert.equal(await runInContext(`networkFirst(${JSON.stringify(request)}, 'data')`, context), 'synthetic saved set');
+  assert.equal(
+    runInContext(`unversionedSetSlotsRequest({url:'https://holofolder.com/app/api/tcgdex-cache?v=2'})`, context),
+    null,
+  );
+});

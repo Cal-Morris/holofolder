@@ -47,6 +47,51 @@ export interface TCGSetSlotsResponse {
   cards?: TCGSetSlotCard[];
 }
 
+/**
+ * What `/app/api/tcg-set-slots?setId=` sends: every card once in `cards`, without its set (always `selectedSet`),
+ * and each slot as card ids into that list. `expandSetSlotsResponse` rebuilds the full shape.
+ */
+export interface TCGSetSlotsWireResponse {
+  sets: TCGSetSummary[];
+  selectedSet: TCGSetSummary | null;
+  slots: Array<{ dexId: number; pokemonName: string; cardIds: string[] }>;
+  cards?: Array<Omit<TCGSetSlotCard, 'set'>>;
+}
+
+/** Requests with `v=2` get the slim shape; without it the route keeps sending the old one to older clients. */
+export const SET_SLOTS_WIRE_VERSION = '2';
+
+export function slimSetSlotsResponse(response: TCGSetSlotsResponse): TCGSetSlotsWireResponse {
+  return {
+    sets: response.sets,
+    selectedSet: response.selectedSet,
+    slots: response.slots.map(({ cards, ...slot }) => ({ ...slot, cardIds: cards.map((card) => card.id) })),
+    cards: response.cards?.map(({ set: _set, ...card }) => card),
+  };
+}
+
+/**
+ * The full response from either shape: the slim wire one, or the older one (still in saved and cached copies).
+ * Saved copies are untrusted, so malformed entries pass through for the caller's own checks.
+ */
+export function expandSetSlotsResponse(payload: TCGSetSlotsWireResponse | TCGSetSlotsResponse): TCGSetSlotsResponse {
+  type Loose = { set?: TCGSetSummary; cards?: unknown; cardIds?: unknown };
+  const cards = payload.cards?.map((card) =>
+    card && !(card as Loose).set && payload.selectedSet ? { ...card, set: payload.selectedSet } : card,
+  ) as TCGSetSlotCard[] | undefined;
+  const byId = new Map(cards?.map((card) => [card?.id, card]));
+  return {
+    ...payload,
+    cards,
+    slots: payload.slots.map((slot) => {
+      const loose = slot as Loose | null;
+      if (!loose || Array.isArray(loose.cards) || !Array.isArray(loose.cardIds)) return slot as TCGSetDexSlot;
+      const { cardIds, ...rest } = slot as TCGSetSlotsWireResponse['slots'][number];
+      return { ...rest, cards: cardIds.flatMap((id) => byId.get(id) ?? []) };
+    }),
+  };
+}
+
 export const RECENT_SET_MIN_OFFICIAL_CARDS = 20;
 
 /**

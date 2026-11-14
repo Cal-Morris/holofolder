@@ -7,7 +7,7 @@ import {
 } from '@/lib/tcg-mirror';
 import { normalizeCardLanguage } from '@/lib/domain/cards';
 import { POKEMON_CATALOG } from '@/lib/pokemon-catalog';
-import { SET_SEARCH_RESULT_LIMIT } from '@/lib/tcg-set-slots';
+import { SET_SEARCH_RESULT_LIMIT, SET_SLOTS_WIRE_VERSION, slimSetSlotsResponse } from '@/lib/tcg-set-slots';
 import { PUBLIC_JSON_CACHE_HEADERS } from '@/lib/http-cache';
 
 export const instant = false;
@@ -61,13 +61,9 @@ export async function GET(request: NextRequest) {
     const { selectedSet, slots, cards } = await getMirroredSetDexSlots(selectedSetId, language, pokemonNames);
     const allSets = sets.some((set) => set.id === selectedSetId) || !selectedSet ? sets : [selectedSet, ...sets];
 
+    const response = { sets: allSets, selectedSet, slots, cards };
     return NextResponse.json(
-      {
-        sets: allSets,
-        selectedSet,
-        slots,
-        cards,
-      },
+      searchParams.get('v') === SET_SLOTS_WIRE_VERSION ? slimSetSlotsResponse(response) : response,
       { headers: PUBLIC_JSON_CACHE_HEADERS },
     );
   } catch (error) {

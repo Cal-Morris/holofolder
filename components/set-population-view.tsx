@@ -14,10 +14,16 @@ import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { DEFAULT_PRICING_REGION, type PricingRegion } from '@/lib/pricing-region';
 import { CardHighlights } from '@/components/card-highlights';
 import { DEFAULT_CARD_LANGUAGE, type CardLanguage, type CollectedPokemon } from '@/lib/domain/cards';
-import type { TCGSetDexSlot, TCGSetSlotCard, TCGSetSlotsResponse, TCGSetSummary } from '@/lib/tcg-set-slots';
+import {
+  expandSetSlotsResponse,
+  type TCGSetDexSlot,
+  type TCGSetSlotCard,
+  type TCGSetSlotsResponse,
+  type TCGSetSummary,
+} from '@/lib/tcg-set-slots';
 import { getOfflineStore } from '@/lib/offline-store/kv';
 import { loadSetQuery, saveSetQuery } from '@/lib/offline-store/records';
-import { getProxiedThumbnailUrl } from '@/lib/card-show-prep';
+import { getLegacySetSlotsQuery, getProxiedThumbnailUrl, getSetSlotsQuery } from '@/lib/card-show-prep';
 import { readOfflineSets, searchOfflineSets } from '@/lib/offline-card-index';
 import { useCollapseOnScroll } from '@/hooks/use-collapse-on-scroll';
 import { getSetCompletion } from '@/lib/set-completion';
@@ -261,18 +267,22 @@ export default function SetPopulationView({
     const offlineStore = getOfflineStore();
     void Promise.all(
       missing.map(async (set) => {
-        const queryString = new URLSearchParams({ query: set.name, setId: set.id }).toString();
+        const queryString = getSetSlotsQuery(set);
         let payload: TCGSetSlotsResponse;
         try {
           const response = await fetch(`/app/api/tcg-set-slots?${queryString}`, { signal: controller.signal });
           const data = await response.json();
           if (!response.ok || !data.selectedSet) throw new Error(data.error || `Could not load ${set.name}`);
-          payload = data;
-          if (offlineStore) void saveSetQuery(offlineStore, queryString, payload).catch(() => undefined);
+          payload = expandSetSlotsResponse(data);
+          if (offlineStore) void saveSetQuery(offlineStore, queryString, data).catch(() => undefined);
         } catch {
           if (controller.signal.aborted) return;
           // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
-          const saved = offlineStore ? await loadSetQuery(offlineStore, queryString).catch(() => null) : null;
+          const saved = offlineStore
+            ? await loadSetQuery(offlineStore, queryString)
+                .then((found) => found ?? loadSetQuery(offlineStore, getLegacySetSlotsQuery(set)))
+                .catch(() => null)
+            : null;
           if (controller.signal.aborted) return;
           if (!saved) {
             setError(`Could not load ${set.name}. Remove and add it to retry.`);

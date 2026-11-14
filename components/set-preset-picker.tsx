@@ -8,7 +8,13 @@ import { Select } from '@/components/ui/select';
 import { CARD_LANGUAGES, type CardLanguage } from '@/lib/domain/cards';
 import type { BinderSnapshot } from '@/lib/domain/binder-slots';
 import type { SetChecklist } from '@/lib/domain/binder-presets';
-import type { TCGSetSlotCard, TCGSetSlotsResponse, TCGSetSummary } from '@/lib/tcg-set-slots';
+import {
+  expandSetSlotsResponse,
+  type TCGSetSlotCard,
+  type TCGSetSlotsWireResponse,
+  type TCGSetSummary,
+} from '@/lib/tcg-set-slots';
+import { getSetSlotsUrl } from '@/lib/card-show-prep';
 import type { PreviewCard } from '@/lib/binder-creation-wizard';
 import {
   generateSetChecklist,
@@ -101,7 +107,8 @@ export function SetPresetPicker({
       return false;
     }
   }
-  async function load(setId?: string) {
+  async function load(target?: TCGSetSummary) {
+    const setId = target && resolveSetSearchAlias(target.id);
     if (!isOnline) return;
     const sequence = ++request.current;
     setLoading(true);
@@ -113,21 +120,21 @@ export function SetPresetPicker({
       setPromoResults([]);
     }
     try {
-      const params = new URLSearchParams({
-        language,
-        ...(setId ? { setId: resolveSetSearchAlias(setId) } : { query: resolveSetSearchAlias(query) }),
-      });
-      const response = await fetch(`/app/api/tcg-set-slots?${params}`, { cache: 'no-store' });
+      const response = await fetch(
+        setId
+          ? getSetSlotsUrl({ id: setId, name: target.name }, language)
+          : `/app/api/tcg-set-slots?${new URLSearchParams({ language, query: resolveSetSearchAlias(query) })}`,
+      );
       if (!response.ok) throw new Error("Couldn't load sets just now. Try again.");
       // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
-      const data = (await response.json()) as TCGSetSlotsResponse;
+      const data = expandSetSlotsResponse((await response.json()) as TCGSetSlotsWireResponse);
       if (sequence !== request.current) return;
       if (!setId) {
         setSets(data.sets ?? []);
         if (!data.sets?.length) setMessage('No set found with that name or code.');
         return;
       }
-      if (!data.selectedSet || data.selectedSet.id !== resolveSetSearchAlias(setId) || !Array.isArray(data.cards))
+      if (!data.selectedSet || data.selectedSet.id !== setId || !Array.isArray(data.cards))
         throw new Error("This set couldn't be loaded in full, so nothing was added.");
       const dex = new Map<string, number>();
       for (const slot of data.slots ?? [])
@@ -142,14 +149,13 @@ export function SetPresetPicker({
         // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
         const promoResponse = await fetch(
           `/app/api/tcg-set-slots?${new URLSearchParams({ language, setId: known.setId })}`,
-          { cache: 'no-store' },
         ).catch(() => null);
         const promoData = promoResponse?.ok
-          ? ((await promoResponse.json().catch(() => null)) as TCGSetSlotsResponse | null)
+          ? ((await promoResponse.json().catch(() => null)) as TCGSetSlotsWireResponse | null)
           : null;
         if (sequence !== request.current) return;
-        if (Array.isArray(promoData?.cards))
-          setPromoResults(known.localIds.flatMap((id) => promoData.cards!.filter((c) => c.localId === id)));
+        const promoCards = Array.isArray(promoData?.cards) ? expandSetSlotsResponse(promoData).cards! : null;
+        if (promoCards) setPromoResults(known.localIds.flatMap((id) => promoCards.filter((c) => c.localId === id)));
       }
     } catch (error) {
       if (sequence === request.current)
@@ -242,7 +248,7 @@ export function SetPresetPicker({
               title={`Use ${initialSet.name}`}
               detail={setDetail(initialSet)}
               disabled={!isOnline || loading}
-              onClick={() => void load(initialSet.id)}
+              onClick={() => void load(initialSet)}
             />
           )}
           {catalog && !sets.length && (
@@ -271,7 +277,7 @@ export function SetPresetPicker({
                   detail={setDetail(s)}
                   selected={catalog?.set.id === s.id}
                   disabled={loading}
-                  onClick={() => void load(s.id)}
+                  onClick={() => void load(s)}
                 />
               ))}
             </div>

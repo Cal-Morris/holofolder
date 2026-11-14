@@ -172,7 +172,7 @@ test("the index reads JSON card data from the service worker's data caches only"
 });
 
 test("card show prep uses the Sets view's exact URLs and proxied low-res thumbnails", () => {
-  assert.equal(getSetSlotsUrl(BASE), '/app/api/tcg-set-slots?query=Base+Set&setId=base1');
+  assert.equal(getSetSlotsUrl(BASE), '/app/api/tcg-set-slots?query=Base+Set&setId=base1&v=2');
   assert.equal(
     getProxiedThumbnailUrl('https://assets.tcgdex.net/en/base/base1/44/high.webp'),
     `/app/api/card-image-proxy?url=${encodeURIComponent('https://assets.tcgdex.net/en/base/base1/44/low.webp')}`,

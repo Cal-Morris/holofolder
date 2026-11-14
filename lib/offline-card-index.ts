@@ -14,7 +14,7 @@ import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
 // with the same query rules as /app/api/tcg-card-search (name, set name/id, "44/102" numbers, card ids).
 import type { CollectedPokemon } from '@/lib/domain/cards';
 import { normalizeLocalId, parseCardSearchQuery, type SearchCardResult } from '@/lib/pokemon-card-browse';
-import type { TCGSetSummary } from '@/lib/tcg-set-slots';
+import { expandSetSlotsResponse, type TCGSetSlotsWireResponse, type TCGSetSummary } from '@/lib/tcg-set-slots';
 
 export const CACHED_CARD_API_PREFIXES = [
   '/app/api/tcg-set-slots',
@@ -72,8 +72,8 @@ export function extractCardsFromCachedResponse(url: string, payload: unknown): S
   const path = appPath(parsedUrl.pathname);
   const cards: SearchCardResult[] = [];
 
-  if (path.startsWith('/app/api/tcg-set-slots') && Array.isArray(payload.slots)) {
-    for (const slot of payload.slots) {
+  if (path.startsWith('/app/api/tcg-set-slots') && Array.isArray(payload.slots) && Array.isArray(payload.sets)) {
+    for (const slot of expandSetSlotsResponse(payload as unknown as TCGSetSlotsWireResponse).slots as unknown[]) {
       if (!isRecord(slot) || typeof slot.dexId !== 'number' || !Array.isArray(slot.cards)) continue;
       for (const card of slot.cards) {
         const result = toSearchCard(card, [slot.dexId]);
