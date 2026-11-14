@@ -101,13 +101,18 @@ export function resolveCardSearchQuery(raw: string, sets: SearchSet[]) {
   return { ...parseCardSearchQuery(raw), setIds: [] as string[] };
 }
 
-/** Retry only after literal results are empty, and only with a catalog-backed set constraint. */
+/** Retry only after literal results are empty: a misspelt Pokémon name ("garedevouir ex"), or a set's number fallback. */
 export function correctedCardSearchQuery(raw: string, sets: SearchSet[]) {
   const parsed = resolveCardSearchQuery(raw, sets);
-  if (!parsed.setIds.length || parsed.cardId) return null;
+  if (parsed.cardId) return null;
   const query = sanitizeSearchText(raw).toLowerCase();
-  const name = pokemonCorrection(parsed.text);
-  if (name) return query.replace(new RegExp(`\\b${parsed.text}\\b`), name);
+  const textWords = new Set(parsed.text.split(' '));
+  const corrected = query
+    .split(' ')
+    .map((word) => (textWords.has(word) && pokemonCorrection(word)) || word)
+    .join(' ');
+  if (corrected !== query) return corrected;
+  if (!parsed.setIds.length) return null;
   // "pikachu 25" read as 25th Anniversary found nothing: fall back to collector number #25.
   const literal = parseCardSearchQuery(raw).number;
   if (literal && !parsed.number && /^\d+$/.test(literal))

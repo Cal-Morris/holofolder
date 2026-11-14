@@ -896,7 +896,6 @@ export async function searchCardCatalog(
 
   const admin = createAdminClient();
   const select = cardSearchSelect(includeNonPokemon);
-  let correction: string | null = null;
   const candidates = [
     ...new Set(
       cardSearchSetCandidates(query).flatMap(({ phrase }) =>
@@ -904,6 +903,7 @@ export async function searchCardCatalog(
       ),
     ),
   ];
+  let sets: Array<{ id: string; name: string }> = [];
   if (candidates.length) {
     const catalog = await printedInEnglish(admin.from('tcg_sets').select('id,name_en'), language)
       .or(
@@ -913,12 +913,13 @@ export async function searchCardCatalog(
       )
       .limit(1000);
     if (catalog.error) throw catalog.error;
-    const sets = (catalog.data ?? []).flatMap((set) =>
+    sets = (catalog.data ?? []).flatMap((set) =>
       HIDDEN_SET_IDS.has(set.id) ? [] : [{ id: set.id, name: set.name_en ?? '' }],
     );
     parsed = resolveCardSearchQuery(query, sets);
-    correction = correctedCardSearchQuery(query, sets);
   }
+  // Only used when the literal search finds nothing; single words ("garedevouir") have no set candidates.
+  const correction = correctedCardSearchQuery(query, sets);
   const numberCandidates = parsed.number ? localIdCandidates(parsed.number) : null;
   const requests: Array<PromiseLike<{ data: any[] | null; error: unknown }>> = [];
 

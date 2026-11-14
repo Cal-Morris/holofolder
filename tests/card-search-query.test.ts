@@ -87,6 +87,15 @@ test('unique Pokémon typos retry against the same set family and retain collect
   assert.equal(correctedCardSearchQuery('neo Lucia 1/111', neoSets), 'neo lugia 1/111');
 });
 
+test('misspelt Pokémon names are corrected without a set, word by word', () => {
+  assert.equal(correctedCardSearchQuery('Garedevouir', []), 'gardevoir');
+  assert.equal(correctedCardSearchQuery('garedevouir ex', []), 'gardevoir ex');
+  assert.equal(correctedCardSearchQuery('charzard 4/102', []), 'charizard 4/102');
+  for (const query of ['gardevoir', 'garde', 'pikachu 25', 'xxxxxx']) {
+    assert.equal(correctedCardSearchQuery(query, []), null, query);
+  }
+});
+
 test('literal results win, ambiguous names, fragments and unknown sets are never corrected', () => {
   const literal = { ...neoCards[0], id: 'synthetic-lucia', name: 'Lucia' };
   assert.deepEqual(searchOfflineCardsWithCorrection([...neoCards, literal], 'Lucia neo'), {
@@ -100,8 +109,6 @@ test('literal results win, ambiguous names, fragments and unknown sets are never
     'nidoran neo',
     'latixs neo',
     'xxxxxx neo',
-    'Lucia unknown',
-    'Lucia',
     'neo1-1',
     'arita neo',
   ]) {
