@@ -1,6 +1,6 @@
 # Billing and lifetime access
 
-Holo Folder uses its own product, recurring GBP prices, customers and portal configuration in the existing Syncaura Stripe account. It does not use Stripe Connect. The plans are £3.99/month and £34.99/year, saving £12.89 against twelve monthly payments. After migration 052, the free allowance is 100 saved entries across all binders, including individual wanted cards, and one binder. One owner's paid access includes their shared partner collection; billing is per owner, never per binder or per person. Paid/lifetime owners can create multiple binders within the existing 20-binder safety ceiling.
+Holo Folder uses its own product, recurring GBP prices, customers and portal configuration in the existing Syncaura Stripe account. It does not use Stripe Connect. The plans are £3.99/month and £34.99/year, saving £12.89 against twelve monthly payments. After migration 052, the free allowance was 100 saved entries across all binders, including individual wanted cards, and one binder. Migration 129 makes saved entries unlimited on the free plan by setting `free_card_limit` to the largest integer, which `UNLIMITED_FREE_CARD_LIMIT` in `lib/billing.ts` reads as no cap; the enforcement triggers are unchanged and the one-binder limit stays. Premium features and extra binders do the converting. One owner's paid access includes their shared partner collection; billing is per owner, never per binder or per person. Paid/lifetime owners can create multiple binders within the existing 20-binder safety ceiling.
 
 ## Automatic Premium trial
 

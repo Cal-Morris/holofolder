@@ -2,6 +2,8 @@ import { MAX_BINDERS_PER_OWNER } from '@/lib/binders/model';
 
 export const BILLING_PRICES = { month: 399, year: 3499 } as const;
 export const BILLING_ANNUAL_SAVING = BILLING_PRICES.month * 12 - BILLING_PRICES.year;
+/** `free_card_limit` value meaning the free plan has no saved-entry cap (migration 129). */
+export const UNLIMITED_FREE_CARD_LIMIT = 2_147_483_647;
 export const billingAmount = (pence: number) => `£${(pence / 100).toFixed(2)}`;
 
 export interface BillingAccess {
@@ -50,7 +52,7 @@ export function resolveBillingAccess(
     paidThrough,
     trialEndsAt,
     savedCardCount: typeof row.saved_card_count === 'number' && row.saved_card_count >= 0 ? row.saved_card_count : 0,
-    cardLimit: source === 'free' ? freeCardLimit : null,
+    cardLimit: source === 'free' && freeCardLimit < UNLIMITED_FREE_CARD_LIMIT ? freeCardLimit : null,
     freeCardLimit,
     freeBinderLimit,
     binderLimit: source === 'free' && row.enforced === true ? freeBinderLimit : MAX_BINDERS_PER_OWNER,

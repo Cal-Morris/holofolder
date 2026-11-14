@@ -3,8 +3,13 @@ import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { BillingContext, type BillingState } from '../hooks/use-billing';
 import { BillingSettings } from '../components/billing-settings';
-import { resolveBillingAccess } from '../lib/billing';
-function render(source: 'free' | 'perpetual' | 'subscription' | 'trial', canManage = true, hasBillingAccount = false) {
+import { resolveBillingAccess, UNLIMITED_FREE_CARD_LIMIT } from '../lib/billing';
+function render(
+  source: 'free' | 'perpetual' | 'subscription' | 'trial',
+  canManage = true,
+  hasBillingAccount = false,
+  freeCardLimit = 100,
+) {
   const state: BillingState = {
     access: resolveBillingAccess('owner', {
       enforced: true,
@@ -13,7 +18,7 @@ function render(source: 'free' | 'perpetual' | 'subscription' | 'trial', canMana
       trial_ends_at: source === 'trial' ? '2099-01-01' : null,
       paid_through: '2099-01-01',
       saved_card_count: 10,
-      free_card_limit: 100,
+      free_card_limit: freeCardLimit,
       free_binder_limit: 1,
     }),
     canManage,
@@ -43,6 +48,12 @@ test('free plan shows both approved prices and the total card allowance', () => 
   assert.match(html, /£3.99 \/ month/);
   assert.match(html, /£34.99 \/ year, save £12.89/);
   assert.match(html, /10 of 100 free entries/);
+  assert.match(html, /1 free binder/);
+});
+test('unlimited free plan shows no entry count', () => {
+  const html = render('free', true, false, UNLIMITED_FREE_CARD_LIMIT);
+  assert.match(html, /Unlimited cards and wanted cards/);
+  assert.doesNotMatch(html, /free entries/);
   assert.match(html, /1 free binder/);
 });
 test('only the billing owner gets subscription management controls', () => {

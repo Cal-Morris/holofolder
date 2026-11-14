@@ -53,7 +53,7 @@ export async function prepareAppRawContentRestore(
       Math.max(0, rawRestoreSavedEntries(desiredSlots) - rawRestoreSavedEntries(currentSlots)),
     );
     savedEntryRemaining =
-      !access.enforced || access.tier === 'paid'
+      !access.enforced || access.cardLimit === null
         ? wantedIncrease
         : Math.max(0, (access.cardLimit ?? 0) - access.savedCardCount);
   }
