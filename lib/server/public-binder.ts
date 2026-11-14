@@ -80,6 +80,56 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
   }
 }
 
+type NamedShareRows = {
+  identities: { user_id: unknown; username: unknown }[];
+  slugs: { owner_user_id: unknown; binder_id: unknown; slug: unknown; is_active: unknown }[];
+  shares: { owner_user_id: unknown; binder_id: unknown; is_enabled: unknown }[];
+};
+
+/** The (username, slug) of every enabled named share: the same join as resolve_named_binder_share, done in memory. */
+export function namedPublicBinderParams({ identities, slugs, shares }: NamedShareRows) {
+  const usernames = new Map(identities.map((i) => [i.user_id, i.username]));
+  const enabled = new Set(shares.filter((s) => s.is_enabled === true).map((s) => `${s.owner_user_id}:${s.binder_id}`));
+  const params = new Map<string, { username: string; binderSlug: string }>();
+  for (const slug of slugs) {
+    const username = usernames.get(slug.owner_user_id);
+    if (
+      slug.is_active !== true ||
+      typeof username !== 'string' ||
+      typeof slug.slug !== 'string' ||
+      normalizeUsername(username) !== username ||
+      normalizeBinderSlug(slug.slug) !== slug.slug ||
+      !enabled.has(`${slug.owner_user_id}:${slug.binder_id}`)
+    )
+      continue;
+    params.set(`${username}/${slug.slug}`, { username, binderSlug: slug.slug });
+  }
+  return [...params.values()];
+}
+
+/** Build-time list of named shares to prerender. Never fails the build: no credentials, e2e builds or a read error
+ * return none, and those shares render on their first visit instead. */
+export async function listNamedPublicBinderParams() {
+  if (
+    process.env.HOLOFOLDER_E2E === '1' ||
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.SUPABASE_SERVICE_ROLE_KEY
+  )
+    return [];
+  try {
+    const db = (await import('@/lib/supabase/admin')).createAdminClient();
+    const [identities, slugs, shares] = await Promise.all([
+      db.from('account_identities').select('user_id,username').not('username', 'is', null).limit(1000),
+      db.from('binder_public_slugs').select('owner_user_id,binder_id,slug,is_active').eq('is_active', true).limit(1000),
+      db.from('binder_shares').select('owner_user_id,binder_id,is_enabled').eq('is_enabled', true).limit(1000),
+    ]);
+    if (identities.error || slugs.error || shares.error) return [];
+    return namedPublicBinderParams({ identities: identities.data, slugs: slugs.data, shares: shares.data });
+  } catch {
+    return [];
+  }
+}
+
 /** Named shares (`/@username/slug`) skip the stamp: the payload is cached until the owner's next write expires
  * `publicBinderTag` (lib/server/public-binder-cache.ts), so the page itself can be served from cache. */
 export async function loadNamedPublicBinder(username: string, binderSlug: string): Promise<PublicBinder | null> {
