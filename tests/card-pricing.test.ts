@@ -78,7 +78,7 @@ test('buildCardPriceSnapshotFromPricing uses TCGplayer market as market and low 
   );
 });
 
-test('buildCardPriceSnapshotFromPricing prefers Cardmarket trend for European languages', () => {
+test('buildCardPriceSnapshotFromPricing prices European languages from Cardmarket and ignores the English TCGplayer product', () => {
   const snapshot = buildCardPriceSnapshotFromPricing(
     'sv1-002',
     'fr',
@@ -103,10 +103,15 @@ test('buildCardPriceSnapshotFromPricing prefers Cardmarket trend for European la
   assert.equal(snapshot.marketGbpAmount, 15.3);
   assert.equal(snapshot.goodGbpAmount, 12.24);
   assert.equal(snapshot.lowGbpAmount, 13.01);
-  assert.equal(snapshot.highGbpAmount, 25.88);
-  assert.equal(snapshot.confidence, 'low');
+  assert.equal(snapshot.highGbpAmount, 17.6);
+  assert.equal(snapshot.confidence, 'medium');
   assert.equal(snapshot.source, 'cardmarket');
   assert.equal(snapshot.variantLabel, 'Trend');
+  assert.deepEqual(
+    snapshot.sourcePrices.map((source) => source.source),
+    ['cardmarket'],
+  );
+  assert.deepEqual(snapshot.finishPrices, []);
 });
 
 test('buildCardPriceSnapshotFromPricing never prices from Cardmarket low (any language, any condition)', () => {
