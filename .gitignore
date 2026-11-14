@@ -34,3 +34,6 @@ gitleaks-report.*
 
 # Generated Fumadocs content
 .source/
+
+# Marketing notes that name real people (creator outreach, contacts)
+/marketing/private/

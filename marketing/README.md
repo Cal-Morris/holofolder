@@ -11,4 +11,6 @@ Start with [growth-plan.md](growth-plan.md), which covers where we are, the stra
 - [brand-voice.md](brand-voice.md) holds the voice, claims rules and account handles every published word must follow.
 - [scoreboard.md](scoreboard.md) has one row a week of the numbers that matter.
 
+Anything naming real people, such as the creator outreach list and contact notes, goes in `marketing/private/`. It is gitignored and never committed.
+
 The research was done on 14 November 2026. Treat anything dated, such as set release dates, subreddit rules or API pricing, as something to re-check before relying on it.

@@ -26,7 +26,7 @@ The headline is "Your real binder, page by page, priced in pounds." The two supp
 
 These are the only things that block parts of the plan. Everything else runs without Cal's input.
 
-1. **The free tier cap.** A visitor who arrives from a "national dex binder" or "master set binder" search hits the 100-entry cap within minutes, because one modern master set is around 200 cards and a National Dex binder has 1,025 slots. Dex, PriceCharting and TCG Collector all let them log everything for free. I recommend moving the paywall from entry count to things competitors charge for or don't have: extra binders, Partner mode, Show mode verdicts and the API. Either drop the entry cap or raise it to one full binder of any size. This is the biggest conversion lever in the plan, and acquisition spend is partly wasted until it changes. The full reasoning is in [competitors-and-keywords.md](competitors-and-keywords.md#4-pricing-and-positioning-implications).
+1. **The free tier cap. Decided 14 November 2026:** saved entries are unlimited on the free plan (one binder stays), and price trends and signals, the Analytics tab, Show mode deal checks and tally, and whole-page scanning moved into Premium (PRs #883 and #884, live, Framer pricing updated).
 2. **A lifetime price.** Lifetime licences exist but have no public price. Dex charges £99 and Shiny about $99.99. A £79 to £99 lifetime option suits collectors who dislike subscriptions.
 3. **One-time account setup** (about 30 minutes, listed in [Setup checklist](#setup-checklist-for-cal)).
 
@@ -70,7 +70,7 @@ Show mode is our sharpest point of difference and card shows are where it matter
 
 ### 5. Creators and referrals
 
-Binder creators are how competitors grow. Collectr sponsors binder tour channels, and small creators charge roughly £50 to £150 per integration. The best fits are small UK creators already doing National Dex binders and card show buying, such as Joel's Gaming Adventures, The Binder Rebuild and LuckyJ.
+Binder creators are how competitors grow. Collectr sponsors binder tour channels, and small creators charge roughly £50 to £150 per integration. The best fits are small UK creators already doing National Dex binders and card show buying. The named shortlist is in `marketing/private/outreach.md`, which is gitignored.
 
 The offer is free lifetime Premium for the creator, which costs nothing, plus a Stripe promotion code that gives their viewers a free first month while the creator earns 30% recurring for 12 months. Attribution uses the funnel's existing `creator` source and medium, with no new tracking. Paid flat fees come only after a creator shows real views. Outreach messages and any paid deal need Cal's approval. The agent drafts the shortlist and the emails.
 

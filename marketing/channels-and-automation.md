@@ -61,10 +61,10 @@ Verified as existing: Pokemon Hub (UK), Pokemon Cards (UK), Pokemon TCG Exchange
 
 **Verified observations from creator content:**
 
-- **Binder tours and collection reveals** are a staple long-form format on YouTube ([LuckyJ, UK](https://www.youtube.com/watch?v=at1D7s-eROg), [BabyyPokenator](https://www.youtube.com/watch?v=W8ng68X0PAg), [The Poke Wall binder themes](https://www.youtube.com/watch?v=Eqyv07ypCAQ)).
+- **Binder tours and collection reveals** are a staple long-form format on YouTube, including from UK creators, and competitors sponsor them.
 - **Themed binder pages** do well: colour pages, artist binders, one-Pokémon master sets. TikTok tags like `#bindertour` and `#pokemonbinder`, and artist binders such as "michibinder", appear repeatedly ([TikTok sample](https://www.tiktok.com/@gradeon37/video/7463310586667928875)).
-- **Pokédex binder progress filmed at card shows** is a direct match for Holo Folder: [Joel's Gaming Adventures at Exeter Card Show](https://www.youtube.com/watch?v=R4oRSw3YQuk), working on a full 1025-pocket Pokédex binder.
-- **Vintage binder rebuilds** with almost daily TikToks: [The Binder Rebuild, UK](https://urlebird.com/user/thebinderrebuild/), about 18 videos a month, around 3K average views.
+- **Pokédex binder progress filmed at card shows** is a direct match for Holo Folder: at least one UK channel runs a weekly series building a full 1,025-pocket Pokédex binder at shows.
+- **Vintage binder rebuilds** with almost daily TikToks, around 18 videos a month at about 3K average views for a UK example.
 - **Pulls and pack openings** remain the core short-form format ([Virlo analysis](https://virlo.ai/blog/how-pokemon-cards-became-the-internet-s-favorite-flex)).
 
 **Formats mapped to what Holo Folder can generate from its own data.** These suit agent drafting.
@@ -79,7 +79,7 @@ Verified as existing: Pokemon Hub (UK), Pokemon Cards (UK), Pokemon TCG Exchange
 | Binder flip-through (physical)                               | Reels, TikTok, Shorts      | No                                                                                           | Human-filmed                                              |
 | Changelog and feature posts                                  | X, Bluesky, Threads        | Yes                                                                                          | Already produced by the release-posts skill               |
 
-**Cadence (estimate, no hard source found):** the creators sampled post daily on TikTok, and weekly-plus-daily on IG for active binder creators like [Ben's Binders](https://cardgames.social/creators/frostfallphoenix): "New videos every week, daily card content across Instagram & TikTok". A sustainable solo target would be X, Threads and Bluesky once a day (agent-drafted), IG three times a week (carousels), and one or two Reels or TikToks a week (human-filmed).
+**Cadence (estimate, no hard source found):** the creators sampled post daily on TikTok, and weekly-plus-daily on IG for active binder creators. A sustainable solo target would be X, Threads and Bluesky once a day (agent-drafted), IG three times a week (carousels), and one or two Reels or TikToks a week (human-filmed).
 
 **Gap:** Holo Folder has **no TikTok or YouTube Shorts presence**. Those are where binder flip and show-floor video lives. Neither suits full automation, because both need filmed footage. Buffer and Postiz can both publish to TikTok and YouTube once the footage exists.
 
@@ -125,24 +125,13 @@ Verified as existing: Pokemon Hub (UK), Pokemon Cards (UK), Pokemon TCG Exchange
 
 ## 5. Creator outreach
 
-**Named creators (verified to exist; follower figures are as reported):**
-
-| Creator                          | Where                                | Why they fit                                                                                                                                                          | Notes                                                                                          |
-| -------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Joel's Gaming Adventures         | UK, YouTube                          | Pokédex binder series filmed at Exeter Card Show ([video](https://www.youtube.com/watch?v=R4oRSw3YQuk))                                                               | **Top fit**: National Dex binder plus card show buying, which is exactly Show mode             |
-| The Binder Rebuild (Tom)         | UK, TikTok                           | Vintage binder rebuild, about 3K average views, around 18 posts a month, already has a grading partner code ([Urlebird](https://urlebird.com/user/thebinderrebuild/)) | Open to partner codes                                                                          |
-| LuckyJ                           | UK, YouTube                          | Collection and binder tours. Nominated for creator of the year at the UK & Ireland Card Awards ([video](https://www.youtube.com/watch?v=at1D7s-eROg))                 |                                                                                                |
-| Manewhell                        | UK (Essex), IG 4.2K, YouTube, TikTok | Binder showcases. VaultX affiliate ([link.me](https://link.me/manewhell))                                                                                             | Already runs affiliate codes                                                                   |
-| SleeveUp's UK creator list       | UK                                   | Directory of UK binder creators ([sleeveup.app/creators](https://sleeveup.app/creators))                                                                              | Run by a competitor. Use it to find people, but these creators may already be tied to SleeveUp |
-| BabyyPokenator                   | YouTube                              | Themed binder pages. **Sponsored by Collectr** ([video](https://www.youtube.com/watch?v=W8ng68X0PAg))                                                                 | Shows that competitors pay for binder-tour integrations                                        |
-| The Poke Wall                    | US, YouTube                          | Binder organisation themes. Openly asks binder companies to send products ([video](https://www.youtube.com/watch?v=Eqyv07ypCAQ))                                      |                                                                                                |
-| Ben's Binders (FrostfallPhoenix) | AU, 4.9K YouTube subs                | Master set binder builds ([profile](https://cardgames.social/creators/frostfallphoenix))                                                                              |                                                                                                |
+The named creator shortlist, with tiers, contact routes and message drafts, lives in `marketing/private/outreach.md`. That folder is gitignored because it names real people, so it stays on Cal's machine.
 
 **Costs (estimates; no UK Pokémon-specific rate cards exist):**
 
 - Channels under 10K subscribers: about $50 to $500 per sponsored video. Channels at 10K to 100K: about $200 to $3,000 ([Influencer Marketing Hub](https://influencermarketinghub.com/youtube-influencer-rates), [OutlierKit](https://outlierkit.com/resources/youtube-sponsorship-rates/)).
 - TikTok at 10K to 100K followers: about $200 to $800 per video ([IMH micro rates](https://influencermarketinghub.com/micro-influencer-rates/)).
-- One modelled Pokémon example: ZapdosTCG, about 137K subs but only around 5K average views, estimated at $55 to $137 per video ([SponsorRadar](https://sponsorradar.com/channels/zapdostcg)). Views matter more than subscriber counts.
+- One modelled Pokémon example: a channel with about 137K subs but only around 5K average views, estimated at $55 to $137 per video ([SponsorRadar](https://sponsorradar.com/channels/zapdostcg)). Views matter more than subscriber counts.
 
 **Lightweight referral and affiliate model (recommendation):**
 
