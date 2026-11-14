@@ -168,10 +168,21 @@ function SpeciesLink({ pokemon, align }: { pokemon: PublicPokemon; align?: 'righ
   return (
     <Link
       href={`/pokemon/${pokemon.slug}`}
-      className={`holo-tile flex min-h-11 flex-col justify-center rounded-xl px-3 py-2 ${align ? 'text-right' : ''}`}
+      className={`holo-tile flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 ${align ? 'flex-row-reverse text-right' : ''}`}
     >
-      <span className="text-muted-foreground text-xs tabular-nums">{formatDexNumber(pokemon.id)}</span>
-      <span className="font-medium">{pokemon.name}</span>
+      {/* eslint-disable-next-line @next/next/no-img-element -- resized by our image proxy */}
+      <img
+        src={getOfficialArtworkUrl(pokemon.id, 96)}
+        alt=""
+        loading="lazy"
+        width={48}
+        height={48}
+        className="size-12 shrink-0 object-contain"
+      />
+      <span className="min-w-0">
+        <span className="text-muted-foreground block text-xs tabular-nums">{formatDexNumber(pokemon.id)}</span>
+        <span className="block truncate font-medium">{pokemon.name}</span>
+      </span>
     </Link>
   );
 }
