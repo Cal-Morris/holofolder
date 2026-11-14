@@ -31,7 +31,7 @@ async function loadJob(jobId: string) {
     .update({ run_id: getWorkflowMetadata().workflowRunId })
     .eq('id', jobId);
   if (error) throw error;
-  return readComparisonJob(jobId);
+  return readComparisonJob(jobId, undefined, ['targets', 'progress']);
 }
 async function checkTarget(jobId: string, target: ComparisonTarget, stopped: CheckCompsProgress['stopped']) {
   'use step';

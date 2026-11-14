@@ -60,19 +60,36 @@ export async function readPresetPrintings(
     } while (after !== null);
     return result;
   };
-  const select = 'id,set_id,local_id,name_json,variants_json,external_ids_json';
-  const cards = await read('tcg_cards', select, (q) => q.in('id', ids));
+  const cards = await read(
+    'tcg_cards',
+    'id,set_id,local_id,name_json,variants_json,catalog:external_ids_json->catalog',
+    (q) => q.in('id', ids),
+  );
   if (cards.length !== ids.length || cards.some((c) => !ids.includes(String(c.id)))) return unavailable();
   // A direct ID must not also identify a different mirrored row via an alias/canonical mapping.
-  for (const id of ids) {
-    const aliases = await read('tcg_cards', select, (q) =>
-      q.contains('external_ids_json->catalog->aliasIds', JSON.stringify([id])),
+  // One query covers every ID. Each row is checked against the IDs its stored mapping matched.
+  const quote = (value: string) => `"${value.replace(/[\\"]/g, '\\$&')}"`;
+  const mapped = await read('tcg_cards', 'id,catalog:external_ids_json->catalog', (q) =>
+    q.or(
+      ids
+        .flatMap((id) => [
+          `external_ids_json->catalog->aliasIds.cs.${quote(JSON.stringify([id]))}`,
+          `external_ids_json->catalog->>canonicalId.eq.${quote(id)}`,
+        ])
+        .join(','),
+    ),
+  );
+  for (const c of mapped) {
+    const raw = record(c.catalog),
+      metadata = readCatalogMetadata({ catalog: c.catalog });
+    const aliasHits = ids.filter((id) => Array.isArray(raw.aliasIds) && raw.aliasIds.includes(id));
+    const canonicalHits = ids.filter(
+      (id) => raw.canonicalId != null && typeof raw.canonicalId !== 'object' && String(raw.canonicalId) === id,
     );
-    const canonical = await read('tcg_cards', select, (q) => q.eq('external_ids_json->catalog->>canonicalId', id));
-    if ([...aliases, ...canonical].some((c) => c.id !== id)) return unavailable();
     if (
-      aliases.some((c) => !readCatalogMetadata(c.external_ids_json).aliasIds?.includes(id)) ||
-      canonical.some((c) => readCatalogMetadata(c.external_ids_json).canonicalId !== id)
+      (!aliasHits.length && !canonicalHits.length) ||
+      aliasHits.some((id) => id !== c.id || !metadata.aliasIds?.includes(id)) ||
+      canonicalHits.some((id) => id !== c.id || metadata.canonicalId !== id)
     )
       return unavailable();
   }
@@ -81,8 +98,8 @@ export async function readPresetPrintings(
   if (sets.length !== setIds.length || sets.some((s) => !setIds.includes(String(s.id)))) return unavailable();
   const evidence: SearchCardResult[] = printings.map((p) => {
     const card = cards.find((c) => c.id === p.cardId)!,
-      metadata = readCatalogMetadata(card.external_ids_json);
-    const rawMetadata = record(record(card.external_ids_json).catalog);
+      metadata = readCatalogMetadata({ catalog: card.catalog });
+    const rawMetadata = record(card.catalog);
     if (
       (Object.hasOwn(rawMetadata, 'canonicalId') && rawMetadata.canonicalId !== metadata.canonicalId) ||
       (Object.hasOwn(rawMetadata, 'aliasIds') && !metadata.aliasIds)

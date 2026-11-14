@@ -230,7 +230,13 @@ async function main() {
   assert.equal(targets.unknowns.length, 1);
   assert.equal((await preview({ presetId: 'selected-printings', printings: [] })).targetCount, 0);
   const all = f.tables.tcg_cards.map((c) => ({ cardId: c.id, language: 'en' }));
+  const requestsBefore = f.requests.length;
   assert.equal((await preview({ presetId: 'selected-printings', printings: all })).targetCount, 25);
+  // Every alias/canonical check for all 25 IDs is one paged query per read (the preview reads twice).
+  assert.equal(
+    f.requests.slice(requestsBefore).filter((r) => r.table === 'tcg_cards' && r.url.searchParams.has('or')).length,
+    2,
+  );
   assert.ok(
     f.requests.some((r) => r.table === 'tcg_cards' && r.url.searchParams.getAll('id').some((v) => v.startsWith('gt.'))),
     'real keyset continuation',
@@ -421,13 +427,13 @@ async function main() {
   reset();
   let requests = 0;
   race = (table, url) => {
-    if (table !== 'tcg_cards' || !url.searchParams.has('external_ids_json->catalog->aliasIds')) return;
+    if (table !== 'tcg_cards' || !url.searchParams.has('or')) return;
     requests++;
     const after = Number(url.searchParams.get('id')?.slice(3) ?? 0);
     return Response.json(
       Array.from({ length: 10 }, (_, n) => ({
         id: String(after + n + 1).padStart(6, '0'),
-        external_ids_json: { catalog: { aliasIds: [printing.cardId] } },
+        catalog: { aliasIds: [printing.cardId] },
       })),
     );
   };

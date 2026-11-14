@@ -23,7 +23,7 @@ async function run() {
           name_en: 'Gengar',
           local_id: '018',
           set_id: '30th-c',
-          external_ids_json: {},
+          catalog: null,
           tcg_sets: { name_en: '30th Classic Collection', official_card_count: 30 },
         },
       ]);

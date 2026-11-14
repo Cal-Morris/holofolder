@@ -6,7 +6,7 @@ import { pushConfigured } from '@/lib/server/partner-push';
 
 export async function comparisonCompletionDevices(jobId: string): Promise<string[]> {
   if (!pushConfigured()) return [];
-  const job = await readComparisonJob(jobId);
+  const job = await readComparisonJob(jobId, undefined, ['status', 'initiated_by']);
   if (job?.status !== 'completed' || !job.initiated_by) return [];
   // Device registration limits each user to 12 subscriptions.
   const { data, error } = await createAdminClient()
@@ -22,7 +22,7 @@ export async function sendComparisonCompletion(jobId: string, subscriptionId: st
   if (!pushConfigured()) return;
   const admin = createAdminClient();
   const [job, { data: subscription, error }] = await Promise.all([
-    readComparisonJob(jobId),
+    readComparisonJob(jobId, undefined, ['id', 'status', 'initiated_by']),
     admin.from('push_subscriptions').select('user_id,endpoint,p256dh,auth').eq('id', subscriptionId).maybeSingle(),
   ]);
   if (error) throw new Error('Could not read price check notification device');

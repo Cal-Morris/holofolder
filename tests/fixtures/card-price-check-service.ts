@@ -27,6 +27,9 @@ async function run() {
     failSold = false,
     claim = true;
   let blockedSource: string | null = null;
+  let catalogReads = 0,
+    jobStatusReads = 0;
+  const savedFinishFilters: (string | null)[] = [];
   let unavailableBudget = false;
   const budgets: Array<{ budget_bucket: string; request_limit: number }> = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -41,7 +44,13 @@ async function run() {
       });
     }
     const json = (data: unknown) => Response.json(data);
+    if (url.pathname.includes('/comparison_jobs')) {
+      jobStatusReads++;
+      assert.equal(url.searchParams.get('select'), 'status');
+      return json({ status: 'running' });
+    }
     if (url.pathname.includes('/tcg_cards')) {
+      catalogReads++;
       if (gateCatalog) await savedReadStarted;
       return json([
         {
@@ -49,7 +58,7 @@ async function run() {
           name_en: 'Bulbasaur',
           local_id: '44',
           set_id: 'base1',
-          external_ids_json: {},
+          catalog: null,
           tcg_sets: { name_en: 'Base Set' },
         },
       ]);
@@ -66,6 +75,8 @@ async function run() {
         rows.set(source, JSON.parse(String(init.body)).result_json);
         return new Response(null, { status: 204 });
       }
+      if (url.searchParams.get('select') === 'card_id,finish,source,result_json')
+        savedFinishFilters.push(url.searchParams.get('finish'));
       if (url.searchParams.get('select') !== 'result_json')
         return json(
           [...rows].map(([source, value]) => ({
@@ -151,6 +162,20 @@ async function run() {
     await loadCardPriceChecks('base1-44', 'normal', true, 'soldcomps', true);
     assert.deepEqual([browseCalls, soldCalls], [1, 1], 'manual refresh still respects the cooldown');
     assert.equal(budgets.length, 2, 'saved and cached checks do not spend provider budget');
+    // A background target with both sources missing reads its catalog subject once, and checks the job
+    // once between the two provider calls (the workflow step checks it before the target starts).
+    const savedRows = new Map(rows);
+    rows.clear();
+    catalogReads = jobStatusReads = 0;
+    savedFinishFilters.length = 0;
+    const background = { cardId: 'base1-44', finish: 'normal' as const, language: 'en' as const };
+    assert.equal((await checkComparisonTarget(background, {}, 'synthetic-job')).result, 'checked');
+    assert.deepEqual([catalogReads, jobStatusReads], [1, 1]);
+    assert.deepEqual(savedFinishFilters, ['in.(normal)'], 'saved checks are filtered by the requested finish');
+    for (const [source, value] of savedRows) rows.set(source, value);
+    browseCalls--;
+    soldCalls--;
+    budgets.splice(2);
     const stale = {
       summary: { kind: 'sold', currency: 'GBP', count: 1, median: 9, low: 9, high: 9 },
       checkedAt: new Date(Date.now() - 365 * 24 * 3600_000).toISOString(),
