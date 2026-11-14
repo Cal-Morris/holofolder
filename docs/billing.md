@@ -83,7 +83,17 @@ Lifetime has its own Stripe product, because coupons can only be limited by prod
 | Coupon "Creator lifetime" | `holofolder-creator-lifetime`    | 100% off, once, applies only to the Lifetime product. Per-creator codes are single use (`max_redemptions` 1)           |
 | Coupon "Creator audience" | `holofolder-creator-audience`    | 100% off for one month (repeating, 1 month), applies only to the Premium product. Codes are unlimited, first-time only |
 
-The audience coupon technically applies to annual as well, since monthly and annual share the Premium product. The app only enables the promotion code field on monthly and lifetime Checkouts, and the portal configuration does not allow plan switching, so an audience code cannot reach the annual price. Re-check both of those before enabling codes on annual or turning on plan switching in the portal. Creating and tracking per-creator codes is in the private runbook `marketing/private/creator-codes.md`.
+The audience coupon technically applies to annual as well, since monthly and annual share the Premium product. The app only enables the promotion code field on monthly and lifetime Checkouts, and the portal configuration does not allow plan switching, so an audience code cannot reach the annual price. Re-check both of those before enabling codes on annual or turning on plan switching in the portal. Vend codes with `bun run promo-code` (a dry run until `--apply`; it checks the key is for the Holo Folder account first). Plans are `lifetime` and `monthly` only, because annual Checkout has no code box. A 100% lifetime offer reuses `holofolder-creator-lifetime`, a 100%-for-one-month monthly offer reuses `holofolder-creator-audience`, and any other discount gets one coupon per plan and discount (`holofolder-<plan>-<discount>-<length>`), scoped to that plan's product.
+
+```sh
+bun run promo-code --plan lifetime --code ASH-LIFETIME --percent 100 --max-uses 1 --creator ash --apply
+bun run promo-code --plan monthly --code ASH --percent 100 --duration repeating --months 1 --first-time --creator ash --apply
+bun run promo-code --plan monthly --code SHOW-HALF --percent 50 --duration repeating --months 3 --max-uses 50 --expires 2027-01-31 --apply
+bun run promo-code --list
+bun run promo-code --deactivate ASH --apply
+```
+
+Per-creator commission tracking is in the private runbook `marketing/private/creator-codes.md`.
 
 Checkout runs in payment mode with `allow_promotion_codes`. Before creating or reusing a session the server retrieves the expanded price and product and checks the one-time GBP amount, per-unit pricing and the `app`/`plan` metadata on both against `BILLING_LIFETIME_PRICE`; a mismatch fails closed. Open sessions are reused or expired with the same rules as subscriptions. Stripe documents that a one-time Checkout brought to £0 by a 100% coupon or promotion code completes without collecting a payment method (`payment_method_collection` becomes `if_required`) and has no PaymentIntent, so fulfilment listens for `checkout.session.completed` (and `checkout.session.async_payment_succeeded` for delayed methods), not PaymentIntent events.
 
