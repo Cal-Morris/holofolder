@@ -4878,10 +4878,6 @@ function BinderAppSurface(props: BinderAppProps) {
               isDesktop={isDesktopViewport}
               readOnly={nativeReadOnly}
               onClose={closeCardBrowser}
-              // Native binders want and add from the card's own details, so a tap opens exactly that printing.
-              onOpenCard={
-                hasNativeConsumer ? (card) => openGridCard({ ...card, dexIds: [cardBrowser.pokemon.id] }) : undefined
-              }
               onWantCard={readOnlyMode ? undefined : requireAccount}
               onAddCard={readOnlyMode ? undefined : requireAccount}
               formatPrice={priceFormat.label}
