@@ -9,7 +9,9 @@ import { IMMUTABLE_IMAGE_CACHE_HEADERS } from '@/lib/http-cache';
 export const instant = false;
 
 // Pokémon artwork and sprites (PokeAPI on GitHub). Only this repository path: raw.githubusercontent.com serves anything.
-const POKEAPI_ORIGIN = 'https://raw.githubusercontent.com';
+function getImageOrigin(hostname: string) {
+  return hostname === 'raw.githubusercontent.com' ? 'https://raw.githubusercontent.com' : null;
+}
 const POKEAPI_SPRITES_PATH_PREFIX = '/PokeAPI/sprites/master/sprites/pokemon/';
 
 /** `?url=` is only for Pokémon artwork; card images are requested by our own key (`?key=`). */
@@ -123,13 +125,14 @@ export async function GET(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid image URL' }, { status: 400 });
   }
-  if (!isAllowedImageUrl(url)) {
+  const origin = isAllowedImageUrl(url) ? getImageOrigin(url.hostname) : null;
+  if (!origin) {
     return NextResponse.json({ error: 'Image host is not allowed' }, { status: 400 });
   }
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${POKEAPI_ORIGIN}/${url.pathname.slice(1)}`, {
+    upstream = await fetch(`${origin}${url.pathname}`, {
       redirect: 'error',
       headers: {
         Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
