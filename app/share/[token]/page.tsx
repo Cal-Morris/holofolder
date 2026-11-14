@@ -7,10 +7,10 @@ import { loadShareMetadata } from '@/lib/server/share-metadata';
 
 export const instant = false;
 
-// Cache Components needs one build-time param. An invalid token, so the build never reads the database; every real
+// Cache Components needs one build-time param. An invalid token (`~` fails the token check), so the build never reads the database; every real
 // share renders on its first visit and is then served from cache until its owner writes or the share changes.
 export function generateStaticParams() {
-  return [{ token: '-' }];
+  return [{ token: '~' }];
 }
 
 const load = cache(async (token: string) => {
