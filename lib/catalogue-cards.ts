@@ -1,4 +1,6 @@
 // Public catalogue card grids (set, Pokémon, illustrator and search pages): pure filtering, no data access.
+import type { SearchCardResult } from '@/lib/pokemon-card-browse';
+import { formatCardNumber } from '@/lib/set-pages';
 
 /** One card as the public pages hand it to the grid: display-ready strings, no prices or collection state. */
 export interface CatalogueCard {
@@ -7,6 +9,7 @@ export interface CatalogueCard {
   /** As printed: "12/131", "SWSH050". */
   number: string;
   setName: string;
+  /** The public set page, by slug or set id (an id redirects to the slug). Empty when the set has no public page. */
   setSlug: string;
   series?: string;
   releaseDate?: string;
@@ -16,6 +19,9 @@ export interface CatalogueCard {
   /** The species page, for a card of exactly one Pokémon. */
   pokemon?: { slug: string; name: string };
 }
+
+/** A printed rarity, or undefined for none: the catalogue stores "None" for cards without one. */
+export const knownRarity = (rarity: string | undefined) => (rarity && rarity !== 'None' ? rarity : undefined);
 
 export const CATALOGUE_FACETS = ['rarity', 'illustrator', 'series', 'setName'] as const;
 export type CatalogueFacet = (typeof CATALOGUE_FACETS)[number];
@@ -79,4 +85,23 @@ export function filterCatalogueCards(
   if (sort === 'reverse') return matches.toReversed();
   if (sort === 'name') return matches.toSorted((a, b) => a.name.localeCompare(b.name, 'en'));
   return matches;
+}
+
+/**
+ * A card from a catalogue API (similar cards, search) as a grid card. English cards link to their set by id, which
+ * redirects to the set's page; other languages' sets have no public page, so they get no set link.
+ */
+export function catalogueCardFromSearch(card: SearchCardResult): CatalogueCard {
+  const english = !card.language || card.language === 'en';
+  return {
+    id: card.id,
+    name: card.name,
+    number: formatCardNumber(card.localId, card.set.officialCardCount),
+    setName: card.set.name,
+    setSlug: english ? card.set.id : '',
+    ...(card.set.releaseDate ? { releaseDate: card.set.releaseDate } : {}),
+    ...(knownRarity(card.rarity) ? { rarity: card.rarity } : {}),
+    ...(card.illustrator ? { illustrator: card.illustrator } : {}),
+    ...(card.image ? { image: card.image } : {}),
+  };
 }

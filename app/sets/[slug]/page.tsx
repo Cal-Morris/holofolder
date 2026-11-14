@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { cache } from 'react';
 import { PublicCardGrid } from '@/components/public-card-grid';
 import { CatalogueFact, PublicCataloguePage } from '@/components/public-catalogue-page';
 import { Button } from '@/components/ui/button';
 import { getPublicSetCards, getPublicSets, type PublicSetCard } from '@/lib/server/public-sets';
-import type { CatalogueCard } from '@/lib/catalogue-cards';
+import { knownRarity, type CatalogueCard } from '@/lib/catalogue-cards';
 import { findPokemonById } from '@/lib/pokemon-pages';
 import { socialMetadata } from '@/lib/social-metadata';
 import {
@@ -28,10 +28,15 @@ export function generateStaticParams() {
 }
 
 const load = cache(async (slug: string) => {
-  if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(slug)) notFound();
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,80}$/.test(slug)) notFound();
   const sets = await getPublicSets();
   const index = sets.findIndex((set) => set.slug === slug);
-  if (index < 0) notFound();
+  if (index < 0) {
+    // Catalogue APIs know sets by id ("sv03.5"); send those links to the set's page.
+    const byId = sets.find((set) => set.id === slug);
+    if (byId) permanentRedirect(`/sets/${byId.slug}`);
+    notFound();
+  }
   const set = sets[index];
   const cards = await getPublicSetCards(set.id);
   return { set, cards, newer: sets[index - 1], older: sets[index + 1] };
@@ -170,7 +175,7 @@ function toCatalogueCard(card: PublicSetCard, set: PublicSetSummary): CatalogueC
     setSlug: set.slug,
     ...(set.seriesName ? { series: set.seriesName } : {}),
     ...(set.releaseDate ? { releaseDate: set.releaseDate } : {}),
-    ...(card.rarity ? { rarity: card.rarity } : {}),
+    ...(knownRarity(card.rarity) ? { rarity: card.rarity } : {}),
     ...(card.illustrator ? { illustrator: card.illustrator } : {}),
     ...(card.image ? { image: card.image } : {}),
     ...(pokemon ? { pokemon: { slug: pokemon.slug, name: pokemon.name } } : {}),

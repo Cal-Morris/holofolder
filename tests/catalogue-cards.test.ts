@@ -1,6 +1,14 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { facetOptions, filterCatalogueCards, foldText, matchesWords, type CatalogueCard } from '@/lib/catalogue-cards';
+import {
+  catalogueCardFromSearch,
+  facetOptions,
+  filterCatalogueCards,
+  foldText,
+  knownRarity,
+  matchesWords,
+  type CatalogueCard,
+} from '@/lib/catalogue-cards';
 
 // Synthetic cards for the filter logic; not real catalogue data.
 const card = (id: string, extra: Partial<CatalogueCard>): CatalogueCard => ({
@@ -69,4 +77,30 @@ describe('matchesWords', () => {
     assert.equal(matchesWords('197 Umbreon', 'breon'), false);
   });
   test('an empty query matches everything', () => assert.equal(matchesWords('anything', '  '), true));
+});
+
+describe('catalogueCardFromSearch', () => {
+  const search = {
+    id: 'sv03.5-6',
+    localId: '6',
+    name: 'Charizard ex',
+    dexIds: [6],
+    set: { id: 'sv03.5', name: '151', officialCardCount: 165, releaseDate: '2023-09-22' },
+    rarity: 'Double rare',
+  };
+  test('links English cards to their set by id, with the printed number', () => {
+    const card = catalogueCardFromSearch(search);
+    assert.equal(card.setSlug, 'sv03.5');
+    assert.equal(card.number, '6/165');
+    assert.equal(card.releaseDate, '2023-09-22');
+  });
+  test('gives other languages no set link', () =>
+    assert.equal(catalogueCardFromSearch({ ...search, language: 'ja' }).setSlug, ''));
+});
+
+describe('knownRarity', () => {
+  test('treats the catalogue\'s "None" as no rarity', () => {
+    assert.equal(knownRarity('None'), undefined);
+    assert.equal(knownRarity('Rare'), 'Rare');
+  });
 });
