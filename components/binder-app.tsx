@@ -636,7 +636,12 @@ function BinderAppSurface(props: BinderAppProps) {
   const [isDesktopActionsOpen, setIsDesktopActionsOpen] = useState(false);
   const [longPressedPokemon, setLongPressedPokemon] = useState<{ id: number; name: string } | null>(null);
   // Read-only "all cards for this Pokémon" view. `nested` = opened from the card detail (returns to it).
-  const [nativeLookup, setNativeLookupState] = useState<{ card: SearchCardResult; finish?: CardFinish } | null>(null);
+  // `pocketId`: the pocket the lookup was opened from (its details' Similar look), so Add and Swap go there.
+  const [nativeLookup, setNativeLookupState] = useState<{
+    card: SearchCardResult;
+    finish?: CardFinish;
+    pocketId?: string;
+  } | null>(null);
   const setNativeLookup = useCallback(
     (card: SearchCardResult | null, finish?: CardFinish) => setNativeLookupState(card ? { card, finish } : null),
     [],
@@ -3626,13 +3631,13 @@ function BinderAppSurface(props: BinderAppProps) {
    * levels are open.
    */
   const openGridCard = useCallback(
-    (card: SearchCardResult) => {
+    (card: SearchCardResult, pocketId?: string) => {
       setIllustratorBrowser((current) => (current ? { ...current, nested: false } : current));
       setCardBrowser((current) => (current ? { ...current, nested: false } : current));
       setSelectedSlotId(null);
       setSelectedPokemon(null);
       if (hasNativeConsumer) {
-        setNativeLookup(card);
+        setNativeLookupState({ card, pocketId });
         return;
       }
       const dexId = card.dexIds[0];
@@ -3645,7 +3650,7 @@ function BinderAppSurface(props: BinderAppProps) {
           nested: true,
         });
     },
-    [hasNativeConsumer, setCardBrowser, setNativeLookup, setSelectedPokemon],
+    [hasNativeConsumer, setCardBrowser, setSelectedPokemon],
   );
   /** A pocket's wanted card, opened as its own card in the wanted finish. Its full catalog entry is used when the collection has it. */
   const openWantedCard = useCallback(
@@ -4860,6 +4865,7 @@ function BinderAppSurface(props: BinderAppProps) {
               pokemon={null}
               pricingEnabled={pricingEnabled}
               highlightCardId={nativeLookup.card.id}
+              pocketId={nativeLookup.pocketId}
               // A want's own finish when it came from a want; otherwise the finish this printing usually comes in.
               cardDetails={{
                 card: nativeLookup.card,
@@ -4979,7 +4985,8 @@ function BinderAppSurface(props: BinderAppProps) {
                 onAllCards: (pokemon, cardId) =>
                   openCardBrowser(pokemon, { highlightCardId: cardId, fromDetail: true }),
                 onIllustrator: (name) => openIllustratorBrowser(name, { fromDetail: true }),
-                onOpenCard: openGridCard,
+                // Similar cards opened from a pocket keep it, so Add and Swap put the card there.
+                onOpenCard: (card) => openGridCard(card, selectedDisplaySlot.id),
                 onArrange: layoutBoundary
                   ? () => startLayoutEditing({ ids: [selectedDisplaySlot.id], moving: false })
                   : undefined,

@@ -8,15 +8,14 @@ import {
   nativePlacePocket,
   nativeWantPocket,
   planNativeAddWant,
-  planNativePlaceCard,
   planNativeRemoveWant,
+  planNativeSwapIntoPocket,
   type NativeConsumerBinding,
 } from '@/lib/collection/native-card-consumers';
 import { toast } from '@/components/ui/toast';
 import { pickerCandidate, speciesSelectorCard } from '@/lib/slot-picker';
 import { browserHostCatalog } from '@/lib/collection/browser-host-catalog';
 import { prepareInventoryAction } from '@/lib/inventory-actions';
-import { projectSlotIntent } from '@/lib/collection/slot-optimistic';
 import CardImage from '@/components/card-image';
 import { Button } from '@/components/ui/button';
 import CardImageZoom from '@/components/card-image-zoom';
@@ -72,6 +71,8 @@ export interface PokemonCardsBrowserProps {
   /** Optional secondary actions; the view itself never enters the edit flow. */
   onWantCard?: (card: TCGCard, isWanted: boolean, wanted?: WantedCard) => void | Promise<void>;
   onAddCard?: (card: TCGCard) => void | Promise<void>;
+  /** The pocket these details were opened from (Similar look in a pocket's details): Add and Swap put the card there. */
+  pocketId?: string | null;
   /** Tapping a card opens its own details (native binders want and add from there). */
   onOpenCard?: (card: TCGCard) => void;
   formatPrice: (price: CardPriceSnapshot | undefined) => string | null;
@@ -113,6 +114,7 @@ export default function PokemonCardsBrowser({
   onWantCard,
   onAddCard,
   onOpenCard,
+  pocketId,
   formatPrice,
   pricingRegion = DEFAULT_PRICING_REGION,
   cardLanguages,
@@ -147,6 +149,7 @@ export default function PokemonCardsBrowser({
   const detailCard = cardDetails?.card ?? focused;
   // The tile whose swap is being confirmed, and whether the card it swaps out stays in the collection.
   const [swapping, setSwapping] = useState<{ cardId: string; keep: boolean } | null>(null);
+  const [keepSwapped, setKeepSwapped] = useState(true);
   const [confirmedReplacement, setConfirmedReplacement] = useState<string | null>(null);
   const detailState: QuickCardState | undefined = detailCard
     ? nativeConsumer
@@ -211,38 +214,42 @@ export default function PokemonCardsBrowser({
       setPendingCardId(null);
     }
   };
-  /** Put the card in its one clear pocket. Not keeping the card it swaps out removes it as a second queued edit. */
-  const placeNative = async (card: SearchCardResult, keep: boolean) => {
+  /**
+   * Put the card in a pocket: the one given (where its details were opened from), else its one clear pocket. Not
+   * keeping the card it swaps out removes it as a further queued edit.
+   */
+  const placeNative = async (card: SearchCardResult, keep: boolean, slotId?: string, finish?: CardFinish) => {
     const collectionId = nativeConsumer?.collectionId;
     if (!collectionId || pendingCardId) return;
     setPendingCardId(card.id);
     setSwapping(null);
     try {
       const { admission, snapshot } = acquireNative();
-      const pocket = nativePlacePocket(snapshot, collectionId, card);
+      const pocket = slotId ?? nativePlacePocket(snapshot, collectionId, card)?.id;
       if (!pocket) throw new Error('no-pocket');
-      const plan = planNativePlaceCard(
+      const plan = planNativeSwapIntoPocket(
         snapshot,
         collectionId,
-        pocket.id,
+        pocket,
         card,
-        inferCardFinish(card.rarity, card.variants),
-        admission.context(),
+        finish ?? inferCardFinish(card.rarity, card.variants),
+        () => admission.context(),
         browserHostCatalog(admission.read.catalog),
         crypto.randomUUID(),
       );
-      await admission.receive(plan.draft, plan.resolver, plan.picked);
+      // In order: each draft was planned on the one before it.
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
+      for (const draft of plan.drafts) await admission.receive(draft, plan.resolver, plan.picked);
       if (plan.swappedOut && !keep) {
         // Planned on the swap's own result: the device read may not include the swap yet.
         try {
-          const swapped = projectSlotIntent(snapshot, plan.draft.intent, plan.resolver);
           const removal = prepareInventoryAction(
-            swapped,
+            plan.after,
             { kind: 'removeOwned', itemId: plan.swappedOut },
             admission.context(),
             plan.resolver,
           );
-          await admission.receive({ scope: plan.draft.scope, intent: removal.intent });
+          await admission.receive({ scope: plan.drafts[0].scope, intent: removal.intent });
         } catch {
           toast('Swapped. The old card could not be removed, so it is still in your collection.', 'error');
           return;
@@ -255,6 +262,20 @@ export default function PokemonCardsBrowser({
       setPendingCardId(null);
     }
   };
+  // Where the details' Add or Swap goes: the pocket they were opened from, else the card's one clear pocket.
+  const detailPocket =
+    detailCard && nativeSnapshot
+      ? pocketId
+        ? (nativeSnapshot.binders
+            .find((b) => b.collectionId === nativeConsumer?.collectionId)
+            ?.slots.find((s) => s.id === pocketId) ?? null)
+        : nativePlacePocket(nativeSnapshot, nativeConsumer?.collectionId, detailCard)
+      : null;
+  const detailHeld = detailPocket?.inventoryItemId
+    ? nativeSnapshot?.items.find((i) => i.id === detailPocket.inventoryItemId)
+    : null;
+  const detailHeldThis =
+    detailCard && detailHeld?.identity.kind === 'card' && matchesCatalogCardId(detailCard, detailHeld.identity.cardId);
   const focusCard = (card: SearchCardResult) => {
     setFocused(card);
     setDetailFinish(inferCardFinish(card.rarity, card.variants));
@@ -547,6 +568,43 @@ export default function PokemonCardsBrowser({
                 </button>
               )}
             </div>
+            {!readOnly && nativeConsumer?.acquire && detailPocket && (
+              <div className="space-y-1">
+                {detailHeld && !detailHeldThis && !detailHeld.grading && (
+                  <label className="flex min-h-9 items-center gap-2 text-xs font-medium">
+                    <input
+                      type="checkbox"
+                      checked={keepSwapped}
+                      onChange={(event) => setKeepSwapped(event.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    Keep old card in collection
+                  </label>
+                )}
+                <Button
+                  disabled={Boolean(pendingCardId) || Boolean(detailHeldThis)}
+                  onClick={() =>
+                    void placeNative(
+                      detailCard,
+                      Boolean(detailHeld?.grading) || keepSwapped,
+                      detailPocket.id,
+                      detailFinish,
+                    )
+                  }
+                  className="min-h-11 w-full rounded-xl text-sm font-semibold"
+                >
+                  {detailHeldThis
+                    ? 'In this pocket'
+                    : detailHeld
+                      ? pocketId
+                        ? 'Swap into this pocket'
+                        : 'Swap into its pocket'
+                      : pocketId
+                        ? 'Put in this pocket'
+                        : 'Add to binder'}
+                </Button>
+              </div>
+            )}
             {/* Gated on the device queue, not live editing, so wanting works offline and queues like every binder edit. */}
             {nativeConsumer?.acquire && (
               <div className="space-y-1">
@@ -558,7 +616,7 @@ export default function PokemonCardsBrowser({
                 >
                   {nativeWantEntry ? 'Remove from want list' : 'Add to want list'}
                 </button>
-                {!nativeWantEntry && !nativeCanWant && (
+                {!nativeWantEntry && !nativeCanWant && !detailPocket && (
                   <p className="text-muted-foreground text-xs">
                     This binder has no pocket for this card. Open a binder with one to want it.
                   </p>

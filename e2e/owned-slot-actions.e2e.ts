@@ -1,4 +1,4 @@
-import { test, expect, mockBackends, emulateStandalone } from './fixtures';
+import { test, expect, mockBackends, emulateStandalone, MOCK_CARDS } from './fixtures';
 import type { Page } from '@playwright/test';
 // Real BrowserCollectionSession, IDB queue and HTTP storage bridge over a synthetic ledger (tests/fixtures/storage-command-harness.ts).
 const collection = '22222222-2222-4222-8222-222222222222';
@@ -278,3 +278,36 @@ for (const keep of [true, false]) {
     await expect(all.getByRole('button', { name: /^Bulbasaur 151 001 is in its pocket$/ })).toBeDisabled();
   });
 }
+
+test("a card opened from a pocket's Similar look swaps into that pocket, even a Trainer with no pocket of its own", async ({
+  page,
+}) => {
+  // Synthetic response: a Trainer printing (no Pokémon) looks like the pocket's Bulbasaur.
+  const trainer = {
+    ...MOCK_CARDS.find((card) => card.id === 'base1-46')!,
+    id: 'synthetic-owned-trainer',
+    localId: '101',
+    name: 'Synthetic Trainer',
+    set: { id: 'synthetic-owned', name: 'Synthetic owned set' },
+    dexIds: [],
+    similarity: 0.8,
+  };
+  await page.route('**/app/api/tcg-similar-cards**', (route) =>
+    route.fulfill({
+      json: { cardId: 'synthetic-owned-bulbasaur', language: 'en', sameArtwork: [], similarLook: [trainer] },
+    }),
+  );
+  await page.goto(entry);
+  await page.locator('[data-slot-id="synthetic-slot-0"]').click();
+  await page
+    .getByRole('dialog', { name: /details$/ })
+    .getByRole('button', { name: 'Open Synthetic Trainer, Synthetic owned set 101' })
+    .click();
+  const card = page.getByRole('region', { name: 'Card details' });
+  await expect(card.getByRole('checkbox', { name: 'Keep old card in collection' })).toBeChecked();
+  await card.getByRole('button', { name: 'Swap into this pocket' }).click();
+  // Clear the Bulbasaur reservation, place the Trainer, reserve the pocket for the Trainer.
+  await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(3);
+  expect((await record(page))!.receipts.every((r) => r.outcome === 'acknowledged')).toBe(true);
+  await expect(card.getByRole('button', { name: 'In this pocket' })).toBeDisabled();
+});
