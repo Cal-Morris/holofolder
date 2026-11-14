@@ -55,7 +55,8 @@ export interface CardPriceSnapshot extends ServerCardPriceSnapshot {
 }
 
 const CARD_PRICE_CACHE_KEY = 'binderdex_card_price_cache_v7';
-export const CARD_PRICE_CACHE_STALE_MS = 2 * 60 * 60 * 1000;
+// Prices refresh daily on the server, so a quote this browser fetched today is shown without asking again.
+export const CARD_PRICE_CACHE_STALE_MS = 24 * 60 * 60 * 1000;
 const CARD_PRICE_REQUEST_BATCH_SIZE = 25;
 /**
  * Most quotes kept in the localStorage quick cache. Full evidence for every card lives in IndexedDB, so an
