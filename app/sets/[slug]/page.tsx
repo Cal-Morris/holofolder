@@ -7,6 +7,7 @@ import { CatalogueFact, PublicCataloguePage } from '@/components/public-catalogu
 import { Button } from '@/components/ui/button';
 import { getPublicSetCards, getPublicSets, type PublicSetCard } from '@/lib/server/public-sets';
 import { knownRarity, type CatalogueCard } from '@/lib/catalogue-cards';
+import { illustratorSlug } from '@/lib/illustrators';
 import { findPokemonById } from '@/lib/pokemon-pages';
 import { socialMetadata } from '@/lib/social-metadata';
 import {
@@ -74,6 +75,14 @@ export default async function SetPage({ params }: Props) {
     set.officialCardCount,
   );
   const guide = blogSetGuideUrl(set.slug);
+  const illustrators = [
+    ...Map.groupBy(
+      cards.flatMap((card) => (card.illustrator && illustratorSlug(card.illustrator) ? [card.illustrator] : [])),
+      (name) => name,
+    ),
+  ]
+    .map(([name, credits]) => [name, credits.length] as const)
+    .toSorted((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   const pageCount = pagesNeeded(counts.total);
   const summary = [
     `${set.name} has ${counts.total} cards in our catalogue.`,
@@ -155,6 +164,23 @@ export default async function SetPage({ params }: Props) {
         />
       </div>
 
+      {illustrators.length > 0 && (
+        <section aria-labelledby="set-illustrators" className="space-y-3">
+          <h2 id="set-illustrators" className="text-xl font-semibold">
+            Illustrators in {set.name}
+          </h2>
+          <IllustratorChips illustrators={illustrators.slice(0, 24)} />
+          {illustrators.length > 24 && (
+            <details className="group">
+              <summary className="text-primary inline-flex min-h-9 cursor-pointer items-center text-sm font-medium group-open:hidden">
+                Show all {illustrators.length} illustrators
+              </summary>
+              <IllustratorChips illustrators={illustrators.slice(24)} />
+            </details>
+          )}
+        </section>
+      )}
+
       {(newer || older) && (
         <nav aria-label="Other sets" className="grid grid-cols-2 gap-2 text-sm">
           {older ? <SetLink set={older} label="Older set" /> : <span />}
@@ -180,6 +206,24 @@ function toCatalogueCard(card: PublicSetCard, set: PublicSetSummary): CatalogueC
     ...(card.image ? { image: card.image } : {}),
     ...(pokemon ? { pokemon: { slug: pokemon.slug, name: pokemon.name } } : {}),
   };
+}
+
+function IllustratorChips({ illustrators }: { illustrators: readonly (readonly [string, number])[] }) {
+  return (
+    <ul className="flex flex-wrap gap-1.5">
+      {illustrators.map(([name, count]) => (
+        <li key={name}>
+          <Link
+            href={`/illustrators/${illustratorSlug(name)}`}
+            className="border-border/60 hover:border-primary/45 inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors"
+          >
+            {name}
+            <span className="text-muted-foreground text-xs tabular-nums">{count}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function SetLink({ set, label, align }: { set: PublicSetSummary; label: string; align?: 'right' }) {

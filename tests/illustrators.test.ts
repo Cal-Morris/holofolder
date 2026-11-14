@@ -6,6 +6,7 @@ import {
   cleanIllustratorName,
   countIllustratorEntries,
   editDistance,
+  groupIllustratorsBySlug,
   normalizeIllustratorText,
   scoreIllustratorMatch,
   searchIllustrators,
@@ -217,5 +218,26 @@ describe('illustrator offline storage', () => {
     });
     assert.deepEqual(cards.map((entry) => entry.id).sort(), ['30th-c-001', 'base1-44', 'promo-1', 'sv03.5-166']);
     assert.deepEqual(extractCardsFromCachedResponse('/app/api/tcg-illustrators', { illustrators: DIRECTORY }), []);
+  });
+});
+
+describe('groupIllustratorsBySlug', () => {
+  test('merges spellings that share a slug, naming the page after the most-credited one', () => {
+    assert.deepEqual(
+      groupIllustratorsBySlug([
+        { name: 'Ryo Ueda', cardCount: 3 },
+        { name: 'Ryō Ueda', cardCount: 10 },
+        { name: 'Atsuko Nishida', cardCount: 5 },
+      ]),
+      [
+        { slug: 'atsuko-nishida', name: 'Atsuko Nishida', names: ['Atsuko Nishida'], cardCount: 5 },
+        { slug: 'ryo-ueda', name: 'Ryō Ueda', names: ['Ryō Ueda', 'Ryo Ueda'], cardCount: 13 },
+      ],
+    );
+  });
+  test('leaves out names without a Latin slug and keeps unknown counts unknown', () => {
+    assert.deepEqual(groupIllustratorsBySlug([{ name: '有田満弘' }, { name: '5ban Graphics' }]), [
+      { slug: '5ban-graphics', name: '5ban Graphics', names: ['5ban Graphics'] },
+    ]);
   });
 });

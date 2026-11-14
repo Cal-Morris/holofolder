@@ -5,13 +5,14 @@ import { CreditsNotice } from '@/components/credits';
 const SECTIONS = [
   { href: '/sets', label: 'Sets' },
   { href: '/pokemon', label: 'Pokémon' },
+  { href: '/illustrators', label: 'Illustrators' },
 ];
 
 const NO_CRUMBS: { href: string; label: string }[] = [];
 const crumbLink = 'inline-flex min-h-9 items-center underline-offset-2 hover:underline';
 
 /**
- * The frame of every public catalogue page (sets, Pokémon): breadcrumb, section links, a wide centred column and the
+ * The frame of every public catalogue page (sets, Pokémon, illustrators): breadcrumb, section links, a wide centred column and the
  * credits line. `jsonLd` is written into the page as structured data.
  */
 export function PublicCataloguePage({

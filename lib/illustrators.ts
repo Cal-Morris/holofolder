@@ -4,6 +4,7 @@
  */
 import { catalogCardIds } from '@/lib/card-catalog';
 import { compareBrowseCards, formatCardNumber, getCardVariantLabels, type BrowseCard } from '@/lib/pokemon-card-browse';
+import { setSlug } from '@/lib/set-pages';
 
 export interface IllustratorSummary {
   name: string;
@@ -156,6 +157,46 @@ export function isIllustratorDirectory(value: unknown): value is IllustratorSumm
 export function isIllustratorCardsResponse(value: unknown): value is IllustratorCardsResponse {
   const payload = value as Partial<IllustratorCardsResponse> | null;
   return Boolean(payload) && typeof payload!.illustrator === 'string' && Array.isArray(payload!.cards);
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Public illustrator pages (/app/illustrators/<slug>)
+
+/** "Ryō Ueda" → "ryo-ueda". Spellings that differ only in accents, case or punctuation share one page. */
+export const illustratorSlug = (name: string) => setSlug(name);
+
+export interface PublicIllustrator {
+  slug: string;
+  /** The spelling credited on the most cards. */
+  name: string;
+  /** Every spelling on this page, as the catalogue credits it. */
+  names: string[];
+  /** English cards in our catalogue; unknown until migration 137 is applied. */
+  cardCount?: number;
+}
+
+/**
+ * Directory rows as public pages, A to Z: spellings with the same slug merge (their counts add up) and names without
+ * a Latin slug are left out, since the pages list English cards.
+ */
+export function groupIllustratorsBySlug(rows: readonly { name: string; cardCount?: number }[]): PublicIllustrator[] {
+  const bySlug = new Map<string, { rows: { name: string; cardCount?: number }[] }>();
+  for (const row of rows) {
+    const slug = illustratorSlug(row.name);
+    if (slug) bySlug.set(slug, { rows: [...(bySlug.get(slug)?.rows ?? []), row] });
+  }
+  return [...bySlug]
+    .map(([slug, { rows: group }]) => {
+      const ranked = group.toSorted((a, b) => (b.cardCount ?? 0) - (a.cardCount ?? 0));
+      const counted = group.every((row) => row.cardCount !== undefined);
+      return {
+        slug,
+        name: ranked[0].name,
+        names: ranked.map((row) => row.name),
+        ...(counted ? { cardCount: group.reduce((n, row) => n + row.cardCount!, 0) } : {}),
+      };
+    })
+    .toSorted((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
 }
 
 // ---------------------------------------------------------------------------------------------------------
