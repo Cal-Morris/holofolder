@@ -43,7 +43,9 @@ export function verifyLifetimeCheckout(
   const promotion = session.discounts?.find((d) => d.promotion_code)?.promotion_code;
   const promotionCodeId = typeof promotion === 'string' ? promotion : (promotion?.id ?? null);
   const paid = session.payment_status === 'paid' && (session.amount_total ?? 0) > 0;
-  const free = session.payment_status === 'no_payment_required' && session.amount_total === 0 && promotionCodeId;
+  // Live £0 orders complete as `paid` (verified 14 Nov 2026); `no_payment_required` is accepted too in case that changes.
+  const free =
+    ['paid', 'no_payment_required'].includes(session.payment_status) && session.amount_total === 0 && promotionCodeId;
   if (
     session.mode !== 'payment' ||
     session.status !== 'complete' ||
