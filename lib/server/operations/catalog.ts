@@ -15,6 +15,7 @@ import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-sea
 import { createDeveloperImageResolver, type DeveloperImageResolver } from '@/lib/server/developer-images';
 import { sanitizeDeveloperImages } from '@/lib/server/developer-image-fields';
 import { getSimilarCardNeighbours, suggestMirroredCards } from '@/lib/tcg-mirror';
+import { withoutDuplicateTcgdexRest } from '@/lib/developer-api/lean';
 
 const CARD_COLUMNS =
   'raw_json,id,series_id,set_id,local_id,name_json,category,rarity,hp,illustrator,types_json,image_languages_json,external_ids_json,variants_json,tcg_sets(id,name_json,official_card_count,release_date)';
@@ -83,7 +84,7 @@ async function serializeCard(value: unknown, lang: CardLanguage, resolve: Develo
       Object.entries(record(row.variants_json)).filter(([, value]) => typeof value === 'boolean'),
     ),
     externalIds: identifiers,
-    details: await sanitizeDeveloperImages(record(row.raw_json), resolve),
+    details: await sanitizeDeveloperImages(withoutDuplicateTcgdexRest(record(row.raw_json)), resolve),
     artworkRef: source ? developerArtworkReference(source) : null,
     image: image.url,
     imageAvailability: image.availability,
@@ -244,7 +245,15 @@ export async function getCatalogGroup(kind: 'tcg_sets' | 'tcg_series', id: strin
     .eq('id', id)
     .maybeSingle();
   if (error) throw new Error('Catalog lookup unavailable');
-  return data ? sanitizeDeveloperImages({ ...record(data), game: CATALOG_GAME }) : null;
+  if (!data) return null;
+  const row = record(data);
+  return sanitizeDeveloperImages({
+    ...row,
+    ...(row.raw_json && typeof row.raw_json === 'object'
+      ? { raw_json: withoutDuplicateTcgdexRest(record(row.raw_json)) }
+      : {}),
+    game: CATALOG_GAME,
+  });
 }
 /** Similar cards by picture (get_similar_cards): other printings of the same artwork, then cards with a similar look. */
 export async function getCatalogSimilarCards(id: string, lang: CardLanguage) {

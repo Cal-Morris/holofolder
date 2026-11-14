@@ -19,6 +19,22 @@ The public `list_collection`, `save_collection_item` and `delete_collection_item
 
 List and search operations use bounded pages with a maximum of 100 records. Follow the returned cursor for the next page. A page is not the entire dataset, and a cursor belongs to the query that created it.
 
+## Response detail
+
+Some reads can return large provider records and evidence. Each has an `include…` flag that defaults to `true` over REST, so existing REST responses are unchanged, and to `false` over MCP, where results go straight into an assistant's context. Pass the flag explicitly on either surface to choose.
+
+| Flag             | Operations                                                                      | Left out when `false`                                                                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `includeDetails` | `list_cards`, `get_card`, `get_similar_cards`, `suggest_cards`, `identify_card` | each card's `details` (the stored provider record)                                                                                                                                |
+| `includeRaw`     | `get_set`, `get_series`                                                         | `raw_json.cards`, `raw_json.sets` and `raw_json.supplementalSources`; page a set's cards with `list_cards` and `set`                                                              |
+| `includeHistory` | `get_prices`, `refresh_prices`, `check_deal`                                    | `historyPoints`, `trendPoints`, `buySignal` and `fxDate` (and each finish quote's `trendPoints`); `check_deal` returns only the price's `gbpAmount`, `confidence` and `updatedAt` |
+| `includeItems`   | `get_price_checks`, `refresh_price_checks`                                      | each source's individual `sales` and `listings`; the `summary` stays                                                                                                              |
+| `includeChanges` | `list_collection_audit`                                                         | each event's `changes`, replaced by `changeCount` and `changedFields`; `get_collection_audit` always returns the changes                                                          |
+
+Left-out fields are absent, not empty. Use `get_price_history` for paged price history. On GET requests, send flags as `?includeDetails=false`.
+
+`get_prices` honours a card's `finish`: `finishPrices` keeps only the quotes that price that finish. Rarity-named finishes such as `illustration_rare` take the holo quote, and jumbo has none.
+
 ## Limits
 
 The initial budget is 60 reads and 20 writes per minute per account, shared across its credentials. Provider refreshes and long-running comparisons have their own stricter limits. A `429` response includes `Retry-After`.

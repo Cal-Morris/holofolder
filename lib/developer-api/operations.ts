@@ -19,8 +19,14 @@ const id = z.string().min(1).max(200),
   binderId = z.uuid(),
   language = z.enum(CARD_LANGUAGES).optional();
 const paging = { limit: z.number().int().min(1).max(100).optional(), cursor: z.string().max(1024).optional() };
+/** Opt-in detail. REST keeps full responses by default; MCP results go into a model's context, so lean by default. */
+const include = (what: string) => z.boolean().optional().describe(`${what} Default: true on REST, false on MCP.`);
+const includeDetails = include('Include details (the stored provider record).');
+const includeRaw = include('Include the raw card or set list and supplemental sources.');
+const includeHistory = include('Include history, trend points, buySignal and fxDate.');
 const catalog = {
   ...paging,
+  includeDetails,
   language,
   q: z.string().max(80).optional(),
   set: id.optional(),
@@ -69,7 +75,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       'Look up a printing by its exact global application ID. game:pokemon is the only implemented catalog. externalIds are provider-local evidence scoped by game and source, never aliases.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.strictObject({ id, language }),
+    schema: z.strictObject({ id, language, includeDetails }),
   },
   {
     name: 'get_similar_cards',
@@ -81,7 +87,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       'Cards whose picture looks like this printing, from image fingerprints. sameArtwork lists other printings of the same artwork (reprints, other languages, Japanese prints), most similar first; similarLook lists the next nearest cards by colour and composition. similarity is the cosine similarity of the two pictures, 0 to 1. Both lists are empty when the card has no fingerprint yet.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.strictObject({ id, language }),
+    schema: z.strictObject({ id, language, includeDetails }),
   },
   {
     name: 'suggest_cards',
@@ -97,6 +103,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       cardIds: z.array(id).max(40).describe('Card IDs already on the page, e.g. ["base1-4", "base1-2"].'),
       pokemon: z.array(z.number().int().positive().max(9999)).max(40).optional().describe('Pokédex numbers.'),
       language,
+      includeDetails,
     }),
   },
   {
@@ -125,6 +132,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
         .max(IDENTIFY_MAX_LIMIT)
         .optional()
         .describe(`Candidates to return (default ${IDENTIFY_DEFAULT_LIMIT}).`),
+      includeDetails,
     }),
   },
   {
@@ -156,7 +164,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Look up a card set by global application ID, with game:pokemon.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.strictObject({ id, language }),
+    schema: z.strictObject({ id, language, includeRaw }),
   },
   {
     name: 'list_series',
@@ -178,7 +186,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     description: 'Look up a card series by global application ID, with game:pokemon.',
     permissions: ['catalog:read'],
     write: false,
-    schema: z.strictObject({ id, language }),
+    schema: z.strictObject({ id, language, includeRaw }),
   },
   {
     name: 'list_languages',
@@ -358,7 +366,8 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     name: 'get_prices',
     method: 'POST',
     path: '/prices/query',
-    description: 'Read existing price evidence without contacting providers.',
+    description:
+      'Read existing price evidence without contacting providers. A card’s finish narrows finishPrices to the quotes that price it (rarity-named finishes take the holo quote; jumbo has none).',
     permissions: ['prices:read'],
     write: false,
     schema: z.strictObject({
@@ -366,6 +375,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
         .array(z.strictObject({ cardId: id, language: language, finish: z.string().max(50).optional() }))
         .min(1)
         .max(25),
+      includeHistory,
     }),
   },
 
@@ -404,6 +414,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
         .array(z.strictObject({ cardId: id, language }))
         .min(1)
         .max(5),
+      includeHistory,
     }),
   },
   {
@@ -417,6 +428,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       id,
       finish: z.enum(['normal', 'holo', 'reverse_holo', 'any']).optional(),
       source: z.enum(['ebay', 'soldcomps']).optional(),
+      includeItems: include('Include individual sales and listings.'),
     }),
   },
   {
@@ -431,6 +443,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
       id,
       finish: z.enum(['normal', 'holo', 'reverse_holo', 'any']).optional(),
       source: z.enum(['ebay', 'soldcomps']).optional(),
+      includeItems: include('Include individual sales and listings.'),
     }),
   },
   {
@@ -520,6 +533,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
         .optional(),
       since: z.iso.datetime().optional(),
       until: z.iso.datetime().optional(),
+      includeChanges: include('Include before/after changes; otherwise changeCount and changedFields.'),
     }),
   },
   {
@@ -553,6 +567,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
           walkAwayPct: z.number().min(0).max(1000),
         })
         .optional(),
+      includeHistory: include('Include the full price; otherwise only gbpAmount, confidence and updatedAt.'),
     }),
   },
 

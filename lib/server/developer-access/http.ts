@@ -13,6 +13,15 @@ import {
 import { executeDeveloperOperation } from '@/lib/server/operations/developer-dispatch';
 
 const NUMERIC_QUERY_KEYS = new Set(['limit', 'pokemon', 'pokemonId']);
+/** Opt-in detail flags on GET reads; anything but true/false stays a string and fails validation. */
+const BOOLEAN_QUERY_KEYS = new Set([
+  'includeDetails',
+  'includeRaw',
+  'includeChanges',
+  'includeItems',
+  'includeHistory',
+]);
+const booleanQuery = (value: string) => (value === 'true' ? true : value === 'false' ? false : value);
 export async function handleRestRequest(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const started = performance.now(),
     requestId = crypto.randomUUID();
@@ -33,7 +42,13 @@ export async function handleRestRequest(request: Request, { params }: { params: 
       query: Record<string, unknown> = {};
     for (const [key, value] of url.searchParams) {
       if (key in query) throw new DeveloperAccessError('invalid_query', 'Do not repeat query parameters.', 400);
-      query[key] = NUMERIC_QUERY_KEYS.has(key) ? Number(value) : key === 'confirm' ? value === 'true' : value;
+      query[key] = NUMERIC_QUERY_KEYS.has(key)
+        ? Number(value)
+        : key === 'confirm'
+          ? value === 'true'
+          : BOOLEAN_QUERY_KEYS.has(key)
+            ? booleanQuery(value)
+            : value;
     }
     const body =
       request.method === 'GET'

@@ -41,6 +41,7 @@ API keys are REST-only. MCP requires resource-bound OAuth with explicit grants. 
 
 - Public legacy species-row CRUD (`list_collection`, `save_collection_item`, `delete_collection_item`), legacy row Undo (`preview_collection_recovery`, `apply_collection_recovery`), `get_legacy_pokemon_analytics` and `resolve_import` were removed with the legacy `pokemon_collection` model, with no aliases. The first-party `/app/api/collection-analytics` route is removed too.
 - Every writer records one `collection_activity` row itself (migration 108). History and recovery previews return `changes` projected to the fields Activity shows, so certificates, labels, artwork and share tokens never leave the server. A failed history read returns `503 audit_unavailable`.
+- Large catalog, price, price-check and history fields sit behind `include…` flags that default on for REST and off for MCP (see `content/docs/contracts.mdx`, Response detail).
 - `list_collection_audit` with `operationId` filters to that exact operation. Zero results do not prove the operation never committed, and several results need `get_collection_audit` to pick the exact event. Activity filters physical copies by `inventoryItemId`.
 - `get_pokemon_set_slots` at `/pokemon/sets/{id}/slots` is a dex grouping of species, not stable storage.
 - Catalog cards, sets and series declare `game:"pokemon"`, with opaque global IDs and source-keyed provider evidence. No other game is supported.

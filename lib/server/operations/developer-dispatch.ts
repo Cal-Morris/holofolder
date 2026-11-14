@@ -10,6 +10,17 @@ import { NATIVE_DEVELOPER_OPERATIONS } from '@/lib/developer-api/storage';
 import { withAuditActor } from '@/lib/server/audit-context';
 import { requiresPriceCheckUi } from '@/lib/developer-api/price-check-policy';
 import {
+  includeFlag,
+  withoutCardDetails,
+  leanCatalogGroup,
+  leanPriceSnapshot,
+  forFinish,
+  headlinePrice,
+  auditEventSummary,
+  withoutPriceCheckItems,
+} from '@/lib/developer-api/lean';
+import type { CardPriceSnapshot } from '@/lib/card-pricing';
+import {
   readDeveloperIdentity,
   updateDeveloperIdentity,
   developerBinderIdentity,
@@ -165,29 +176,45 @@ async function dispatchDeveloperOperation(
       'Start sold-comps checks in the Holo Folder app. Saved comparisons remain available through the API.',
       403,
     );
-  const params = paramsOf(input),
-    identity = { id: context.principal.actorId };
+  const { includeDetails: _d, includeChanges: _c, ...filters } = input;
+  const params = paramsOf(filters),
+    identity = { id: context.principal.actorId },
+    include = (key: string) => includeFlag(context.principal.transport, input, key);
+  // Cards carry their whole stored provider record in `details`; MCP leaves it out unless asked.
+  const card = include('includeDetails') ? <T>(value: T) => value : withoutCardDetails;
+  const prices = (snapshots: CardPriceSnapshot[]) =>
+    include('includeHistory') ? snapshots : snapshots.map(leanPriceSnapshot);
   switch (name) {
-    case 'list_cards':
-      return listCatalogCards(params.toString());
+    case 'list_cards': {
+      const page = await listCatalogCards(params.toString());
+      return { ...page, data: page.data.map(card) };
+    }
     case 'get_card': {
-      const card = await getCatalogCard(String(input.id), normalizeCardLanguage(input.language));
-      if (!card) throw new DeveloperAccessError('not_found', 'Card not found.', 404);
-      return card;
+      const found = await getCatalogCard(String(input.id), normalizeCardLanguage(input.language));
+      if (!found) throw new DeveloperAccessError('not_found', 'Card not found.', 404);
+      return card(found);
     }
     case 'get_similar_cards': {
       const similar = await getCatalogSimilarCards(String(input.id), normalizeCardLanguage(input.language));
       if (!similar) throw new DeveloperAccessError('not_found', 'Card not found.', 404);
-      return similar;
+      const entries = (list: typeof similar.sameArtwork) => list.map((entry) => ({ ...entry, card: card(entry.card) }));
+      return { ...similar, sameArtwork: entries(similar.sameArtwork), similarLook: entries(similar.similarLook) };
     }
-    case 'suggest_cards':
-      return suggestCatalogCards(
+    case 'suggest_cards': {
+      const suggested = await suggestCatalogCards(
         input.cardIds as string[],
         (input.pokemon as number[] | undefined) ?? [],
         normalizeCardLanguage(input.language),
       );
-    case 'identify_card':
-      return identifyCatalogCard(context.principal.actorId, input);
+      return { ...suggested, cards: suggested.cards.map(card) };
+    }
+    case 'identify_card': {
+      const identified = await identifyCatalogCard(context.principal.actorId, input);
+      return {
+        ...identified,
+        candidates: identified.candidates.map((candidate) => ({ ...candidate, card: card(candidate.card) })),
+      };
+    }
     case 'list_sets':
       return listCatalogGroups('sets', params.toString());
     case 'list_series':
@@ -197,7 +224,7 @@ async function dispatchDeveloperOperation(
       const kind = name === 'get_set' ? 'tcg_sets' : 'tcg_series';
       const data = await getCatalogGroup(kind, String(input.id));
       if (!data) throw new DeveloperAccessError('not_found', 'Catalog record not found.', 404);
-      return data;
+      return include('includeRaw') ? data : leanCatalogGroup(data);
     }
     case 'list_languages':
       return { data: CARD_LANGUAGES };
@@ -237,12 +264,31 @@ async function dispatchDeveloperOperation(
     }
     case 'get_settings':
       return unwrap(await getCollectionSettings(operationRequest(input, 'GET'), identity, true, context.ownerUserId));
-    case 'get_prices':
-      return { prices: await loadSavedCardPrices(normalizeCardPriceLookups(input.cards as unknown[])) };
+    case 'get_prices': {
+      const requested = input.cards as { cardId: string; language?: string; finish?: string }[];
+      // A summary read skips history_points and the trend columns; those keys are then left out, not empty.
+      const saved = await loadSavedCardPrices(normalizeCardPriceLookups(requested), {
+        summary: !include('includeHistory'),
+      });
+      return {
+        prices: prices(saved).map((snapshot) =>
+          forFinish(
+            snapshot,
+            requested.find(
+              (card) => card.cardId === snapshot.cardId && normalizeCardLanguage(card.language) === snapshot.language,
+            )?.finish,
+          ),
+        ),
+      };
+    }
     case 'update_settings':
       return unwrap(await saveCollectionSettings(operationRequest(input, 'PUT'), identity, true, context.ownerUserId));
-    case 'refresh_prices':
-      return refreshCardPriceLookups(normalizeCardPriceLookups(input.cards as unknown[]), { force: false });
+    case 'refresh_prices': {
+      const result = await refreshCardPriceLookups(normalizeCardPriceLookups(input.cards as unknown[]), {
+        force: false,
+      });
+      return { ...result, prices: prices(result.prices) };
+    }
     case 'get_price_checks':
     case 'refresh_price_checks': {
       const result = await loadCardPriceChecks(
@@ -253,7 +299,7 @@ async function dispatchDeveloperOperation(
       );
       if (!result)
         throw new DeveloperAccessError('unsupported_printing', 'This exact printing is not supported yet.', 422);
-      return sanitizeImages(result);
+      return sanitizeImages(include('includeItems') ? result : withoutPriceCheckItems(result));
     }
     case 'get_comparison_job':
       return unwrap(await readComparisonOperation(operationRequest(input, 'GET'), identity, context.ownerUserId));
@@ -268,8 +314,13 @@ async function dispatchDeveloperOperation(
     }
     case 'get_price_history':
       return readDeveloperPriceHistory(input);
-    case 'list_collection_audit':
-      return sanitizeImages(await readCollectionAudit(context, input));
+    case 'list_collection_audit': {
+      // The first-party Activity sheet reads readCollectionAudit directly and always keeps the changes.
+      const page = await readCollectionAudit(context, filters);
+      return sanitizeImages(
+        include('includeChanges') || !('data' in page) ? page : { ...page, data: page.data.map(auditEventSummary) },
+      );
+    }
     case 'get_collection_audit':
       return sanitizeImages(await readCollectionAudit(context, input, true));
     case 'check_deal': {
@@ -302,7 +353,7 @@ async function dispatchDeveloperOperation(
         currency,
         region,
         marketPrice: market,
-        price: price ?? null,
+        price: include('includeHistory') ? (price ?? null) : headlinePrice(price ?? null),
         verdict,
         reason: verdict
           ? null
