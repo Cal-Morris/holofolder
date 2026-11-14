@@ -84,10 +84,11 @@ async function openCheck(harness: Harness, show: boolean) {
     if (!(await dialog.isVisible())) await harness.page.keyboard.press('Control+k');
     await expect(dialog).toBeVisible({ timeout: 500 });
   }).toPass({ timeout: 7_500 });
-  await dialog.getByRole('searchbox').fill('charmeleon');
+  // Plain Quick mode runs the Search sheet's search; Show mode keeps its own lookup.
+  await dialog.getByRole(show ? 'searchbox' : 'textbox').fill('charmeleon');
   await dialog
-    .getByRole('region', { name: 'Cards' })
-    .getByRole('button', { name: /^Charmeleon, 151 / })
+    .getByRole('region', { name: show ? 'Cards' : 'Card results', exact: true })
+    .getByRole('button', { name: show ? /^Charmeleon, 151 / : /^Charmeleon \S+ 151/ })
     .first()
     .click();
   const check = dialog.getByTestId('quick-card-check');

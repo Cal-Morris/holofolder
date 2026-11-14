@@ -196,10 +196,10 @@ test.describe('on-screen keyboard', { tag: '@matrix' }, () => {
     await expect(dialog).toBeVisible();
     await page.mouse.up();
     await expect(dialog.getByRole('heading', { name: 'Quick mode' })).toBeVisible();
-    await dialog.getByRole('searchbox').fill('charizard');
+    await dialog.getByRole('textbox').fill('charizard');
     await dialog
-      .getByRole('region', { name: 'Cards' })
-      .getByRole('button', { name: /^Charizard ex, 151 / })
+      .getByRole('region', { name: 'Card results' })
+      .getByRole('button', { name: /^Charizard ex \S+ 151/ })
       .first()
       .click();
     const check = dialog.getByTestId('quick-card-check');

@@ -323,8 +323,8 @@ test.describe('explicit stable-slot picker', () => {
     await context.setOffline(true);
     await page.keyboard.press('Control+k');
     await expect(quick).toBeVisible();
-    await quick.getByRole('searchbox').fill('synthetic bulbasaurr');
-    await expect(quick.getByRole('button', { name: /^Bulbasaur, Synthetic set/ })).toBeVisible();
+    await quick.getByRole('textbox').fill('synthetic bulbasaurr');
+    await expect(quick.getByRole('button', { name: /^Bulbasaur \S+ Synthetic set/ })).toBeVisible();
     await expect(quick.getByRole('status').filter({ hasText: 'Showing cards for' })).toContainText('bulbasaur');
     await context.setOffline(false);
   });

@@ -309,10 +309,10 @@ test.describe('deal checker outside Show mode', () => {
       'sv03.5-006': { finish: 'holo', market: 10, confidence: 'high', trend: { '7d': 8, Trend: 10 } },
     });
     const dialog = await openPlainQuick(harness);
-    await dialog.getByRole('searchbox').fill('charizard');
+    await dialog.getByRole('textbox').fill('charizard');
     const row = dialog
-      .getByRole('region', { name: 'Cards' })
-      .getByRole('button', { name: /^Charizard ex, 151 / })
+      .getByRole('region', { name: 'Card results' })
+      .getByRole('button', { name: /^Charizard ex \S+ 151/ })
       .first();
     // Rising shows on the result next to its market price, Show mode or not.
     await expect(row.getByTestId('price-rising-badge')).toBeVisible();
@@ -346,6 +346,6 @@ test.describe('deal checker outside Show mode', () => {
     // Back returns to plain Quick mode's results, not Show mode's Hunting list.
     await check.getByRole('button', { name: 'Back to results' }).click();
     await expect(dialog.getByRole('heading', { name: 'Quick mode' })).toBeVisible();
-    await expect(dialog.getByRole('region', { name: 'Cards' })).toBeVisible();
+    await expect(dialog.getByRole('region', { name: 'Card results' })).toBeVisible();
   });
 });

@@ -1,7 +1,6 @@
 import { test, expect, type Harness } from './fixtures';
 
-// Outside Show mode, Search and Quick mode stamp each printing Owned / Wanted like Show mode does,
-// and Quick mode lists wanted printings first. (Owned: Base Set Bulbasaur; wanted: 151 #166 and Phantasmal Flames #001.)
+// Outside Show mode, Search (and so Quick mode, which runs it) stamps each printing Owned / Wanted like Show mode does. (Owned: Base Set Bulbasaur; wanted: 151 #166 and Phantasmal Flames #001.)
 
 const SCREENS = process.env.E2E_SCREENSHOT_DIR;
 
@@ -18,39 +17,6 @@ async function seedCollection(harness: Harness) {
 
 test.describe('Owned / Wanted badges outside Show mode', () => {
   test.use({ signedIn: true });
-
-  test('Quick mode badges each printing and lists wanted ones first', async ({ harness }) => {
-    await seedCollection(harness);
-    const search = harness.dock().getByRole('button', { name: 'Search', exact: true });
-    const box = (await search.boundingBox())!;
-    await harness.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await harness.page.mouse.down();
-    const dialog = harness.page.getByRole('dialog', { name: 'Quick mode' });
-    await expect(dialog).toBeVisible();
-    await harness.page.mouse.up();
-    await expect(dialog.getByRole('heading', { name: 'Quick mode' })).toBeVisible();
-
-    await dialog.getByRole('searchbox').fill('bulbasaur');
-    const cards = dialog.getByRole('region', { name: 'Cards' });
-    const rows = cards.locator('button[data-standing]');
-    await expect(cards.getByRole('button', { name: /^Bulbasaur, Base Set .*, Owned/ })).toBeVisible();
-    await expect(cards.getByRole('button', { name: /^Bulbasaur, 151 166.*, Wanted/ })).toContainText('Wanted');
-    await expect(cards.getByRole('button', { name: /^Bulbasaur, Phantasmal Flames .*, Wanted/ })).toContainText(
-      'Wanted',
-    );
-    // A printing that's neither owned nor wanted carries no pill (no "Not in binder" noise outside Show).
-    await expect(cards.getByRole('button', { name: /^Bulbasaur, Crown Zenith / })).not.toContainText(
-      /Owned|Wanted|Not in binder/,
-    );
-
-    const standings = await rows.evaluateAll((buttons) =>
-      buttons.map((button) => button.getAttribute('data-standing')),
-    );
-    expect(standings.slice(0, 2)).toEqual(['wanted', 'wanted']);
-    expect(standings.slice(2)).not.toContain('wanted');
-    await screenshot(harness, 'quick');
-    await harness.expectNoHorizontalOverflow();
-  });
 
   test('Search card hits carry Owned / Wanted badges on their thumbnails', async ({ harness }) => {
     await seedCollection(harness);
