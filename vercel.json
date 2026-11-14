@@ -8,6 +8,10 @@
   "regions": ["iad1"],
   "crons": [
     {
+      "path": "/app/api/trial-ending-emails",
+      "schedule": "0 10 * * *"
+    },
+    {
       "path": "/app/api/card-prices/refresh",
       "schedule": "0 0 * * *"
     },

@@ -14,6 +14,12 @@ The database uses the trusted signup timestamp for premium checks and returns th
 
 Apply `scripts/056_signup_premium_trial.sql` before deploying the updated app. Before application, the app tolerates the missing trial field and uses the existing free/paid/lifetime rules; older clients keep their conservative client gates until updated. Rollback restores `billing_has_paid` from 049 and `get_billing_access` from 052 without deleting user data.
 
+## Trial-ending email
+
+A daily cron (`vercel.json`, 10:00 UTC, `GET /app/api/trial-ending-emails` with `Authorization: Bearer $CRON_SECRET`) sends one plain-text service email through Resend (the provider already behind Supabase Auth SMTP on `mail.holofolder.com`) to owners whose trial ends 40 to 64 hours later, so each owner falls in exactly one run, around day 5. It says when the trial ends, what stays free, what Premium adds, the plans and the invite reward. `selectTrialEmailRecipients` in `lib/trial-ending-email.ts` skips unconfirmed emails, partner members (partners follow the owner's plan), lifetime owners, owners with paid time or an invite grant past the trial end, and anyone already emailed. Migration `135_trial_ending_emails.sql` holds the claim row, inserted before sending and removed again if the send fails; Resend's idempotency key (`trial-ending/<owner>`) covers a retried run.
+
+The cron does nothing until `RESEND_API_KEY` is set. With `TRIAL_EMAIL_TEST_TO` set it sends one sample to that address and records nothing, so remove that variable to go live. `TRIAL_EMAIL_FROM` overrides the sender. The lifetime price is mentioned only when `STRIPE_LIFETIME_PRICE_ID` is set.
+
 ## Invite a friend
 
 Migration `133_premium_grants_and_referrals.sql` adds server-owned Premium time on top of the existing model, with no Stripe changes. Each owner gets a stable invite link in Settings → Plan (`https://holofolder.com/app/invite/<code>`, code from `referral_code_v1`). When a genuinely new account made through that link reaches 10 saved entries (the funnel's activation milestone), both the invitee and the inviter get 30 days of Premium.
