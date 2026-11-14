@@ -123,7 +123,9 @@ test('turn flex keeps the hinge attached and lands front and back on opposite si
   assert.deepEqual(pageTurnPoint(width, 0, width, 0), { x: width, z: 0 });
   const mid = pageTurnPoint(width, 0, width, 0.5),
     end = pageTurnPoint(width, 0.003, width, 1);
-  assert.ok(mid.z > 2);
+  assert.ok(mid.z > 1);
+  // The edge leads, so mid-turn the page curls back over its own hinge half.
+  assert.ok(pageTurnPoint(width, 0, width, 0.5).x < pageTurnPoint(width / 2, 0, width, 0.5).x + width / 2);
   assert.ok(Math.abs(end.x + width) < 0.00001);
   assert.ok(Math.abs(end.z + 0.003) < 0.00001);
 });

@@ -233,16 +233,28 @@ export function binderPocket(rows: number, cols: number, index: number, side: 1 
   const x = inset + (side === 1 ? 0.05 + w * (column + 0.5) : width - 0.05 - w * (column + 0.5));
   return { x, y: (rows * h) / 2 - h * (row + 0.5), w, h };
 }
+/**
+ * Where a point on a turning page lands. The outer edge leads and the page curls over towards the hinge, like a
+ * sleeve lifted by its edge: each strip's angle trails the one beyond it, and positions follow the curve's length.
+ */
 export function pageTurnPoint(x: number, z: number, width: number, progress: number) {
   const p = number(progress, 0, 0, 1),
-    angle = -Math.PI * p;
-  const flex = Math.sin(Math.PI * p),
-    localX = x - 0.025 * flex * Math.sin((Math.PI * x) / (2 * width));
-  const localZ = z + 0.16 * flex * Math.sin((Math.PI * x) / width);
-  return {
-    x: localX * Math.cos(angle) + localZ * Math.sin(angle),
-    z: -localX * Math.sin(angle) + localZ * Math.cos(angle),
-  };
+    lag = 0.45,
+    angle = (s: number) => {
+      const t = Math.min(1, Math.max(0, p * (1 + lag) - lag * (1 - s / width)));
+      return Math.PI * t * t * (3 - 2 * t);
+    };
+  const steps = Math.max(1, Math.ceil((32 * Math.abs(x)) / width)),
+    step = x / steps;
+  let px = 0,
+    pz = 0;
+  for (let n = 0; n < steps; n++) {
+    const a = angle((n + 0.5) * step);
+    px += Math.cos(a) * step;
+    pz += Math.sin(a) * step;
+  }
+  const a = angle(x);
+  return { x: px - z * Math.sin(a) + 0, z: pz + z * Math.cos(a) + 0 };
 }
 export function artworkRectangle(
   imageWidth: number,
