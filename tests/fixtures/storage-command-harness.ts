@@ -88,8 +88,20 @@ export function storageCommandHarness(id: string) {
         name_json: { en: 'Synthetic Owned Bulbasaur' },
         external_ids_json: {},
       },
+      // The printing the mocked All cards grid swaps in, so the server can resolve it like any mirror card.
+      {
+        id: 'sv03.5-001',
+        set_id: 'synthetic-owned',
+        local_id: '001',
+        name_en: 'Bulbasaur',
+        name_json: { en: 'Bulbasaur' },
+        external_ids_json: {},
+      },
     ];
-    state.tables.tcg_card_dex_ids = [{ card_id: 'synthetic-owned-bulbasaur', dex_id: 1 }];
+    state.tables.tcg_card_dex_ids = [
+      { card_id: 'synthetic-owned-bulbasaur', dex_id: 1 },
+      { card_id: 'sv03.5-001', dex_id: 1 },
+    ];
     state.tables.inventory_items = [
       {
         id: 'synthetic-owned-copy',
