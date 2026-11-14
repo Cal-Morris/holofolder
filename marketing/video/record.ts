@@ -228,7 +228,7 @@ const tap = (udid: string, x: number, y: number) => axe(udid, ['tap', '-x', `${x
 // on-screen text by OCR (tesseract.js, already a dependency) and tap the middle of the first line containing it.
 let ocr: Awaited<ReturnType<typeof createWorker>> | null = null;
 async function screenLines(udid: string) {
-  ocr ??= await createWorker('eng');
+  ocr ??= await createWorker('eng', 1, { cachePath: join(OUT, '.work') }); // keeps eng.traineddata out of the repo root
   const shot = join(tmpdir(), `holofolder-ocr-${udid}.png`);
   await run(['xcrun', 'simctl', 'io', udid, 'screenshot', shot]);
   const { data } = await ocr.recognize(shot, {}, { blocks: true });
