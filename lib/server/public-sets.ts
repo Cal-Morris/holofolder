@@ -15,6 +15,8 @@ export interface PublicSetCard {
   image?: string;
   /** The small stored rendition, for list and binder thumbnails. */
   thumb?: string;
+  /** National Dex numbers of the Pokémon on the card (several on tag teams, none on Trainers and Energy). */
+  dexIds: number[];
 }
 
 const HIDDEN_SET_IDS = new Set(['jumbo']);
@@ -83,7 +85,7 @@ export async function getPublicSetCards(setId: string): Promise<PublicSetCard[]>
     db
       .from('tcg_cards')
       .select(
-        'id, series_id, set_id, local_id, name_json, name_en, rarity, illustrator, image_languages_json, external_ids_json',
+        'id, series_id, set_id, local_id, name_json, name_en, rarity, illustrator, image_languages_json, external_ids_json, tcg_card_dex_ids(dex_id)',
       )
       .eq('set_id', setId)
       .order('local_id_sort', { ascending: true, nullsFirst: false })
@@ -105,6 +107,9 @@ export async function getPublicSetCards(setId: string): Promise<PublicSetCard[]>
       ...(card.rarity ? { rarity: card.rarity } : {}),
       ...(card.illustrator ? { illustrator: card.illustrator } : {}),
       ...(image ? { image, thumb: toSmallCardAssetSrc(image) ?? image } : {}),
+      dexIds: (card.tcg_card_dex_ids ?? [])
+        .map((row: { dex_id: number }) => row.dex_id)
+        .sort((a: number, b: number) => a - b),
     };
   });
 }

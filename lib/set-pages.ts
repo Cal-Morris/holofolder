@@ -45,6 +45,10 @@ export function assignSetSlugs<T extends { id: string; name: string; releaseDate
   return slugs;
 }
 
+/** "12" in a set of 131 → "12/131"; promos and unnumbered cards ("SWSH050", "TG01") stay as printed. */
+export const formatCardNumber = (number: string, officialCardCount?: number) =>
+  /^\d+$/.test(number) && officialCardCount ? `${number}/${officialCardCount}` : number;
+
 /** Nine-pocket pages (one side each) to hold every card once. */
 export const pagesNeeded = (cards: number, pockets = SET_PAGE_POCKETS) => Math.ceil(Math.max(0, cards) / pockets);
 
