@@ -1,14 +1,17 @@
 // Records short vertical demo videos of Holo Folder from an iOS Simulator and composites them for TikTok/Reels.
-// Usage: bun marketing/video/record.ts [clip…] [--probe] [--reuse]
+// Usage: bun marketing/video/record.ts [clip…] [--probe] [--reuse] [--recomposite] [--draft] [--setup]
 //   --probe  run each clip's steps without recording and save a screenshot after every step (for tuning coordinates)
-//   --reuse  keep the signed-in simulator instead of erasing it (faster probes; state can carry over)
+//   --reuse  film on the golden simulator itself instead of a fresh clone (fastest probes; state carries over)
+//   --recomposite  re-edit the last recordings without the simulator; --draft  fast hardware encode
+//   --setup  rebuild the golden simulator (install the app and sign in again)
 // Films the installed PWA signed in as @demo (seed it first with marketing/video/seed-demo.ts).
 // Needs Xcode (simctl), AXe (`brew install cameroncooke/axe/axe`) and ffmpeg. See marketing/video/README.md.
 /* oxlint-disable react-doctor/async-await-in-loop, react-doctor/js-index-maps, react-doctor/js-set-map-lookups -- one simulator driven strictly in order; the loops are retries over a handful of on-screen items */
 import { chromium } from '@playwright/test';
 import { createWorker } from 'tesseract.js';
 import { execFile, spawn } from 'node:child_process';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +21,9 @@ import { demoPassword } from './seed-demo';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '../..');
 const OUT = join(HERE, 'out');
-const SIM_NAME = 'Holo Folder Video';
+// The golden simulator has the app installed and signed in; every take films on a throwaway clone of it.
+const GOLDEN = 'Holo Folder Video';
+const TAKE = 'Holo Folder Take';
 const SIM_TYPE = 'com.apple.CoreSimulator.SimDeviceType.iPhone-18-Pro-Max';
 // iPhone 18 Pro Max: 440x956 pt at 3x. Every coordinate below is in points on this device.
 // ponytail: coordinates are hand-tuned for this device and the current UI; rerun with --probe after UI changes.
@@ -26,16 +31,19 @@ const PT = { w: 440, h: 956, scale: 3 };
 const CROP_PT = 904; // status bar, app and dock; drops the empty home-indicator strip
 const W = 1080;
 const H = 1920;
-const TOP = 330; // caption band above the phone screen
-const SCREEN_H = H - TOP - 70;
+const TOP = 140; // margin above the phone screen
+const SCREEN_H = H - TOP - 80;
 const SCREEN_W = Math.round((PT.w * SCREEN_H) / CROP_PT / 2) * 2;
 const SCREEN_X = (W - SCREEN_W) / 2;
 const K = SCREEN_W / PT.w; // output px per point
-const END_CARD_S = 2.4;
+const END_CARD_S = 1.4; // a short brand sting, so the video loops straight back to the hook
+const END_FADE = 0.25;
+const DRAFT = process.argv.includes('--draft');
 const UTM = (source: string) => `https://holofolder.com/app?utm_source=${source}&utm_medium=social&utm_campaign=social`;
 
 type Step =
   | { tap: [number, number]; hold?: number; after?: number }
+  | { tapText: string; after?: number } // found on screen by OCR
   | { swipe: [number, number, number, number]; dur: number; after?: number }
   | { type: string; after?: number }
   | { keys: number[]; after?: number } // HID keycodes, e.g. 42 = backspace
@@ -66,7 +74,7 @@ const HEADER = { threeD: [310, 102], show: [363, 102], more: [407, 102] } as con
 const CLIPS: Clip[] = [
   {
     name: 'kanto-3d',
-    hook: 'Your binder, but in 3D',
+    hook: 'POV: your binder, but in 3D',
     coldOpen: { mark: '3d', dur: 1.8 },
     setup: [
       // Warm the first pages' images and the 3D view off camera, so nothing loads on screen.
@@ -81,12 +89,12 @@ const CLIPS: Clip[] = [
     ],
     steps: [
       { wait: 1.0 },
-      { caption: '141 of 151 Kanto Pokémon, all from the 151 set' },
+      { caption: '141 of 151 Kanto Pokémon' },
       { wait: 1.8 },
-      { caption: 'Swipe through it like the real thing' },
+      { caption: 'Flip it like the real thing' },
       { swipe: [380, 470, 60, 470], dur: 0.3, after: 1.3 },
       { swipe: [380, 470, 60, 470], dur: 0.3, after: 1.3 },
-      { caption: 'Or open it up in 3D' },
+      { caption: 'Then open it up' },
       { tap: [...HEADER.threeD], after: 2.5 },
       { tap: [320, 796], after: 1.5 },
       { mark: '3d' },
@@ -97,20 +105,66 @@ const CLIPS: Clip[] = [
     tags: '#pokemon151 #pokemonbinder #pokemoncards #pokemontcg #kanto #pokemoncollection',
   },
   {
+    name: 'national-dex',
+    hook: 'All 1,025 Pokémon in one binder',
+    coldOpen: { mark: 'flip', dur: 1.8 },
+    steps: [
+      { wait: 0.8 },
+      { caption: 'Every single one, in Dex order' },
+      { tap: [50, 151], after: 1.2 },
+      { tapText: 'National Dex', after: 2.5 },
+      { mark: 'flip' },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.7 },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.7 },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.7 },
+      { caption: 'Page after page after page' },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.7 },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.7 },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.7 },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 1.2 },
+      { caption: 'Or tick them off as a checklist' },
+      { tap: [...DOCK.inventory], after: 1.6 },
+      { swipe: [220, 780, 220, 200], dur: 0.35, after: 1.0 },
+      { swipe: [220, 780, 220, 200], dur: 0.35, after: 1.0 },
+      { swipe: [220, 780, 220, 200], dur: 0.35, after: 2.0 },
+    ],
+    post: 'A National Dex binder in Holo Folder: a pocket for every Pokémon in Dex order, page by page or as a checklist.',
+    tags: '#nationaldex #pokemonbinder #pokemoncards #pokemontcg #livingdex #pokemoncollection',
+  },
+  {
+    name: 'similar-look',
+    hook: 'Wait, there are more cards like this?',
+    coldOpen: { mark: 'similar', dur: 2.0 },
+    steps: [
+      { wait: 1.0 },
+      { caption: 'Tap any card' },
+      { tap: [78, 445], after: 3.0 },
+      { caption: 'Scroll to Similar look' },
+      { swipe: [220, 760, 220, 380], dur: 0.9, after: 2.0 },
+      { mark: 'similar' },
+      { caption: 'Same vibe, from every set' },
+      { swipe: [400, 700, 60, 700], dur: 0.6, after: 2.0 },
+      { caption: 'Tap one for its price' },
+      { tap: [100, 700], after: 3.0 },
+    ],
+    post: 'Similar look finds cards that share a card’s feel, colours and style, across every set. Tap one to see the card and its price in pounds.',
+    tags: '#pokemoncards #pokemontcg #pokemonart #illustrationrare #pokemoncollection #tcguk',
+  },
+  {
     name: 'binder-worth',
-    hook: 'What is my binder actually worth?',
+    hook: 'I priced my whole Kanto binder',
     coldOpen: { mark: 'value', dur: 1.8 },
     steps: [
       { wait: 1.0 },
-      { caption: 'Open Analytics from the menu' },
+      { caption: 'One tap to Analytics' },
       { tap: [...HEADER.more], after: 1.4 },
       { tap: [252, 325], after: 3.0 },
       { mark: 'value' },
-      { caption: 'Every card priced in pounds, with how sure each price is' },
+      { caption: 'Every card, priced in pounds' },
       { wait: 2.6 },
-      { caption: 'The cards carrying the value' },
+      { caption: "Here's what's carrying it" },
       { swipe: [220, 760, 220, 420], dur: 0.9, after: 2.6 },
-      { caption: 'And what the gaps would cost to fill' },
+      { caption: 'And what the last ten would cost' },
       { swipe: [220, 760, 220, 300], dur: 0.9, after: 1.2 },
       { swipe: [220, 760, 220, 300], dur: 0.9, after: 2.6 },
     ],
@@ -119,23 +173,23 @@ const CLIPS: Clip[] = [
   },
   {
     name: 'card-show-hunt',
-    hook: 'POV: the Blastoise ex you need is £150 at a card show',
+    hook: "Don't pay £150 for this card",
     coldOpen: { mark: 'verdict', dur: 2.0 },
     steps: [
       { wait: 1.0 },
-      { caption: 'Show mode, built for the show floor' },
+      { caption: 'Card show? Turn on Show mode' },
       { tap: [...HEADER.show], after: 1.8 },
       { tap: [...DOCK.search], after: 2.0 },
       { caption: 'Your want list, ready to hunt' },
       { swipe: [220, 680, 220, 420], dur: 0.8, after: 1.6 },
       { caption: 'Tap the card on the table' },
       { tap: [200, 649], after: 2.8 },
-      { caption: 'Type what the seller is asking' },
+      { caption: "Type what they're asking" },
       { tap: [220, 793], after: 0.5 },
       { type: '150', after: 0.4 },
       { mark: 'verdict' },
       { wait: 2.4 },
-      { caption: 'Talk them down and check again' },
+      { caption: 'Haggle, then check again' },
       { keys: [42, 42, 42], after: 0.3 },
       { type: '75', after: 3.0 },
     ],
@@ -152,21 +206,30 @@ async function run(cmd: string[]): Promise<string> {
 }
 const sleep = (s: number) => new Promise((r) => setTimeout(r, s * 1000));
 
+async function findSim(name: string): Promise<string | undefined> {
+  const list = JSON.parse(await run(['xcrun', 'simctl', 'list', 'devices', '-j'])) as {
+    devices: Record<string, { name: string; udid: string; isAvailable: boolean }[]>;
+  };
+  return Object.values(list.devices)
+    .flat()
+    .find((d) => d.name === name && d.isAvailable)?.udid;
+}
+
 async function ensureSim(): Promise<string> {
   const list = JSON.parse(await run(['xcrun', 'simctl', 'list', 'devices', '-j'])) as {
     devices: Record<string, { name: string; udid: string; state: string; isAvailable: boolean }[]>;
   };
   let dev = Object.values(list.devices)
     .flat()
-    .find((d) => d.name === SIM_NAME && d.isAvailable);
+    .find((d) => d.name === GOLDEN && d.isAvailable);
   if (!dev) {
     const runtime = Object.keys(list.devices)
       .filter((r) => r.includes('iOS'))
       .sort()
       .pop();
     if (!runtime) throw new Error('No iOS simulator runtime installed');
-    const udid = (await run(['xcrun', 'simctl', 'create', SIM_NAME, SIM_TYPE, runtime])).trim();
-    dev = { name: SIM_NAME, udid, state: 'Shutdown', isAvailable: true };
+    const udid = (await run(['xcrun', 'simctl', 'create', GOLDEN, SIM_TYPE, runtime])).trim();
+    dev = { name: GOLDEN, udid, state: 'Shutdown', isAvailable: true };
   }
   return dev.udid;
 }
@@ -175,7 +238,11 @@ async function ensureSim(): Promise<string> {
 async function freshSim(udid: string) {
   await run(['xcrun', 'simctl', 'shutdown', udid]).catch(() => {});
   await run(['xcrun', 'simctl', 'erase', udid]);
-  await run(['xcrun', 'simctl', 'boot', udid]);
+  await bootSim(udid);
+}
+
+async function bootSim(udid: string) {
+  await run(['xcrun', 'simctl', 'boot', udid]).catch(() => {});
   await run(['xcrun', 'simctl', 'bootstatus', udid, '-b']);
   await run(['xcrun', 'simctl', 'ui', udid, 'appearance', 'dark']);
   await run([
@@ -243,7 +310,11 @@ async function dismissKeyboard(udid: string) {
   await sleep(1.2);
 }
 
-async function tapText(udid: string, text: string, opts: { tries?: number; before?: () => Promise<unknown> } = {}) {
+async function tapText(
+  udid: string,
+  text: string,
+  opts: { tries?: number; before?: () => Promise<unknown> } = {},
+): Promise<[number, number]> {
   for (let attempt = 0; attempt < (opts.tries ?? 8); attempt++) {
     if (opts.before) await opts.before();
     const lines = await screenLines(udid);
@@ -256,8 +327,9 @@ async function tapText(udid: string, text: string, opts: { tries?: number; befor
       const boxes = (words.length ? words : [line]).map((w) => w.bbox);
       const x = (Math.min(...boxes.map((b) => b.x0)) + Math.max(...boxes.map((b) => b.x1))) / 2;
       const y = (Math.min(...boxes.map((b) => b.y0)) + Math.max(...boxes.map((b) => b.y1))) / 2;
-      await tap(udid, Math.round(x / PT.scale), Math.round(y / PT.scale));
-      return;
+      const at: [number, number] = [Math.round(x / PT.scale), Math.round(y / PT.scale)];
+      await tap(udid, ...at);
+      return at;
     }
     await sleep(1.5);
   }
@@ -380,6 +452,10 @@ async function perform(udid: string, steps: Step[], now: () => number, tl: Timel
       // AXe takes a second or so to start; it returns once the touch ends, so time the dot from there.
       tl.gestures.push({ kind: 'tap', t: now() - dur, dur, from: [x, y], to: [x, y] });
       await sleep(s.after ?? 1);
+    } else if ('tapText' in s) {
+      const at = await tapText(udid, s.tapText);
+      tl.gestures.push({ kind: 'tap', t: now() - 0.12, dur: 0.12, from: at, to: at });
+      await sleep(s.after ?? 1);
     } else if ('swipe' in s) {
       const [x1, y1, x2, y2] = s.swipe;
       await axe(udid, [
@@ -441,9 +517,16 @@ const page = (body: string, bg = 'transparent') => `<!doctype html><html><head><
   .band{position:absolute;left:72px;right:72px;top:0;height:${TOP}px;display:flex;align-items:center;justify-content:center;text-align:center}
 </style></head><body>${body}</body></html>`;
 
-const captionHtml = (text: string, hook: boolean) =>
+// TikTok-style captions: a few words at a time, big and bold over the lower middle of the screen, with the word
+// being spoken in the accent colour. The hook is the same treatment, larger.
+const ACCENT = '#c9b8ff';
+const captionHtml = (words: string[], active: number, hook: boolean) =>
   page(
-    `<div class="band"><div style="font-size:${hook ? 74 : 56}px;font-weight:${hook ? 800 : 650};line-height:1.12;letter-spacing:${hook ? -1.5 : -0.6}px;text-wrap:balance">${escapeHtml(text)}</div></div>`,
+    `<div style="position:absolute;left:70px;right:70px;top:${hook ? 760 : 1540}px;display:flex;justify-content:center;text-align:center">
+      <div style="font-size:${hook ? 96 : 84}px;font-weight:900;line-height:1.05;letter-spacing:-1.5px;text-wrap:balance;
+        -webkit-text-stroke:${hook ? 12 : 10}px #000;paint-order:stroke fill;text-shadow:0 6px 30px rgba(0,0,0,.55)">${words
+          .map((w, i) => `<span style="color:${i === active ? ACCENT : '#fff'}">${escapeHtml(w)}</span>`)
+          .join(' ')}</div></div>`,
   );
 
 const maskHtml = () =>
@@ -479,7 +562,7 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 }
 
-async function renderOverlays(dir: string, hook: string, captions: string[]) {
+async function renderOverlays(dir: string) {
   const browser = await chromium.launch();
   const p = await browser.newPage({ viewport: { width: W, height: H } });
   const shot = async (html: string, file: string, size?: { width: number; height: number }) => {
@@ -488,8 +571,6 @@ async function renderOverlays(dir: string, hook: string, captions: string[]) {
     await p.screenshot({ path: join(dir, file), omitBackground: true });
     if (size) await p.setViewportSize({ width: W, height: H });
   };
-  await shot(captionHtml(hook, true), 'hook.png');
-  for (const [i, text] of captions.entries()) await shot(captionHtml(text, false), `cap${i}.png`);
   await shot(maskHtml(), 'mask.png');
   await shot(frameHtml(), 'frame.png');
   const icon = `data:image/png;base64,${(await readFile(join(ROOT, 'public/holofolder-icon-1024.png'))).toString('base64')}`;
@@ -499,8 +580,118 @@ async function renderOverlays(dir: string, hook: string, captions: string[]) {
   await browser.close();
 }
 
+// ---------- captions ----------
+interface Cue {
+  text: string;
+  start: number; // seconds in the final video
+  dur: number; // how long the voice takes to say it
+  file: string; // the voiced line
+  hook: boolean;
+}
+
+// Voice every line first, then place each at its moment (or right after the previous line, so none overlap).
+// Both cuts use this timing, so the captions follow the voice even in the music-only cut.
+async function scheduleCues(dir: string, clip: Clip, tl: Timeline): Promise<Cue[]> {
+  const co = clip.coldOpen.dur;
+  const lines = [{ t: -co + 0.1, text: clip.hook }, ...tl.captions];
+  await speak(lines.map((line, i) => ({ out: join(dir, `vo${i}.wav`), text: line.text })));
+  const cues: Cue[] = [];
+  let free = 0;
+  for (const [i, line] of lines.entries()) {
+    const file = join(dir, `vo${i}.wav`);
+    const dur = Number(
+      await run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]),
+    );
+    const start = Math.max(co + line.t + 0.05, free);
+    cues.push({ text: line.text, start, dur, file, hook: i === 0 });
+    free = start + dur + 0.12;
+  }
+  return cues;
+}
+
+// One transparent PNG per word state, strung together with ffmpeg's concat demuxer into a single caption track.
+// Words are timed in proportion to their length across the line's spoken duration.
+async function renderCaptionTrack(dir: string, cues: Cue[], length: number): Promise<string> {
+  const browser = await chromium.launch();
+  const p = await browser.newPage({ viewport: { width: W, height: H } });
+  const entries: { file: string; dur: number }[] = [];
+  await p.setContent(page(''));
+  await p.screenshot({ path: join(dir, 'blank.png'), omitBackground: true });
+  let at = 0;
+  let n = 0;
+  const hold = (file: string, until: number) => {
+    if (until - at > 0.001) entries.push({ file, dur: until - at });
+    at = Math.max(at, until);
+  };
+  for (const [ci, cue] of cues.entries()) {
+    const words = cue.text.split(/\s+/);
+    const weights = words.map((w) => w.length + 2);
+    const total = weights.reduce((a, b) => a + b, 0);
+    const per = cue.hook ? words.length : 4; // the hook stays whole; other lines show four words at a time
+    const nextStart = ci + 1 < cues.length ? cues[ci + 1].start : length;
+    hold(join(dir, 'blank.png'), cue.start);
+    let t = cue.start;
+    for (let w = 0; w < words.length; w++) {
+      const group = Math.floor(w / per);
+      const chunk = words.slice(group * per, group * per + per);
+      const file = join(dir, `word${n++}.png`);
+      await p.setContent(captionHtml(chunk, w - group * per, cue.hook));
+      await p.screenshot({ path: file, omitBackground: true });
+      t += (cue.dur * weights[w]) / total;
+      const last = w === words.length - 1;
+      hold(file, last ? Math.min(nextStart, t + 0.5) : t);
+    }
+  }
+  hold(join(dir, 'blank.png'), length);
+  await browser.close();
+  const list = join(dir, 'captions.txt');
+  // The concat demuxer needs the last file repeated to honour its duration.
+  await writeFile(
+    list,
+    [...entries.map((e) => `file '${e.file}'\nduration ${e.dur.toFixed(3)}`), `file '${entries.at(-1)!.file}'`].join(
+      '\n',
+    ),
+  );
+  return list;
+}
+
+// Punch-in zoom: each tap eases in on what it touched, holds, then eases back out before the next gesture.
+function zoomExprs(tl: Timeline) {
+  const AMOUNT = 0.28;
+  const EASE = 0.35;
+  const smooth = (x: string) => `(clip(${x},0,1)*clip(${x},0,1)*(3-2*clip(${x},0,1)))`;
+  const windows = tl.gestures.flatMap((g, i) => {
+    if (g.kind !== 'tap') return [];
+    const a = g.t - 0.05;
+    const next = tl.gestures[i + 1]?.t ?? tl.end;
+    const b = Math.min(next - 0.1, g.t + 2.4);
+    if (b - a < EASE * 2) return [];
+    return [
+      {
+        env: `${smooth(`(t-${a.toFixed(3)})/${EASE}`)}*${smooth(`(${b.toFixed(3)}-t)/${EASE}`)}`,
+        x: g.from[0],
+        y: g.from[1],
+      },
+    ];
+  });
+  if (!windows.length) return null;
+  const sum = windows.map((w) => w.env).join('+');
+  const z = `(1+${AMOUNT}*min(1,${sum}))`;
+  const centre = (k: 'x' | 'y') =>
+    `((${windows.map((w) => `${w.env}*${(w[k] * K).toFixed(1)}`).join('+')})/max(${sum},0.001))`;
+  return { z, cx: centre('x'), cy: centre('y') };
+}
+
 // ---------- compositing ----------
-async function composite(dir: string, raw: string, tl: Timeline, clip: Clip, outFile: string) {
+async function composite(
+  dir: string,
+  raw: string,
+  tl: Timeline,
+  clip: Clip,
+  captions: string,
+  audio: string,
+  outFile: string,
+) {
   const total = tl.end;
   const co = clip.coldOpen;
   const coStart = Math.min(tl.marks[co.mark] ?? 0, total - co.dur);
@@ -510,7 +701,14 @@ async function composite(dir: string, raw: string, tl: Timeline, clip: Clip, out
   const cropPx = CROP_PT * PT.scale;
   f.push(`color=c=0x0a0a0d:s=${W}x${H}:r=60:d=${total.toFixed(3)}[bg]`);
   f.push(`[0:v]fps=60,crop=iw:${cropPx}:0:0,split[raw1][raw2]`);
-  f.push(`[raw1]scale=${SCREEN_W}:${SCREEN_H}:flags=lanczos,pad=${W}:${H}:${SCREEN_X}:${TOP}:black,format=rgba[scr]`);
+  const zoom = zoomExprs(tl);
+  f.push(
+    zoom
+      ? `[raw1]scale=w='trunc(${SCREEN_W}*${zoom.z}/2)*2':h='trunc(${SCREEN_H}*${zoom.z}/2)*2':eval=frame:flags=lanczos,` +
+          `crop=${SCREEN_W}:${SCREEN_H}:x='clip(${zoom.cx}*in_w/${SCREEN_W}-out_w/2,0,in_w-out_w)':y='clip(${zoom.cy}*in_h/${SCREEN_H}-out_h/2,0,in_h-out_h)',` +
+          `pad=${W}:${H}:${SCREEN_X}:${TOP}:black,format=rgba[scr]`
+      : `[raw1]scale=${SCREEN_W}:${SCREEN_H}:flags=lanczos,pad=${W}:${H}:${SCREEN_X}:${TOP}:black,format=rgba[scr]`,
+  );
   f.push(`[1:v]format=gray,split[m][mc]`, `[2:v]split[fr][frc]`);
   f.push(`[scr][m]alphamerge[scrm]`, `[bg][scrm]overlay=0:0[v0]`, `[v0][fr]overlay=0:0[v1]`);
   // Cold open: the payoff first, with a slow push-in, under the hook line.
@@ -522,23 +720,9 @@ async function composite(dir: string, raw: string, tl: Timeline, clip: Clip, out
   );
   f.push(`color=c=0x0a0a0d:s=${W}x${H}:r=60:d=${co.dur}[cbg]`, `[cos][mc]alphamerge[cosm]`);
   f.push(`[cbg][cosm]overlay=0:0[co0]`, `[co0][frc]overlay=0:0[co1]`);
-  inputs.push('-loop', '1', '-t', `${co.dur}`, '-i', join(dir, 'hook.png'));
-  f.push(`[co1][3:v]overlay=0:0,trim=duration=${co.dur},fps=60,settb=1/60,format=yuv420p,setsar=1[cold]`);
+  f.push(`[co1]trim=duration=${co.dur},fps=60,settb=1/60,format=yuv420p,setsar=1[cold]`);
   let last = 'v1';
-  let n = 4;
-  const fade = 0.18;
-  const caps = tl.captions;
-  caps.forEach((c, i) => {
-    const a = c.t;
-    const b = i + 1 < caps.length ? caps[i + 1].t : total;
-    inputs.push('-loop', '1', '-t', total.toFixed(3), '-i', join(dir, `cap${i}.png`));
-    f.push(
-      `[${n}:v]format=rgba,fade=t=in:st=${a.toFixed(3)}:d=${fade}:alpha=1,fade=t=out:st=${Math.max(a, b - fade).toFixed(3)}:d=${fade}:alpha=1[c${i}]`,
-    );
-    f.push(`[${last}][c${i}]overlay=0:0:enable='between(t,${a.toFixed(3)},${b.toFixed(3)})'[cv${i}]`);
-    last = `cv${i}`;
-    n++;
-  });
+  let n = 3;
   tl.gestures.forEach((g, i) => {
     // AXe reports the touch slightly before the frame shows it; the dot leads by a hair, which reads naturally.
     const a = g.t;
@@ -564,13 +748,17 @@ async function composite(dir: string, raw: string, tl: Timeline, clip: Clip, out
     last = `tv${i}`;
     n++;
   });
+  inputs.push('-f', 'concat', '-safe', '0', '-i', captions);
+  f.push(`[${n}:v]fps=60,format=rgba[caps]`);
+  n++;
   inputs.push('-loop', '1', '-t', `${END_CARD_S}`, '-i', join(dir, 'end.png'));
   f.push(`[${last}]fps=60,settb=1/60,format=yuv420p,setsar=1[main]`);
   f.push(`[${n}:v]fps=60,settb=1/60,format=yuv420p,setsar=1[end]`);
-  f.push(`[cold][main]concat=n=2:v=1:a=0,settb=1/60[body]`);
-  f.push(`[body][end]xfade=transition=fade:duration=0.35:offset=${(co.dur + total - 0.35).toFixed(3)}[out]`);
+  f.push(`[cold][main]concat=n=2:v=1:a=0,settb=1/60,format=rgba[body0]`);
+  f.push(`[body0][caps]overlay=0:0:shortest=1,fps=60,settb=1/60,format=yuv420p,setsar=1[body]`);
+  f.push(`[body][end]xfade=transition=fade:duration=${END_FADE}:offset=${(co.dur + total - END_FADE).toFixed(3)}[out]`);
   n++;
-  inputs.push('-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100');
+  inputs.push('-i', audio);
   await run([
     'ffmpeg',
     '-y',
@@ -583,14 +771,10 @@ async function composite(dir: string, raw: string, tl: Timeline, clip: Clip, out
     '[out]',
     '-map',
     `${n}:a`,
-    '-c:v',
-    'libx264',
-    '-preset',
-    'slow',
-    '-crf',
-    '17',
-    '-profile:v',
-    'high',
+    // --draft: the Mac's hardware encoder, several times faster, for checking edits.
+    ...(DRAFT
+      ? ['-c:v', 'h264_videotoolbox', '-b:v', '14M']
+      : ['-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-profile:v', 'high']),
     '-pix_fmt',
     'yuv420p',
     '-r',
@@ -598,7 +782,7 @@ async function composite(dir: string, raw: string, tl: Timeline, clip: Clip, out
     '-c:a',
     'aac',
     '-b:a',
-    '128k',
+    '160k',
     '-shortest',
     '-movflags',
     '+faststart',
@@ -633,22 +817,49 @@ async function main() {
   const clips = wanted.length ? CLIPS.filter((c) => wanted.includes(c.name)) : CLIPS;
   if (!clips.length) throw new Error(`Unknown clip. Choose from: ${CLIPS.map((c) => c.name).join(', ')}`);
 
+  if (recomposite) {
+    // Re-edits run two at a time; voice lines come from the cache unless their wording changed.
+    const queue = [...clips];
+    const worker = async () => {
+      for (let clip = queue.shift(); clip; clip = queue.shift()) {
+        const work = join(OUT, '.work', clip.name);
+        const tl = JSON.parse(await readFile(join(work, 'timeline.json'), 'utf8')) as Timeline;
+        await finish(work, clip, tl);
+      }
+    };
+    await Promise.all([worker(), worker()]);
+    return;
+  }
   await mkdir(OUT, { recursive: true });
-  const udid = recomposite ? '' : await ensureSim();
+  const golden = await ensureSim();
+  const ready = join(OUT, '.golden-ready');
+  if (args.includes('--setup') || !(await stat(ready).catch(() => null))) {
+    console.log('▶ setting up the golden simulator: install the app and sign in as @demo');
+    await freshSim(golden);
+    await installAndSignIn(golden);
+    await run(['xcrun', 'simctl', 'shutdown', golden]);
+    await writeFile(ready, new Date().toISOString());
+  }
   for (const clip of clips) {
     const work = join(OUT, '.work', clip.name);
-    if (recomposite) {
-      const tl = JSON.parse(await readFile(join(work, 'timeline.json'), 'utf8')) as Timeline;
-      await finish(work, clip, tl);
-      continue;
-    }
-    if (!recomposite) await rm(work, { recursive: true, force: true });
+    await rm(work, { recursive: true, force: true });
     await mkdir(work, { recursive: true });
+    let udid = golden;
     if (!reuse) {
-      console.log(`▶ ${clip.name}: clean simulator, installing the app and signing in`);
-      await freshSim(udid);
-      await installAndSignIn(udid);
-    } else console.log(`▶ ${clip.name}`);
+      // A fresh clone of the golden device: same signed-in app, no state left over from the last take.
+      console.log(`▶ ${clip.name}: fresh clone of the golden simulator`);
+      const old = await findSim(TAKE);
+      if (old) {
+        await run(['xcrun', 'simctl', 'shutdown', old]).catch(() => {});
+        await run(['xcrun', 'simctl', 'delete', old]);
+      }
+      await run(['xcrun', 'simctl', 'shutdown', golden]).catch(() => {});
+      udid = (await run(['xcrun', 'simctl', 'clone', golden, TAKE])).trim();
+      await bootSim(udid);
+    } else {
+      console.log(`▶ ${clip.name}`);
+      await bootSim(udid);
+    }
     await resetApp(udid);
     const tl0: Timeline = { marks: {}, captions: [], gestures: [], end: 0 };
     if (clip.setup) {
@@ -665,21 +876,172 @@ async function main() {
     console.log('  recording');
     const tl = await record(udid, clip, raw);
     await writeFile(join(work, 'timeline.json'), JSON.stringify(tl, null, 2));
+    if (udid !== golden) await run(['xcrun', 'simctl', 'shutdown', udid]).catch(() => {});
     await finish(work, clip, tl);
   }
 }
 
+// ---------- audio ----------
+// Everything is synthesised here or spoken by Qwen3-TTS running locally, so there is nothing to license.
+const VOICE = process.env.VO_VOICE ?? 'guy'; // a reference take in voices/; see tts.py
+// How the voice should say words it gets wrong. Applied to the spoken text only, never to captions.
+const SAY_AS: [RegExp, string][] = [
+  [/£(\d+)\b/g, '$1 quid'],
+  [/\bPOV\b/g, 'P O V'],
+  [/\bPokémon\b/gi, 'Poh-kay-mon'],
+  [/\bBlastoise\b/g, 'Blast-oyce'],
+  [/\bex\b/g, 'E X'],
+  [/\bHolo\b/g, 'Hoh-loh'],
+  [/\b141 of 151\b/g, 'a hundred and forty-one of a hundred and fifty-one'],
+  [/\b151 set\b/g, 'one-five-one set'],
+  [/\b1,025\b/g, 'ten twenty-five'],
+  [/\b3D\b/g, 'three D'],
+];
+
+async function speak(lines: { out: string; text: string }[]) {
+  const spoken = lines.map((l) => ({
+    ...l,
+    text: SAY_AS.reduce((t, [re, to]) => t.replace(re, to), l.text),
+    check: l.text.replace(/£(\d+)\b/g, '$1 quid'), // what Whisper should hear
+  }));
+  // Cache each line by voice, reference take and exact wording; re-edits only voice what changed.
+  const cacheDir = join(OUT, '.voice-cache');
+  await mkdir(cacheDir, { recursive: true });
+  const ref = await readFile(join(HERE, 'voices', `${VOICE}.wav`));
+  const keyed = spoken.map((l) => ({
+    ...l,
+    cached: join(cacheDir, `${createHash('sha1').update(ref).update(VOICE).update(l.text).digest('hex')}.wav`),
+  }));
+  const missing: ((typeof keyed)[number] & { out: string })[] = [];
+  for (const l of keyed) if (!(await stat(l.cached).catch(() => null))) missing.push({ ...l, out: l.cached });
+  if (missing.length)
+    await new Promise<void>((resolve, reject) => {
+      const p = spawn('uv', ['run', '-q', join(HERE, 'tts.py'), VOICE], { stdio: ['pipe', 'inherit', 'inherit'] });
+      p.once('exit', (code) => (code === 0 ? resolve() : reject(new Error(`tts.py exited ${code}`))));
+      p.stdin.end(JSON.stringify(missing.map(({ out, text, check }) => ({ out, text, check }))));
+    });
+  for (const l of keyed) await copyFile(l.cached, l.out);
+}
+
+const BPM_BEAT = 60 / 84;
+
+// A soft lo-fi bed: four jazzy chords, a sine kick on the beat and a quiet hat on the off-beat.
+function musicExpr(): string {
+  const chords = [
+    [130.81, 261.63, 329.63, 392.0, 493.88], // Cmaj7
+    [110.0, 220.0, 261.63, 329.63, 392.0], // Am7
+    [87.31, 174.61, 220.0, 261.63, 329.63], // Fmaj7
+    [98.0, 196.0, 246.94, 293.66, 349.23], // G7
+  ];
+  const bar = BPM_BEAT * 4;
+  const env = `min(1,mod(t,${bar})/0.25)*exp(-mod(t,${bar})*0.35)`;
+  const pad = chords
+    .map((c, i) => {
+      const notes = c.map((hz, j) => `${j === 0 ? 0.5 : 0.22}*sin(2*PI*${hz}*t)`).join('+');
+      return `between(mod(t,${bar * 4}),${bar * i},${bar * (i + 1)})*(${notes})`;
+    })
+    .join('+');
+  const kick = `sin(2*PI*(48+70*exp(-mod(t,${BPM_BEAT})*28))*mod(t,${BPM_BEAT}))*exp(-mod(t,${BPM_BEAT})*9)`;
+  const hat = `(random(0)*2-1)*exp(-mod(t+${BPM_BEAT / 2},${BPM_BEAT})*70)`;
+  return `0.32*(${pad})*${env}+0.55*${kick}+0.06*${hat}`;
+}
+
+async function buildAudio(dir: string, clip: Clip, tl: Timeline, cues: Cue[] | null, out: string) {
+  const co = clip.coldOpen.dur; // where the app recording starts
+  const length = videoLength(clip, tl);
+  const fx = [
+    ['click.wav', 'sin(2*PI*1900*t)*exp(-t*110)*0.6+sin(2*PI*950*t)*exp(-t*60)*0.25', 0.08],
+    ['whoosh.wav', '(random(0)*2-1)*sin(PI*t/0.4)*0.5', 0.4],
+  ] as const;
+  for (const [file, expr, dur] of fx)
+    await run([
+      'ffmpeg',
+      '-y',
+      '-loglevel',
+      'error',
+      '-f',
+      'lavfi',
+      '-i',
+      `aevalsrc='${expr}':s=44100:d=${dur}`,
+      join(dir, file),
+    ]);
+  const inputs = ['-f', 'lavfi', '-i', `aevalsrc='${musicExpr()}':s=44100:d=${length.toFixed(3)}`];
+  const f = [
+    `[0:a]lowpass=f=2400,aecho=0.8:0.5:280:0.25,volume=${cues ? 0.16 : 0.3},afade=t=out:st=${(length - 1.2).toFixed(2)}:d=1.2[music]`,
+  ];
+  const parts = ['[music]'];
+  const add = (file: string, at: number, gain: number) => {
+    const n = inputs.filter((x) => x === '-i').length;
+    inputs.push('-i', file);
+    const ms = Math.max(0, Math.round(at * 1000));
+    f.push(`[${n}:a]adelay=${ms}|${ms},volume=${gain}[a${n}]`);
+    parts.push(`[a${n}]`);
+  };
+  add(join(dir, 'whoosh.wav'), co - 0.2, 0.35); // the cut into the app
+  for (const g of tl.gestures)
+    add(join(dir, g.kind === 'tap' ? 'click.wav' : 'whoosh.wav'), co + g.t, g.kind === 'tap' ? 0.5 : 0.18);
+  for (const cue of cues ?? []) add(cue.file, cue.start, 1.3);
+  f.push(`${parts.join('')}amix=inputs=${parts.length}:normalize=0:duration=first,loudnorm=I=-15:TP=-1.5:LRA=11[out]`);
+  await run([
+    'ffmpeg',
+    '-y',
+    '-loglevel',
+    'error',
+    ...inputs,
+    '-filter_complex',
+    f.join(';'),
+    '-map',
+    '[out]',
+    '-ac',
+    '2',
+    '-t',
+    length.toFixed(3),
+    out,
+  ]);
+}
+
+const videoLength = (clip: Clip, tl: Timeline) => clip.coldOpen.dur + tl.end - END_FADE + END_CARD_S;
+
 async function finish(work: string, clip: Clip, tl: Timeline) {
-  console.log(`  compositing ${clip.name}`);
-  await renderOverlays(
-    work,
-    clip.hook,
-    tl.captions.map((c) => c.text),
-  );
+  console.log(`  voicing and compositing ${clip.name}`);
+  // Captions come from the current script, so wording can change without filming again.
+  const script = clip.steps.flatMap((s) => ('caption' in s ? [s.caption] : []));
+  tl = { ...tl, captions: tl.captions.map((c, i) => ({ ...c, text: script[i] ?? c.text })) };
+  const cues = await scheduleCues(work, clip, tl);
+  await renderOverlays(work);
+  const captions = await renderCaptionTrack(work, cues, clip.coldOpen.dur + tl.end);
+  // Two cuts: with a voiceover, and music plus sound effects only (for adding a trending sound in the app instead).
   const mp4 = join(OUT, `${clip.name}.mp4`);
-  await composite(work, join(work, 'raw.mp4'), tl, clip, mp4);
+  const voiced = join(OUT, `${clip.name}-voiceover.mp4`);
+  await buildAudio(work, clip, tl, null, join(work, 'audio.wav'));
+  await buildAudio(work, clip, tl, cues, join(work, 'audio-vo.wav'));
+  await composite(work, join(work, 'raw.mp4'), tl, clip, captions, join(work, 'audio.wav'), mp4);
+  await run([
+    'ffmpeg',
+    '-y',
+    '-loglevel',
+    'error',
+    '-i',
+    mp4,
+    '-i',
+    join(work, 'audio-vo.wav'),
+    '-map',
+    '0:v',
+    '-map',
+    '1:a',
+    '-c:v',
+    'copy',
+    '-c:a',
+    'aac',
+    '-b:a',
+    '160k',
+    '-shortest',
+    '-movflags',
+    '+faststart',
+    voiced,
+  ]);
   await writeCaptionFile(clip, join(OUT, `${clip.name}.txt`));
-  console.log(`  ✓ ${mp4} (${(clip.coldOpen.dur + tl.end + END_CARD_S - 0.35).toFixed(1)} s)`);
+  console.log(`  ✓ ${mp4} (${videoLength(clip, tl).toFixed(1)} s)`);
 }
 
 void main().finally(() => ocr?.terminate());

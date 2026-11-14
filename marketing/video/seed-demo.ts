@@ -6,7 +6,7 @@
 // macOS keychain (service holofolder-demo-account) so record.ts can sign in on the simulator. Writes go through
 // the developer API with a short-lived key, revoked when the run ends, like scripts/showcase-sync.ts.
 // The collection is a real demo collection: a Kanto binder (generation 1 preset) filled from the 151 set,
-// with a few chase cards left empty and on the want list. Nothing here is a price; prices come from the app.
+// with a few chase cards left empty and on the want list, and a National Dex binder with a card for every Pokémon. Nothing here is a price; prices come from the app.
 /* oxlint-disable react-doctor/async-await-in-loop -- API writes must run in order against one revision */
 import { execFile } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -24,23 +24,68 @@ const USERNAME = 'demo';
 const DISPLAY_NAME = 'Holo Folder demo';
 const KEYCHAIN = 'holofolder-demo-account';
 const KEY_NAME = 'demo-seed';
-const KANTO = { name: 'Kanto', slug: 'kanto', set: 'sv03.5' };
-// Left empty in the Kanto binder and put on the want list, so Show mode has something to hunt.
-const HUNTING = [6, 9, 3, 151, 150, 94, 149, 143, 65, 145];
-// Pockets that hold the set's illustration rare instead of the regular card, for a binder worth flipping through.
-const SHOWPIECES = [1, 4, 7, 25, 39, 52, 54, 63, 92, 113, 129, 133, 147];
+const FINISH_SQL = "CASE WHEN (c.variants_json->>'normal')::boolean THEN 'normal' ELSE 'holo' END AS finish";
+const CARD_COLUMNS = `c.id, c.name_en, d.dex_id AS dex, c.local_id, c.rarity, c.illustrator, ${FINISH_SQL}`;
+interface BinderSpec {
+  name: string;
+  slug: string;
+  preset: string;
+  set: string; // shown on wants
+  // Candidate printings per Pokémon, in preference order; the first is used, the last for showpieces.
+  cardsSql: string;
+  cardsParams: unknown[];
+  hunting: number[]; // left empty and put on the want list, so Show mode has something to hunt
+  showpieces: number[]; // pockets that hold the last candidate (an illustration rare) instead of the first
+  grid: { rows: number; cols: number };
+  // Read-only: take each Pokémon's card from this public binder where it has one (Cal asked for his @cal/national picks).
+  copyFrom?: { username: string; slug: string };
+}
+const BINDERS: BinderSpec[] = [
+  {
+    name: 'Kanto',
+    slug: 'kanto',
+    preset: 'generation-1',
+    set: '151',
+    cardsSql: `SELECT ${CARD_COLUMNS} FROM tcg_cards c JOIN tcg_card_dex_ids d ON d.card_id = c.id
+               WHERE c.set_id = 'sv03.5' AND d.dex_id <= 151 ORDER BY d.dex_id, c.local_id_sort`,
+    cardsParams: [],
+    hunting: [6, 9, 3, 151, 150, 94, 149, 143, 65, 145],
+    showpieces: [1, 4, 7, 25, 39, 52, 54, 63, 92, 113, 129, 133, 147],
+    grid: { rows: 3, cols: 3 },
+  },
+  {
+    // Every Pokémon: its most recent ordinary English printing (one Pokémon per card, so no tag teams).
+    name: 'National Dex',
+    slug: 'national-dex',
+    preset: 'national-dex',
+    set: '',
+    cardsSql: `WITH single AS (SELECT card_id, min(dex_id) AS dex_id FROM tcg_card_dex_ids GROUP BY card_id HAVING count(*) = 1)
+               SELECT DISTINCT ON (d.dex_id) ${CARD_COLUMNS}
+               FROM single d JOIN tcg_cards c ON c.id = d.card_id JOIN tcg_sets s ON s.id = c.set_id
+               WHERE c.image_languages_json ? 'en'
+               ORDER BY d.dex_id, (c.rarity IN ('Common', 'Uncommon', 'Rare')) DESC, s.release_date DESC NULLS LAST`,
+    cardsParams: [],
+    hunting: [],
+    showpieces: [],
+    grid: { rows: 4, cols: 4 },
+    copyFrom: { username: 'cal', slug: 'national' },
+  },
+];
 
 const exec = promisify(execFile);
-type Identity = { kind: 'card'; cardId: string; language: string; finish: 'normal' | 'holo' };
+type Identity = { kind: 'card'; cardId: string; language: string; finish: string };
 type Slot = {
   id: string;
   version: number;
   target: { kind: string; pokemonId?: number } | null;
   item_id: string | null;
+  item_version: number | null;
+  placement_version: number | null;
+  card_id: string | null;
   wants: number;
   want_complete: boolean | null;
 };
-type Binder = { id: string; version: number; layout_revision: number };
+type Binder = { id: string; version: number; layout_revision: number; rows: number; cols: number };
 type Api = (name: string, input: Record<string, unknown>) => Promise<Record<string, unknown>>;
 
 export async function demoPassword(): Promise<string> {
@@ -94,7 +139,7 @@ async function main() {
       console.log(`set username @${USERNAME}`);
       await api('update_identity', { username: USERNAME, displayName: DISPLAY_NAME });
     }
-    await seedKanto(read, api, ownerId);
+    for (const spec of BINDERS) await seedBinder(read, api, ownerId, spec);
     // Show mode's "Bought" button records purchases on the account; start every filming session at zero.
     const purchases = (await api('list_show_purchases', {})) as { data?: { id: string }[] };
     for (const p of purchases.data ?? []) await api('remove_show_purchase', { clientId: p.id });
@@ -128,14 +173,15 @@ async function ensureAccount(db: Client, read: Read): Promise<string> {
 
 type Read = <T>(sql: string, params?: unknown[]) => Promise<T[]>;
 
-async function seedKanto(read: Read, api: Api, ownerId: string) {
+async function seedBinder(read: Read, api: Api, ownerId: string, spec: BinderSpec) {
+  const { hunting: HUNTING, showpieces: SHOWPIECES } = spec;
   const findBinder = async () =>
     (
       await read<Binder>(
-        `SELECT b.id, s.version::int, s.layout_revision::int FROM binders b
+        `SELECT b.id, s.version::int, s.layout_revision::int, b.binder_rows AS rows, b.binder_cols AS cols FROM binders b
          JOIN storage_collection_state s ON s.collection_id = b.id
          WHERE b.owner_user_id = $1 AND b.name = $2 LIMIT 1`,
-        [ownerId, KANTO.name],
+        [ownerId, spec.name],
       )
     )[0];
   const revision = async () =>
@@ -150,8 +196,8 @@ async function seedKanto(read: Read, api: Api, ownerId: string) {
 
   let binder = await findBinder();
   if (!binder) {
-    console.log('create the Kanto binder (generation 1, 3x3)');
-    const preview = await api('preview_storage_preset', { presetId: 'generation-1', version: '1' });
+    console.log(`create the ${spec.name} binder (${spec.preset}, ${spec.grid.rows}x${spec.grid.cols})`);
+    const preview = await api('preview_storage_preset', { presetId: spec.preset, version: '1' });
     const manifest = preview.manifest as { entries: unknown[] };
     const collectionId = randomUUID();
     await api('create_storage_collection', {
@@ -159,23 +205,37 @@ async function seedKanto(read: Read, api: Api, ownerId: string) {
       operationId: `demo-create-${collectionId}`,
       inventoryRevision: await revision(),
       collectionId,
-      name: KANTO.name,
+      name: spec.name,
       kind: 'binder',
       defaultPresentation: 'binder',
       location: null,
-      grid: { rows: 3, cols: 3 },
+      grid: spec.grid,
       manifest,
       slotIds: manifest.entries.map(() => randomUUID()),
     });
     binder = (await findBinder())!;
   }
   const id = binder.id;
+  if (binder.rows !== spec.grid.rows || binder.cols !== spec.grid.cols) {
+    console.log(`${spec.name}: grid to ${spec.grid.rows}x${spec.grid.cols}`);
+    const { rows, cols } = spec.grid;
+    const review = await api('set_binder_layout', { id, rows, cols, dryRun: true });
+    await api('set_binder_layout', {
+      id,
+      rows,
+      cols,
+      operationId: `demo-layout-${randomUUID()}`,
+      ...(review.preconditions as Record<string, unknown>),
+    });
+  }
   const slots = () =>
     read<Slot>(
-      `SELECT s.id, s.version::int, s.target, p.inventory_item_id AS item_id,
+      `SELECT s.id, s.version::int, s.target, p.inventory_item_id AS item_id, i.version::int AS item_version,
+              p.version::int AS placement_version, i.identity->>'cardId' AS card_id,
               coalesce(jsonb_array_length(s.wanted_cards), 0) AS wants,
               (s.wanted_cards->0 ? 'card_image' AND s.wanted_cards->0 ? 'card_finish') AS want_complete
        FROM binder_slots s LEFT JOIN inventory_placements p ON p.slot_id = s.id
+       LEFT JOIN inventory_items i ON i.id = p.inventory_item_id
        WHERE s.collection_id = $1 ORDER BY s.position`,
       [id],
     );
@@ -187,8 +247,6 @@ async function seedKanto(read: Read, api: Api, ownerId: string) {
     placementVersion: null,
   });
 
-  // One printing per Kanto Pokémon from the 151 set: the regular card, or the illustration rare for showpieces.
-  // A finish is needed for the app to count a copy's price (ambiguous foil quotes are left out).
   const cards = await read<{
     id: string;
     name_en: string;
@@ -197,50 +255,119 @@ async function seedKanto(read: Read, api: Api, ownerId: string) {
     rarity: string | null;
     illustrator: string | null;
     finish: 'normal' | 'holo';
-  }>(
-    `SELECT c.id, c.name_en, d.dex_id AS dex, c.local_id, c.rarity, c.illustrator,
-            CASE WHEN (c.variants_json->>'normal')::boolean THEN 'normal' ELSE 'holo' END AS finish
-     FROM tcg_cards c JOIN tcg_card_dex_ids d ON d.card_id = c.id
-     WHERE c.set_id = $1 AND d.dex_id <= 151 ORDER BY d.dex_id, c.local_id_sort`,
-    [KANTO.set],
-  );
+  }>(spec.cardsSql, spec.cardsParams);
   const byDex = new Map<number, typeof cards>();
   for (const c of cards) byDex.set(c.dex, [...(byDex.get(c.dex) ?? []), c]);
-  const pick = (dex: number) => {
+  const source = new Map<number, { id: string; finish: string }>();
+  if (spec.copyFrom)
+    for (const r of await read<{ dex: number; id: string; finish: string | null }>(
+      `SELECT (s.target->>'pokemonId')::int AS dex, i.identity->>'cardId' AS id, i.identity->>'finish' AS finish
+       FROM binders b JOIN account_identities a ON a.user_id = b.owner_user_id
+       JOIN binder_public_slugs ps ON ps.binder_id = b.id AND ps.is_active AND ps.slug = $2
+       JOIN binder_slots s ON s.collection_id = b.id JOIN inventory_placements p ON p.slot_id = s.id
+       JOIN inventory_items i ON i.id = p.inventory_item_id
+       WHERE a.username = $1 AND s.target->>'kind' = 'pokemon' AND i.identity->>'kind' = 'card'`,
+      [spec.copyFrom.username, spec.copyFrom.slug],
+    ))
+      source.set(r.dex, { id: r.id, finish: r.finish ?? byDex.get(r.dex)?.[0]?.finish ?? 'holo' });
+  const pick = (dex: number): { id: string; finish: string } | undefined => {
+    if (source.has(dex)) return source.get(dex);
     const all = byDex.get(dex) ?? [];
     return SHOWPIECES.includes(dex) ? all.at(-1) : all[0];
   };
+
+  // Copies that aren't the card this pocket should hold now (e.g. after switching to the source binder's picks).
+  const changed = (await slots()).filter(
+    (s) => s.item_id && s.target?.kind === 'pokemon' && pick(s.target.pokemonId!)?.id !== s.card_id,
+  );
+  // Same split-on-rejection approach as `assign` below: a rejected batch is halved until the odd one out is found.
+  const swapOut = async (batch: Slot[]): Promise<void> => {
+    const b = (await findBinder())!;
+    try {
+      await api('execute_inventory_commands', {
+        operationId: `demo-swap-${randomUUID()}`,
+        inventoryRevision: await revision(),
+        collections: [{ collectionId: id, version: b.version, layoutRevision: b.layout_revision }],
+        commands: batch.map((u) => ({
+          kind: 'removeOwned',
+          item: {
+            itemId: u.item_id,
+            itemVersion: u.item_version,
+            placement: {
+              collectionId: id,
+              slot: {
+                id: u.id,
+                version: u.version,
+                inventoryItemId: u.item_id,
+                itemVersion: u.item_version,
+                placementVersion: u.placement_version,
+              },
+            },
+          },
+        })),
+      });
+    } catch (error) {
+      if (!String(error).includes('invalid_input')) throw error;
+      if (batch.length === 1) {
+        console.log(`${spec.name}: keep ${batch[0].card_id}, it can't be removed`);
+        return;
+      }
+      const half = Math.ceil(batch.length / 2);
+      await swapOut(batch.slice(0, half));
+      await swapOut(batch.slice(half));
+    }
+  };
+  // Removals are heavier than adds on the storage side and 503 in batches of 40, so go 15 at a time.
+  for (let i = 0; i < changed.length; i += 15) {
+    console.log(`${spec.name}: swap out ${Math.min(15, changed.length - i)} cards, ${changed.length - i} to go`);
+    await swapOut(changed.slice(i, i + 15));
+  }
 
   const current = await slots();
   const fills = current.filter(
     (s) =>
       !s.item_id && s.target?.kind === 'pokemon' && !HUNTING.includes(s.target.pokemonId!) && pick(s.target.pokemonId!),
   );
-  for (let i = 0; i < fills.length; i += 40) {
-    const batch = fills.slice(i, i + 40);
-    console.log(`Kanto: add ${batch.length} cards`);
+  // Batches are all-or-nothing, and a few catalogue printings don't fit their pocket (the storage rules reject them
+  // with invalid_input), so split a rejected batch in half until the odd card out is found, then skip it.
+  const assign = async (batch: Slot[]): Promise<void> => {
     const b = (await findBinder())!;
-    await api('execute_inventory_commands', {
-      operationId: `demo-inv-${randomUUID()}`,
-      inventoryRevision: await revision(),
-      collections: [{ collectionId: id, version: b.version, layoutRevision: b.layout_revision }],
-      commands: batch.map((s) => ({
-        kind: 'assign',
-        selection: {
-          kind: 'catalog',
-          identity: {
-            kind: 'card',
-            cardId: pick(s.target!.pokemonId!)!.id,
-            language: 'en',
-            finish: pick(s.target!.pokemonId!)!.finish,
-          } satisfies Identity,
-          newItemId: randomUUID(),
-        },
-        destination: { collectionId: id, slot: pre(s) },
-        occupied: 'cancel',
-        fulfillWant: null,
-      })),
-    });
+    try {
+      await api('execute_inventory_commands', {
+        operationId: `demo-inv-${randomUUID()}`,
+        inventoryRevision: await revision(),
+        collections: [{ collectionId: id, version: b.version, layoutRevision: b.layout_revision }],
+        commands: batch.map((s) => ({
+          kind: 'assign',
+          selection: {
+            kind: 'catalog',
+            identity: {
+              kind: 'card',
+              cardId: pick(s.target!.pokemonId!)!.id,
+              language: 'en',
+              finish: pick(s.target!.pokemonId!)!.finish,
+            } satisfies Identity,
+            newItemId: randomUUID(),
+          },
+          destination: { collectionId: id, slot: pre(s) },
+          occupied: 'cancel',
+          fulfillWant: null,
+        })),
+      });
+    } catch (error) {
+      if (!String(error).includes('invalid_input')) throw error;
+      if (batch.length === 1) {
+        console.log(`${spec.name}: skip ${pick(batch[0].target!.pokemonId!)!.id}, it doesn't fit its pocket`);
+        return;
+      }
+      const half = Math.ceil(batch.length / 2);
+      await assign(batch.slice(0, half));
+      await assign(batch.slice(half));
+    }
+  };
+  for (let i = 0; i < fills.length; i += 40) {
+    console.log(`${spec.name}: add ${Math.min(40, fills.length - i)} cards, ${fills.length - i} to go`);
+    await assign(fills.slice(i, i + 40));
   }
 
   // Copies from before finishes were set get one now.
@@ -257,7 +384,7 @@ async function seedKanto(read: Read, api: Api, ownerId: string) {
   for (let i = 0; i < unfinished.length; i += 1) {
     // One copy per request: a batch of finish changes is rejected as a whole.
     const batch = unfinished.slice(i, i + 1);
-    if (i % 10 === 0) console.log(`Kanto: set finishes, ${unfinished.length - i} to go`);
+    if (i % 10 === 0) console.log(`${spec.name}: set finishes, ${unfinished.length - i} to go`);
     await new Promise((resolve) => setTimeout(resolve, 1500)); // gentle: the storage RPC returns 503 under a burst
     const b = (await findBinder())!;
     await api('execute_inventory_commands', {
@@ -299,7 +426,7 @@ async function seedKanto(read: Read, api: Api, ownerId: string) {
     [id, HUNTING],
   );
   for (const u of strays) {
-    console.log('Kanto: empty a chase pocket again');
+    console.log(`${spec.name}: empty a chase pocket again`);
     const b = (await findBinder())!;
     const slot = {
       id: u.id,
@@ -326,7 +453,7 @@ async function seedKanto(read: Read, api: Api, ownerId: string) {
     (s) => !s.item_id && s.target?.kind === 'pokemon' && HUNTING.includes(s.target.pokemonId!) && !s.want_complete,
   );
   if (wantSlots.length) {
-    console.log(`Kanto: want ${wantSlots.length} chase cards`);
+    console.log(`${spec.name}: want ${wantSlots.length} chase cards`);
     // The card image, as the app stores it on a want, so Show mode can draw the card.
     const images = new Map<string, string>();
     for (const s of wantSlots) {
@@ -355,7 +482,7 @@ async function seedKanto(read: Read, api: Api, ownerId: string) {
               card_language: 'en',
               card_finish: 'holo',
               ...(images.has(card.id) ? { card_image: images.get(card.id) } : {}),
-              card_set: '151',
+              card_set: spec.set,
               local_id: card.local_id,
               ...(card.rarity ? { rarity: card.rarity } : {}),
               ...(card.illustrator ? { illustrator: card.illustrator } : {}),
@@ -365,9 +492,9 @@ async function seedKanto(read: Read, api: Api, ownerId: string) {
       }),
     });
   }
-  await api('update_binder_identity', { binderId: id, slug: KANTO.slug });
+  await api('update_binder_identity', { binderId: id, slug: spec.slug });
   await api('update_sharing', { binderId: id, enabled: true, showPrices: true });
-  console.log(`Kanto ready: https://holofolder.com/@${USERNAME}/${KANTO.slug}`);
+  console.log(`${spec.name} ready: https://holofolder.com/@${USERNAME}/${spec.slug}`);
 }
 
 function apiClient(key: string): Api {
