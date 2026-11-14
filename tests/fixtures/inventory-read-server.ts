@@ -281,7 +281,36 @@ export function fixture(
     let rows = [...(tables[table] ?? [])];
     // Current 033 policy exposes user_settings only to its user, not their partner.
     if (table === 'user_settings') rows = rows.filter((r) => r.user_id === actor);
+    // Synthetic json paths (`col->a->>b`) and `or=(…)` trees, only as far as the catalog reads use them.
+    const path = (r: Row, expr: string) =>
+      expr
+        .split(/->>?/)
+        .reduce<unknown>(
+          (value, key, i) => (i === 0 ? r[key] : value && typeof value === 'object' ? (value as Row)[key] : undefined),
+          undefined,
+        );
+    const matches = (r: Row, key: string, filter: string) => {
+      const unquote = (v: string) => (v.startsWith('"') ? v.slice(1, -1).replace(/\\(.)/g, '$1') : v);
+      if (filter.startsWith('cs.')) {
+        const value = path(r, key);
+        return (JSON.parse(unquote(filter.slice(3))) as unknown[]).every(
+          (id) => Array.isArray(value) && value.includes(id),
+        );
+      }
+      if (filter.startsWith('eq.')) return String(path(r, key)) === unquote(filter.slice(3));
+      throw new Error(`Unsupported synthetic filter ${key}=${filter}`);
+    };
     for (const [key, filter] of url.searchParams) {
+      if (key === 'or') {
+        const terms = filter.slice(1, -1).match(/(?:[^,"]|"(?:[^"\\]|\\.)*")+/g) ?? [];
+        rows = rows.filter((r) =>
+          terms.some((term) => {
+            const [, column, condition] = term.match(/^([^.]+)\.(.*)$/)!;
+            return matches(r, column, condition);
+          }),
+        );
+        continue;
+      }
       if (filter.startsWith('in.(')) {
         const values = filter
           .slice(4, -1)
@@ -319,10 +348,11 @@ export function fixture(
     if (select && select !== '*')
       rows = rows.map((r) =>
         Object.fromEntries(
-          select
-            .split(',')
-            .filter((k) => k in r)
-            .map((k) => [k, r[k]]),
+          select.split(',').flatMap((field) => {
+            const [alias, expr = alias] = field.split(':');
+            if (expr.includes('->')) return [[alias, path(r, expr) ?? null]];
+            return expr in r ? [[alias, r[expr]]] : [];
+          }),
         ),
       );
     return new Response(method === 'HEAD' ? null : JSON.stringify(rows), {

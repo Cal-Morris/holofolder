@@ -8,13 +8,16 @@ import { isBillingError } from '@/lib/billing';
 import { AppearanceError } from '@/lib/server/binder-appearance';
 import { normalizeComparisonTargets } from '@/lib/comparison-jobs';
 import {
+  COMPARISON_JOB_STATUS_COLUMNS,
   comparisonScopeKey,
   estimateComparisonSpend,
   initialComparisonProgress,
   publicComparisonJob,
   readComparisonJob,
-  type StoredComparisonJob,
 } from '@/lib/server/comparison-jobs';
+import type { ComparisonJob } from '@/lib/comparison-jobs';
+
+const PUBLIC_COLUMNS = 'id,status,progress';
 
 const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
@@ -36,7 +39,7 @@ export async function readComparisonOperation(request: Request, actor: Pick<User
     const { ownerId } = await owner(actor, verifiedOwnerId);
     const id = new URL(request.url).searchParams.get('id');
     if (!id || !/^[0-9a-f-]{36}$/.test(id)) return json({ error: 'Invalid job.' }, 400);
-    let job = await readComparisonJob(id, ownerId);
+    let job = await readComparisonJob(id, ownerId, COMPARISON_JOB_STATUS_COLUMNS);
     if (!job) return json({ error: 'Job not found.' }, 404);
     if ((job.status === 'queued' || job.status === 'running') && job.run_id) {
       const { getRun } = await import('workflow/api');
@@ -71,7 +74,7 @@ export async function writeComparisonOperation(request: Request, actor: Pick<Use
     const admin = createAdminClient();
     if (body?.action === 'stop') {
       if (typeof body.id !== 'string' || !/^[0-9a-f-]{36}$/.test(body.id)) return json({ error: 'Invalid job.' }, 400);
-      const job = await readComparisonJob(body.id, ownerId);
+      const job = await readComparisonJob(body.id, ownerId, COMPARISON_JOB_STATUS_COLUMNS);
       if (!job) return json({ error: 'Job not found.' }, 404);
       const { error } = await admin
         .from('comparison_jobs')
@@ -84,7 +87,9 @@ export async function writeComparisonOperation(request: Request, actor: Pick<Use
         const { getRun } = await import('workflow/api');
         await getRun(job.run_id).cancel();
       }
-      return json({ job: publicComparisonJob((await readComparisonJob(job.id, ownerId))!) });
+      return json({
+        job: publicComparisonJob((await readComparisonJob(job.id, ownerId, COMPARISON_JOB_STATUS_COLUMNS))!),
+      });
     }
     if (body?.action !== 'inspect' && body?.action !== 'start') return json({ error: 'Invalid action.' }, 400);
     const targets = normalizeComparisonTargets(body.cards);
@@ -107,14 +112,14 @@ export async function writeComparisonOperation(request: Request, actor: Pick<Use
       if (previous) {
         if (previous.input_digest !== retryDigest)
           return json({ error: 'This idempotency key was used with another request.' }, 409);
-        const job = await readComparisonJob(previous.result.id, ownerId);
+        const job = await readComparisonJob(previous.result.id, ownerId, COMPARISON_JOB_STATUS_COLUMNS);
         return job ? json({ job: publicComparisonJob(job) }) : json({ error: 'Job no longer available.' }, 404);
       }
     }
     const scopeKey = comparisonScopeKey(targets);
     const { data: existing, error: readError } = await admin
       .from('comparison_jobs')
-      .select('*')
+      .select('id,status,progress,run_id,created_at')
       .eq('owner_user_id', ownerId)
       .eq('scope_key', scopeKey)
       .in('status', ['queued', 'running'])
@@ -130,20 +135,20 @@ export async function writeComparisonOperation(request: Request, actor: Pick<Use
           .eq('status', 'queued')
           .is('run_id', null);
         if (staleError) throw staleError;
-      } else if (!retryKey) return json({ job: publicComparisonJob(existing as StoredComparisonJob) });
+      } else if (!retryKey) return json({ job: publicComparisonJob(existing as ComparisonJob) });
     }
     const needed = await estimateComparisonSpend(targets);
     if (body.action === 'inspect') {
       const { data: latest, error: latestError } = await admin
         .from('comparison_jobs')
-        .select('*')
+        .select(PUBLIC_COLUMNS)
         .eq('owner_user_id', ownerId)
         .eq('scope_key', scopeKey)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (latestError) throw latestError;
-      return json({ job: latest ? publicComparisonJob(latest as StoredComparisonJob) : null, needed });
+      return json({ job: latest ? publicComparisonJob(latest as ComparisonJob) : null, needed });
     }
     if (needed >= 15 && body.confirmed !== true) return json({ needsConfirmation: true, needed }, 409);
     const values = {
@@ -167,31 +172,31 @@ export async function writeComparisonOperation(request: Request, actor: Pick<Use
       return json({ error: 'This idempotency key was used with another request.' }, 409);
     if (created?.error) throw created.error;
     if (created?.data && !created.data.created)
-      return json({ job: publicComparisonJob(created.data.job as StoredComparisonJob) });
+      return json({ job: publicComparisonJob(created.data.job as ComparisonJob) });
     let { data: inserted, error } = created
       ? { data: created.data?.job, error: null as { code: string; message: string } | null }
       : await admin
           .from('comparison_jobs')
           .insert({ ...values, initiated_by: userId })
-          .select('*')
+          .select(PUBLIC_COLUMNS)
           .single();
     // Older schemas can still run checks, without completion notifications.
     if (error && ['PGRST204', '42703'].includes(error.code) && error.message.includes('initiated_by')) {
-      ({ data: inserted, error } = await admin.from('comparison_jobs').insert(values).select('*').single());
+      ({ data: inserted, error } = await admin.from('comparison_jobs').insert(values).select(PUBLIC_COLUMNS).single());
     }
     if (error?.code === '23505') {
       const { data: active, error: activeError } = await admin
         .from('comparison_jobs')
-        .select('*')
+        .select(PUBLIC_COLUMNS)
         .eq('owner_user_id', ownerId)
         .eq('scope_key', scopeKey)
         .in('status', ['queued', 'running'])
         .single();
       if (activeError) throw activeError;
-      return json({ job: publicComparisonJob(active as StoredComparisonJob) });
+      return json({ job: publicComparisonJob(active as ComparisonJob) });
     }
     if (error) throw error;
-    const job = inserted as StoredComparisonJob;
+    const job = inserted as ComparisonJob;
     try {
       const [{ start }, { comparisonChecksWorkflow }] = await Promise.all([
         import('workflow/api'),

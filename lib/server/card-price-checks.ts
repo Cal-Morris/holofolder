@@ -2,7 +2,7 @@ import { consumePriceCheckProviderLimit } from '@/lib/server/price-check-limits'
 import { DeveloperAccessError } from '@/lib/developer-api/permissions';
 import { getClassicCollectionPrinting } from '@/lib/classic-collection-printing';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { fetchEbayListingIndicator, loadPriceCheckSubject } from '@/lib/server/ebay-listings';
+import { fetchEbayListingIndicator, loadPriceCheckSubject, priceCheckVariant } from '@/lib/server/ebay-listings';
 import { summarizeSoldComps } from '@/lib/sold-comps';
 import { ebayOpenListingsUrl, ebaySoldListingsUrl } from '@/lib/ebay-search-urls';
 import {
@@ -42,14 +42,13 @@ export async function loadCardPriceChecks(
   refresh: boolean,
   onlySource?: PriceCheckSource,
   forceRefresh = false,
+  /** A subject the caller already loaded for this card and finish. */
+  preloaded?: Awaited<ReturnType<typeof loadPriceCheckSubject>>,
 ): Promise<CardPriceChecks | null> {
   const db = createAdminClient();
   const sources: PriceCheckSource[] = onlySource ? [onlySource] : ['ebay', 'soldcomps'];
   const [lookup, saved] = await Promise.all([
-    loadPriceCheckSubject(
-      cardId,
-      finish === 'reverse_holo' ? 'reverse' : finish === 'normal' || finish === 'holo' ? finish : null,
-    ),
+    preloaded !== undefined ? preloaded : loadPriceCheckSubject(cardId, priceCheckVariant(finish)),
     db
       .from('card_price_checks')
       .select('source,result_json')
@@ -141,7 +140,8 @@ export async function loadSavedCardPriceChecks(cards: { cardId: string; finish: 
   const { data, error } = await createAdminClient()
     .from('card_price_checks')
     .select('card_id,finish,source,result_json')
-    .in('card_id', [...new Set(cards.map((card) => card.cardId))]);
+    .in('card_id', [...new Set(cards.map((card) => card.cardId))])
+    .in('finish', [...new Set(cards.map((card) => card.finish))]);
   if (error) throw error;
   return cards.map((card) => {
     const checks: CardPriceChecks = { ebay: null, soldcomps: null, errors: {} };

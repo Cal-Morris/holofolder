@@ -15,21 +15,36 @@ export async function loadEbayListingIndicator(cardId: string, variant: PriceSub
   return lookup ? fetchEbayListingIndicator(lookup.subject, lookup.query) : null;
 }
 
+export const priceCheckVariant = (finish: string): PriceSubjectVariant | null =>
+  finish === 'reverse_holo' ? 'reverse' : finish === 'normal' || finish === 'holo' ? finish : null;
+
+const STAMP_FINISHES: unknown[] = ['normal', 'holo', 'reverse'];
+/** `raw_json.supplementalSources.tcgdexVariant`, an untrusted mirror payload (`type` is checked before use). */
+interface VariantEvidence {
+  stamp?: unknown;
+  size?: unknown;
+  type?: PriceSubjectVariant;
+  variantId?: unknown;
+  thirdParty?: { tcgplayer?: unknown };
+}
+
 export async function loadPriceCheckSubject(cardId: string, variant: PriceSubjectVariant | null) {
   const { data: card, error } = await createAdminClient()
     .from('tcg_cards')
-    .select('id,name_en,local_id,set_id,external_ids_json,raw_json,tcg_sets(name_en,official_card_count)')
+    .select(
+      'id,name_en,local_id,set_id,catalog:external_ids_json->catalog,variant:raw_json->supplementalSources->tcgdexVariant,tcg_sets(name_en,official_card_count)',
+    )
     .eq('id', cardId)
     .maybeSingle();
   if (error) throw new Error('Card lookup unavailable');
   if (!card?.name_en || !card.local_id) return null;
-  const catalog = readCatalogMetadata(card.external_ids_json);
+  const catalog = readCatalogMetadata({ catalog: card.catalog });
   let name = card.name_en;
   let localId = card.local_id;
   let printing: PriceSubject['printing'];
   let unambiguousPrintingFinish: PriceSubject['unambiguousPrintingFinish'];
   if (catalog.variantId) {
-    const evidence = card.raw_json?.supplementalSources?.tcgdexVariant;
+    const evidence = (card.variant ?? {}) as VariantEvidence;
     const labels = { 'pokemon-center': 'Pokémon Center', staff: 'Staff', 'pre-release': 'Prerelease' } as const;
     const stamp = Array.isArray(evidence?.stamp) && evidence.stamp.length === 1 ? evidence.stamp[0] : undefined;
     if (
@@ -49,18 +64,17 @@ export async function loadPriceCheckSubject(cardId: string, variant: PriceSubjec
     name = name.slice(0, -suffix.length);
     localId = catalog.localId;
     if (!name) return null;
-    if (['normal', 'holo', 'reverse'].includes(evidence.type) && variant && evidence.type !== variant) return null;
+    if (STAMP_FINISHES.includes(evidence.type) && variant && evidence.type !== variant) return null;
     // The decorated row retains only one variant. Check the base catalog list before inferring
     // a finish from its stamp; another finish with the same stamp makes the title ambiguous.
     if (catalog.tcgdexCardId === `${card.set_id}-${localId}` && evidence.size === 'standard') {
       const { data: base, error: baseError } = await createAdminClient()
         .from('tcg_cards')
-        .select('raw_json')
+        .select('rawId:raw_json->id,variants:raw_json->variants,variants_detailed:raw_json->variants_detailed')
         .eq('id', catalog.tcgdexCardId)
         .maybeSingle();
-      const raw = base?.raw_json;
-      const variants: unknown = Array.isArray(raw?.variants) ? raw.variants : raw?.variants_detailed;
-      if (!baseError && raw?.id === catalog.tcgdexCardId && Array.isArray(variants)) {
+      const variants: unknown = Array.isArray(base?.variants) ? base.variants : base?.variants_detailed;
+      if (!baseError && base?.rawId === catalog.tcgdexCardId && Array.isArray(variants)) {
         const stamped = variants.filter(
           (v) =>
             v && typeof v === 'object' && v.size !== 'jumbo' && Array.isArray(v.stamp) && v.stamp.includes(printing),
@@ -71,7 +85,7 @@ export async function loadPriceCheckSubject(cardId: string, variant: PriceSubjec
           stamped.some(
             (v) => v.variantId === evidence.variantId && String(v.thirdParty?.tcgplayer) === catalog.productId,
           ) &&
-          ['normal', 'holo', 'reverse'].includes(evidence.type)
+          STAMP_FINISHES.includes(evidence.type)
         )
           unambiguousPrintingFinish = evidence.type;
       }

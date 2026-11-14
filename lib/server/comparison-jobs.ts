@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PRICE_CHECK_SOURCES } from '@/lib/card-price-check-cache';
 import { loadCardPriceChecks, loadSavedCardPriceChecks } from '@/lib/server/card-price-checks';
+import { loadPriceCheckSubject, priceCheckVariant } from '@/lib/server/ebay-listings';
 import type { CheckCompsProgress } from '@/lib/check-comps';
 import type { ComparisonJob, ComparisonTarget, ComparisonResult } from '@/lib/comparison-jobs';
 
@@ -15,7 +16,7 @@ export interface StoredComparisonJob extends ComparisonJob {
   run_id: string | null;
   created_at: string;
 }
-export const publicComparisonJob = (job: StoredComparisonJob): ComparisonJob => ({
+export const publicComparisonJob = (job: ComparisonJob): ComparisonJob => ({
   id: job.id,
   status: job.status,
   progress: job.progress,
@@ -33,12 +34,19 @@ export const initialComparisonProgress = (total: number): CheckCompsProgress => 
   stopped: {},
 });
 
-export async function readComparisonJob(id: string, ownerId?: string) {
-  let query = createAdminClient().from('comparison_jobs').select('*').eq('id', id);
+/** What polling and the public job shape need, without the job's targets (up to 1 MB). */
+export const COMPARISON_JOB_STATUS_COLUMNS = ['id', 'status', 'progress', 'run_id'] as const;
+
+export async function readComparisonJob<K extends keyof StoredComparisonJob>(
+  id: string,
+  ownerId: string | undefined,
+  columns: readonly K[],
+) {
+  let query = createAdminClient().from('comparison_jobs').select(columns.join(',')).eq('id', id);
   if (ownerId) query = query.eq('owner_user_id', ownerId);
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
-  return data as StoredComparisonJob | null;
+  return data as Pick<StoredComparisonJob, K> | null;
 }
 
 export async function comparisonJobActive(id: string) {
@@ -75,17 +83,21 @@ export async function checkComparisonTarget(
   let allFresh = true;
   let failed = false;
   let retryable = false;
+  // The catalog subject is the same for every source, so it is read once per target.
+  let lookup: Awaited<ReturnType<typeof loadPriceCheckSubject>> | undefined;
   for (const source of PRICE_CHECK_SOURCES) {
-    if (jobId && !(await comparisonJobActive(jobId))) return { result: 'failed', stopped: {} };
     if (saved[source]) continue;
     allFresh = false;
     if (stopped[source]) {
       failed = true;
       continue;
     }
+    // The caller checked the job just before this target; recheck only between provider calls.
+    if (jobId && lookup !== undefined && !(await comparisonJobActive(jobId))) return { result: 'failed', stopped: {} };
     let result;
     try {
-      result = await loadCardPriceChecks(target.cardId, target.finish, true, source);
+      lookup ??= await loadPriceCheckSubject(target.cardId, priceCheckVariant(target.finish));
+      result = await loadCardPriceChecks(target.cardId, target.finish, true, source, false, lookup);
     } catch (error) {
       if (error instanceof DeveloperAccessError && RETRYABLE_STATUSES.has(error.status))
         return { result: 'failed', stopped: {}, retryable: true };

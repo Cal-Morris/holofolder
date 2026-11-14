@@ -36,26 +36,24 @@ async function run() {
       return Response.json(null);
 
     if (url.pathname.includes('/tcg_cards')) {
-      if (url.searchParams.get('select') === 'raw_json')
+      if (url.searchParams.get('select')?.startsWith('rawId:raw_json->id,'))
         return Response.json([
           {
-            raw_json: {
-              id: 'mep-070',
-              variants_detailed: missingFinishEvidence
-                ? []
-                : [
-                    {
-                      type: 'holo',
-                      size: 'standard',
-                      stamp: [stamp],
-                      variantId: 'synthetic-variant',
-                      thirdParty: { tcgplayer: 685563 },
-                    },
-                    ...(ambiguousFinish
-                      ? [{ type: 'normal', size: 'standard', stamp: [stamp], thirdParty: { tcgplayer: 123 } }]
-                      : []),
-                  ],
-            },
+            rawId: 'mep-070',
+            variants_detailed: missingFinishEvidence
+              ? []
+              : [
+                  {
+                    type: 'holo',
+                    size: 'standard',
+                    stamp: [stamp],
+                    variantId: 'synthetic-variant',
+                    thirdParty: { tcgplayer: 685563 },
+                  },
+                  ...(ambiguousFinish
+                    ? [{ type: 'normal', size: 'standard', stamp: [stamp], thirdParty: { tcgplayer: 123 } }]
+                    : []),
+                ],
           },
         ]);
       assert.equal(url.searchParams.get('id'), `eq.${regular ? 'mep-070' : id}`);
@@ -65,27 +63,21 @@ async function run() {
           name_en: regular ? 'Tyrunt' : `Tyrunt (${label})`,
           local_id: regular ? '070' : '070~685563',
           set_id: 'mep',
-          external_ids_json: regular
-            ? {}
+          catalog: regular
+            ? null
             : {
-                catalog: {
-                  localId: '070',
-                  tcgdexCardId: 'mep-070',
-                  variantId: 'synthetic-variant',
-                  productId,
-                  printingLabel: unsupported ? 'Unknown stamp' : label,
-                },
-              },
-          raw_json: {
-            supplementalSources: {
-              tcgdexVariant: {
+                localId: '070',
+                tcgdexCardId: 'mep-070',
                 variantId: 'synthetic-variant',
-                type: 'holo',
-                size: 'standard',
-                stamp: [unsupported ? 'unknown' : stamp],
-                thirdParty: { tcgplayer: 685563 },
+                productId,
+                printingLabel: unsupported ? 'Unknown stamp' : label,
               },
-            },
+          variant: {
+            variantId: 'synthetic-variant',
+            type: 'holo',
+            size: 'standard',
+            stamp: [unsupported ? 'unknown' : stamp],
+            thirdParty: { tcgplayer: 685563 },
           },
           tcg_sets: { name_en: 'MEP Black Star Promos' },
         },
