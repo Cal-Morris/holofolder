@@ -2,7 +2,12 @@
 
 import CardImage from '@/components/card-image';
 import { BinderSlotGlare, TRADING_CARD_CORNER_RADIUS } from '@/components/binder/pokemon-slot';
-import { displaySlotLabel, displaySlotPreview, type ReadOnlyDisplaySlot } from '@/lib/binder-display-model';
+import {
+  displayCardAlt,
+  displaySlotLabel,
+  displaySlotPreview,
+  type ReadOnlyDisplaySlot,
+} from '@/lib/binder-display-model';
 import { formatPokemonDisplayName } from '@/lib/pokemon-catalog';
 import { Check } from 'lucide-react';
 import type { PocketDropMode } from '@/lib/pocket-drop';
@@ -733,7 +738,7 @@ export function OrderedSlot({
         <CardImage
           key={`${slot.id}:${image}`}
           src={image}
-          alt=""
+          alt={hasCardImage && slot.card ? displayCardAlt(slot.card) : ''}
           fill
           sizes={imageSizes}
           className={`${hasCardImage ? 'object-cover' : 'object-contain p-[3px]'} ${tone}`}

@@ -200,6 +200,11 @@ export function displaySlotLabel(slot: Pick<ReadOnlyDisplaySlot, 'card' | 'pokem
   return `${name}, ${slot.item ? 'Owned' : slot.target ? 'Unfilled target' : 'Empty spacer'}`;
 }
 
+/** Image alt text for a pocket's card: "<name> <number> <set name>". */
+export function displayCardAlt(card: DisplayCatalogCard) {
+  return [card.name, card.localId, card.set?.name].filter(Boolean).join(' ');
+}
+
 /** Saved occupied pockets count once; spacers are outside completion goals. */
 export function nativeBinderCoverStats(binder: BinderSnapshot) {
   let collected = 0,

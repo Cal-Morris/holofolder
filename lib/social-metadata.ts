@@ -15,17 +15,29 @@ export const socialMetadata = {
   twitter: { card: 'summary_large_image', title, description, images: [image] },
 } satisfies Metadata;
 
-/** `previewImage`: the binder's own rendered preview, else the site artwork. */
-export function binderShareMetadata(username: unknown, binderName: unknown, previewImage?: string): Metadata {
+/** The curated showcase account, whose named binders are linked from the marketing site's collections pages. */
+export const SHOWCASE_USERNAME = 'showcase';
+
+/** `previewImage`: the binder's own rendered preview, else the site artwork. `publicUrl` is the named
+ * `/@username/slug` address; only the showcase account's named binders are indexed there, never anyone else's or a
+ * token share. */
+export function binderShareMetadata(
+  username: unknown,
+  binderName: unknown,
+  previewImage?: string,
+  publicUrl?: string,
+): Metadata {
   const owner = normalizeUsername(username);
   const binder = normalizeBinderName(binderName) ?? 'Pokémon binder';
   const title = `${owner ? `@${owner}’s ` : ''}${binder} · Holo Folder`;
   const description = `View ${owner ? `@${owner}’s ` : ''}${binder} on Holo Folder, a read-only Pokémon card collection.`;
   const images = previewImage ? [{ url: previewImage, width: 1200, height: 630, alt: title }] : [image];
+  const indexed = Boolean(publicUrl) && owner === SHOWCASE_USERNAME;
   return {
     title,
     description,
-    robots: { index: false, follow: false },
+    robots: { index: indexed, follow: indexed },
+    ...(indexed ? { alternates: { canonical: publicUrl } } : {}),
     openGraph: { ...socialMetadata.openGraph, title, description, images },
     twitter: { ...socialMetadata.twitter, title, description, images },
   };

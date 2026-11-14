@@ -12,6 +12,7 @@ export default function SharedBinder({ binder, sharePath }: { binder: PublicBind
           __html: `document.documentElement.classList.toggle("dark", ${JSON.stringify(binder.appearance.dark)});`,
         }}
       />
+      <h1 className="sr-only">{binder.name}</h1>
       <PublicBinderView binder={binder} sharePath={sharePath} />
     </>
   );

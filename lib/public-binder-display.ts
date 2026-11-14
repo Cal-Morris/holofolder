@@ -54,7 +54,12 @@ export function publicBinderDisplayInput(binder: PublicBinder): SlotDisplayInput
             cardId: remember(
               slot.card.id ?? `public-card-${index}`,
               slot.card.language,
-              { name: slot.card.name, ...(slot.card.image ? { image: slot.card.image } : {}) },
+              {
+                name: slot.card.name,
+                ...(slot.card.image ? { image: slot.card.image } : {}),
+                ...(slot.card.localId ? { localId: slot.card.localId } : {}),
+                ...(slot.card.set ? { set: slot.card.set } : {}),
+              },
               true,
             ),
             ...(slot.card.language ? { language: slot.card.language } : {}),
