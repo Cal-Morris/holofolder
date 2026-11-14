@@ -1,6 +1,6 @@
 // What Holo Folder keeps in IndexedDB for offline use. Every record is a plain, versionless JSON value
 // under a fixed key; readers validate what they get back.
-import type { TCGSetSlotsResponse } from '@/lib/tcg-set-slots';
+import { expandSetSlotsResponse, type TCGSetSlotsResponse, type TCGSetSlotsWireResponse } from '@/lib/tcg-set-slots';
 import type { OfflineKeyValueStore } from '@/lib/offline-store/kv';
 import {
   isIllustratorCardsResponse,
@@ -15,18 +15,19 @@ export const MAX_STORED_SET_QUERIES = 40;
 /** Set-coverage lookups the user made (`/app/api/tcg-set-slots` responses), keyed by their query string. */
 interface StoredSetQuery {
   savedAt: string;
-  payload: TCGSetSlotsResponse;
+  /** The slim wire shape, or the older full shape saved before it. */
+  payload: TCGSetSlotsWireResponse | TCGSetSlotsResponse;
 }
 
-function isSetSlotsResponse(value: unknown): value is TCGSetSlotsResponse {
-  const payload = value as Partial<TCGSetSlotsResponse> | null;
+function isSetSlotsResponse(value: unknown): value is TCGSetSlotsWireResponse | TCGSetSlotsResponse {
+  const payload = value as Partial<TCGSetSlotsWireResponse> | null;
   return Boolean(payload) && Array.isArray(payload!.sets) && Array.isArray(payload!.slots);
 }
 
 export async function saveSetQuery(
   store: OfflineKeyValueStore,
   queryString: string,
-  payload: TCGSetSlotsResponse,
+  payload: TCGSetSlotsWireResponse | TCGSetSlotsResponse,
   now = new Date(),
 ) {
   if (!isSetSlotsResponse(payload)) return;
@@ -50,7 +51,7 @@ export async function loadSetQuery(
   queryString: string,
 ): Promise<TCGSetSlotsResponse | null> {
   const value = await store.get<StoredSetQuery>(`${SET_QUERY_PREFIX}${queryString}`);
-  return value && isSetSlotsResponse(value.payload) ? value.payload : null;
+  return value && isSetSlotsResponse(value.payload) ? expandSetSlotsResponse(value.payload) : null;
 }
 
 // Illustrator browsing: the directory (for search) and the most recently opened illustrator card lists.

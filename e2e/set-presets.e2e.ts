@@ -14,7 +14,10 @@ test.describe('copied set preset draft', () => {
         promo = url.searchParams.get('setId') === 'svp';
       const cards = promo
         ? [syntheticPresetPromo]
-        : syntheticPresetCards.map((c) => ({ ...c, languageConfirmed: url.searchParams.get('language') === 'en' }));
+        : syntheticPresetCards.map((c) => ({
+            ...c,
+            languageConfirmed: (url.searchParams.get('language') ?? 'en') === 'en',
+          }));
       return route.fulfill({
         json: {
           sets: [syntheticPresetSet],

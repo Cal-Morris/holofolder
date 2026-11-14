@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import type { TCGSetSlotsResponse } from '../lib/tcg-set-slots';
+import { slimSetSlotsResponse, type TCGSetSlotsResponse } from '../lib/tcg-set-slots';
 
 // Synthetic catalogue includes an unmapped Trainer and one printing associated with two species.
 const set = { id: 'fixture-set', name: 'Fixture Set', officialCardCount: 2 };
@@ -25,7 +25,9 @@ const payload: TCGSetSlotsResponse = {
 async function mockSet(page: import('@playwright/test').Page, data: TCGSetSlotsResponse = payload) {
   await page.route('**/app/api/tcg-set-slots**', (route) => {
     const selected = new URL(route.request().url()).searchParams.has('setId');
-    return route.fulfill({ json: selected ? data : { sets: [set], selectedSet: null, slots: [] } });
+    // The route's slim wire shape; a payload without `cards` stands for an older saved copy and is sent as is.
+    const json = data.cards ? slimSetSlotsResponse(data) : data;
+    return route.fulfill({ json: selected ? json : { sets: [set], selectedSet: null, slots: [] } });
   });
 }
 

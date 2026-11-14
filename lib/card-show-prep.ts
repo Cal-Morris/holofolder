@@ -18,9 +18,21 @@ export const SHOW_IMAGE_CACHE = 'binderdex-v1-show-images';
  */
 export const SAVE_FOR_SHOW_HEADERS = { 'X-Binderdex-Save': 'show' } as const;
 
-/** Exactly the URL the Sets view requests when a set is picked (query = set name, then setId). */
-export function getSetSlotsUrl(set: Pick<TCGSetSummary, 'id' | 'name'>) {
-  return `/app/api/tcg-set-slots?${new URLSearchParams({ query: set.name, setId: set.id }).toString()}`;
+/**
+ * The one query string for a set's coverage (query = set name, then setId, then any non-English language), so the
+ * Sets view, the set preset picker and card show prep share browser, CDN and offline copies. The server ignores
+ * `query` when `setId` is given; it stays so copies saved before this was shared keep matching.
+ */
+export function getSetSlotsQuery(set: Pick<TCGSetSummary, 'id' | 'name'>, language = 'en') {
+  return new URLSearchParams({
+    query: set.name,
+    setId: set.id,
+    ...(language === 'en' ? {} : { language }),
+  }).toString();
+}
+
+export function getSetSlotsUrl(set: Pick<TCGSetSummary, 'id' | 'name'>, language = 'en') {
+  return `/app/api/tcg-set-slots?${getSetSlotsQuery(set, language)}`;
 }
 
 /** The low-res thumbnail of a card image, through the image proxy. */
