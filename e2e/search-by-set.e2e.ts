@@ -58,21 +58,21 @@ test.describe('search by set', () => {
     await expect(dialog).toBeVisible();
     await harness.page.mouse.up();
 
-    await dialog.getByRole('searchbox').fill('fxs');
+    await dialog.getByRole('textbox').fill('fxs');
     const hit = dialog
-      .getByRole('region', { name: 'Sets' })
+      .getByRole('region', { name: 'Set results' })
       .getByRole('button', { name: /^Open set Fixture Search Set, Fixture Series · 2 cards/ });
     await expect(hit).toBeVisible();
-    await harness.expectMinTapTarget(hit, 48);
+    await harness.expectMinTapTarget(hit, 44);
     await harness.expectNoHorizontalOverflow();
     // Card results stay grouped as before: the set row sits beside them, it doesn't regroup them.
-    await dialog.getByRole('searchbox').fill('charm');
-    await expect(dialog.getByRole('region', { name: 'Cards' })).toBeVisible();
-    await expect(dialog.getByRole('region', { name: 'Sets' })).toHaveCount(0);
+    await dialog.getByRole('textbox').fill('charm');
+    await expect(dialog.getByRole('region', { name: 'Card results' })).toBeVisible();
+    await expect(dialog.getByRole('region', { name: 'Set results' })).toHaveCount(0);
 
-    await dialog.getByRole('searchbox').fill('fixture search');
+    await dialog.getByRole('textbox').fill('fixture search');
     await dialog
-      .getByRole('region', { name: 'Sets' })
+      .getByRole('region', { name: 'Set results' })
       .getByRole('button', { name: /^Open set Fixture Search Set/ })
       .click();
     await expect(dialog).toBeHidden();
@@ -129,9 +129,10 @@ test.describe('search by set', () => {
         await page.mouse.up();
       } else await search.click();
       const dialog = page.getByRole('dialog', { name: mode === 'Search' ? /search pokemon/i : mode });
-      const input = dialog.getByRole(mode === 'Search' ? 'textbox' : 'searchbox');
+      // Quick mode runs the Search sheet's search, so both share its field and set results.
+      const input = dialog.getByRole('textbox');
       await input.fill('2017');
-      const region = dialog.getByRole('region', { name: mode === 'Search' ? 'Set results' : 'Sets', exact: true });
+      const region = dialog.getByRole('region', { name: 'Set results', exact: true });
       await expect(region.getByRole('button')).toHaveCount(4);
       for (const row of await region.getByRole('button').all()) {
         await harness.expectMinTapTarget(row, 36);
@@ -185,9 +186,9 @@ plainTest.describe('search by set on desktop 1280×800', () => {
     await page.keyboard.press('Control+k');
     const dialog = page.getByRole('dialog', { name: 'Quick mode' });
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('searchbox').fill('fxs1');
+    await dialog.getByRole('textbox').fill('fxs1');
     await dialog
-      .getByRole('region', { name: 'Sets' })
+      .getByRole('region', { name: 'Set results' })
       .getByRole('button', { name: /^Open set Fixture Search Set/ })
       .click();
     await expect(dialog).toBeHidden();

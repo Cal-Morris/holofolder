@@ -3834,11 +3834,6 @@ function BinderAppSurface(props: BinderAppProps) {
       user?.id,
     ],
   );
-  // Outside Show mode Quick still badges each printing Owned / Wanted and lists wanted ones first.
-  const quickCardStanding = useMemo(
-    () => ({ getCardState: getQuickCardState, items: collection }),
-    [collection, getQuickCardState],
-  );
   const showTally = useMemo(() => summarizeShowSession(showSession.session), [showSession.session]);
 
   const handleQuickNavigate = (destination: QuickDestinationId) => {
@@ -3891,6 +3886,33 @@ function BinderAppSurface(props: BinderAppProps) {
   const onQuickBrowseIllustrator = useCallback(
     (name: string) => openIllustratorBrowser(name),
     [openIllustratorBrowser],
+  );
+  // Plain Quick mode (Ctrl/Cmd+K, hold Search) runs the Search sheet's search, so it gets the same inputs.
+  const quickSearchPagePokemon = useMemo(
+    () => (publicIndex ? publicIndex.pageSpecies(currentBinderPage) : currentPagePokemon),
+    [currentBinderPage, currentPagePokemon, publicIndex],
+  );
+  const quickSearch = useMemo(
+    () => ({
+      pokemonList: filteredPokemonList,
+      currentPagePokemonList: quickSearchPagePokemon,
+      getResultMeta: getSearchResultMeta,
+      totalPages: totalBinderPages,
+      onJumpToPage: (page: number) => {
+        setIsQuickModeOpen(false);
+        handleSearchJumpToPage(page);
+      },
+      onBrowseCards: (pokemon: { id: number; name: string }, highlightCardId?: string) =>
+        openCardBrowser(pokemon, { highlightCardId }),
+    }),
+    [
+      filteredPokemonList,
+      getSearchResultMeta,
+      handleSearchJumpToPage,
+      openCardBrowser,
+      quickSearchPagePokemon,
+      totalBinderPages,
+    ],
   );
   const quickHiddenDestinations = useMemo<QuickDestinationId[]>(
     () => (readOnlyMode ? ['scan', 'analytics', 'settings'] : []),
@@ -4685,7 +4707,7 @@ function BinderAppSurface(props: BinderAppProps) {
               showModeOn={isShowModeOn}
               cardCheck={quickCardCheck}
               showTools={isShowModeOn || Boolean(quickLookup)}
-              cardStanding={quickCardStanding}
+              search={quickSearch}
               initialQuery={quickLookup?.query}
               lookupOnly={!isShowModeOn && Boolean(quickLookup)}
             />

@@ -121,7 +121,7 @@ test.describe('show mode', () => {
     const { page } = harness;
     await page.keyboard.press('Control+k');
     const quick = page.getByRole('dialog', { name: 'Quick mode' });
-    await quick.getByRole('searchbox').fill('card show');
+    await quick.getByRole('textbox').fill('card show');
     await quick.getByRole('button', { name: /^Show mode/ }).click();
     // Turning it on keeps you in Quick mode, now offering the way out.
     await expect(quick.getByRole('button', { name: /^Exit Show mode/ })).toBeVisible();

@@ -93,6 +93,26 @@ export function matchQuickDestinations(query: string, destinations: readonly Qui
   return scored.sort((a, b) => b.score - a.score).map((entry) => entry.destination);
 }
 
+/** The "Go to" destinations for a query: all of them when blank, else the best three. Hidden ones are dropped and
+ *  Show mode's reads "Exit Show mode" while it's on. */
+export function visibleQuickDestinations(
+  query: string,
+  hidden: readonly QuickDestinationId[] = [],
+  showModeOn = false,
+): QuickDestination[] {
+  const trimmed = query.trim();
+  const visible = matchQuickDestinations(trimmed).flatMap((entry) =>
+    hidden.includes(entry.id)
+      ? []
+      : [
+          entry.id === 'show-mode' && showModeOn
+            ? { ...entry, label: 'Exit Show mode', hint: 'Show mode is on' }
+            : entry,
+        ],
+  );
+  return trimmed ? visible.slice(0, 3) : visible;
+}
+
 export const RECENT_QUICK_SEARCHES_KEY = 'binderdex:quick-searches:v1';
 export const RECENT_QUICK_SEARCHES_LIMIT = 8;
 

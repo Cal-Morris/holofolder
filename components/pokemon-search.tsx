@@ -37,7 +37,11 @@ import type { TCGSetSummary } from '@/lib/tcg-set-slots';
 import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { DEFAULT_PRICING_REGION, type PricingRegion } from '@/lib/pricing-region';
+import { isCardLanguage } from '@/lib/domain/cards';
 import { CARD_STANDING_BADGES, getCardStanding } from '@/lib/show-hunt';
+import QuickDestinations from '@/components/quick-destinations';
+import { PriceRisingBadge } from '@/components/price-rising-badge';
+import { visibleQuickDestinations, type QuickDestinationId } from '@/lib/quick-mode';
 
 type SearchStateFilter = PokemonSearchStateFilter;
 
@@ -59,7 +63,7 @@ export interface PokemonSearchResultMeta {
   elsewhereLabel?: string | null;
 }
 
-interface PokemonSearchProps {
+export interface PokemonSearchProps {
   nativeConsumer?: NativeConsumerBinding;
   history: BinderHistory;
   onSelect: (pokemon: PokemonSummary) => void;
@@ -82,6 +86,20 @@ interface PokemonSearchProps {
   pricingRegion?: PricingRegion;
   /** Whether a printing is in the binder or on the want list: card hits get Show mode's Owned / Wanted badge. */
   getCardState?: (card: SearchCardResult, pokemon: { id: number; name: string }) => { owned: boolean; wanted: boolean };
+  /** Quick mode: a tapped card goes here (its deal check) instead of the card browser. */
+  onPickCard?: (card: SearchCardResult, pokemon: { id: number; name: string }) => void;
+  /** Quick mode: app destinations ("Go to") above the results; Enter opens the top one when nothing else matches. */
+  goTo?: {
+    hidden?: readonly QuickDestinationId[];
+    showModeOn?: boolean;
+    columns?: 2 | 3;
+    onGo: (destination: QuickDestinationId) => void;
+  };
+  /** The field sits below the results, in thumb reach (Quick mode on phones). */
+  searchAtBottom?: boolean;
+  /** Controlled query, kept by a parent that unmounts the search (Quick mode's deal check and Back). */
+  query?: string;
+  onQueryChange?: (query: string) => void;
 }
 
 /** Card tiles are wide enough to tell printings apart; CardImage picks a sharp width and falls back to the proxy (also offline). */
@@ -121,9 +139,16 @@ export default function PokemonSearch({
   formatPrice,
   pricingRegion = DEFAULT_PRICING_REGION,
   getCardState,
+  onPickCard,
+  goTo,
+  searchAtBottom = false,
+  query: controlledQuery,
+  onQueryChange,
 }: PokemonSearchProps) {
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
-  const [query, setQuery] = useState('');
+  const [ownQuery, setOwnQuery] = useState('');
+  const query = controlledQuery ?? ownQuery;
+  const setQuery = onQueryChange ?? setOwnQuery;
   const recentCards = history.cards;
   const { rememberSearch, rememberCard: saveRecentCard } = history;
   const rememberCard = useCallback(
@@ -208,7 +233,7 @@ export default function PokemonSearch({
   const listRef = useRef<HTMLDivElement | null>(null);
   const moreResultsRef = useRef<HTMLButtonElement | null>(null);
 
-  const cardSearch = useCardSearch(query, Boolean(onBrowseCards || nativeConsumer), getOfflineCards, {
+  const cardSearch = useCardSearch(query, Boolean(onBrowseCards || onPickCard || nativeConsumer), getOfflineCards, {
     includeNonPokemon: Boolean(nativeConsumer),
   });
   const cardResultCount = nativeConsumer ? cardSearch.cards.length : cardSearch.groups.length;
@@ -218,20 +243,40 @@ export default function PokemonSearch({
       formatPrice
         ? (nativeConsumer ? cardSearch.cards : cardSearch.groups.flatMap((group) => group.cards)).map((card) => ({
             cardId: card.id,
-            language: card.language ?? 'en',
+            language: nativeConsumer ? card.language : (card.language ?? 'en'),
           }))
         : [],
     [cardSearch.groups, cardSearch.cards, nativeConsumer, formatPrice],
   );
+  // Native binders price from their saved inventory prices, like the rest of the native app.
   const { pricesByCardId: cardPrices } = useRegionalCardPrices(
     cardPriceLookups,
     cardPriceLookups.length > 0,
     pricingRegion,
+    Boolean(nativeConsumer),
   );
   const illustratorResults = useIllustratorSearch(query, Boolean(onBrowseIllustrator));
   const setResults = useSetSearch(query, Boolean(onBrowseSet));
 
   const showRecentCards = Boolean(onBrowseCards) && !query.trim() && recentCards.length > 0;
+  const destinations = useMemo(
+    () => (goTo ? visibleQuickDestinations(query, goTo.hidden, goTo.showModeOn) : []),
+    [goTo, query],
+  );
+  const goToDestination = useCallback(
+    (destination: QuickDestinationId) => {
+      rememberSearch(query);
+      goTo?.onGo(destination);
+    },
+    [goTo, query, rememberSearch],
+  );
+  const pickCard = useCallback(
+    (card: SearchCardResult, pokemon: { id: number; name: string }) => {
+      rememberSearch(query);
+      onPickCard?.(card, pokemon);
+    },
+    [onPickCard, query, rememberSearch],
+  );
   const hasTrailingResults =
     setResults.length > 0 || illustratorResults.length > 0 || cardResultCount > 0 || cardSearch.loading;
   const hasMoreResults = visibleResults.length > renderedResults.length;
@@ -271,7 +316,7 @@ export default function PokemonSearch({
       setQuery('');
       setSelectedIndex(-1);
     },
-    [onSelect, query, rememberSearch, setSelectedIndex],
+    [onSelect, query, rememberSearch, setQuery, setSelectedIndex],
   );
 
   const handleJumpToPage = useCallback(
@@ -281,7 +326,7 @@ export default function PokemonSearch({
       setQuery('');
       setSelectedIndex(-1);
     },
-    [onJumpToPage, setSelectedIndex],
+    [onJumpToPage, setQuery, setSelectedIndex],
   );
 
   const handleKeyDown = useCallback(
@@ -310,6 +355,8 @@ export default function PokemonSearch({
             handleSelectPokemon(visibleResults[selectedIndex]);
           } else if (visibleResults.length === 1) {
             handleSelectPokemon(visibleResults[0]);
+          } else if (destinations[0] && visibleResults.length === 0 && query.trim()) {
+            goToDestination(destinations[0].id);
           } else rememberSearch(query);
           break;
         case 'Escape':
@@ -322,6 +369,8 @@ export default function PokemonSearch({
     [
       handleJumpToPage,
       handleSelectPokemon,
+      destinations,
+      goToDestination,
       pageJump,
       selectedIndex,
       visibleResults,
@@ -329,12 +378,13 @@ export default function PokemonSearch({
       query,
       shownCount,
       showMoreResults,
+      setQuery,
       setSelectedIndex,
     ],
   );
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col">
+    <div className={`flex h-full min-h-0 w-full gap-3 ${searchAtBottom ? 'flex-col-reverse' : 'flex-col'}`}>
       <div className="relative">
         <Search className="text-muted-foreground absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2" />
         <Input
@@ -351,7 +401,7 @@ export default function PokemonSearch({
         />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {SEARCH_FILTERS.map((filterOption) => {
           const count = filterCounts.get(filterOption.id) ?? 0;
 
@@ -387,7 +437,7 @@ export default function PokemonSearch({
         <button
           type="button"
           onClick={() => handleJumpToPage(pageJump.page)}
-          className="border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 mt-3 flex w-full items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 text-left text-sm font-semibold transition-colors"
+          className="border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 flex w-full items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 text-left text-sm font-semibold transition-colors"
         >
           <span className="inline-flex min-w-0 items-center gap-2">
             <MapPinned className="h-4 w-4 shrink-0" />
@@ -397,8 +447,9 @@ export default function PokemonSearch({
         </button>
       ) : null}
 
-      <div className="border-border/50 mt-3 min-h-0 flex-1 overflow-hidden border-t">
-        {showRecentCards ||
+      <div className={`border-border/50 min-h-0 flex-1 overflow-hidden ${searchAtBottom ? 'border-b' : 'border-t'}`}>
+        {destinations.length > 0 ||
+        showRecentCards ||
         (!query.trim() && (history.searches.length > 0 || Boolean(history.status))) ||
         visibleResults.length > 0 ||
         setResults.length > 0 ||
@@ -406,6 +457,12 @@ export default function PokemonSearch({
         cardResultCount > 0 ||
         cardSearch.loading ? (
           <div ref={listRef} className="h-full overflow-y-auto">
+            <QuickDestinations
+              destinations={destinations}
+              asRows={Boolean(query.trim())}
+              columns={goTo?.columns}
+              onGo={goToDestination}
+            />
             {!query.trim() && (
               <>
                 {history.status && (
@@ -686,12 +743,20 @@ export default function PokemonSearch({
                   ? cardSearch.cards.map((card) => {
                       const state = nativeCardState(nativeModel, card);
                       const label = nativeCardLabel(state);
+                      const priceSnapshot = isCardLanguage(card.language)
+                        ? cardPrices[getCardPriceKey(card.id, card.language)]
+                        : undefined;
+                      const price = formatPrice?.(priceSnapshot) ?? null;
                       return (
                         <button
                           key={`${card.id}:${card.language}`}
                           type="button"
-                          onClick={() => nativeConsumer.openCard(card)}
-                          aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}, ${label}`}
+                          onClick={() =>
+                            onPickCard
+                              ? pickCard(card, { id: card.dexIds[0] ?? 0, name: card.name })
+                              : nativeConsumer.openCard(card)
+                          }
+                          aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}, ${label}${price ? `, ${price}` : ''}`}
                           className="active:bg-muted flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left"
                         >
                           <span className="trading-card border-border/50 bg-muted/40 relative w-14 shrink-0 overflow-hidden rounded-md border">
@@ -705,7 +770,11 @@ export default function PokemonSearch({
                               {card.set.name} · {formatCardNumber(card)}
                             </span>
                           </span>
-                          <span className="max-w-[45%] text-right text-xs font-semibold">{label}</span>
+                          <span className="flex max-w-[45%] shrink-0 flex-col items-end gap-0.5 text-right">
+                            {price ? <span className="text-sm font-bold tabular-nums">{price}</span> : null}
+                            {price ? <PriceRisingBadge price={priceSnapshot} /> : null}
+                            <span className="text-xs font-semibold">{label}</span>
+                          </span>
                         </button>
                       );
                     })
@@ -731,10 +800,8 @@ export default function PokemonSearch({
                           </button>
                           <div className="mt-1.5 flex gap-2 overflow-x-auto pb-1">
                             {group.cards.map((card) => {
-                              const price =
-                                formatPrice?.(cardPrices[getCardPriceKey(card.id, card.language ?? 'en')])?.split(
-                                  ' (',
-                                )[0] ?? null;
+                              const priceSnapshot = cardPrices[getCardPriceKey(card.id, card.language ?? 'en')];
+                              const price = formatPrice?.(priceSnapshot)?.split(' (')[0] ?? null;
                               const standing = getCardState
                                 ? getCardStanding(getCardState(card, { id: group.dexId, name: group.name }))
                                 : null;
@@ -744,8 +811,10 @@ export default function PokemonSearch({
                                   key={card.id}
                                   type="button"
                                   onClick={() => {
-                                    rememberCard(toRecentCard(card, { id: group.dexId, name: group.name }));
-                                    onBrowseCards?.({ id: group.dexId, name: group.name }, card.id);
+                                    const pokemon = { id: group.dexId, name: group.name };
+                                    if (onPickCard) return pickCard(card, pokemon);
+                                    rememberCard(toRecentCard(card, pokemon));
+                                    onBrowseCards?.(pokemon, card.id);
                                   }}
                                   aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}${badge ? `, ${badge.label}` : ''}`}
                                   data-standing={standing ?? undefined}
@@ -784,6 +853,7 @@ export default function PokemonSearch({
                                       {price}
                                     </p>
                                   ) : null}
+                                  {price ? <PriceRisingBadge price={priceSnapshot} className="mt-0.5" /> : null}
                                 </button>
                               );
                             })}
