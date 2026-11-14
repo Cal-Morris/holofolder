@@ -34,3 +34,4 @@ gitleaks-report.*
 
 # Generated Fumadocs content
 .source/
+/marketing/video/out/
