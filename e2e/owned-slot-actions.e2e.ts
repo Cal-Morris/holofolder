@@ -279,22 +279,27 @@ for (const keep of [true, false]) {
   });
 }
 
-test("a card opened from a pocket's Similar look swaps into that pocket, even a Trainer with no pocket of its own", async ({
-  page,
-}) => {
-  // Synthetic response: a Trainer printing (no Pokémon) looks like the pocket's Bulbasaur.
-  const trainer = {
-    ...MOCK_CARDS.find((card) => card.id === 'base1-46')!,
-    id: 'synthetic-owned-trainer',
-    localId: '101',
-    name: 'Synthetic Trainer',
-    set: { id: 'synthetic-owned', name: 'Synthetic owned set' },
-    dexIds: [],
-    similarity: 0.8,
-  };
+// Synthetic Trainer printings (no Pokémon), resolvable by the storage fixture.
+const trainerCard = (id: string, localId: string) => ({
+  ...MOCK_CARDS.find((card) => card.id === 'base1-46')!,
+  id,
+  localId,
+  name: 'Synthetic Trainer',
+  language: 'en',
+  set: { id: 'synthetic-owned', name: 'Synthetic owned set' },
+  dexIds: [],
+});
+const trainer = trainerCard('synthetic-owned-trainer', '101');
+
+async function swapTrainerIn(page: Page) {
   await page.route('**/app/api/tcg-similar-cards**', (route) =>
     route.fulfill({
-      json: { cardId: 'synthetic-owned-bulbasaur', language: 'en', sameArtwork: [], similarLook: [trainer] },
+      json: {
+        cardId: 'synthetic-owned-bulbasaur',
+        language: 'en',
+        sameArtwork: [],
+        similarLook: [{ ...trainer, similarity: 0.8 }],
+      },
     }),
   );
   await page.goto(entry);
@@ -310,4 +315,42 @@ test("a card opened from a pocket's Similar look swaps into that pocket, even a 
   await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(3);
   expect((await record(page))!.receipts.every((r) => r.outcome === 'acknowledged')).toBe(true);
   await expect(card.getByRole('button', { name: 'In this pocket' })).toBeDisabled();
+}
+
+test("a card opened from a pocket's Similar look swaps into that pocket, even a Trainer with no pocket of its own", async ({
+  page,
+}) => {
+  await swapTrainerIn(page);
+});
+
+test("a Trainer pocket's All cards lists its printings by name, and a tile swaps into that pocket", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  await context.addCookies([
+    { name: 'hf-storage-fixture', value: `owned-trainer-${crypto.randomUUID()}`, url: baseURL! },
+  ]);
+  await page.route('**/app/api/tcg-card-search?q=**', (route) =>
+    route.fulfill({ json: { cards: [trainer, trainerCard('synthetic-owned-trainer-2', '102')], correction: null } }),
+  );
+  await page.goto(entry);
+  await page.locator('[data-slot-id="synthetic-slot-0"]').click();
+  await page
+    .getByRole('dialog', { name: /details$/ })
+    .getByRole('button', { name: 'All Synthetic Trainer cards' })
+    .click();
+  const all = page.getByRole('dialog', { name: 'All Synthetic Trainer cards' });
+  await expect(all.getByRole('button', { name: /^Synthetic Trainer .* 101 is in its pocket$/ })).toBeDisabled();
+  // Want goes on this pocket as an upgrade, and comes off again.
+  await all.getByRole('button', { name: /^Want Synthetic Trainer .* 102$/ }).click();
+  await expect(all.getByRole('button', { name: /^Remove from want list Synthetic Trainer .* 102$/ })).toBeVisible();
+  await all.getByRole('button', { name: /^Remove from want list Synthetic Trainer .* 102$/ }).click();
+  await expect(all.getByRole('button', { name: /^Want Synthetic Trainer .* 102$/ })).toBeVisible();
+  await all.getByRole('button', { name: /^Swap Synthetic Trainer .* 102 into its pocket$/ }).click();
+  await all.getByRole('button', { name: 'Swap', exact: true }).click();
+  // Want, unwant, then clear the reservation, place the other printing and reserve the pocket for it.
+  await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(5);
+  expect((await record(page))!.receipts.every((r) => r.outcome === 'acknowledged')).toBe(true);
+  await expect(all.getByRole('button', { name: /^Synthetic Trainer .* 102 is in its pocket$/ })).toBeDisabled();
 });

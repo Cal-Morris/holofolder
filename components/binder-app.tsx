@@ -652,6 +652,14 @@ function BinderAppSurface(props: BinderAppProps) {
     focusedCard?: SearchCardResult;
     finish?: CardFinish;
     nested: boolean;
+    /** The pocket it was opened from: tile Add and Swap go there. */
+    pocketId?: string;
+  } | null>(null);
+  // Every printing of a Trainer or Energy by name, opened from its pocket's All cards.
+  const [namedCardsBrowser, setNamedCardsBrowser] = useState<{
+    name: string;
+    highlightCardId: string | null;
+    pocketId: string;
   } | null>(null);
   const [illustratorBrowser, setIllustratorBrowser] = useState<{ name: string; nested: boolean } | null>(null);
   // A set hit tapped in Search or Quick mode; Sets opens on it until he leaves Sets.
@@ -3483,6 +3491,7 @@ function BinderAppSurface(props: BinderAppProps) {
       setViewLoadError(null);
       closeAllOverlays();
       setCardBrowser(null);
+      setNamedCardsBrowser(null);
       setIllustratorBrowser(null);
       setSelectedPokemon(null);
       setLongPressedPokemon(null);
@@ -3536,10 +3545,16 @@ function BinderAppSurface(props: BinderAppProps) {
         fromDetail?: boolean;
         focusedCard?: SearchCardResult;
         finish?: CardFinish;
+        pocketId?: string;
       } = {},
     ) => {
       if (options.fromDetail) {
-        setCardBrowser({ pokemon, highlightCardId: options.highlightCardId ?? null, nested: true });
+        setCardBrowser({
+          pokemon,
+          highlightCardId: options.highlightCardId ?? null,
+          nested: true,
+          pocketId: options.pocketId,
+        });
         return;
       }
       openExclusively(() => {
@@ -4889,6 +4904,7 @@ function BinderAppSurface(props: BinderAppProps) {
               key={`${cardBrowser.pokemon.id}:${cardBrowser.highlightCardId ?? ''}`}
               pokemon={cardBrowser.pokemon}
               highlightCardId={cardBrowser.highlightCardId}
+              pocketId={cardBrowser.pocketId}
               cardDetails={
                 cardBrowser.focusedCard
                   ? {
@@ -4924,6 +4940,23 @@ function BinderAppSurface(props: BinderAppProps) {
               onClose={closeCardBrowser}
               onWantCard={readOnlyMode ? undefined : requireAccount}
               onAddCard={readOnlyMode ? undefined : requireAccount}
+              formatPrice={priceFormat.label}
+              pricingRegion={pricingPreferences.region}
+              cardLanguages={activeBinder?.cardLanguages}
+            />
+          ) : null}
+          {namedCardsBrowser && hasNativeConsumer ? (
+            <PokemonCardsBrowser
+              key={`${namedCardsBrowser.name}:${namedCardsBrowser.pocketId}`}
+              nativeConsumer={nativeConsumer}
+              pricingEnabled={pricingEnabled}
+              pokemon={null}
+              cardName={namedCardsBrowser.name}
+              highlightCardId={namedCardsBrowser.highlightCardId}
+              pocketId={namedCardsBrowser.pocketId}
+              isDesktop={isDesktopViewport}
+              readOnly={nativeReadOnly}
+              onClose={() => setNamedCardsBrowser(null)}
               formatPrice={priceFormat.label}
               pricingRegion={pricingPreferences.region}
               cardLanguages={activeBinder?.cardLanguages}
@@ -4982,8 +5015,12 @@ function BinderAppSurface(props: BinderAppProps) {
                         formatRange: priceFormat.range,
                       }
                     : undefined,
-                onAllCards: (pokemon, cardId) =>
-                  openCardBrowser(pokemon, { highlightCardId: cardId, fromDetail: true }),
+                onAllCards: (pokemon, cardId, cardName) => {
+                  const pocketId = selectedDisplaySlot.id;
+                  if (pokemon) openCardBrowser(pokemon, { highlightCardId: cardId, fromDetail: true, pocketId });
+                  else if (cardName && hasNativeConsumer)
+                    setNamedCardsBrowser({ name: cardName, highlightCardId: cardId, pocketId });
+                },
                 onIllustrator: (name) => openIllustratorBrowser(name, { fromDetail: true }),
                 // Similar cards opened from a pocket keep it, so Add and Swap put the card there.
                 onOpenCard: (card) => openGridCard(card, selectedDisplaySlot.id),

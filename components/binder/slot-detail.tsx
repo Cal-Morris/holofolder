@@ -24,7 +24,8 @@ import { SimilarCardsRow } from '@/components/similar-cards-row';
 /** What the host adds to a card's details: saved prices (never in shares), its routes and where the card sits. */
 export interface CardDetailHost {
   pricing?: NativeCardPricing;
-  onAllCards?: (pokemon: { id: number; name: string }, cardId: string | null) => void;
+  /** A Pokémon's cards, or (no Pokémon, like a Trainer) every printing named `cardName`. */
+  onAllCards?: (pokemon: { id: number; name: string } | null, cardId: string | null, cardName?: string) => void;
   onIllustrator?: (name: string) => void;
   /** Opens a card from the Same artwork and Similar look rows. */
   onOpenCard?: (card: SearchCardResult) => void;
@@ -111,8 +112,12 @@ export default function SlotDetail({
   const printing = [slot.card?.set?.name, slot.card?.localId ? `#${slot.card.localId}` : null]
     .filter(Boolean)
     .join(' · ');
+  // A card with no Pokémon goes by its name, only once the catalogue knows it (an unknown card shows its id).
+  const allCardsName = slot.pokemon ? displaySlotName({ ...slot, card: null }) : slot.card?.set && slot.card.name;
   const allCards =
-    slot.pokemon && host?.onAllCards ? () => host.onAllCards!(slot.pokemon!, copy?.cardId ?? null) : null;
+    allCardsName && host?.onAllCards
+      ? () => host.onAllCards!(slot.pokemon ?? null, copy?.cardId ?? null, allCardsName)
+      : null;
   const canTakeOut = editable && Boolean(slot.item);
   const hasMenu = canTakeOut || Boolean(editable && host?.onArrange);
   return (
@@ -158,7 +163,7 @@ export default function SlotDetail({
                     <button
                       type="button"
                       onClick={allCards}
-                      aria-label={`All ${displaySlotName({ ...slot, card: null })} cards`}
+                      aria-label={`All ${allCardsName} cards`}
                       className={`${iconButton} sm:w-auto sm:gap-1 sm:px-2 sm:text-xs sm:font-semibold`}
                     >
                       <Layers3 className="h-4 w-4" />

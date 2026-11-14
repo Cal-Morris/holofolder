@@ -5,7 +5,7 @@ import {
   nativeCardConsumers,
   nativeCardState,
   nativeCardLabel,
-  nativePlacePocket,
+  nativeTargetPocket,
   nativeWantPocket,
   planNativeAddWant,
   planNativeRemoveWant,
@@ -36,7 +36,7 @@ import {
 } from '@/lib/domain/cards';
 import { cardMatchesLanguages, DEFAULT_BINDER_CARD_LANGUAGES, parseLanguageSearch } from '@/lib/card-languages';
 import CardsBrowserSheet from '@/components/cards-browser-sheet';
-import { peekCardsForPokemon, useCards, type TCGCard } from '@/hooks/use-cards';
+import { loadCardsNamed, peekCardsForPokemon, useCards, type TCGCard } from '@/hooks/use-cards';
 import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { DEFAULT_PRICING_REGION, type PricingRegion } from '@/lib/pricing-region';
@@ -52,6 +52,8 @@ export interface PokemonCardsBrowserProps {
   pricingEnabled?: boolean;
   /** Null opens an exact non-Pokémon native cardDetails lookup, without a species query. */
   pokemon: { id: number; name: string } | null;
+  /** With no Pokémon: every printing with this exact name (a Trainer or Energy), from the catalogue search. */
+  cardName?: string | null;
   collectionItem?: (Omit<BrowseCollectionState, 'wanted_cards'> & { wanted_cards?: WantedCard[] }) | null;
   /** Printings other binders hold, by card id ("In <binder>" badge). */
   ownedElsewhereByCard?: ReadonlyMap<string, readonly BinderRef[]>;
@@ -104,6 +106,7 @@ export default function PokemonCardsBrowser({
   nativeConsumer,
   pricingEnabled = true,
   pokemon,
+  cardName,
   collectionItem,
   ownedElsewhereByCard,
   highlightCardId,
@@ -142,7 +145,7 @@ export default function PokemonCardsBrowser({
   const [textFilter, setTextFilter] = useState('');
   const [languageFilter, setLanguageFilter] = useState<CardLanguage | 'all'>('all');
   const [pendingCardId, setPendingCardId] = useState<string | null>(null);
-  const displayName = pokemon ? formatPokemonDisplayName(pokemon.name) : (cardDetails?.card.name ?? 'Card');
+  const displayName = pokemon ? formatPokemonDisplayName(pokemon.name) : (cardName ?? cardDetails?.card.name ?? 'Card');
   const [detailFinish, setDetailFinish] = useState<CardFinish>(cardDetails?.finish ?? 'normal');
   // A native grid opens a tapped card's details in place, above the grid, instead of stacking a second sheet.
   const [focused, setFocused] = useState<SearchCardResult | null>(null);
@@ -182,7 +185,9 @@ export default function PokemonCardsBrowser({
     );
   const nativeWantEntry = detailCard ? nativeWantFor(detailCard, detailFinish) : undefined;
   const nativeCanWant = Boolean(
-    detailCard && nativeSnapshot && nativeWantPocket(nativeSnapshot, nativeConsumer?.collectionId, detailCard),
+    detailCard &&
+    nativeSnapshot &&
+    nativeWantPocket(nativeSnapshot, nativeConsumer?.collectionId, detailCard, pocketId),
   );
   // The device queue's admission: works offline and behind queued edits, like every binder edit.
   const acquireNative = () => {
@@ -204,6 +209,7 @@ export default function PokemonCardsBrowser({
             finish,
             admission.context(),
             new Date().toISOString(),
+            pocketId,
           );
       if (!draft) throw new Error('no-pocket');
       await admission.receive(draft, undefined, shownCard(card));
@@ -225,7 +231,7 @@ export default function PokemonCardsBrowser({
     setSwapping(null);
     try {
       const { admission, snapshot } = acquireNative();
-      const pocket = slotId ?? nativePlacePocket(snapshot, collectionId, card)?.id;
+      const pocket = nativeTargetPocket(snapshot, collectionId, card, slotId)?.id;
       if (!pocket) throw new Error('no-pocket');
       const plan = planNativeSwapIntoPocket(
         snapshot,
@@ -265,11 +271,7 @@ export default function PokemonCardsBrowser({
   // Where the details' Add or Swap goes: the pocket they were opened from, else the card's one clear pocket.
   const detailPocket =
     detailCard && nativeSnapshot
-      ? pocketId
-        ? (nativeSnapshot.binders
-            .find((b) => b.collectionId === nativeConsumer?.collectionId)
-            ?.slots.find((s) => s.id === pocketId) ?? null)
-        : nativePlacePocket(nativeSnapshot, nativeConsumer?.collectionId, detailCard)
+      ? nativeTargetPocket(nativeSnapshot, nativeConsumer?.collectionId, detailCard, pocketId)
       : null;
   const detailHeld = detailPocket?.inventoryItemId
     ? nativeSnapshot?.items.find((i) => i.id === detailPocket.inventoryItemId)
@@ -281,7 +283,9 @@ export default function PokemonCardsBrowser({
     setDetailFinish(inferCardFinish(card.rarity, card.variants));
     bodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  const tileOpens = Boolean((nativeConsumer && pokemon) || onOpenCard);
+  // A grid of printings: a Pokémon's, or every printing of a Trainer or Energy by name.
+  const isGrid = Boolean(pokemon || cardName);
+  const tileOpens = Boolean((nativeConsumer && isGrid) || onOpenCard);
 
   const pokemonId = pokemon?.id;
   useEffect(() => {
@@ -296,6 +300,19 @@ export default function PokemonCardsBrowser({
       cancelled = true;
     };
   }, [fetchCardsForPokemon, pokemonId]);
+
+  useEffect(() => {
+    if (pokemonId !== undefined || !cardName) return;
+    let cancelled = false;
+    void loadCardsNamed(cardName).then((named) => {
+      if (cancelled) return;
+      setCards(named);
+      setLoadError(named.length === 0);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cardName, pokemonId]);
 
   const catalogEntries = useMemo(
     () =>
@@ -425,7 +442,7 @@ export default function PokemonCardsBrowser({
 
   const showActions = !readOnly && Boolean(onWantCard || onAddCard);
   // Gated on the device queue, not live editing, so tile edits work offline and queue like every binder edit.
-  const nativeTileActions = Boolean(nativeConsumer?.acquire && nativeSnapshot && pokemon);
+  const nativeTileActions = Boolean(nativeConsumer?.acquire && nativeSnapshot && isGrid);
 
   return (
     <CardsBrowserSheet
@@ -451,7 +468,7 @@ export default function PokemonCardsBrowser({
               )}
               <h2 className="truncate text-lg leading-tight font-bold">
                 {displayName}
-                {pokemon ? ' cards' : ''}
+                {isGrid ? ' cards' : ''}
               </h2>
               <p className="text-muted-foreground text-xs">
                 {nativeConsumer && !nativeModel
@@ -738,7 +755,11 @@ export default function PokemonCardsBrowser({
                 const isHighlighted = card.id === highlightCardId;
                 const isPending = pendingCardId === card.id;
                 // Native edits need the printing with its Pokémon, like the slot picker's species cards.
-                const speciesCard = pokemon ? speciesSelectorCard(card, pokemon.id) : null;
+                const speciesCard = pokemon
+                  ? speciesSelectorCard(card, pokemon.id)
+                  : cardName
+                    ? ({ ...card, dexIds: [] } as SearchCardResult)
+                    : null;
                 const wantedPrintings =
                   collectionItem?.wanted_cards?.filter(
                     (wanted) =>
@@ -881,6 +902,7 @@ export default function PokemonCardsBrowser({
                           card={speciesCard}
                           snapshot={nativeSnapshot!}
                           collectionId={nativeConsumer!.collectionId}
+                          pocketId={pocketId}
                           wanted={Boolean(nativeWantFor(speciesCard))}
                           pending={isPending}
                           swapping={swapping?.cardId === card.id ? swapping : null}
@@ -891,7 +913,7 @@ export default function PokemonCardsBrowser({
                               nativeWantFor(speciesCard),
                             )
                           }
-                          onPlace={(keep) => void placeNative(speciesCard, keep)}
+                          onPlace={(keep) => void placeNative(speciesCard, keep, pocketId ?? undefined)}
                           onSwapping={(keep) => setSwapping(keep === null ? null : { cardId: card.id, keep })}
                         />
                       ) : null}
@@ -914,8 +936,8 @@ export default function PokemonCardsBrowser({
 }
 
 /**
- * A native grid tile's quick edits: Want (on the card's pocket, see nativeWantPocket), and Add or Swap only when the
- * open binder has one clear pocket for the card. Swap asks first, keeping the swapped-out card by default.
+ * A native grid tile's quick edits: Want (on the card's pocket, see nativeWantPocket), and Add or Swap when the grid
+ * was opened from a pocket or the open binder has one clear pocket for the card (see nativeTargetPocket). Swap asks first, keeping the swapped-out card by default.
  */
 const tileButton = 'h-9 gap-1 rounded-xl px-2 text-[11px] font-bold';
 
@@ -923,6 +945,7 @@ function NativeTileActions({
   card,
   snapshot,
   collectionId,
+  pocketId,
   wanted,
   pending,
   swapping,
@@ -933,6 +956,8 @@ function NativeTileActions({
   card: SearchCardResult;
   snapshot: InventorySnapshot;
   collectionId: string | undefined;
+  /** The pocket the grid was opened from: Add and Swap go there instead of the card's own pocket. */
+  pocketId?: string | null;
   wanted: boolean;
   pending: boolean;
   swapping: { keep: boolean } | null;
@@ -940,8 +965,8 @@ function NativeTileActions({
   onPlace: (keep: boolean) => void;
   onSwapping: (keep: boolean | null) => void;
 }) {
-  const canWant = wanted || Boolean(nativeWantPocket(snapshot, collectionId, card));
-  const pocket = nativePlacePocket(snapshot, collectionId, card);
+  const canWant = wanted || Boolean(nativeWantPocket(snapshot, collectionId, card, pocketId));
+  const pocket = nativeTargetPocket(snapshot, collectionId, card, pocketId);
   const held = pocket?.inventoryItemId ? snapshot.items.find((i) => i.id === pocket.inventoryItemId) : null;
   const heldThis = held?.identity.kind === 'card' && matchesCatalogCardId(card, held.identity.cardId);
   // A graded copy can't be removed here, so swapping one out always keeps it.

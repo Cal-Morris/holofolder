@@ -80,6 +80,21 @@ export function loadCardsForPokemon(
   return entry.promise;
 }
 
+/**
+ * Every printing with exactly this name, for a card with no Pokémon (a Trainer or Energy). Empty when the search fails.
+ * ponytail: online only; these aren't in the per-Pokémon offline cache. Cache on device if Trainers need offline.
+ */
+export async function loadCardsNamed(name: string): Promise<TCGCard[]> {
+  const wanted = name.toLowerCase();
+  try {
+    const response = await fetch(`/app/api/tcg-card-search?q=${encodeURIComponent(name)}&includeNonPokemon=1`);
+    const result = (response.ok ? await response.json() : {}) as { cards?: TCGCard[] };
+    return (result.cards ?? []).filter((card) => card.name.toLowerCase() === wanted);
+  } catch {
+    return [];
+  }
+}
+
 /** Test helper. */
 export function clearCardsForPokemonCache() {
   cardsCache.clear();
