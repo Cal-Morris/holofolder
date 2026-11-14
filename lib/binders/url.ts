@@ -1,7 +1,7 @@
 // Binder addresses: /<slug>, /<slug>/list, /<slug>/slabs and /<slug>/binder/<page> (all under /app).
 // next.config rewrites them onto `/` with ?binderSlug=&view=&page=, so the app keeps one route.
 
-/** Route names a slug may never take. Mirrors public.binder_slug_reserved (scripts/106_binder_slugs.sql, extended by 112). */
+/** Route names a slug may never take. Mirrors public.binder_slug_reserved (scripts/106_binder_slugs.sql, extended by 112 and 132). */
 export const RESERVED_BINDER_SLUGS = [
   'api',
   'app-shell',
@@ -25,6 +25,7 @@ export const RESERVED_BINDER_SLUGS = [
   'offline',
   'help',
   'credits',
+  'sets',
 ] as const;
 
 const SLUG = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;

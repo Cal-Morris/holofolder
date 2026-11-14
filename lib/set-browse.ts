@@ -5,9 +5,9 @@ import type { TCGSetSummary } from '@/lib/tcg-set-slots';
 
 const OTHER_SERIES = 'Other';
 
-export interface SetSeriesGroup {
+export interface SetSeriesGroup<T extends TCGSetSummary = TCGSetSummary> {
   series: string;
-  sets: TCGSetSummary[];
+  sets: T[];
 }
 
 const newestFirst = (left: TCGSetSummary, right: TCGSetSummary) =>
@@ -18,13 +18,13 @@ const newestFirst = (left: TCGSetSummary, right: TCGSetSummary) =>
  * long-running collections (McDonald's, promos) sit with their era instead of jumping the current one whenever
  * a new set drops.
  */
-export function groupSetsBySeries(sets: readonly TCGSetSummary[]): SetSeriesGroup[] {
-  const groups = new Map<string, TCGSetSummary[]>();
+export function groupSetsBySeries<T extends TCGSetSummary>(sets: readonly T[]): SetSeriesGroup<T>[] {
+  const groups = new Map<string, T[]>();
   for (const set of sets.toSorted(newestFirst)) {
     const series = set.seriesName?.trim() || OTHER_SERIES;
     groups.set(series, [...(groups.get(series) ?? []), set]);
   }
-  const median = (grouped: TCGSetSummary[]) => grouped[Math.floor(grouped.length / 2)].releaseDate ?? '';
+  const median = (grouped: T[]) => grouped[Math.floor(grouped.length / 2)].releaseDate ?? '';
   return [...groups]
     .map(([series, grouped]) => ({ series, sets: grouped }))
     .sort(
