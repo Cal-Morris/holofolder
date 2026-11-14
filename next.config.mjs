@@ -50,6 +50,11 @@ const nextConfig = {
   },
   allowedDevOrigins: ['localhost', '10.4.1.154'],
   cacheComponents: true,
+  experimental: {
+    // Key "use cache" entries by a hash of the code that produces them instead of the deployment id, so the shared
+    // mirror and public binder caches survive deploys that don't change that code. Tags still revalidate as before.
+    durableUseCacheEntries: true,
+  },
   typescript: {
     // Typecheck CI checks the full repo with bun check before building; keep local builds checked too, except e2e
     // builds, which only need to run.
