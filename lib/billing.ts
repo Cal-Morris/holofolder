@@ -1,6 +1,9 @@
 import { MAX_BINDERS_PER_OWNER } from '@/lib/binders/model';
 
 export const BILLING_PRICES = { month: 399, year: 3499 } as const;
+/** One-time Lifetime price in pence, sold through Checkout payment mode on its own Stripe product. */
+export const BILLING_LIFETIME_PRICE = 7900;
+export type BillingPlan = keyof typeof BILLING_PRICES | 'lifetime';
 export const BILLING_ANNUAL_SAVING = BILLING_PRICES.month * 12 - BILLING_PRICES.year;
 /** `free_card_limit` value meaning the free plan has no saved-entry cap (migration 129). */
 export const UNLIMITED_FREE_CARD_LIMIT = 2_147_483_647;

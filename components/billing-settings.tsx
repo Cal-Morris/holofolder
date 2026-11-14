@@ -1,7 +1,7 @@
 'use client';
 import { useBillingContext } from '@/hooks/use-billing';
 import { Button } from '@/components/ui/button';
-import { BILLING_PRICES, BILLING_ANNUAL_SAVING, billingAmount } from '@/lib/billing';
+import { BILLING_PRICES, BILLING_ANNUAL_SAVING, BILLING_LIFETIME_PRICE, billingAmount } from '@/lib/billing';
 import { useEffect } from 'react';
 import { useTrackCollectorEvent } from '@/components/collector-funnel';
 export function BillingSettings({ signedIn, onSignIn }: { signedIn: boolean; onSignIn: () => void }) {
@@ -15,6 +15,16 @@ export function BillingSettings({ signedIn, onSignIn }: { signedIn: boolean; onS
   }, [accountId, track]);
   if (!billing) return null;
   const { access, busy } = billing;
+  const lifetimeButton = billing.lifetimeAvailable ? (
+    <Button
+      className="min-h-11 w-full"
+      variant="outline"
+      disabled={busy || billing.loading}
+      onClick={() => void billing.checkout('lifetime')}
+    >
+      {billingAmount(BILLING_LIFETIME_PRICE)} once, lifetime access
+    </Button>
+  ) : null;
   return (
     <section aria-label="Holo Folder plan" className="border-border bg-card space-y-3 rounded-2xl border p-4">
       <h3 className="font-bold">
@@ -27,9 +37,16 @@ export function BillingSettings({ signedIn, onSignIn }: { signedIn: boolean; onS
               : 'Unlock Holo Folder'}
       </h3>
       {access?.source === 'perpetual' ? (
-        <p className="text-muted-foreground text-sm">
-          All features, forever. Your existing account is fully unlocked, with no subscription needed.
-        </p>
+        <>
+          <p className="text-muted-foreground text-sm">
+            All features, forever. Your existing account is fully unlocked, with no subscription needed.
+          </p>
+          {billing.subscriptionActive && billing.canManage ? (
+            <p className="text-sm">
+              Your subscription is still active. Cancel it in Manage billing so you aren&apos;t charged again.
+            </p>
+          ) : null}
+        </>
       ) : (
         <>
           <p className="text-muted-foreground text-sm">
@@ -76,9 +93,17 @@ export function BillingSettings({ signedIn, onSignIn }: { signedIn: boolean; onS
           ) : !billing.canManage ? (
             <p className="text-sm">Your collection owner manages this plan.</p>
           ) : access?.source === 'subscription' ? (
-            <Button className="min-h-11 w-full" disabled={busy} onClick={() => void billing.portal()}>
-              Manage billing
-            </Button>
+            <div className="space-y-2">
+              <Button className="min-h-11 w-full" disabled={busy} onClick={() => void billing.portal()}>
+                Manage billing
+              </Button>
+              {lifetimeButton}
+              {lifetimeButton ? (
+                <p className="text-muted-foreground text-sm">
+                  Buying lifetime doesn&apos;t cancel your subscription. Cancel it in Manage billing afterwards.
+                </p>
+              ) : null}
+            </div>
           ) : (
             <div className="space-y-2">
               <Button
@@ -96,6 +121,7 @@ export function BillingSettings({ signedIn, onSignIn }: { signedIn: boolean; onS
               >
                 {billingAmount(BILLING_PRICES.year)} / year, save {billingAmount(BILLING_ANNUAL_SAVING)}
               </Button>
+              {lifetimeButton}
               <Button
                 className="min-h-9 w-full"
                 variant="ghost"

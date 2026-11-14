@@ -25,6 +25,8 @@ async function run() {
   const state: BillingState = {
     access: resolveBillingAccess('owner', { enforced: true }),
     hasBillingAccount: false,
+    subscriptionActive: false,
+    lifetimeAvailable: false,
     canManage: true,
     loading: false,
     error: null,
