@@ -99,16 +99,15 @@ async function mockNetwork(context: BrowserContext, page: Page) {
   // The shared fixture also answers these on the page; override so they fail offline too.
   await page.route(/^https:\/\/assets\.tcgdex\.net\//, rawImage);
   await context.route(
-    '**/app/api/tcgdex-cache**',
+    '**/app/api/cards/pokemon**',
     guard((route) => {
-      const pokemonId = Number(new URL(route.request().url()).searchParams.get('pokemonId'));
+      const pokemonId = Number(new URL(route.request().url()).searchParams.get('dexId'));
       return route.fulfill({
         json: {
           cards: MOCK_CARDS.filter((card) => card.dexIds.includes(pokemonId)).map((card) => ({
             ...card,
             dexIds: undefined,
           })),
-          source: 'mirror',
         },
       });
     }),

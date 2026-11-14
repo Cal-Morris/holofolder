@@ -147,7 +147,7 @@ function ledgerFile(setId: string) {
   return path.join(ledgerDir, `${setId}.csv`);
 }
 
-/** What the app serves today for this card (lib/tcg-mirror.ts calls pickCardImageUrl the same way). */
+/** What the app serves today for this card (lib/catalog-queries.ts calls pickCardImageUrl the same way). */
 function appImage(card: MirrorCardRow, { withPublished = true } = {}) {
   const imageLanguage = pickImageLanguage(card.image_languages_json, LANG);
   const externalIds = withPublished ? card.external_ids_json : withoutPublished(card.external_ids_json);
@@ -675,7 +675,7 @@ async function publish() {
     await db.end();
   }
 
-  // The app caches mirror reads for days; any real sync revalidates the whole tcg-mirror tag.
+  // The app caches catalog reads for days; any real sync revalidates the whole card-catalog tag.
   // Call the Vercel origin directly: Framer's proxy on holofolder.com strips the Authorization header.
   const secret = process.env.CARD_DB_SYNC_SECRET?.trim();
   const site = process.env.CARD_ASSETS_SITE ?? 'https://app.holofolder.com';

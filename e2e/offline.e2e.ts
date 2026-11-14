@@ -110,7 +110,7 @@ test.describe('offline', () => {
             for (const name of await caches.keys()) {
               if (!name.endsWith('-data')) continue;
               const keys = await (await caches.open(name)).keys();
-              if (keys.some((request) => request.url.includes('/app/api/tcgdex-cache?pokemonId=1&'))) return true;
+              if (keys.some((request) => request.url.includes('/app/api/cards/pokemon?dexId=1&'))) return true;
             }
             return false;
           }),

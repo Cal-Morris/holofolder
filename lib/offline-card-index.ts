@@ -18,7 +18,7 @@ import { expandSetSlotsResponse, type TCGSetSlotsWireResponse, type TCGSetSummar
 
 export const CACHED_CARD_API_PREFIXES = [
   '/app/api/tcg-set-slots',
-  '/app/api/tcgdex-cache',
+  '/app/api/cards/pokemon',
   '/app/api/tcg-card-search',
 ] as const;
 const MAX_CACHED_RESPONSES = 600;
@@ -80,8 +80,8 @@ export function extractCardsFromCachedResponse(url: string, payload: unknown): S
         if (result) cards.push(result);
       }
     }
-  } else if (path.startsWith('/app/api/tcgdex-cache') && Array.isArray(payload.cards)) {
-    const pokemonId = Number(parsedUrl.searchParams.get('pokemonId'));
+  } else if (path.startsWith('/app/api/cards/pokemon') && Array.isArray(payload.cards)) {
+    const pokemonId = Number(parsedUrl.searchParams.get('dexId'));
     if (Number.isInteger(pokemonId) && pokemonId > 0) {
       for (const card of payload.cards) {
         const result = toSearchCard(card, [pokemonId]);

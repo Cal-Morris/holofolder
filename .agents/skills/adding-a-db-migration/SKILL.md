@@ -51,7 +51,7 @@ These come from profiling production with `pg_stat_statements`, the Supabase per
   - App code talks to Postgres through PostgREST (`@supabase/supabase-js`), which pools for us.
   - Only the bulk catalog sync (`lib/card-db-sync.ts`) opens a direct connection, through `POSTGRES_URL_NON_POOLING` (or `DATABASE_URL`). It needs long transactions, which the pooler's transaction mode (port 6543: no session state, no prepared statements) doesn't suit.
   - Don't open `pg` clients in request handlers.
-- **Catalog reads are cached, not queried.** Public catalog routes use `"use cache: remote"` with the `tcg-mirror` tag and `PUBLIC_JSON_CACHE_HEADERS` (`lib/http-cache.ts`). Follow that for new read-only catalog endpoints instead of adding DB work per request.
+- **Catalog reads are cached, not queried.** Public catalog routes use `"use cache: remote"` with the `card-catalog` tag and `PUBLIC_JSON_CACHE_HEADERS` (`lib/http-cache.ts`). Follow that for new read-only catalog endpoints instead of adding DB work per request.
 
 ## Don'ts
 

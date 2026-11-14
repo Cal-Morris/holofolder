@@ -1,5 +1,5 @@
 import { readImportLookups, resolveImportLookup } from '@/lib/collection-import-resolve';
-import { findMirroredImportCandidates } from '@/lib/tcg-mirror';
+import { findImportCandidates } from '@/lib/catalog-queries';
 import { identityJson, IdentityError, requireIdentityOrigin } from '@/lib/server/public-binder-identity';
 
 export async function POST(request: Request) {
@@ -19,9 +19,7 @@ export async function POST(request: Request) {
     for (let i = 0; i < lookups.length; i += 3) {
       // oxlint-disable-next-line react-doctor/async-await-in-loop -- three lookups at a time caps load on the card mirror.
       const batch = await Promise.all(
-        lookups
-          .slice(i, i + 3)
-          .map(async (lookup) => resolveImportLookup(lookup, await findMirroredImportCandidates(lookup))),
+        lookups.slice(i, i + 3).map(async (lookup) => resolveImportLookup(lookup, await findImportCandidates(lookup))),
       );
       results.push(...batch);
     }

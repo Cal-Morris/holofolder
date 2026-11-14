@@ -14,7 +14,7 @@ import { expandSearchAliases, matchCardNicknames, matchRarityWords } from '@/lib
 import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
 import { createDeveloperImageResolver, type DeveloperImageResolver } from '@/lib/server/developer-images';
 import { sanitizeDeveloperImages } from '@/lib/server/developer-image-fields';
-import { getSimilarCardNeighbours, suggestMirroredCards } from '@/lib/tcg-mirror';
+import { getSimilarCardNeighbours, suggestCards } from '@/lib/catalog-queries';
 import { withoutDuplicateTcgdexRest } from '@/lib/developer-api/lean';
 
 const CARD_COLUMNS =
@@ -112,7 +112,7 @@ async function listSetsForSearch(query: string) {
 export async function listCatalogCards(rawParams: string) {
   'use cache: remote';
   cacheLife('days');
-  cacheTag('tcg-mirror');
+  cacheTag('card-catalog');
   const params = new URLSearchParams(rawParams),
     page = decodePage(params),
     lang = language(params);
@@ -185,7 +185,7 @@ export async function listCatalogCards(rawParams: string) {
 export async function getCatalogCard(id: string, lang: CardLanguage) {
   'use cache: remote';
   cacheLife('days');
-  cacheTag('tcg-mirror');
+  cacheTag('card-catalog');
   const { data, error } = await createAdminClient().from('tcg_cards').select(CARD_COLUMNS).eq('id', id).maybeSingle();
   if (error) throw new Error('Card lookup unavailable');
   return data ? (await cardPage([data], lang))[0] : null;
@@ -193,7 +193,7 @@ export async function getCatalogCard(id: string, lang: CardLanguage) {
 export async function listCatalogGroups(kind: 'sets' | 'series', rawParams: string) {
   'use cache: remote';
   cacheLife('days');
-  cacheTag('tcg-mirror');
+  cacheTag('card-catalog');
   const params = new URLSearchParams(rawParams),
     page = decodePage(params),
     lang = language(params);
@@ -234,7 +234,7 @@ export async function listCatalogGroups(kind: 'sets' | 'series', rawParams: stri
 export async function getCatalogGroup(kind: 'tcg_sets' | 'tcg_series', id: string) {
   'use cache: remote';
   cacheLife('days');
-  cacheTag('tcg-mirror');
+  cacheTag('card-catalog');
   const { data, error } = await createAdminClient()
     .from(kind)
     .select(
@@ -259,7 +259,7 @@ export async function getCatalogGroup(kind: 'tcg_sets' | 'tcg_series', id: strin
 export async function getCatalogSimilarCards(id: string, lang: CardLanguage) {
   'use cache: remote';
   cacheLife('days');
-  cacheTag('tcg-mirror');
+  cacheTag('card-catalog');
   const split = await getSimilarCardNeighbours(id, lang);
   const neighbours = [...split.sameArtwork, ...split.similarLook];
   const ids = neighbours.length ? neighbours.map((n) => n.cardId) : [id];
@@ -294,7 +294,7 @@ export async function getCatalogSimilarCards(id: string, lang: CardLanguage) {
 export async function suggestCatalogCards(cardIds: string[], pokemon: number[], lang: CardLanguage) {
   if (!cardIds.length && !pokemon.length) return { language: lang, cards: [] };
   const ids = (
-    await suggestMirroredCards(
+    await suggestCards(
       [...cardIds].toSorted(),
       [...pokemon].toSorted((a, b) => a - b),
       lang,

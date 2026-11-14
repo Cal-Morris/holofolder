@@ -9,12 +9,10 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
     dexIds: [...(c.pokemonIds ?? [])],
     variants: { normal: true },
   }));
-  await page.route('**/app/api/tcgdex-cache**', (route) =>
+  await page.route('**/app/api/cards/pokemon**', (route) =>
     route.fulfill({
       json: {
-        cards: cards.filter((c) =>
-          c.dexIds.includes(Number(new URL(route.request().url()).searchParams.get('pokemonId'))),
-        ),
+        cards: cards.filter((c) => c.dexIds.includes(Number(new URL(route.request().url()).searchParams.get('dexId')))),
       },
     }),
   );

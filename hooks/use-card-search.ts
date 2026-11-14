@@ -187,7 +187,7 @@ export function useIllustratorSearch(query: string, enabled: boolean) {
 type SetSearchState = { key: string; sets: TCGSetSummary[] };
 
 /**
- * Mirrored sets whose name, id or release year match the query (the Sets view's search API), best match first. Offline it
+ * Sets whose name, id or release year match the query (the Sets view's search API), best match first. Offline it
  * matches the set lists saved on this device; nothing saved means no set rows, never a guess.
  */
 export function useSetSearch(query: string, enabled: boolean, limit?: number) {

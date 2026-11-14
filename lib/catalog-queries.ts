@@ -56,9 +56,9 @@ import {
   type IllustratorSummary,
 } from '@/lib/illustrators';
 
-export type MirrorLanguage = 'en' | 'fr' | 'de' | 'es' | 'it' | 'pt-br' | 'ja' | 'ko';
+export type CatalogLanguage = 'en' | 'fr' | 'de' | 'es' | 'it' | 'pt-br' | 'ja' | 'ko';
 
-export interface MirroredTCGCard extends CardCatalogIdentity {
+export interface CatalogTCGCard extends CardCatalogIdentity {
   id: string;
   localId: string;
   name: string;
@@ -85,9 +85,9 @@ export interface MirroredTCGCard extends CardCatalogIdentity {
   illustrator?: string;
 }
 
-type MirroredCardQueryResult = MirroredTCGCard | null;
+type CardQueryResult = CatalogTCGCard | null;
 
-const MIRRORED_CARD_SELECT = `
+const CATALOG_CARD_SELECT = `
   dex_id,
   tcg_cards!inner(
     id,
@@ -111,13 +111,13 @@ const MIRRORED_CARD_SELECT = `
   )
 `;
 
-// Card data only changes when a sync runs, and every sync revalidates the tcg-mirror tag.
-const MIRROR_CACHE_LIFE = 'weeks';
+// Card data only changes when a sync runs, and every sync revalidates the card-catalog tag.
+const CATALOG_CACHE_LIFE = 'weeks';
 const HIDDEN_SET_IDS = new Set(['jumbo']);
 /** A set query ("30th", "abra 151") returns the whole set; the largest (Cosmic Eclipse) has 272 cards. */
 // ponytail: one row cap shared by up to 4 matched sets; page it if several large sets must show in full.
 const SET_BROWSE_LIMIT = 400;
-const MIRROR_CACHE_VERSION = 'v6-card-languages';
+const CATALOG_CACHE_VERSION = 'v6-card-languages';
 
 function cacheSafeTag(prefix: string, value: string | number) {
   return `${prefix}:${String(value)
@@ -131,7 +131,7 @@ function buildCardImageUrl(language: string, seriesId: string, setId: string, lo
 
 export { pickExternalCardImageUrl };
 
-function compareLocalIds(a: MirroredTCGCard, b: MirroredTCGCard) {
+function compareLocalIds(a: CatalogTCGCard, b: CatalogTCGCard) {
   const aNumeric = Number.parseInt(a.localId.replace(/\D+/g, ''), 10);
   const bNumeric = Number.parseInt(b.localId.replace(/\D+/g, ''), 10);
 
@@ -146,13 +146,18 @@ function compareLocalIds(a: MirroredTCGCard, b: MirroredTCGCard) {
   return a.localId.localeCompare(b.localId);
 }
 
-export async function getMirroredCardsForPokemon(pokemonId: number, language: MirrorLanguage = 'en') {
+export async function getCardsForPokemon(pokemonId: number, language: CatalogLanguage = 'en') {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
-  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION, cacheSafeTag('pokemon', pokemonId), cacheSafeTag('language', language));
+  cacheLife(CATALOG_CACHE_LIFE);
+  cacheTag(
+    'card-catalog',
+    CATALOG_CACHE_VERSION,
+    cacheSafeTag('pokemon', pokemonId),
+    cacheSafeTag('language', language),
+  );
 
   const admin = createAdminClient();
-  const { data, error } = await admin.from('tcg_card_dex_ids').select(MIRRORED_CARD_SELECT).eq('dex_id', pokemonId);
+  const { data, error } = await admin.from('tcg_card_dex_ids').select(CATALOG_CARD_SELECT).eq('dex_id', pokemonId);
 
   if (error) {
     throw error;
@@ -161,7 +166,7 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
   const cards = deduplicateCatalogCards(
     ((data || []) as any[]).flatMap((row) => (row.tcg_cards ? [row.tcg_cards] : [])),
   )
-    .map((card): MirroredCardQueryResult => {
+    .map((card): CardQueryResult => {
       const set = card?.tcg_sets;
 
       if (!card?.id || !card?.local_id || !card?.set_id || !card?.series_id || !set?.id) {
@@ -200,21 +205,17 @@ export async function getMirroredCardsForPokemon(pokemonId: number, language: Mi
           ? card.types_json.filter((value: unknown): value is string => typeof value === 'string')
           : undefined,
         illustrator: typeof card.illustrator === 'string' ? card.illustrator : undefined,
-      } satisfies MirroredTCGCard;
+      } satisfies CatalogTCGCard;
     })
-    .filter((card): card is MirroredTCGCard => Boolean(card))
+    .filter((card): card is CatalogTCGCard => Boolean(card))
     .sort(compareLocalIds);
 
   return cards;
 }
 
-export async function searchMirroredSets(
-  query: string,
-  limit = 8,
-  language: MirrorLanguage = 'en',
-): Promise<TCGSetSummary[]> {
+export async function searchSets(query: string, limit = 8, language: CatalogLanguage = 'en'): Promise<TCGSetSummary[]> {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
+  cacheLife(CATALOG_CACHE_LIFE);
 
   const admin = createAdminClient();
   const trimmedQuery = query
@@ -224,8 +225,8 @@ export async function searchMirroredSets(
     .toLowerCase();
   const setCode = resolveSetSearchAlias(trimmedQuery);
   cacheTag(
-    'tcg-mirror',
-    MIRROR_CACHE_VERSION,
+    'card-catalog',
+    CATALOG_CACHE_VERSION,
     'tcg-sets',
     cacheSafeTag('set-query', trimmedQuery),
     cacheSafeTag('limit', limit),
@@ -234,7 +235,7 @@ export async function searchMirroredSets(
 
   if (isSetYearQuery(trimmedQuery))
     return rankSetMatches(
-      (await getBrowsableMirroredSets()).filter((set) => language !== 'en' || isSetInLanguage(set, 'en')),
+      (await getBrowsableSets()).filter((set) => language !== 'en' || isSetInLanguage(set, 'en')),
       trimmedQuery,
       Infinity,
     );
@@ -286,12 +287,12 @@ export async function searchMirroredSets(
   );
 }
 
-export async function getRecentMirroredSets(asOfDate: string, limit = 6): Promise<TCGSetSummary[]> {
+export async function getRecentSets(asOfDate: string, limit = 6): Promise<TCGSetSummary[]> {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
+  cacheLife(CATALOG_CACHE_LIFE);
   cacheTag(
-    'tcg-mirror',
-    MIRROR_CACHE_VERSION,
+    'card-catalog',
+    CATALOG_CACHE_VERSION,
     'tcg-sets',
     'recent-sets',
     cacheSafeTag('as-of', asOfDate),
@@ -342,10 +343,10 @@ export async function getRecentMirroredSets(asOfDate: string, limit = 6): Promis
 }
 
 /** Every mirrored set with its symbol and logo, for the Sets browse grid (a few hundred rows). */
-export async function getBrowsableMirroredSets(): Promise<TCGSetSummary[]> {
+export async function getBrowsableSets(): Promise<TCGSetSummary[]> {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
-  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION, 'tcg-sets', 'browse-sets');
+  cacheLife(CATALOG_CACHE_LIFE);
+  cacheTag('card-catalog', CATALOG_CACHE_VERSION, 'tcg-sets', 'browse-sets');
 
   const admin = createAdminClient();
   const { data, error } = await admin
@@ -408,15 +409,15 @@ export async function readSetCardPages<T>(
   }
 }
 
-export async function getMirroredSetDexSlots(
+export async function getSetDexSlots(
   setId: string,
-  language: MirrorLanguage = 'en',
+  language: CatalogLanguage = 'en',
   pokemonNames = new Map<number, string>(),
   includeHidden = false,
 ): Promise<{ selectedSet: TCGSetSummary | null; slots: TCGSetDexSlot[]; cards: TCGSetSlotCard[] }> {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
-  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION, cacheSafeTag('set', setId), cacheSafeTag('language', language));
+  cacheLife(CATALOG_CACHE_LIFE);
+  cacheTag('card-catalog', CATALOG_CACHE_VERSION, cacheSafeTag('set', setId), cacheSafeTag('language', language));
 
   if (!includeHidden && HIDDEN_SET_IDS.has(setId)) {
     return { selectedSet: null, slots: [], cards: [] };
@@ -571,7 +572,7 @@ export function cardSearchSelect(includeNonPokemon = false) {
 
 export function toSearchCardResult(
   card: any,
-  language: MirrorLanguage,
+  language: CatalogLanguage,
   includeNonPokemon = false,
 ): SearchCardResult | null {
   const set = card?.tcg_sets;
@@ -629,7 +630,7 @@ export function toSearchCardResult(
  */
 function printedInEnglish<T extends { not: (column: string, operator: string, value: null) => T }>(
   query: T,
-  language: MirrorLanguage | 'any',
+  language: CatalogLanguage | 'any',
 ) {
   return language === 'en' ? query.not('name_json->>en', 'is', null) : query;
 }
@@ -646,10 +647,10 @@ function localIdCandidates(number: string) {
 }
 
 /** Exact, bounded identity lookup for import. No fuzzy search or language fallback. */
-export async function findMirroredImportCandidates(lookup: ImportLookup): Promise<SearchCardResult[]> {
+export async function findImportCandidates(lookup: ImportLookup): Promise<SearchCardResult[]> {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
-  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION);
+  cacheLife(CATALOG_CACHE_LIFE);
+  cacheTag('card-catalog', CATALOG_CACHE_VERSION);
   const admin = createAdminClient();
   const escaped = (value: string) => value.replace(/[\\%_]/g, '\\$&');
   let query = admin.from('tcg_cards').select(CARD_SEARCH_SELECT).not(`name_json->>${lookup.language}`, 'is', null);
@@ -692,10 +693,10 @@ export async function findMirroredImportCandidates(lookup: ImportLookup): Promis
 }
 
 /** Cards by TCGdex id (picture scan candidates), in `language`. Unknown or hidden ids are left out. */
-export async function getMirroredCardsByIds(ids: readonly string[], language: MirrorLanguage = 'en') {
+export async function getCardsByIds(ids: readonly string[], language: CatalogLanguage = 'en') {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
-  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION);
+  cacheLife(CATALOG_CACHE_LIFE);
+  cacheTag('card-catalog', CATALOG_CACHE_VERSION);
   if (!ids.length) return [];
   const { data, error } = await createAdminClient()
     .from('tcg_cards')
@@ -737,14 +738,14 @@ const suggestionTraits = (row: SuggestionRow): SuggestionTraits => ({
  * artwork left out), ranked by `rankVisualSuggestions`. Then, to fill up and for cards with no fingerprint yet, the same
  * Pokémon, illustrator or set, ranked by `rankPageSuggestions`. `cardIds` and `pokemonIds` are what the page holds.
  */
-export async function suggestMirroredCards(
+export async function suggestCards(
   cardIds: readonly string[],
   pokemonIds: readonly number[],
-  language: MirrorLanguage = 'en',
+  language: CatalogLanguage = 'en',
 ): Promise<SearchCardResult[]> {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
-  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION);
+  cacheLife(CATALOG_CACHE_LIFE);
+  cacheTag('card-catalog', CATALOG_CACHE_VERSION);
   const admin = createAdminClient();
   // A card without a fingerprint (or a failed read) just adds nothing by picture.
   const visualLists = Promise.all(
@@ -805,37 +806,37 @@ export async function suggestMirroredCards(
  * Card search across the mirror: card name, card number ("bulbasaur 44/102"), set name/id
  * ("pitch black", "me05 12"), illustrator ("arita") or a TCGdex card id ("base1-44"). Defaults to cards that feature a Pokémon; explicit-slot catalog mode also includes non-Pokémon cards.
  */
-export async function searchMirroredCards(
+export async function searchCardCatalog(
   query: string,
   language: CardSearchLanguage = 'en',
   limit = 60,
   includeNonPokemon = false,
 ): Promise<{ cards: SearchCardResult[]; correction: string | null }> {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
+  cacheLife(CATALOG_CACHE_LIFE);
 
   // "zard", "mr mime": search for the name as printed.
   const expanded = expandSearchAliases(query);
-  if (expanded !== query.trim()) return searchMirroredCards(expanded, language, limit, includeNonPokemon);
+  if (expanded !== query.trim()) return searchCardCatalog(expanded, language, limit, includeNonPokemon);
 
   // "charizard sir": the search without the rarity word, kept to that rarity.
   const rarity = matchRarityWords(query);
   if (rarity) {
-    const result = await searchMirroredCards(rarity.rest, language, limit, includeNonPokemon);
+    const result = await searchCardCatalog(rarity.rest, language, limit, includeNonPokemon);
     return { cards: result.cards.filter((card) => hasRarity(card, rarity.rarities)), correction: null };
   }
 
   // "2026", "sv 2024": every card from the sets released that year (narrowed by set or series), newest set first.
   if (isSetYearQuery(query)) {
     cacheTag(
-      'tcg-mirror',
-      MIRROR_CACHE_VERSION,
+      'card-catalog',
+      CATALOG_CACHE_VERSION,
       'tcg-card-search',
       cacheSafeTag('card-year-query', query.trim().toLowerCase()),
       cacheSafeTag('language', language),
     );
     const sets = rankSetMatches(
-      (await getBrowsableMirroredSets()).filter(
+      (await getBrowsableSets()).filter(
         (set) => !HIDDEN_SET_IDS.has(set.id) && (language !== 'en' || isSetInLanguage(set, 'en')),
       ),
       query,
@@ -850,8 +851,8 @@ export async function searchMirroredCards(
 
   let parsed = { ...parseCardSearchQuery(query), setIds: [] as string[] };
   cacheTag(
-    'tcg-mirror',
-    MIRROR_CACHE_VERSION,
+    'card-catalog',
+    CATALOG_CACHE_VERSION,
     'tcg-card-search',
     cacheSafeTag('card-query', `${parsed.text}|${parsed.number ?? ''}|${parsed.cardId ?? ''}`),
     cacheSafeTag('language', language),
@@ -975,7 +976,7 @@ export async function searchMirroredCards(
     includeNonPokemon,
   );
   if (!cards.length && correction) {
-    const retry = await searchMirroredCards(correction, language, limit, includeNonPokemon);
+    const retry = await searchCardCatalog(correction, language, limit, includeNonPokemon);
     return { cards: retry.cards, correction: retry.cards.length ? correction : null };
   }
   return { cards, correction: null };
@@ -1047,10 +1048,10 @@ function isMissingFunctionError(error: unknown) {
  * Every illustrator in the mirror with their card count. Uses the `tcg_illustrator_directory()` function
  * (migration 030); until that is applied it pages through `tcg_cards.illustrator` instead.
  */
-export async function getMirroredIllustratorDirectory(): Promise<IllustratorSummary[]> {
+export async function getIllustratorDirectory(): Promise<IllustratorSummary[]> {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
-  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION, 'tcg-illustrators');
+  cacheLife(CATALOG_CACHE_LIFE);
+  cacheTag('card-catalog', CATALOG_CACHE_VERSION, 'tcg-illustrators');
 
   const admin = createAdminClient();
   const { data, error } = await admin.rpc(ILLUSTRATOR_DIRECTORY_FUNCTION);
@@ -1127,7 +1128,7 @@ type IllustratorCardRow = {
   tcg_card_dex_ids?: Array<{ dex_id?: unknown }> | null;
 };
 
-function toIllustratorCard(card: IllustratorCardRow, language: MirrorLanguage): IllustratorCard | null {
+function toIllustratorCard(card: IllustratorCardRow, language: CatalogLanguage): IllustratorCard | null {
   const set = card?.tcg_sets;
   if (!card?.id || !card.local_id || !card.set_id || !card.series_id || !set?.id || HIDDEN_SET_IDS.has(card.set_id)) {
     return null;
@@ -1167,16 +1168,16 @@ function toIllustratorCard(card: IllustratorCardRow, language: MirrorLanguage): 
 }
 
 /** Every mirrored card credited to one illustrator (exact name, as listed in the directory), across all sets. */
-export async function getMirroredCardsByIllustrator(
+export async function getCardsByIllustrator(
   name: string,
-  language: MirrorLanguage = 'en',
+  language: CatalogLanguage = 'en',
 ): Promise<IllustratorCard[]> {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
+  cacheLife(CATALOG_CACHE_LIFE);
   const illustrator = cleanIllustratorName(name);
   cacheTag(
-    'tcg-mirror',
-    MIRROR_CACHE_VERSION,
+    'card-catalog',
+    CATALOG_CACHE_VERSION,
     'tcg-illustrators',
     cacheSafeTag('illustrator', illustrator.toLowerCase()),
     cacheSafeTag('language', language),
@@ -1214,8 +1215,8 @@ export async function getSimilarCardNeighbours(
   similarLookLimit = SIMILAR_LOOK_LIMIT,
 ) {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
-  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION, cacheSafeTag('similar', cardId), cacheSafeTag('language', language));
+  cacheLife(CATALOG_CACHE_LIFE);
+  cacheTag('card-catalog', CATALOG_CACHE_VERSION, cacheSafeTag('similar', cardId), cacheSafeTag('language', language));
 
   const admin = createAdminClient();
   const readNeighbours = async (lang: string) => {
@@ -1262,13 +1263,13 @@ export async function getSimilarCardNeighbours(
 }
 
 /** Similar cards for the app's card detail, as browse cards in each print's own language. */
-export async function getSimilarMirroredCards(
+export async function getSimilarCards(
   cardId: string,
   language: CardLanguage = 'en',
 ): Promise<Omit<SimilarCardsResponse, 'cardId' | 'language'>> {
   'use cache: remote';
-  cacheLife(MIRROR_CACHE_LIFE);
-  cacheTag('tcg-mirror', MIRROR_CACHE_VERSION, cacheSafeTag('similar', cardId), cacheSafeTag('language', language));
+  cacheLife(CATALOG_CACHE_LIFE);
+  cacheTag('card-catalog', CATALOG_CACHE_VERSION, cacheSafeTag('similar', cardId), cacheSafeTag('language', language));
 
   const split = await getSimilarCardNeighbours(cardId, language);
   const ids = [...split.sameArtwork, ...split.similarLook].map((neighbour) => neighbour.cardId);

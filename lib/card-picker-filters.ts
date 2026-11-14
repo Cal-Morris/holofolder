@@ -8,7 +8,7 @@
  */
 import type { CardSearchLanguage } from '@/lib/card-languages';
 import { isStandardFinishVariantKey, type CardFinishPrice } from '@/lib/card-pricing';
-import type { CardFilters } from '@/hooks/use-tcgdex';
+import type { CardFilters } from '@/hooks/use-cards';
 import type { CardFinish, CardLanguage, TCGCard } from '@/lib/domain/cards';
 import { inferCardFinish } from '@/lib/pokemon-card-browse';
 import { CARD_PICKER_SORTS, type CardPickerSort } from '@/lib/card-selector-sort';

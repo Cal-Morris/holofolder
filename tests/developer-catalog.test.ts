@@ -110,7 +110,7 @@ test('external identifiers follow the ingestion contract and include variant IDs
   );
 });
 test('set source reads traverse the PostgREST cap before grouping slots', async () => {
-  const { readSetCardPages } = await import('../lib/tcg-mirror');
+  const { readSetCardPages } = await import('../lib/catalog-queries');
   const synthetic = Array.from({ length: 1001 }, (_, id) => ({ id }));
   const pages: number[] = [];
   const rows = await readSetCardPages(async (from, to) => {

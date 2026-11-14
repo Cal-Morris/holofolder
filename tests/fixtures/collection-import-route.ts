@@ -6,8 +6,8 @@ async function run() {
   let calls = 0,
     active = 0,
     peak = 0;
-  mock.module('../../lib/tcg-mirror', () => ({
-    findMirroredImportCandidates: async () => {
+  mock.module('../../lib/catalog-queries', () => ({
+    findImportCandidates: async () => {
       calls++;
       active++;
       peak = Math.max(peak, active);

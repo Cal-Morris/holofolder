@@ -69,7 +69,7 @@ import { consumeCardIdentifyLimit } from '@/lib/server/developer-access/limits';
 import { EMBEDDING_MODEL } from '@/lib/card-assets/embeddings-db';
 import { listBinders, createBinder, updateBinder, deleteBinder } from './binders';
 import { getCollectionSettings, saveCollectionSettings } from './settings';
-import { getMirroredIllustratorDirectory, getMirroredSetDexSlots } from '@/lib/tcg-mirror';
+import { getIllustratorDirectory, getSetDexSlots } from '@/lib/catalog-queries';
 import { POKEMON_CATALOG } from '@/lib/pokemon-catalog';
 import {
   loadSavedCardPrices,
@@ -241,7 +241,7 @@ async function dispatchDeveloperOperation(
     }
     case 'list_illustrators':
       return sliceEntries(
-        (await getMirroredIllustratorDirectory()).filter(
+        (await getIllustratorDirectory()).filter(
           (p) => !input.q || p.name.toLowerCase().includes(String(input.q).toLowerCase()),
         ),
         input,
@@ -363,12 +363,7 @@ async function dispatchDeveloperOperation(
       };
     }
     case 'get_pokemon_set_slots': {
-      const result = await getMirroredSetDexSlots(
-        String(input.id),
-        normalizeCardLanguage(input.language),
-        undefined,
-        true,
-      );
+      const result = await getSetDexSlots(String(input.id), normalizeCardLanguage(input.language), undefined, true);
       if (!result.selectedSet) throw new DeveloperAccessError('not_found', 'Set not found.', 404);
       const page = sliceEntries(result.slots, input, (slot) => String(slot.dexId).padStart(4, '0'));
       return sanitizeImages({

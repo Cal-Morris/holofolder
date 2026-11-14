@@ -84,7 +84,7 @@ export function isPrintedIn(card: FingerprintCard, language: string) {
   return nameLanguages(card).includes(language);
 }
 
-/** The image URL the app shows for this card in `language` (same call as lib/tcg-mirror.ts). */
+/** The image URL the app shows for this card in `language` (same call as lib/catalog-queries.ts). */
 export function appImageUrl(card: FingerprintCard, language: string) {
   const imageLanguage = pickImageLanguage(card.image_languages_json, language);
   return (

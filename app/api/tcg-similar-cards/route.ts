@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSimilarMirroredCards } from '@/lib/tcg-mirror';
+import { getSimilarCards } from '@/lib/catalog-queries';
 import { normalizeCardLanguage } from '@/lib/domain/cards';
 import { PUBLIC_JSON_CACHE_HEADERS } from '@/lib/http-cache';
 
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   }
   const language = normalizeCardLanguage(searchParams.get('language'));
   try {
-    const similar = await getSimilarMirroredCards(cardId, language);
+    const similar = await getSimilarCards(cardId, language);
     return NextResponse.json({ cardId, language, ...similar }, { headers: PUBLIC_JSON_CACHE_HEADERS });
   } catch (error) {
     console.error('[holofolder] Similar cards lookup failed:', error);

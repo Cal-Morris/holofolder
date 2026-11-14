@@ -41,7 +41,7 @@ test.describe('explicit stable-slot picker', () => {
       .cards.filter((c) => c.id.startsWith('synthetic-snorlax'))
       .map(({ dexIds: _dexIds, ...card }) => card);
   const routeSnorlax = (page: import('@playwright/test').Page, cards: object[] = snorlaxList()) =>
-    page.route('**/app/api/tcgdex-cache**', (route) => route.fulfill({ json: { cards, source: 'mirror' } }));
+    page.route('**/app/api/cards/pokemon**', (route) => route.fulfill({ json: { cards } }));
   const bar = (page: import('@playwright/test').Page) =>
     page.getByRole('region', { name: 'Layout editing', exact: true });
   /** What a pocket is kept for is changed only in deliberate layout editing: select the pocket, then its options. */

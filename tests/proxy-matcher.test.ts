@@ -35,7 +35,7 @@ describe('proxy matcher', () => {
       '/binder-presets/classic.png',
       '/api/card-image-proxy',
       '/api/card-prices',
-      '/api/tcgdex-cache',
+      '/api/cards/pokemon',
       '/api/tcg-set-slots',
       '/api/tcg-card-search',
       '/api/docs-search',

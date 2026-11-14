@@ -11,7 +11,7 @@ description: Change holofolder offline behaviour, including the service worker (
   - Caches: `binderdex-v4-shell`, `binderdex-v4-data` and `binderdex-v3-images` (the image cache name is kept so cached cards survive upgrades).
   - Navigations are network-first. On failure, or after 6 s on `/` and `/app-shell`, they're served `/app-shell`. `/auth/*` and `/share/*` never get the shell. **Per-user HTML is never cached.**
   - The shell and the JS, CSS and fonts it references are precached and only swapped in once complete. Lazy chunks named inside the shell's scripts are precached too, under both `static/chunks/` and Vercel's `static/immutable/chunks/`.
-  - Card data (`tcgdex-cache`, `tcg-set-slots`, `tcg-card-search`) is network-first, with a 5 s cache fallback when a copy exists.
+  - Card data (`cards/pokemon`, `tcg-set-slots`, `tcg-card-search`) is network-first, with a 5 s cache fallback when a copy exists.
   - Images are cache-first, capped at 1,500 entries with the oldest evicted first.
   - Warm-up handles up to 500 URLs, 4 at a time (`BINDERDEX_WARM_CACHE` message).
 - **`app/app-shell/` and `components/offline-app-shell.tsx`**: a static shell that boots `BinderApp` from on-device data only (session from the cookie, collection snapshot, stored settings). The pure logic is in `lib/offline-shell.ts`.

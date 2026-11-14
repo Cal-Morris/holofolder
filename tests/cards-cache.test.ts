@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clearCardsForPokemonCache, loadCardsForPokemon, loadCatalogCard, peekCatalogCard } from '../hooks/use-tcgdex';
+import { clearCardsForPokemonCache, loadCardsForPokemon, loadCatalogCard, peekCatalogCard } from '../hooks/use-cards';
 
 function mockFetch(handler: (url: string) => Response | Promise<Response>) {
   const calls: string[] = [];
@@ -27,7 +27,7 @@ test('concurrent requests for the same Pokémon share one fetch', async () => {
   try {
     const [first, second] = await Promise.all([loadCardsForPokemon(1, 'en'), loadCardsForPokemon(1, 'en')]);
     assert.equal(fetchMock.calls.length, 1);
-    assert.equal(fetchMock.calls[0], '/app/api/tcgdex-cache?pokemonId=1&language=en');
+    assert.equal(fetchMock.calls[0], '/app/api/cards/pokemon?dexId=1&language=en');
     assert.equal(first[0].language, 'en');
     assert.deepEqual(first, second);
   } finally {
@@ -126,7 +126,7 @@ test('when the by-id lookup fails (offline, no cached copy) it falls back to the
     assert.equal(card?.name, 'Bulbasaur');
     assert.deepEqual(fetchMock.calls, [
       '/app/api/tcg-card-search?ids=base1-44&language=en',
-      '/app/api/tcgdex-cache?pokemonId=1&language=en',
+      '/app/api/cards/pokemon?dexId=1&language=en',
     ]);
   } finally {
     fetchMock.restore();

@@ -46,9 +46,7 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   if (standalone) await emulateStandalone(page, insets);
   await mockBackends(page, context, { signedIn: true, baseURL });
   await context.addCookies([{ name: 'hf-storage-fixture', value: `pick-${crypto.randomUUID()}`, url: baseURL! }]);
-  await page.route('**/app/api/tcgdex-cache**', (route) =>
-    route.fulfill({ json: { cards: [card], source: 'mirror' } }),
-  );
+  await page.route('**/app/api/cards/pokemon**', (route) => route.fulfill({ json: { cards: [card] } }));
 });
 test('a species pocket pick of an unowned printing saves through the durable queue and syncs', async ({
   page,

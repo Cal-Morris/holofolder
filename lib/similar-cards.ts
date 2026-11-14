@@ -1,7 +1,7 @@
 /**
  * Similar cards: a card's nearest neighbours by picture (DINOv3 fingerprints in public.tcg_card_embeddings, see
  * scripts/116_tcg_card_embeddings.sql), split into other printings of the same artwork and cards with a similar look.
- * Pure logic, shared by the server read (lib/tcg-mirror.ts), the API routes and the client.
+ * Pure logic, shared by the server read (lib/catalog-queries.ts), the API routes and the client.
  */
 import { isCardLanguage, type CardLanguage } from '@/lib/domain/cards';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';

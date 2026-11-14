@@ -11,7 +11,7 @@ import { isCardLanguage } from '@/lib/domain/cards';
 import { formatPokemonDisplayName, getPokemonById } from '@/lib/pokemon-catalog';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useTCGdex, type TCGCard, type CardFilters, type CardLanguage } from '@/hooks/use-tcgdex';
+import { useCards, type TCGCard, type CardFilters, type CardLanguage } from '@/hooks/use-cards';
 import type { CardFinish } from '@/lib/domain/cards';
 import { Button } from '@/components/ui/button';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
@@ -270,7 +270,7 @@ export default function CardSelector({
   pageSuggestions,
   // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of picker and scanner UI state; one reducer would not read better
 }: CardSelectorProps) {
-  const { fetchCardsForPokemon, filterCards, isLoading: isLoadingSpecies, error: speciesError } = useTCGdex();
+  const { fetchCardsForPokemon, filterCards, isLoading: isLoadingSpecies, error: speciesError } = useCards();
   const [speciesCards, setCards] = useState<TCGCard[]>([]);
   const [filters, setFilters] = useState<CardFilters>(() => (anyCard?.query ? { searchQuery: anyCard.query } : {}));
   const [sort, setSort] = useState<CardPickerSort>(readCardPickerSort);

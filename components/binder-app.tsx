@@ -85,7 +85,7 @@ import {
 import { normalizeCollectionItems } from '@/lib/collection/normalize';
 import { useTouchGestures } from '@/hooks/use-touch-gestures';
 import type { PocketDropMode } from '@/lib/pocket-drop';
-import { loadCatalogCard } from '@/hooks/use-tcgdex';
+import { loadCatalogCard } from '@/hooks/use-cards';
 import {
   POKEMON_CATALOG,
   formatPokemonDisplayName,

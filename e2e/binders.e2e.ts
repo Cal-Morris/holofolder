@@ -13,7 +13,7 @@ test.describe('card languages in the all cards sheet', () => {
       ...english.map(({ dexIds: _dexIds, ...card }) => ({ ...card, languages: ['en', 'fr'] })),
       { ...english[0], dexIds: undefined, id: 'jp-test-001', name: 'Fushigidane', languages: ['ja'] },
     ];
-    await page.route('**/app/api/tcgdex-cache**', (route) => route.fulfill({ json: { cards } }));
+    await page.route('**/app/api/cards/pokemon**', (route) => route.fulfill({ json: { cards } }));
     const detail = await harness.openCardDetail();
     await detail
       .getByRole('button', { name: /all bulbasaur cards/i })

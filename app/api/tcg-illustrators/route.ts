@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMirroredCardsByIllustrator, getMirroredIllustratorDirectory } from '@/lib/tcg-mirror';
+import { getCardsByIllustrator, getIllustratorDirectory } from '@/lib/catalog-queries';
 import { normalizeCardLanguage } from '@/lib/domain/cards';
 import { cleanIllustratorName } from '@/lib/illustrators';
 import { PUBLIC_JSON_CACHE_HEADERS } from '@/lib/http-cache';
@@ -22,11 +22,11 @@ export async function GET(request: NextRequest) {
   try {
     if (name) {
       const language = normalizeCardLanguage(searchParams.get('language'));
-      const cards = await getMirroredCardsByIllustrator(name, language);
+      const cards = await getCardsByIllustrator(name, language);
       return NextResponse.json({ illustrator: name, cards }, { headers: PUBLIC_JSON_CACHE_HEADERS });
     }
 
-    const illustrators = await getMirroredIllustratorDirectory();
+    const illustrators = await getIllustratorDirectory();
     return NextResponse.json({ illustrators }, { headers: PUBLIC_JSON_CACHE_HEADERS });
   } catch (error) {
     console.error('[holofolder] Illustrator lookup failed:', error);

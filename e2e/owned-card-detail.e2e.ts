@@ -14,13 +14,12 @@ test.describe('owned native card detail', () => {
   });
   const details = (page: import('@playwright/test').Page) => page.getByRole('dialog', { name: /details$/ });
   const open = async (page: import('@playwright/test').Page) => {
-    await page.route('**/app/api/tcgdex-cache**', (route) =>
+    await page.route('**/app/api/cards/pokemon**', (route) =>
       route.fulfill({
         json: {
           cards: syntheticSlotPickerSnapshot()
             .cards.filter((c) => c.dexIds?.includes(143))
             .map(({ dexIds: _d, ...c }) => c),
-          source: 'mirror',
         },
       }),
     );

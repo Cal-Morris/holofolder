@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.dryRun && result.syncedSets.length > 0) {
-      revalidateTag('tcg-mirror', { expire: 0 });
+      revalidateTag('card-catalog', { expire: 0 });
     }
 
     return NextResponse.json({ sync: result, done: result.remainingSetIds.length === 0 });

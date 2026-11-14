@@ -118,9 +118,7 @@ for (const theme of ['light', 'dark'] as const) {
         (value) => document.documentElement.classList.toggle('dark', value === 'dark'),
         theme,
       );
-      await harness.page.route('**/app/api/tcgdex-cache**', (route) =>
-        route.fulfill({ json: { cards, source: 'mirror' } }),
-      );
+      await harness.page.route('**/app/api/cards/pokemon**', (route) => route.fulfill({ json: { cards } }));
     });
 
     test('all cards: artwork, text, ends, header, focus, reopening and tab return', async ({ harness }) => {
@@ -323,9 +321,7 @@ for (const theme of ['light', 'dark'] as const) {
         (value) => document.documentElement.classList.toggle('dark', value === 'dark'),
         theme,
       );
-      await harness.page.route('**/app/api/tcgdex-cache**', (route) =>
-        route.fulfill({ json: { cards, source: 'mirror' } }),
-      );
+      await harness.page.route('**/app/api/cards/pokemon**', (route) => route.fulfill({ json: { cards } }));
     });
 
     test('search highlight and breakout jumps remain scrollable, keyboard keeps controls visible', async ({

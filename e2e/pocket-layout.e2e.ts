@@ -15,13 +15,12 @@ test.describe('layout editing on the pockets', () => {
   });
   test.beforeEach(async ({ harness }) => {
     const { page } = harness;
-    await page.route('**/app/api/tcgdex-cache**', (route) =>
+    await page.route('**/app/api/cards/pokemon**', (route) =>
       route.fulfill({
         json: {
           cards: syntheticSlotPickerSnapshot()
             .cards.filter((c) => c.dexIds?.includes(143))
             .map(({ dexIds: _d, ...c }) => c),
-          source: 'mirror',
         },
       }),
     );
