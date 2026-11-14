@@ -18,6 +18,8 @@
  *   bun run card-assets inventory                               rebuild card_image_inventory from an R2 LIST
  *   bun run card-assets fingerprints [--lang en,ja] [--set a,b] [--report] [--publish]
  *                                                               build the picture-matching index from the R2 images
+ *   bun run card-assets lattice [--report]                      compare with Card Lattice: what it has that we don't;
+ *                                                               --report: what we hold that it and TCGdex don't
  *
  * This is the one entry point for collecting, uploading and recording card images; the subcommands above live in
  * scripts/card-assets/.
@@ -61,6 +63,7 @@ import {
 } from '../lib/card-assets/ledger';
 import { getMirrorDatabaseUrl } from '../lib/card-db-sync';
 import { run as importTcgdex } from './card-assets/import-tcgdex';
+import { run as compareLattice } from './card-assets/lattice';
 import { run as fillGaps } from './card-assets/fill-gaps';
 import { run as buildFingerprints } from './card-assets/fingerprints';
 import { run as rebuildInventory } from './card-assets/inventory';
@@ -778,6 +781,7 @@ const commands: Record<string, () => Promise<void>> = {
   'import-tcgdex': importTcgdex,
   inventory: rebuildInventory,
   fingerprints: buildFingerprints,
+  lattice: compareLattice,
 };
 const command = commands[process.argv[2] ?? ''];
 if (!command) {
