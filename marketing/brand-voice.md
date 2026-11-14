@@ -27,7 +27,7 @@ We write like a collector talking to another collector, not like a startup. Use 
 
 ## Images and attribution
 
-Card images are © The Pokémon Company, Nintendo, Creatures and GAME FREAK. They are not covered by TCGdex's licence. Use them the same way the app does, with the one-line notice where space allows, and keep "Holo Folder is not affiliated with The Pokémon Company" in bios and on directory listings. Prefer screenshots of our own UI and showcase binders over bare card scans. Never post a screenshot showing a real user's private collection, certificates or account details. Use showcase or synthetic demo data instead.
+Card images are © The Pokémon Company, Nintendo, Creatures and GAME FREAK. They are not covered by TCGdex's licence. Use them the same way the app does, with the one-line notice where space allows, and keep "Holo Folder is not affiliated with The Pokémon Company" in bios and on directory listings. Prefer screenshots of our own UI and showcase binders over bare card scans, and make post images with the templates in [`social/`](social/README.md) so they match the site and fit each platform. Never post a screenshot showing a real user's private collection, certificates or account details. Use showcase or synthetic demo data instead.
 
 ## Links
 

@@ -20,8 +20,9 @@ The detailed plan lives in `marketing/private/growth-plan.md`, with the calendar
 4. **Framer edits** (SEO fixes, footer links, blog and set posts) follow [framer-feature-updates](../framer-feature-updates/SKILL.md) for inspecting, editing and publishing, and [release-posts-and-changelog](../release-posts-and-changelog/SKILL.md) for CMS posts. Preserve collaborator edits and never publish someone else's unpublished work.
 5. **Social.**
    - Draft the week's posts from `marketing/private/content-calendar.md` using real data: the mirror, confidence-gated `card_prices`, showcase binders and shipped changes.
-   - Render images as JPEG at a public URL (Instagram accepts JPEG only).
-   - Queue the posts in Buffer through its API, using the key from the secret store.
+   - Make every image with `bun run social-images` ([`marketing/social/`](../../../marketing/social/README.md)): `capture` the showcase screenshots, add the post to `POSTS` with copy taken only from the published blog post, `render`, check `out/contact-sheet.html`, then `upload` to R2 with a short-lived bucket-scoped token. Each platform gets its own size: an Instagram 4:5 carousel (1080×1350), a single X image (1600×900) and TikTok photo slides (1080×1920). Never post a blog's 16:9 artwork as is.
+   - Queue the posts in Buffer through its API, using the key from the secret store. Buffer's free plan holds 10 scheduled posts, and API calls share one daily limit, so plan the calls, test one write before a batch and never poll.
+   - Buffer facts that matter: `editPost` with `assets` replaces the whole list, and Instagram edits must resend `metadata.instagram` (`type: post`, `shouldShareToFeed: true`). Several image assets on Instagram make a carousel. TikTok accepts image assets as a photo post. Sent posts can't be edited, and deleting one from Buffer does not remove it from the network.
    - Auto-publish only the formats the plan marks safe: changelog posts and set checklist graphics. Everything else goes to the queue as a draft for Cal.
    - Until Buffer is connected, write the drafts into the run summary instead.
 6. **Prepare the human-only work.** For the coming week, write out:

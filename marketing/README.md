@@ -12,6 +12,7 @@ Search is the engine that compounds, through public set, Pokémon and card pages
 
 - [brand-voice.md](brand-voice.md) holds the voice, claims rules and account handles that every published word must follow.
 - [seo-audit.md](seo-audit.md) is the technical and content audit of holofolder.com, with prioritised fixes.
+- [social/](social/README.md) holds the script that renders every social image at each platform's size from the showcase binders and our card mirror. Use it rather than reposting blog artwork.
 
 The [growth-loop skill](../.agents/skills/growth-loop/SKILL.md) runs the plan week to week from the private files.
 
