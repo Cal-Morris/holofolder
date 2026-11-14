@@ -49,7 +49,7 @@ import type { SettingsPageId } from '@/components/settings-modal';
 import { useRouter } from 'next/navigation';
 import { Coins, Grid3X3, Link2, Palette, WifiOff } from 'lucide-react';
 import type { StorageMenuAction } from '@/components/collection-navigation/storage-menu';
-import { type PokemonSearchResultMeta } from '@/components/pokemon-search';
+import type { PokemonSearchResultMeta } from '@/components/pokemon-search';
 import {
   closeAllOverlays,
   runAfterOverlayHistory,

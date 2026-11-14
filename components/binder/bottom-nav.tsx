@@ -10,7 +10,7 @@ import type {
 } from 'react';
 import type { PokemonSummary } from '@/lib/pokemon-catalog';
 import type { ActiveMainView } from '@/components/binder/binder-app-model';
-import { preloadTabView } from '@/components/binder/lazy-views';
+import { preloadSearch, preloadTabView } from '@/components/binder/lazy-views';
 
 export interface BottomNavContext {
   /** Native storage: Inventory replaces List, and Binder stands for the collection in any presentation (binder pages or List). */
@@ -80,6 +80,10 @@ export function renderBottomNavView(ctx: BottomNavContext) {
               else openSearch();
             }}
             {...quickPressHandlers}
+            onPointerDown={(event) => {
+              preloadSearch();
+              quickPressHandlers.onPointerDown(event);
+            }}
             aria-label="Search"
             aria-pressed={isSearchOpen || isQuickModeOpen}
             // oxlint-disable-next-line jsx-a11y/role-supports-aria-props -- aria-description (ARIA 1.3) is supported by current browsers; the rule's table predates it

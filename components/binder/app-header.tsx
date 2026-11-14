@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { HeaderMoreMenu } from '@/components/header-more-menu';
+import { preloadSearch } from '@/components/binder/lazy-views';
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/regional-price';
 import {
@@ -250,6 +251,8 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
               <button
                 type="button"
                 onClick={isShowModeOn ? openQuickMode : openSearch}
+                onPointerEnter={preloadSearch}
+                onPointerDown={preloadSearch}
                 aria-label="Search"
                 aria-pressed={isSearchOpen}
                 className="text-muted-foreground hover:bg-muted/60 hover:text-foreground flex min-h-9 items-center gap-1.5 rounded-full px-2 text-xs font-medium"

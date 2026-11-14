@@ -3,7 +3,7 @@
 import type { NativeConsumerBinding } from '@/lib/collection/native-card-consumers';
 import { getDetailArtwork } from '@/components/binder/binder-app-model';
 import type { BinderHistory } from '@/hooks/use-binder-history';
-import PokemonSearch from '@/components/pokemon-search';
+import { PokemonSearch } from '@/components/binder/lazy-views';
 import { Button } from '@/components/ui/button';
 import { toCardImageSrc } from '@/lib/card-image-url';
 import { formatDexNumber } from '@/lib/pokemon-catalog';
