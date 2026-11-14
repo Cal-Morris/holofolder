@@ -205,6 +205,17 @@ describe('cardNameSearchFilter', () => {
     assert.equal(cardNameSearchFilter('ab'), 'name_en.ilike."ab%",name_en.ilike."% ab%",name_en.ilike."%-ab%"');
   });
 
+  test('one letter is the whole first word', () => {
+    assert.equal(
+      cardNameSearchFilter('n'),
+      'name_en.ilike."n",name_en.ilike."n %",name_en.ilike."n\'%",name_en.ilike."n’%"',
+    );
+    assert.equal(matchesCardName('N', 'n'), true);
+    assert.equal(matchesCardName("N's Plan", 'n'), true);
+    assert.equal(matchesCardName('Ninetales', 'n'), false);
+    assert.equal(matchesCardName('Pikachu V', 'v'), false);
+  });
+
   test('longer and non-Latin text matches anywhere in the name', () => {
     assert.equal(cardNameSearchFilter('abr'), 'name_en.ilike."%abr%"');
     assert.equal(cardNameSearchFilter('ピカ'), 'name_en.ilike."%ピカ%"');

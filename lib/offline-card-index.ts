@@ -235,6 +235,7 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
       const matchesText =
         matchesCardName(card.name, text) ||
         (!parsed.setIds.length &&
+          text.length >= 2 &&
           (card.set.name.toLowerCase().includes(text) ||
             card.set.id.toLowerCase() === text ||
             card.set.id.toLowerCase() === resolveSetSearchAlias(text) ||

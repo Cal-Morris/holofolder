@@ -1575,7 +1575,7 @@ export default function CardSelector({
                   <p className="text-sm font-semibold">
                     {showingSuggestions
                       ? 'No suggestions for this page'
-                      : anyCardQuery.trim().length < 2
+                      : !anyCardQuery.trim()
                         ? 'Search for a card'
                         : !isOnline
                           ? "You're offline"
@@ -1584,7 +1584,7 @@ export default function CardSelector({
                   <p className="text-muted-foreground text-xs">
                     {showingSuggestions
                       ? 'Add a few cards to this page first, or search for one.'
-                      : anyCardQuery.trim().length < 2
+                      : !anyCardQuery.trim()
                         ? 'Type a name, a set or a card number. Trainers and Energy work too.'
                         : !isOnline
                           ? 'Only cards already saved on this device can be found offline.'

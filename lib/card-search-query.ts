@@ -118,13 +118,16 @@ export function correctedCardSearchQuery(raw: string, sets: SearchSet[]) {
 /**
  * PostgREST `or` filter for a card-name search. Two Latin letters or digits match the start of a word ("ab" finds Abra,
  * Mega Absol and Ho-Oh for "oh", not Kabuto): a contains-match that short can't use the trigram index, so it scans every
- * card, and returns hundreds of unrelated ones. Longer or non-Latin text matches anywhere in the name.
+ * card, and returns hundreds of unrelated ones. One letter is a whole first word ("n" finds N and N's Plan, not
+ * Ninetales). Longer or non-Latin text matches anywhere in the name.
  */
 export function cardNameSearchFilter(text: string) {
   const inOrder = wordOrderPattern(text);
-  const patterns = /^[a-z0-9]{2}$/i.test(text)
-    ? [`${text}%`, `% ${text}%`, `%-${text}%`]
-    : [`%${text}%`, ...(inOrder ? [`%${inOrder}%`] : [])];
+  const patterns = /^[a-z]$/i.test(text)
+    ? [text, `${text} %`, `${text}'%`, `${text}’%`]
+    : /^[a-z0-9]{2}$/i.test(text)
+      ? [`${text}%`, `% ${text}%`, `%-${text}%`]
+      : [`%${text}%`, ...(inOrder ? [`%${inOrder}%`] : [])];
   return patterns.map((pattern) => `name_en.ilike.${JSON.stringify(pattern)}`).join(',');
 }
 
@@ -141,6 +144,7 @@ function wordOrderPattern(text: string) {
 /** The on-device version of the name search above (text is lowercase). */
 export function matchesCardName(name: string, text: string) {
   const lower = name.toLowerCase();
+  if (/^[a-z]$/.test(text)) return new RegExp(`^${text}(?:$|[ '’])`).test(lower);
   if (lower.includes(text)) return true;
   const inOrder = wordOrderPattern(text);
   if (!inOrder) return false;

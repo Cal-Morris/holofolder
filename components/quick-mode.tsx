@@ -821,7 +821,7 @@ function QuickMode({
                       </section>
                     )}
 
-                    {(cardResults.length > 0 || (trimmed.length >= 2 && cardSearch.loading)) && (
+                    {(cardResults.length > 0 || (trimmed !== '' && cardSearch.loading)) && (
                       <section aria-label="Cards">
                         <h3 className={sectionTitle}>
                           Any card · tap to check the price
