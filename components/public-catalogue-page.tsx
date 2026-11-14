@@ -6,6 +6,7 @@ const SECTIONS = [
   { href: '/sets', label: 'Sets' },
   { href: '/pokemon', label: 'Pokémon' },
   { href: '/illustrators', label: 'Illustrators' },
+  { href: '/search', label: 'Search' },
 ];
 
 const NO_CRUMBS: { href: string; label: string }[] = [];

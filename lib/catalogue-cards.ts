@@ -105,3 +105,19 @@ export function catalogueCardFromSearch(card: SearchCardResult): CatalogueCard {
     ...(card.image ? { image: card.image } : {}),
   };
 }
+
+/**
+ * A printed card number in a search: "161/131" or "Flabébé 161/131" → { number: '161', total: 131, text: 'Flabébé' }.
+ * Anything without a number/total is null.
+ */
+export function parseCardNumberQuery(query: string) {
+  const match = /(?:^|\s)#?(\d{1,4})\s*\/\s*(\d{1,4})(?=\s|$)/.exec(query);
+  if (!match) return null;
+  const text = `${query.slice(0, match.index)} ${query.slice(match.index + match[0].length)}`.replace(/\s+/g, ' ');
+  return { number: String(Number(match[1])), total: Number(match[2]), text: text.trim() };
+}
+
+/** "6" → ["6", "06", "006"]: sets store numbers unpadded or padded to two or three digits. */
+export const paddedCardNumbers = (number: string) => [
+  ...new Set([number, number.padStart(2, '0'), number.padStart(3, '0')]),
+];

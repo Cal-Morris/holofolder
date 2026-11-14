@@ -5,10 +5,9 @@ import { cache } from 'react';
 import { PublicCardGrid } from '@/components/public-card-grid';
 import { CatalogueFact, PublicCataloguePage } from '@/components/public-catalogue-page';
 import { Button } from '@/components/ui/button';
+import { toPublicCatalogueCard } from '@/lib/server/public-catalogue-card';
 import { getPublicSetCards, getPublicSets, type PublicSetCard } from '@/lib/server/public-sets';
-import { knownRarity, type CatalogueCard } from '@/lib/catalogue-cards';
 import { illustratorSlug } from '@/lib/illustrators';
-import { findPokemonById } from '@/lib/pokemon-pages';
 import { socialMetadata } from '@/lib/social-metadata';
 import {
   blogSetGuideUrl,
@@ -154,7 +153,7 @@ export default async function SetPage({ params }: Props) {
       <div className="space-y-3">
         <h2 className="text-xl font-semibold">{set.name} checklist</h2>
         <PublicCardGrid
-          cards={cards.map((card) => toCatalogueCard(card, set))}
+          cards={cards.map((card) => toPublicCatalogueCard(card, set))}
           label={`${set.name} cards`}
           facets={['rarity', 'illustrator']}
           sortLabels={{ default: 'Number', reverse: 'Number, high first' }}
@@ -189,23 +188,6 @@ export default async function SetPage({ params }: Props) {
       )}
     </PublicCataloguePage>
   );
-}
-
-function toCatalogueCard(card: PublicSetCard, set: PublicSetSummary): CatalogueCard {
-  const pokemon = card.dexIds.length === 1 ? findPokemonById(card.dexIds[0]) : undefined;
-  return {
-    id: card.id,
-    name: card.name,
-    number: cardNumber(card, set),
-    setName: set.name,
-    setSlug: set.slug,
-    ...(set.seriesName ? { series: set.seriesName } : {}),
-    ...(set.releaseDate ? { releaseDate: set.releaseDate } : {}),
-    ...(knownRarity(card.rarity) ? { rarity: card.rarity } : {}),
-    ...(card.illustrator ? { illustrator: card.illustrator } : {}),
-    ...(card.image ? { image: card.image } : {}),
-    ...(pokemon ? { pokemon: { slug: pokemon.slug, name: pokemon.name } } : {}),
-  };
 }
 
 function IllustratorChips({ illustrators }: { illustrators: readonly (readonly [string, number])[] }) {
