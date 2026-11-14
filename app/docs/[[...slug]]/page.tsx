@@ -6,25 +6,35 @@ import { DocsLink } from '@/components/docs/provider';
 import { docsMarkdownHref } from '@/lib/docs-markdown';
 import { docsSource } from '@/lib/docs-source';
 import { docsCanonicalUrl } from '@/lib/docs-routing';
+import { socialMetadata } from '@/lib/social-metadata';
+import type { Metadata } from 'next';
 
 const OpenAPIPage = dynamic(() => import('@/components/docs/api-page').then((module) => module.OpenAPIPage), {
   loading: () => <p className="text-fd-muted-foreground text-sm">Loading API explorer…</p>,
 });
 
+// Wait for the complete static page, so an unknown slug's notFound() sets a real 404 status instead of streaming a
+// 200 fallback shell first.
+export const ensureStatic = 'navigation';
+
 export async function generateStaticParams() {
   return (await docsSource).generateParams();
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug?: string[] }> }) {
+export async function generateMetadata({ params }: { params: Promise<{ slug?: string[] }> }): Promise<Metadata> {
   const { slug } = await params;
   const page = (await docsSource).getPage(slug);
-  return page
-    ? {
-        title: page.data.title,
-        description: page.data.description,
-        alternates: { canonical: docsCanonicalUrl(page.url), types: { 'text/markdown': docsMarkdownHref(page.url) } },
-      }
-    : {};
+  if (!page) return { robots: { index: false, follow: true } };
+  // The root layout's social tags carry the homepage title; give previews this page's own.
+  const title = `${page.data.title} · Holo Folder Developers`;
+  const { description } = page.data;
+  return {
+    title: page.data.title,
+    description,
+    alternates: { canonical: docsCanonicalUrl(page.url), types: { 'text/markdown': docsMarkdownHref(page.url) } },
+    openGraph: { ...socialMetadata.openGraph, title, description, url: docsCanonicalUrl(page.url) },
+    twitter: { ...socialMetadata.twitter, title, description },
+  };
 }
 
 export default async function DocumentationPage({ params }: { params: Promise<{ slug?: string[] }> }) {
