@@ -1640,19 +1640,39 @@ function combineSourceEvidence(
   const rangeHighs = candidates.flatMap((candidate) =>
     typeof candidate?.highGbpAmount === 'number' ? [candidate.highGbpAmount] : [],
   );
-  const sourceMarkets = sourcePrices.flatMap((source) =>
-    typeof source.marketGbpAmount === 'number' ? [source.marketGbpAmount] : [],
-  );
+  const marketsOf = (sources: CardPriceSourceSummary[]) =>
+    sources.flatMap((source) => (typeof source.marketGbpAmount === 'number' ? [source.marketGbpAmount] : []));
+  // For English cards Cardmarket mixes every language, so it can't pull confidence below medium on its own.
+  const blendedSources = sourcePrices.filter((source) => isLanguageBlendedSource(source, preferredPrice.language));
+  const pureSources = sourcePrices.filter((source) => !blendedSources.includes(source));
+  const pureConfidence = reconcileSourceConfidence(preferredPrice.confidence, marketsOf(pureSources));
+  const confidence =
+    blendedSources.length > 0 && pureSources.length > 0
+      ? minConfidence(
+          pureConfidence,
+          reconcileSourceConfidence('high', marketsOf(sourcePrices)) === 'low' ? 'medium' : 'high',
+        )
+      : reconcileSourceConfidence(preferredPrice.confidence, marketsOf(sourcePrices));
 
   return {
     ...preferredPrice,
     lowGbpAmount: rangeLows.length > 0 ? roundPrice(Math.min(...rangeLows)) : preferredPrice.lowGbpAmount,
     highGbpAmount: rangeHighs.length > 0 ? roundPrice(Math.max(...rangeHighs)) : preferredPrice.highGbpAmount,
-    confidence: reconcileSourceConfidence(preferredPrice.confidence, sourceMarkets),
+    confidence,
     sourcePrices,
     trendPoints,
     buySignal: null,
   };
+}
+
+/** Cardmarket blends every language into one product, so it is not evidence of an English card's own price. */
+export function isLanguageBlendedSource(source: Pick<CardPriceSourceSummary, 'source'>, language: string) {
+  return language === 'en' && source.source === 'cardmarket';
+}
+
+const CONFIDENCE_ORDER: PriceConfidence[] = ['unknown', 'low', 'medium', 'high'];
+function minConfidence(left: PriceConfidence, right: PriceConfidence): PriceConfidence {
+  return CONFIDENCE_ORDER.indexOf(left) <= CONFIDENCE_ORDER.indexOf(right) ? left : right;
 }
 
 function reconcileSourceConfidence(current: PriceConfidence, sourceMarkets: number[]): PriceConfidence {

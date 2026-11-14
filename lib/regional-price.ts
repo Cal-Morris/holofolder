@@ -8,7 +8,7 @@ import type {
   SupportedCurrency,
 } from '@/lib/card-pricing';
 import { DISPLAY_CURRENCIES, type DisplayCurrency, type PricingRegion } from '@/lib/pricing-region';
-import { isStandardFinishVariantKey, quotedFinishFor } from '@/lib/card-pricing';
+import { isLanguageBlendedSource, isStandardFinishVariantKey, quotedFinishFor } from '@/lib/card-pricing';
 import type { CardFinish } from '@/lib/domain/cards';
 
 /**
@@ -26,6 +26,10 @@ import type { CardFinish } from '@/lib/domain/cards';
  * Native sources are averaged. When foreign evidence agrees with them (within 35%), it is blended
  * in at 20% weight; when it disagrees, it is ignored. When only foreign evidence exists, the
  * snapshot's price is kept but its confidence is downgraded one step.
+ *
+ * English cards: Cardmarket's price guide is one product across every language and condition, so it
+ * is never native evidence for an English card. Language-pure sources (TCGplayer, English-only sales)
+ * anchor the price in every region, converted, and Cardmarket only blends in when it agrees.
  */
 
 export type PriceMarket = 'UK' | 'EU' | 'US' | 'JP';
@@ -142,10 +146,12 @@ export function regionalizeCardPrice<T extends CardPriceSnapshot>(
   }
 
   const nativeMarkets = REGION_NATIVE_MARKETS[region];
-  const native = usable.filter((source) => {
+  const languagePure = usable.filter((source) => !isLanguageBlendedSource(source, snapshot.language));
+  const inRegion = languagePure.filter((source) => {
     const market = getSourceMarket(source);
     return market != null && nativeMarkets.includes(market);
   });
+  const native = inRegion.length > 0 || snapshot.language !== 'en' ? inRegion : languagePure;
   const foreign = usable.filter((source) => !native.includes(source));
 
   if (native.length === 0) {
@@ -190,7 +196,7 @@ export function regionalizeCardPrice<T extends CardPriceSnapshot>(
     originalCurrency: anchor.originalCurrency === 'GBP' ? null : anchor.originalCurrency,
     updatedAt: anchor.updatedAt ?? snapshot.updatedAt,
     region,
-    priceBasis: foreignAgrees ? 'blended' : 'native',
+    priceBasis: inRegion.length === 0 ? 'foreign' : foreignAgrees ? 'blended' : 'native',
     nativeAmount: anchor.originalMarketAmount ?? anchor.marketGbpAmount,
     nativeCurrency: anchor.originalCurrency,
   };
