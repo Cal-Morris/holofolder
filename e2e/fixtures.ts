@@ -366,7 +366,15 @@ export async function mockBackends(
     return route.fulfill({ json: { cards, source: 'mirror' } });
   });
   await target.route('**/app/api/tcg-card-search**', (route) => {
-    const query = (new URL(route.request().url()).searchParams.get('q') ?? '').toLowerCase().trim();
+    const params = new URL(route.request().url()).searchParams;
+    const ids = params.get('ids')?.split(',');
+    if (ids) {
+      const cards = ids.flatMap((id) => MOCK_CARDS.filter((card) => card.id === id));
+      return route.fulfill({
+        json: { cards: cards.map((card) => ({ ...card, language: params.get('language') ?? 'en' })) },
+      });
+    }
+    const query = (params.get('q') ?? '').toLowerCase().trim();
     const [first, second] = query.split(/\s+/);
     const cards = MOCK_CARDS.filter((card) => {
       const haystack =

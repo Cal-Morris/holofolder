@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clearCardsForPokemonCache, loadCardsForPokemon } from '../hooks/use-tcgdex';
+import { clearCardsForPokemonCache, loadCardsForPokemon, loadCatalogCard, peekCatalogCard } from '../hooks/use-tcgdex';
 
 function mockFetch(handler: (url: string) => Response | Promise<Response>) {
   const calls: string[] = [];
@@ -73,6 +73,61 @@ test('failures are not cached', async () => {
     const cards = await loadCardsForPokemon(7, 'en');
     assert.equal(cards.length, 1);
     assert.equal(fetchMock.calls.length, 2);
+  } finally {
+    fetchMock.restore();
+  }
+});
+
+const oneCardResponse = () =>
+  new Response(
+    JSON.stringify({
+      cards: [{ id: 'base1-44', name: 'Bulbasaur', illustrator: 'Mitsuhiro Arita', variants: { normal: true } }],
+    }),
+    { status: 200 },
+  );
+
+test('a single card loads by id, not with every printing of its Pokémon', async () => {
+  clearCardsForPokemonCache();
+  const fetchMock = mockFetch(() => oneCardResponse());
+  try {
+    const [first, second] = await Promise.all([loadCatalogCard(1, 'base1-44'), loadCatalogCard(1, 'base1-44')]);
+    assert.deepEqual(fetchMock.calls, ['/app/api/tcg-card-search?ids=base1-44&language=en']);
+    assert.equal(first?.illustrator, 'Mitsuhiro Arita');
+    assert.deepEqual(first?.variants, { normal: true });
+    assert.equal(second, first);
+    assert.equal(peekCatalogCard(1, 'base1-44')?.illustrator, 'Mitsuhiro Arita');
+  } finally {
+    fetchMock.restore();
+  }
+});
+
+test('a card whose Pokémon list is already loaded needs no request', async () => {
+  clearCardsForPokemonCache();
+  const fetchMock = mockFetch(() => cardsResponse());
+  try {
+    await loadCardsForPokemon(1, 'en');
+    assert.equal(peekCatalogCard(1, 'base1-44')?.name, 'Bulbasaur');
+    assert.equal(peekCatalogCard(1, 'base1-99'), null);
+    assert.equal((await loadCatalogCard(1, 'base1-44'))?.name, 'Bulbasaur');
+    assert.equal(fetchMock.calls.length, 1);
+  } finally {
+    fetchMock.restore();
+  }
+});
+
+test('when the by-id lookup fails (offline, no cached copy) it falls back to the Pokémon list', async () => {
+  clearCardsForPokemonCache();
+  const fetchMock = mockFetch((url) =>
+    url.includes('tcg-card-search') ? new Response('{}', { status: 503 }) : cardsResponse(),
+  );
+  try {
+    assert.equal(peekCatalogCard(1, 'base1-44'), undefined);
+    const card = await loadCatalogCard(1, 'base1-44');
+    assert.equal(card?.name, 'Bulbasaur');
+    assert.deepEqual(fetchMock.calls, [
+      '/app/api/tcg-card-search?ids=base1-44&language=en',
+      '/app/api/tcgdex-cache?pokemonId=1&language=en',
+    ]);
   } finally {
     fetchMock.restore();
   }

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { filterAndRankCards } from '@/lib/card-search';
+import { matchesCatalogCardId } from '@/lib/card-catalog';
 
 import type { CardLanguage, TCGCard } from '@/lib/domain/cards';
 
@@ -82,6 +83,78 @@ export function loadCardsForPokemon(
 /** Test helper. */
 export function clearCardsForPokemonCache() {
   cardsCache.clear();
+  catalogCardCache.clear();
+  settledCatalogCards.clear();
+}
+
+/** How long the single-card request may take before falling back to the Pokémon's (offline-warmed) list. */
+const CATALOG_CARD_TIMEOUT_MS = 5000;
+const catalogCardCache = new Map<string, Promise<TCGCard | undefined>>();
+const settledCatalogCards = new Map<string, TCGCard | undefined>();
+
+async function requestCatalogCard(cardId: string, language: CardLanguage): Promise<TCGCard | undefined> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new Error('offline');
+  const response = await fetch(
+    `/app/api/tcg-card-search?ids=${encodeURIComponent(cardId)}&language=${encodeURIComponent(language)}`,
+    { signal: AbortSignal.timeout(CATALOG_CARD_TIMEOUT_MS) },
+  );
+  if (!response.ok) throw new Error(`API error: ${response.status}`);
+  const data = await response.json();
+  const card = Array.isArray(data.cards)
+    ? (data.cards as TCGCard[]).find((c) => matchesCatalogCardId(c, cardId))
+    : undefined;
+  if (!card) throw new Error('not found');
+  return { ...card, language };
+}
+
+/** One card if it is already loaded (its own lookup or its Pokémon's list); undefined when not known yet. */
+export function peekCatalogCard(
+  dexId: number,
+  cardId: string,
+  language: CardLanguage = 'en',
+): TCGCard | null | undefined {
+  const key = `${language}:${cardId}`;
+  if (settledCatalogCards.has(key)) return settledCatalogCards.get(key) ?? null;
+  const list = peekCardsForPokemon(dexId, language);
+  return list ? (list.find((card) => matchesCatalogCardId(card, cardId)) ?? null) : undefined;
+}
+
+/**
+ * One card's catalog details (illustrator, variants) without loading every printing of its Pokémon. The small
+ * by-id lookup is used online; offline, on a slow network or a miss it falls back to the Pokémon's list, which the
+ * service worker warms for collected Pokémon. Resolves undefined when the card isn't found.
+ */
+export function loadCatalogCard(dexId: number, cardId: string, language: CardLanguage = 'en') {
+  const key = `${language}:${cardId}`;
+  const cached = catalogCardCache.get(key);
+  if (cached) return cached;
+  const loaded = peekCardsForPokemon(dexId, language);
+  const promise = (
+    loaded
+      ? Promise.resolve(loaded.find((card) => matchesCatalogCardId(card, cardId)))
+      : requestCatalogCard(cardId, language).catch(() =>
+          loadCardsForPokemon(dexId, language).then((cards) =>
+            cards.find((card) => matchesCatalogCardId(card, cardId)),
+          ),
+        )
+  ).then(
+    (card) => {
+      settledCatalogCards.set(key, card);
+      return card;
+    },
+    (error) => {
+      catalogCardCache.delete(key);
+      throw error;
+    },
+  );
+  catalogCardCache.set(key, promise);
+  while (catalogCardCache.size > CARDS_CACHE_MAX_ENTRIES) {
+    const oldestKey = catalogCardCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    catalogCardCache.delete(oldestKey);
+    settledCatalogCards.delete(oldestKey);
+  }
+  return promise;
 }
 
 export function useTCGdex() {

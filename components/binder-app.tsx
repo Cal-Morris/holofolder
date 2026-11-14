@@ -84,7 +84,7 @@ import {
 import { normalizeCollectionItems } from '@/lib/collection/normalize';
 import { useTouchGestures } from '@/hooks/use-touch-gestures';
 import type { PocketDropMode } from '@/lib/pocket-drop';
-import { loadCardsForPokemon } from '@/hooks/use-tcgdex';
+import { loadCatalogCard } from '@/hooks/use-tcgdex';
 import {
   POKEMON_CATALOG,
   formatPokemonDisplayName,
@@ -3165,8 +3165,8 @@ function BinderAppSurface(props: BinderAppProps) {
   const selectedSlotCardDisplay = getSelectedSlotCardDisplay(collectionItem, explicitWanted);
   const selectedPrimaryCardPreview = selectedSlotCardDisplay.primaryCard;
   // The illustrator of the card shown in the detail sheet. A wanted card saves it; otherwise it comes from the
-  // Pokémon's card list (the same list the card selector uses, prefetched when the slot is pressed, so it is
-  // usually already loaded and also works offline). The row keeps a fixed height while it loads so nothing shifts.
+  // card's own catalog lookup (prefetched when the slot is pressed, so it is usually already loaded; offline it
+  // falls back to the Pokémon's cached card list). The row keeps a fixed height while it loads so nothing shifts.
   const [selectedCardIllustrator, setSelectedCardIllustrator] = useState<{ key: string; name: string | null } | null>(
     null,
   );
@@ -3183,10 +3183,10 @@ function BinderAppSurface(props: BinderAppProps) {
     const [pokemonId, ...cardIdParts] = selectedIllustratorLookupKey.split(':');
     const cardId = cardIdParts.join(':');
     let cancelled = false;
-    loadCardsForPokemon(Number(pokemonId), 'en')
-      .then((cards) => {
+    loadCatalogCard(Number(pokemonId), cardId, 'en')
+      .then((card) => {
         if (cancelled) return;
-        const name = cards.find((card) => matchesCatalogCardId(card, cardId))?.illustrator?.trim();
+        const name = card?.illustrator?.trim();
         setSelectedCardIllustrator({ key: selectedIllustratorLookupKey, name: name || null });
       })
       .catch(() => {

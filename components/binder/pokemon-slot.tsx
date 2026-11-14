@@ -5,7 +5,7 @@ import { type CSSProperties, type SyntheticEvent, memo, useState } from 'react';
 import CardImage from '@/components/card-image';
 import CardFinishShader from '@/components/card-finish-shader';
 import type { CardFinish, SlotStatus } from '@/lib/domain/cards';
-import { loadCardsForPokemon } from '@/hooks/use-tcgdex';
+import { loadCatalogCard } from '@/hooks/use-tcgdex';
 import { useLongPress } from '@/hooks/use-long-press';
 import { getBinderSlotQuickActions } from '@/lib/binder-slot-actions';
 import { toCardImageSrc } from '@/lib/card-image-url';
@@ -192,7 +192,7 @@ export const PokemonSlot = memo(function PokemonSlot({
   imageSizes = '25vw',
   cardName,
   cardFinish = 'normal',
-  hasAssignedCard,
+  assignedCardId,
   priceLabel,
   showPriceMode,
   readOnly,
@@ -224,7 +224,7 @@ export const PokemonSlot = memo(function PokemonSlot({
   cardImage?: string | null;
   cardName?: string | null;
   cardFinish?: CardFinish | null;
-  hasAssignedCard: boolean;
+  assignedCardId: string | null;
   priceLabel?: string | null;
   showPriceMode: boolean;
   readOnly: boolean;
@@ -248,6 +248,7 @@ export const PokemonSlot = memo(function PokemonSlot({
   priority?: boolean;
   buttonRef?: (node: HTMLButtonElement | null) => void;
 }) {
+  const hasAssignedCard = Boolean(assignedCardId);
   const longPress = useLongPress();
   const press = longPress.bind(onLongPress, readOnly);
 
@@ -348,7 +349,7 @@ export const PokemonSlot = memo(function PokemonSlot({
         onPointerDown={() => {
           press.onPointerDown();
           // Start loading the card's details (illustrator) as the finger goes down, before the sheet opens.
-          if (hasAssignedCard) void loadCardsForPokemon(pokemon.id, 'en').catch(() => undefined);
+          if (assignedCardId) void loadCatalogCard(pokemon.id, assignedCardId, 'en').catch(() => undefined);
         }}
         onDoubleClick={onDoubleClick}
         className={`group relative isolate h-full w-full overflow-hidden transition-[transform,box-shadow] duration-150 ${

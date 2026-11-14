@@ -27,16 +27,12 @@ test.describe('pocket detail loading', () => {
       await held;
       await route.fallback();
     });
-    await page.route('**/app/api/tcgdex-cache**', (route) =>
-      route.fulfill({
-        json: {
-          cards: syntheticSlotPickerSnapshot()
-            .cards.filter((c) => c.dexIds?.includes(143))
-            .map(({ dexIds: _d, ...c }) => c),
-          source: 'mirror',
-        },
-      }),
-    );
+    await page.route('**/app/api/tcg-card-search**', (route) => {
+      const ids = new URL(route.request().url()).searchParams.get('ids')?.split(',') ?? [];
+      return route.fulfill({
+        json: { cards: syntheticSlotPickerSnapshot().cards.filter((c) => ids.includes(c.id)) },
+      });
+    });
     await page.goto('/app/e2e-harness?signedIn=1&slots=picker&rows=2&cols=4');
     if (page.viewportSize()!.width >= 1024)
       await expect(page.getByRole('region', { name: 'Inside cover', exact: true })).toBeVisible();

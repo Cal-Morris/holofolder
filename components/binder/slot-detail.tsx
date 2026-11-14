@@ -13,8 +13,7 @@ import NativeCardPrice, { type NativeCardPricing } from '@/components/binder/nat
 import { useNativeSlotAction } from '@/hooks/use-native-slot-pick';
 import { formatCardFinishLabel, formatCardLanguageLabel } from '@/lib/card-labels';
 import { ownedCopyFinishChoices } from '@/lib/card-picker-filters';
-import { matchesCatalogCardId } from '@/lib/card-catalog';
-import { loadCardsForPokemon } from '@/hooks/use-tcgdex';
+import { loadCatalogCard } from '@/hooks/use-tcgdex';
 import type { TCGCard } from '@/lib/domain/cards';
 import { isCardLanguage } from '@/lib/domain/cards';
 import { displaySlotName, formatGradeLabel } from '@/lib/pocket-labels';
@@ -87,8 +86,8 @@ export default function SlotDetail({
   useEffect(() => {
     if (!editable || !copyCardId || !pokemonId) return;
     let live = true;
-    loadCardsForPokemon(pokemonId, copyLanguage).then(
-      (cards) => live && setCatalogCard(cards.find((card) => matchesCatalogCardId(card, copyCardId))),
+    loadCatalogCard(pokemonId, copyCardId, copyLanguage).then(
+      (card) => live && setCatalogCard(card),
       () => {},
     );
     return () => {
