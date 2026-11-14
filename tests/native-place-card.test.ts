@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nativePlacePocket, planNativePlaceCard } from '@/lib/collection/native-card-consumers';
+import {
+  nativePlacePocket,
+  planNativePlaceCard,
+  planNativeSwapIntoPocket,
+} from '@/lib/collection/native-card-consumers';
 import { prepareInventoryAction } from '@/lib/inventory-actions';
 import { pickerCandidate } from '@/lib/slot-picker';
 import { projectSlotIntent } from '@/lib/collection/slot-optimistic';
@@ -120,4 +124,35 @@ test('without keeping, the swapped-out card is then removed as a plain owned-cop
   const removed = projectSlotIntent(after, removal.intent, catalog);
   assert.equal(removed.binders[0].slots[1].inventoryItemId, NEW_ITEM);
   assert.ok(!removed.items.some((i) => i.id === 'held'));
+});
+
+const swap = (data: InventorySnapshot, slotId: string, card: SearchCardResult) => {
+  let n = 0;
+  const ctx = () => ({ ...context, operationId: `00000000-0000-4000-8000-00000000091${n++}` });
+  return planNativeSwapIntoPocket(data, BINDER, slotId, card, 'holo', ctx, catalog, NEW_ITEM);
+};
+
+test('swapping into the pocket the details came from re-reserves it for the new printing', () => {
+  const data = snapshot();
+  // A themed pocket reserved for the held printing; the new card is a different printing with no Pokémon match.
+  data.binders[0].slots[1].target = { kind: 'card', cardId: 'sv06.5-049', language: 'en' };
+  const plan = swap(data, 'slot-2', meowth);
+  assert.equal(plan.drafts.length, 3, 'clear reservation, place, reserve');
+  assert.equal(plan.swappedOut, 'held');
+  const pocket = plan.after.binders[0].slots[1];
+  assert.equal(pocket.inventoryItemId, NEW_ITEM);
+  assert.deepEqual(pocket.target, { kind: 'card', cardId: 'sv06.5-052', language: 'en' });
+  assert.ok(
+    plan.after.items.some((i) => i.id === 'held'),
+    'old card still owned',
+  );
+  // Replaying the drafts in order lands on the same result.
+  const replayed = plan.drafts.reduce((state, d) => projectSlotIntent(state, d.intent, plan.resolver), data);
+  assert.deepEqual(replayed.binders[0].slots[1].target, pocket.target);
+});
+
+test('a pocket whose reservation already fits the card is a plain swap', () => {
+  const plan = swap(snapshot(), 'slot-2', persian);
+  assert.equal(plan.drafts.length, 1);
+  assert.deepEqual(plan.after.binders[0].slots[1].target, { kind: 'pokemon', pokemonId: 53 });
 });

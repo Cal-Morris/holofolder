@@ -10,13 +10,14 @@ import { isCardLanguage, type CardFinish, type CollectedPokemon, type WantedCard
 import { getPokemonSummary } from '@/lib/pokemon-catalog';
 import type { PublicWantedCard } from '@/lib/domain/inventory-commands';
 import type { BrowseCard, SearchCardResult } from '@/lib/pokemon-card-browse';
-import { planNativePick, prepareSlotPickerIntent } from '@/lib/slot-picker';
+import { pickerCandidate, planNativePick, prepareSlotPickerIntent } from '@/lib/slot-picker';
 import { inventoryActionItemRef } from '@/lib/inventory-actions';
 import type { InventoryCatalogResolver, InventorySnapshot } from '@/lib/domain/inventory';
 import type { InventorySelection } from '@/lib/inventory-plans';
 import type { OperationIntentContext } from '@/lib/domain/audit-context';
 import type { SlotCommandSink, StagedSlotCommandIntent } from '@/lib/binder-slot-editing';
-import { parseSlotIntent } from '@/lib/collection/slot-optimistic';
+import { parseSlotIntent, projectSlotIntent } from '@/lib/collection/slot-optimistic';
+import { matchesSlotTarget } from '@/lib/domain/binder-slots';
 import type { HuntSourceItem } from '@/lib/show-hunt';
 
 export interface NativeWantedDestination {
@@ -511,4 +512,56 @@ export function planNativePlaceCard(
     }),
   };
   return { draft, resolver: plan.resolver, picked: plan.picked, swappedOut: held?.itemId ?? null };
+}
+
+/**
+ * Put this printing in one chosen pocket (the pocket its details were opened from), swapping out what is there. A
+ * pocket reserved for something else can't take the card, so its reservation is cleared first and then reserved for
+ * the new printing, keeping the page's plan. Each draft is planned on the previous one's result; queue them in order.
+ */
+export function planNativeSwapIntoPocket(
+  snapshot: InventorySnapshot,
+  collectionId: string,
+  slotId: string,
+  card: SearchCardResult,
+  finish: CardFinish,
+  context: () => OperationIntentContext,
+  catalog: InventoryCatalogResolver,
+  newItemId: string,
+) {
+  const slot = snapshot.binders.find((b) => b.collectionId === collectionId)?.slots.find((s) => s.id === slotId);
+  if (!slot) throw new Error('picker-scope-changed');
+  const scope = { ownerUserId: snapshot.ownerUserId, collectionId, slotId };
+  const target = slot.target;
+  const retarget = target !== null && !matchesSlotTarget({ ...pickerCandidate(card), finish }, target);
+  const drafts: StagedSlotCommandIntent[] = [];
+  let state = snapshot;
+  if (retarget) {
+    const cleared = prepareSlotPickerIntent(state, scope, { kind: 'target', target: null }, context(), catalog);
+    drafts.push({ scope: cleared.scope, intent: cleared.intent });
+    state = cleared.preview;
+  }
+  const place = planNativePlaceCard(state, collectionId, slotId, card, finish, context(), catalog, newItemId);
+  drafts.push(place.draft);
+  state = projectSlotIntent(state, place.draft.intent, place.resolver);
+  if (retarget) {
+    const reserved = prepareSlotPickerIntent(
+      state,
+      scope,
+      {
+        kind: 'target',
+        target: {
+          kind: 'card',
+          cardId: card.canonicalId ?? card.id,
+          ...(isCardLanguage(card.language) ? { language: card.language } : {}),
+          ...(target.kind === 'card' && target.finish ? { finish } : {}),
+        },
+      },
+      context(),
+      place.resolver,
+    );
+    drafts.push({ scope: reserved.scope, intent: reserved.intent });
+    state = reserved.preview;
+  }
+  return { drafts, resolver: place.resolver, picked: place.picked, swappedOut: place.swappedOut, after: state };
 }

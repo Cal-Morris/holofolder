@@ -97,6 +97,15 @@ export function storageCommandHarness(id: string) {
         name_json: { en: 'Bulbasaur' },
         external_ids_json: {},
       },
+      // A Trainer with no Pokémon, the mocked Similar look swaps it into the Bulbasaur pocket.
+      {
+        id: 'synthetic-owned-trainer',
+        set_id: 'synthetic-owned',
+        local_id: '101',
+        name_en: 'Synthetic Trainer',
+        name_json: { en: 'Synthetic Trainer' },
+        external_ids_json: {},
+      },
     ];
     state.tables.tcg_card_dex_ids = [
       { card_id: 'synthetic-owned-bulbasaur', dex_id: 1 },
