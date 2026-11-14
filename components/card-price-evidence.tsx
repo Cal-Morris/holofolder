@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import type { CardPriceSnapshot } from '@/lib/card-pricing';
+import { useCardPriceHistory } from '@/hooks/use-card-prices';
 import { formatCurrencyAmount, formatGbpAmount } from '@/lib/price-format';
 import { isMomentumEligibleConfidence } from '@/lib/price-momentum';
 
@@ -45,7 +46,11 @@ function formatUpdatedAt(value: string | null | undefined) {
 export function CardPriceEvidence({ price, showTrend = true, emptyMessage }: CardPriceEvidenceProps) {
   const sourcePrices = price?.sourcePrices ?? [];
   const trendPoints = (price?.trendPoints ?? []).filter((point) => point.source === 'cardmarket');
-  const history = price?.historyPoints ?? [];
+  // History is card-level TCGplayer data, so a finish quote (it has a variantKey) doesn't load it.
+  const isCardQuote = price != null && !('variantKey' in price);
+  const loadedHistory = useCardPriceHistory(isCardQuote ? price.cardId : undefined, price?.language);
+  // Until it loads (or offline with nothing saved), fall back to history already on the quote, else none.
+  const history = loadedHistory ?? price?.historyPoints ?? [];
   // Cached snapshots can contain timing calls made before confidence gates.
   const rawBuySignal = price?.buySignal ?? null;
   const buySignal =

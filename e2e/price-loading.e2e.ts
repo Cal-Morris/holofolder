@@ -43,7 +43,7 @@ test('a failed stale batch keeps the successful missing-card batch', async ({ pa
     route
       .request()
       .postDataJSON()
-      .cards.some((card: { cardId: string }) => card.cardId === 'base1-46')
+      ?.cards?.some((card: { cardId: string }) => card.cardId === 'base1-46')
       ? route.fulfill({ status: 503, json: { error: 'Synthetic batch failure' } })
       : route.fallback(),
   );
@@ -83,8 +83,8 @@ test('an offline price lookup retries when the connection returns', async ({ pag
 for (const legacy of [false, true]) {
   test(
     legacy
-      ? 'legacy IndexedDB prices refresh missing history'
-      : 'fresh IndexedDB-only prices display without another catalogue request',
+      ? 'fresh IndexedDB prices without history display without another batch request'
+      : 'fresh IndexedDB-only prices display without another batch request',
     async ({ page, insets }) => {
       await page.evaluate(
         (snapshots) =>
@@ -110,15 +110,16 @@ for (const legacy of [false, true]) {
         ],
       );
       let requests = 0;
+      // Card detail may GET its history; only batch quote requests (POST) count here.
       await page.route('**/app/api/card-prices**', (route) => {
-        requests++;
+        if (route.request().method() === 'POST') requests++;
         return route.fallback();
       });
       const harness = new Harness(page, insets, true);
       await harness.open();
       const detail = await harness.openCardDetail();
       await expect(detail.getByText('Market', { exact: true }).locator('..')).toContainText('£8.00');
-      expect(requests).toBe(legacy ? 1 : 0);
+      expect(requests).toBe(0);
       await harness.expectNoHorizontalOverflow();
     },
   );

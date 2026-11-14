@@ -39,7 +39,7 @@ export async function clearCardPriceCache(page: Page) {
         const records = transaction.objectStore('records');
         const keys = records.getAllKeys();
         keys.onsuccess = () => {
-          for (const key of keys.result) if (String(key).startsWith('price-evidence:')) records.delete(key);
+          for (const key of keys.result) if (/^price-(?:evidence|history):/.test(String(key))) records.delete(key);
         };
         transaction.oncomplete = () => {
           db.close();
@@ -70,7 +70,8 @@ export async function mockCardPrices(page: Page, byCardId: Record<string, Fixtur
           const fixture = byCardId[lookup.cardId];
           return {
             cardId: lookup.cardId,
-            historyPoints: fixture?.history ?? [],
+            // Like the server: batch POST quotes carry no history; card detail GETs it.
+            ...(route.request().method() === 'GET' ? { historyPoints: fixture?.history ?? [] } : {}),
             language: lookup.language ?? 'en',
             gbpAmount: fixture?.market ?? null,
             marketGbpAmount: fixture?.market ?? null,

@@ -1,4 +1,5 @@
 import { createMemoryStore } from '../lib/offline-store/kv';
+import type { CardPriceHistoryPoint } from '../lib/card-price-history';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -7,7 +8,9 @@ import {
   buildCardPriceFetchPlan,
   capPriceCacheEntries,
   getCardPriceKey,
+  loadCardPriceHistory,
   mergeCardPriceState,
+  normalizeFetchedCardPrice,
   loadPriceEvidence,
   pickStableCardPriceLookups,
   normalizeCardPriceLookups,
@@ -54,9 +57,9 @@ test('offline preparation preserves current quotes locally and full validated hi
     const cache = JSON.parse([...stored.values()][0]);
     assert.equal(cache['fixture-existing::en'].marketGbpAmount, 12);
     assert.equal(cache['fixture-new::en'].historyPoints.length, 0);
-    const full = (await store.get('price-evidence:fixture-new::en')) as CardPriceSnapshot;
-    assert.equal(full.historyPoints?.length, 1);
-    assert.equal(full.historyPoints?.[0].currency, 'USD');
+    const full = (await store.get('price-history:fixture-new::en')) as { points: CardPriceSnapshot['historyPoints'] };
+    assert.equal(full.points?.length, 1);
+    assert.equal(full.points?.[0].currency, 'USD');
     // A broken localStorage no longer fails the download: IndexedDB evidence is what offline reads use.
     globalThis.localStorage.setItem = () => {
       throw new Error('Storage full');
@@ -103,8 +106,10 @@ test("a full set's history does not consume localStorage's five-megabyte quota",
       Array.from({ length: 200 }, (_, i) => ({ ...priceSnapshot(`fixture-${i}`, now), historyPoints: history })),
       store,
     );
-    assert.equal((await store.keys()).length, 200);
-    assert.equal(((await store.get('price-evidence:fixture-0::en')) as CardPriceSnapshot).historyPoints?.length, 270);
+    // Each card keeps its quote and, under its own key, its history.
+    assert.equal((await store.keys()).length, 400);
+    assert.equal(((await store.get('price-evidence:fixture-0::en')) as CardPriceSnapshot).historyPoints, undefined);
+    assert.equal(((await store.get('price-history:fixture-0::en')) as { points: unknown[] }).points.length, 270);
     assert.ok(local.length * 2 < 5 * 1024 * 1024);
   } finally {
     globalThis.localStorage = original;
@@ -136,11 +141,19 @@ function priceSnapshot(cardId: string, fetchedAt: number): CardPriceSnapshot {
   };
 }
 
-test('missing prices retry after five minutes, while legacy evidence stays available offline', () => {
+test('missing prices retry after five minutes, while quotes without history stay fresh', () => {
   const empty = { ...priceSnapshot('fixture-1', now - 300_000), gbpAmount: null, marketGbpAmount: null };
   const legacy = { ...priceSnapshot('fixture-2', now), historyPoints: undefined };
   const cache = { 'fixture-1::en': empty, 'fixture-2::en': legacy };
-  assert.equal(buildCardPriceFetchPlan(['fixture-1', 'fixture-2'], cache, { now }).fetchBatches[0].length, 2);
+  // Batch quotes never carry history, so a quote without it is not refetched; card detail loads it.
+  assert.deepEqual(buildCardPriceFetchPlan(['fixture-1', 'fixture-2'], cache, { now }).fetchBatches, [
+    [{ cardId: 'fixture-1', language: 'en' }],
+  ]);
+  assert.equal(
+    buildCardPriceFetchPlan(['fixture-2'], { 'fixture-2::en': { ...legacy, finishPrices: undefined } }, { now })
+      .fetchBatches.length,
+    1,
+  );
   assert.equal(
     buildCardPriceFetchPlan(['fixture-1'], { 'fixture-1::en': { ...empty, fetchedAt: now - 299_999 } }, { now })
       .fetchBatches.length,
@@ -312,7 +325,7 @@ test('offline download still saves every quote to IndexedDB when localStorage mu
       Array.from({ length: 300 }, (_, i) => priceSnapshot(`fixture-${i}`, now)),
       store,
     );
-    assert.equal((await store.keys()).length, 300);
+    assert.equal((await store.keys()).filter((key) => key.startsWith('price-evidence:')).length, 300);
     const saved = JSON.parse(stored.get(QUOTA_KEY)!);
     assert.ok(Object.keys(saved).length > 0 && Object.keys(saved).length <= 70);
   } finally {
@@ -418,7 +431,8 @@ test('price evidence batches preserve all quotes, validation and missing evidenc
     // Synthetic collection large enough to cross two batch boundaries.
     const prices = Array.from({ length: 205 }, (_, i) => priceSnapshot(`fixture-${i}`, now));
     await saveCardPricesForOffline(prices, batchedStore);
-    assert.deepEqual(writes, [100, 100, 5]);
+    // 100 quotes per transaction, each with its (empty) history entry.
+    assert.deepEqual(writes, [200, 200, 10]);
     const evidence = await loadPriceEvidence(prices, batchedStore);
     assert.deepEqual(reads, [100, 100, 5]);
     assert.deepEqual(
@@ -448,6 +462,90 @@ test('price evidence batches preserve all quotes, validation and missing evidenc
       }),
       /disk full/,
     );
+  } finally {
+    globalThis.localStorage = original;
+  }
+});
+
+// Synthetic TCGplayer history, not market data.
+const historyPoint: CardPriceHistoryPoint = {
+  date: '2026-06-01',
+  source: 'tcgplayer',
+  currency: 'USD',
+  amount: 4,
+  lowAmount: 2,
+  finish: 'normal',
+  productId: '123',
+};
+
+test('batch quotes without history normalize to unknown history, not an empty one', () => {
+  const { historyPoints: _historyPoints, ...batchQuote } = priceSnapshot('fixture-batch', now);
+  assert.equal(normalizeFetchedCardPrice(batchQuote)?.historyPoints, undefined);
+  assert.deepEqual(normalizeFetchedCardPrice({ ...batchQuote, historyPoints: [] })?.historyPoints, []);
+});
+
+test('card detail history is downloaded once, saved for offline, and survives batch quote writes', async () => {
+  const store = createMemoryStore();
+  const original = globalThis.localStorage;
+  globalThis.localStorage = { getItem: () => null, setItem: () => undefined } as unknown as Storage;
+  const requests: string[] = [];
+  const request = (async (url: string) => {
+    requests.push(url);
+    return Response.json({
+      prices: [{ ...priceSnapshot('sv1-001', now), historyPoints: [historyPoint, { amount: -1 }] }],
+    });
+  }) as unknown as typeof fetch;
+  const shown: CardPriceHistoryPoint[][] = [];
+  const lookup = { cardId: 'sv1-001', language: 'en' };
+  try {
+    await loadCardPriceHistory(lookup, (points) => shown.push(points), { store, online: true, now, request });
+    assert.equal(requests.length, 1);
+    assert.match(
+      decodeURIComponent(requests[0]),
+      /\/app\/api\/card-prices\?cards=\[\{"cardId":"sv1-001","language":"en"\}\]$/,
+    );
+    assert.deepEqual(shown, [[historyPoint]]);
+
+    // A later batch quote (no history) must not wipe the saved history.
+    const { historyPoints: _historyPoints, ...batchQuote } = priceSnapshot('sv1-001', now + 1);
+    await saveCardPricesForOffline([batchQuote], store);
+
+    // Fresh copy: shown from the store, no second download.
+    await loadCardPriceHistory(lookup, (points) => shown.push(points), { store, online: true, now: now + 1, request });
+    assert.equal(requests.length, 1);
+    // Offline and stale: still shows the saved copy, never downloads.
+    const stale = now + CARD_PRICE_CACHE_STALE_MS;
+    await loadCardPriceHistory(lookup, (points) => shown.push(points), { store, online: false, now: stale, request });
+    assert.equal(requests.length, 1);
+    assert.deepEqual(shown.slice(1), [[historyPoint], [historyPoint]]);
+    // Online and stale: refreshes.
+    await loadCardPriceHistory(lookup, () => undefined, { store, online: true, now: stale, request });
+    assert.equal(requests.length, 2);
+  } finally {
+    globalThis.localStorage = original;
+  }
+});
+
+test('offline downloads save history for card detail; a card with no saved row has none', async () => {
+  const store = createMemoryStore();
+  const original = globalThis.localStorage;
+  globalThis.localStorage = { getItem: () => null, setItem: () => undefined } as unknown as Storage;
+  try {
+    await saveCardPricesForOffline([{ ...priceSnapshot('fixture-show', now), historyPoints: [historyPoint] }], store);
+    const shown: CardPriceHistoryPoint[][] = [];
+    const offline = { store, online: false, now };
+    await loadCardPriceHistory({ cardId: 'fixture-show' }, (points) => shown.push(points), offline);
+    await loadCardPriceHistory({ cardId: 'fixture-unsaved' }, (points) => shown.push(points), offline);
+    assert.deepEqual(shown, [[historyPoint]]);
+
+    const empty = (async () => Response.json({ prices: [] })) as unknown as typeof fetch;
+    await loadCardPriceHistory({ cardId: 'fixture-unsaved' }, (points) => shown.push(points), {
+      store,
+      online: true,
+      now,
+      request: empty,
+    });
+    assert.deepEqual(shown.at(-1), []);
   } finally {
     globalThis.localStorage = original;
   }

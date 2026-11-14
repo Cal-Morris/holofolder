@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { normalizeDisplayFxRates, type DisplayFxRates } from '@/lib/regional-price';
-import { normalizePriceHistory } from '@/lib/card-price-history';
+import { normalizePriceHistory, type CardPriceHistoryPoint } from '@/lib/card-price-history';
 import { mapWithConcurrency } from '@/lib/card-db-sync-concurrency';
 import { getOfflineStore, type OfflineKeyValueStore } from '@/lib/offline-store/kv';
 
@@ -92,7 +92,8 @@ export function buildCardPriceFetchPlan(
 
     cachedPrices[cacheKey] = cached;
     const ttl = cached.marketGbpAmount == null ? CARD_PRICE_MISSING_CACHE_TTL_MS : CARD_PRICE_CACHE_STALE_MS;
-    if (now - cached.fetchedAt >= ttl || cached.finishPrices === undefined || cached.historyPoints === undefined) {
+    // No history check: batch quotes never carry it, card detail loads it (useCardPriceHistory).
+    if (now - cached.fetchedAt >= ttl || cached.finishPrices === undefined) {
       staleLookups.push(lookup);
     }
   }
@@ -327,7 +328,8 @@ export function normalizeFetchedCardPrice(value: unknown): CardPriceSnapshot | n
   if (!value || typeof value !== 'object' || typeof (value as { cardId?: unknown }).cardId !== 'string') return null;
   const price = value as Partial<CardPriceSnapshot> & { cardId: string };
   const snapshot: CardPriceSnapshot = {
-    historyPoints: normalizePriceHistory(price.historyPoints),
+    // Absent means not loaded (batch and summary quotes), not "no history".
+    historyPoints: Array.isArray(price.historyPoints) ? normalizePriceHistory(price.historyPoints) : undefined,
     finishPrices: normalizeFinishPrices(price.finishPrices),
     cardId: price.cardId,
     language: normalizeCardLanguage(price.language),
@@ -378,17 +380,90 @@ export async function saveCardPricesForOffline(prices: unknown[], store = getOff
 }
 
 const PRICE_EVIDENCE_BATCH_SIZE = 100;
+const PRICE_HISTORY_KEY_PREFIX = 'price-history:';
+
+/** Card detail history, kept under its own key so batch quotes (which carry none) never overwrite it. */
+interface SavedPriceHistory {
+  fetchedAt: number;
+  points: CardPriceHistoryPoint[];
+}
 
 async function persistPriceEvidence(prices: CardPriceSnapshot[], store = getOfflineStore()) {
   if (!store) throw new Error('Offline price storage is unavailable on this device');
   for (let offset = 0; offset < prices.length; offset += PRICE_EVIDENCE_BATCH_SIZE) {
+    const batch = prices.slice(offset, offset + PRICE_EVIDENCE_BATCH_SIZE);
     // oxlint-disable-next-line react-doctor/async-await-in-loop -- 100 keys per IndexedDB write keeps transactions small; batches run in order.
     await store.setMany(
-      prices
-        .slice(offset, offset + PRICE_EVIDENCE_BATCH_SIZE)
-        .map((price) => [`price-evidence:${getCardPriceKey(price.cardId, price.language)}`, price] as const),
+      batch.flatMap(({ historyPoints, ...quote }) => {
+        const key = getCardPriceKey(quote.cardId, quote.language);
+        const entries: Array<readonly [string, unknown]> = [[`price-evidence:${key}`, quote]];
+        // History is stored once, under its own key, so a later batch quote can't overwrite it.
+        if (historyPoints)
+          entries.push([
+            `${PRICE_HISTORY_KEY_PREFIX}${key}`,
+            { fetchedAt: quote.fetchedAt, points: historyPoints } satisfies SavedPriceHistory,
+          ]);
+        return entries;
+      }),
     );
   }
+}
+
+/**
+ * Card detail history: reports the saved copy, then, online and when it's missing or older than a quote's
+ * TTL, downloads the card's saved evidence (no provider call) and saves its history for offline use.
+ */
+export async function loadCardPriceHistory(
+  lookup: CardPriceLookup,
+  onPoints: (points: CardPriceHistoryPoint[]) => void,
+  {
+    store = getOfflineStore(),
+    online = typeof navigator === 'undefined' || navigator.onLine,
+    now = Date.now(),
+    request = fetch,
+  }: { store?: OfflineKeyValueStore | null; online?: boolean; now?: number; request?: typeof fetch } = {},
+) {
+  const card = { cardId: lookup.cardId, language: normalizeCardLanguage(lookup.language) };
+  const key = `${PRICE_HISTORY_KEY_PREFIX}${getCardPriceKey(card.cardId, card.language)}`;
+  const saved = await store?.get<SavedPriceHistory>(key).catch(() => undefined);
+  const valid = saved && Number.isFinite(saved.fetchedAt) && Array.isArray(saved.points) ? saved : null;
+  if (valid) onPoints(normalizePriceHistory(valid.points));
+  if (!online || (valid && now - valid.fetchedAt < CARD_PRICE_CACHE_STALE_MS)) return;
+
+  const response = await request(`/app/api/card-prices?${new URLSearchParams({ cards: JSON.stringify([card]) })}`, {
+    cache: 'no-store',
+  });
+  if (!response.ok) return;
+  const payload = await response.json();
+  if (!Array.isArray(payload?.prices)) return;
+  const price = payload.prices.find(
+    (value: unknown) =>
+      (value as CardPriceSnapshot | null)?.cardId === card.cardId &&
+      normalizeCardLanguage((value as CardPriceSnapshot).language) === card.language,
+  );
+  // No saved row means no recorded history yet: known empty, not an error.
+  const points = normalizePriceHistory(price?.historyPoints);
+  onPoints(points);
+  await store?.set(key, { fetchedAt: now, points } satisfies SavedPriceHistory).catch(() => undefined);
+}
+
+/** History for one card's detail; null until known (saved or downloaded). Never invents points. */
+export function useCardPriceHistory(cardId: string | undefined, language: string | undefined) {
+  const key = cardId ? getCardPriceKey(cardId, normalizeCardLanguage(language)) : null;
+  const [loaded, setLoaded] = useState<{ key: string; points: CardPriceHistoryPoint[] } | null>(null);
+
+  useEffect(() => {
+    if (!key || !cardId) return;
+    let cancelled = false;
+    void loadCardPriceHistory({ cardId, language }, (points) => {
+      if (!cancelled) setLoaded({ key, points });
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [key, cardId, language]);
+
+  return loaded?.key === key ? loaded.points : null;
 }
 
 export async function loadPriceEvidence(
