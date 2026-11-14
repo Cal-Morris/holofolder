@@ -14,6 +14,7 @@
     "sync-card-supplements": "bun scripts/sync-card-supplements.ts",
     "card-assets": "bun scripts/card-assets.ts",
     "card-nicknames": "bun scripts/card-nicknames.ts",
+    "social-images": "node marketing/social/render.mjs",
     "start": "next start",
     "test": "bun test --parallel tests/",
     "test:api:smoke": "bun scripts/api-smoke.ts",

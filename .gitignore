@@ -37,3 +37,6 @@ gitleaks-report.*
 
 # Marketing notes that name real people (creator outreach, contacts)
 /marketing/private/
+
+# Generated social images
+marketing/social/out/
