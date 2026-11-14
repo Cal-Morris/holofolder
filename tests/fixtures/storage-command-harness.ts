@@ -106,6 +106,14 @@ export function storageCommandHarness(id: string) {
         name_json: { en: 'Synthetic Trainer' },
         external_ids_json: {},
       },
+      {
+        id: 'synthetic-owned-trainer-2',
+        set_id: 'synthetic-owned',
+        local_id: '102',
+        name_en: 'Synthetic Trainer',
+        name_json: { en: 'Synthetic Trainer' },
+        external_ids_json: {},
+      },
     ];
     state.tables.tcg_card_dex_ids = [
       { card_id: 'synthetic-owned-bulbasaur', dex_id: 1 },
@@ -131,6 +139,11 @@ export function storageCommandHarness(id: string) {
     });
     state.tables.binder_slots[0].target = { kind: 'pokemon', pokemonId: 1 };
     state.tables.binder_slots[0].status = 'collected';
+    if (id.startsWith('owned-trainer-')) {
+      // A themed pocket reserved for, and holding, the Trainer instead.
+      state.tables.inventory_items[0].identity = { kind: 'card', cardId: 'synthetic-owned-trainer', language: 'en' };
+      state.tables.binder_slots[0].target = { kind: 'card', cardId: 'synthetic-owned-trainer', language: 'en' };
+    }
   }
   if (id.startsWith('harness-')) seedHarnessBinder(state.tables, owner);
   if (id.startsWith('import-'))

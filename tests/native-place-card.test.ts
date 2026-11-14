@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   nativePlacePocket,
+  nativeTargetPocket,
   planNativePlaceCard,
   planNativeSwapIntoPocket,
 } from '@/lib/collection/native-card-consumers';
@@ -155,4 +156,13 @@ test('a pocket whose reservation already fits the card is a plain swap', () => {
   const plan = swap(snapshot(), 'slot-2', persian);
   assert.equal(plan.drafts.length, 1);
   assert.deepEqual(plan.after.binders[0].slots[1].target, { kind: 'pokemon', pokemonId: 53 });
+});
+
+test("the pocket a grid was opened from wins over the card's own pocket, even with no Pokémon match", () => {
+  const data = snapshot();
+  const trainer = { ...meowth, id: 'sv06.5-090', name: 'Synthetic Trainer', dexIds: [] };
+  assert.equal(nativeTargetPocket(data, BINDER, trainer), null, 'no pocket of its own');
+  assert.equal(nativeTargetPocket(data, BINDER, trainer, 'slot-2')?.id, 'slot-2');
+  assert.equal(nativeTargetPocket(data, BINDER, persian, 'slot-3')?.id, 'slot-3');
+  assert.equal(nativeTargetPocket(data, BINDER, persian, 'gone'), null);
 });

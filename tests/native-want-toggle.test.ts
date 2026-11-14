@@ -119,3 +119,14 @@ test('removing takes out exactly that want, and refuses when the pocket changed 
     ),
   );
 });
+
+test('opened from a pocket, the want goes on that pocket even with no Pokémon or card match', () => {
+  const data = snapshot();
+  const mew = { ...persian, id: 'sv03.5-151', name: 'Mew', dexIds: [151] };
+  const draft = planNativeAddWant(data, BINDER, mew, 'holo', context, AT, 'slot-2')!;
+  const after = projectSlotIntent(data, draft.intent, () => undefined);
+  assert.deepEqual(
+    after.binders[0].slots.find((s) => s.id === 'slot-2')!.wantedCards.map((w) => w.card_id),
+    ['sv03.5-151'],
+  );
+});

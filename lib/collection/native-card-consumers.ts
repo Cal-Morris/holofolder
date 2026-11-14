@@ -331,15 +331,18 @@ export function nativeHuntItems(
 }
 
 /**
- * The open binder's pocket a new want for this printing goes in: a pocket reserved for exactly this card, else its
- * Pokémon's pocket. Null when there is no open binder or it has no pocket for the card (wants live on pockets).
+ * The open binder's pocket a new want for this printing goes in: the pocket it was opened from when there is one,
+ * else a pocket reserved for exactly this card, else its Pokémon's pocket. Null when there is no open binder or it has
+ * no pocket for the card (wants live on pockets).
  */
 export function nativeWantPocket(
   snapshot: InventorySnapshot,
   collectionId: string | undefined,
   card: SearchCardResult,
+  pocketId?: string | null,
 ) {
   const slots = snapshot.binders.find((b) => b.collectionId === collectionId)?.slots ?? [];
+  if (pocketId) return slots.find((s) => s.id === pocketId) ?? null;
   return (
     slots.find(
       (s) =>
@@ -397,8 +400,9 @@ export function planNativeAddWant(
   finish: CardFinish,
   context: OperationIntentContext,
   addedAt: string,
+  pocketId?: string | null,
 ) {
-  const pocket = nativeWantPocket(snapshot, collectionId, card);
+  const pocket = nativeWantPocket(snapshot, collectionId, card, pocketId);
   if (!pocket || !collectionId || !isCardLanguage(card.language)) return null;
   const want: WantedCard = {
     card_id: card.canonicalId ?? card.id,
@@ -456,6 +460,17 @@ export function nativePlacePocket(
     ? reserved
     : slots.filter((s) => s.target?.kind === 'pokemon' && card.dexIds.includes(s.target.pokemonId));
   return matches.length === 1 ? matches[0] : null;
+}
+
+/** Where Add or Swap puts a card: the pocket it was opened from when there is one, else its one clear pocket. */
+export function nativeTargetPocket(
+  snapshot: InventorySnapshot,
+  collectionId: string | undefined,
+  card: SearchCardResult,
+  pocketId?: string | null,
+) {
+  if (!pocketId) return nativePlacePocket(snapshot, collectionId, card);
+  return snapshot.binders.find((b) => b.collectionId === collectionId)?.slots.find((s) => s.id === pocketId) ?? null;
 }
 
 /**
