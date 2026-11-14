@@ -1,4 +1,4 @@
-import type { BinderView } from '@/lib/binder-design';
+import type { BinderPage, BinderView } from '@/lib/binder-design';
 
 type Point = [number, number, number];
 const directions: Record<BinderView, Point> = {
@@ -15,6 +15,7 @@ export function binderCameraFrame(
   width: number,
   height: number,
   coverDepth: number,
+  page: Pick<BinderPage, 'coverWidth' | 'coverHeight'>,
 ): { position: Point; target: Point } {
   const direction = directions[view],
     length = Math.hypot(...direction);
@@ -22,14 +23,16 @@ export function binderCameraFrame(
   const horizontal = Math.hypot(dx, dz);
   const right: Point = [dz / horizontal, 0, -dx / horizontal];
   const up: Point = [(-dy * dx) / horizontal, horizontal, (-dy * dz) / horizontal];
-  const left = view === 'inside' ? -4.1 : Math.min(-1.6, -1.3 - 0.75 * coverDepth);
-  const rightEdge = view === 'inside' ? 1.5 : 1.6;
+  const half = page.coverWidth / 2,
+    top = page.coverHeight / 2 + 0.07;
+  const left = view === 'inside' ? -half - page.coverWidth - 0.2 : Math.min(-half - 0.3, -half - 0.75 * coverDepth);
+  const rightEdge = view === 'inside' ? half + 0.2 : half + 0.3;
   const target: Point = [(left + rightEdge) / 2, 0, 0];
   const tangent = Math.tan((17 * Math.PI) / 180),
     aspect = Math.max(1, width) / Math.max(1, height);
   let distance = 2;
   for (const x of [left, rightEdge]) {
-    for (const y of [-1.82, 1.82]) {
+    for (const y of [-top, top]) {
       for (const z of [-coverDepth - 0.1, coverDepth + 0.1]) {
         const px = x - target[0];
         const depth = px * dx + y * dy + z * dz;

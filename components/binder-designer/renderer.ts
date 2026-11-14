@@ -12,7 +12,7 @@ import {
   binderTurnPage,
   pageTurnPoint,
   binderPocket,
-  BINDER_PAGE,
+  binderPage,
   BINDER_LAYERS,
   type BinderDesign,
   type BinderPart,
@@ -40,7 +40,7 @@ export function createBinderRenderer(
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
-  renderer.toneMappingExposure = 0.85;
+  renderer.toneMappingExposure = 0.95;
   renderer.domElement.setAttribute(
     'aria-label',
     '3D binder, swipe to turn pages, pinch to zoom, drag when zoomed to pan, two fingers to orbit, tap a slot for details',
@@ -63,16 +63,21 @@ export function createBinderRenderer(
   scene.environment = environment.texture;
   room.dispose();
   pmrem.dispose();
-  scene.environmentIntensity = 0.3;
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x252124, 0.8));
-  const key = new THREE.DirectionalLight(0xffffff, 1.8);
+  scene.environmentIntensity = 0.45;
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x18171a, 0.35));
+  // Warm key from the top left, cool rim from behind on the right: soft studio light on leather.
+  // A wide soft spot rather than a flat sun, so covers fall off from top left instead of reading as one grey slab.
+  const key = new THREE.SpotLight(0xfff8f2, 260, 0, 0.42, 1, 2);
   key.position.set(-4, 6, 7);
-  scene.add(key);
+  const rim = new THREE.DirectionalLight(0xdfe6ff, 1.1);
+  rim.position.set(6, 3, -4);
+  scene.add(key, key.target, rim);
   const root = new THREE.Group();
   scene.add(root);
   let hinge = new THREE.Group(),
     binding: THREE.Mesh<THREE.BufferGeometry, THREE.MeshPhysicalMaterial> | null = null;
-  let radius = 0.3,
+  let layout = binderPage(3, 3),
+    radius = 0.3,
     opening = 0,
     view: BinderView = 'front',
     targets: THREE.Object3D[] = [],
@@ -234,13 +239,55 @@ export function createBinderRenderer(
   const grain = new THREE.CanvasTexture(noise);
   grain.wrapS = grain.wrapT = THREE.RepeatWrapping;
   grain.repeat.set(9, 12);
+  function canvasTexture(width: number, height: number, paint: (ctx: CanvasRenderingContext2D) => void) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    paint(canvas.getContext('2d')!);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+  // Pocket film: a faint top-lit gloss, one soft vertical glare and a thin welded edge, like the 2D sleeves.
+  const sheen = canvasTexture(256, 358, (ctx) => {
+    const gloss = ctx.createLinearGradient(0, 0, 0, 358);
+    gloss.addColorStop(0, 'rgba(255,255,255,.07)');
+    gloss.addColorStop(0.45, 'rgba(255,255,255,.015)');
+    gloss.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gloss;
+    ctx.fillRect(0, 0, 256, 358);
+    const glare = ctx.createLinearGradient(0, 24, 0, 300);
+    glare.addColorStop(0, 'rgba(255,255,255,.16)');
+    glare.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.filter = 'blur(6px)';
+    ctx.fillStyle = glare;
+    ctx.beginPath();
+    ctx.roundRect(22, 22, 20, 290, 10);
+    ctx.fill();
+    ctx.filter = 'none';
+    ctx.strokeStyle = 'rgba(255,255,255,.16)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(3, 3, 250, 352, 10);
+    ctx.stroke();
+  });
+  // A soft contact shadow under each cover, so the binder sits on something.
+  const contact = canvasTexture(256, 256, (ctx) => {
+    ctx.filter = 'blur(22px)';
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.roundRect(48, 48, 160, 160, 18);
+    ctx.fill();
+  });
+  let flapShadow: THREE.MeshBasicMaterial | null = null;
   function leather(color: string, smooth = false) {
     return new THREE.MeshPhysicalMaterial({
       color,
       roughness: smooth ? 0.4 : 0.7,
       bumpMap: grain,
       bumpScale: smooth ? 0.003 : 0.014,
-      clearcoat: 0.12,
+      clearcoat: 0.3,
+      clearcoatRoughness: 0.45,
       side: THREE.DoubleSide,
     });
   }
@@ -269,9 +316,12 @@ export function createBinderRenderer(
     const d = input.design,
       s = d.surfaces[surface],
       canvas = document.createElement('canvas');
-    const width = surface === 'spine' ? 256 : 768,
+    // Covers follow the layout's footprint so artwork and words never stretch.
+    const cover = binderPage(d.rows, d.cols),
+      aspect = cover.coverWidth / cover.coverHeight;
+    const width = surface === 'spine' ? 256 : Math.round(1024 * aspect),
       height = 1024;
-    canvas.width = surface === 'spine' ? 512 : 2048;
+    canvas.width = surface === 'spine' ? 512 : Math.round(2732 * aspect);
     canvas.height = surface === 'spine' ? 2048 : 2732;
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = s.color;
@@ -308,7 +358,7 @@ export function createBinderRenderer(
       ];
       ctx.fillStyle = '#16171be8';
       ctx.beginPath();
-      ctx.roundRect(45, 560, 678, 100 + rows.length * 50, 18);
+      ctx.roundRect(45, 560, Math.min(width - 90, 678), 100 + rows.length * 50, 18);
       ctx.fill();
       ctx.fillStyle = '#bdbdbd';
       ctx.font = '500 21px sans-serif';
@@ -333,25 +383,27 @@ export function createBinderRenderer(
     const r = radius,
       c = Math.cos(angle),
       s = Math.sin(angle);
-    const curve = new THREE.CubicBezierCurve3(
-      new THREE.Vector3(-1.3, 0, -r),
-      new THREE.Vector3(-1.3 - r, 0, -r),
-      new THREE.Vector3(-1.3 - r * c + r * s, 0, r * s + r * c),
-      new THREE.Vector3(-1.3 + r * s, 0, r * c),
-    );
+    const x = layout.hingeX,
+      curve = new THREE.CubicBezierCurve3(
+        new THREE.Vector3(x, 0, -r),
+        new THREE.Vector3(x - r, 0, -r),
+        new THREE.Vector3(x - r * c + r * s, 0, r * s + r * c),
+        new THREE.Vector3(x + r * s, 0, r * c),
+      );
     const p = binding.geometry.attributes.position;
     for (let row = 0; row < 2; row++)
       for (let n = 0; n <= 32; n++) {
         const v = curve.getPoint(n / 32);
-        p.setXYZ(row * 33 + n, v.x, row ? 1.75 : -1.75, v.z);
+        p.setXYZ(row * 33 + n, v.x, ((row ? 1 : -1) * layout.coverHeight) / 2, v.z);
       }
     p.needsUpdate = true;
     binding.geometry.computeVertexNormals();
     binding.geometry.computeBoundingSphere();
   }
   function fitView() {
-    const frame = binderCameraFrame(view, stage.clientWidth, stage.clientHeight, radius);
+    const frame = binderCameraFrame(view, stage.clientWidth, stage.clientHeight, radius, layout);
     controls.target.set(...frame.target);
+    key.target.position.set(...frame.target);
     camera.position.set(...frame.position);
     fittedDistance = camera.position.distanceTo(controls.target);
   }
@@ -363,6 +415,7 @@ export function createBinderRenderer(
     const applyOpening = (angle: number) => {
       opening = angle;
       hinge.rotation.y = angle;
+      if (flapShadow) flapShadow.opacity = 0.55 * (-angle / Math.PI) ** 2;
       updateBinding(angle);
     };
     if (render) {
@@ -414,12 +467,7 @@ export function createBinderRenderer(
     for (const { object, positions } of objects) {
       const attribute = object.geometry.attributes.position;
       for (let i = 0; i < attribute.count; i++) {
-        const p = pageTurnPoint(
-          positions[i * 3],
-          positions[i * 3 + 2],
-          BINDER_PAGE.width + BINDER_PAGE.inset,
-          progress,
-        );
+        const p = pageTurnPoint(positions[i * 3], positions[i * 3 + 2], layout.width + layout.inset, progress);
         attribute.setXYZ(i, p.x, positions[i * 3 + 1], p.z);
       }
       attribute.needsUpdate = true;
@@ -482,8 +530,8 @@ export function createBinderRenderer(
     };
     const sided = side === 1 ? THREE.FrontSide : THREE.BackSide,
       color = input.design.pageColors[String(face)] ?? input.design.pageColor;
-    const paper = new THREE.PlaneGeometry(2.25, 3.13, 24, 8);
-    paper.translate(BINDER_PAGE.inset + BINDER_PAGE.width / 2, 0, (side * BINDER_LAYERS.backing) / 2);
+    const paper = new THREE.PlaneGeometry(layout.width, layout.height, 24, 8);
+    paper.translate(layout.inset + layout.width / 2, 0, (side * BINDER_LAYERS.backing) / 2);
     attach(paper, new THREE.MeshStandardMaterial({ color, roughness: 0.9, side: sided }));
     // The first card for each pocket, as find() would pick it.
     const byPocket = new Map<number, (typeof loaded)[number]>();
@@ -510,7 +558,7 @@ export function createBinderRenderer(
             ctx.drawImage(im, 0, 0, canvas.width, canvas.height);
             ctx.filter = 'none';
           }
-          if (presentation) {
+          if (presentation && (presentation !== 'owned' || !im)) {
             const font = Math.max(12, Math.round(canvas.width / 15));
             ctx.fillStyle = im ? 'rgba(0,0,0,.85)' : '#24262c';
             ctx.fillRect(0, im ? canvas.height - font * 4 : 0, canvas.width, im ? font * 4 : canvas.height);
@@ -536,7 +584,7 @@ export function createBinderRenderer(
           pageTextures.set(textureKey, tex);
           renderer.initTexture(tex);
         }
-        const cardW = Math.min(w * 0.88, (h * 0.88 * 63) / 88),
+        const cardW = Math.min(w * 0.92, (h * 0.92 * 63) / 88),
           g = new THREE.PlaneGeometry(cardW, (cardW * 88) / 63, 8, 4);
         g.translate(x, y, side * (BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card));
         if (side === -1) {
@@ -549,57 +597,23 @@ export function createBinderRenderer(
         );
       }
       const filmZ = side * (BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film);
-      const film = new THREE.PlaneGeometry(w * 0.94, h * 0.94, 8, 4);
+      const film = new THREE.PlaneGeometry(w * 0.96, h * 0.97, 8, 4);
       film.translate(x, y, filmZ);
+      if (side === -1) {
+        const uv = film.attributes.uv;
+        for (let n = 0; n < uv.count; n++) uv.setX(n, 1 - uv.getX(n));
+      }
       const pocket = attach(
         film,
-        new THREE.MeshPhysicalMaterial({
-          color: '#ffffff',
+        new THREE.MeshBasicMaterial({
+          map: sheen,
           transparent: true,
-          opacity: 0.045,
-          roughness: 0.23,
-          clearcoat: 0.6,
-          clearcoatRoughness: 0.12,
           depthWrite: false,
           side: sided,
+          toneMapped: false,
         }),
       );
       pocket.userData.slot = start + i;
-      const points = [
-        x - w * 0.47,
-        y - h * 0.47,
-        filmZ,
-        x + w * 0.47,
-        y - h * 0.47,
-        filmZ,
-        x + w * 0.47,
-        y - h * 0.47,
-        filmZ,
-        x + w * 0.47,
-        y + h * 0.47,
-        filmZ,
-        x + w * 0.47,
-        y + h * 0.47,
-        filmZ,
-        x - w * 0.47,
-        y + h * 0.47,
-        filmZ,
-        x - w * 0.47,
-        y + h * 0.47,
-        filmZ,
-        x - w * 0.47,
-        y - h * 0.47,
-        filmZ,
-      ];
-      const edge = new THREE.BufferGeometry();
-      edge.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
-      (edge.attributes.position as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
-      const line = new THREE.LineSegments(
-        edge,
-        new THREE.LineBasicMaterial({ color: '#bfc0c3', transparent: true, opacity: 0.2 }),
-      );
-      parent.add(line);
-      objects.push({ object: line, positions: new Float32Array(edge.attributes.position.array) });
     }
   }
   async function pagePanel(
@@ -612,7 +626,7 @@ export function createBinderRenderer(
   ) {
     const group = new THREE.Group(),
       objects: Deformable[] = [];
-    group.position.set(BINDER_PAGE.hingeX, 0, z);
+    group.position.set(layout.hingeX, 0, z);
     parent.add(group);
     await makeFace(input, face, left ? -1 : 1, group, objects, token);
     deform(objects, left ? 1 : 0);
@@ -635,11 +649,9 @@ export function createBinderRenderer(
           z = left ? -stack / 2 + leaf * BINDER_LAYERS.leafPitch : stack / 2 - leaf * BINDER_LAYERS.leafPitch;
         const o = mesh(
           group,
-          thinPageGeometry(2.25, 3.13, BINDER_LAYERS.backing),
+          thinPageGeometry(layout.width, layout.height, BINDER_LAYERS.backing),
           new THREE.MeshStandardMaterial({ color: d.pageColors[String(leaf * 2 + 1)] ?? d.pageColor, roughness: 0.9 }),
-          left
-            ? BINDER_PAGE.hingeX - BINDER_PAGE.inset - BINDER_PAGE.width / 2
-            : BINDER_PAGE.hingeX + BINDER_PAGE.inset + BINDER_PAGE.width / 2,
+          left ? layout.hingeX - layout.inset - layout.width / 2 : layout.hingeX + layout.inset + layout.width / 2,
           0,
           z,
           'pages',
@@ -738,7 +750,7 @@ export function createBinderRenderer(
       back = front + 1;
     const moving = new THREE.Group(),
       objects: Deformable[] = [];
-    moving.position.set(BINDER_PAGE.hingeX, 0, 0);
+    moving.position.set(layout.hingeX, 0, 0);
     pageRoot.add(moving);
     await Promise.all([
       makeFace(input, front, 1, moving, objects, modelRevision),
@@ -821,6 +833,7 @@ export function createBinderRenderer(
     const keys = surfaces.map((surface) =>
       JSON.stringify({
         surface: d.surfaces[surface],
+        layout: [d.rows, d.cols],
         ink: d.ink,
         font: d.font,
         textSize: d.textSize,
@@ -877,22 +890,25 @@ export function createBinderRenderer(
     printMaterials = [];
     baseMaterials = {};
     textures.push(...maps);
+    layout = binderPage(d.rows, d.cols);
+    const { coverWidth: cw, coverHeight: ch } = layout,
+      half = cw / 2;
     hinge = new THREE.Group();
-    hinge.position.x = -1.3;
+    hinge.position.x = layout.hingeX;
     root.add(hinge);
     const { stack, leaves, coverZ } = binderDimensions(d.pageCount);
     radius = coverZ;
     baseMaterials.cover = leather(d.surfaces.cover.color, d.material === 'smooth');
-    mesh(hinge, geometry(2.6, 3.5, BINDER_LAYERS.cover), baseMaterials.cover, 1.3, 0, coverZ, 'cover');
+    mesh(hinge, geometry(cw, ch, BINDER_LAYERS.cover), baseMaterials.cover, half, 0, coverZ, 'cover');
     baseMaterials.back = leather(d.surfaces.back.color, d.material === 'smooth');
-    mesh(root, geometry(2.6, 3.5, BINDER_LAYERS.cover), baseMaterials.back, 0, 0, -coverZ, 'back');
+    mesh(root, geometry(cw, ch, BINDER_LAYERS.cover), baseMaterials.back, 0, 0, -coverZ, 'back');
     const bg = new THREE.BufferGeometry(),
       pos = [],
       uv = [],
       indices = [];
     for (let row = 0; row < 2; row++)
       for (let n = 0; n <= 32; n++) {
-        pos.push(0, row ? 1.75 : -1.75, 0);
+        pos.push(0, ((row ? 1 : -1) * ch) / 2, 0);
         uv.push(n / 32, row);
       }
     for (let n = 0; n < 32; n++) {
@@ -930,13 +946,20 @@ export function createBinderRenderer(
       const o = mesh(parent, g, m, x, 0, z, part);
       o.rotation.y = rotate;
     }
-    printed(hinge, 2.6, 3.5, 1.3, coverZ + 0.024, maps[0], 'cover');
-    printed(root, 2.6, 3.5, 0, -coverZ - 0.024, maps[1], 'back', Math.PI);
-    printed(hinge, 2.46, 3.34, 1.3, coverZ - 0.024, maps[3], 'lining', Math.PI);
-    seam(hinge, 2.49, 3.38, 1.3, coverZ + 0.025);
-    seam(root, 2.49, 3.38, 0, -coverZ - 0.025);
+    printed(hinge, cw, ch, half, coverZ + 0.024, maps[0], 'cover');
+    printed(root, cw, ch, 0, -coverZ - 0.024, maps[1], 'back', Math.PI);
+    printed(hinge, cw - 0.14, ch - 0.16, half, coverZ - 0.024, maps[3], 'lining', Math.PI);
+    seam(hinge, cw - 0.11, ch - 0.12, half, coverZ + 0.025);
+    seam(root, cw - 0.11, ch - 0.12, 0, -coverZ - 0.025);
     baseMaterials.lining = new THREE.MeshStandardMaterial({ color: d.surfaces.lining.color, roughness: 0.9 });
-    mesh(root, thinPageGeometry(2.46, 3.34, 0.002), baseMaterials.lining, 0, 0, -coverZ + 0.024, 'lining');
+    mesh(root, thinPageGeometry(cw - 0.14, ch - 0.16, 0.002), baseMaterials.lining, 0, 0, -coverZ + 0.024, 'lining');
+    const shadowGeometry = () => new THREE.PlaneGeometry(cw * 1.6, ch * 1.6);
+    const shadowMaterial = (opacity: number) =>
+      new THREE.MeshBasicMaterial({ map: contact, transparent: true, depthWrite: false, opacity });
+    mesh(root, shadowGeometry(), shadowMaterial(0.55), 0, 0, -coverZ - 0.04);
+    flapShadow = shadowMaterial(0);
+    // Faces away from the camera while closed; lies under the open front cover.
+    mesh(hinge, shadowGeometry(), flapShadow, half, 0, coverZ + 0.04).rotation.y = Math.PI;
     closedPages = new THREE.Group();
     root.add(closedPages);
     const layerCount = Math.min(leaves, 120);
@@ -945,9 +968,9 @@ export function createBinderRenderer(
         z = stack / 2 - leaf * BINDER_LAYERS.leafPitch;
       mesh(
         closedPages,
-        thinPageGeometry(2.25, 3.13, BINDER_LAYERS.backing),
+        thinPageGeometry(layout.width, layout.height, BINDER_LAYERS.backing),
         new THREE.MeshStandardMaterial({ color: d.pageColors[String(leaf * 2 + 1)] ?? d.pageColor, roughness: 0.9 }),
-        0.055,
+        layout.hingeX + layout.inset + layout.width / 2,
         0,
         z,
         'pages',
@@ -964,11 +987,11 @@ export function createBinderRenderer(
     // Sewn gussets bridge cover rims to a shared centre zipper seam when closed.
     for (const [parent, x, sign] of [
       [root, 0, -1],
-      [hinge, 1.3, 1],
+      [hinge, half, 1],
     ] as const) {
       const seamZ = sign * 0.003,
-        outer = shape(2.54, 3.42, 0.13).getPoints(32),
-        inner = shape(2.5, 3.38, 0.13).getPoints(32),
+        outer = shape(cw - 0.06, ch - 0.08, 0.13).getPoints(32),
+        inner = shape(cw - 0.1, ch - 0.12, 0.13).getPoints(32),
         vertices = [],
         uv = [],
         indices = [];
@@ -1006,7 +1029,8 @@ export function createBinderRenderer(
             new THREE.Vector3(inner[i].x + x, inner[i].y, seamZ),
           ),
         );
-      const n = d.zip.type === 'metal' ? 420 : 560,
+      // Teeth keep the 3x3 binder's spacing on any cover size.
+      const n = Math.round(((d.zip.type === 'metal' ? 420 : 560) * (cw + ch - 0.22)) / 5.88),
         inst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.014, 0.01, 0.009), teeth, n),
         matrix = new THREE.Matrix4();
       for (let i = 0; i < n; i++) {
@@ -1025,9 +1049,9 @@ export function createBinderRenderer(
       targets.push(inst);
       parent.add(inst);
     }
-    const pull = mesh(root, geometry(0.08, 0.23, 0.016, 0.025), pullMaterial, 1.27, -1.43, 0, 'zip');
+    const pull = mesh(root, geometry(0.08, 0.23, 0.016, 0.025), pullMaterial, half - 0.03, 0.32 - ch / 2, 0, 'zip');
     pull.rotation.z = 0.2;
-    mesh(root, new THREE.TorusGeometry(0.027, 0.007, 8, 18), pullMaterial, 1.26, -1.29, 0, 'zip');
+    mesh(root, new THREE.TorusGeometry(0.027, 0.007, 8, 18), pullMaterial, half - 0.04, 0.46 - ch / 2, 0, 'zip');
     setView(view, true, false);
     await updatePages(input, token);
   }
@@ -1108,7 +1132,7 @@ export function createBinderRenderer(
         return;
       }
       if (hit.object.userData.part === 'pages' && view === 'inside' && onPageTurn) {
-        if (!turn && !openingFrame) onPageTurn(hit.point.x > BINDER_PAGE.hingeX ? 1 : -1);
+        if (!turn && !openingFrame) onPageTurn(hit.point.x > layout.hingeX ? 1 : -1);
       } else select(hit.object.userData.part as BinderPart);
     }
   };
@@ -1161,6 +1185,8 @@ export function createBinderRenderer(
       controls.dispose();
       disposeModel();
       grain.dispose();
+      sheen.dispose();
+      contact.dispose();
       environment.dispose();
       renderer.dispose();
       renderer.domElement.remove();

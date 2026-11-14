@@ -92,7 +92,7 @@
 .loading {
   width: 100%;
   height: clamp(180px, calc(100dvh - 390px - env(safe-area-inset-top) - env(safe-area-inset-bottom)), 480px);
-  background: radial-gradient(ellipse at center, #373940, #212227);
+  background: radial-gradient(ellipse at 50% 42%, #2a2c33 0%, #131418 78%);
   overflow: hidden;
 }
 .preview :global(canvas) {

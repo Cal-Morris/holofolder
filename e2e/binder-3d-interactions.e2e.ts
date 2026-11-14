@@ -6,7 +6,7 @@ import { test, expect as baseExpect, E2E_USER, SEEDED_COLLECTION, seedCollection
 // The 3D binder renders on SwiftShader in CI and can take ~10 s to open and settle a spread.
 const expect = baseExpect.configure({ timeout: 30_000 });
 test.describe.configure({ timeout: 90_000 });
-import { binderDimensions, binderPocket, BINDER_PAGE, BINDER_LAYERS, defaultBinderDesign } from '../lib/binder-design';
+import { binderDimensions, binderPage, binderPocket, BINDER_LAYERS, defaultBinderDesign } from '../lib/binder-design';
 
 test.describe('3D binder gestures', () => {
   test.use({ signedIn: false });
@@ -28,13 +28,19 @@ test.describe('3D binder gestures', () => {
       const fitted = (await canvas.boundingBox())!,
         dimensions = binderDimensions(Math.max(design.pageCount, Math.ceil(1025 / (design.rows * design.cols))));
       const camera = new PerspectiveCamera(34, fitted.width / fitted.height, 0.1, 100);
-      const frame = binderCameraFrame('inside', fitted.width, fitted.height, dimensions.coverZ);
+      const frame = binderCameraFrame(
+        'inside',
+        fitted.width,
+        fitted.height,
+        dimensions.coverZ,
+        binderPage(design.rows, design.cols),
+      );
       camera.position.set(...frame.position);
       camera.lookAt(...frame.target);
       camera.updateMatrixWorld();
       const pocket = binderPocket(design.rows, design.cols, 0, 1);
       const point = new Vector3(
-        BINDER_PAGE.hingeX + pocket.x,
+        binderPage(design.rows, design.cols).hingeX + pocket.x,
         pocket.y,
         dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film,
       ).project(camera);
@@ -173,13 +179,13 @@ test('staged 3D slots preserve copy identity, target labels and sparse/zero spre
   const box = (await canvas.boundingBox())!,
     dimensions = binderDimensions(2);
   const camera = new PerspectiveCamera(34, box.width / box.height, 0.1, 100);
-  const frame = binderCameraFrame('inside', box.width, box.height, dimensions.coverZ);
+  const frame = binderCameraFrame('inside', box.width, box.height, dimensions.coverZ, binderPage(2, 2));
   camera.position.set(...frame.position);
   camera.lookAt(...frame.target);
   camera.updateMatrixWorld();
   const pocket = binderPocket(2, 2, 1, 1);
   const point = new Vector3(
-    BINDER_PAGE.hingeX + pocket.x,
+    binderPage(2, 2).hingeX + pocket.x,
     pocket.y,
     dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film,
   ).project(camera);
@@ -246,13 +252,19 @@ test.describe('3D binder gestures', () => {
     const box = (await canvas.boundingBox())!,
       dimensions = binderDimensions(Math.max(design.pageCount, Math.ceil(1025 / (design.rows * design.cols))));
     const camera = new PerspectiveCamera(34, box.width / box.height, 0.1, 100),
-      frame = binderCameraFrame('inside', box.width, box.height, dimensions.coverZ);
+      frame = binderCameraFrame(
+        'inside',
+        box.width,
+        box.height,
+        dimensions.coverZ,
+        binderPage(design.rows, design.cols),
+      );
     camera.position.set(...frame.position);
     camera.lookAt(...frame.target);
     camera.updateMatrixWorld();
     const pocket = binderPocket(design.rows, design.cols, 0, 1);
     const point = new Vector3(
-      BINDER_PAGE.hingeX + pocket.x,
+      binderPage(design.rows, design.cols).hingeX + pocket.x,
       pocket.y,
       dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film,
     ).project(camera);
@@ -344,14 +356,20 @@ test.describe('3D binder gestures', () => {
     // Project the real first pocket centre, so this tests canvas hit detection rather than an alternate button.
     const box = (await canvas.boundingBox())!,
       dimensions = binderDimensions(Math.max(design.pageCount, Math.ceil(1025 / (design.rows * design.cols))));
-    const frame = binderCameraFrame('inside', box.width, box.height, dimensions.coverZ);
+    const frame = binderCameraFrame(
+      'inside',
+      box.width,
+      box.height,
+      dimensions.coverZ,
+      binderPage(design.rows, design.cols),
+    );
     const camera = new PerspectiveCamera(34, box.width / box.height, 0.1, 100);
     camera.position.set(...frame.position);
     camera.lookAt(...frame.target);
     camera.updateMatrixWorld();
     const pocket = binderPocket(design.rows, design.cols, 0, 1);
     const point = new Vector3(
-      BINDER_PAGE.hingeX + pocket.x,
+      binderPage(design.rows, design.cols).hingeX + pocket.x,
       pocket.y,
       dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film,
     ).project(camera);
@@ -392,7 +410,7 @@ test.describe('3D binder gestures', () => {
     zoomCamera.lookAt(-1.3, 0, 0);
     zoomCamera.updateMatrixWorld();
     const zoomPoint = new Vector3(
-      BINDER_PAGE.hingeX + pocket.x,
+      binderPage(design.rows, design.cols).hingeX + pocket.x,
       pocket.y,
       dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film,
     ).project(zoomCamera);
@@ -460,13 +478,19 @@ test.describe('3D binder gestures', () => {
     await page.evaluate(
       () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
     );
-    const freshFrame = binderCameraFrame('inside', freshBox.width, freshBox.height, dimensions.coverZ);
+    const freshFrame = binderCameraFrame(
+      'inside',
+      freshBox.width,
+      freshBox.height,
+      dimensions.coverZ,
+      binderPage(design.rows, design.cols),
+    );
     const freshCamera = new PerspectiveCamera(34, freshBox.width / freshBox.height, 0.1, 100);
     freshCamera.position.set(...freshFrame.position);
     freshCamera.lookAt(...freshFrame.target);
     freshCamera.updateMatrixWorld();
     const freshPoint = new Vector3(
-      BINDER_PAGE.hingeX + pocket.x,
+      binderPage(design.rows, design.cols).hingeX + pocket.x,
       pocket.y,
       dimensions.stack / 2 + BINDER_LAYERS.backing / 2 + BINDER_LAYERS.card + BINDER_LAYERS.film,
     ).project(freshCamera);

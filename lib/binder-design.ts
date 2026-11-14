@@ -215,14 +215,23 @@ export function binderTurnPage(page: number, pageCount: number, direction: -1 | 
   const leaves = Math.max(0, Math.min(last.turnedLeaves, spread.turnedLeaves + direction));
   return leaves === spread.turnedLeaves ? spread.selected : Math.max(1, leaves * 2);
 }
-export const BINDER_PAGE = { hingeX: -1.3, inset: 0.23, width: 2.25, height: 3.13 } as const;
+// One pocket at the 3x3 reference size: a card plus a small sleeve margin, so every layout keeps card-shaped pockets.
+const POCKET = { w: 2.15 / 3, h: 3.02 / 3 } as const;
+/** The page and cover footprint for a pocket layout; a 3x3 binder is 2.25 x 3.13 pages in a 2.6 x 3.5 cover. */
+export function binderPage(rows: number, cols: number) {
+  const width = cols * POCKET.w + 0.1,
+    height = rows * POCKET.h + 0.11,
+    coverWidth = width + 0.35;
+  return { hingeX: -coverWidth / 2, inset: 0.23, width, height, coverWidth, coverHeight: height + 0.37 };
+}
+export type BinderPage = ReturnType<typeof binderPage>;
 export function binderPocket(rows: number, cols: number, index: number, side: 1 | -1) {
-  const w = 2.15 / cols,
-    h = 3.02 / rows,
+  const { width, inset } = binderPage(rows, cols),
+    { w, h } = POCKET,
     column = index % cols,
     row = Math.floor(index / cols);
-  const x = BINDER_PAGE.inset + (side === 1 ? 0.05 + w * (column + 0.5) : 2.2 - w * (column + 0.5));
-  return { x, y: 1.51 - h * (row + 0.5), w, h };
+  const x = inset + (side === 1 ? 0.05 + w * (column + 0.5) : width - 0.05 - w * (column + 0.5));
+  return { x, y: (rows * h) / 2 - h * (row + 0.5), w, h };
 }
 export function pageTurnPoint(x: number, z: number, width: number, progress: number) {
   const p = number(progress, 0, 0, 1),
