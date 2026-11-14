@@ -84,6 +84,44 @@ test.describe('Show mode finder', () => {
     await expect(dialog.getByTestId('show-hunt')).toBeVisible();
   });
 
+  test('free plan: the Hunting list keeps current prices, and sort, filters, pay-up-to and verdicts offer Premium', async ({
+    harness,
+  }) => {
+    // Synthetic free account, no live billing requests.
+    await harness.page.route('**/app/api/billing', (route) =>
+      route.fulfill({
+        json: {
+          access: { ownerUserId: E2E_USER.id, enforced: true, tier: 'free', source: 'free', freeBinderLimit: 1 },
+          canManage: true,
+        },
+      }),
+    );
+    await seedHuntList(harness);
+    const dialog = await openShowMode(harness);
+    const hunt = dialog.getByTestId('show-hunt');
+    const unlockHunting = hunt.getByRole('button', { name: 'Unlock hunting tools' });
+    await expect(unlockHunting).toBeVisible();
+    await harness.expectMinTapTarget(unlockHunting, 44);
+    await expect(hunt.getByRole('combobox', { name: 'Sort' })).toHaveCount(0);
+    await expect(hunt.getByTestId('show-good-pickups')).toHaveCount(0);
+    const topCard = hunt
+      .getByRole('region', { name: 'Hunting Bulbasaur' })
+      .getByRole('button', { name: /^Bulbasaur, 151 166\/165/ });
+    await expect(topCard.getByTestId('hunt-pay-up-to')).toHaveCount(0);
+    await expect(topCard).toContainText('£40.00');
+    await harness.expectNoHorizontalOverflow();
+
+    await hunt
+      .getByRole('region', { name: 'Hunting Charizard' })
+      .getByRole('button', { name: /^Charizard ex, 151/ })
+      .click();
+    const check = dialog.getByTestId('quick-card-check');
+    await expect(check.getByTestId('quick-card-market-price')).toHaveText('£50.00');
+    await expect(check.getByTestId('quick-pay-up-to')).toHaveText('Premium');
+    await expect(check.getByRole('button', { name: 'Unlock deal checks' })).toBeVisible();
+    await expect(check.getByRole('textbox', { name: 'Asking price' })).toHaveCount(0);
+  });
+
   test('Good pickups: wanted cards whose price dropped, biggest fall first, one tap to the deal check', async ({
     harness,
   }) => {

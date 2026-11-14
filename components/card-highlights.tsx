@@ -13,6 +13,7 @@ import {
 import { rankBreakoutCards } from '@/lib/breakout-cards';
 import { getProxiedThumbnailUrl } from '@/lib/card-show-prep';
 import { formatMomentumChange } from '@/lib/price-momentum';
+import { usePremium } from '@/components/premium-upsell';
 
 interface CardHighlightsProps {
   name: string;
@@ -34,7 +35,10 @@ export function CardHighlights({
   onSelectCard,
 }: CardHighlightsProps) {
   const [finish, setFinish] = useState<CardHighlightFinishFilter>('all');
-  const [mode, setMode] = useState<'value' | 'breakout'>(showValues ? 'value' : 'breakout');
+  // Breakout is a Premium signal; the free plan keeps Top value.
+  const premium = usePremium();
+  const [pickedMode, setMode] = useState<'value' | 'breakout'>(showValues ? 'value' : 'breakout');
+  const mode = premium ? pickedMode : 'value';
   const candidates = useMemo(() => buildCardHighlightCandidates(cards, prices), [cards, prices]);
   const filtered = candidates.filter((entry) => finish === 'all' || entry.finish === finish);
   const breakout = rankBreakoutCards(
@@ -45,7 +49,7 @@ export function CardHighlights({
     ),
   );
   const values = rankValuableCards(candidates, finish);
-  if (!showValues && rankBreakoutCards(candidates).length === 0) return null;
+  if (!showValues && (!premium || rankBreakoutCards(candidates).length === 0)) return null;
   const rows =
     mode === 'value'
       ? values.map((entry) => ({ entry, momentum: null }))
@@ -57,7 +61,7 @@ export function CardHighlights({
       aria-label={`${name} ${mode === 'value' ? 'top value' : 'breakout'} cards`}
       className="mb-3 rounded-2xl border border-amber-400/35 bg-amber-500/[0.06] p-2.5"
     >
-      {showValues ? (
+      {showValues && premium ? (
         <div className="mb-2 flex gap-2">
           {(['value', 'breakout'] as const).map((item) => (
             <button
@@ -72,7 +76,9 @@ export function CardHighlights({
           ))}
         </div>
       ) : (
-        <h3 className="mb-2 text-sm font-semibold text-amber-700 dark:text-amber-300">Breakout</h3>
+        <h3 className="mb-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
+          {mode === 'value' ? 'Top value' : 'Breakout'}
+        </h3>
       )}
       <p className="text-muted-foreground mb-2 text-xs">
         {mode === 'value'

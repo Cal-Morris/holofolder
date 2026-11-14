@@ -1,6 +1,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveBillingAccess, canCreateOwnerBinder, UNLIMITED_FREE_CARD_LIMIT } from '../lib/billing';
+import {
+  resolveBillingAccess,
+  canCreateOwnerBinder,
+  hasPremiumFeatures,
+  UNLIMITED_FREE_CARD_LIMIT,
+} from '../lib/billing';
 
 describe('billing access', () => {
   test('a signup trial unlocks all premium limits until its exact expiry', () => {
@@ -106,5 +111,21 @@ describe('billing access', () => {
       assert.equal(canCreateOwnerBinder(access, 98), true);
       assert.equal(canCreateOwnerBinder(access, 99), false);
     }
+  });
+});
+
+describe('premium features', () => {
+  test('only a loaded, enforced free plan locks them', () => {
+    const now = Date.parse('2026-11-14T12:00:00.000Z');
+    assert.equal(hasPremiumFeatures(null), true, 'guests and loading billing keep the demo');
+    assert.equal(hasPremiumFeatures(resolveBillingAccess('owner', { enforced: true }, now)), false);
+    assert.equal(hasPremiumFeatures(resolveBillingAccess('owner', { enforced: false }, now)), true);
+    assert.equal(hasPremiumFeatures(resolveBillingAccess('owner', { enforced: true, perpetual: true }, now)), true);
+    assert.equal(
+      hasPremiumFeatures(
+        resolveBillingAccess('owner', { enforced: true, trial_ends_at: '2026-11-15T12:00:00.000Z' }, now),
+      ),
+      true,
+    );
   });
 });

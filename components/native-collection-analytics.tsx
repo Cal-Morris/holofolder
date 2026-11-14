@@ -9,6 +9,7 @@ import AnalyticsPanel from '@/components/analytics/panel';
 import AnalyticsWantListPanel from '@/components/analytics/want-list-panel';
 import AnalyticsYourCardsPanel from '@/components/analytics/your-cards-panel';
 import { Select } from '@/components/ui/select';
+import { PremiumUpsell, usePremium } from '@/components/premium-upsell';
 import { useInventoryPriceState } from '@/hooks/use-inventory-prices';
 import { formatCardFinishLabel, formatCardLanguageLabel } from '@/lib/card-labels';
 import { buildCollectionInsights, buildWantListInsights, insightDetail } from '@/lib/collection/analytics-insights';
@@ -33,6 +34,15 @@ const bar = 'bg-muted h-2 overflow-hidden rounded-full';
 const fill = 'holo-progress bg-highlight h-full rounded-full';
 
 export default function NativeCollectionAnalytics(props: Props) {
+  const premium = usePremium();
+  if (!premium)
+    return (
+      <PremiumUpsell
+        label="Analytics"
+        message="Collection value, movers and progress are included with Holo Folder Premium."
+        action="Unlock analytics"
+      />
+    );
   return <ScopedAnalytics key={JSON.stringify([props.scope, props.collectionId])} {...props} />;
 }
 
