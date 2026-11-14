@@ -120,6 +120,17 @@
       }
     },
     {
+      "page": 10,
+      "name": "Nighttime festival",
+      "slug": "nighttime-festival",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
       "page": 11,
       "name": "Giovanni's Team Rocket",
       "slug": "giovannis-team-rocket",
@@ -156,6 +167,129 @@
       "page": 14,
       "name": "Deep blue",
       "slug": "deep-blue",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 15,
+      "name": "Star power",
+      "slug": "star-power",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 16,
+      "name": "Base Set classics",
+      "slug": "base-set-classics",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 0,
+      "name": "Meg’s blue winter",
+      "slug": "megs-blue-winter",
+      "source": {
+        "binderId": "b815e362-7daf-4ca1-93ff-005c17e0b3cc",
+        "username": "cal"
+      },
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 3,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 17,
+      "name": "Gone dark",
+      "slug": "gone-dark",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 18,
+      "name": "Shining bright",
+      "slug": "shining-bright",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 19,
+      "name": "Gold stars",
+      "slug": "gold-stars",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 20,
+      "name": "Shadow play",
+      "slug": "shadow-play",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 21,
+      "name": "Fairy tale",
+      "slug": "fairy-tale",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": 22,
+      "name": "Misty’s pool",
+      "slug": "mistys-pool",
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 4,
+        "showPrices": false
+      }
+    },
+    {
+      "page": -1,
+      "name": "Kabuto King",
+      "slug": "kabuto-king",
+      "repeat": {
+        "identity": {
+          "kind": "card",
+          "cardId": "base3-50",
+          "language": "en",
+          "finish": "normal"
+        },
+        "count": 1200
+      },
       "view": {
         "preset": "blank",
         "rows": 3,
