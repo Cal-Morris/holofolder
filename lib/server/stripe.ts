@@ -16,6 +16,10 @@ export function billingPriceIds() {
   if (!month || !year) throw new Error('Subscription prices are not configured');
   return { month, year };
 }
+/** Unset until the lifetime offer is switched on; the app hides the option meanwhile. */
+export function billingLifetimePriceId() {
+  return process.env.STRIPE_LIFETIME_PRICE_ID || null;
+}
 export function billingRecognizedPriceIds() {
   return recognizedBillingPriceIds(billingPriceIds(), process.env.STRIPE_LEGACY_PRICE_IDS);
 }

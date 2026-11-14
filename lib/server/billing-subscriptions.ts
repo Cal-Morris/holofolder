@@ -2,7 +2,15 @@ import 'server-only';
 import type Stripe from 'stripe';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getBillingAccess } from '@/lib/server/billing';
-import { getStripe, billingPriceIds, billingRecognizedPriceIds, billingReturnUrl } from '@/lib/server/stripe';
+import {
+  getStripe,
+  billingPriceIds,
+  billingLifetimePriceId,
+  billingRecognizedPriceIds,
+  billingReturnUrl,
+} from '@/lib/server/stripe';
+import type { BillingPlan } from '@/lib/billing';
+import { assertLifetimePrice, fulfilLifetimeCheckout } from '@/lib/billing-lifetime';
 import {
   assertCheckoutPrice,
   canReuseCheckout,
@@ -82,14 +90,18 @@ async function reconcileLocked(ownerId: string, token: string, eventId?: string)
 export async function reconcileBilling(ownerId: string, eventId?: string) {
   await withBillingLock(ownerId, (token) => reconcileLocked(ownerId, token, eventId));
 }
-export async function startCheckout(ownerId: string, email: string | undefined, interval: 'month' | 'year') {
+export async function startCheckout(ownerId: string, email: string | undefined, interval: BillingPlan) {
   return withBillingLock(ownerId, async (token) => {
     if ((await getBillingAccess(ownerId)).source === 'perpetual')
       throw new Error('Your account already has lifetime access.');
+    const lifetime = interval === 'lifetime';
+    const price = lifetime ? billingLifetimePriceId() : billingPriceIds()[interval];
+    if (!price) throw new Error('Lifetime access is not available yet.');
     const stripe = getStripe(),
-      price = billingPriceIds()[interval],
-      admin = createAdminClient();
-    assertCheckoutPrice(await stripe.prices.retrieve(price, { expand: ['product'] }), interval);
+      admin = createAdminClient(),
+      expanded = await stripe.prices.retrieve(price, { expand: ['product'] });
+    if (lifetime) assertLifetimePrice(expanded);
+    else assertCheckoutPrice(expanded, interval);
     let account = await readAccount(ownerId);
     if (!account.stripe_customer_id) {
       const customer = await stripe.customers.create(
@@ -107,7 +119,9 @@ export async function startCheckout(ownerId: string, email: string | undefined, 
       if (error || !data) throw new Error('Customer could not be linked. Try again.');
       account = { ...account, stripe_customer_id: customer.id };
     }
+    // Subscribers may buy lifetime; the app tells them to cancel the subscription in the portal afterwards.
     if (
+      !lifetime &&
       (await subscriptions(account.stripe_customer_id)).some(
         (s) => !['canceled', 'incomplete_expired'].includes(s.status),
       )
@@ -126,13 +140,20 @@ export async function startCheckout(ownerId: string, email: string | undefined, 
       else await stripe.checkout.sessions.expire(session.id);
     }
     if (reuse?.url) return reuse.url;
+    const metadata = { app: 'holofolder', interval, owner_user_id: ownerId, price_id: price };
     const session = await stripe.checkout.sessions.create(
       {
-        mode: 'subscription',
+        ...(lifetime
+          ? { mode: 'payment' as const }
+          : {
+              mode: 'subscription' as const,
+              subscription_data: { metadata: { app: 'holofolder', owner_user_id: ownerId } },
+            }),
+        // Creator codes are lifetime-only and audience codes monthly-only (coupon product scope); annual takes none.
+        allow_promotion_codes: interval !== 'year',
         customer: account.stripe_customer_id,
         client_reference_id: ownerId,
-        metadata: { app: 'holofolder', interval, owner_user_id: ownerId, price_id: price },
-        subscription_data: { metadata: { app: 'holofolder', owner_user_id: ownerId } },
+        metadata,
         line_items: [{ price, quantity: 1 }],
         success_url: billingReturnUrl(),
         cancel_url: billingReturnUrl(),
@@ -177,6 +198,7 @@ export async function handleBillingEvent(event: Stripe.Event) {
       'customer.subscription.updated',
       'customer.subscription.deleted',
       'checkout.session.completed',
+      'checkout.session.async_payment_succeeded',
     ].includes(event.type)
   )
     return;
@@ -198,6 +220,8 @@ export async function handleBillingEvent(event: Stripe.Event) {
     .maybeSingle();
   if (error) throw new Error('Event account could not be checked');
   if (account) {
+    if (event.type.startsWith('checkout.session.'))
+      await fulfilLifetime(account.owner_user_id, event.data.object as Stripe.Checkout.Session);
     await reconcileBilling(account.owner_user_id, event.id);
     if (event.type === 'invoice.paid')
       scheduleCollectorTracking(() => recordCollectorPayments(account.owner_user_id, customer));
@@ -208,4 +232,41 @@ export async function handleBillingEvent(event: Stripe.Event) {
       );
     }
   }
+}
+
+/** Grants the licence before the event receipt is committed, so a failure here is retried by Stripe. */
+async function fulfilLifetime(ownerId: string, completed: Stripe.Checkout.Session) {
+  const priceId = completed.metadata?.price_id;
+  if (completed.mode !== 'payment' || completed.metadata?.interval !== 'lifetime' || !priceId) return;
+  // The configured price may be unset again later; the session's own verified price still identifies the sale.
+  const configured = billingLifetimePriceId();
+  if (configured && configured !== priceId) return;
+  const session = await getStripe().checkout.sessions.retrieve(completed.id, { expand: ['line_items'] });
+  const result = await fulfilLifetimeCheckout(session, {
+    priceId,
+    ownerId,
+    grant: async (grant) => {
+      const { data, error } = await createAdminClient()
+        .from('perpetual_licences')
+        .upsert(
+          {
+            owner_user_id: grant.ownerId,
+            source: 'purchase',
+            stripe_checkout_session_id: grant.sessionId,
+            stripe_promotion_code_id: grant.promotionCodeId,
+          },
+          { onConflict: 'owner_user_id', ignoreDuplicates: true },
+        )
+        .select('owner_user_id');
+      if (error) throw new Error('Lifetime licence could not be granted. Retry this event.');
+      return data.length > 0;
+    },
+    recordFirstPaid: async (at) => {
+      scheduleCollectorTracking(async () => {
+        await observeCollectorAccount(ownerId, true, at);
+        await recordCollectorEvent({ actorId: ownerId, ownerId, name: 'first_paid', key: 'first_paid', at });
+      });
+    },
+  });
+  if (result === 'rejected') console.warn('Lifetime Checkout did not verify', completed.id);
 }

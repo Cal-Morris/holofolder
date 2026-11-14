@@ -1,5 +1,5 @@
 import type Stripe from 'stripe';
-import { BILLING_PRICES } from '@/lib/billing';
+import { BILLING_PRICES, type BillingPlan } from '@/lib/billing';
 
 export function recognizedBillingPriceIds(current: { month: string; year: string }, legacy = '') {
   const ids = [
@@ -39,13 +39,13 @@ export function assertCheckoutPrice(price: Stripe.Price, interval: 'month' | 'ye
 export function canReuseCheckout(
   session: Stripe.Checkout.Session,
   ownerId: string,
-  interval: 'month' | 'year',
+  interval: BillingPlan,
   priceId: string,
   lines: Stripe.ApiList<Stripe.LineItem>,
 ) {
   return (
     session.status === 'open' &&
-    session.mode === 'subscription' &&
+    session.mode === (interval === 'lifetime' ? 'payment' : 'subscription') &&
     session.metadata?.app === 'holofolder' &&
     session.metadata.owner_user_id === ownerId &&
     session.client_reference_id === ownerId &&

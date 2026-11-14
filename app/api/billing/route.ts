@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { billingUser, billingHeaders } from '@/lib/server/billing-request';
 import { reconcileBilling } from '@/lib/server/billing-subscriptions';
 import { settleReferral } from '@/lib/server/referrals';
+import { billingLifetimePriceId } from '@/lib/server/stripe';
 export async function GET(request: Request) {
   try {
     const user = await billingUser(request);
@@ -15,12 +16,18 @@ export async function GET(request: Request) {
     if (ownerId === user.id) access = await settleReferral(ownerId, access).catch(() => access);
     const { data: ownBilling, error: accountError } = await createAdminClient()
       .from('billing_accounts')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id,status')
       .eq('owner_user_id', user.id)
       .maybeSingle();
     if (accountError && !['PGRST205', '42P01'].includes(accountError.code)) throw accountError;
     return Response.json(
-      { access, canManage: ownerId === user.id, hasBillingAccount: Boolean(ownBilling?.stripe_customer_id) },
+      {
+        access,
+        canManage: ownerId === user.id,
+        hasBillingAccount: Boolean(ownBilling?.stripe_customer_id),
+        subscriptionActive: ['active', 'past_due'].includes(ownBilling?.status ?? ''),
+        lifetimeAvailable: Boolean(billingLifetimePriceId()),
+      },
       { headers: billingHeaders },
     );
   } catch (error) {

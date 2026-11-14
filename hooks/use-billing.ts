@@ -1,6 +1,6 @@
 'use client';
 import { createContext, use, useCallback, useEffect, useState } from 'react';
-import { billingAccessRow, resolveBillingAccess, type BillingAccess } from '@/lib/billing';
+import { billingAccessRow, resolveBillingAccess, type BillingAccess, type BillingPlan } from '@/lib/billing';
 import { BILLING_CHANGED, readBillingCache, writeBillingCache } from '@/lib/billing-cache';
 
 export function useBilling(accountId: string | null, ownerId: string | null, onUpgrade: () => void) {
@@ -9,6 +9,8 @@ export function useBilling(accountId: string | null, ownerId: string | null, onU
     access: BillingAccess;
     canManage: boolean;
     hasBillingAccount?: boolean;
+    subscriptionActive?: boolean;
+    lifetimeAvailable?: boolean;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,6 +39,8 @@ export function useBilling(accountId: string | null, ownerId: string | null, onU
           access,
           canManage: result.canManage === true,
           hasBillingAccount: result.hasBillingAccount === true,
+          subscriptionActive: result.subscriptionActive === true,
+          lifetimeAvailable: result.lifetimeAvailable === true,
         });
         setError(null);
         window.dispatchEvent(new Event(BILLING_CHANGED));
@@ -105,6 +109,8 @@ export function useBilling(accountId: string | null, ownerId: string | null, onU
   return {
     access,
     hasBillingAccount: active?.hasBillingAccount ?? false,
+    subscriptionActive: active?.subscriptionActive ?? false,
+    lifetimeAvailable: active?.lifetimeAvailable ?? false,
     canManage: active?.canManage ?? accountId === ownerId,
     loading: Boolean(accountId && !active),
     error,
@@ -112,7 +118,7 @@ export function useBilling(accountId: string | null, ownerId: string | null, onU
     premium: access ? !access.enforced || access.tier === 'paid' : false,
     refresh,
     upgrade: onUpgrade,
-    checkout: (interval: 'month' | 'year') => navigate('checkout', { interval }),
+    checkout: (interval: BillingPlan) => navigate('checkout', { interval }),
     portal: () => navigate('portal'),
   };
 }

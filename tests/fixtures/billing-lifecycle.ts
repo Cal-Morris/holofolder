@@ -155,6 +155,7 @@ async function run() {
   mock.module('../../lib/server/stripe', () => ({
     getStripe: () => ({ ...fakeStripe, webhooks: signatureStripe.webhooks }),
     billingPriceIds: () => ({ month: 'price_monthly', year: 'price_yearly' }),
+    billingLifetimePriceId: () => null,
     billingRecognizedPriceIds: () => ['price_monthly', 'price_yearly', 'price_legacy'],
     billingReturnUrl: () => 'https://holofolder.com/app?billing=return',
   }));

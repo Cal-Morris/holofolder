@@ -13,8 +13,8 @@ export async function POST(request: Request) {
         { status: 403, headers: billingHeaders },
       );
     const body = await request.json().catch(() => null);
-    if (!body || !['month', 'year'].includes(body.interval))
-      return Response.json({ error: 'Choose monthly or yearly billing.' }, { status: 400, headers: billingHeaders });
+    if (!body || !['month', 'year', 'lifetime'].includes(body.interval))
+      return Response.json({ error: 'Choose monthly, yearly or lifetime.' }, { status: 400, headers: billingHeaders });
     return Response.json({ url: await startCheckout(user.id, user.email, body.interval) }, { headers: billingHeaders });
   } catch (error) {
     return billingErrorResponse(error);

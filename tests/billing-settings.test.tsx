@@ -9,6 +9,7 @@ function render(
   canManage = true,
   hasBillingAccount = false,
   freeCardLimit = 100,
+  extra: { lifetimeAvailable?: boolean; subscriptionActive?: boolean } = { lifetimeAvailable: true },
 ) {
   const state: BillingState = {
     access: resolveBillingAccess('owner', {
@@ -23,6 +24,8 @@ function render(
     }),
     canManage,
     hasBillingAccount,
+    subscriptionActive: extra.subscriptionActive ?? false,
+    lifetimeAvailable: extra.lifetimeAvailable ?? false,
     loading: false,
     error: null,
     busy: false,
@@ -74,4 +77,21 @@ test('trial explains its expiry and no automatic charge, with optional purchase 
   assert.match(html, /£3.99 \/ month/);
   assert.doesNotMatch(html, /Paid access until|>Manage billing</);
   assert.doesNotMatch(render('trial', false), /£3.99/);
+});
+
+test('lifetime is offered next to monthly and annual only once its price is configured', () => {
+  assert.match(render('free'), /£79.00 once, lifetime access/);
+  assert.doesNotMatch(render('free', true, false, 100, {}), /lifetime access/);
+});
+test('owners who already have lifetime are not offered it again', () => {
+  assert.doesNotMatch(render('perpetual'), /£79/);
+});
+test('subscribers can buy lifetime and are told to cancel their subscription themselves', () => {
+  const html = render('subscription');
+  assert.match(html, /£79.00 once, lifetime access/);
+  assert.match(html, /doesn&#x27;t cancel your subscription/);
+  assert.match(
+    render('perpetual', true, true, 100, { subscriptionActive: true }),
+    /Your subscription is still active. Cancel it in Manage billing/,
+  );
 });
