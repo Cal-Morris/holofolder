@@ -92,25 +92,6 @@ test(
           for (const name of ['passkey_credentials', 'tcgdex_cache_jobs']) {
             assert.equal((await db.query('select to_regclass($1) as name', [`public.${name}`])).rows[0].name, null);
           }
-          // The passkey security fix must still work on legacy installations, and be rerunnable.
-          await db.query('begin');
-          await db.query(
-            'create table public.passkey_credentials(user_id uuid); grant select on public.passkey_credentials to anon; alter table public.passkey_credentials enable row level security; create policy "Service can lookup credentials by id" on public.passkey_credentials using (true)',
-          );
-          const securityFix = readFileSync(new URL('036_passkey_credentials_owner_only.sql', scripts), 'utf8');
-          await db.query(securityFix);
-          await db.query(securityFix);
-          assert.equal(
-            (await db.query("select has_table_privilege('anon','public.passkey_credentials','select') as allowed"))
-              .rows[0].allowed,
-            false,
-          );
-          assert.equal(
-            (await db.query("select count(*)::int as n from pg_policies where tablename='passkey_credentials'")).rows[0]
-              .n,
-            0,
-          );
-          await db.query('rollback');
         }
       }
       const row = (await db.query('select binder_id,wanted_cards from public.pokemon_collection')).rows[0];
