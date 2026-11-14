@@ -93,7 +93,9 @@ test.describe('IndexedDB offline store', () => {
     await expect(slotFilter).toBeVisible();
     await expect(page.getByRole('button', { name: 'Select Charmander', exact: true })).toBeVisible();
     await expect
-      .poll(async () => (await readRecord(page, 'sets:query:query=Base+Set&setId=base1')) !== null, { timeout: 10_000 })
+      .poll(async () => (await readRecord(page, 'sets:query:query=Base+Set&setId=base1&v=2')) !== null, {
+        timeout: 10_000,
+      })
       .toBe(true);
 
     // Offline: the API is unreachable.

@@ -58,6 +58,9 @@ export interface TCGSetSlotsWireResponse {
   cards?: Array<Omit<TCGSetSlotCard, 'set'>>;
 }
 
+/** Requests with `v=2` get the slim shape; without it the route keeps sending the old one to older clients. */
+export const SET_SLOTS_WIRE_VERSION = '2';
+
 export function slimSetSlotsResponse(response: TCGSetSlotsResponse): TCGSetSlotsWireResponse {
   return {
     sets: response.sets,

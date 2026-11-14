@@ -23,7 +23,7 @@ import {
 } from '@/lib/tcg-set-slots';
 import { getOfflineStore } from '@/lib/offline-store/kv';
 import { loadSetQuery, saveSetQuery } from '@/lib/offline-store/records';
-import { getProxiedThumbnailUrl, getSetSlotsQuery } from '@/lib/card-show-prep';
+import { getLegacySetSlotsQuery, getProxiedThumbnailUrl, getSetSlotsQuery } from '@/lib/card-show-prep';
 import { readOfflineSets, searchOfflineSets } from '@/lib/offline-card-index';
 import { useCollapseOnScroll } from '@/hooks/use-collapse-on-scroll';
 import { getSetCompletion } from '@/lib/set-completion';
@@ -278,7 +278,11 @@ export default function SetPopulationView({
         } catch {
           if (controller.signal.aborted) return;
           // oxlint-disable-next-line react-doctor/async-defer-await -- the early return is a staleness check that has to run after the await
-          const saved = offlineStore ? await loadSetQuery(offlineStore, queryString).catch(() => null) : null;
+          const saved = offlineStore
+            ? await loadSetQuery(offlineStore, queryString)
+                .then((found) => found ?? loadSetQuery(offlineStore, getLegacySetSlotsQuery(set)))
+                .catch(() => null)
+            : null;
           if (controller.signal.aborted) return;
           if (!saved) {
             setError(`Could not load ${set.name}. Remove and add it to retry.`);

@@ -4,7 +4,7 @@ import { appPath } from '@/lib/app-path';
 // "Prepare for card show": download chosen sets (coverage data + card thumbnails through the image proxy)
 // so they open offline. The service worker caches what this fetches: /app/api/tcg-set-slots in its data cache
 // (network-first) and /app/api/card-image-proxy in its image cache (cache-first).
-import type { TCGSetSlotsResponse, TCGSetSummary } from '@/lib/tcg-set-slots';
+import { SET_SLOTS_WIRE_VERSION, type TCGSetSlotsResponse, type TCGSetSummary } from '@/lib/tcg-set-slots';
 import { getCardPriceKey, normalizeCardPriceLookups, type CardPriceLookup } from '@/lib/card-pricing';
 
 /** Rough size of one proxied low-res card thumbnail, used until real samples are measured. */
@@ -19,16 +19,22 @@ export const SHOW_IMAGE_CACHE = 'binderdex-v1-show-images';
 export const SAVE_FOR_SHOW_HEADERS = { 'X-Binderdex-Save': 'show' } as const;
 
 /**
- * The one query string for a set's coverage (query = set name, then setId, then any non-English language), so the
- * Sets view, the set preset picker and card show prep share browser, CDN and offline copies. The server ignores
- * `query` when `setId` is given; it stays so copies saved before this was shared keep matching.
+ * The one query string for a set's coverage, so the Sets view, the set preset picker and card show prep share
+ * browser, CDN and offline copies: query = set name, setId, any non-English language, then `v=2` for the slim
+ * response (clients from before it keep getting the old shape). The server ignores `query` when `setId` is given.
  */
 export function getSetSlotsQuery(set: Pick<TCGSetSummary, 'id' | 'name'>, language = 'en') {
   return new URLSearchParams({
     query: set.name,
     setId: set.id,
     ...(language === 'en' ? {} : { language }),
+    v: SET_SLOTS_WIRE_VERSION,
   }).toString();
+}
+
+/** The same lookup as saved before `v=2` (IndexedDB keys and service-worker copies may still use it). */
+export function getLegacySetSlotsQuery(set: Pick<TCGSetSummary, 'id' | 'name'>) {
+  return new URLSearchParams({ query: set.name, setId: set.id }).toString();
 }
 
 export function getSetSlotsUrl(set: Pick<TCGSetSummary, 'id' | 'name'>, language = 'en') {

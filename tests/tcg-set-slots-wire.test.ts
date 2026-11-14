@@ -10,7 +10,7 @@ import {
 import { createMemoryStore } from '../lib/offline-store/kv';
 import { loadSetQuery, saveSetQuery } from '../lib/offline-store/records';
 import { extractCardsFromCachedResponse } from '../lib/offline-card-index';
-import { getSetSlotsQuery } from '../lib/card-show-prep';
+import { getLegacySetSlotsQuery, getSetSlotsQuery } from '../lib/card-show-prep';
 
 // Synthetic set shaped like a large Scarlet & Violet expansion: 250 cards, 180 of them Pokémon (a few with two
 // dex links), the rest trainers and energy. Values are made up; only the sizes and structure matter.
@@ -94,7 +94,8 @@ test('the offline card index reads cards from cached slim and old responses alik
   assert.equal(fromWire[0].set.name, SET.name);
 });
 
-test('every consumer asks for a set with one query string; non-English adds only the language', () => {
-  assert.equal(getSetSlotsQuery(SET), 'query=Synthetic+Fixture+Set&setId=sv-fixture');
-  assert.equal(getSetSlotsQuery(SET, 'ja'), 'query=Synthetic+Fixture+Set&setId=sv-fixture&language=ja');
+test('every consumer asks for a set with one query string; the pre-slim key stays readable', () => {
+  assert.equal(getSetSlotsQuery(SET), 'query=Synthetic+Fixture+Set&setId=sv-fixture&v=2');
+  assert.equal(getSetSlotsQuery(SET, 'ja'), 'query=Synthetic+Fixture+Set&setId=sv-fixture&language=ja&v=2');
+  assert.equal(getLegacySetSlotsQuery(SET), 'query=Synthetic+Fixture+Set&setId=sv-fixture');
 });

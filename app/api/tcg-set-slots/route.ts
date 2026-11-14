@@ -7,7 +7,7 @@ import {
 } from '@/lib/tcg-mirror';
 import { normalizeCardLanguage } from '@/lib/domain/cards';
 import { POKEMON_CATALOG } from '@/lib/pokemon-catalog';
-import { SET_SEARCH_RESULT_LIMIT, slimSetSlotsResponse } from '@/lib/tcg-set-slots';
+import { SET_SEARCH_RESULT_LIMIT, SET_SLOTS_WIRE_VERSION, slimSetSlotsResponse } from '@/lib/tcg-set-slots';
 import { PUBLIC_JSON_CACHE_HEADERS } from '@/lib/http-cache';
 
 export const instant = false;
@@ -61,9 +61,11 @@ export async function GET(request: NextRequest) {
     const { selectedSet, slots, cards } = await getMirroredSetDexSlots(selectedSetId, language, pokemonNames);
     const allSets = sets.some((set) => set.id === selectedSetId) || !selectedSet ? sets : [selectedSet, ...sets];
 
-    return NextResponse.json(slimSetSlotsResponse({ sets: allSets, selectedSet, slots, cards }), {
-      headers: PUBLIC_JSON_CACHE_HEADERS,
-    });
+    const response = { sets: allSets, selectedSet, slots, cards };
+    return NextResponse.json(
+      searchParams.get('v') === SET_SLOTS_WIRE_VERSION ? slimSetSlotsResponse(response) : response,
+      { headers: PUBLIC_JSON_CACHE_HEADERS },
+    );
   } catch (error) {
     console.error('[holofolder] Failed to load TCG set slot coverage:', error);
     return NextResponse.json(
