@@ -215,7 +215,8 @@ export function normalizeWantedSort(value: unknown): WantedDashboardSort {
 export function sortWantedDashboardEntries<T extends WantedDashboardCard>(
   cards: T[],
   sort: WantedDashboardSort,
-  now = Date.now(),
+  // Read only by the Rising sort; other sorts never touch the clock, so prerendered pages stay static.
+  now?: number,
 ): T[] {
   if (sort === 'cheapest-set') {
     // Sets whose remaining wanted cards cost least come first; unpriced cards count as unknown
@@ -248,7 +249,8 @@ export function sortWantedDashboardEntries<T extends WantedDashboardCard>(
   }
 
   if (sort === 'rising') {
-    const change = new Map(cards.map((card) => [card.key, getRisingMomentum(card.price, now)?.change ?? null]));
+    const at = now ?? Date.now();
+    const change = new Map(cards.map((card) => [card.key, getRisingMomentum(card.price, at)?.change ?? null]));
     return cards.toSorted(
       (left, right) =>
         compareMaybePrice(negate(change.get(left.key) ?? null), negate(change.get(right.key) ?? null)) ||

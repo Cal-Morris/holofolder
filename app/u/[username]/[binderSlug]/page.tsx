@@ -2,10 +2,8 @@ import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import type { Metadata } from 'next';
 import SharedBinder from '@/components/shared-binder-page';
-import { loadNamedPublicBinder } from '@/lib/server/public-binder';
+import { loadCachedPublicBinder } from '@/lib/server/public-binder';
 import { loadShareMetadata } from '@/lib/server/share-metadata';
-
-export const instant = false;
 
 // Cache Components needs one build-time param. An invalid username, so the build never reads the database; every
 // real share renders on its first visit, binder included in the HTML, and is then served from cache until its
@@ -15,7 +13,7 @@ export function generateStaticParams() {
 }
 
 const load = cache(async (username: string, binderSlug: string) => {
-  const binder = await loadNamedPublicBinder(username, binderSlug);
+  const binder = await loadCachedPublicBinder({ username, binderSlug });
   if (!binder) notFound();
   return binder;
 });
