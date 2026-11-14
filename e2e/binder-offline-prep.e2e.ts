@@ -197,9 +197,12 @@ test('binder download reads all saved evidence, retries missing images, then col
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
           const db = request.result;
-          const read = db.transaction('records').objectStore('records').get('price-evidence:base1-4-stamped::en');
-          read.onsuccess = () => {
-            resolve(read.result);
+          const records = db.transaction('records').objectStore('records');
+          const read = records.get('price-evidence:base1-4-stamped::en');
+          // Card detail history is saved under its own key.
+          const history = records.get('price-history:base1-4-stamped::en');
+          history.onsuccess = () => {
+            resolve({ ...read.result, historyPoints: history.result?.points });
             db.close();
           };
           read.onerror = () => reject(read.error);

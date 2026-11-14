@@ -24,9 +24,8 @@ export async function POST(request: NextRequest) {
     }
 
     const [result, fx] = await Promise.all([refreshCardPriceLookups(lookups), loadDisplayFxRates()]);
-    // Older clients send batches of 200; keep their quotes below the response-size limit.
-    const prices =
-      lookups.length <= 25 ? result.prices : result.prices.map((price) => ({ ...price, historyPoints: undefined }));
+    // Daily history is most of each quote's size and only card detail reads it, through GET below.
+    const prices = result.prices.map(({ historyPoints: _historyPoints, ...price }) => price);
     return NextResponse.json({ prices, fx });
   } catch (error) {
     console.error('[holofolder] Failed to load card prices:', error);
