@@ -14,6 +14,7 @@ const loadCollectionAnalyticsView = () => import('@/components/collection-analyt
 const loadSetPopulationView = () => import('@/components/set-population-view');
 const loadWantedDashboard = () => import('@/components/wanted-dashboard');
 const loadPokemonBrowseView = () => import('@/components/pokemon-browse-view');
+const loadPokemonSearch = () => import('@/components/pokemon-search');
 
 // Modals and secondary views are only shown on demand or in non-default tabs, so they
 // load in their own chunks instead of the main bundle. CardPriceEvidence stays a static
@@ -54,6 +55,9 @@ export const WantedDashboard = dynamic(loadWantedDashboard, { loading: () => nul
 // The camera scanner only mounts while it is open, so its capture code loads on first use.
 export const QuickMode = dynamic(() => import('@/components/quick-mode'), { ssr: false });
 export const PokemonBrowseView = dynamic(loadPokemonBrowseView, { loading: () => null });
+// The Search sheet's body (card, set and illustrator search, nicknames, the offline index): preloaded on idle
+// and on the Search button press, so opening Search doesn't wait on it.
+export const PokemonSearch = dynamic(loadPokemonSearch, { loading: () => null });
 
 // Preload helpers for the dock tabs. Each one calls the matching view's own loader, so its
 // first render reuses the fetched chunk instead of waiting on the network. They only fetch
@@ -87,12 +91,17 @@ export function preloadCardSelector() {
   preloadOnce('card-selector', loadCardSelector);
 }
 
-// Fetch the pocket detail, the dock-tab chunks and the card selector (what the first slot taps open) once the
+export function preloadSearch() {
+  preloadOnce('search', loadPokemonSearch);
+}
+
+// Fetch the pocket detail, Search, the dock-tab chunks and the card selector (what the first slot taps open) once the
 // browser is idle after the binder has painted. Returns a cancel function for effect cleanup.
 export function scheduleIdleViewPreload(): () => void {
   if (typeof window === 'undefined') return () => undefined;
   const queue: Array<() => void> = [
     () => preloadOnce('native-slot-flow', loadNativeSlotFlow),
+    preloadSearch,
     () => preloadTabView('list'),
     () => preloadTabView('sets'),
     () => preloadTabView('wanted'),
