@@ -1,5 +1,4 @@
 import { cacheLife, cacheTag } from 'next/cache';
-import { toSmallCardAssetSrc } from '@/lib/card-image-url';
 import { getCardsForPokemon } from '@/lib/catalog-queries';
 import { getPublicSets } from '@/lib/server/public-sets';
 
@@ -11,7 +10,6 @@ export interface PublicPokemonCard {
   rarity?: string;
   illustrator?: string;
   image?: string;
-  thumb?: string;
 }
 
 /**
@@ -34,7 +32,7 @@ export async function getPublicPokemonCards(dexId: number): Promise<PublicPokemo
             name: card.name,
             ...(card.rarity ? { rarity: card.rarity } : {}),
             ...(card.illustrator ? { illustrator: card.illustrator } : {}),
-            ...(card.image ? { image: card.image, thumb: toSmallCardAssetSrc(card.image) ?? card.image } : {}),
+            ...(card.image ? { image: card.image } : {}),
           },
         ]
       : [],

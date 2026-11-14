@@ -2,12 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
-import { CreditsNotice } from '@/components/credits';
-import { PublicCardThumb } from '@/components/public-card-thumb';
+import { PublicCardGrid } from '@/components/public-card-grid';
+import { CatalogueFact, PublicCataloguePage } from '@/components/public-catalogue-page';
 import { Button } from '@/components/ui/button';
 import { getPublicSetCards, getPublicSets, type PublicSetCard } from '@/lib/server/public-sets';
-import { getPokemonById } from '@/lib/pokemon-catalog';
-import { pokemonSlug } from '@/lib/pokemon-pages';
+import type { CatalogueCard } from '@/lib/catalogue-cards';
+import { findPokemonById } from '@/lib/pokemon-pages';
 import { socialMetadata } from '@/lib/social-metadata';
 import {
   blogSetGuideUrl,
@@ -15,8 +15,6 @@ import {
   formatCardNumber,
   formatReleaseDate,
   pagesNeeded,
-  SET_PAGE_POCKETS,
-  toBinderPages,
   type PublicSetSummary,
 } from '@/lib/set-pages';
 
@@ -41,12 +39,6 @@ const load = cache(async (slug: string) => {
 
 const pageUrl = (slug: string) => `https://holofolder.com/app/sets/${slug}`;
 const cardNumber = (card: PublicSetCard, set: PublicSetSummary) => formatCardNumber(card.number, set.officialCardCount);
-// A card of one species links to that species' page; tag teams and Trainers don't.
-const speciesHref = (card: PublicSetCard) => {
-  const entry = card.dexIds.length === 1 ? getPokemonById(card.dexIds[0]) : undefined;
-  return entry && `/pokemon/${pokemonSlug(entry)}`;
-};
-const cardAlt = (card: PublicSetCard, set: PublicSetSummary) => `${card.name} ${cardNumber(card, set)} ${set.name}`;
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -76,7 +68,6 @@ export default async function SetPage({ params }: Props) {
     cards.map((card) => card.number),
     set.officialCardCount,
   );
-  const pages = toBinderPages(cards);
   const guide = blogSetGuideUrl(set.slug);
   const pageCount = pagesNeeded(counts.total);
   const summary = [
@@ -109,37 +100,24 @@ export default async function SetPage({ params }: Props) {
   };
 
   return (
-    <main className="bg-background safe-area-bottom min-h-screen px-4 py-8">
-      <script
-        type="application/ld+json"
-        // JSON.stringify output with "<" escaped cannot close the script element.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
-      />
-      <div className="mx-auto max-w-2xl space-y-8">
-        <header className="space-y-3">
-          <nav aria-label="Breadcrumb" className="text-muted-foreground flex items-center gap-1.5 text-sm">
-            <Link href="/" className="inline-flex min-h-9 items-center underline-offset-2 hover:underline">
-              Holo Folder
-            </Link>
-            <span aria-hidden>/</span>
-            <Link href="/sets" className="inline-flex min-h-9 items-center underline-offset-2 hover:underline">
-              All sets
-            </Link>
-          </nav>
+    <PublicCataloguePage crumbs={[{ href: '/sets', label: 'All sets' }]} jsonLd={jsonLd}>
+      <header className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-end">
+        <div className="space-y-4">
           {set.logo && (
             // eslint-disable-next-line @next/next/no-img-element -- set logo from our CDN, no resizing needed
-            <img src={set.logo} alt={`${set.name} logo`} className="h-16 w-auto max-w-full object-contain" />
+            <img src={set.logo} alt={`${set.name} logo`} className="h-12 w-auto max-w-full object-contain sm:h-20" />
           )}
-          <h1 className="text-2xl font-semibold">{set.name} card list and checklist</h1>
-          <dl className="grid grid-cols-2 gap-2 text-sm">
-            {set.releaseDate && <Fact label="Released" value={formatReleaseDate(set.releaseDate)!} />}
-            {set.seriesName && <Fact label="Series" value={set.seriesName} />}
-            {counts.base !== undefined && <Fact label="Base set" value={`${counts.base} cards`} />}
-            {counts.secret !== undefined && <Fact label="Secret rares" value={`${counts.secret} cards`} />}
-            <Fact label="Cards in our catalogue" value={String(counts.total)} />
-            <Fact label="Nine-pocket pages" value={String(pageCount)} />
-          </dl>
-          <p className="text-muted-foreground text-sm">{summary}</p>
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-sm">
+              {[set.seriesName, set.releaseDate && `Released ${formatReleaseDate(set.releaseDate)}`]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+            <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+              {set.name} card list and checklist
+            </h1>
+          </div>
+          <p className="text-muted-foreground max-w-prose text-sm">{summary}</p>
           <div className="flex flex-wrap gap-2">
             <Button asChild size="lg">
               <Link href="/?view=sets">Start this set as a binder, free</Link>
@@ -150,80 +128,53 @@ export default async function SetPage({ params }: Props) {
               </Button>
             )}
           </div>
-        </header>
+        </div>
+        <dl className="grid grid-cols-4 gap-2 text-sm lg:grid-cols-2">
+          <CatalogueFact label="Cards" value={String(counts.total)} />
+          <CatalogueFact label="Pages" value={String(pageCount)} />
+          {counts.base !== undefined && <CatalogueFact label="Base set" value={String(counts.base)} />}
+          {counts.secret !== undefined && <CatalogueFact label="Secret" value={String(counts.secret)} />}
+        </dl>
+      </header>
 
-        <section aria-labelledby="checklist" className="space-y-2">
-          <h2 id="checklist" className="text-lg font-semibold">
-            {set.name} checklist
-          </h2>
-          <ol className="space-y-1.5">
-            {cards.map((card) => (
-              <li key={card.id} className="holo-tile flex items-center gap-3 rounded-xl p-2">
-                <PublicCardThumb thumb={card.thumb} alt={cardAlt(card, set)} className="w-10" />
-                <span className="min-w-0">
-                  <SpeciesName card={card} />
-                  <span className="text-muted-foreground block text-xs">
-                    {[cardNumber(card, set), card.rarity, card.illustrator && `Illus. ${card.illustrator}`]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section aria-labelledby="binder-layout" className="space-y-3">
-          <h2 id="binder-layout" className="text-lg font-semibold">
-            {set.name} binder layout
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            In number order, {SET_PAGE_POCKETS} cards to a page: {pages.length} pages.
-          </p>
-          <ol className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {pages.map((page, i) => (
-              <li key={page[0].id} className="holo-panel space-y-2 rounded-2xl p-3">
-                <h3 className="text-muted-foreground text-xs font-semibold">Page {i + 1}</h3>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {page.map((card) => (
-                    <PublicCardThumb key={card.id} thumb={card.thumb} alt={cardAlt(card, set)} className="w-full" />
-                  ))}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        {(newer || older) && (
-          <nav aria-label="Other sets" className="grid grid-cols-2 gap-2 text-sm">
-            {older ? <SetLink set={older} label="Older set" /> : <span />}
-            {newer && <SetLink set={newer} label="Newer set" align="right" />}
-          </nav>
-        )}
-        <CreditsNotice className="text-muted-foreground text-xs" />
+      <div className="space-y-3">
+        <h2 className="text-xl font-semibold">{set.name} checklist</h2>
+        <PublicCardGrid
+          cards={cards.map((card) => toCatalogueCard(card, set))}
+          label={`${set.name} cards`}
+          facets={['rarity', 'illustrator']}
+          sortLabels={{ default: 'Number', reverse: 'Number, high first' }}
+          meta="rarity"
+          pages
+          links={{ binderHref: '/?view=sets' }}
+        />
       </div>
-    </main>
+
+      {(newer || older) && (
+        <nav aria-label="Other sets" className="grid grid-cols-2 gap-2 text-sm">
+          {older ? <SetLink set={older} label="Older set" /> : <span />}
+          {newer && <SetLink set={newer} label="Newer set" align="right" />}
+        </nav>
+      )}
+    </PublicCataloguePage>
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="holo-tile rounded-xl px-3 py-2">
-      <dt className="text-muted-foreground text-xs">{label}</dt>
-      <dd className="font-medium">{value}</dd>
-    </div>
-  );
-}
-
-function SpeciesName({ card }: { card: PublicSetCard }) {
-  const href = speciesHref(card);
-  return href ? (
-    <Link href={href} className="flex min-h-9 items-center text-sm font-medium underline-offset-2 hover:underline">
-      {card.name}
-    </Link>
-  ) : (
-    <span className="block text-sm font-medium">{card.name}</span>
-  );
+function toCatalogueCard(card: PublicSetCard, set: PublicSetSummary): CatalogueCard {
+  const pokemon = card.dexIds.length === 1 ? findPokemonById(card.dexIds[0]) : undefined;
+  return {
+    id: card.id,
+    name: card.name,
+    number: cardNumber(card, set),
+    setName: set.name,
+    setSlug: set.slug,
+    ...(set.seriesName ? { series: set.seriesName } : {}),
+    ...(set.releaseDate ? { releaseDate: set.releaseDate } : {}),
+    ...(card.rarity ? { rarity: card.rarity } : {}),
+    ...(card.illustrator ? { illustrator: card.illustrator } : {}),
+    ...(card.image ? { image: card.image } : {}),
+    ...(pokemon ? { pokemon: { slug: pokemon.slug, name: pokemon.name } } : {}),
+  };
 }
 
 function SetLink({ set, label, align }: { set: PublicSetSummary; label: string; align?: 'right' }) {

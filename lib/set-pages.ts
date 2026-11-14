@@ -1,6 +1,6 @@
 // Public set checklist pages (/app/sets and /app/sets/<slug>): pure helpers, no data access.
 
-export const SET_PAGE_POCKETS = 9;
+const SET_PAGE_POCKETS = 9;
 
 export interface PublicSetSummary {
   id: string;

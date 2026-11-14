@@ -35,6 +35,7 @@ import {
   type WantedCard,
 } from '@/lib/domain/cards';
 import { cardMatchesLanguages, DEFAULT_BINDER_CARD_LANGUAGES, parseLanguageSearch } from '@/lib/card-languages';
+import { CardGridArt, CardGridBadges, CardGridBody, CardGridTile } from '@/components/card-grid-tile';
 import CardsBrowserSheet from '@/components/cards-browser-sheet';
 import { loadCardsNamed, peekCardsForPokemon, useCards, type TCGCard } from '@/hooks/use-cards';
 import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices';
@@ -771,46 +772,32 @@ export default function PokemonCardsBrowser({
                       (wanted.card_language ?? 'en') === (card.language ?? 'en'),
                   ) ?? [];
                 return (
-                  <li
+                  <CardGridTile
                     key={card.id}
                     data-card-id={card.id}
                     aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${nativeConsumer ? `, ${nativeCardLabel(nativeCardState(nativeModel, card))}` : ''}${entry.owned ? ', owned' : ''}${entry.wanted ? ', wanted' : ''}`}
-                    className={`bg-background/60 relative flex min-w-0 flex-col overflow-hidden rounded-2xl border ${
-                      tileOpens ? 'focus-within:border-primary/60 hover:border-primary/45 transition-colors ' : ''
-                    }${
+                    className={
                       isHighlighted
                         ? 'border-primary/70 ring-primary/40 ring-2'
                         : entry.owned
                           ? 'border-emerald-400/45'
                           : entry.wanted
                             ? 'border-amber-400/45'
-                            : 'border-border/50'
-                    }`}
+                            : undefined
+                    }
+                    onOpen={
+                      tileOpens
+                        ? () => (nativeConsumer && speciesCard ? focusCard(speciesCard) : onOpenCard?.(card))
+                        : undefined
+                    }
+                    openLabel={`Open ${card.name}, ${card.set.name} ${entry.numberLabel}`}
                   >
-                    {/* One button over the whole tile, so the exact card tapped is the one that opens. */}
-                    {tileOpens ? (
-                      <button
-                        type="button"
-                        aria-label={`Open ${card.name}, ${card.set.name} ${entry.numberLabel}`}
-                        onClick={() => (nativeConsumer && speciesCard ? focusCard(speciesCard) : onOpenCard?.(card))}
-                        className="focus-visible:ring-primary/70 absolute inset-0 z-[1] rounded-2xl focus-visible:ring-2 focus-visible:outline-none"
-                      />
-                    ) : null}
-                    <div className="trading-card bg-muted/40 relative w-full">
-                      {image ? (
-                        <CardImage
-                          sizes="(max-width: 639px) 45vw, 180px"
-                          src={image}
-                          alt={`${card.name} – ${card.set.name} ${entry.numberLabel}`}
-                          loading="lazy"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="text-muted-foreground flex h-full items-center justify-center p-2 text-center text-[11px]">
-                          No image
-                        </div>
-                      )}
-                      <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
+                    <CardGridArt
+                      image={image}
+                      alt={`${card.name} – ${card.set.name} ${entry.numberLabel}`}
+                      sizes="(max-width: 639px) 45vw, 180px"
+                    >
+                      <CardGridBadges>
                         {entry.owned ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
                             <Check className="h-3 w-3" /> Owned
@@ -833,10 +820,10 @@ export default function PokemonCardsBrowser({
                             {nativeConsumer ? ` ×${nativeCardState(nativeModel, card).wantedCount}` : ''}
                           </span>
                         ) : null}
-                      </div>
+                      </CardGridBadges>
                       <PriceRisingBadge price={priceSnapshot} className="absolute top-1.5 right-1.5" />
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col gap-1 p-2">
+                    </CardGridArt>
+                    <CardGridBody className="gap-1">
                       <p className="truncate text-xs font-semibold" title={card.set.name}>
                         {card.set.name}
                       </p>
@@ -921,8 +908,8 @@ export default function PokemonCardsBrowser({
                           onSwapping={(keep) => setSwapping(keep === null ? null : { cardId: card.id, keep })}
                         />
                       ) : null}
-                    </div>
-                  </li>
+                    </CardGridBody>
+                  </CardGridTile>
                 );
               })}
             </ul>
