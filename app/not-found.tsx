@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 // Static (prerendered into the /_not-found shell): no request data, so it's instant and works from
-// the CDN. Links lead back to the landing page and the binder.
+// the CDN. Links lead back to the landing page, the binder, and sign-up for new visitors.
 export default function NotFound() {
   return (
     <main className="bg-background flex min-h-screen items-center justify-center p-6">
@@ -16,6 +16,12 @@ export default function NotFound() {
             Home
           </Link>
         </div>
+        <p className="text-muted-foreground text-sm">
+          New to Holo Folder?{' '}
+          <Link href="/auth/login" className="text-primary inline-flex min-h-9 items-center font-medium">
+            Start your binder
+          </Link>
+        </p>
       </div>
     </main>
   );
