@@ -46,7 +46,7 @@ test('buildCardPriceSnapshotFromPricing uses TCGplayer market as market and low 
   assert.equal(snapshot.gbpAmount, 7.5);
   assert.equal(snapshot.marketGbpAmount, 7.5);
   assert.equal(snapshot.goodGbpAmount, 6);
-  assert.equal(snapshot.lowGbpAmount, 5.95);
+  assert.equal(snapshot.lowGbpAmount, 6);
   assert.equal(snapshot.highGbpAmount, 8.8);
   assert.equal(snapshot.confidence, 'high');
   assert.equal(snapshot.source, 'tcgplayer');
@@ -60,7 +60,7 @@ test('buildCardPriceSnapshotFromPricing uses TCGplayer market as market and low 
     })),
     [
       { source: 'tcgplayer', marketGbpAmount: 7.5, lowGbpAmount: 6, variantLabel: 'Normal' },
-      { source: 'cardmarket', marketGbpAmount: 7.65, lowGbpAmount: 5.95, variantLabel: 'Trend' },
+      { source: 'cardmarket', marketGbpAmount: 7.65, lowGbpAmount: null, variantLabel: 'Trend' },
     ],
   );
   assert.deepEqual(
@@ -101,12 +101,53 @@ test('buildCardPriceSnapshotFromPricing prefers Cardmarket trend for European la
 
   assert.equal(snapshot.gbpAmount, 15.3);
   assert.equal(snapshot.marketGbpAmount, 15.3);
-  assert.equal(snapshot.goodGbpAmount, 10.2);
-  assert.equal(snapshot.lowGbpAmount, 10.2);
+  assert.equal(snapshot.goodGbpAmount, 12.24);
+  assert.equal(snapshot.lowGbpAmount, 13.01);
   assert.equal(snapshot.highGbpAmount, 25.88);
   assert.equal(snapshot.confidence, 'low');
   assert.equal(snapshot.source, 'cardmarket');
   assert.equal(snapshot.variantLabel, 'Trend');
+});
+
+test('buildCardPriceSnapshotFromPricing never prices from Cardmarket low (any language, any condition)', () => {
+  // Synthetic fixture: Cardmarket low is the cheapest listing of any language or condition.
+  const lowOnly = buildCardPriceSnapshotFromPricing(
+    'sv1-004',
+    'fr',
+    { cardmarket: { updated: '2026-06-27T00:00:00.000Z', low: 2, 'low-holo': 3 } },
+    fxRates,
+  );
+  assert.equal(lowOnly.gbpAmount, null);
+
+  const withTrend = buildCardPriceSnapshotFromPricing(
+    'sv1-005',
+    'fr',
+    { cardmarket: { updated: '2026-06-27T00:00:00.000Z', trend: 20, low: 4 } },
+    fxRates,
+  );
+  assert.equal(withTrend.gbpAmount, 17);
+  assert.equal(withTrend.goodGbpAmount, 13.6);
+  assert.equal(withTrend.lowGbpAmount, 14.45);
+  assert.equal(withTrend.confidence, 'medium');
+  assert.equal(withTrend.sourcePrices[0].lowGbpAmount, null);
+});
+
+test('buildCardPriceSnapshotFromPricing prefers Unlimited over 1st Edition for vintage cards', () => {
+  // Synthetic fixture: 1st Edition trades at a large premium over the Unlimited printing.
+  const snapshot = buildCardPriceSnapshotFromPricing(
+    'neo4-111',
+    'en',
+    {
+      tcgplayer: {
+        updated: '2026-06-27T10:00:00.000Z',
+        '1st-edition-holofoil': { midPrice: 15000 },
+        'unlimited-holofoil': { lowPrice: 500, marketPrice: 600 },
+      },
+    },
+    fxRates,
+  );
+  assert.equal(snapshot.gbpAmount, 450);
+  assert.equal(snapshot.variantLabel, 'Unlimited Holofoil');
 });
 
 test('buildCardPriceSnapshotFromPricing marks inferred price ranges as medium confidence', () => {
@@ -131,7 +172,7 @@ test('buildCardPriceSnapshotFromPricing marks inferred price ranges as medium co
   assert.equal(snapshot.confidence, 'medium');
 });
 
-test('buildCardPriceSnapshotFromPricing lowers confidence and widens range when sources disagree', () => {
+test('buildCardPriceSnapshotFromPricing widens range and caps English confidence at medium when Cardmarket disagrees', () => {
   const snapshot = buildCardPriceSnapshotFromPricing(
     'sv1-004',
     'en',
@@ -158,7 +199,8 @@ test('buildCardPriceSnapshotFromPricing lowers confidence and widens range when 
   assert.equal(snapshot.marketGbpAmount, 7.5);
   assert.equal(snapshot.lowGbpAmount, 6);
   assert.equal(snapshot.highGbpAmount, 19.55);
-  assert.equal(snapshot.confidence, 'low');
+  // Cardmarket mixes every language, so on an English card it caps confidence at medium rather than low.
+  assert.equal(snapshot.confidence, 'medium');
   assert.equal(snapshot.sourcePrices.length, 2);
 });
 

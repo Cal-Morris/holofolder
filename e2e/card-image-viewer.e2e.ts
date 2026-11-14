@@ -41,10 +41,10 @@ test('search card details can show the card full screen', async ({ harness }) =>
   await harness.page.keyboard.press('ControlOrMeta+k');
   const quick = harness.page.getByRole('dialog', { name: 'Quick mode', exact: true });
   await expect(quick).toBeVisible();
-  await quick.getByRole('searchbox').fill('charm');
+  await quick.getByRole('textbox').fill('charm');
   await quick
-    .getByRole('region', { name: 'Cards' })
-    .getByRole('button', { name: /^Charmander, 151 /i })
+    .getByRole('region', { name: 'Card results' })
+    .getByRole('button', { name: /^Charmander \S+ 151/i })
     .first()
     .click();
   await quick.getByRole('button', { name: 'More details' }).click();
@@ -81,10 +81,10 @@ test('unavailable image explains the failure and stays dismissible in dark mode'
   await harness.page.emulateMedia({ colorScheme: 'dark' });
   await harness.page.keyboard.press('ControlOrMeta+k');
   const quick = harness.page.getByRole('dialog', { name: 'Quick mode', exact: true });
-  await quick.getByRole('searchbox').fill('charm');
+  await quick.getByRole('textbox').fill('charm');
   await quick
-    .getByRole('region', { name: 'Cards' })
-    .getByRole('button', { name: /^Charmander, 151 /i })
+    .getByRole('region', { name: 'Card results' })
+    .getByRole('button', { name: /^Charmander \S+ 151/i })
     .first()
     .click();
   await quick.getByRole('button', { name: 'More details' }).click();

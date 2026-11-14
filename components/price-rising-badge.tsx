@@ -1,6 +1,7 @@
 'use client';
 
 import { TrendingUp } from 'lucide-react';
+import { usePremium } from '@/components/premium-upsell';
 import { formatMomentumChange, getRisingMomentum, type MomentumPriceInput } from '@/lib/price-momentum';
 
 interface PriceRisingBadgeProps {
@@ -8,10 +9,11 @@ interface PriceRisingBadgeProps {
   className?: string;
 }
 
-/** Small "Rising +18% · 30d" pill. Renders nothing unless the momentum rules qualify. */
+/** Small "Rising +18% · 30d" pill. Renders nothing unless the momentum rules qualify (Premium only). */
 export function PriceRisingBadge({ price, className = '' }: PriceRisingBadgeProps) {
+  const premium = usePremium();
   const momentum = getRisingMomentum(price);
-  if (!momentum) return null;
+  if (!premium || !momentum) return null;
 
   const change = formatMomentumChange(momentum.change);
   return (

@@ -232,7 +232,7 @@ test('an edit made while the background read is failing still saves instead of s
   expect((await record(page))!.receipts[0].outcome).toBe('acknowledged');
 });
 
-test('All cards from an owned pocket opens another printing with its want controls, and closing returns to the grid', async ({
+test('All cards from an owned pocket opens another printing in place with its want controls, and closing returns to the grid', async ({
   page,
 }) => {
   await page.goto(entry);
@@ -242,18 +242,39 @@ test('All cards from an owned pocket opens another printing with its want contro
   const all = page.getByRole('dialog', { name: /^All Bulbasaur cards$/ });
   const printing = all.getByRole('button', { name: /^Open Bulbasaur, 151 166\/165$/ });
   await printing.click();
-  const card = page
-    .getByRole('dialog', { name: /^All Bulbasaur cards$/ })
-    .filter({ has: page.getByRole('region', { name: 'On your want list' }) });
-  await expect(card).toHaveCount(1);
-  await expect(detail).toHaveCount(0);
+  // The details open inside the same sheet, never a second one stacked on top.
+  await expect(page.getByRole('dialog', { name: /^All Bulbasaur cards$/ })).toHaveCount(1);
+  const card = all.getByRole('region', { name: 'Card details' });
+  await expect(card.getByRole('region', { name: 'On your want list' })).toBeVisible();
   // The printing can be wanted from here: it goes on the Bulbasaur pocket and can be taken off again.
   await card.getByRole('button', { name: 'Add to want list' }).click();
   await expect(card.getByRole('button', { name: 'Remove from want list' })).toBeVisible();
   await expect(card.getByRole('region', { name: 'On your want list' })).toContainText('1 card');
   await card.getByRole('button', { name: 'Remove from want list' }).click();
   await expect(card.getByRole('button', { name: 'Add to want list' })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('region', { name: 'On your want list' })).toHaveCount(0);
+  await card.getByRole('button', { name: 'Close card details' }).click();
+  await expect(all.getByRole('region', { name: 'Card details' })).toHaveCount(0);
   await expect(printing).toBeVisible();
 });
+
+for (const keep of [true, false]) {
+  test(`Swap on a grid tile puts that printing in the pocket and ${keep ? 'keeps' : 'removes'} the old card`, async ({
+    page,
+  }) => {
+    await page.goto(entry);
+    await page.locator('[data-slot-id="synthetic-slot-0"]').click();
+    await page
+      .getByRole('dialog', { name: /details$/ })
+      .getByRole('button', { name: /^All .* cards$/ })
+      .click();
+    const all = page.getByRole('dialog', { name: /^All Bulbasaur cards$/ });
+    await all.getByRole('button', { name: /^Swap Bulbasaur 151 001 into its pocket$/ }).click();
+    const keepBox = all.getByRole('checkbox', { name: 'Keep old card in collection' });
+    await expect(keepBox).toBeChecked();
+    if (!keep) await keepBox.uncheck();
+    await all.getByRole('button', { name: 'Swap', exact: true }).click();
+    await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(keep ? 1 : 2);
+    expect((await record(page))!.receipts.every((r) => r.outcome === 'acknowledged')).toBe(true);
+    await expect(all.getByRole('button', { name: /^Bulbasaur 151 001 is in its pocket$/ })).toBeDisabled();
+  });
+}

@@ -105,7 +105,10 @@ describe('regionalizeCardPrice', () => {
   });
 
   test('UK averages Cardmarket and UK sold data and anchors on the GBP source', () => {
-    const result = regionalizeCardPrice(snapshot([tcgplayer(20), cardmarket(10), ukSold(12)]), 'UK');
+    const result = regionalizeCardPrice(
+      snapshot([tcgplayer(20), cardmarket(10), ukSold(12)], { language: 'fr' }),
+      'UK',
+    );
     // Native mean 11; TCGplayer at 20 disagrees by more than 35%, so it is ignored.
     assert.equal(result.priceBasis, 'native');
     assert.equal(result.gbpAmount, 11);
@@ -117,18 +120,48 @@ describe('regionalizeCardPrice', () => {
   });
 
   test('EU ignores UK-only sources', () => {
-    const result = regionalizeCardPrice(snapshot([ukSold(30), cardmarket(10)]), 'EU');
+    const result = regionalizeCardPrice(snapshot([ukSold(30), cardmarket(10)], { language: 'fr' }), 'EU');
     assert.equal(result.gbpAmount, 10);
     assert.equal(result.source, 'cardmarket');
   });
 
   test('foreign-only evidence keeps the price and downgrades confidence', () => {
-    const base = snapshot([tcgplayer(15)]);
+    const base = snapshot([tcgplayer(15)], { language: 'fr' });
     const result = regionalizeCardPrice(base, 'UK');
     assert.equal(result.priceBasis, 'foreign');
     assert.equal(result.gbpAmount, 15);
     assert.equal(result.confidence, 'medium');
     assert.equal(regionalizeCardPrice(base, 'JP').confidence, 'medium');
+  });
+
+  test('English cards anchor on TCGplayer in every region and ignore disagreeing Cardmarket', () => {
+    const disagree = snapshot([cardmarket(10), tcgplayer(20)]);
+    for (const region of ['UK', 'EU', 'US'] as const) {
+      const result = regionalizeCardPrice(disagree, region);
+      assert.equal(result.gbpAmount, 20, region);
+      assert.equal(result.source, 'tcgplayer', region);
+      assert.equal(result.confidence, 'high', region);
+    }
+    assert.equal(regionalizeCardPrice(disagree, 'UK').priceBasis, 'foreign');
+    assert.equal(regionalizeCardPrice(disagree, 'US').priceBasis, 'native');
+  });
+
+  test('English cards blend agreeing Cardmarket at 20% and prefer UK sold data in the UK', () => {
+    const agree = regionalizeCardPrice(snapshot([cardmarket(18), tcgplayer(20)]), 'UK');
+    assert.equal(agree.gbpAmount, 19.6); // 20 * 0.8 + 18 * 0.2
+    assert.equal(agree.source, 'tcgplayer');
+    const ukSoldResult = regionalizeCardPrice(snapshot([cardmarket(10), tcgplayer(30), ukSold(12)]), 'UK');
+    assert.equal(ukSoldResult.gbpAmount, 12);
+    assert.equal(ukSoldResult.priceBasis, 'native');
+  });
+
+  test('English cards priced only by Cardmarket are downgraded in every region', () => {
+    const base = snapshot([cardmarket(10)]);
+    for (const region of ['UK', 'EU', 'US'] as const) {
+      const result = regionalizeCardPrice(base, region);
+      assert.equal(result.gbpAmount, 10, region);
+      assert.equal(result.confidence, 'medium', region);
+    }
   });
 
   test('snapshots without source evidence pass through unchanged', () => {
@@ -233,8 +266,14 @@ describe('finish prices', () => {
       ],
     });
     const uk = getRegionalFinishPrices(base, 'UK');
-    // UK: Cardmarket is native, TCGplayer disagrees by more than 35%, so it is ignored.
-    assert.equal(uk.normal?.gbpAmount, 4);
+    // English card: Cardmarket at 4 mixes languages and disagrees, so TCGplayer prices the finish.
+    assert.equal(uk.normal?.gbpAmount, 10);
+    // French card: Cardmarket is native in the UK, TCGplayer disagrees by more than 35%, so it is ignored.
+    const fr = getRegionalFinishPrices(
+      { ...base, language: 'fr', finishPrices: base.finishPrices?.map((price) => ({ ...price, language: 'fr' })) },
+      'UK',
+    );
+    assert.equal(fr.normal?.gbpAmount, 4);
     assert.equal(uk.reverse_holo?.gbpAmount, 2);
     assert.equal(uk.reverse_holo?.priceBasis, 'foreign');
     assert.equal(uk.holo, undefined);

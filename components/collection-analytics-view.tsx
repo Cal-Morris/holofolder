@@ -22,6 +22,7 @@ import type { CollectedPokemon } from '@/lib/domain/cards';
 import { readBinderScope, rememberBinderScope, type BinderScope } from '@/lib/binders/all-binders';
 import { BinderScopeToggle } from '@/components/binder-scope-toggle';
 import { Select } from '@/components/ui/select';
+import { PremiumUpsell, usePremium } from '@/components/premium-upsell';
 
 interface Props {
   collection: CollectedPokemon[];
@@ -63,6 +64,15 @@ async function exportCollectionCsv(collection: CollectedPokemon[], pricesByKey: 
 }
 
 export default function CollectionAnalyticsView(props: Props) {
+  const premium = usePremium();
+  if (!premium)
+    return (
+      <PremiumUpsell
+        label="Analytics"
+        message="Collection value, movers and progress are included with Holo Folder Premium."
+        action="Unlock analytics"
+      />
+    );
   // A remount clears private history immediately when the signed-in collection owner changes.
   return <AnalyticsContent key={props.ownerId ?? 'local'} {...props} />;
 }

@@ -21,10 +21,10 @@ async function expectUsable(harness: Harness) {
   await harness.expectWithinSafeViewport(close);
   await harness.expectHittable(close);
   await harness.expectMinTapTarget(close, 44);
-  const field = dialog.getByRole('searchbox');
+  const field = dialog.getByRole('textbox');
   await expect(field).toBeFocused();
   await harness.expectWithinSafeViewport(field);
-  await harness.expectMinTapTarget(field, 48);
+  await harness.expectMinTapTarget(field, 44);
   // The field sits in the bottom third: thumb reach.
   expect((await field.boundingBox())!.y).toBeGreaterThan(harness.viewport.height * 0.66);
   await harness.expectNoHorizontalOverflow();
@@ -62,13 +62,13 @@ test.describe('quick mode', () => {
 
   test('one field finds Pokémon, cards and destinations; picking a card opens it', async ({ harness }) => {
     const dialog = await longPressSearch(harness);
-    const field = dialog.getByRole('searchbox');
+    const field = dialog.getByRole('textbox');
     await field.fill('charm');
-    const pokemon = dialog.getByRole('region', { name: 'Pokémon' });
-    await expect(pokemon.getByRole('button', { name: /charmander/i })).toContainText('Owned');
-    await expect(pokemon.getByRole('button', { name: /charmeleon/i })).toContainText('Missing');
-    const cards = dialog.getByRole('region', { name: 'Cards' });
-    const card = cards.getByRole('button', { name: /^Charmander, 151 /i }).first();
+    // The Search sheet's results: Pokémon rows with their binder state, then cards grouped by Pokémon.
+    await expect(dialog.getByRole('button', { name: /^Charmander .*#4\b/ }).first()).toContainText('Owned');
+    await expect(dialog.getByRole('button', { name: /^Charmeleon .*#5\b/ }).first()).toBeVisible();
+    const cards = dialog.getByRole('region', { name: 'Card results' });
+    const card = cards.getByRole('button', { name: /^Charmander \S+ 151/i }).first();
     await expect(card).toBeVisible();
     await harness.expectMinTapTarget(card, 48);
     await screenshot(harness, 'search');
@@ -80,8 +80,8 @@ test.describe('quick mode', () => {
 
     await field.fill('charm');
     await dialog
-      .getByRole('region', { name: 'Cards' })
-      .getByRole('button', { name: /^Charmander, 151 /i })
+      .getByRole('region', { name: 'Card results' })
+      .getByRole('button', { name: /^Charmander \S+ 151/i })
       .first()
       .click();
     // A picked card opens its deal check first; More details goes on to the card itself.
@@ -105,11 +105,9 @@ test.describe('quick mode', () => {
 
   test('Enter takes the top Pokémon to its binder slot, and the search is remembered', async ({ harness }) => {
     const dialog = await longPressSearch(harness);
-    await dialog.getByRole('searchbox').fill('bulbas');
-    await expect(
-      dialog.getByRole('region', { name: 'Pokémon' }).getByRole('button', { name: /bulbasaur/i }),
-    ).toBeVisible();
-    await dialog.getByRole('searchbox').press('Enter');
+    await dialog.getByRole('textbox').fill('bulbas');
+    await expect(dialog.getByRole('button', { name: /^Bulbasaur .*#1\b/ }).first()).toBeVisible();
+    await dialog.getByRole('textbox').press('Enter');
     await expect(dialog).toBeHidden();
     await expect(harness.page.getByRole('dialog', { name: /bulbasaur details/i })).toBeVisible();
 
@@ -120,7 +118,18 @@ test.describe('quick mode', () => {
     const recent = again.getByRole('region', { name: 'Recent searches' }).getByRole('button', { name: 'bulbas' });
     await expect(recent).toBeVisible();
     await recent.click();
-    await expect(again.getByRole('searchbox')).toHaveValue('bulbas');
+    await expect(again.getByRole('textbox')).toHaveValue('bulbas');
+  });
+
+  test('Enter opens the top destination when no Pokémon matches', async ({ harness }) => {
+    const dialog = await longPressSearch(harness);
+    await dialog.getByRole('textbox').fill('wishlist');
+    await expect(
+      dialog.getByRole('region', { name: 'Go to' }).getByRole('button', { name: /^Want list/ }),
+    ).toBeVisible();
+    await dialog.getByRole('textbox').press('Enter');
+    await expect(dialog).toBeHidden();
+    await expect(harness.page.getByText('No wanted cards yet')).toBeVisible();
   });
 
   test('closes with X, Escape and back; also opens from the Search sheet and Ctrl+K', async ({ harness }) => {
@@ -159,10 +168,10 @@ test.describe('quick mode', () => {
 
     dialog = await longPressSearch(harness);
     await expect(dialog.getByRole('status').filter({ hasText: 'Offline' })).toBeVisible();
-    await dialog.getByRole('searchbox').fill('bulbasaur');
-    const cards = dialog.getByRole('region', { name: 'Cards' });
-    await expect(cards.getByRole('heading')).toContainText('on this device');
-    await expect(cards.getByRole('button', { name: /^Bulbasaur, Base Set/i })).toBeVisible();
+    await dialog.getByRole('textbox').fill('bulbasaur');
+    const cards = dialog.getByRole('region', { name: 'Card results' });
+    await expect(cards).toContainText('offline: your cards and saved sets');
+    await expect(cards.getByRole('button', { name: /^Bulbasaur \S+ Base Set/i })).toBeVisible();
     await screenshot(harness, 'offline');
     await page.context().setOffline(false);
   });

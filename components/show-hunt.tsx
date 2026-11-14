@@ -9,6 +9,7 @@ import { ChevronRight, Heart, Target, TrendingDown } from 'lucide-react';
 import { PriceDropBadge } from '@/components/price-drop-badge';
 import { BackgroundPriceCheck } from '@/components/collection-price-check';
 import { useBillingContext } from '@/hooks/use-billing';
+import { PremiumUpsell, usePremium } from '@/components/premium-upsell';
 import { checkCompsTargets } from '@/lib/check-comps';
 import ShowCheckComps from '@/components/show-check-comps';
 import { useDisplayCardPrices } from '@/hooks/use-display-card-prices';
@@ -44,11 +45,13 @@ function payUpTo(market: number, thresholds: DealThresholds) {
   return Math.round(market * (1 + thresholds.fairPct / 100) * 100) / 100;
 }
 
+/** The deal thresholds behind "Pay up to", or null on the free plan (pay-up-to prices are Premium). */
 export function useDealThresholds() {
+  const premium = usePremium();
   const [thresholds] = useState(() =>
     readDealThresholds(typeof window === 'undefined' ? undefined : window.localStorage),
   );
-  return thresholds;
+  return premium ? thresholds : null;
 }
 
 export function PokemonSprite({ id, size = 'h-12 w-12' }: { id: number; size?: string }) {
@@ -78,12 +81,13 @@ export function HuntCardRow({
   card: SearchCardResult;
   finish?: CardFinish | null;
   market: Money | null;
-  thresholds: DealThresholds;
+  thresholds: DealThresholds | null;
   standing: 'wanted' | 'missing' | 'owned';
   showStanding?: boolean;
   onPick: () => void;
 }) {
-  const limit = market?.confident ? formatMoney(payUpTo(market.amount, thresholds), market.currency) : null;
+  const limit =
+    thresholds && market?.confident ? formatMoney(payUpTo(market.amount, thresholds), market.currency) : null;
   const tone = standing === 'owned' ? 'border-border/40 opacity-55' : 'border-border/60 bg-card';
   const finishLabel = finish && finish !== 'normal' ? formatCardFinishLabel(finish) : null;
   return (
@@ -132,6 +136,10 @@ export function HuntCardRow({
               Market {formatMoney(market!.amount, market!.currency)}
             </span>
           </>
+        ) : !thresholds && market?.confident ? (
+          <span className="text-lg leading-tight font-black tabular-nums">
+            {formatMoney(market.amount, market.currency)}
+          </span>
         ) : (
           <span className="text-muted-foreground text-xs">No price</span>
         )}
@@ -228,10 +236,16 @@ function ShowHunt({
 }: ShowHuntProps) {
   const billing = useBillingContext();
   const thresholds = useDealThresholds();
-  const [sort, setSort] = useState<HuntSort>('wanted');
-  const [era, setEra] = useState<string | null>(null);
-  const [setId, setSetId] = useState<string | null>(null);
-  const [illustrator, setIllustrator] = useState('');
+  // Sort, filters, pay-up-to and Good pickups are Premium; the free list stays in want order with current prices.
+  const premium = thresholds !== null;
+  const [pickedSort, setSort] = useState<HuntSort>('wanted');
+  const [pickedEra, setEra] = useState<string | null>(null);
+  const [pickedSetId, setSetId] = useState<string | null>(null);
+  const [pickedIllustrator, setIllustrator] = useState('');
+  const sort = premium ? pickedSort : 'wanted';
+  const era = premium ? pickedEra : null;
+  const setId = premium ? pickedSetId : null;
+  const illustrator = premium ? pickedIllustrator : '';
   const [directory, setDirectory] = useState<IllustratorSummary[]>([]);
   const [illustratorCards, setIllustratorCards] = useState<{ name: string; ids: Set<string> | null } | null>(null);
 
@@ -375,67 +389,75 @@ function ShowHunt({
               </span>
             </h3>
           </div>
-          <div className="grid grid-cols-2 gap-2 @min-[48rem]:grid-cols-4">
-            <Select
-              aria-label="Sort"
-              value={sort}
-              onChange={(event) => setSort(event.target.value as HuntSort)}
-              className={selectClass}
-            >
-              <option value="wanted">Most wanted</option>
-              <option value="value">Top value</option>
-              <option value="falling">Biggest price drop</option>
-              <option value="rising">Biggest price rise</option>
-            </Select>
-            <Select
-              aria-label="Era"
-              value={era ?? ''}
-              onChange={(event) => {
-                setEra(event.target.value || null);
-                setSetId(null);
-              }}
-              className={selectClass}
-            >
-              <option value="">All eras</option>
-              {options.eras.map(({ era: entry, count }) => (
-                <option key={entry.id} value={entry.id}>
-                  {entry.label} ({count})
-                </option>
-              ))}
-            </Select>
-            <label className="min-w-0">
-              <span className="sr-only">Set</span>
+          {!premium ? (
+            <PremiumUpsell
+              label="Hunting filters"
+              message="Sorting, era, set and illustrator filters and pay-up-to prices are included with Holo Folder Premium."
+              action="Unlock hunting tools"
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-2 @min-[48rem]:grid-cols-4">
               <Select
-                aria-label="Set"
-                value={setId ?? ''}
-                onChange={(event) => setSetId(event.target.value || null)}
+                aria-label="Sort"
+                value={sort}
+                onChange={(event) => setSort(event.target.value as HuntSort)}
                 className={selectClass}
               >
-                <option value="">Any set</option>
-                {visibleSets.map((entry) => (
+                <option value="wanted">Most wanted</option>
+                <option value="value">Top value</option>
+                <option value="falling">Biggest price drop</option>
+                <option value="rising">Biggest price rise</option>
+              </Select>
+              <Select
+                aria-label="Era"
+                value={era ?? ''}
+                onChange={(event) => {
+                  setEra(event.target.value || null);
+                  setSetId(null);
+                }}
+                className={selectClass}
+              >
+                <option value="">All eras</option>
+                {options.eras.map(({ era: entry, count }) => (
                   <option key={entry.id} value={entry.id}>
-                    {entry.name} ({entry.count})
+                    {entry.label} ({count})
                   </option>
                 ))}
               </Select>
-            </label>
-            <label className="relative min-w-0">
-              <span className="sr-only">Illustrator</span>
-              <Select
-                aria-label="Illustrator"
-                value={illustrator}
-                onChange={(event) => setIllustrator(event.target.value)}
-                className={selectClass}
-              >
-                <option value="">Any illustrator</option>
-                {illustratorNames.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          </div>
+              <label className="min-w-0">
+                <span className="sr-only">Set</span>
+                <Select
+                  aria-label="Set"
+                  value={setId ?? ''}
+                  onChange={(event) => setSetId(event.target.value || null)}
+                  className={selectClass}
+                >
+                  <option value="">Any set</option>
+                  {visibleSets.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.name} ({entry.count})
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="relative min-w-0">
+                <span className="sr-only">Illustrator</span>
+                <Select
+                  aria-label="Illustrator"
+                  value={illustrator}
+                  onChange={(event) => setIllustrator(event.target.value)}
+                  className={selectClass}
+                >
+                  <option value="">Any illustrator</option>
+                  {illustratorNames.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            </div>
+          )}
         </div>
 
         {total > 0 && (
@@ -455,7 +477,7 @@ function ShowHunt({
           </div>
         )}
 
-        {pickups.length > 0 && (
+        {thresholds && pickups.length > 0 && (
           <GoodPickups
             pickups={pickups}
             thresholds={thresholds}
@@ -507,7 +529,7 @@ const HuntGroupSection = memo(function HuntGroupSection({
 }: {
   group: HuntGroup;
   priceOfWanted: (card: WantedCard) => Money | null;
-  thresholds: DealThresholds;
+  thresholds: DealThresholds | null;
   onPickCard: ShowHuntProps['onPickCard'];
   onPickPokemon: ShowHuntProps['onPickPokemon'];
 }) {

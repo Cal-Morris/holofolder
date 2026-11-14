@@ -149,7 +149,7 @@ for (const desktop of [false, true])
     await closeStorage(page);
     await page.keyboard.press('Control+k');
     const quick = page.getByRole('dialog', { name: 'Quick mode', exact: true });
-    await quick.getByRole('searchbox').fill('card show');
+    await quick.getByRole('textbox').fill('card show');
     await quick.getByRole('button', { name: /^Show mode/ }).click();
     await quick.getByRole('searchbox').fill('');
     await expect(quick.getByRole('region', { name: 'Show budget' })).toBeVisible();

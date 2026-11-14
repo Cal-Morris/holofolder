@@ -193,7 +193,10 @@ export default function HomePage({ signedIn = SIGNED_OUT }: { signedIn?: Promise
             </article>
             <article className={styles.priceTool}>
               <h3>See how prices move.</h3>
-              <p>Look through saved price history. Rising and Breakout highlight moves backed by usable market data.</p>
+              <p>
+                With Premium, look through saved price history. Rising and Breakout highlight moves backed by usable
+                market data.
+              </p>
             </article>
             <article className={styles.priceTool}>
               <h3>Keep an eye on wanted cards.</h3>

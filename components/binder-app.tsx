@@ -43,6 +43,7 @@ import {
 } from 'react';
 import dashboardStyles from '@/components/dashboard-binder-preview.module.css';
 import { BillingContext, useBilling } from '@/hooks/use-billing';
+import { hasPremiumFeatures } from '@/lib/billing';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { CreditsNotice } from '@/components/credits';
 import type { SettingsPageId } from '@/components/settings-modal';
@@ -3807,10 +3808,13 @@ function BinderAppSurface(props: BinderAppProps) {
       currency: pricingPreferences.currency,
       fxRates,
       readOnly: nativeReadOnly,
-      tally: user?.id && !accountSettingsReadOnly ? showPurchaseTally : undefined,
+      // The purchase tally and show budget are Premium.
+      tally: hasPremiumFeatures(billing.access) && user?.id && !accountSettingsReadOnly ? showPurchaseTally : undefined,
       destinationName: activeBinder?.name ?? 'this binder',
       revisitKey: revisitStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null),
-      budgetKey: showBudgetStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null),
+      budgetKey: hasPremiumFeatures(billing.access)
+        ? showBudgetStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null)
+        : null,
       getCardState: getQuickCardState,
       onAction: handleQuickCardAction,
       onChangeCard: handleQuickChangeCard,
@@ -3820,6 +3824,7 @@ function BinderAppSurface(props: BinderAppProps) {
     [
       nativeHunt,
       accountSettingsReadOnly,
+      billing.access,
       showPurchaseTally,
       nativeReadOnly,
       activeBinder?.name,
@@ -3833,11 +3838,6 @@ function BinderAppSurface(props: BinderAppProps) {
       resolvedCollectionOwnerUserId,
       user?.id,
     ],
-  );
-  // Outside Show mode Quick still badges each printing Owned / Wanted and lists wanted ones first.
-  const quickCardStanding = useMemo(
-    () => ({ getCardState: getQuickCardState, items: collection }),
-    [collection, getQuickCardState],
   );
   const showTally = useMemo(() => summarizeShowSession(showSession.session), [showSession.session]);
 
@@ -3891,6 +3891,33 @@ function BinderAppSurface(props: BinderAppProps) {
   const onQuickBrowseIllustrator = useCallback(
     (name: string) => openIllustratorBrowser(name),
     [openIllustratorBrowser],
+  );
+  // Plain Quick mode (Ctrl/Cmd+K, hold Search) runs the Search sheet's search, so it gets the same inputs.
+  const quickSearchPagePokemon = useMemo(
+    () => (publicIndex ? publicIndex.pageSpecies(currentBinderPage) : currentPagePokemon),
+    [currentBinderPage, currentPagePokemon, publicIndex],
+  );
+  const quickSearch = useMemo(
+    () => ({
+      pokemonList: filteredPokemonList,
+      currentPagePokemonList: quickSearchPagePokemon,
+      getResultMeta: getSearchResultMeta,
+      totalPages: totalBinderPages,
+      onJumpToPage: (page: number) => {
+        setIsQuickModeOpen(false);
+        handleSearchJumpToPage(page);
+      },
+      onBrowseCards: (pokemon: { id: number; name: string }, highlightCardId?: string) =>
+        openCardBrowser(pokemon, { highlightCardId }),
+    }),
+    [
+      filteredPokemonList,
+      getSearchResultMeta,
+      handleSearchJumpToPage,
+      openCardBrowser,
+      quickSearchPagePokemon,
+      totalBinderPages,
+    ],
   );
   const quickHiddenDestinations = useMemo<QuickDestinationId[]>(
     () => (readOnlyMode ? ['scan', 'analytics', 'settings'] : []),
@@ -4685,7 +4712,7 @@ function BinderAppSurface(props: BinderAppProps) {
               showModeOn={isShowModeOn}
               cardCheck={quickCardCheck}
               showTools={isShowModeOn || Boolean(quickLookup)}
-              cardStanding={quickCardStanding}
+              search={quickSearch}
               initialQuery={quickLookup?.query}
               lookupOnly={!isShowModeOn && Boolean(quickLookup)}
             />
@@ -4878,10 +4905,6 @@ function BinderAppSurface(props: BinderAppProps) {
               isDesktop={isDesktopViewport}
               readOnly={nativeReadOnly}
               onClose={closeCardBrowser}
-              // Native binders want and add from the card's own details, so a tap opens exactly that printing.
-              onOpenCard={
-                hasNativeConsumer ? (card) => openGridCard({ ...card, dexIds: [cardBrowser.pokemon.id] }) : undefined
-              }
               onWantCard={readOnlyMode ? undefined : requireAccount}
               onAddCard={readOnlyMode ? undefined : requireAccount}
               formatPrice={priceFormat.label}

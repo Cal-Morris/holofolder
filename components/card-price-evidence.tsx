@@ -5,6 +5,7 @@ import type { CardPriceSnapshot } from '@/lib/card-pricing';
 import { useCardPriceHistory } from '@/hooks/use-card-prices';
 import { formatCurrencyAmount, formatGbpAmount } from '@/lib/price-format';
 import { isMomentumEligibleConfidence } from '@/lib/price-momentum';
+import { PremiumUpsell, usePremium } from '@/components/premium-upsell';
 
 // The chart library is large and only needed once a card's price details are open, so the
 // trend chart loads in its own chunk. The placeholder has the chart's exact height, so the
@@ -44,21 +45,32 @@ function formatUpdatedAt(value: string | null | undefined) {
 }
 
 export function CardPriceEvidence({ price, showTrend = true, emptyMessage }: CardPriceEvidenceProps) {
+  // Price history, trends and timing signals are Premium; the free plan keeps the current source quotes.
+  const premium = usePremium();
   const sourcePrices = price?.sourcePrices ?? [];
-  const trendPoints = (price?.trendPoints ?? []).filter((point) => point.source === 'cardmarket');
+  const allTrendPoints = (price?.trendPoints ?? []).filter((point) => point.source === 'cardmarket');
   // History is card-level TCGplayer data, so a finish quote (it has a variantKey) doesn't load it.
   const isCardQuote = price != null && !('variantKey' in price);
-  const loadedHistory = useCardPriceHistory(isCardQuote ? price.cardId : undefined, price?.language);
+  const loadedHistory = useCardPriceHistory(isCardQuote && premium ? price.cardId : undefined, price?.language);
   // Until it loads (or offline with nothing saved), fall back to history already on the quote, else none.
-  const history = loadedHistory ?? price?.historyPoints ?? [];
+  const allHistory = loadedHistory ?? price?.historyPoints ?? [];
+  const lockedTrends = !premium && (allHistory.length > 0 || (showTrend && allTrendPoints.length >= 2));
+  const history = premium ? allHistory : [];
+  const trendPoints = premium ? allTrendPoints : [];
   // Cached snapshots can contain timing calls made before confidence gates.
-  const rawBuySignal = price?.buySignal ?? null;
+  const rawBuySignal = premium ? (price?.buySignal ?? null) : null;
   const buySignal =
     rawBuySignal && !isMomentumEligibleConfidence(price?.confidence)
       ? { status: 'hold' as const, label: 'Thin data', reason: 'Price confidence is too low to call the timing.' }
       : rawBuySignal;
 
-  if (!buySignal && sourcePrices.length === 0 && history.length === 0 && (!showTrend || trendPoints.length < 2)) {
+  if (
+    !lockedTrends &&
+    !buySignal &&
+    sourcePrices.length === 0 &&
+    history.length === 0 &&
+    (!showTrend || trendPoints.length < 2)
+  ) {
     return emptyMessage ? <p className="text-muted-foreground mt-2 text-xs">{emptyMessage}</p> : null;
   }
 
@@ -181,6 +193,13 @@ export function CardPriceEvidence({ price, showTrend = true, emptyMessage }: Car
           </div>
           <CardPriceTrendChart data={chartData} />
         </div>
+      ) : null}
+      {lockedTrends ? (
+        <PremiumUpsell
+          label="Price history"
+          message="Price history, trends and Rising signals are included with Holo Folder Premium."
+          action="Unlock price trends"
+        />
       ) : null}
     </div>
   );

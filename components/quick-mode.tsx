@@ -11,28 +11,10 @@ import {
 } from '@/lib/collection/native-card-consumers';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import dynamic from 'next/dynamic';
-import {
-  BarChart3,
-  Camera,
-  Grid3X3,
-  Heart,
-  Layers,
-  Layers3,
-  ListChecks,
-  Loader2,
-  Palette,
-  Search,
-  Settings,
-  Sparkles,
-  Ticket,
-  WifiOff,
-  X,
-  type LucideIcon,
-} from 'lucide-react';
+import { Camera, Layers, Loader2, Palette, Search, WifiOff, X } from 'lucide-react';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { SetSymbol } from '@/components/set-symbol';
-import { useCardSearch, useIllustratorSearch, useSetSearch } from '@/hooks/use-card-search';
+import { useCardSearch, useIllustratorSearch } from '@/hooks/use-card-search';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { getCardPriceKey, useStableCardPriceLookups, type CardPriceSnapshot } from '@/hooks/use-card-prices';
 import { CardThumbnail } from '@/components/card-thumbnail';
@@ -44,7 +26,6 @@ import {
 } from '@/lib/pokemon-catalog';
 import { formatCardNumber, type SearchCardResult } from '@/lib/pokemon-card-browse';
 import { searchPokemonItems } from '@/lib/pokemon-search-state';
-import { formatSetHitMeta } from '@/lib/set-search';
 import type { TCGSetSummary } from '@/lib/tcg-set-slots';
 import { recentToSearchCard, toRecentCard } from '@/lib/recent-cards';
 import { useShowRevisit } from '@/hooks/use-show-revisit';
@@ -52,7 +33,9 @@ import ShowBudget from '@/components/show-budget';
 import ShowRevisit from '@/components/show-revisit';
 import type { RevisitCard } from '@/lib/show-revisit';
 import { DEFAULT_PRICING_REGION, type PricingRegion } from '@/lib/pricing-region';
-import { matchQuickDestinations, type QuickDestination, type QuickDestinationId } from '@/lib/quick-mode';
+import { visibleQuickDestinations, type QuickDestinationId } from '@/lib/quick-mode';
+import QuickDestinations from '@/components/quick-destinations';
+import PokemonSearch, { type PokemonSearchProps } from '@/components/pokemon-search';
 import { formatMoney, type DisplayFxRates } from '@/lib/regional-price';
 import type { DisplayCurrency } from '@/lib/pricing-region';
 import { isCardLanguage, type CardFinish } from '@/lib/domain/cards';
@@ -141,18 +124,6 @@ export interface QuickCardCheckOptions {
   huntItems?: readonly HuntSourceItem[];
 }
 
-const DESTINATION_ICONS: Record<QuickDestinationId, LucideIcon> = {
-  binder: Grid3X3,
-  list: ListChecks,
-  wanted: Heart,
-  sets: Layers3,
-  pokemon: Sparkles,
-  analytics: BarChart3,
-  settings: Settings,
-  scan: Camera,
-  'show-mode': Ticket,
-};
-
 export interface QuickModePokemonState {
   label: string;
   toneClass: string;
@@ -180,22 +151,17 @@ export interface QuickModeProps {
   /** Set to check prices: a picked card opens its deal check (Show mode or not). */
   cardCheck?: QuickCardCheckOptions;
   /** Show mode's extras on top of the deal check: Hunting list, Pokémon card lists, bundle, card scan and
-   *  the purchase tally. Off in plain Quick mode, which keeps its own search and navigation. */
+   *  the purchase tally. Off in plain Quick mode, which is the Search sheet's search plus "Go to". */
   showTools?: boolean;
   /** Opens with this search typed (e.g. the want list's "Check price of any card"). */
   initialQuery?: string;
   /** Price lookup outside Show mode: "Price check" header, no Show mode framing. */
   lookupOnly?: boolean;
-  /** Outside Show mode too: each card result gets its Owned / Wanted badge, wanted printings first. */
-  cardStanding?: {
-    getCardState: (
-      card: SearchCardResult,
-      pokemon: { id: number; name: string },
-      finish?: CardFinish,
-    ) => QuickCardState;
-    /** The collection on this device: its wanted printings always match, even offline. */
-    items?: readonly HuntSourceItem[];
-  };
+  /** Plain Quick mode's search: the binder's Pokémon list, result meta and page jumps, as in the Search sheet. */
+  search?: Pick<
+    PokemonSearchProps,
+    'pokemonList' | 'currentPagePokemonList' | 'getResultMeta' | 'totalPages' | 'onJumpToPage' | 'onBrowseCards'
+  >;
 }
 
 const STANDING_BADGES: Record<PokemonCardStanding, QuickModePokemonState> = CARD_STANDING_BADGES;
@@ -224,7 +190,7 @@ function QuickMode({
   showTools = true,
   initialQuery = '',
   lookupOnly = false,
-  cardStanding,
+  search,
   // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent pieces of UI state; React batches the updates and one reducer would not be clearer
 }: QuickModeProps) {
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
@@ -282,33 +248,28 @@ function QuickMode({
   }, [focusOnOpen]);
 
   const trimmed = query.trim();
-  const destinations = useMemo(() => {
-    const visible = (list: readonly QuickDestination[]) =>
-      list.flatMap((entry) =>
-        hiddenDestinations.includes(entry.id)
-          ? []
-          : [
-              entry.id === 'show-mode' && showModeOn
-                ? { ...entry, label: 'Exit Show mode', hint: 'Show mode is on' }
-                : entry,
-            ],
-      );
-    return trimmed ? visible(matchQuickDestinations(trimmed)).slice(0, 3) : visible(matchQuickDestinations(''));
-  }, [hiddenDestinations, showModeOn, trimmed]);
+  const destinations = useMemo(
+    () => (show ? visibleQuickDestinations(trimmed, hiddenDestinations, showModeOn) : []),
+    [hiddenDestinations, show, showModeOn, trimmed],
+  );
   const pokemonResults = useMemo(
-    () => (trimmed ? searchPokemonItems(trimmed, POKEMON_CATALOG, show ? 6 : 5) : []),
+    () => (show && trimmed ? searchPokemonItems(trimmed, POKEMON_CATALOG, 6) : []),
     [show, trimmed],
   );
-  const cardSearch = useCardSearch(query, true, getOfflineCards, { includeNonPokemon: Boolean(nativeConsumer) });
+  // Plain Quick mode searches through PokemonSearch; this lookup is Show mode's and Price check's.
+  const cardSearch = useCardSearch(query, Boolean(show), getOfflineCards, {
+    includeNonPokemon: Boolean(nativeConsumer),
+  });
   // Wanted cards that match, from the want list on this device: always found, even offline or uncached.
   const nativeState = useCallback(
     (card: SearchCardResult, _pokemon: { id: number; name: string }, finish?: CardFinish) =>
       nativeCardState(nativeModel, card, finish),
     [nativeModel],
   );
-  const getCardState = nativeConsumer ? nativeState : (cardCheck?.getCardState ?? cardStanding?.getCardState);
-  const standingItems = show ? huntItems : cardStanding?.items;
+  const getCardState = nativeConsumer ? nativeState : cardCheck?.getCardState;
+  const standingItems = huntItems;
   const wantedMatches = useMemo(() => {
+    if (!show) return [];
     if (nativeConsumer && trimmed) {
       const wanted =
         nativeCardConsumers(nativeConsumer)?.wants.flatMap((w) =>
@@ -336,7 +297,7 @@ function QuickMode({
       ).map((card) => card.id),
     );
     return wanted.filter((entry) => matched.has(entry.card.id));
-  }, [getCardState, standingItems, trimmed, nativeConsumer]);
+  }, [getCardState, show, standingItems, trimmed, nativeConsumer]);
   const cardResults = useMemo(() => {
     const seen = new Set<string>();
     const found = nativeConsumer
@@ -386,8 +347,7 @@ function QuickMode({
       ),
     [cardResults, moveSort, pricesByCardId, nativeConsumer],
   );
-  const illustrators = useIllustratorSearch(query, true).slice(0, 3);
-  const setHits = useSetSearch(query, Boolean(onBrowseSet) && !show);
+  const illustrators = useIllustratorSearch(query, Boolean(show)).slice(0, 3);
 
   const { rememberSearch, rememberCard: saveRecentCard } = history;
   const remember = useCallback(() => rememberSearch(trimmed), [rememberSearch, trimmed]);
@@ -449,6 +409,11 @@ function QuickMode({
       onNavigate(destination);
     },
     [onNavigate, remember],
+  );
+
+  const goTo = useMemo(
+    () => ({ hidden: hiddenDestinations, showModeOn, columns: isWide ? (3 as const) : (2 as const), onGo: onNavigate }),
+    [hiddenDestinations, isWide, onNavigate, showModeOn],
   );
 
   const pickPokemon = useCallback(
@@ -561,16 +526,11 @@ function QuickMode({
     destinations.length === 0 &&
     pokemonResults.length === 0 &&
     cardResults.length === 0 &&
-    illustrators.length === 0 &&
-    setHits.length === 0;
+    illustrators.length === 0;
 
   const searchControls = (
     <div
-      className={
-        palette
-          ? 'mx-3 mb-2 shrink-0'
-          : `holo-panel border-border/60 shrink-0 rounded-3xl border px-3 py-3 ${wideWorkspace ? 'mx-3 mb-3' : 'mx-3 mt-2 mb-[calc(var(--safe-bottom)+0.5rem)]'}`
-      }
+      className={`holo-panel border-border/60 shrink-0 rounded-3xl border px-3 py-3 ${wideWorkspace ? 'mx-3 mb-3' : 'mx-3 mt-2 mb-[calc(var(--safe-bottom)+0.5rem)]'}`}
     >
       {show && bundle.length > 0 && (
         <button
@@ -648,7 +608,7 @@ function QuickMode({
               setScanNotice(null);
             }}
             onKeyDown={handleKeyDown}
-            placeholder={show ? 'Name or card number' : 'Card, Pokémon, artist or page'}
+            placeholder="Name or card number"
             className="border-border/70 bg-background placeholder:text-muted-foreground/80 focus:border-primary focus:ring-primary/30 h-14 w-full rounded-2xl border pr-4 pl-12 text-base font-medium outline-none focus:ring-2"
           />
         </label>
@@ -738,7 +698,7 @@ function QuickMode({
                   : 'contents'
               }
             >
-              {(wideWorkspace || palette) && searchControls}
+              {show && wideWorkspace && searchControls}
               {show && !trimmed && browsing ? (
                 <ShowPokemonCards
                   key={browsing.id}
@@ -806,68 +766,35 @@ function QuickMode({
                   onPickCard={pickCard}
                   onPickPokemon={pickPokemon}
                 />
+              ) : !show ? (
+                <div
+                  className={`flex min-h-0 flex-1 flex-col px-3 ${palette ? 'pb-2' : 'pb-[calc(var(--safe-bottom)+0.5rem)]'}`}
+                >
+                  <PokemonSearch
+                    nativeConsumer={nativeConsumer}
+                    history={history}
+                    onSelect={onSelectPokemon}
+                    {...search}
+                    getOfflineCards={getOfflineCards}
+                    onBrowseIllustrator={onBrowseIllustrator}
+                    onBrowseSet={onBrowseSet}
+                    formatPrice={formatPrice}
+                    pricingRegion={pricingRegion}
+                    getCardState={getCardState}
+                    onPickCard={pickCard}
+                    goTo={goTo}
+                    searchAtBottom={!palette}
+                    query={query}
+                    onQueryChange={setQuery}
+                  />
+                </div>
               ) : (
                 /* Results grow upwards from the search field so the best match sits nearest the thumb. */
                 <div
-                  className={`flex min-h-0 flex-1 ${wideWorkspace || palette ? 'flex-col' : 'flex-col-reverse'} overflow-y-auto overscroll-contain px-2 pb-2`}
+                  className={`flex min-h-0 flex-1 ${wideWorkspace ? 'flex-col' : 'flex-col-reverse'} overflow-y-auto overscroll-contain px-2 pb-2`}
                   data-testid="quick-results"
                 >
                   <div>
-                    {!trimmed && (
-                      <>
-                        {history.status && (
-                          <p role="status" className="text-muted-foreground py-1 text-xs">
-                            {history.status}
-                          </p>
-                        )}
-                        <RecentSearches
-                          history={history}
-                          onSearch={(value) => {
-                            setQuery(value);
-                            inputRef.current?.focus({ preventScroll: true });
-                          }}
-                        />
-                        {getCardState && (
-                          <ShowRecentCards
-                            cards={history.cards}
-                            shared={history.shared}
-                            getCardState={getCardState}
-                            onPickCard={pickCard}
-                            onClear={() => history.clear('card')}
-                          />
-                        )}
-                      </>
-                    )}
-
-                    {setHits.length > 0 && (
-                      <section aria-label="Sets">
-                        <h3 className={sectionTitle}>Sets</h3>
-                        {setHits.map((set) => {
-                          const meta = formatSetHitMeta(set);
-                          return (
-                            <button
-                              key={set.id}
-                              type="button"
-                              className={rowClass}
-                              aria-label={`Open set ${set.name}${meta ? `, ${meta}` : ''}`}
-                              onClick={() => {
-                                remember();
-                                onBrowseSet?.(set);
-                              }}
-                            >
-                              <SetSymbol set={set} />
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-[15px] font-semibold">{set.name}</span>
-                                {meta ? (
-                                  <span className="text-muted-foreground block truncate text-xs">{meta}</span>
-                                ) : null}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </section>
-                    )}
-
                     {illustrators.length > 0 && (
                       <section aria-label="Illustrators">
                         <h3 className={sectionTitle}>Illustrators</h3>
@@ -875,12 +802,11 @@ function QuickMode({
                           <button
                             key={illustrator.name}
                             type="button"
-                            className={show ? `${rowClass} border-border/50 bg-card min-h-20 border` : rowClass}
+                            className={`${rowClass} border-border/50 bg-card min-h-20 border`}
                             onClick={() => {
                               remember();
                               // Show mode stays in the lookup: list the illustrator's cards here, ready to price.
-                              if (show) setQuery(illustrator.name);
-                              else onBrowseIllustrator(illustrator.name);
+                              setQuery(illustrator.name);
                             }}
                           >
                             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-500">
@@ -898,7 +824,7 @@ function QuickMode({
                     {(cardResults.length > 0 || (trimmed.length >= 2 && cardSearch.loading)) && (
                       <section aria-label="Cards">
                         <h3 className={sectionTitle}>
-                          {show ? 'Any card · tap to check the price' : 'Cards'}
+                          Any card · tap to check the price
                           {cardSearch.offline ? ' · on this device' : ''}
                           {cardSearch.loading && (
                             <Loader2 className="ml-1.5 inline h-3 w-3 animate-spin" aria-label="Searching cards" />
@@ -918,8 +844,7 @@ function QuickMode({
                               ? undefined
                               : pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')];
                           const priceLabel = formatPrice?.(priceSnapshot) ?? null;
-                          // Outside Show mode only Owned / Wanted are stamped; "Not in binder" on every other row is noise.
-                          const shownStanding = standing && (show || standing !== 'missing') ? standing : null;
+                          const shownStanding = standing;
                           const state = nativeConsumer
                             ? {
                                 ...STANDING_BADGES[shownStanding ?? 'missing'],
@@ -934,7 +859,7 @@ function QuickMode({
                             <button
                               key={`${card.id}:${card.language ?? 'en'}`}
                               type="button"
-                              className={show ? `${rowClass} border-border/50 bg-card min-h-20 border` : rowClass}
+                              className={`${rowClass} border-border/50 bg-card min-h-20 border`}
                               data-standing={standing ?? undefined}
                               aria-label={`${card.name}, ${card.set.name} ${formatCardNumber(card)}${nativeConsumer ? `, ${nativeCardLabel(nativeCardState(nativeModel, card))}` : shownStanding ? `, ${STANDING_BADGES[shownStanding].label}` : ''}${priceLabel ? `, ${priceLabel}` : ''}`}
                               onClick={() => pickCard(card, pokemon)}
@@ -970,69 +895,7 @@ function QuickMode({
                       </section>
                     )}
 
-                    {!show && pokemonResults.length > 0 && (
-                      <section aria-label="Pokémon">
-                        <h3 className={sectionTitle}>Pokémon</h3>
-                        {pokemonResults.map((pokemon) => {
-                          const state = getPokemonState?.(pokemon.id) ?? null;
-                          return (
-                            <button
-                              key={pokemon.id}
-                              type="button"
-                              className={rowClass}
-                              onClick={() => pickPokemon(pokemon)}
-                            >
-                              <span className="text-muted-foreground w-12 shrink-0 text-xs font-semibold tabular-nums">
-                                #{String(pokemon.id).padStart(4, '0')}
-                              </span>
-                              <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">
-                                {formatPokemonDisplayName(pokemon.name)}
-                              </span>
-                              {state && (
-                                <span
-                                  className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${state.toneClass}`}
-                                >
-                                  {state.label}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </section>
-                    )}
-
-                    {destinations.length > 0 && (
-                      <section aria-label="Go to">
-                        <h3 className={sectionTitle}>Go to</h3>
-                        <div className={trimmed ? '' : `grid ${palette ? 'grid-cols-3' : 'grid-cols-2'} gap-2 px-1`}>
-                          {destinations.map((destination) => {
-                            const Icon = DESTINATION_ICONS[destination.id];
-                            return (
-                              <button
-                                key={destination.id}
-                                type="button"
-                                onClick={() => go(destination.id)}
-                                className={
-                                  trimmed
-                                    ? rowClass
-                                    : 'border-border/60 bg-card active:bg-muted flex min-h-16 items-center gap-2.5 rounded-2xl border px-3 text-left'
-                                }
-                              >
-                                <span className="bg-primary/12 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
-                                  <Icon className="h-5 w-5" aria-hidden />
-                                </span>
-                                <span className="min-w-0">
-                                  <span className="block truncate text-[15px] font-semibold">{destination.label}</span>
-                                  <span className="text-muted-foreground block truncate text-[11px]">
-                                    {destination.hint}
-                                  </span>
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    )}
+                    <QuickDestinations destinations={destinations} asRows={Boolean(trimmed)} onGo={go} />
 
                     {show && pokemonResults.length > 0 && (
                       <section aria-label="Pokémon">
@@ -1083,7 +946,7 @@ function QuickMode({
                 </div>
               )}
 
-              {!wideWorkspace && !palette && searchControls}
+              {show && !wideWorkspace && searchControls}
             </div>
             {twoPane && (
               <div className="flex min-h-0 min-w-0 flex-col" data-testid="show-detail-pane">

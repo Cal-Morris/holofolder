@@ -244,16 +244,6 @@
       "file": "card-standing-badges.e2e.ts",
       "title": [
         "Owned / Wanted badges outside Show mode",
-        "Quick mode badges each printing and lists wanted ones first"
-      ],
-      "cause": "harness-or-fixture",
-      "batch": 1,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
-    },
-    {
-      "file": "card-standing-badges.e2e.ts",
-      "title": [
-        "Owned / Wanted badges outside Show mode",
         "Search card hits carry Owned / Wanted badges on their thumbnails"
       ],
       "cause": "harness-or-fixture",

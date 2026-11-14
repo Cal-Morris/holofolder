@@ -4,6 +4,7 @@ import {
   QUICK_DESTINATIONS,
   addRecentQuickSearch,
   matchQuickDestinations,
+  visibleQuickDestinations,
   parseRecentQuickSearches,
   readRecentQuickSearches,
   writeRecentQuickSearches,
@@ -64,5 +65,18 @@ describe('recent quick searches', () => {
     };
     assert.deepEqual(readRecentQuickSearches(broken), []);
     assert.doesNotThrow(() => writeRecentQuickSearches(broken, ['x']));
+  });
+});
+
+describe('visibleQuickDestinations', () => {
+  test('blank lists all but the hidden ones; a query keeps the best three', () => {
+    const all = visibleQuickDestinations('', ['scan']);
+    assert.equal(all.length, QUICK_DESTINATIONS.length - 1);
+    assert.ok(!all.some((entry) => entry.id === 'scan'));
+    assert.ok(visibleQuickDestinations('s').length <= 3);
+  });
+  test('Show mode reads "Exit Show mode" while it is on', () => {
+    assert.equal(visibleQuickDestinations('show', [], true)[0].label, 'Exit Show mode');
+    assert.equal(visibleQuickDestinations('show')[0].label, 'Show mode');
   });
 });

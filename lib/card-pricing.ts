@@ -208,12 +208,15 @@ const TCGPLAYER_VARIANT_PRIORITY = [
   'holofoil',
   'reverseHolofoil',
   'reverse-holofoil',
-  '1st-edition',
-  '1st-edition-holofoil',
+  // Unlimited before 1st Edition: most copies are Unlimited, and 1st Edition trades at a large premium.
   'unlimited',
   'unlimited-holofoil',
+  '1st-edition',
+  '1st-edition-holofoil',
 ] as const;
 
+// Cardmarket's `low` is the cheapest listing in any language and condition (a median 22% of trend on our
+// English cards), so it is never used as a market price, a good-deal price or a range bound.
 const CARDMARKET_FIELD_PRIORITY = [
   'trend',
   'avg30',
@@ -225,11 +228,7 @@ const CARDMARKET_FIELD_PRIORITY = [
   'avg7-holo',
   'avg1-holo',
   'avg-holo',
-  'low',
-  'low-holo',
 ] as const;
-
-const CARDMARKET_GOOD_FIELD_PRIORITY = ['low', 'low-holo'] as const;
 
 const TCGPLAYER_SEARCH_ENDPOINT = 'https://mp-search-api.tcgplayer.com/v1/search/request';
 const POKEPULSE_SEARCH_ENDPOINT = 'https://pokepulse.io/api/v2/search/all';
@@ -1561,11 +1560,8 @@ function pickCardmarketPrice(
       continue;
     }
 
-    const cardmarketLowAmount = pickCardmarketGoodAmount(cardmarket, fieldKey);
-    const goodAmount = cardmarketLowAmount ?? amount * 0.8;
-    const { rangeLow, rangeHigh } = buildPriceRange(amount, cardmarketLowAmount, null);
+    const { rangeLow, rangeHigh } = buildPriceRange(amount, null, null);
     const marketGbpAmount = roundPrice(amount * fxRates.eurToGbp);
-    const lowGbpAmount = roundPrice((cardmarketLowAmount ?? amount) * fxRates.eurToGbp);
     const variantLabel = humanizeVariantLabel(fieldKey);
     const updatedAt = readTimestamp(cardmarket.updated);
 
@@ -1574,24 +1570,19 @@ function pickCardmarketPrice(
       language,
       gbpAmount: marketGbpAmount,
       marketGbpAmount,
-      goodGbpAmount: roundPrice(goodAmount * fxRates.eurToGbp),
+      goodGbpAmount: roundPrice(amount * 0.8 * fxRates.eurToGbp),
       lowGbpAmount: roundPrice(rangeLow * fxRates.eurToGbp),
       highGbpAmount: roundPrice(rangeHigh * fxRates.eurToGbp),
-      confidence: priceConfidence({
-        hasMarket: !fieldKey.startsWith('low'),
-        hasLow: cardmarketLowAmount != null,
-        hasHigh: false,
-        usedFallbackMarket: fieldKey.startsWith('low'),
-      }),
+      confidence: priceConfidence({ hasMarket: true, hasLow: false, hasHigh: false }),
       sourcePrices: [
         {
           source: 'cardmarket',
           label: 'Cardmarket',
           variantLabel,
           marketGbpAmount,
-          lowGbpAmount,
+          lowGbpAmount: null,
           originalMarketAmount: amount,
-          originalLowAmount: cardmarketLowAmount,
+          originalLowAmount: null,
           originalCurrency: 'EUR',
           updatedAt,
         },
@@ -1650,19 +1641,39 @@ function combineSourceEvidence(
   const rangeHighs = candidates.flatMap((candidate) =>
     typeof candidate?.highGbpAmount === 'number' ? [candidate.highGbpAmount] : [],
   );
-  const sourceMarkets = sourcePrices.flatMap((source) =>
-    typeof source.marketGbpAmount === 'number' ? [source.marketGbpAmount] : [],
-  );
+  const marketsOf = (sources: CardPriceSourceSummary[]) =>
+    sources.flatMap((source) => (typeof source.marketGbpAmount === 'number' ? [source.marketGbpAmount] : []));
+  // For English cards Cardmarket mixes every language, so it can't pull confidence below medium on its own.
+  const blendedSources = sourcePrices.filter((source) => isLanguageBlendedSource(source, preferredPrice.language));
+  const pureSources = sourcePrices.filter((source) => !blendedSources.includes(source));
+  const pureConfidence = reconcileSourceConfidence(preferredPrice.confidence, marketsOf(pureSources));
+  const confidence =
+    blendedSources.length > 0 && pureSources.length > 0
+      ? minConfidence(
+          pureConfidence,
+          reconcileSourceConfidence('high', marketsOf(sourcePrices)) === 'low' ? 'medium' : 'high',
+        )
+      : reconcileSourceConfidence(preferredPrice.confidence, marketsOf(sourcePrices));
 
   return {
     ...preferredPrice,
     lowGbpAmount: rangeLows.length > 0 ? roundPrice(Math.min(...rangeLows)) : preferredPrice.lowGbpAmount,
     highGbpAmount: rangeHighs.length > 0 ? roundPrice(Math.max(...rangeHighs)) : preferredPrice.highGbpAmount,
-    confidence: reconcileSourceConfidence(preferredPrice.confidence, sourceMarkets),
+    confidence,
     sourcePrices,
     trendPoints,
     buySignal: null,
   };
+}
+
+/** Cardmarket blends every language into one product, so it is not evidence of an English card's own price. */
+export function isLanguageBlendedSource(source: Pick<CardPriceSourceSummary, 'source'>, language: string) {
+  return language === 'en' && source.source === 'cardmarket';
+}
+
+const CONFIDENCE_ORDER: PriceConfidence[] = ['unknown', 'low', 'medium', 'high'];
+function minConfidence(left: PriceConfidence, right: PriceConfidence): PriceConfidence {
+  return CONFIDENCE_ORDER.indexOf(left) <= CONFIDENCE_ORDER.indexOf(right) ? left : right;
 }
 
 function reconcileSourceConfidence(current: PriceConfidence, sourceMarkets: number[]): PriceConfidence {
@@ -1676,21 +1687,6 @@ function reconcileSourceConfidence(current: PriceConfidence, sourceMarkets: numb
   if (spread > 0.35) return 'low';
   if (spread > 0.2 && current === 'high') return 'medium';
   return current;
-}
-
-function pickCardmarketGoodAmount(cardmarket: Record<string, unknown>, marketFieldKey: string) {
-  if (marketFieldKey.endsWith('-holo')) {
-    return readPriceAmount(cardmarket['low-holo']) ?? readPriceAmount(cardmarket.low);
-  }
-
-  for (const fieldKey of CARDMARKET_GOOD_FIELD_PRIORITY) {
-    const amount = readPriceAmount(cardmarket[fieldKey]);
-    if (amount != null) {
-      return amount;
-    }
-  }
-
-  return null;
 }
 
 function emptySnapshot(cardId: string, language: CardLanguage): CardPriceSnapshot {
@@ -1874,7 +1870,7 @@ function buildFinishPrices(
           Object.entries(readRecord(pricing.cardmarket) ?? {}).filter(([key]) => !key.includes('holo')),
         ),
         fxRates,
-        ['trend', 'avg30', 'avg7', 'avg1', 'avg', 'low'],
+        ['trend', 'avg30', 'avg7', 'avg1', 'avg'],
       )
     : null;
   const prices: CardFinishPrice[] = [];

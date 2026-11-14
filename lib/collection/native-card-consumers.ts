@@ -10,11 +10,12 @@ import { isCardLanguage, type CardFinish, type CollectedPokemon, type WantedCard
 import { getPokemonSummary } from '@/lib/pokemon-catalog';
 import type { PublicWantedCard } from '@/lib/domain/inventory-commands';
 import type { BrowseCard, SearchCardResult } from '@/lib/pokemon-card-browse';
-import { prepareSlotPickerIntent } from '@/lib/slot-picker';
+import { planNativePick, prepareSlotPickerIntent } from '@/lib/slot-picker';
+import { inventoryActionItemRef } from '@/lib/inventory-actions';
+import type { InventoryCatalogResolver, InventorySnapshot } from '@/lib/domain/inventory';
 import type { InventorySelection } from '@/lib/inventory-plans';
 import type { OperationIntentContext } from '@/lib/domain/audit-context';
 import type { SlotCommandSink, StagedSlotCommandIntent } from '@/lib/binder-slot-editing';
-import type { InventorySnapshot } from '@/lib/domain/inventory';
 import { parseSlotIntent } from '@/lib/collection/slot-optimistic';
 import type { HuntSourceItem } from '@/lib/show-hunt';
 
@@ -432,4 +433,82 @@ export function planNativeRemoveWant(
     },
     context,
   );
+}
+
+/**
+ * The one pocket a printing clearly belongs in: the open binder's pocket reserved for it, else its Pokémon's only
+ * pocket. Null when there is none or more than one, so a tap never guesses between pockets.
+ */
+export function nativePlacePocket(
+  snapshot: InventorySnapshot,
+  collectionId: string | undefined,
+  card: SearchCardResult,
+) {
+  const slots = snapshot.binders.find((b) => b.collectionId === collectionId)?.slots ?? [];
+  const reserved = slots.filter(
+    (s) =>
+      s.target?.kind === 'card' &&
+      matchesCatalogCardId(card, s.target.cardId) &&
+      (!s.target.language || s.target.language === card.language),
+  );
+  const matches = reserved.length
+    ? reserved
+    : slots.filter((s) => s.target?.kind === 'pokemon' && card.dexIds.includes(s.target.pokemonId));
+  return matches.length === 1 ? matches[0] : null;
+}
+
+/**
+ * Put this printing in its pocket in one atomic edit: an unplaced raw copy if one exists, else a new copy, fulfilling
+ * the pocket's matching want. A card already there is swapped out and stays in the collection; `swappedOut` names it
+ * so the host can remove it as a second edit (one request can't touch the same copy twice).
+ */
+export function planNativePlaceCard(
+  snapshot: InventorySnapshot,
+  collectionId: string,
+  slotId: string,
+  card: SearchCardResult,
+  finish: CardFinish,
+  context: OperationIntentContext,
+  catalog: InventoryCatalogResolver,
+  newItemId: string,
+) {
+  const scope = { ownerUserId: snapshot.ownerUserId, collectionId, slotId };
+  const plan = planNativePick(snapshot, scope, card, finish, catalog, newItemId);
+  const binder = snapshot.binders.find((b) => b.collectionId === collectionId)!;
+  const collection = snapshot.collections.find((c) => c.id === collectionId);
+  const slot = binder.slots.find((s) => s.id === slotId)!;
+  if (!collection) throw new Error('picker-scope-changed');
+  const held = slot.inventoryItemId ? inventoryActionItemRef(snapshot, slot.inventoryItemId) : null;
+  const want = plan.wants[0];
+  const draft: StagedSlotCommandIntent = {
+    scope,
+    intent: parseSlotIntent({
+      kind: 'inventory',
+      context,
+      request: {
+        operationId: context.operationId,
+        inventoryRevision: snapshot.inventoryRevision,
+        collections: [{ collectionId, version: collection.version, layoutRevision: binder.layoutRevision }],
+        commands: [
+          {
+            kind: 'assign',
+            selection: plan.base,
+            destination: {
+              collectionId,
+              slot: held?.placement?.slot ?? {
+                id: slot.id,
+                version: slot.version,
+                inventoryItemId: null,
+                itemVersion: null,
+                placementVersion: null,
+              },
+            },
+            occupied: held ? 'unassign' : 'cancel',
+            fulfillWant: want ? plan.wanted(want.index) : null,
+          },
+        ],
+      },
+    }),
+  };
+  return { draft, resolver: plan.resolver, picked: plan.picked, swappedOut: held?.itemId ?? null };
 }

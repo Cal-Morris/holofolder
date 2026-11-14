@@ -805,7 +805,7 @@ export function createBinderRenderer(
         stopTurn();
         return;
       }
-      const t = Math.min(1, (time - active.start) / 680),
+      const t = Math.min(1, (time - active.start) / 760),
         eased = t * t * (3 - 2 * t),
         progress = active.forward ? eased : 1 - eased;
       active.group.position.z = active.rightZ + (active.leftZ - active.rightZ) * progress;

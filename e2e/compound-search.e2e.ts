@@ -89,9 +89,9 @@ test('compound spelling correction is labelled without replacing the query in Se
   await expect(search.getByRole('status').filter({ hasText: 'Showing cards for' })).toHaveCount(0);
   await search.getByRole('button', { name: 'Quick mode', exact: true }).click();
   const quick = page.getByRole('dialog', { name: 'Quick mode' });
-  await quick.getByRole('searchbox').fill('Lucia neo');
+  await quick.getByRole('textbox').fill('Lucia neo');
   await expect(quick.getByRole('status').filter({ hasText: 'Showing cards for lugia neo' })).toBeVisible();
-  await expect(quick.getByRole('searchbox')).toHaveValue('Lucia neo');
+  await expect(quick.getByRole('textbox')).toHaveValue('Lucia neo');
   await quick.getByRole('button', { name: 'Close quick mode' }).click();
   await page.getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Show mode', exact: true }).click();
