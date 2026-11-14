@@ -44,6 +44,15 @@ export function BillingSettings({ signedIn, onSignIn }: { signedIn: boolean; onS
               Trial ends {new Date(access.trialEndsAt!).toLocaleString('en-GB')}. No payment details needed, you
               won&apos;t be charged automatically. After the trial, you return to free and keep your saved cards and
               binders.
+              {access.grantedUntil
+                ? ` Your invite rewards then keep Premium until ${new Date(access.grantedUntil).toLocaleDateString('en-GB')}.`
+                : null}
+            </p>
+          ) : access?.source === 'grant' ? (
+            <p className="text-sm">
+              Free Premium from invites until {new Date(access.grantedUntil!).toLocaleDateString('en-GB')}. No payment
+              details needed, you won&apos;t be charged. Afterwards you return to free and keep your saved cards and
+              binders.
             </p>
           ) : access?.tier === 'paid' ? (
             <p className="text-sm">

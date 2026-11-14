@@ -9,9 +9,13 @@ export const billingAmount = (pence: number) => `£${(pence / 100).toFixed(2)}`;
 export interface BillingAccess {
   ownerUserId: string;
   tier: 'free' | 'paid';
-  source: 'free' | 'subscription' | 'perpetual' | 'trial';
+  source: 'free' | 'subscription' | 'perpetual' | 'trial' | 'grant';
   paidThrough: string | null;
   trialEndsAt: string | null;
+  /** End of the Premium time granted by invite rewards (migration 133), chained after the trial. */
+  grantedUntil: string | null;
+  /** This owner signed up through an invite that has not been rewarded yet. */
+  referralPending: boolean;
   savedCardCount: number;
   cardLimit: number | null;
   freeCardLimit: number;
@@ -35,8 +39,9 @@ export function resolveBillingAccess(
   );
   const paidThrough =
     typeof row.paid_through === 'string' && Number.isFinite(Date.parse(row.paid_through)) ? row.paid_through : null;
-  const trialEndsAt =
-    typeof row.trial_ends_at === 'string' && Number.isFinite(Date.parse(row.trial_ends_at)) ? row.trial_ends_at : null;
+  const time = (value: unknown) => (typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : null);
+  const trialEndsAt = time(row.trial_ends_at);
+  const grantedUntil = time(row.granted_until);
   const source =
     row.perpetual === true
       ? 'perpetual'
@@ -44,19 +49,37 @@ export function resolveBillingAccess(
         ? 'subscription'
         : trialEndsAt && Date.parse(trialEndsAt) > now
           ? 'trial'
-          : 'free';
+          : grantedUntil && Date.parse(grantedUntil) > now
+            ? 'grant'
+            : 'free';
   return {
     ownerUserId,
     tier: source === 'free' ? 'free' : 'paid',
     source,
     paidThrough,
     trialEndsAt,
+    grantedUntil,
+    referralPending: row.referral_pending === true,
     savedCardCount: typeof row.saved_card_count === 'number' && row.saved_card_count >= 0 ? row.saved_card_count : 0,
     cardLimit: source === 'free' && freeCardLimit < UNLIMITED_FREE_CARD_LIMIT ? freeCardLimit : null,
     freeCardLimit,
     freeBinderLimit,
     binderLimit: source === 'free' && row.enforced === true ? freeBinderLimit : MAX_BINDERS_PER_OWNER,
     enforced: row.enforced === true,
+  };
+}
+/** The `get_billing_access` row an access was resolved from, so caches re-resolve it against a later clock. */
+export function billingAccessRow(access: BillingAccess) {
+  return {
+    enforced: access.enforced,
+    perpetual: access.source === 'perpetual',
+    status: access.source === 'subscription' ? 'active' : 'none',
+    paid_through: access.paidThrough,
+    trial_ends_at: access.trialEndsAt,
+    granted_until: access.grantedUntil,
+    saved_card_count: access.savedCardCount,
+    free_card_limit: access.freeCardLimit,
+    free_binder_limit: access.freeBinderLimit,
   };
 }
 /**
