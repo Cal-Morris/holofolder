@@ -22,6 +22,7 @@ import { inventoryGradingReference, prepareInventoryGradingIntent } from '@/lib/
 import CollectionNavigationHost, { type NavigationSurface } from './navigation-host';
 import { useSlotOfflineQueue } from '@/hooks/use-slot-offline-queue';
 import { useCollectionChanged } from '@/hooks/use-collection-changed';
+import { pingCovered } from '@/lib/collection/collection-changed';
 import { rememberSavedBinders } from '@/lib/binders/offline';
 import {
   CollectionNavigationReadError,
@@ -292,9 +293,14 @@ function ScopedBrowserSession({
       if (valid() && !refreshing.current && !sending.current) void refresh().catch(() => {});
     }, delay);
   };
-  // A partner (or the API/MCP) changed the collection: read it again. A busy read or send retries shortly after.
-  useCollectionChanged(localHarness ? null : scope.ownerUserId, () => {
+  // A partner (or the API/MCP) changed the collection: read it again, unless this device already holds that
+  // revision (its own edit). A busy read or send retries shortly after.
+  useCollectionChanged(localHarness ? null : scope.ownerUserId, (revision) => {
     if (!valid() || document.visibilityState === 'hidden') return;
+    const { read: current, queue: q } = latest.current;
+    const acknowledged = q.record?.pending.flatMap((p) => p.acknowledgedRevision ?? []) ?? [];
+    const readRevision = current?.evidence.kind === 'complete' ? current.evidence.snapshot.inventoryRevision : null;
+    if (pingCovered(revision, readRevision, acknowledged)) return;
     if (refreshing.current || sending.current) retryRead();
     else void refresh().catch(() => {});
   });
