@@ -46,7 +46,7 @@ test('buildCardPriceSnapshotFromPricing uses TCGplayer market as market and low 
   assert.equal(snapshot.gbpAmount, 7.5);
   assert.equal(snapshot.marketGbpAmount, 7.5);
   assert.equal(snapshot.goodGbpAmount, 6);
-  assert.equal(snapshot.lowGbpAmount, 5.95);
+  assert.equal(snapshot.lowGbpAmount, 6);
   assert.equal(snapshot.highGbpAmount, 8.8);
   assert.equal(snapshot.confidence, 'high');
   assert.equal(snapshot.source, 'tcgplayer');
@@ -60,7 +60,7 @@ test('buildCardPriceSnapshotFromPricing uses TCGplayer market as market and low 
     })),
     [
       { source: 'tcgplayer', marketGbpAmount: 7.5, lowGbpAmount: 6, variantLabel: 'Normal' },
-      { source: 'cardmarket', marketGbpAmount: 7.65, lowGbpAmount: 5.95, variantLabel: 'Trend' },
+      { source: 'cardmarket', marketGbpAmount: 7.65, lowGbpAmount: null, variantLabel: 'Trend' },
     ],
   );
   assert.deepEqual(
@@ -101,12 +101,35 @@ test('buildCardPriceSnapshotFromPricing prefers Cardmarket trend for European la
 
   assert.equal(snapshot.gbpAmount, 15.3);
   assert.equal(snapshot.marketGbpAmount, 15.3);
-  assert.equal(snapshot.goodGbpAmount, 10.2);
-  assert.equal(snapshot.lowGbpAmount, 10.2);
+  assert.equal(snapshot.goodGbpAmount, 12.24);
+  assert.equal(snapshot.lowGbpAmount, 13.01);
   assert.equal(snapshot.highGbpAmount, 25.88);
   assert.equal(snapshot.confidence, 'low');
   assert.equal(snapshot.source, 'cardmarket');
   assert.equal(snapshot.variantLabel, 'Trend');
+});
+
+test('buildCardPriceSnapshotFromPricing never prices from Cardmarket low (any language, any condition)', () => {
+  // Synthetic fixture: Cardmarket low is the cheapest listing of any language or condition.
+  const lowOnly = buildCardPriceSnapshotFromPricing(
+    'sv1-004',
+    'fr',
+    { cardmarket: { updated: '2026-06-27T00:00:00.000Z', low: 2, 'low-holo': 3 } },
+    fxRates,
+  );
+  assert.equal(lowOnly.gbpAmount, null);
+
+  const withTrend = buildCardPriceSnapshotFromPricing(
+    'sv1-005',
+    'fr',
+    { cardmarket: { updated: '2026-06-27T00:00:00.000Z', trend: 20, low: 4 } },
+    fxRates,
+  );
+  assert.equal(withTrend.gbpAmount, 17);
+  assert.equal(withTrend.goodGbpAmount, 13.6);
+  assert.equal(withTrend.lowGbpAmount, 14.45);
+  assert.equal(withTrend.confidence, 'medium');
+  assert.equal(withTrend.sourcePrices[0].lowGbpAmount, null);
 });
 
 test('buildCardPriceSnapshotFromPricing marks inferred price ranges as medium confidence', () => {
