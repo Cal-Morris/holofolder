@@ -1,11 +1,11 @@
 ---
 name: adding-a-new-tcg-set
-description: Bring a newly released Pokémon TCG set into holofolder by syncing its TCGdex card data into Postgres and backfilling its card images into the R2 mirror. Use when a set is missing from the Sets view, search or card selector.
+description: Bring a newly released Pokémon TCG set into holofolder by importing its card data from TCGdex into our catalogue and backfilling its card images into the R2 mirror. Use when a set is missing from the Sets view, search or card selector.
 ---
 
 # Adding a new TCG set
 
-Card data comes from TCGdex into the Postgres `tcg_*` mirror tables. Images are mirrored into R2 (or Blob) and served by `/api/card-image-proxy`. Normally this needs no code change.
+Our card catalogue lives in the Postgres `tcg_*` tables. New sets usually arrive by importing them from TCGdex, our largest source. Images are mirrored into R2 (or Blob) and served by `/api/card-image-proxy`. Normally this needs no code change.
 
 ## Steps
 

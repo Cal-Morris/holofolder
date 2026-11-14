@@ -2,7 +2,7 @@
 
 Card images are mirrored into object storage and served through `/api/card-image-proxy`; clients never load card images from a third-party host directly. Two kinds of image are mirrored:
 
-- **TCGdex** (`assets.tcgdex.net`), the primary source.
+- **TCGdex** (`assets.tcgdex.net`), our largest image source.
 - **Fallback sources** for cards TCGdex has no image for (see `lib/card-image-sources.ts`): TCGplayer product images (`product-images.tcgplayer.com`), pokemontcg.io (`images.pokemontcg.io`), Scrydex (`images.scrydex.com`), Limitless (`limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/…`) and playshop.fr single-card scans (`cdn.shopify.com`, store path only).
 
 Which source each card's image comes from, and why, is recorded in [`card-assets/`](../card-assets/AGENTS.md) (`bun run card-assets plan|verify`).

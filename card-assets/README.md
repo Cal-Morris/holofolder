@@ -23,7 +23,7 @@ Thank you, Luna. Credit for the atlas also appears in the app (Settings → Cred
 
 ```sh
 bun run card-assets lattice             # what Card Lattice has that we don't: sets, cards, names in a language, illustrators
-bun run card-assets lattice --report    # what we hold that Card Lattice and TCGdex don't, to share with those projects
+bun run card-assets lattice --report    # what our catalogue has that these upstream sources lack, to contribute back
 ```
 
 Both only read the database and write to `.cache/card-assets/lattice/`: `gaps.json` for the first, `report.md` and `report.json` for the report. Nothing is imported yet; the gaps file is the list to review before adding cards. If the report shows something a project would want, open an issue or pull request on [cardlattice-data](https://github.com/cardlattice/cardlattice-data) or [TCGdex's cards-database](https://github.com/tcgdex/cards-database).

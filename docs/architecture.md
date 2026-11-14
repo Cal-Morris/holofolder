@@ -117,7 +117,7 @@ The diagram emphasizes recovery paths rather than every HTTP branch. Conflict ha
 
 ## Catalog, pricing and images
 
-The public card catalog is separate from personal collection state. `lib/card-db-sync*.ts` and CLI/admin entry points import TCGdex and supplemental catalogs into `tcg_*` tables. `lib/tcg-mirror.ts` provides cached reads tagged `tcg-mirror`; successful imports must invalidate those reads. Catalog updates preserve saved card IDs and supplementary source metadata. See [card-catalog.md](card-catalog.md).
+The public card catalog is Holo Folder's own and separate from personal collection state. `lib/card-db-sync*.ts` and CLI/admin entry points import TCGdex and other sources into our `tcg_*` tables. `lib/tcg-mirror.ts` provides cached reads tagged `tcg-mirror`; successful imports must invalidate those reads. Catalog updates preserve saved card IDs and supplementary source metadata. See [card-catalog.md](card-catalog.md).
 
 `lib/card-pricing.ts` is the pricing type/normalization and provider pipeline boundary. Stored evidence, FX normalization and confidence feed the client price hooks and pure signal logic (`price-intelligence`, `price-momentum`, `breakout-cards`, `deal-check`). Unknown prices remain unknown. Never derive purchase signals from low/unknown confidence. `workflows/card-price-refresh.ts` handles durable refresh passes; comparison jobs and their workflow handle separately scoped asking/sold evidence.
 

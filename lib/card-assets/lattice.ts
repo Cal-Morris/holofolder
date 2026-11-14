@@ -23,7 +23,7 @@ export interface LatticeSet {
 export interface LatticePrinting {
   id: string;
   setId: string;
-  /** Our (TCGdex) language code: `zh-Hans` becomes `zh-cn`. */
+  /** Our catalogue's language code (same scheme as TCGdex's): `zh-Hans` becomes `zh-cn`. */
   language: string;
   collectorNumber: string;
   name: string;
@@ -93,7 +93,7 @@ export function parseLatticeCatalogue(value: unknown) {
   return { sets, printings };
 }
 
-/** `SM3+` is `SM3p` in TCGdex; ids compare case-insensitively. */
+/** `SM3+` is `SM3p` in our catalogue; ids compare case-insensitively. */
 const normalizeCode = (code: string) => code.toLowerCase().replace(/\+/g, 'p').replace(/\s+/g, '');
 /** Letters and digits in any script, so Japanese, Korean and Chinese names compare too. */
 const normalizeName = (name: string) =>
@@ -105,7 +105,7 @@ const normalizeName = (name: string) =>
 /**
  * Our set for a Card Lattice set in one language. A printed code wins when our set with that id has the language
  * (Japanese `XY5` must not land on the English `xy5`); otherwise the name, in that language or English. Card Lattice
- * names English expansions `Mega Evolution—Ascended Heroes` where TCGdex says `Ascended Heroes`.
+ * names English expansions `Mega Evolution—Ascended Heroes` where our catalogue says `Ascended Heroes`.
  */
 export function matchSet(set: LatticeSet, language: string, ours: readonly OurSet[]): OurSet | null {
   const hasLanguage = (candidate: OurSet) => Boolean(candidate.names[language]);
