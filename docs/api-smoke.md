@@ -26,7 +26,7 @@ For public API changes, run after the exact production deployment is ready and i
 
 ## Price-check rate limits
 
-The REST API's existing per-actor 60 reads / 20 writes per minute also covers sold-check reads and refresh requests. Main-app `/api/card-price-checks` and `/api/ebay/listings` share owner-account counters: 60 saved/listing reads and 20 refresh requests per minute. Partners share the owner's app allowance.
+The REST API's existing per-actor 1000 reads / 300 writes per minute also covers sold-check reads and refresh requests. Main-app `/api/card-price-checks` and `/api/ebay/listings` share owner-account counters: 60 saved/listing reads and 20 refresh requests per minute. Partners share the owner's app allowance.
 
 Actual upstream sold-comps requests have a global 10/minute budget; eBay listing searches have a global 60/minute budget. These Postgres counters apply across instances, accounts, REST/MCP operations and background jobs. They are fixed calendar-minute windows, separate from each card/finish/source's existing shared refresh claim and cooldown. Saved checks and cache hits never consume provider budget. They limit request rate, not monthly spend.
 

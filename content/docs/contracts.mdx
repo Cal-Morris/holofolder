@@ -37,7 +37,7 @@ Left-out fields are absent, not empty. Use `get_price_history` for paged price h
 
 ## Limits
 
-The initial budget is 60 reads and 20 writes per minute per account, shared across its credentials. Provider refreshes and long-running comparisons have their own stricter limits. A `429` response includes `Retry-After`.
+The budget is 1000 reads and 300 writes per minute per account, shared across its credentials. Provider refreshes and long-running comparisons have their own stricter limits. A `429` response includes `Retry-After`.
 
 ## Errors
 
