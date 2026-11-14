@@ -1,15 +1,14 @@
 import { buildCollectionAnalytics } from '@/lib/collection-analytics';
 import { type CardPriceSnapshot, getCardPriceKey, type SupportedCurrency } from '@/hooks/use-card-prices';
 import type { CardFinish, CardLanguage, SlotStatus, WantedCard, CollectedPokemon } from '@/lib/domain/cards';
-import { peekCardsForPokemon } from '@/hooks/use-tcgdex';
-import { matchesCatalogCardId } from '@/lib/card-catalog';
+import { peekCatalogCard } from '@/hooks/use-tcgdex';
 import { toCardImageSrc } from '@/lib/card-image-url';
 import { ARTWORK_DETAIL_WIDTH, getOfficialArtworkUrl, type PokemonSummary } from '@/lib/pokemon-catalog';
 
 export { GENERATIONS } from '@/lib/pokemon-generations';
 
 /**
- * A card's illustrator without a request: saved on a wanted card, or from the Pokémon's card list when it is
+ * A card's illustrator without a request: saved on a wanted card, or from the card's catalog details when
  * already loaded. "" means the card has no credit; null means it is not known yet.
  */
 export function getKnownCardIllustrator(
@@ -19,9 +18,9 @@ export function getKnownCardIllustrator(
 ): string | null {
   const saved = wantedCards?.find((card) => card.card_id === cardId)?.illustrator?.trim();
   if (saved) return saved;
-  const loaded = peekCardsForPokemon(pokemonId, 'en');
-  if (!loaded) return null;
-  return loaded.find((card) => matchesCatalogCardId(card, cardId))?.illustrator?.trim() || '';
+  const loaded = peekCatalogCard(pokemonId, cardId, 'en');
+  if (loaded === undefined) return null;
+  return loaded?.illustrator?.trim() || '';
 }
 
 export const BINDER_PAGE_QUERY_PARAM = 'page';

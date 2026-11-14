@@ -5,15 +5,17 @@ import type { Locator, Route } from '@playwright/test';
 const ARITA_CREDIT = /^illustrator mitsuhiro arita: show all their cards$/i;
 const SCREENS = process.env.E2E_SCREENSHOT_DIR;
 
-/** Hold Bulbasaur's card list (where the illustrator comes from) until `release` is called. */
+const isBulbasaurLookup = (url: string) => new URL(url).searchParams.get('ids') === 'base1-44';
+
+/** Hold the seeded card's lookup (where the illustrator comes from) until `release` is called. */
 async function holdBulbasaurCards(harness: Harness) {
   const held: Route[] = [];
   let released = false;
-  await harness.page.route('**/app/api/tcgdex-cache**', (route) => {
-    if (new URL(route.request().url()).searchParams.get('pokemonId') !== '1' || released) return route.fallback();
+  await harness.page.route('**/app/api/tcg-card-search**', (route) => {
+    if (!isBulbasaurLookup(route.request().url()) || released) return route.fallback();
     held.push(route);
   });
-  // Start again so the card list cached by the first load is gone.
+  // Start again so the card cached by the first load is gone.
   await harness.open();
   return async () => {
     released = true;
@@ -57,13 +59,13 @@ test.describe('illustrator on the card detail', () => {
     await screenshot(harness, 'detail-loaded');
   });
 
-  test('shows the name straight away once the card list is loaded', async ({ harness }) => {
+  test('shows the name straight away once the card is loaded', async ({ harness }) => {
     let dialog = await harness.openCardDetail();
     await expect(dialog.getByRole('button', { name: ARITA_CREDIT })).toBeVisible();
     await harness.page.keyboard.press('Escape');
     await expect(harness.dialogs()).toHaveCount(0);
 
-    // Reopening reads the loaded list on the first paint: no loading placeholder at all.
+    // Reopening reads the loaded card on the first paint: no loading placeholder at all.
     await harness.page.evaluate(() => {
       const seen: string[] = [];
       (window as unknown as { __illustratorLoading: string[] }).__illustratorLoading = seen;
@@ -79,12 +81,12 @@ test.describe('illustrator on the card detail', () => {
   });
 
   test('a card without a credit keeps the same row, marked not listed', async ({ harness }) => {
-    await harness.page.route('**/app/api/tcgdex-cache**', (route) => {
-      if (new URL(route.request().url()).searchParams.get('pokemonId') !== '1') return route.fallback();
-      const cards = MOCK_CARDS.filter((card) => card.dexIds.includes(1)).map(
-        ({ dexIds: _dexIds, illustrator: _illustrator, ...card }) => card,
+    await harness.page.route('**/app/api/tcg-card-search**', (route) => {
+      if (!isBulbasaurLookup(route.request().url())) return route.fallback();
+      const cards = MOCK_CARDS.filter((card) => card.id === 'base1-44').map(
+        ({ illustrator: _illustrator, ...card }) => card,
       );
-      return route.fulfill({ json: { cards, source: 'mirror' } });
+      return route.fulfill({ json: { cards } });
     });
     await harness.open();
     const dialog = await harness.openCardDetail();

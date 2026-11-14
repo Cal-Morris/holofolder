@@ -369,7 +369,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
                 imageSizes={binderSlotImageSizes}
                 cardName={slotCardName}
                 cardFinish={slotCardFinish}
-                hasAssignedCard={Boolean(displayCard?.card_id)}
+                assignedCardId={displayCard?.card_id ?? null}
                 priceLabel={isPriceMode && itemPriceKey ? priceFormat.label(pricesByCardId[itemPriceKey]) : null}
                 showPriceMode={isPriceMode}
                 readOnly={readOnlyMode}
