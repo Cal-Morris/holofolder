@@ -208,10 +208,11 @@ const TCGPLAYER_VARIANT_PRIORITY = [
   'holofoil',
   'reverseHolofoil',
   'reverse-holofoil',
-  '1st-edition',
-  '1st-edition-holofoil',
+  // Unlimited before 1st Edition: most copies are Unlimited, and 1st Edition trades at a large premium.
   'unlimited',
   'unlimited-holofoil',
+  '1st-edition',
+  '1st-edition-holofoil',
 ] as const;
 
 // Cardmarket's `low` is the cheapest listing in any language and condition (a median 22% of trend on our
