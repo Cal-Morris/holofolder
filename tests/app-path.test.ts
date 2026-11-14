@@ -44,7 +44,6 @@ describe('app URL boundary', () => {
 test('saved legacy cover artwork remains renderable under the app path', async () => {
   const { defaultBinderDesign, normalizeBinderDesign } = await import('../lib/binder-design');
   const design = defaultBinderDesign();
-  design.surfaces.cover.artwork =
-    '/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fbase1%2F4%2Fhigh.webp';
+  design.surfaces.cover.artwork = '/api/card-image-proxy?key=pokemon%2Ftcg%2Fcards%2Fen%2Fbase1%2F4%2Fhigh.webp';
   assert.equal(normalizeBinderDesign(design).surfaces.cover.artwork, `/app${design.surfaces.cover.artwork}`);
 });

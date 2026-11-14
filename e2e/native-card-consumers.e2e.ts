@@ -12,9 +12,7 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   await page.route('**/app/api/cards/pokemon**', (route) =>
     route.fulfill({
       json: {
-        cards: cards.filter((c) =>
-          c.dexIds.includes(Number(new URL(route.request().url()).searchParams.get('dexId'))),
-        ),
+        cards: cards.filter((c) => c.dexIds.includes(Number(new URL(route.request().url()).searchParams.get('dexId')))),
       },
     }),
   );

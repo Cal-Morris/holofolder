@@ -1,50 +1,52 @@
 import { after, NextRequest, NextResponse } from 'next/server';
-import { parseTcgdexCardImageUrl, type LoadedCardImage } from '@/lib/card-image-blob';
-import { getCardImageSourceForHost, isCardImageSourceUrl, parseSourceCardImageUrl } from '@/lib/card-image-sources';
 import { getCardImageStoreKind, getDefaultCardImageMirror } from '@/lib/card-image-store';
+import { CARD_IMAGE_SOURCE_PREFIX } from '@/lib/card-image-sources';
+import { parseCardImageKey } from '@/lib/tcgdex-card-image';
+import { getSetSeriesId } from '@/lib/catalog-queries';
+import type { LoadedCardImage } from '@/lib/card-image-blob';
 import { IMMUTABLE_IMAGE_CACHE_HEADERS } from '@/lib/http-cache';
 
 export const instant = false;
 
-// Select a literal origin so a request parameter can only supply the image path and query.
-function getImageOrigin(hostname: string) {
-  switch (hostname) {
-    case 'assets.tcgdex.net':
-      return 'https://assets.tcgdex.net';
-    case 'product-images.tcgplayer.com':
-      return 'https://product-images.tcgplayer.com';
-    case 'images.pokemontcg.io':
-      return 'https://images.pokemontcg.io';
-    case 'images.scrydex.com':
-      return 'https://images.scrydex.com';
-    case 'limitlesstcg.nyc3.cdn.digitaloceanspaces.com':
-      return 'https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com';
-    case 'cdn.shopify.com':
-      return 'https://cdn.shopify.com';
-    case 'raw.githubusercontent.com':
-      return 'https://raw.githubusercontent.com';
-    default:
-      return null;
-  }
-}
-
-export function isAllowedImageHost(hostname: string) {
-  return hostname !== 'raw.githubusercontent.com' && getImageOrigin(hostname) !== null;
-}
-
 // Pokémon artwork and sprites (PokeAPI on GitHub). Only this repository path: raw.githubusercontent.com serves anything.
+const POKEAPI_ORIGIN = 'https://raw.githubusercontent.com';
 const POKEAPI_SPRITES_PATH_PREFIX = '/PokeAPI/sprites/master/sprites/pokemon/';
 
+/** `?url=` is only for Pokémon artwork; card images are requested by our own key (`?key=`). */
 export function isAllowedImageUrl(url: URL) {
-  if (url.protocol !== 'https:' || url.port || url.username || url.password) return false;
-  if (getCardImageSourceForHost(url.hostname)) return isCardImageSourceUrl(url);
-  if (url.hostname === 'assets.tcgdex.net') return true;
   return (
+    url.protocol === 'https:' &&
+    !url.port &&
+    !url.username &&
+    !url.password &&
     url.hostname === 'raw.githubusercontent.com' &&
     url.pathname.startsWith(POKEAPI_SPRITES_PATH_PREFIX) &&
     !url.pathname.includes('..') &&
     /\.(?:png|svg|gif|webp)$/i.test(url.pathname)
   );
+}
+
+const SOURCE_KEY_PATTERN = /^[A-Za-z0-9_%!+.\/-]+\.webp$/;
+
+function notFound(message: string) {
+  return Object.assign(new Error(message), { status: 404 });
+}
+
+/**
+ * A card image by our key. A TCGdex print we don't hold yet is fetched from TCGdex and copied into our store after
+ * responding; a fallback-source image is only ever served from the store (the sync and backfills copy those in).
+ */
+async function loadCardImage(key: string): Promise<LoadedCardImage> {
+  const print = parseCardImageKey(key);
+  const stored =
+    !print && key.startsWith(`${CARD_IMAGE_SOURCE_PREFIX}/`) && SOURCE_KEY_PATTERN.test(key) && !key.includes('..');
+  if (!print && !stored) throw Object.assign(new Error('Invalid card image key'), { status: 400 });
+  const mirror = getDefaultCardImageMirror();
+  if (!mirror) throw Object.assign(new Error('Card image store is not configured'), { status: 503 });
+  if (!print) return mirror.loadStoredImage(key);
+  const seriesId = await getSetSeriesId(print.setId);
+  if (!seriesId) throw notFound(`Unknown set ${print.setId}`);
+  return mirror.loadImage({ ...print, seriesId });
 }
 
 /** Widths the proxy will resize to (`&w=`). A fixed set keeps the CDN cache small. */
@@ -61,26 +63,14 @@ async function resizeImage(buffer: ArrayBuffer, width: number) {
   return sharp(Buffer.from(buffer)).resize({ width, withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
 }
 
+function errorStatus(error: unknown) {
+  const status = (error as { status?: unknown })?.status;
+  return status === 400 || status === 404 || status === 503 ? status : 502;
+}
+
 export async function GET(request: NextRequest) {
-  const rawUrl = request.nextUrl.searchParams.get('url');
-
-  if (!rawUrl) {
-    return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 });
-  }
-
-  let url: URL;
-
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    return NextResponse.json({ error: 'Invalid image URL' }, { status: 400 });
-  }
-
-  if (!isAllowedImageUrl(url)) {
-    return NextResponse.json({ error: 'Image host is not allowed' }, { status: 400 });
-  }
-
-  const rawWidth = request.nextUrl.searchParams.get('w');
+  const params = request.nextUrl.searchParams;
+  const rawWidth = params.get('w');
   const width = parseProxyImageWidth(rawWidth);
   if (rawWidth !== null && width === null) {
     return NextResponse.json(
@@ -89,37 +79,33 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Card images (TCGdex and the fallback sources) are served from the mirror store (R2 or Vercel Blob); the origin is
-  // only hit when the copy is missing, and that copy is then uploaded after responding.
-  const tcgdexImage = parseTcgdexCardImageUrl(url);
-  const sourceImage = tcgdexImage ? null : parseSourceCardImageUrl(url);
-  const mirror = tcgdexImage || sourceImage ? getDefaultCardImageMirror() : null;
-  if (mirror && (tcgdexImage || sourceImage)) {
+  const key = params.get('key');
+  if (key !== null) {
     let image: LoadedCardImage;
     try {
-      image = tcgdexImage ? await mirror.loadImage(tcgdexImage) : await mirror.loadSourceImage(sourceImage!);
+      image = await loadCardImage(key);
     } catch (error) {
-      const status =
-        typeof (error as { status?: unknown })?.status === 'number' ? (error as { status: number }).status : 502;
-      return NextResponse.json({ error: 'Card image unavailable' }, { status: status === 404 ? 404 : 502 });
+      const status = errorStatus(error);
+      return NextResponse.json(
+        { error: status === 400 ? 'Invalid card image key' : 'Card image unavailable' },
+        { status },
+      );
     }
-    if (image.pendingUpload) {
-      after(image.pendingUpload);
-    }
+    if (image.pendingUpload) after(image.pendingUpload);
     // The store keeps the original scan; `&w=` serves a smaller WebP for thumbnails and phones (cached at the CDN).
-    let mirroredBody: ArrayBuffer | Buffer = image.body;
-    let mirroredType = image.contentType;
-    if (width !== null && !image.contentType.includes('svg')) {
+    let body: ArrayBuffer | Buffer = image.body;
+    let contentType = image.contentType;
+    if (width !== null && !contentType.includes('svg')) {
       try {
-        mirroredBody = await resizeImage(image.body, width);
-        mirroredType = 'image/webp';
+        body = await resizeImage(image.body, width);
+        contentType = 'image/webp';
       } catch (error) {
         console.error('[card-image-proxy] resize failed, serving the original:', error);
       }
     }
-    return new NextResponse(new Uint8Array(mirroredBody), {
+    return new NextResponse(new Uint8Array(body), {
       headers: {
-        'content-type': mirroredType,
+        'content-type': contentType,
         'x-content-type-options': 'nosniff',
         'x-card-image-source': image.source === 'blob' ? getCardImageStoreKind() : image.source,
         ...IMMUTABLE_IMAGE_CACHE_HEADERS,
@@ -127,14 +113,23 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const origin = getImageOrigin(url.hostname);
-  if (!origin) {
+  const rawUrl = params.get('url');
+  if (!rawUrl) {
+    return NextResponse.json({ error: 'Missing key or url parameter' }, { status: 400 });
+  }
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return NextResponse.json({ error: 'Invalid image URL' }, { status: 400 });
+  }
+  if (!isAllowedImageUrl(url)) {
     return NextResponse.json({ error: 'Image host is not allowed' }, { status: 400 });
   }
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${origin}${url.pathname}${url.search}`, {
+    upstream = await fetch(`${POKEAPI_ORIGIN}${url.pathname}`, {
       redirect: 'error',
       headers: {
         Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
@@ -168,7 +163,7 @@ export async function GET(request: NextRequest) {
     headers: {
       'content-type': contentType,
       'x-content-type-options': 'nosniff',
-      'x-card-image-source': tcgdexImage ? 'tcgdex' : 'upstream',
+      'x-card-image-source': 'upstream',
       ...IMMUTABLE_IMAGE_CACHE_HEADERS,
     },
   });

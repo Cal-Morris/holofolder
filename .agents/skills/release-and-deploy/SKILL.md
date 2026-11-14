@@ -25,7 +25,7 @@ Use [task-progress](../task-progress/SKILL.md) to update the issue/project when 
 8. **After merging:**
    - For a quota-blocked merge, report **merged, deployment pending**. After the limit resets, deploy the latest `main`, covering all accumulated merges rather than an older PR head, and verify that exact commit's production deployment.
    - Otherwise, confirm the production deployment for the merge commit succeeded (the commit status on `main`).
-   - After that deployment succeeds, smoke-test: `curl -sL -o /dev/null -w '%{http_code}' https://holofolder.com/app` returns 200 after the signed-out redirect. For image-store changes, verify the expected `x-card-image-source` from `/app/api/card-image-proxy?url=…` (`r2` for a mirrored TCGdex card); resizing changes also need the requested width/format checked.
+   - After that deployment succeeds, smoke-test: `curl -sL -o /dev/null -w '%{http_code}' https://holofolder.com/app` returns 200 after the signed-out redirect. For image-store changes, verify the expected `x-card-image-source` from `/app/api/card-image-proxy?key=<our key>` (`r2` for a stored card image); resizing changes also need the requested width/format checked.
    - For public API changes, run the all-operation smoke suite after production is ready, inspect coverage, cleanup and timing, and retain its report. See `docs/api-smoke.md`.
    - Apply any migrations or env vars the PR called out.
 9. **Env vars** are set in Vercel (Production and Preview) and documented in `.env.example`. A change needs a redeploy to take effect.

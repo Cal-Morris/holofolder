@@ -314,7 +314,7 @@ test('cover artwork search finds cards beyond the featured list', async ({ page 
             id: 'pl4-AR1',
             localId: 'AR1',
             name: 'Arceus',
-            image: 'https://assets.tcgdex.net/en/pl/pl4/AR1/high.webp',
+            image: 'https://assets.holofolder.com/pokemon/tcg/cards/en/pl4/AR1/high.webp',
             set: { id: 'pl4', name: 'Arceus' },
             dexIds: [493],
           },
@@ -332,7 +332,7 @@ test('cover artwork search finds cards beyond the featured list', async ({ page 
   await page.getByRole('button', { name: 'Save appearance', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: /^Saved on this device\./ })).toBeVisible();
   expect((await readSavedRecord(page))?.design.surfaces.cover.artwork).toContain(
-    encodeURIComponent('https://assets.tcgdex.net/en/pl/pl4/AR1/high.webp'),
+    encodeURIComponent('https://assets.holofolder.com/pokemon/tcg/cards/en/pl4/AR1/high.webp'),
   );
 });
 test('cover artwork results stay above the on-screen keyboard', async ({ page }) => {
@@ -345,7 +345,7 @@ test('cover artwork results stay above the on-screen keyboard', async ({ page })
           id: `pl4-${localId}`,
           localId,
           name: 'Arceus',
-          image: `https://assets.tcgdex.net/en/pl/pl4/${localId}/high.webp`,
+          image: `https://assets.holofolder.com/pokemon/tcg/cards/en/pl4/${localId}/high.webp`,
           set: { id: 'pl4', name: 'Arceus' },
           dexIds: [493],
         })),

@@ -45,7 +45,7 @@ test('asset requests can reuse a pre-upgrade proxy image while offline', async (
     const cache = await caches.open('binderdex-v3-images');
     const proxy =
       '/app/api/card-image-proxy?url=' +
-      encodeURIComponent('https://assets.tcgdex.net/en/base/base1/999/high.webp') +
+      encodeURIComponent('https://assets.holofolder.com/pokemon/tcg/cards/en/base1/999/high.webp') +
       '&w=160';
     await cache.put(proxy, new Response('synthetic pre-upgrade image', { headers: { 'Content-Type': 'image/webp' } }));
   });

@@ -122,7 +122,7 @@ test('failed destination images do not block navigation or a return to the cache
 test('a missing resized image retries the original card before falling back to artwork', async ({ harness }) => {
   const { page } = harness;
   // Synthetic image on the seeded owned card.
-  const image = 'https://assets.tcgdex.net/en/mock/base1/44/high.webp';
+  const image = 'https://assets.holofolder.com/pokemon/tcg/cards/en/base1/44/high.webp';
   let failFullSize = false;
   await page.route('**/app/api/card-image-proxy**', (route) => {
     const params = new URL(route.request().url()).searchParams;

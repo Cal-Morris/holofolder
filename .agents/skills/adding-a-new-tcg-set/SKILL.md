@@ -44,7 +44,7 @@ Our card catalogue lives in the Postgres `tcg_*` tables. New sets usually arrive
    - The set shows in the Sets view and in search.
    - This should return `x-card-image-source: r2` (the first fetch of an un-mirrored image says `tcgdex`):
      ```sh
-     curl -sI "https://holofolder.com/app/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fme%2Fme05%2F050%2Fhigh.webp"
+     curl -sI "https://holofolder.com/app/api/card-image-proxy?key=pokemon%2Ftcg%2Fcards%2Fen%2Fme05%2F050%2Fhigh.webp"
      ```
 
 ## When code changes are needed

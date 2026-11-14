@@ -7,7 +7,7 @@ const card = {
   id: 'synthetic-pick-snorlax',
   localId: '9',
   name: 'Synthetic Pick Snorlax',
-  image: 'https://assets.tcgdex.net/en/mock/synthetic-pick/9/high.webp',
+  image: 'https://assets.holofolder.com/pokemon/tcg/cards/en/synthetic-pick/9/high.webp',
   set: { id: 'synthetic-pick', name: 'Synthetic pick set', officialCardCount: 9, releaseDate: '2026-01-01' },
   rarity: 'Common',
   variants: { normal: true, holo: true },

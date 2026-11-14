@@ -71,10 +71,11 @@ const choice =
 const speciesName = (id: number) =>
   formatPokemonDisplayName(POKEMON_CATALOG.find((p) => p.id === id)?.name ?? `Pokémon ${id}`);
 /** Real catalog card images for the "A set" and "Pick cards" tiles until the person has chosen their own cards. */
-const tcgdex = (set: string, number: number) => `https://assets.tcgdex.net/en/base/${set}/${number}/high.webp`;
+const cardImage = (set: string, number: number) =>
+  `https://assets.holofolder.com/pokemon/tcg/cards/en/${set}/${number}/high.webp`;
 const SAMPLE_CARDS = {
-  set: [tcgdex('base1', 2), tcgdex('base1', 4), tcgdex('base1', 15)],
-  printings: [tcgdex('base1', 10), tcgdex('base1', 58), tcgdex('base1', 16)],
+  set: [cardImage('base1', 2), cardImage('base1', 4), cardImage('base1', 15)],
+  printings: [cardImage('base1', 10), cardImage('base1', 58), cardImage('base1', 16)],
 };
 
 /** Ordered as before: a set, blank, National Dex, a generation, chosen Pokémon, chosen cards. */

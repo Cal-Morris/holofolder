@@ -13,7 +13,7 @@ export const wantedEntry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${W
 export const LONG_COLLECTION_NAME =
   'Synthetic collection with an extraordinarily long display name that has to wrap cleanly 火';
 
-const img = (id: string) => `https://assets.tcgdex.net/en/synthetic/${id}/high.webp`;
+const img = (id: string) => `https://assets.holofolder.com/pokemon/tcg/cards/en/synthetic/${id}/high.webp`;
 const set = { id: 'synthetic', name: 'Synthetic Base' };
 export const wantedCatalog: InventoryCatalogEvidence[] = [
   {

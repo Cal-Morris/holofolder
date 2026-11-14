@@ -44,12 +44,14 @@ test('framing can reach the full zoomed artwork and handles fit', () => {
   });
 });
 test('untrusted artwork cannot request arbitrary hosts or persist blob URLs', () => {
-  const allowed =
-    '/app/api/card-image-proxy?url=' + encodeURIComponent('https://assets.tcgdex.net/en/sv/sv03.5/166/high.webp');
+  const allowed = '/app/api/card-image-proxy?key=' + encodeURIComponent('pokemon/tcg/cards/en/sv03.5/166/high.webp');
   assert.equal(isCardArtworkUrl(allowed), true);
   for (const value of [
     'https://attacker.example/a',
     '/app/api/card-image-proxy?url=https://evil.example/a',
+    // Upstream URLs are never saved as artwork, only our own keys.
+    '/app/api/card-image-proxy?url=' + encodeURIComponent('https://assets.tcgdex.net/en/sv/sv03.5/166/high.webp'),
+    '/app/api/card-image-proxy?key=' + encodeURIComponent('pokemon/tcg/cards/src/malie/tcgl/sv1/x.webp'),
     'blob:wrong',
     'data:image/svg+xml,x',
   ]) {
@@ -232,7 +234,7 @@ test('3x3 keeps the original footprint and pockets stay card shaped for every la
 test('3D card textures use the public asset with a proxy fallback and drop anything that would taint WebGL', () => {
   assert.deepEqual(cardTextureSources('https://assets.tcgdex.net/en/base/base1/44/high.webp'), {
     image: 'https://assets.holofolder.com/pokemon/tcg/cards/en/base1/44/high.webp',
-    fallback: `/app/api/card-image-proxy?url=${encodeURIComponent('https://assets.tcgdex.net/en/base/base1/44/high.webp')}`,
+    fallback: `/app/api/card-image-proxy?key=${encodeURIComponent('pokemon/tcg/cards/en/base1/44/high.webp')}`,
   });
   assert.deepEqual(cardTextureSources('https://example.com/card.png'), { image: '' });
   assert.deepEqual(cardTextureSources(undefined), { image: '' });

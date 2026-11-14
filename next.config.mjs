@@ -72,11 +72,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'assets.tcgdex.net',
-      },
-      {
-        protocol: 'https',
-        hostname: '**.tcgdex.net',
+        hostname: 'assets.holofolder.com',
       },
     ],
   },

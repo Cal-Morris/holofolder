@@ -41,7 +41,8 @@ import {
   type SplitNeighbour,
 } from '@/lib/similar-cards';
 import { buildTcgdexAssetImageUrl, pickImageLanguage, pickLocalizedText } from '@/lib/tcgdex-shared';
-import { pickCardImageUrl, pickExternalCardImageUrl } from '@/lib/card-image-sources';
+import { pickExternalCardImageUrl } from '@/lib/card-image-sources';
+import { pickCardAssetUrl } from '@/lib/card-image-url';
 import {
   compareBrowseCards,
   inferCardFinish,
@@ -177,7 +178,7 @@ export async function getCardsForPokemon(pokemonId: number, language: CatalogLan
       }
 
       const imageLanguage = pickImageLanguage(card.image_languages_json, language);
-      const image = pickCardImageUrl(
+      const image = pickCardAssetUrl(
         card.external_ids_json,
         imageLanguage,
         imageLanguage && buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id),
@@ -285,6 +286,16 @@ export async function searchSets(query: string, limit = 8, language: CatalogLang
           },
         ],
   );
+}
+
+/** The series a set belongs to (TCGdex's image URLs need it), or null for a set we don't have. */
+export async function getSetSeriesId(setId: string): Promise<string | null> {
+  'use cache: remote';
+  cacheLife(CATALOG_CACHE_LIFE);
+  cacheTag('card-catalog', CATALOG_CACHE_VERSION, cacheSafeTag('set', setId));
+  const { data, error } = await createAdminClient().from('tcg_sets').select('series_id').eq('id', setId).maybeSingle();
+  if (error) throw error;
+  return typeof data?.series_id === 'string' ? data.series_id : null;
 }
 
 export async function getRecentSets(asOfDate: string, limit = 6): Promise<TCGSetSummary[]> {
@@ -487,7 +498,7 @@ export async function getSetDexSlots(
     }
 
     const imageLanguage = pickImageLanguage(card.image_languages_json, language);
-    const image = pickCardImageUrl(
+    const image = pickCardAssetUrl(
       card.external_ids_json,
       imageLanguage,
       imageLanguage && buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id),
@@ -601,7 +612,7 @@ export function toSearchCardResult(
     aliasIds: readCatalogMetadata(card.external_ids_json).aliasIds,
     localId: readCatalogMetadata(card.external_ids_json).localId ?? card.local_id,
     name: pickLocalizedText(card.name_json, language) || card.name_en || card.id,
-    image: pickCardImageUrl(
+    image: pickCardAssetUrl(
       card.external_ids_json,
       imageLanguage,
       imageLanguage && buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id),
@@ -1144,7 +1155,7 @@ function toIllustratorCard(card: IllustratorCardRow, language: CatalogLanguage):
     aliasIds: metadata.aliasIds,
     localId: metadata.localId ?? card.local_id,
     name: pickLocalizedText(card.name_json, language) || card.name_en || card.id,
-    image: pickCardImageUrl(
+    image: pickCardAssetUrl(
       card.external_ids_json,
       imageLanguage,
       imageLanguage && buildCardImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id),

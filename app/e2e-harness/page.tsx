@@ -155,7 +155,8 @@ export default async function E2EHarnessPage({
             pokemon_id: 1,
             pokemon_name: 'bulbasaur',
             card_id: 'base1-44',
-            card_image: cardArtwork === '1' ? 'https://assets.tcgdex.net/en/base/base1/44/high.webp' : undefined,
+            card_image:
+              cardArtwork === '1' ? 'https://assets.holofolder.com/pokemon/tcg/cards/en/base1/44/high.webp' : undefined,
             card_name: 'Bulbasaur',
             card_set: 'Base Set',
             card_language: 'en',
@@ -169,7 +170,8 @@ export default async function E2EHarnessPage({
             pokemon_id: 4,
             pokemon_name: 'charmander',
             card_id: 'base1-46',
-            card_image: cardArtwork === '1' ? 'https://assets.tcgdex.net/en/base/base1/46/high.webp' : undefined,
+            card_image:
+              cardArtwork === '1' ? 'https://assets.holofolder.com/pokemon/tcg/cards/en/base1/46/high.webp' : undefined,
             card_name: 'Charmander',
             card_set: 'Base Set',
             card_language: 'en',

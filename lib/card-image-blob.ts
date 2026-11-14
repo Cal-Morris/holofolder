@@ -451,6 +451,15 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
     return loadStoredOrOrigin(ref.pathname, () => fetchFromSource(ref), 'upstream');
   }
 
+  /** Loads an image we already hold by its key; a missing copy is a 404 (no source to fetch it from). */
+  async function loadStoredImage(pathname: string): Promise<LoadedCardImage> {
+    return loadStoredOrOrigin(
+      pathname,
+      () => Promise.reject(Object.assign(new Error(`No stored card image at ${pathname}`), { status: 404 })),
+      'upstream',
+    );
+  }
+
   /** Existing blob pathnames under `pokemon/tcg/cards/<lang>/<setId>/` (one list call per set). */
   async function listSetPathnames(language: string, setId: string) {
     assertBlobAvailable();
@@ -462,6 +471,7 @@ export function createCardImageMirror(deps: CardImageBlobDeps) {
     ensureSourceMirrored,
     loadImage,
     loadSourceImage,
+    loadStoredImage,
     listSetPathnames,
     upload,
     fetchFromTcgdex,

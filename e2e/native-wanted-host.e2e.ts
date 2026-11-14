@@ -59,7 +59,10 @@ for (const desktop of [false, true])
           navigation: {
             catalog: inventoryProjectionCatalog.map((entry) => ({
               ...entry,
-              card: { ...entry.card, image: `https://assets.tcgdex.net/en/synthetic/${entry.card.id}/high.webp` },
+              card: {
+                ...entry.card,
+                image: `https://assets.holofolder.com/pokemon/tcg/cards/en/synthetic/${entry.card.id}/high.webp`,
+              },
             })),
             layouts: [{ collectionId, layoutRevision: 1, rows: 4, cols: 4 }],
           },

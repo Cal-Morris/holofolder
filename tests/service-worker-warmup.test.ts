@@ -73,8 +73,8 @@ test('newly visible URLs go ahead of older queued work and a failed warm-up can 
 
 test('public asset requests reuse existing proxy/show caches when offline', async () => {
   const legacy =
-    'https://holofolder.com/app/api/card-image-proxy?url=' +
-    encodeURIComponent('https://assets.tcgdex.net/en/base/base1/1/high.webp') +
+    'https://holofolder.com/app/api/card-image-proxy?key=' +
+    encodeURIComponent('pokemon/tcg/cards/en/base1/1/high.webp') +
     '&w=160';
   const stored = new Response('synthetic legacy cached card');
   const context = createContext({

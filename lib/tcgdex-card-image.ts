@@ -79,6 +79,37 @@ export function buildTcgdexCardImageUrl(ref: TcgdexCardImageRef) {
   return buildTcgdexAssetImageUrl(ref.language, ref.seriesId, ref.setId, ref.localId, ref.quality, ref.extension);
 }
 
+/**
+ * Reads one of our own TCGdex-print keys (`pokemon/tcg/cards/<lang>/<setId>/<localId>/<quality>.<ext>`, as
+ * `getCardImageBlobPathname` writes it). Fallback-source keys (`…/cards/src/…`) and anything else return null.
+ */
+export function parseCardImageKey(
+  key: string,
+): Pick<TcgdexCardImageRef, 'language' | 'setId' | 'localId' | 'quality' | 'extension'> | null {
+  if (!key.startsWith(`${CARD_IMAGE_BLOB_PREFIX}/`)) return null;
+  const segments = key.slice(CARD_IMAGE_BLOB_PREFIX.length + 1).split('/');
+  if (segments.length !== 4 || segments[0] === 'src') return null;
+  const [language, setId, localId, file] = segments.map((segment) => {
+    try {
+      return decodeURIComponent(segment);
+    } catch {
+      return '';
+    }
+  });
+  const fileMatch = /^(high|low)\.(webp|png|jpg)$/.exec(file);
+  if (!fileMatch) return null;
+  if (![language, setId, localId].every((segment) => SEGMENT_PATTERN.test(segment) && !segment.includes('..'))) {
+    return null;
+  }
+  return {
+    language,
+    setId,
+    localId,
+    quality: fileMatch[1] as CardImageQuality,
+    extension: fileMatch[2] as CardImageExtension,
+  };
+}
+
 /** Deterministic Blob pathname: `pokemon/tcg/cards/<lang>/<setId>/<localId>/<quality>.<ext>`. */
 export function getCardImageBlobPathname(
   ref: Pick<TcgdexCardImageRef, 'language' | 'setId' | 'localId' | 'quality' | 'extension'>,

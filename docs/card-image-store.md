@@ -1,6 +1,6 @@
 # Card image mirror storage
 
-Card images are mirrored into object storage and served through `/api/card-image-proxy`; clients never load card images from a third-party host directly. Two kinds of image are mirrored:
+Card images are ours: they are copied into our object storage and served from `https://assets.holofolder.com/<key>`. Clients only ever see that URL; when an image isn't stored yet they fall back to `/api/card-image-proxy?key=<key>`, which copies it in from its source (TCGdex prints only; fallback-source images are copied in by the sync and backfills). Clients never load card images from a third-party host. We copy from two kinds of source:
 
 - **TCGdex** (`assets.tcgdex.net`), our largest image source.
 - **Fallback sources** for cards TCGdex has no image for (see `lib/card-image-sources.ts`): TCGplayer product images (`product-images.tcgplayer.com`), pokemontcg.io (`images.pokemontcg.io`), Scrydex (`images.scrydex.com`), Limitless (`limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/…`) and playshop.fr single-card scans (`cdn.shopify.com`, store path only).
@@ -13,10 +13,10 @@ The storage backend is chosen by `CARD_IMAGE_STORE` (see `lib/card-image-store.t
 | ------------------ | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `r2`               | Cloudflare R2 (S3 API, signed with aws4fetch) | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, and `R2_PUBLIC_BASE_URL` (recommended) |
 | `blob`             | Vercel Blob                                   | `BLOB_READ_WRITE_TOKEN`; `CARD_IMAGE_BLOB=0` still disables it                                                   |
-| `off`              | none, TCGdex live                             | none                                                                                                             |
-| unset or unknown   | none, source images served live               | none                                                                                                             |
+| `off`              | none, the proxy can't fill misses (503)       | none                                                                                                             |
+| unset or unknown   | none, the proxy can't fill misses (503)       | none                                                                                                             |
 
-If a backend is selected but its credentials are missing or invalid, the mirror is off and TCGdex is served live. It never falls through to the other backend. If the store refuses requests (401/403, a blocked store) or throttles them (429/503), the proxy skips it for a cooldown period and serves TCGdex directly.
+If a backend is selected but its credentials are missing or invalid, the store is off and the proxy answers 503. It never falls through to the other backend. If the store refuses requests (401/403, a blocked store) or throttles them (429/503), the proxy skips it for a cooldown period and serves TCGdex prints directly without storing them.
 
 Production and Preview use `CARD_IMAGE_STORE=r2` with the same R2 bucket and credentials. Development uses `CARD_IMAGE_STORE=off` unless configured explicitly. Deterministic object keys let previews reuse existing mirrored images. An inherited `BLOB_READ_WRITE_TOKEN` never enables Blob on its own. Environment changes only affect new deployments; older preview URLs retain their original configuration.
 
@@ -25,7 +25,7 @@ Every object lives under a brand/game root, `pokemon/tcg/` (`CARD_ASSET_ROOT` in
 Object keys are deterministic:
 
 - TCGdex: `pokemon/tcg/cards/<lang>/<setId>/<localId>/<high|low>.<webp|png|jpg>`, stored as fetched.
-- Fallback sources: `pokemon/tcg/cards/src/<source>/<key>.webp`, derived from the origin URL only (so the proxy needs no database lookup):
+- Fallback sources: `pokemon/tcg/cards/src/<source>/<key>.webp`, derived from the origin URL only, so the same source image always lands on the same key:
 
   | Source       | Origin URL                                                                                               | Key                                                             |
   | ------------ | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
@@ -68,7 +68,7 @@ Uploads never overwrite (`If-None-Match: *` on R2, `allowOverwrite: false` on Bl
 
    New sets are copied by `POST /api/admin/sync-card-db` (add `?images=0` to skip this).
 
-6. Verify: `curl -sI "https://holofolder.com/app/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fme%2Fme05%2F001%2Fhigh.webp"` should show `x-card-image-source: r2`. It shows `tcgdex` the first time an image is fetched and while the store is in its cooldown.
+6. Verify: `curl -sI "https://holofolder.com/app/api/card-image-proxy?key=pokemon%2Ftcg%2Fcards%2Fen%2Fme05%2F001%2Fhigh.webp"` should show `x-card-image-source: r2`. It shows `tcgdex` the first time an image is fetched and while the store is in its cooldown.
 
 R2 free tier (Standard storage, per month): 10 GB-month storage, 1M Class A ops (PutObject, ListObjects), 10M Class B ops (GetObject, HeadObject), no egress fees. The full mirror is about 40k objects and roughly 2 GB, so it fits comfortably. Usage beyond the free tier is billed, not blocked.
 

@@ -2,24 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { NextRequest } from 'next/server';
-import { GET, isAllowedImageHost, isAllowedImageUrl, parseProxyImageWidth } from '../app/api/card-image-proxy/route';
+import { GET, isAllowedImageUrl, parseProxyImageWidth } from '../app/api/card-image-proxy/route';
+import { parseCardImageKey } from '../lib/tcgdex-card-image';
 import { FEATURED_CARDS, getFeaturedCardImageSrcSet, getFeaturedCardImageUrl } from '../lib/featured-cards';
 import { getOfficialArtworkSourceUrl, getOfficialArtworkUrl } from '../lib/pokemon-artwork';
-
-test('isAllowedImageHost allows mirrored card art fallback hosts', () => {
-  assert.equal(isAllowedImageHost('assets.tcgdex.net'), true);
-  assert.equal(isAllowedImageHost('images.pokemontcg.io'), true);
-  assert.equal(isAllowedImageHost('product-images.tcgplayer.com'), true);
-  assert.equal(isAllowedImageHost('images.scrydex.com'), true);
-  assert.equal(isAllowedImageHost('limitlesstcg.nyc3.cdn.digitaloceanspaces.com'), true);
-});
-
-test('isAllowedImageHost rejects unrelated image hosts', () => {
-  assert.equal(isAllowedImageHost('en.tcgdex.net'), false);
-  assert.equal(isAllowedImageHost('example.com'), false);
-  assert.equal(isAllowedImageHost('tcgplayer.com'), false);
-  assert.equal(isAllowedImageHost('product-images.tcgplayer.com.evil.test'), false);
-});
 
 test('isAllowedImageUrl allows PokeAPI artwork on GitHub but nothing else there', () => {
   assert.equal(isAllowedImageUrl(new URL(getOfficialArtworkSourceUrl(25))), true);
@@ -33,8 +19,9 @@ test('isAllowedImageUrl allows PokeAPI artwork on GitHub but nothing else there'
     isAllowedImageUrl(new URL('http://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png')),
     false,
   );
-  assert.equal(isAllowedImageUrl(new URL('https://assets.tcgdex.net/en/base/base1/44/low.webp')), true);
-  assert.equal(isAllowedImageUrl(new URL('ftp://assets.tcgdex.net/x.png')), false);
+  // Card images are requested by our key, never by an upstream URL.
+  assert.equal(isAllowedImageUrl(new URL('https://assets.tcgdex.net/en/base/base1/44/low.webp')), false);
+  assert.equal(isAllowedImageUrl(new URL('https://images.pokemontcg.io/base1/4.png')), false);
 });
 
 test('parseProxyImageWidth only accepts the fixed widths', () => {
@@ -52,12 +39,39 @@ test('getOfficialArtworkUrl points at the proxy with a grid width by default', (
   assert.equal(new URL(getOfficialArtworkUrl(25, 480), 'https://x').searchParams.get('w'), '480');
 });
 
-test('isAllowedImageUrl allows only the playshop.fr store path on the shared Shopify CDN', () => {
-  assert.equal(
-    isAllowedImageUrl(new URL('https://cdn.shopify.com/s/files/1/1015/7057/6719/files/pokemon-2013bw-1-phyllali.png')),
-    true,
-  );
-  assert.equal(isAllowedImageUrl(new URL('https://cdn.shopify.com/s/files/1/0000/0000/0001/files/logo.png')), false);
+test('parseCardImageKey reads our print keys and nothing else', () => {
+  assert.deepEqual(parseCardImageKey('pokemon/tcg/cards/fr/base1/44/high.webp'), {
+    language: 'fr',
+    setId: 'base1',
+    localId: '44',
+    quality: 'high',
+    extension: 'webp',
+  });
+  for (const key of [
+    'pokemon/tcg/cards/src/malie/tcgl/sv1/sv1_en_001_std.webp',
+    'pokemon/tcg/cards/en/base1/44/huge.webp',
+    'pokemon/tcg/cards/en/../44/high.webp',
+    'cards/en/base1/44/high.webp',
+    'pokemon/tcg/sets/base1/logo.webp',
+  ])
+    assert.equal(parseCardImageKey(key), null, key);
+});
+
+test('GET rejects keys that are not card images without making a request', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    throw new Error('unexpected fetch');
+  }) as typeof fetch;
+  try {
+    for (const key of ['pokemon/tcg/sets/base1/logo.webp', '../secrets', 'pokemon/tcg/cards/src/../x.webp']) {
+      const request = new NextRequest(
+        `https://holofolder.com/app/api/card-image-proxy?${new URLSearchParams({ key })}`,
+      );
+      assert.equal((await GET(request)).status, 400, key);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('featured card srcset uses public stored variants while canonical artwork remains compatible', () => {
@@ -72,19 +86,13 @@ test('featured card srcset uses public stored variants while canonical artwork r
 
 test('isAllowedImageUrl rejects untrusted authorities and insecure transports', () => {
   for (const value of [
-    'http://assets.tcgdex.net/x.png',
-    'https://assets.tcgdex.net:8443/x.png',
-    'https://user:password@assets.tcgdex.net/x.png',
-    'https://assets.tcgdex.net.evil.test/x.png',
-    'https://evil.test/assets.tcgdex.net/x.png',
-    'https://en.tcgdex.net/x.png',
-    'https://127.0.0.1/x.png',
-    'https://product-images.tcgplayer.com:8080/123.jpg',
     'https://raw.githubusercontent.com:8443/PokeAPI/sprites/master/sprites/pokemon/25.png',
+    'https://user:pw@raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png',
+    'https://raw.githubusercontent.com.evil.test/PokeAPI/sprites/master/sprites/pokemon/25.png',
+    'https://127.0.0.1/x.png',
   ]) {
     assert.equal(isAllowedImageUrl(new URL(value)), false, value);
   }
-  assert.equal(isAllowedImageUrl(new URL('https://assets.tcgdex.net:443/x.png')), true);
 });
 
 test('GET rejects invalid image authorities without making a request', async () => {
@@ -95,7 +103,7 @@ test('GET rejects invalid image authorities without making a request', async () 
     throw new Error('unexpected fetch');
   }) as typeof fetch;
   try {
-    for (const url of ['https://127.0.0.1/image.png', 'https://assets.tcgdex.net:8443/image.png']) {
+    for (const url of ['https://127.0.0.1/image.png', 'https://assets.tcgdex.net/en/base/base1/44/high.webp']) {
       const request = new NextRequest(
         `https://holofolder.com/app/api/card-image-proxy?${new URLSearchParams({ url })}`,
       );

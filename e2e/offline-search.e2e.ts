@@ -32,7 +32,7 @@ const SHOW_CARDS = [
   id: `show1-${localId}`,
   localId,
   name,
-  image: `https://assets.tcgdex.net/en/mock/show1/${localId}/high.webp`,
+  image: `https://assets.holofolder.com/pokemon/tcg/cards/en/show1/${localId}/high.webp`,
   set: SHOW_SET,
   rarity: 'Rare',
   language: 'en',
@@ -88,9 +88,9 @@ async function mockNetwork(context: BrowserContext, page: Page) {
   await context.route(
     '**/app/api/card-image-proxy**',
     guard((route) => {
-      const source = new URL(route.request().url()).searchParams.get('url') ?? '';
-      // Since #48 the binder's Pokémon artwork goes through the proxy too; only card thumbnails count here.
-      if (new URL(source).hostname !== 'raw.githubusercontent.com') network.proxyImages.push(source);
+      // Card thumbnails are requested by our key; Pokémon artwork (`?url=`) goes through the proxy too and doesn't count.
+      const key = new URL(route.request().url()).searchParams.get('key');
+      if (key) network.proxyImages.push(key);
       return route.fulfill({ contentType: 'image/svg+xml', body: placeholderSvg('saved', network.proxyImages.length) });
     }),
   );

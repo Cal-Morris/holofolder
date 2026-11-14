@@ -23,7 +23,7 @@ function wanted(card: SeedWanted) {
   return {
     card_language: 'en',
     card_finish: 'normal',
-    card_image: `https://assets.tcgdex.net/en/mock/${setId}/${card.local_id}/high.webp`,
+    card_image: `https://assets.holofolder.com/pokemon/tcg/cards/en/${setId}/${card.local_id}/high.webp`,
     ...card,
   };
 }
