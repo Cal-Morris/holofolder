@@ -38,7 +38,7 @@ export function parseBinderGrid(value: unknown): BinderGrid | null {
 export const BINDER_NAME_MAX_LENGTH = 40;
 export const DEFAULT_BINDER_NAME = 'National Dex';
 /** Binders are cheap, but a ceiling keeps the switcher and offline storage sane. */
-export const MAX_BINDERS_PER_OWNER = 20;
+export const MAX_BINDERS_PER_OWNER = 99;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

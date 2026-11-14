@@ -70,17 +70,17 @@ describe('billing access', () => {
   test('keeps legacy enforcement until server allowance fields exist', () => {
     const free = resolveBillingAccess('owner', { enforced: true });
     assert.equal(free.cardLimit, 10);
-    assert.equal(free.binderLimit, 20);
+    assert.equal(free.binderLimit, 99);
   });
   test('rejects malformed allowances and caps the binder safety limit', () => {
     for (const value of [null, '100', 0, -1, 1.5, Infinity]) {
       const free = resolveBillingAccess('owner', { enforced: true, free_card_limit: value, free_binder_limit: value });
       assert.equal(free.cardLimit, 10);
-      assert.equal(free.binderLimit, 20);
+      assert.equal(free.binderLimit, 99);
     }
-    assert.equal(resolveBillingAccess('owner', { enforced: true, free_binder_limit: 500 }).binderLimit, 20);
+    assert.equal(resolveBillingAccess('owner', { enforced: true, free_binder_limit: 500 }).binderLimit, 99);
   });
-  test('only paid or lifetime access permits a second binder and all tiers stop at twenty', () => {
+  test('only paid or lifetime access permits a second binder and all tiers stop at the ceiling', () => {
     const row = { enforced: true, free_card_limit: 100, free_binder_limit: 1 };
     const free = resolveBillingAccess('owner', row);
     assert.equal(canCreateOwnerBinder(free, 0), true);
@@ -92,7 +92,8 @@ describe('billing access', () => {
       resolveBillingAccess('owner', { ...row, status: 'active', paid_through: '2099-01-01' }),
     ]) {
       assert.equal(canCreateOwnerBinder(access, 1), true);
-      assert.equal(canCreateOwnerBinder(access, 20), false);
+      assert.equal(canCreateOwnerBinder(access, 98), true);
+      assert.equal(canCreateOwnerBinder(access, 99), false);
     }
   });
 });

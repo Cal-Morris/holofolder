@@ -39,7 +39,7 @@ test('order, limits and moves', () => {
   assert.equal(validateBinderOrder(binders, ['a', 'b']), null);
   assert.equal(validateBinderOrder(binders, 'a,b,c'), null);
   assert.ok(canCreateBinder(binders));
-  assert.ok(!canCreateBinder(Array.from({ length: 20 }, (_, index) => binder(String(index), index))));
+  assert.ok(!canCreateBinder(Array.from({ length: 99 }, (_, index) => binder(String(index), index))));
   assert.deepEqual(
     moveBinder(binders, 'b', -1).map((item) => [item.id, item.sortOrder]),
     [
