@@ -2,9 +2,18 @@
 
 import { useSyncExternalStore, type ComponentProps } from 'react';
 import { createOpenAPIPage } from 'fumadocs-openapi/ui';
+import type { Document } from 'fumadocs-openapi';
+import { appPath } from '@/lib/app-path';
 
 const APIPage = createOpenAPIPage({
   storageKeyPrefix: 'holofolder-docs-',
+  // The one document (`holofolder`) is left out of page props; the browser fetches the public copy.
+  loadDocument: async () => {
+    if (typeof window === 'undefined') return (await import('@/public/openapi.json')).default as unknown as Document;
+    const response = await fetch(appPath('/openapi.json'));
+    if (!response.ok) throw new Error(`OpenAPI document failed to load (${response.status})`);
+    return (await response.json()) as Document;
+  },
   playground: {
     authProviders: [
       {
