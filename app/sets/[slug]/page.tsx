@@ -3,12 +3,16 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { CreditsNotice } from '@/components/credits';
+import { PublicCardThumb } from '@/components/public-card-thumb';
 import { Button } from '@/components/ui/button';
 import { getPublicSetCards, getPublicSets, type PublicSetCard } from '@/lib/server/public-sets';
+import { getPokemonById } from '@/lib/pokemon-catalog';
+import { pokemonSlug } from '@/lib/pokemon-pages';
 import { socialMetadata } from '@/lib/social-metadata';
 import {
   blogSetGuideUrl,
   countSetCards,
+  formatCardNumber,
   formatReleaseDate,
   pagesNeeded,
   SET_PAGE_POCKETS,
@@ -36,8 +40,12 @@ const load = cache(async (slug: string) => {
 });
 
 const pageUrl = (slug: string) => `https://holofolder.com/app/sets/${slug}`;
-const cardNumber = (card: PublicSetCard, set: PublicSetSummary) =>
-  /^\d+$/.test(card.number) && set.officialCardCount ? `${card.number}/${set.officialCardCount}` : card.number;
+const cardNumber = (card: PublicSetCard, set: PublicSetSummary) => formatCardNumber(card.number, set.officialCardCount);
+// A card of one species links to that species' page; tag teams and Trainers don't.
+const speciesHref = (card: PublicSetCard) => {
+  const entry = card.dexIds.length === 1 ? getPokemonById(card.dexIds[0]) : undefined;
+  return entry && `/pokemon/${pokemonSlug(entry)}`;
+};
 const cardAlt = (card: PublicSetCard, set: PublicSetSummary) => `${card.name} ${cardNumber(card, set)} ${set.name}`;
 
 type Props = { params: Promise<{ slug: string }> };
@@ -151,9 +159,9 @@ export default async function SetPage({ params }: Props) {
           <ol className="space-y-1.5">
             {cards.map((card) => (
               <li key={card.id} className="holo-tile flex items-center gap-3 rounded-xl p-2">
-                <CardThumb card={card} alt={cardAlt(card, set)} className="w-10" />
+                <PublicCardThumb thumb={card.thumb} alt={cardAlt(card, set)} className="w-10" />
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">{card.name}</span>
+                  <SpeciesName card={card} />
                   <span className="text-muted-foreground block text-xs">
                     {[cardNumber(card, set), card.rarity, card.illustrator && `Illus. ${card.illustrator}`]
                       .filter(Boolean)
@@ -178,7 +186,7 @@ export default async function SetPage({ params }: Props) {
                 <h3 className="text-muted-foreground text-xs font-semibold">Page {i + 1}</h3>
                 <div className="grid grid-cols-3 gap-1.5">
                   {page.map((card) => (
-                    <CardThumb key={card.id} card={card} alt={cardAlt(card, set)} className="w-full" />
+                    <PublicCardThumb key={card.id} thumb={card.thumb} alt={cardAlt(card, set)} className="w-full" />
                   ))}
                 </div>
               </li>
@@ -207,20 +215,14 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function CardThumb({ card, alt, className }: { card: PublicSetCard; alt: string; className: string }) {
-  return card.thumb ? (
-    // eslint-disable-next-line @next/next/no-img-element -- our CDN serves the stored card image directly
-    <img
-      src={card.thumb}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      width={245}
-      height={342}
-      className={`bg-muted aspect-[245/342] h-auto shrink-0 rounded-sm ${className}`}
-    />
+function SpeciesName({ card }: { card: PublicSetCard }) {
+  const href = speciesHref(card);
+  return href ? (
+    <Link href={href} className="flex min-h-9 items-center text-sm font-medium underline-offset-2 hover:underline">
+      {card.name}
+    </Link>
   ) : (
-    <span role="img" aria-label={alt} className={`bg-muted aspect-[245/342] shrink-0 rounded-sm ${className}`} />
+    <span className="block text-sm font-medium">{card.name}</span>
   );
 }
 
