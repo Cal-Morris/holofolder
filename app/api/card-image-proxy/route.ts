@@ -26,7 +26,7 @@ export function isAllowedImageUrl(url: URL) {
   );
 }
 
-const SOURCE_KEY_PATTERN = /^[A-Za-z0-9_%!+.\/-]+\.webp$/;
+const SOURCE_KEY_PATTERN = /^[A-Za-z0-9_%!+./-]+\.webp$/;
 
 function notFound(message: string) {
   return Object.assign(new Error(message), { status: 404 });
