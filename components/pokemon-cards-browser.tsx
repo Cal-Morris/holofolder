@@ -442,7 +442,8 @@ export default function PokemonCardsBrowser({
 
   const showActions = !readOnly && Boolean(onWantCard || onAddCard);
   // Gated on the device queue, not live editing, so tile edits work offline and queue like every binder edit.
-  const nativeTileActions = Boolean(nativeConsumer?.acquire && nativeSnapshot && isGrid);
+  // Every tile gets Want, Add and Swap, the one-card lookup (Similar look, search) included.
+  const nativeTileActions = Boolean(nativeConsumer?.acquire && nativeSnapshot && (isGrid || cardDetails));
 
   return (
     <CardsBrowserSheet
@@ -759,7 +760,10 @@ export default function PokemonCardsBrowser({
                   ? speciesSelectorCard(card, pokemon.id)
                   : cardName
                     ? ({ ...card, dexIds: [] } as SearchCardResult)
-                    : null;
+                    : // The lookup's one card, with its own Pokémon.
+                      cardDetails?.card.id === card.id
+                      ? cardDetails.card
+                      : null;
                 const wantedPrintings =
                   collectionItem?.wanted_cards?.filter(
                     (wanted) =>

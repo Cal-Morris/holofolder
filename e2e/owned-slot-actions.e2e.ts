@@ -310,11 +310,16 @@ async function swapTrainerIn(page: Page) {
     .click();
   const card = page.getByRole('region', { name: 'Card details' });
   await expect(card.getByRole('checkbox', { name: 'Keep old card in collection' })).toBeChecked();
+  // The card's tile has the same quick Want and Swap as the All cards grid.
+  const lookup = page.getByRole('dialog', { name: 'All Synthetic Trainer cards' });
+  await expect(lookup.getByRole('button', { name: /^Want Synthetic Trainer .* 101$/ })).toBeVisible();
+  await expect(lookup.getByRole('button', { name: /^Swap Synthetic Trainer .* 101 into its pocket$/ })).toBeVisible();
   await card.getByRole('button', { name: 'Swap into this pocket' }).click();
   // Clear the Bulbasaur reservation, place the Trainer, reserve the pocket for the Trainer.
   await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(3);
   expect((await record(page))!.receipts.every((r) => r.outcome === 'acknowledged')).toBe(true);
   await expect(card.getByRole('button', { name: 'In this pocket' })).toBeDisabled();
+  await expect(lookup.getByRole('button', { name: /^Synthetic Trainer .* 101 is in its pocket$/ })).toBeDisabled();
 }
 
 test("a card opened from a pocket's Similar look swaps into that pocket, even a Trainer with no pocket of its own", async ({
