@@ -20,20 +20,21 @@ The database schema lives in `scripts/NNN_*.sql`. Follow [scripts/MIGRATIONS.md]
 
 ## Scripts
 
-| Command                           | What it does                                                                                                                                                                           |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bun run dev`                     | Next.js dev server                                                                                                                                                                     |
-| `bun run build` / `bun run start` | Production build / serve                                                                                                                                                               |
-| `bun run format`                  | Format with `bun fmt` (settings in `bunfig.toml`; CI checks it)                                                                                                                        |
-| `bun run lint`                    | oxlint (warning ratchet)                                                                                                                                                               |
-| `bun run typecheck`               | Generate Next.js route types, then check the full repository with `bun check`                                                                                                          |
-| `bun run typecheck:tsc`           | Run the TypeScript reference checker for diagnostic comparison                                                                                                                         |
-| `bun run test`                    | Unit tests (`tests/*.test.ts`, `node:test` style, run by Bun)                                                                                                                          |
-| `bun run test:e2e`                | Playwright scenarios (`e2e/*.e2e.ts`) at 390×844, in browser and installed-app (standalone) mode. Builds and serves the app on port 3210 with `HOLOFOLDER_E2E=1` and a mocked Supabase |
-| `bun run test:e2e:matrix <spec>`  | Run affected specs at 375, 390 and 430 px in browser and standalone mode. Required for UI changes                                                                                      |
-| `bun run test:e2e:smoke`          | Fast feedback: card browsing, Quick mode navigation and offline card lookup in the two default phone projects. Run the full suite when explicitly requested                            |
-| `bun run test:e2e:install`        | Installs Playwright's Chromium (or set `CHROME_PATH` to a local Chrome)                                                                                                                |
-| `bun run sync-card-db`            | Syncs the TCGdex card database into Postgres (needs `POSTGRES_URL_NON_POOLING`; `--dry-run` supported)                                                                                 |
+| Command                           | What it does                                                                                                                                                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run dev`                     | Next.js dev server                                                                                                                                                                                            |
+| `bun run build` / `bun run start` | Production build / serve                                                                                                                                                                                      |
+| `bun run format`                  | Format with `bun fmt` (settings in `bunfig.toml`; CI checks it)                                                                                                                                               |
+| `bun run lint`                    | oxlint (warning ratchet)                                                                                                                                                                                      |
+| `bun run typecheck`               | Generate Next.js route types, then check the full repository with `bun check`                                                                                                                                 |
+| `bun run typecheck:tsc`           | Run the TypeScript reference checker for diagnostic comparison                                                                                                                                                |
+| `bun run test`                    | Unit tests (`tests/*.test.ts`, `node:test` style, run by Bun)                                                                                                                                                 |
+| `bun run test:e2e`                | Playwright scenarios (`e2e/*.e2e.ts`) at 390×844, in browser and installed-app (standalone) mode. Builds and serves the app on port 3210 with `HOLOFOLDER_E2E=1` and a mocked Supabase                        |
+| `bun run test:e2e:matrix <spec>`  | Run affected specs at 375, 390 and 430 px in browser and standalone mode. Required for UI changes                                                                                                             |
+| `bun run test:e2e:smoke`          | Fast feedback: card browsing, Quick mode navigation and offline card lookup in the two default phone projects. Run the full suite when explicitly requested                                                   |
+| `bun run test:e2e:install`        | Installs Playwright's Chromium (or set `CHROME_PATH` to a local Chrome)                                                                                                                                       |
+| `bun run sync-card-db`            | Syncs the TCGdex card database into Postgres (needs `POSTGRES_URL_NON_POOLING`; `--dry-run` supported)                                                                                                        |
+| `bun run card-assets <command>`   | Card images and catalogue checks (see [`card-assets/`](card-assets/README.md)), including `lattice [--report]`, which compares our cards with [Card Lattice](https://github.com/cardlattice/cardlattice-data) |
 
 E2E tips: set `E2E_PORT` to use another port, or `E2E_BASE_URL` to test an already running server.
 

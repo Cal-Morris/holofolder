@@ -17,6 +17,17 @@ We keep a pinned copy of the atlas data in [`pokemon/tcg/atlas/`](pokemon/tcg/at
 
 Thank you, Luna. Credit for the atlas also appears in the app (Settings → Credits & attributions, and [`/app/credits`](https://holofolder.com/app/credits)) and in [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
 
+## Card Lattice
+
+[Card Lattice](https://cardlattice.com) is an open Pokémon TCG catalogue: every printing per language and region, edited as YAML in [cardlattice/cardlattice-data](https://github.com/cardlattice/cardlattice-data) on GitHub and published as a checksummed JSON snapshot. Its card data is CC0. It has no images, but it covers sets TCGdex doesn't yet, such as Simplified Chinese, older Japanese XY and Sword & Shield sets, and Korean names.
+
+```sh
+bun run card-assets lattice             # what Card Lattice has that we don't: sets, cards, names in a language, illustrators
+bun run card-assets lattice --report    # what we hold that Card Lattice and TCGdex don't, to share with those projects
+```
+
+Both only read the database and write to `.cache/card-assets/lattice/`: `gaps.json` for the first, `report.md` and `report.json` for the report. Nothing is imported yet; the gaps file is the list to review before adding cards. If the report shows something a project would want, open an issue or pull request on [cardlattice-data](https://github.com/cardlattice/cardlattice-data) or [TCGdex's cards-database](https://github.com/tcgdex/cards-database).
+
 ## What's here
 
 | Path | What it is |
@@ -39,7 +50,7 @@ bun run card-assets verify              # check sources, rules, the atlas and wh
 bun run card-assets publish --apply     # upload the chosen images and make the app show them
 ```
 
-To change which image a set uses, add a row to `rules.csv`, run `plan`, and review the ledger diff. It shows exactly which cards move from which source to which. Then publish. `AGENTS.md` lists the other commands (`discover`, `renditions`, `mirror-tcgdex`, `mirror-pokemoncom`, `fill-gaps`, `inventory`, `atlas` and `migrate-bucket`).
+To change which image a set uses, add a row to `rules.csv`, run `plan`, and review the ledger diff. It shows exactly which cards move from which source to which. Then publish. `AGENTS.md` lists the other commands (`discover`, `renditions`, `mirror-tcgdex`, `mirror-pokemoncom`, `fill-gaps`, `inventory`, `atlas`, `lattice` and `migrate-bucket`).
 
 ## Licensing
 
