@@ -124,6 +124,20 @@ export function storageCommandHarness(id: string) {
     state.tables.binder_slots[0].status = 'collected';
   }
   if (id.startsWith('harness-')) seedHarnessBinder(state.tables, owner);
+  if (id.startsWith('import-'))
+    // Synthetic CSV import: the default harness binder plus a Pokémon card with an empty pocket and a trainer.
+    seedHarnessBinder(state.tables, owner, undefined, [
+      { id: 'base1-44', localId: '44', name: 'Bulbasaur', set: { id: 'base1', name: 'Base Set' }, dexIds: [1] },
+      { id: 'base1-46', localId: '46', name: 'Charmander', set: { id: 'base1', name: 'Base Set' }, dexIds: [4] },
+      { id: 'base1-2', localId: '2', name: 'Blastoise', set: { id: 'base1', name: 'Base Set' }, dexIds: [9] },
+      {
+        id: 'synthetic-import-trainer',
+        localId: '90',
+        name: 'Synthetic Trainer',
+        set: { id: 'base1', name: 'Base Set' },
+        dexIds: [],
+      },
+    ]);
   if (id.startsWith('pick-')) {
     // Synthetic species pocket and an unowned mirror printing: absent from the read catalog until it is owned.
     state.tables.tcg_sets = [{ id: 'synthetic-pick', name_en: 'Synthetic pick set' }];

@@ -12,6 +12,7 @@ import {
   resolveCardSearchQuery,
 } from '@/lib/card-search-query';
 import type { ImportLookup } from '@/lib/collection-import';
+import { matchImportSets, type ImportCandidate } from '@/lib/collection-import-resolve';
 import { resolveSetSearchAlias } from '@/lib/set-search-aliases';
 import { getSetArtwork } from '@/lib/set-artwork';
 import { isSetYearQuery, rankSetMatches } from '@/lib/set-search';
@@ -658,23 +659,46 @@ function localIdCandidates(number: string) {
 }
 
 /** Exact, bounded identity lookup for import. No fuzzy search or language fallback. */
-export async function findImportCandidates(lookup: ImportLookup): Promise<SearchCardResult[]> {
+/** Every set's English name, plus its name in `language`: trackers often list other languages under English names. */
+async function getImportSetNames(language: CatalogLanguage) {
+  'use cache: remote';
+  cacheLife(CATALOG_CACHE_LIFE);
+  cacheTag('card-catalog', CATALOG_CACHE_VERSION);
+  const { data, error } = await createAdminClient().from('tcg_sets').select('id,name_json').limit(5000);
+  if (error) throw error;
+  return (data ?? []).flatMap((set) => {
+    const names = (set.name_json ?? {}) as Record<string, unknown>;
+    return [...new Set([names.en, names[language]])].flatMap((name) =>
+      typeof name === 'string' ? [{ id: set.id as string, name }] : [],
+    );
+  });
+}
+
+/** Import candidates: one row per printing (catalogue duplicates folded), trainers and energy included, with the English
+ * name kept beside the localised one because trackers often name every language's card in English. */
+type ImportCandidateRow = { id: string; name_en?: unknown; external_ids_json?: unknown };
+function toImportCandidates(data: unknown[], language: CatalogLanguage): ImportCandidate[] {
+  // The select string is built at runtime, so the client can't type the rows.
+  return deduplicateCatalogCards(data as ImportCandidateRow[]).flatMap((card) => {
+    const result = toSearchCardResult(card, language, true);
+    return result ? [{ ...result, englishName: typeof card.name_en === 'string' ? card.name_en : undefined }] : [];
+  });
+}
+
+export async function findImportCandidates(lookup: ImportLookup): Promise<ImportCandidate[]> {
   'use cache: remote';
   cacheLife(CATALOG_CACHE_LIFE);
   cacheTag('card-catalog', CATALOG_CACHE_VERSION);
   const admin = createAdminClient();
   const escaped = (value: string) => value.replace(/[\\%_]/g, '\\$&');
-  let query = admin.from('tcg_cards').select(CARD_SEARCH_SELECT).not(`name_json->>${lookup.language}`, 'is', null);
+  let query = admin.from('tcg_cards').select(cardSearchSelect(true)).not(`name_json->>${lookup.language}`, 'is', null);
   if (lookup.cardId) {
     const direct = await query.eq('id', lookup.cardId).limit(101);
     if (direct.error) throw direct.error;
-    if (direct.data?.length)
-      return direct.data
-        .map((card) => toSearchCardResult(card, lookup.language))
-        .filter((card): card is SearchCardResult => Boolean(card));
+    if (direct.data?.length) return toImportCandidates(direct.data, lookup.language);
     query = admin
       .from('tcg_cards')
-      .select(CARD_SEARCH_SELECT)
+      .select(cardSearchSelect(true))
       .not(`name_json->>${lookup.language}`, 'is', null)
       .contains('external_ids_json->catalog->aliasIds', JSON.stringify([lookup.cardId]));
   } else if (lookup.tcgplayerId) {
@@ -685,22 +709,19 @@ export async function findImportCandidates(lookup: ImportLookup): Promise<Search
     );
   } else {
     if (!lookup.cardName || !lookup.set || !lookup.number) return [];
-    const direct = await admin.from('tcg_sets').select('id').eq('id', lookup.set).limit(2);
-    if (direct.error) throw direct.error;
-    const sets = direct.data?.length
-      ? direct
-      : await admin.from('tcg_sets').select('id').ilike(`name_json->>${lookup.language}`, escaped(lookup.set)).limit(2);
-    if (sets.error) throw sets.error;
-    if (sets.data?.length !== 1) return [];
-    query = query.eq('set_id', sets.data[0].id).ilike(`name_json->>${lookup.language}`, escaped(lookup.cardName));
+    const setIds = matchImportSets(await getImportSetNames(lookup.language), lookup.set);
+    if (!setIds.length) return [];
+    const number = lookup.number.split('/')[0].trim();
+    const digits = /\d+/.exec(number)?.[0];
+    query = query.in('set_id', setIds);
+    // local_id_sort is the number's digits ("TG05" sorts as 5); the resolver then compares the whole number.
+    query = digits ? query.eq('local_id_sort', Number(digits)) : query.ilike('local_id', escaped(number));
   }
   const { data, error } = await query.limit(101);
   if (error) throw error;
   // A truncated result must never look like a unique match.
   if (!data || data.length > 100) return [];
-  return data
-    .map((card) => toSearchCardResult(card, lookup.language))
-    .filter((card): card is SearchCardResult => Boolean(card));
+  return toImportCandidates(data, lookup.language);
 }
 
 /** Cards by TCGdex id (picture scan candidates), in `language`. Unknown or hidden ids are left out. */
