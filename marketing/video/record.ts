@@ -59,6 +59,7 @@ interface Clip {
   setup?: Step[]; // runs before recording starts
   steps: Step[];
   post: string;
+  question: string; // asked in the post copy: comments are what push a video out
   tags: string;
 }
 
@@ -74,7 +75,7 @@ const HEADER = { threeD: [310, 102], show: [363, 102], more: [407, 102] } as con
 const CLIPS: Clip[] = [
   {
     name: 'kanto-3d',
-    hook: 'POV: your binder, but in 3D',
+    hook: 'Ladies and gentlemen. My Kanto binder. In THREE. DIMENSIONS.',
     coldOpen: { mark: '3d', dur: 1.8 },
     setup: [
       // Warm the first pages' images and the 3D view off camera, so nothing loads on screen.
@@ -88,111 +89,127 @@ const CLIPS: Clip[] = [
       { tap: [...HEADER.threeD], after: 2 },
     ],
     steps: [
-      { wait: 1.0 },
-      { caption: '141 of 151 Kanto Pokémon' },
-      { wait: 1.8 },
-      { caption: 'Flip it like the real thing' },
-      { swipe: [380, 470, 60, 470], dur: 0.3, after: 1.3 },
-      { swipe: [380, 470, 60, 470], dur: 0.3, after: 1.3 },
-      { caption: 'Then open it up' },
-      { tap: [...HEADER.threeD], after: 2.5 },
-      { tap: [320, 796], after: 1.5 },
+      {
+        caption:
+          "A hundred and forty-one of a hundred and fifty-one Kanto Pokémon. My landlord thinks I'm saving for a deposit.",
+      },
+      { caption: 'Every single one from the 151 set. Look at it. Page by glorious page.' },
+      { swipe: [380, 470, 60, 470], dur: 0.3, after: 0.9 },
+      { caption: 'Swipe, swipe. No sticky sleeves. No crisps in the pockets. Bliss.' },
+      { swipe: [380, 470, 60, 470], dur: 0.3, after: 0.9 },
+      { caption: 'And now. The moment. Hold onto something.' },
+      { tap: [...HEADER.threeD], after: 2.2 },
+      { tap: [320, 796], after: 0.8 },
       { mark: '3d' },
-      { tap: [320, 796], after: 1.5 },
-      { tap: [320, 796], after: 2.0 },
+      { caption: 'It is a BINDER. In 3D. On my PHONE. Science has gone too far.' },
+      { tap: [320, 796], after: 1.2 },
+      { tap: [320, 796], after: 1.2 },
+      { caption: 'Ten pockets left. My bank account has started making noises.' },
     ],
+    question: 'Which empty pocket would you fill first?',
     post: 'Our Kanto binder: 141 of the 151 Kanto Pokémon, every one from the 151 set, page by page and in 3D. Ten pockets to go.',
     tags: '#pokemon151 #pokemonbinder #pokemoncards #pokemontcg #kanto #pokemoncollection',
   },
   {
     name: 'national-dex',
-    hook: 'All 1,025 Pokémon in one binder',
+    hook: 'Every. Single. Pokémon. One. Binder. I need a lie down.',
     coldOpen: { mark: 'flip', dur: 1.8 },
-    steps: [
-      { wait: 0.8 },
-      { caption: 'Every single one, in Dex order' },
-      { tap: [50, 151], after: 1.2 },
-      { tapText: 'National Dex', after: 2.5 },
-      { mark: 'flip' },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.7 },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.7 },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.7 },
-      { caption: 'Page after page after page' },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.7 },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.7 },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.7 },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 1.2 },
-      { caption: 'Or tick them off as a checklist' },
-      { tap: [...DOCK.inventory], after: 1.6 },
-      { swipe: [220, 780, 220, 200], dur: 0.35, after: 1.0 },
-      { swipe: [220, 780, 220, 200], dur: 0.35, after: 1.0 },
-      { swipe: [220, 780, 220, 200], dur: 0.35, after: 2.0 },
+    setup: [
+      // Open the National Dex and flip through the first pages off camera, so their cards are loaded on screen.
+      { tap: [50, 151], after: 1.0 },
+      { tapText: 'National Dex', after: 3.0 },
+      ...Array.from({ length: 8 }, () => ({ swipe: [380, 470, 60, 470], dur: 0.25, after: 1.6 }) as Step),
+      ...Array.from({ length: 8 }, () => ({ swipe: [60, 470, 380, 470], dur: 0.25, after: 0.5 }) as Step),
+      { tap: [50, 151], after: 1.0 },
+      { tapText: 'Kanto', after: 3.0 },
     ],
+    steps: [
+      { caption: 'Ten twenty-five Pokémon. One binder. Zero shelves were harmed.' },
+      { tap: [50, 151], after: 1.0 },
+      { tapText: 'National Dex', after: 2.0 },
+      { mark: 'flip' },
+      { caption: 'National Dex order, so Bulbasaur gets page one. As the ancients intended.' },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.6 },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.6 },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.6 },
+      { caption: 'Page. After page. After page. My thumb has filed a complaint.' },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.6 },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.6 },
+      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.6 },
+      { caption: 'Prefer a list? Fine. Every pocket, as a checklist. Tick, tick, tick.' },
+      { tap: [...DOCK.inventory], after: 1.4 },
+      { swipe: [220, 780, 220, 200], dur: 0.35, after: 0.8 },
+      { swipe: [220, 780, 220, 200], dur: 0.35, after: 0.8 },
+      { caption: "Gotta catch them all? Gotta BINDER them all. I'll see myself out." },
+    ],
+    question: 'Which Pokémon would you put on page one?',
     post: 'A National Dex binder in Holo Folder: a pocket for every Pokémon in Dex order, page by page or as a checklist.',
     tags: '#nationaldex #pokemonbinder #pokemoncards #pokemontcg #livingdex #pokemoncollection',
   },
   {
     name: 'similar-look',
-    hook: 'Wait, there are more cards like this?',
+    hook: 'Hang on. Hang ON. There are MORE cards like this?',
     coldOpen: { mark: 'similar', dur: 2.0 },
     steps: [
-      { wait: 1.0 },
-      { caption: 'Tap any card' },
-      { tap: [78, 445], after: 3.0 },
-      { caption: 'Scroll to Similar look' },
-      { swipe: [220, 760, 220, 380], dur: 0.9, after: 2.0 },
+      { caption: 'Tap any card in your binder. Any card. Live a little.' },
+      { tap: [78, 445], after: 2.4 },
+      { caption: 'Scroll down to Similar look. This is where my money goes to die.' },
+      { swipe: [220, 760, 220, 380], dur: 0.9, after: 1.4 },
       { mark: 'similar' },
-      { caption: 'Same vibe, from every set' },
-      { swipe: [400, 700, 60, 700], dur: 0.6, after: 2.0 },
-      { caption: 'Tap one for its price' },
-      { tap: [100, 700], after: 3.0 },
+      { caption: 'Cards with the same vibe, from every set ever made. Look at them all. LOOK at them.' },
+      { swipe: [400, 700, 60, 700], dur: 0.6, after: 1.2 },
+      { caption: 'Tap one and boom. Swap it straight into your binder, or stick it on your want list.' },
+      { tap: [100, 700], after: 2.0 },
+      { caption: 'My want list just doubled. Thanks, I hate it.' },
     ],
+    question: 'What card should we look up next?',
     post: 'Similar look finds cards that share a card’s feel, colours and style, across every set. Tap one to see the card and its price in pounds.',
     tags: '#pokemoncards #pokemontcg #pokemonart #illustrationrare #pokemoncollection #tcguk',
   },
   {
     name: 'binder-worth',
-    hook: 'I priced my whole Kanto binder',
+    hook: 'I priced my ENTIRE Kanto binder and I need to sit down.',
     coldOpen: { mark: 'value', dur: 1.8 },
     steps: [
-      { wait: 1.0 },
-      { caption: 'One tap to Analytics' },
-      { tap: [...HEADER.more], after: 1.4 },
-      { tap: [252, 325], after: 3.0 },
+      { caption: 'Menu. Analytics. Deep breath. Do not look directly at it.' },
+      { tap: [...HEADER.more], after: 1.2 },
+      { tap: [252, 325], after: 2.4 },
       { mark: 'value' },
-      { caption: 'Every card, priced in pounds' },
-      { wait: 2.6 },
-      { caption: "Here's what's carrying it" },
-      { swipe: [220, 760, 220, 420], dur: 0.9, after: 2.6 },
-      { caption: 'And what the last ten would cost' },
-      { swipe: [220, 760, 220, 300], dur: 0.9, after: 1.2 },
-      { swipe: [220, 760, 220, 300], dur: 0.9, after: 2.6 },
+      { caption: 'Every card priced in pounds, and it even tells you how sure it is. Polite. Very British.' },
+      { caption: "Here's who's carrying the team. Charmander. Absolute unit. Pays the rent." },
+      { swipe: [220, 760, 220, 420], dur: 0.9, after: 1.2 },
+      { caption: 'And this is what the last ten cards would cost. Tell my mum I love her.' },
+      { swipe: [220, 760, 220, 300], dur: 0.9, after: 1.0 },
+      { swipe: [220, 760, 220, 300], dur: 0.9, after: 1.0 },
+      { caption: 'Right. Back to the card show. Hide the bank statements.' },
     ],
+    question: 'Guess what yours is worth?',
     post: 'What our Kanto binder is worth, worked out card by card in pounds, plus what the last ten chase cards would cost to finish it.',
     tags: '#pokemon151 #pokemoncards #pokemontcg #pokemoncollection #tcguk #pokemonbinder',
   },
   {
     name: 'card-show-hunt',
-    hook: "Don't pay £150 for this card",
+    hook: 'STOP!!! Put the wallet DOWN. Do not pay £150 for this card.',
     coldOpen: { mark: 'verdict', dur: 2.0 },
     steps: [
-      { wait: 1.0 },
-      { caption: 'Card show? Turn on Show mode' },
-      { tap: [...HEADER.show], after: 1.8 },
-      { tap: [...DOCK.search], after: 2.0 },
-      { caption: 'Your want list, ready to hunt' },
-      { swipe: [220, 680, 220, 420], dur: 0.8, after: 1.6 },
-      { caption: 'Tap the card on the table' },
-      { tap: [200, 649], after: 2.8 },
-      { caption: "Type what they're asking" },
-      { tap: [220, 793], after: 0.5 },
+      { caption: 'Card show. Nine a.m. I have had four coffees and I can hear colours.' },
+      { tap: [...HEADER.show], after: 1.4 },
+      { tap: [...DOCK.search], after: 1.6 },
+      { caption: 'Show mode on. My want list. My hit list. My little list of financial ruin.' },
+      { swipe: [220, 680, 220, 420], dur: 0.8, after: 1.0 },
+      { caption: 'And there he is. Blastoise. Glistening. On the table. Winking at me.' },
+      { tap: [200, 649], after: 2.2 },
+      { caption: "Bloke behind the table goes, a hundred and fifty, mate. Let's ask the app, shall we." },
+      { tap: [220, 793], after: 0.4 },
       { type: '150', after: 0.4 },
       { mark: 'verdict' },
-      { wait: 2.4 },
-      { caption: 'Haggle, then check again' },
+      { caption: 'WALK AWAY. Walk away! Put the Blastoise DOWN! Back away slowly, sir!' },
+      { caption: 'Right. Haggling face on. Seventy-five?' },
       { keys: [42, 42, 42], after: 0.3 },
-      { type: '75', after: 3.0 },
+      { type: '75', after: 1.0 },
+      { caption: 'FAIR PRICE! Get in! Blastoise, pack your bags, son, you are coming home!' },
     ],
+    question: 'Would you pay £150 for it?',
     post: "Card show tip: Holo Folder's Show mode keeps your want list on screen and tells you straight away how an asking price compares with the market, in pounds.",
     tags: '#pokemoncardshow #pokemoncards #pokemontcg #blastoise #pokemon151 #tcguk',
   },
@@ -439,11 +456,25 @@ interface Timeline {
   end: number;
 }
 
-async function perform(udid: string, steps: Step[], now: () => number, tl: Timeline, probe?: string) {
+// `voice` holds how long each caption line takes to say: a caption waits for the previous line to finish, so the
+// voice never overlaps itself and the footage holds while it talks.
+async function perform(
+  udid: string,
+  steps: Step[],
+  now: () => number,
+  tl: Timeline,
+  probe?: string,
+  voice: number[] = [],
+) {
   let i = 0;
+  let line = 0;
+  let talkingUntil = 0;
   for (const s of steps) {
-    if ('caption' in s) tl.captions.push({ t: now(), text: s.caption });
-    else if ('mark' in s) tl.marks[s.mark] = now();
+    if ('caption' in s) {
+      if (now() < talkingUntil) await sleep(talkingUntil - now());
+      tl.captions.push({ t: now(), text: s.caption });
+      talkingUntil = now() + (voice[line++] ?? 0) + 0.1;
+    } else if ('mark' in s) tl.marks[s.mark] = now();
     else if ('wait' in s) await sleep(s.wait);
     else if ('tap' in s) {
       const [x, y] = s.tap;
@@ -488,7 +519,7 @@ async function perform(udid: string, steps: Step[], now: () => number, tl: Timel
   }
 }
 
-async function record(udid: string, clip: Clip, raw: string): Promise<Timeline> {
+async function record(udid: string, clip: Clip, raw: string, voice: number[]): Promise<Timeline> {
   const rec = spawn('xcrun', ['simctl', 'io', udid, 'recordVideo', '--codec=h264', '--force', raw]);
   const exited = new Promise((r) => rec.once('exit', r));
   // simctl prints "Recording started" once frames are being written.
@@ -503,7 +534,10 @@ async function record(udid: string, clip: Clip, raw: string): Promise<Timeline> 
   const t0 = performance.now();
   const now = () => (performance.now() - t0) / 1000;
   const tl: Timeline = { marks: {}, captions: [], gestures: [], end: 0 };
-  await perform(udid, clip.steps, now, tl);
+  await perform(udid, clip.steps, now, tl, undefined, voice);
+  // Let the last line finish over the final frames.
+  const last = tl.captions.at(-1);
+  if (last) await sleep(Math.max(0, last.t + (voice[tl.captions.length - 1] ?? 0) + 0.3 - now()));
   tl.end = now();
   rec.kill('SIGINT');
   await exited;
@@ -522,7 +556,7 @@ const page = (body: string, bg = 'transparent') => `<!doctype html><html><head><
 const ACCENT = '#c9b8ff';
 const captionHtml = (words: string[], active: number, hook: boolean) =>
   page(
-    `<div style="position:absolute;left:70px;right:70px;top:${hook ? 760 : 1540}px;display:flex;justify-content:center;text-align:center">
+    `<div style="position:absolute;left:70px;right:150px;top:${hook ? 700 : 300}px;display:flex;justify-content:center;text-align:center">
       <div style="font-size:${hook ? 96 : 84}px;font-weight:900;line-height:1.05;letter-spacing:-1.5px;text-wrap:balance;
         -webkit-text-stroke:${hook ? 12 : 10}px #000;paint-order:stroke fill;text-shadow:0 6px 30px rgba(0,0,0,.55)">${words
           .map((w, i) => `<span style="color:${i === active ? ACCENT : '#fff'}">${escapeHtml(w)}</span>`)
@@ -655,33 +689,6 @@ async function renderCaptionTrack(dir: string, cues: Cue[], length: number): Pro
   return list;
 }
 
-// Punch-in zoom: each tap eases in on what it touched, holds, then eases back out before the next gesture.
-function zoomExprs(tl: Timeline) {
-  const AMOUNT = 0.28;
-  const EASE = 0.35;
-  const smooth = (x: string) => `(clip(${x},0,1)*clip(${x},0,1)*(3-2*clip(${x},0,1)))`;
-  const windows = tl.gestures.flatMap((g, i) => {
-    if (g.kind !== 'tap') return [];
-    const a = g.t - 0.05;
-    const next = tl.gestures[i + 1]?.t ?? tl.end;
-    const b = Math.min(next - 0.1, g.t + 2.4);
-    if (b - a < EASE * 2) return [];
-    return [
-      {
-        env: `${smooth(`(t-${a.toFixed(3)})/${EASE}`)}*${smooth(`(${b.toFixed(3)}-t)/${EASE}`)}`,
-        x: g.from[0],
-        y: g.from[1],
-      },
-    ];
-  });
-  if (!windows.length) return null;
-  const sum = windows.map((w) => w.env).join('+');
-  const z = `(1+${AMOUNT}*min(1,${sum}))`;
-  const centre = (k: 'x' | 'y') =>
-    `((${windows.map((w) => `${w.env}*${(w[k] * K).toFixed(1)}`).join('+')})/max(${sum},0.001))`;
-  return { z, cx: centre('x'), cy: centre('y') };
-}
-
 // ---------- compositing ----------
 async function composite(
   dir: string,
@@ -701,14 +708,7 @@ async function composite(
   const cropPx = CROP_PT * PT.scale;
   f.push(`color=c=0x0a0a0d:s=${W}x${H}:r=60:d=${total.toFixed(3)}[bg]`);
   f.push(`[0:v]fps=60,crop=iw:${cropPx}:0:0,split[raw1][raw2]`);
-  const zoom = zoomExprs(tl);
-  f.push(
-    zoom
-      ? `[raw1]scale=w='trunc(${SCREEN_W}*${zoom.z}/2)*2':h='trunc(${SCREEN_H}*${zoom.z}/2)*2':eval=frame:flags=lanczos,` +
-          `crop=${SCREEN_W}:${SCREEN_H}:x='clip(${zoom.cx}*in_w/${SCREEN_W}-out_w/2,0,in_w-out_w)':y='clip(${zoom.cy}*in_h/${SCREEN_H}-out_h/2,0,in_h-out_h)',` +
-          `pad=${W}:${H}:${SCREEN_X}:${TOP}:black,format=rgba[scr]`
-      : `[raw1]scale=${SCREEN_W}:${SCREEN_H}:flags=lanczos,pad=${W}:${H}:${SCREEN_X}:${TOP}:black,format=rgba[scr]`,
-  );
+  f.push(`[raw1]scale=${SCREEN_W}:${SCREEN_H}:flags=lanczos,pad=${W}:${H}:${SCREEN_X}:${TOP}:black,format=rgba[scr]`);
   f.push(`[1:v]format=gray,split[m][mc]`, `[2:v]split[fr][frc]`);
   f.push(`[scr][m]alphamerge[scrm]`, `[bg][scrm]overlay=0:0[v0]`, `[v0][fr]overlay=0:0[v1]`);
   // Cold open: the payoff first, with a slow push-in, under the hook line.
@@ -794,12 +794,16 @@ async function writeCaptionFile(clip: Clip, file: string) {
   await writeFile(
     file,
     [
-      clip.post,
+      '# TikTok (short caption, the hook first, then a question to start the comments)',
+      `${clip.hook}. ${clip.question} ${clip.tags.split(' ').slice(0, 4).join(' ')}`,
+      '',
+      '# Instagram Reels',
+      `${clip.post} ${clip.question}`,
       '',
       clip.tags,
       '',
-      `TikTok link: ${UTM('tiktok')}`,
-      `Instagram link: ${UTM('instagram')}`,
+      `TikTok link (bio): ${UTM('tiktok')}`,
+      `Instagram link (bio): ${UTM('instagram')}`,
       '',
       'Card images © The Pokémon Company, Nintendo, Creatures and GAME FREAK. Holo Folder is not affiliated with The Pokémon Company.',
       '',
@@ -817,6 +821,10 @@ async function main() {
   const clips = wanted.length ? CLIPS.filter((c) => wanted.includes(c.name)) : CLIPS;
   if (!clips.length) throw new Error(`Unknown clip. Choose from: ${CLIPS.map((c) => c.name).join(', ')}`);
 
+  if (args.includes('--voice-preview')) {
+    for (const clip of clips) await run(['afplay', await voicePreview(clip)]);
+    return;
+  }
   if (recomposite) {
     // Re-edits run two at a time; voice lines come from the cache unless their wording changed.
     const queue = [...clips];
@@ -874,7 +882,9 @@ async function main() {
     }
     const raw = join(work, 'raw.mp4');
     console.log('  recording');
-    const tl = await record(udid, clip, raw);
+    // Voice the script first (cached), so the take can wait for each line.
+    const voice = (await voiceLines(work, clip)).captions;
+    const tl = await record(udid, clip, raw, voice);
     await writeFile(join(work, 'timeline.json'), JSON.stringify(tl, null, 2));
     if (udid !== golden) await run(['xcrun', 'simctl', 'shutdown', udid]).catch(() => {});
     await finish(work, clip, tl);
@@ -883,15 +893,13 @@ async function main() {
 
 // ---------- audio ----------
 // Everything is synthesised here or spoken by Qwen3-TTS running locally, so there is nothing to license.
-const VOICE = process.env.VO_VOICE ?? 'guy'; // a reference take in voices/; see tts.py
+const VOICE = process.env.VO_VOICE ?? 'lewis'; // a reference voice in voices/; see tts.py
 // How the voice should say words it gets wrong. Applied to the spoken text only, never to captions.
 const SAY_AS: [RegExp, string][] = [
   [/£(\d+)\b/g, '$1 quid'],
   [/\bPOV\b/g, 'P O V'],
-  [/\bPokémon\b/gi, 'Poh-kay-mon'],
-  [/\bBlastoise\b/g, 'Blast-oyce'],
-  [/\bex\b/g, 'E X'],
-  [/\bHolo\b/g, 'Hoh-loh'],
+  [/\bPokémon\b/gi, 'Pokemon'],
+  [/\s+ex\b/g, ''], // say the Pokémon's name only
   [/\b141 of 151\b/g, 'a hundred and forty-one of a hundred and fifty-one'],
   [/\b151 set\b/g, 'one-five-one set'],
   [/\b1,025\b/g, 'ten twenty-five'],
@@ -910,7 +918,14 @@ async function speak(lines: { out: string; text: string }[]) {
   const ref = await readFile(join(HERE, 'voices', `${VOICE}.wav`));
   const keyed = spoken.map((l) => ({
     ...l,
-    cached: join(cacheDir, `${createHash('sha1').update(ref).update(VOICE).update(l.text).digest('hex')}.wav`),
+    cached: join(
+      cacheDir,
+      `${createHash('sha1')
+        .update(ref)
+        .update(`chatterbox:${process.env.VO_EXAGGERATION ?? '0.9'}:${process.env.VO_CFG ?? '0.4'}`)
+        .update(l.text)
+        .digest('hex')}.wav`,
+    ),
   }));
   const missing: ((typeof keyed)[number] & { out: string })[] = [];
   for (const l of keyed) if (!(await stat(l.cached).catch(() => null))) missing.push({ ...l, out: l.cached });
@@ -923,7 +938,7 @@ async function speak(lines: { out: string; text: string }[]) {
   for (const l of keyed) await copyFile(l.cached, l.out);
 }
 
-const BPM_BEAT = 60 / 84;
+const BPM_BEAT = 60 / 100;
 
 // A soft lo-fi bed: four jazzy chords, a sine kick on the beat and a quiet hat on the off-beat.
 function musicExpr(): string {
@@ -943,15 +958,52 @@ function musicExpr(): string {
     .join('+');
   const kick = `sin(2*PI*(48+70*exp(-mod(t,${BPM_BEAT})*28))*mod(t,${BPM_BEAT}))*exp(-mod(t,${BPM_BEAT})*9)`;
   const hat = `(random(0)*2-1)*exp(-mod(t+${BPM_BEAT / 2},${BPM_BEAT})*70)`;
-  return `0.32*(${pad})*${env}+0.55*${kick}+0.06*${hat}`;
+  return `0.3*(${pad})*${env}+0.8*${kick}+0.1*${hat}`;
 }
 
-async function buildAudio(dir: string, clip: Clip, tl: Timeline, cues: Cue[] | null, out: string) {
+// Makes the raw voice sound produced, like a creator's mic: cut the rumble, lift presence and air, tame the S's,
+// compress it so it sits on top of the music.
+const VOICE_CHAIN =
+  'aresample=48000,highpass=f=90,equalizer=f=250:t=q:w=1:g=-2,equalizer=f=3200:t=q:w=1:g=3,' +
+  'equalizer=f=9000:t=h:w=0.7:g=2,deesser=i=0.4,acompressor=threshold=0.08:ratio=3.5:attack=4:release=90:makeup=2,';
+
+// --voice-preview: the clip's voiceover on its own, as it will sound in the edit.
+async function voicePreview(clip: Clip) {
+  const dir = join(OUT, 'voice-samples', `${clip.name}-lines`);
+  await mkdir(dir, { recursive: true });
+  const texts = [clip.hook, ...clip.steps.flatMap((s) => ('caption' in s ? [s.caption] : []))];
+  const files = texts.map((_, i) => join(dir, `${String(i).padStart(2, '0')}.wav`));
+  await speak(texts.map((text, i) => ({ out: files[i], text })));
+  const out = join(OUT, 'voice-samples', `${clip.name}-preview.wav`);
+  const chain = files.map((_, i) => `[${i}:a]${VOICE_CHAIN}apad=pad_dur=0.2[a${i}]`).join(';');
+  await run([
+    'ffmpeg',
+    '-y',
+    '-loglevel',
+    'error',
+    ...files.flatMap((f) => ['-i', f]),
+    '-filter_complex',
+    `${chain};${files.map((_, i) => `[a${i}]`).join('')}concat=n=${files.length}:v=0:a=1,loudnorm=I=-15:TP=-1.5[out]`,
+    '-map',
+    '[out]',
+    out,
+  ]);
+  console.log(`  ✓ ${out}`);
+  return out;
+}
+
+async function buildAudio(dir: string, clip: Clip, tl: Timeline, cues: Cue[], withVoice: boolean, out: string) {
   const co = clip.coldOpen.dur; // where the app recording starts
   const length = videoLength(clip, tl);
   const fx = [
     ['click.wav', 'sin(2*PI*1900*t)*exp(-t*110)*0.6+sin(2*PI*950*t)*exp(-t*60)*0.25', 0.08],
     ['whoosh.wav', '(random(0)*2-1)*sin(PI*t/0.4)*0.5', 0.4],
+    // The short-form staples, synthesised: a sub boom on the hook, a pop as each caption lands, a riser into the
+    // payoff and a bright ding when it lands.
+    ['boom.wav', 'sin(2*PI*(38+90*exp(-t*9))*t)*exp(-t*3.2)*0.95+(random(0)*2-1)*exp(-t*40)*0.25', 1.4],
+    ['pop.wav', 'sin(2*PI*(520+700*t*10)*t)*exp(-t*55)*0.7', 0.09],
+    ['riser.wav', '(random(0)*2-1)*pow(t/1.2,2.2)*0.55+sin(2*PI*(200+500*t)*t)*pow(t/1.2,3)*0.25', 1.2],
+    ['ding.wav', '(sin(2*PI*1318.5*t)+0.6*sin(2*PI*1975.5*t)+0.35*sin(2*PI*2637*t))*exp(-t*5)*0.45', 1.2],
   ] as const;
   for (const [file, expr, dur] of fx)
     await run([
@@ -967,20 +1019,27 @@ async function buildAudio(dir: string, clip: Clip, tl: Timeline, cues: Cue[] | n
     ]);
   const inputs = ['-f', 'lavfi', '-i', `aevalsrc='${musicExpr()}':s=44100:d=${length.toFixed(3)}`];
   const f = [
-    `[0:a]lowpass=f=2400,aecho=0.8:0.5:280:0.25,volume=${cues ? 0.16 : 0.3},afade=t=out:st=${(length - 1.2).toFixed(2)}:d=1.2[music]`,
+    `[0:a]lowpass=f=5000,aecho=0.8:0.4:240:0.2,volume=${withVoice ? 0.32 : 0.6},afade=t=out:st=${(length - 1.2).toFixed(2)}:d=1.2[music]`,
   ];
   const parts = ['[music]'];
-  const add = (file: string, at: number, gain: number) => {
+  const add = (file: string, at: number, gain: number, chain = '') => {
     const n = inputs.filter((x) => x === '-i').length;
     inputs.push('-i', file);
     const ms = Math.max(0, Math.round(at * 1000));
-    f.push(`[${n}:a]adelay=${ms}|${ms},volume=${gain}[a${n}]`);
+    f.push(`[${n}:a]${chain}adelay=${ms}|${ms},volume=${gain}[a${n}]`);
     parts.push(`[a${n}]`);
   };
-  add(join(dir, 'whoosh.wav'), co - 0.2, 0.35); // the cut into the app
+  add(join(dir, 'boom.wav'), 0, 0.9); // the hook lands
+  add(join(dir, 'whoosh.wav'), co - 0.2, 0.45); // the cut into the app
+  const payoff = tl.marks[clip.coldOpen.mark];
+  if (payoff !== undefined) {
+    add(join(dir, 'riser.wav'), co + payoff - 1.2, 0.5);
+    add(join(dir, 'ding.wav'), co + payoff, 0.7);
+  }
+  for (const cue of cues) add(join(dir, 'pop.wav'), cue.start, 0.45);
   for (const g of tl.gestures)
     add(join(dir, g.kind === 'tap' ? 'click.wav' : 'whoosh.wav'), co + g.t, g.kind === 'tap' ? 0.5 : 0.18);
-  for (const cue of cues ?? []) add(cue.file, cue.start, 1.3);
+  if (withVoice) for (const cue of cues) add(cue.file, cue.start, 1.3, VOICE_CHAIN);
   f.push(`${parts.join('')}amix=inputs=${parts.length}:normalize=0:duration=first,loudnorm=I=-15:TP=-1.5:LRA=11[out]`);
   await run([
     'ffmpeg',
@@ -1002,19 +1061,36 @@ async function buildAudio(dir: string, clip: Clip, tl: Timeline, cues: Cue[] | n
 
 const videoLength = (clip: Clip, tl: Timeline) => clip.coldOpen.dur + tl.end - END_FADE + END_CARD_S;
 
+// How long the hook and each caption line take to say, voicing (or reusing cached) lines as needed.
+async function voiceLines(dir: string, clip: Clip) {
+  const texts = [clip.hook, ...clip.steps.flatMap((s) => ('caption' in s ? [s.caption] : []))];
+  const files = texts.map((_, i) => join(dir, `vo${i}.wav`));
+  await speak(texts.map((text, i) => ({ out: files[i], text })));
+  const durs: number[] = [];
+  for (const f of files)
+    durs.push(Number(await run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f])));
+  return { hook: durs[0], captions: durs.slice(1) };
+}
+
 async function finish(work: string, clip: Clip, tl: Timeline) {
   console.log(`  voicing and compositing ${clip.name}`);
   // Captions come from the current script, so wording can change without filming again.
   const script = clip.steps.flatMap((s) => ('caption' in s ? [s.caption] : []));
   tl = { ...tl, captions: tl.captions.map((c, i) => ({ ...c, text: script[i] ?? c.text })) };
+  // The cold open lasts as long as the hook takes to say (within reason).
+  const hookLength = (await voiceLines(work, clip)).hook;
+  clip = {
+    ...clip,
+    coldOpen: { ...clip.coldOpen, dur: Math.min(3.6, Math.max(clip.coldOpen.dur, hookLength + 0.25)) },
+  };
   const cues = await scheduleCues(work, clip, tl);
   await renderOverlays(work);
   const captions = await renderCaptionTrack(work, cues, clip.coldOpen.dur + tl.end);
   // Two cuts: with a voiceover, and music plus sound effects only (for adding a trending sound in the app instead).
   const mp4 = join(OUT, `${clip.name}.mp4`);
   const voiced = join(OUT, `${clip.name}-voiceover.mp4`);
-  await buildAudio(work, clip, tl, null, join(work, 'audio.wav'));
-  await buildAudio(work, clip, tl, cues, join(work, 'audio-vo.wav'));
+  await buildAudio(work, clip, tl, cues, false, join(work, 'audio.wav'));
+  await buildAudio(work, clip, tl, cues, true, join(work, 'audio-vo.wav'));
   await composite(work, join(work, 'raw.mp4'), tl, clip, captions, join(work, 'audio.wav'), mp4);
   await run([
     'ffmpeg',

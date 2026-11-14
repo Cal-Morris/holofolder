@@ -105,7 +105,7 @@ async function main() {
   const db = new Client({ connectionString: url.toString(), ssl: { rejectUnauthorized: false } });
   await db.connect();
   const read = async <T>(sql: string, params: unknown[] = []): Promise<T[]> => {
-    await db.query("BEGIN READ ONLY; SET LOCAL statement_timeout = '15s'");
+    await db.query("BEGIN READ ONLY; SET LOCAL statement_timeout = '60s'");
     try {
       return (await db.query(sql, params)).rows as T[];
     } finally {

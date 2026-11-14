@@ -2,13 +2,14 @@
 
 `record.ts` makes short vertical demo videos (1080x1920, 60 fps, about 20 s) for TikTok and Instagram Reels. It films the real Holo Folder app, installed as a home-screen web app on an iOS Simulator and signed in as the **@demo** account, with real touch input, so scrolling and page flips are native iOS. Nothing is posted or queued.
 
-Each video opens on its payoff under a hook line, then shows how it got there. The edit adds big word-by-word captions timed to the voice, a punch-in zoom on every tap, touch indicators, sound and a short brand sting that loops back to the hook.
+Each video opens on its payoff under a hook line, then shows how it got there while the narrator talks the whole way through. The edit adds big word-by-word captions timed to the voice, touch indicators, music, the usual short-form sound effects (a boom on the hook, pops on captions, a riser and ding on the payoff) and a short brand sting that loops back to the hook.
 
 ```fish
 bun marketing/video/seed-demo.ts                    # create or refresh @demo (run before filming)
 bun run marketing:video                              # film and edit every clip
 bun run marketing:video card-show-hunt               # one clip
 bun run marketing:video --recomposite --draft        # re-edit the last recordings, fast hardware encode
+bun run marketing:video card-show-hunt --voice-preview  # hear a clip's voiceover on its own
 bun run marketing:video kanto-3d --probe --reuse     # screenshot after every step, for tuning coordinates
 bun run marketing:video --setup                      # rebuild the golden simulator
 ```
@@ -27,11 +28,11 @@ Each clip writes `marketing/video/out/<clip>.mp4` (music and sound effects, so a
 
 ## Voice
 
-`tts.py` runs entirely on the Mac through MLX, with Apache-2.0 models. Every line is cloned with Qwen3-TTS 1.7B from `voices/guy.wav`, a take of a designed young British voice, so the voice stays the same everywhere. Each line gets up to three takes. Whisper transcribes them and the take closest to the caption wins. `SAY_AS` in `record.ts` respells words the voice gets wrong (Pokémon, Blastoise, ex, Holo, prices as "quid"); the respellings apply only to the speech, never to the captions. The models (about 6 GB) download to the Hugging Face cache on first use.
+The narrator is Lewis: Chatterbox (MIT), run locally on the Mac through MLX, cloned from `voices/lewis.wav` (Kokoro-82M's synthetic British `bm_lewis` voice, Apache-2.0) with its exaggeration turned up for a cheeky, over-the-top delivery. A leading shouted word ("STOP!!!") is voiced on its own, cranked up further. Each line gets up to three takes; Whisper transcribes them and the take closest to the script wins. The voice is mastered like a creator's mic (EQ, de-esser, compression). `SAY_AS` in `record.ts` adjusts what is spoken, never the captions: Pokémon names only (no "ex"), prices as "quid". The script is voiced before filming, and each line waits for the previous one, so the footage holds while the narrator talks. Lines are cached in `out/.voice-cache/`. `VO_EXAGGERATION` and `VO_CFG` tune the delivery.
 
 ## Sound
 
-The music is a soft lo-fi bed synthesised by ffmpeg. Taps get a soft click and swipes a short whoosh. Both cuts are loudness-normalised. There is nothing to license.
+The music is an upbeat lo-fi bed synthesised by ffmpeg. Taps get a click, swipes a whoosh, the hook a sub boom, each caption a pop, and the payoff a riser and a ding. Both cuts are loudness-normalised. Everything is synthesised, so there is nothing to license.
 
 ## Requirements
 
