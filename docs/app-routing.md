@@ -13,7 +13,7 @@ Next.js builds with `basePath: "/app"`. Next Link and router destinations stay a
 
 Public documentation uses `https://holofolder.com/app/docs` and its child paths. Framer permanently redirects the old `/docs` and `/docs/*` addresses to their matching `/app/docs` paths with HTTP 308; it no longer serves duplicate documentation at those addresses. Marketing links and documentation canonicals use the prefixed public URLs.
 
-`app/sitemap.ts` generates `https://holofolder.com/app/sitemap.xml` from the same `docsSource` as the documentation pages, covering both guides and generated API reference pages. It lists only public documentation URLs, not private app routes or API endpoints. Submit this sitemap separately in the `holofolder.com` Search Console property; Framer's root `/sitemap.xml` covers the marketing site. Google controls crawl and indexing timing after submission.
+`app/sitemap.ts` generates `https://holofolder.com/app/sitemap.xml` from the same `docsSource` as the documentation pages, covering both guides and generated API reference pages. It also lists the public set checklists (`/app/sets` and `/app/sets/<set-slug>`, English sets only, from `lib/server/public-sets.ts`). It never lists private app routes or API endpoints. Submit this sitemap separately in the `holofolder.com` Search Console property; Framer's root `/sitemap.xml` covers the marketing site. Google controls crawl and indexing timing after submission.
 
 ## Direct developer access
 
