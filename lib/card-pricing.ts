@@ -214,6 +214,8 @@ const TCGPLAYER_VARIANT_PRIORITY = [
   'unlimited-holofoil',
 ] as const;
 
+// Cardmarket's `low` is the cheapest listing in any language and condition (a median 22% of trend on our
+// English cards), so it is never used as a market price, a good-deal price or a range bound.
 const CARDMARKET_FIELD_PRIORITY = [
   'trend',
   'avg30',
@@ -225,11 +227,7 @@ const CARDMARKET_FIELD_PRIORITY = [
   'avg7-holo',
   'avg1-holo',
   'avg-holo',
-  'low',
-  'low-holo',
 ] as const;
-
-const CARDMARKET_GOOD_FIELD_PRIORITY = ['low', 'low-holo'] as const;
 
 const TCGPLAYER_SEARCH_ENDPOINT = 'https://mp-search-api.tcgplayer.com/v1/search/request';
 const POKEPULSE_SEARCH_ENDPOINT = 'https://pokepulse.io/api/v2/search/all';
@@ -1561,11 +1559,8 @@ function pickCardmarketPrice(
       continue;
     }
 
-    const cardmarketLowAmount = pickCardmarketGoodAmount(cardmarket, fieldKey);
-    const goodAmount = cardmarketLowAmount ?? amount * 0.8;
-    const { rangeLow, rangeHigh } = buildPriceRange(amount, cardmarketLowAmount, null);
+    const { rangeLow, rangeHigh } = buildPriceRange(amount, null, null);
     const marketGbpAmount = roundPrice(amount * fxRates.eurToGbp);
-    const lowGbpAmount = roundPrice((cardmarketLowAmount ?? amount) * fxRates.eurToGbp);
     const variantLabel = humanizeVariantLabel(fieldKey);
     const updatedAt = readTimestamp(cardmarket.updated);
 
@@ -1574,24 +1569,19 @@ function pickCardmarketPrice(
       language,
       gbpAmount: marketGbpAmount,
       marketGbpAmount,
-      goodGbpAmount: roundPrice(goodAmount * fxRates.eurToGbp),
+      goodGbpAmount: roundPrice(amount * 0.8 * fxRates.eurToGbp),
       lowGbpAmount: roundPrice(rangeLow * fxRates.eurToGbp),
       highGbpAmount: roundPrice(rangeHigh * fxRates.eurToGbp),
-      confidence: priceConfidence({
-        hasMarket: !fieldKey.startsWith('low'),
-        hasLow: cardmarketLowAmount != null,
-        hasHigh: false,
-        usedFallbackMarket: fieldKey.startsWith('low'),
-      }),
+      confidence: priceConfidence({ hasMarket: true, hasLow: false, hasHigh: false }),
       sourcePrices: [
         {
           source: 'cardmarket',
           label: 'Cardmarket',
           variantLabel,
           marketGbpAmount,
-          lowGbpAmount,
+          lowGbpAmount: null,
           originalMarketAmount: amount,
-          originalLowAmount: cardmarketLowAmount,
+          originalLowAmount: null,
           originalCurrency: 'EUR',
           updatedAt,
         },
@@ -1676,21 +1666,6 @@ function reconcileSourceConfidence(current: PriceConfidence, sourceMarkets: numb
   if (spread > 0.35) return 'low';
   if (spread > 0.2 && current === 'high') return 'medium';
   return current;
-}
-
-function pickCardmarketGoodAmount(cardmarket: Record<string, unknown>, marketFieldKey: string) {
-  if (marketFieldKey.endsWith('-holo')) {
-    return readPriceAmount(cardmarket['low-holo']) ?? readPriceAmount(cardmarket.low);
-  }
-
-  for (const fieldKey of CARDMARKET_GOOD_FIELD_PRIORITY) {
-    const amount = readPriceAmount(cardmarket[fieldKey]);
-    if (amount != null) {
-      return amount;
-    }
-  }
-
-  return null;
 }
 
 function emptySnapshot(cardId: string, language: CardLanguage): CardPriceSnapshot {
@@ -1874,7 +1849,7 @@ function buildFinishPrices(
           Object.entries(readRecord(pricing.cardmarket) ?? {}).filter(([key]) => !key.includes('holo')),
         ),
         fxRates,
-        ['trend', 'avg30', 'avg7', 'avg1', 'avg', 'low'],
+        ['trend', 'avg30', 'avg7', 'avg1', 'avg'],
       )
     : null;
   const prices: CardFinishPrice[] = [];
