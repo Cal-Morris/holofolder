@@ -5,10 +5,10 @@ import { cache } from 'react';
 import { PublicCardGrid } from '@/components/public-card-grid';
 import { CatalogueFact, PublicCataloguePage } from '@/components/public-catalogue-page';
 import { Button } from '@/components/ui/button';
-import { knownRarity, type CatalogueCard } from '@/lib/catalogue-cards';
 import { getOfficialArtworkUrl } from '@/lib/pokemon-artwork';
 import { formatDexNumber } from '@/lib/pokemon-catalog';
 import { findPokemonById, findPokemonBySlug, groupCardsBySet, type PublicPokemon } from '@/lib/pokemon-pages';
+import { toPublicCatalogueCard } from '@/lib/server/public-catalogue-card';
 import { getPublicPokemonCards, type PublicPokemonCard } from '@/lib/server/public-pokemon';
 import { getPublicSets } from '@/lib/server/public-sets';
 import { formatCardNumber, type PublicSetSummary } from '@/lib/set-pages';
@@ -129,7 +129,7 @@ export default async function PokemonPage({ params }: Props) {
         <div className="space-y-3">
           <h2 className="text-xl font-semibold">Every {pokemon.name} card</h2>
           <PublicCardGrid
-            cards={ordered.map(({ card, set }) => toCatalogueCard(card, set))}
+            cards={ordered.map(({ card, set }) => toPublicCatalogueCard(card, set))}
             label={`${pokemon.name} cards`}
             facets={['series', 'setName']}
             sortLabels={{ default: 'Newest', reverse: 'Oldest' }}
@@ -147,21 +147,6 @@ export default async function PokemonPage({ params }: Props) {
       )}
     </PublicCataloguePage>
   );
-}
-
-function toCatalogueCard(card: PublicPokemonCard, set: PublicSetSummary): CatalogueCard {
-  return {
-    id: card.id,
-    name: card.name,
-    number: formatCardNumber(card.number, set.officialCardCount),
-    setName: set.name,
-    setSlug: set.slug,
-    ...(set.seriesName ? { series: set.seriesName } : {}),
-    ...(set.releaseDate ? { releaseDate: set.releaseDate } : {}),
-    ...(knownRarity(card.rarity) ? { rarity: card.rarity } : {}),
-    ...(card.illustrator ? { illustrator: card.illustrator } : {}),
-    ...(card.image ? { image: card.image } : {}),
-  };
 }
 
 function SpeciesLink({ pokemon, align }: { pokemon: PublicPokemon; align?: 'right' }) {

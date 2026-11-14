@@ -5,12 +5,9 @@ import { cache } from 'react';
 import { PublicCardGrid } from '@/components/public-card-grid';
 import { CatalogueFact, PublicCataloguePage } from '@/components/public-catalogue-page';
 import { Button } from '@/components/ui/button';
-import { knownRarity, type CatalogueCard } from '@/lib/catalogue-cards';
-import type { IllustratorCard } from '@/lib/illustrators';
-import { findPokemonById } from '@/lib/pokemon-pages';
+import { toPublicCatalogueCard } from '@/lib/server/public-catalogue-card';
 import { getPublicIllustratorCards, getPublicIllustrators } from '@/lib/server/public-illustrators';
 import { getPublicSets } from '@/lib/server/public-sets';
-import { formatCardNumber, type PublicSetSummary } from '@/lib/set-pages';
 import { socialMetadata } from '@/lib/social-metadata';
 
 // Wait for the complete page so an unknown illustrator's notFound() is a real 404, as the set pages do.
@@ -33,7 +30,7 @@ const load = cache(async (slug: string) => {
   const years = cards.flatMap((card) => setsById.get(card.set.id)?.releaseDate?.slice(0, 4) ?? []).toSorted();
   return {
     illustrator,
-    cards: cards.map((card) => toCatalogueCard(card, setsById.get(card.set.id)!)),
+    cards: cards.map((card) => toPublicCatalogueCard({ ...card, number: card.localId }, setsById.get(card.set.id)!)),
     setCount: new Set(cards.map((card) => card.set.id)).size,
     years: years.length ? { first: years[0], last: years.at(-1)! } : undefined,
   };
@@ -131,21 +128,4 @@ export default async function IllustratorPage({ params }: Props) {
       )}
     </PublicCataloguePage>
   );
-}
-
-function toCatalogueCard(card: IllustratorCard, set: PublicSetSummary): CatalogueCard {
-  const pokemon = card.dexIds.length === 1 ? findPokemonById(card.dexIds[0]) : undefined;
-  return {
-    id: card.id,
-    name: card.name,
-    number: formatCardNumber(card.localId, set.officialCardCount),
-    setName: set.name,
-    setSlug: set.slug,
-    ...(set.seriesName ? { series: set.seriesName } : {}),
-    ...(set.releaseDate ? { releaseDate: set.releaseDate } : {}),
-    ...(knownRarity(card.rarity) ? { rarity: card.rarity } : {}),
-    ...(card.illustrator ? { illustrator: card.illustrator } : {}),
-    ...(card.image ? { image: card.image } : {}),
-    ...(pokemon ? { pokemon: { slug: pokemon.slug, name: pokemon.name } } : {}),
-  };
 }

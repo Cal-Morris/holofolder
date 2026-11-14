@@ -7,6 +7,8 @@ import {
   foldText,
   knownRarity,
   matchesWords,
+  paddedCardNumbers,
+  parseCardNumberQuery,
   type CatalogueCard,
 } from '@/lib/catalogue-cards';
 
@@ -102,5 +104,21 @@ describe('knownRarity', () => {
   test('treats the catalogue\'s "None" as no rarity', () => {
     assert.equal(knownRarity('None'), undefined);
     assert.equal(knownRarity('Rare'), 'Rare');
+  });
+});
+
+describe('parseCardNumberQuery', () => {
+  test('reads number and printed total, with or without a name', () => {
+    assert.deepEqual(parseCardNumberQuery('161/131'), { number: '161', total: 131, text: '' });
+    assert.deepEqual(parseCardNumberQuery('Flabébé 161 / 131'), { number: '161', total: 131, text: 'Flabébé' });
+    assert.deepEqual(parseCardNumberQuery('#006/165 charizard'), { number: '6', total: 165, text: 'charizard' });
+  });
+  test('ignores plain numbers and words', () => {
+    assert.equal(parseCardNumberQuery('umbreon 215'), null);
+    assert.equal(parseCardNumberQuery('ex1/2x'), null);
+  });
+  test('pads numbers the ways sets store them', () => {
+    assert.deepEqual(paddedCardNumbers('6'), ['6', '06', '006']);
+    assert.deepEqual(paddedCardNumbers('161'), ['161']);
   });
 });

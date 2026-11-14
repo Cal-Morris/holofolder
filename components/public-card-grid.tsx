@@ -49,16 +49,20 @@ export function PublicCardGrid({
   sortLabels,
   meta,
   pages = false,
+  textFilter = true,
   links,
 }: {
   cards: CatalogueCard[];
   /** The list's accessible name, e.g. "Surging Sparks cards". */
   label: string;
   facets: readonly CatalogueFacet[];
-  sortLabels: { default: string; reverse: string };
+  /** The page's own order, and its reverse when that means something (a search's best match doesn't). */
+  sortLabels: { default: string; reverse?: string };
   meta: 'set' | 'rarity';
   /** Offer the cards as nine-pocket binder pages too. */
   pages?: boolean;
+  /** The name-or-number box; off where the page is a search already. */
+  textFilter?: boolean;
   links: PublicCardLinks;
 }) {
   const [filter, setFilter] = useState<CatalogueFilter>({});
@@ -78,50 +82,56 @@ export function PublicCardGrid({
 
   return (
     <section aria-label={label} className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative basis-full sm:min-w-[12rem] sm:flex-1 sm:basis-auto">
-          <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-          <Input
-            type="search"
-            aria-label="Filter by name or number"
-            value={filter.text ?? ''}
-            onChange={(event) => setFilter((current) => ({ ...current, text: event.target.value }))}
-            placeholder="Name or number"
-            className="h-11 rounded-2xl pl-9"
-          />
-        </div>
-        {options.map(({ facet, values }) => (
+      {cards.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {textFilter && (
+            <div className="relative basis-full sm:min-w-[12rem] sm:flex-1 sm:basis-auto">
+              <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+              <Input
+                type="search"
+                aria-label="Filter by name or number"
+                value={filter.text ?? ''}
+                onChange={(event) => setFilter((current) => ({ ...current, text: event.target.value }))}
+                placeholder="Name or number"
+                className="h-11 rounded-2xl pl-9"
+              />
+            </div>
+          )}
+          {options.map(({ facet, values }) => (
+            <Select
+              key={facet}
+              aria-label={`Filter by ${FACET_LABELS[facet].toLowerCase()}`}
+              value={filter.facets?.[facet] ?? ''}
+              onChange={(event) =>
+                setFilter((current) => ({ ...current, facets: { ...current.facets, [facet]: event.target.value } }))
+              }
+              className="min-w-0 flex-1 sm:w-48 sm:flex-none"
+            >
+              <option value="">{FACET_LABELS[facet]}: all</option>
+              {values.map(({ value, count }) => (
+                <option key={value} value={value}>
+                  {value} ({count})
+                </option>
+              ))}
+            </Select>
+          ))}
           <Select
-            key={facet}
-            aria-label={`Filter by ${FACET_LABELS[facet].toLowerCase()}`}
-            value={filter.facets?.[facet] ?? ''}
-            onChange={(event) =>
-              setFilter((current) => ({ ...current, facets: { ...current.facets, [facet]: event.target.value } }))
-            }
+            aria-label="Sort cards"
+            value={filter.sort ?? 'default'}
+            onChange={(event) => setFilter((current) => ({ ...current, sort: event.target.value as CatalogueSort }))}
             className="min-w-0 flex-1 sm:w-48 sm:flex-none"
           >
-            <option value="">{FACET_LABELS[facet]}: all</option>
-            {values.map(({ value, count }) => (
-              <option key={value} value={value}>
-                {value} ({count})
-              </option>
-            ))}
+            <option value="default">{sortLabels.default}</option>
+            {sortLabels.reverse && <option value="reverse">{sortLabels.reverse}</option>}
+            <option value="name">Name</option>
           </Select>
-        ))}
-        <Select
-          aria-label="Sort cards"
-          value={filter.sort ?? 'default'}
-          onChange={(event) => setFilter((current) => ({ ...current, sort: event.target.value as CatalogueSort }))}
-          className="min-w-0 flex-1 sm:w-48 sm:flex-none"
-        >
-          <option value="default">{sortLabels.default}</option>
-          <option value="reverse">{sortLabels.reverse}</option>
-          <option value="name">Name</option>
-        </Select>
-      </div>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-muted-foreground flex min-h-9 items-center gap-3 text-sm" aria-live="polite">
-          {filtered ? `${visible.length} of ${cards.length} cards` : `${cards.length} cards`}
+          {filtered
+            ? `${visible.length} of ${cards.length} cards`
+            : `${cards.length} ${cards.length === 1 ? 'card' : 'cards'}`}
           {filtered && (
             <button
               type="button"
