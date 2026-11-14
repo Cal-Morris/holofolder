@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${POKEAPI_ORIGIN}${url.pathname}`, {
+    upstream = await fetch(`${POKEAPI_ORIGIN}/${url.pathname.slice(1)}`, {
       redirect: 'error',
       headers: {
         Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
