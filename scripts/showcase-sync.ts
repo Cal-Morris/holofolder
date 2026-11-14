@@ -25,7 +25,14 @@ type Preset = keyof typeof PRESET_NAMES;
 type Identity = { kind: 'card'; cardId: string; language?: string; finish?: string };
 type Target = Identity | { kind: 'pokemon'; pokemonId: number } | null;
 type Pocket = { identity: Identity | null; target: Target };
-type PageConfig = (typeof config.pages)[number] & { view: { preset: Preset } };
+type Source = { binderId: string; username: string };
+// A page can come from another public binder (e.g. Meg's own showcase binder) instead of the themed pages.
+// Or be one card over and over (`repeat`), e.g. the Kabuto King meme binder.
+type PageConfig = (typeof config.pages)[number] & {
+  view: { preset: Preset };
+  source?: Source;
+  repeat?: { identity: Identity; count: number };
+};
 type Slot = {
   id: string;
   version: number;
@@ -70,18 +77,25 @@ async function main() {
   let key: { id: string; key: string } | null = null;
   try {
     const pages = config.pages as PageConfig[];
-    const sourcePages = await readSource(read);
-    const desired = new Map<number, Pocket[]>();
+    const sources = new Map<string, Map<number, (Identity | null)[]>>();
+    const pagesOf = async (source: Source) => {
+      if (!sources.has(source.binderId)) sources.set(source.binderId, await readSource(read, source));
+      return sources.get(source.binderId)!;
+    };
+    const sourcePages = await pagesOf(config.source);
+    const desired = new Map<string, Pocket[]>();
     for (const page of pages) {
-      const pockets = sourcePages.get(page.page);
+      const pockets = page.repeat
+        ? Array<Identity>(page.repeat.count).fill(page.repeat.identity)
+        : (await pagesOf(page.source ?? config.source)).get(page.page);
       if (!pockets) {
         say(`page ${page.page} (${page.slug}) is empty in the source, skipped`);
         continue;
       }
-      desired.set(page.page, await withTargets(read, pockets, page.view.preset, page.slug));
+      desired.set(page.slug, await withTargets(read, pockets, page.view.preset, page.slug));
     }
     for (const index of sourcePages.keys())
-      if (!pages.some((p) => p.page === index))
+      if (!pages.some((p) => !p.source && !p.repeat && p.page === index))
         say(`page ${index} has cards but no entry in showcase-pages.json, skipped`);
 
     let ownerId: string | undefined = (
@@ -90,7 +104,7 @@ async function main() {
     if (!ownerId && !bootstrap) throw new Error('No showcase account yet. Run with --bootstrap first.');
     if (bootstrap) ownerId = await bootstrapAccount(db, read, ownerId);
     if (!ownerId) {
-      for (const page of pages) if (desired.has(page.page)) say(`create ${page.slug}: ${describe(page)}`);
+      for (const page of pages) if (desired.has(page.slug)) say(`create ${page.slug}: ${describe(page)}`);
       return;
     }
     if (!dryRun) key = await createKey(db, ownerId);
@@ -110,7 +124,7 @@ async function main() {
       }
     }
     for (const page of pages) {
-      const pockets = desired.get(page.page);
+      const pockets = desired.get(page.slug);
       if (pockets) await syncPage(read, api, ownerId, page, pockets);
     }
   } finally {
@@ -122,12 +136,12 @@ async function main() {
 type Read = <T>(sql: string, params?: unknown[]) => Promise<T[]>;
 
 /** Pages of the source binder that hold at least one card, each as its full list of pockets. */
-async function readSource(read: Read) {
+async function readSource(read: Read, source: Source) {
   const [binder] = await read<{ rows: number; cols: number }>(
     `SELECT b.binder_rows AS rows, b.binder_cols AS cols FROM binders b
      JOIN account_identities a ON a.user_id = b.owner_user_id
      WHERE b.id = $1 AND a.username = $2`,
-    [config.source.binderId, config.source.username],
+    [source.binderId, source.username],
   );
   if (!binder?.rows || !binder.cols) throw new Error('Source binder not found or has no grid');
   const rows = await read<{ position: string; identity: Identity | null; grading: unknown }>(
@@ -135,7 +149,7 @@ async function readSource(read: Read) {
      LEFT JOIN inventory_placements p ON p.slot_id = s.id
      LEFT JOIN inventory_items i ON i.id = p.inventory_item_id
      WHERE s.collection_id = $1 ORDER BY s.position`,
-    [config.source.binderId],
+    [source.binderId],
   );
   const size = binder.rows * binder.cols;
   const pages = new Map<number, (Identity | null)[]>();
@@ -251,12 +265,18 @@ function apiClient(key: { key: string } | null): Api {
       await new Promise((resolve) => setTimeout(resolve, 60500 - (Date.now() % 60000)));
       [minute, writes] = [Math.floor(Date.now() / 60000), 1];
     }
-    const response = await fetch(API + path, {
-      method: operation.method,
-      headers: { Authorization: `Bearer ${key.key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60000),
-    });
+    // Writes carry an operationId, so retrying a transient 503 can't apply twice.
+    let response: Response;
+    for (let attempt = 1; ; attempt++) {
+      response = await fetch(API + path, {
+        method: operation.method,
+        headers: { Authorization: `Bearer ${key.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(60000),
+      });
+      if (response.status !== 503 || attempt === 3) break;
+      await new Promise((resolve) => setTimeout(resolve, 5000 * attempt));
+    }
     const result = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     if (!response.ok) throw new Error(`${name} failed (${response.status}): ${JSON.stringify(result)}`);
     return result;
@@ -372,12 +392,12 @@ async function syncPage(read: Read, api: Api, ownerId: string, page: PageConfig,
             item: { itemId: s.item_id, itemVersion: s.item_version, placement: { collectionId: id, slot: pre(s) } },
           })),
         );
-      current = await slots();
-      if (extra.length)
+      // The API removes at most 256 pockets per command.
+      while ((current = await slots()).length > pockets.length)
         await inventory([
           {
             kind: 'removeSlots',
-            slots: current.slice(pockets.length).map((s) => ({ collectionId: id, slot: pre(s) })),
+            slots: current.slice(pockets.length, pockets.length + 256).map((s) => ({ collectionId: id, slot: pre(s) })),
           },
         ]);
     }
@@ -410,9 +430,10 @@ async function syncPage(read: Read, api: Api, ownerId: string, page: PageConfig,
   });
   if (fills.length) {
     say(`${page.slug}: add ${fills.length} cards`);
-    if (!dryRun)
+    // Each command echoes the binder state before and after (1 MB result cap), so big binders need small batches.
+    for (let i = 0; i < fills.length && !dryRun; i += 5)
       await inventory(
-        fills.map(({ p, s }) => ({
+        fills.slice(i, i + 5).map(({ p, s }) => ({
           kind: 'assign',
           selection: { kind: 'catalog', identity: p.identity, newItemId: randomUUID() },
           destination: { collectionId: id, slot: pre(s) },
