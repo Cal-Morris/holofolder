@@ -8,6 +8,7 @@ import { isPriceCheckFresh, readPinnedCardPriceChecks } from '@/lib/card-price-c
 import { PriceCheckRecords } from '@/components/price-check-records';
 import { DealPriceScale } from '@/components/deal-price-scale';
 import { Button } from '@/components/ui/button';
+import { PremiumUpsell } from '@/components/premium-upsell';
 import { formatGbpAmount } from '@/lib/price-format';
 import { type CardPriceChecks, type CardPriceCheck, type PriceCheckSource } from '@/lib/card-price-checks';
 import { buildSoldPriceGuide } from '@/lib/sold-price-guide';
@@ -155,12 +156,11 @@ export function CardPriceComparison({
   if (billing && !billing.premium && readOnly) return null;
   if (billing && !billing.premium)
     return (
-      <section aria-label="Price comparisons" className="mt-2 rounded-xl border p-3">
-        <p className="text-sm">Sold comps are included with Holo Folder Premium.</p>
-        <Button className="mt-2 min-h-11 w-full" onClick={billing.upgrade}>
-          Unlock price comparisons
-        </Button>
-      </section>
+      <PremiumUpsell
+        label="Price comparisons"
+        message="Sold comps are included with Holo Folder Premium."
+        action="Unlock price comparisons"
+      />
     );
 
   return (

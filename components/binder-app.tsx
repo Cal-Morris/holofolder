@@ -43,6 +43,7 @@ import {
 } from 'react';
 import dashboardStyles from '@/components/dashboard-binder-preview.module.css';
 import { BillingContext, useBilling } from '@/hooks/use-billing';
+import { hasPremiumFeatures } from '@/lib/billing';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { CreditsNotice } from '@/components/credits';
 import type { SettingsPageId } from '@/components/settings-modal';
@@ -3807,10 +3808,13 @@ function BinderAppSurface(props: BinderAppProps) {
       currency: pricingPreferences.currency,
       fxRates,
       readOnly: nativeReadOnly,
-      tally: user?.id && !accountSettingsReadOnly ? showPurchaseTally : undefined,
+      // The purchase tally and show budget are Premium.
+      tally: hasPremiumFeatures(billing.access) && user?.id && !accountSettingsReadOnly ? showPurchaseTally : undefined,
       destinationName: activeBinder?.name ?? 'this binder',
       revisitKey: revisitStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null),
-      budgetKey: showBudgetStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null),
+      budgetKey: hasPremiumFeatures(billing.access)
+        ? showBudgetStorageKey(user?.id ?? null, resolvedCollectionOwnerUserId ?? null)
+        : null,
       getCardState: getQuickCardState,
       onAction: handleQuickCardAction,
       onChangeCard: handleQuickChangeCard,
@@ -3820,6 +3824,7 @@ function BinderAppSurface(props: BinderAppProps) {
     [
       nativeHunt,
       accountSettingsReadOnly,
+      billing.access,
       showPurchaseTally,
       nativeReadOnly,
       activeBinder?.name,

@@ -11,7 +11,6 @@ import {
   nativeCardLabel,
   type NativeConsumerBinding,
 } from '@/lib/collection/native-card-consumers';
-import { useBillingContext } from '@/hooks/use-billing';
 import { useGoogleAnalytics } from '@/components/google-analytics';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, ChevronDown, ExternalLink, Heart, Layers, Plus, TrendingUp, WifiOff } from 'lucide-react';
@@ -40,6 +39,7 @@ import {
 } from '@/lib/native-price-evidence';
 import { buildDealPriceBands, checkDeal, parseAskingPrice, readDealThresholds } from '@/lib/deal-check';
 import ShowBudget from '@/components/show-budget';
+import { PremiumUpsell, usePremium } from '@/components/premium-upsell';
 import ShowRevisitForm from '@/components/show-revisit-form';
 import { toRecentCard } from '@/lib/recent-cards';
 import { revisitAskingInput, revisitKey, type RevisitCard } from '@/lib/show-revisit';
@@ -150,8 +150,7 @@ export default function QuickCardCheck({
   useEffect(() => {
     trackGoogleEvent('price_check_viewed', {});
   }, [card.id, trackGoogleEvent]);
-  const billing = useBillingContext();
-  const premium = billing?.premium !== false;
+  const premium = usePremium();
   const language = card.language ?? 'en';
   const lookups = useMemo(
     () => [{ cardId: card.id, language: nativeConsumer ? card.language : language }],
@@ -238,7 +237,7 @@ export default function QuickCardCheck({
     usesSoldGuide ? soldEvidence?.check.checkedAt : (price?.updatedAt ?? snapshot?.updatedAt),
     now,
   );
-  const isRising = !usesSoldGuide && Boolean(getRisingMomentum(snapshot, now));
+  const isRising = premium && !usesSoldGuide && Boolean(getRisingMomentum(snapshot, now));
   const cacheAge = formatPriceAge(snapshot?.fetchedAt, now);
   const referenceUpdatedAt = usesSoldGuide ? soldEvidence?.check.checkedAt : (price?.updatedAt ?? snapshot?.updatedAt);
   const referenceAge = formatPriceAge(referenceUpdatedAt ? Date.parse(referenceUpdatedAt) : undefined, now);
@@ -252,7 +251,7 @@ export default function QuickCardCheck({
   const input = revisitAskingInput(initialOffer, moneyCurrency, editedInput);
   const askingPrice = parseAskingPrice(input);
   const deal =
-    askingPrice && market
+    premium && askingPrice && market
       ? checkDeal({
           askingPrice,
           marketPrice: market.amount,
@@ -270,7 +269,8 @@ export default function QuickCardCheck({
 
   const key = bundleKey(card, finish);
   const priceBands = market ? buildDealPriceBands(market.amount, thresholds) : null;
-  const canGuide = usesSoldGuide || isMomentumEligibleConfidence(price?.confidence);
+  // Pay up to and the deal verdict are Premium; the free plan keeps the current price.
+  const canGuide = premium && (usesSoldGuide || isMomentumEligibleConfidence(price?.confidence));
   const verdictEmptyText = market
     ? canGuide
       ? `Type the asking price. Pay up to ${money(priceBands!.fair.high)}.`
@@ -410,10 +410,16 @@ export default function QuickCardCheck({
             <div className="border-border/60 bg-muted/30 min-w-0 rounded-2xl border p-3">
               <p className="text-muted-foreground text-xs">Pay up to</p>
               <p className="mt-1 text-xl font-bold break-words tabular-nums" data-testid="quick-pay-up-to">
-                {canGuide && priceBands ? money(priceBands.fair.high) : 'Unknown'}
+                {canGuide && priceBands ? money(priceBands.fair.high) : premium ? 'Unknown' : 'Premium'}
               </p>
               <p className="text-muted-foreground mt-1 text-[11px]">
-                {canGuide && priceBands ? 'Fair price ceiling' : market ? 'Thin price data' : 'No price guide'}
+                {canGuide && priceBands
+                  ? 'Fair price ceiling'
+                  : !premium
+                    ? 'Included with Premium'
+                    : market
+                      ? 'Thin price data'
+                      : 'No price guide'}
               </p>
             </div>
             {soldMedian && (
@@ -454,7 +460,15 @@ export default function QuickCardCheck({
           </p>
         </div>
 
-        <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
+        {premium ? (
+          <DealVerdictPanel deal={deal} money={money} emptyText={verdictEmptyText} />
+        ) : (
+          <PremiumUpsell
+            label="Deal verdict"
+            message="Deal verdicts, pay-up-to prices and the show purchase tally are included with Holo Folder Premium."
+            action="Unlock deal checks"
+          />
+        )}
         {/* In the scrolling body, so the pinned panel below keeps the scale and verdict in view while typing. */}
         {/* Only when this printing is wanted: an empty "not on your want list" block is noise at a stall. */}
         {nativeConsumer && state.wanted && (
@@ -529,7 +543,7 @@ export default function QuickCardCheck({
         {...TOAST_ANCHOR}
         className="border-border/50 bg-card/95 max-h-[70%] min-h-0 min-w-0 shrink scroll-pb-[calc(var(--safe-bottom)+0.75rem)] overflow-y-auto overscroll-contain border-t px-3 pt-2 pb-[calc(var(--safe-bottom)+0.75rem)]"
       >
-        {market ? (
+        {premium && market ? (
           <DealPriceScale
             market={market.amount}
             offer={askingPrice}
@@ -545,7 +559,7 @@ export default function QuickCardCheck({
             money={money}
           />
         ) : null}
-        <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />
+        {premium && <PinnedDealVerdict deal={deal} money={money} emptyText={verdictEmptyText} />}
         {/* Show mode (and the Wanted price lookup) is about the asking price, so it opens the keyboard;
             plain Quick shows the price, verdict and Own / Want first, and Asking opens the keyboard on tap. */}
         {showTools && budgetKey && <ShowBudget compact storageKey={budgetKey} currency={moneyCurrency} />}
@@ -592,8 +606,10 @@ export default function QuickCardCheck({
           </div>
         )}
         {/* Show is about the asking price: the field is ready to type in as soon as the card opens. */}
-        {/* oxlint-disable-next-line jsx-a11y/no-autofocus -- deliberate: in Show mode the asking-price field is the whole point of the sheet */}
-        <DealPriceInput value={input} onChange={setInput} autoFocus={showTools && !(nativeConsumer && readOnly)} />
+        {premium && (
+          // oxlint-disable-next-line jsx-a11y/no-autofocus -- deliberate: in Show mode the asking-price field is the whole point of the sheet
+          <DealPriceInput value={input} onChange={setInput} autoFocus={showTools && !(nativeConsumer && readOnly)} />
+        )}
         {(showTools || !readOnly) && (
           <div
             className={`grid ${(readOnly || nativeConsumer) && !showBought ? 'grid-cols-1' : 'grid-cols-2'} gap-2 ${DEAL_HIDE_WHILE_TYPING}`}
