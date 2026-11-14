@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Mail, Loader2, KeyRound } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { AuthShell } from './auth-shell';
 import styles from './login.module.css';
 
 type AuthMethod = 'magic-link' | 'password';
@@ -203,308 +204,244 @@ export function LoginForm() {
     }
   };
 
-  const successTitle =
-    success === 'password-reset'
+  const title = recoveryMode
+    ? 'Set a new password'
+    : success
       ? 'Check your email'
-      : success === 'password-signup'
-        ? 'Confirm your email'
-        : 'Check your email';
+      : authMethod === 'magic-link'
+        ? 'Start your binder'
+        : passwordMode === 'sign-up'
+          ? 'Create your account'
+          : 'Welcome back';
 
-  const successMessage =
-    success === 'password-reset'
-      ? 'We sent you a password reset link.'
+  const intro = recoveryMode
+    ? 'Choose a password for your Holo Folder account.'
+    : success === 'password-reset'
+      ? 'We sent you a link to choose a new password.'
       : success === 'password-signup'
-        ? 'We sent you a confirmation link to finish creating your account.'
-        : 'We sent you a secure link to open your binder.';
+        ? 'We sent you a link to confirm your email and finish creating your account.'
+        : success
+          ? 'We sent you a secure link. Open it on any device to sign in, then you can close this tab.'
+          : authMethod === 'magic-link'
+            ? 'Sign in or create an account. We’ll email you a secure link, no password needed.'
+            : passwordMode === 'sign-up'
+              ? 'Choose a password of at least 8 characters.'
+              : 'Sign in with your email and password.';
+
+  const errorNote = error && (
+    <p role="alert" className="bg-destructive/10 border-destructive/20 text-destructive rounded-xl border p-3 text-sm">
+      {error}
+    </p>
+  );
 
   return (
-    <>
-      <div className={styles.header}>
-        <h1 className={styles.heading}>
-          {recoveryMode
-            ? 'Set a new password'
-            : success
-              ? successTitle
-              : authMethod === 'magic-link'
-                ? 'Start your binder'
-                : passwordMode === 'sign-up'
-                  ? 'Create account'
-                  : 'Sign in to Holo Folder'}
-        </h1>
-        <p className={styles.intro}>
-          {recoveryMode
-            ? 'Choose a password for your Holo Folder account.'
-            : success
-              ? successMessage
-              : authMethod === 'magic-link'
-                ? 'Create an account or sign in with your email.'
-                : 'Use your password, or create a new account.'}
-        </p>
-      </div>
-
-      <div className={styles.body}>
-        {recoveryMode ? (
-          <form onSubmit={handleRecoverySubmit} className="space-y-4">
-            {error && (
-              <div className="bg-destructive/10 border-destructive/20 text-destructive rounded-xl border p-3 text-center text-sm">
-                {error}
-              </div>
-            )}
-
-            {isCheckingRecoverySession ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
-              </div>
-            ) : hasRecoverySession ? (
-              <>
-                <div className="relative">
-                  <KeyRound className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
-                  <Input
-                    type="password"
-                    aria-label="New password"
-                    autoComplete="new-password"
-                    placeholder="New password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
-                    // oxlint-disable-next-line jsx-a11y/no-autofocus -- the reset page's only task is this field
-                    autoFocus
-                  />
-                </div>
-
-                <div className="relative">
-                  <KeyRound className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
-                  <Input
-                    type="password"
-                    aria-label="Confirm new password"
-                    autoComplete="new-password"
-                    placeholder="Confirm new password"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
-                  />
-                </div>
-
-                <Button type="submit" className="h-12 w-full rounded-xl text-base font-semibold" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Save new password'}
-                </Button>
-              </>
-            ) : null}
-          </form>
-        ) : success ? (
-          <div className="space-y-4">
-            <div className="bg-primary/5 border-primary/10 rounded-xl border p-5 text-center">
-              <Mail className="text-primary mx-auto mb-3 h-10 w-10" />
-              <p className="text-muted-foreground text-sm">
-                {success === 'password-reset'
-                  ? 'Open the reset email and choose a new password.'
-                  : success === 'password-signup'
-                    ? 'Open the confirmation email to finish setting up password sign-in.'
-                    : 'Open the link to finish creating your account or sign in. You can close this window.'}
-              </p>
+    <AuthShell title={title} intro={intro} footer={<p>Your collection, beautifully kept.</p>}>
+      {recoveryMode ? (
+        <form onSubmit={handleRecoverySubmit} className="space-y-3">
+          {errorNote}
+          {isCheckingRecoverySession ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
             </div>
-            <Button
-              variant="outline"
-              className="h-12 w-full rounded-xl"
-              onClick={() => {
-                resetState();
-                setEmail('');
-              }}
-            >
-              Use a different email
-            </Button>
+          ) : hasRecoverySession ? (
+            <>
+              <Field
+                icon={KeyRound}
+                type="password"
+                label="New password"
+                autoComplete="new-password"
+                value={password}
+                onChange={setPassword}
+                // oxlint-disable-next-line jsx-a11y/no-autofocus -- the reset page's only task is this field
+                autoFocus
+              />
+              <Field
+                icon={KeyRound}
+                type="password"
+                label="Confirm new password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+              />
+              <SubmitButton busy={isLoading}>Save new password</SubmitButton>
+            </>
+          ) : null}
+        </form>
+      ) : success ? (
+        <div className="space-y-4">
+          <div className="border-border bg-muted/40 flex items-center gap-3 rounded-2xl border p-4">
+            <span className="bg-primary/15 text-primary flex size-10 shrink-0 items-center justify-center rounded-full">
+              <Mail className="h-5 w-5" />
+            </span>
+            <p className="min-w-0 text-sm break-words">
+              <span className="text-muted-foreground block text-xs">Sent to</span>
+              {email}
+            </p>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {error && (
-              <div className="bg-destructive/10 border-destructive/20 text-destructive rounded-xl border p-3 text-center text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="bg-muted/50 grid grid-cols-2 gap-2 rounded-xl p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  resetState();
-                  setAuthMethod('magic-link');
-                }}
-                className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all ${
-                  authMethod === 'magic-link'
-                    ? 'bg-primary/15 text-primary shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Mail className="h-4 w-4" />
-                Email
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  resetState();
-                  setAuthMethod('password');
-                }}
-                className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all ${
-                  authMethod === 'password'
-                    ? 'bg-primary/15 text-primary shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <KeyRound className="h-4 w-4" />
-                Password
-              </button>
-            </div>
-
-            {authMethod === 'magic-link' ? (
-              <form onSubmit={handleMagicLink} className="space-y-4">
-                <div className="relative">
-                  <Mail className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
-                  <Input
-                    type="email"
-                    aria-label="Email address"
-                    autoComplete="email"
-                    placeholder="you@example.com"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
-                    // oxlint-disable-next-line jsx-a11y/no-autofocus -- the sign-in page's only task starts at this field
-                    autoFocus
+          <Button
+            variant="outline"
+            className="h-12 w-full rounded-xl"
+            onClick={() => {
+              resetState();
+              setEmail('');
+            }}
+          >
+            Use a different email
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {errorNote}
+          {authMethod === 'magic-link' ? (
+            <form onSubmit={handleMagicLink} className="space-y-3">
+              <Field
+                icon={Mail}
+                type="email"
+                label="Email address"
+                placeholder="you@example.com"
+                autoComplete="email"
+                value={email}
+                onChange={setEmail}
+                // oxlint-disable-next-line jsx-a11y/no-autofocus -- the sign-in page's only task starts at this field
+                autoFocus
+              />
+              <SubmitButton busy={isLoading}>Continue with email</SubmitButton>
+            </form>
+          ) : (
+            <div className="space-y-2">
+              <form onSubmit={handlePasswordAuth} className="space-y-3">
+                <Field
+                  icon={Mail}
+                  type="email"
+                  label="Email address"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  value={email}
+                  onChange={setEmail}
+                  // oxlint-disable-next-line jsx-a11y/no-autofocus -- the sign-in page's only task starts at this field
+                  autoFocus
+                />
+                <Field
+                  icon={KeyRound}
+                  type="password"
+                  label={passwordMode === 'sign-in' ? 'Password' : 'Create a password'}
+                  autoComplete={passwordMode === 'sign-in' ? 'current-password' : 'new-password'}
+                  value={password}
+                  onChange={setPassword}
+                />
+                {passwordMode === 'sign-up' && (
+                  <Field
+                    icon={KeyRound}
+                    type="password"
+                    label="Confirm password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={setConfirmPassword}
                   />
-                </div>
-
-                <Button type="submit" className="h-12 w-full rounded-xl text-base font-semibold" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Continue with email'}
-                </Button>
-
-                <p className="text-muted-foreground pt-2 text-center text-xs">
-                  New here? We’ll create your account. Already collecting? We’ll sign you in.
-                </p>
+                )}
+                <SubmitButton busy={isLoading}>
+                  {passwordMode === 'sign-in' ? 'Sign in' : 'Create account'}
+                </SubmitButton>
               </form>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-muted/50 grid grid-cols-2 gap-2 rounded-xl p-1">
-                  <button
+              <div className="flex flex-wrap justify-between gap-2">
+                {passwordMode === 'sign-in' ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-muted-foreground px-3"
+                      onClick={handlePasswordReset}
+                      disabled={isLoading}
+                    >
+                      Forgot password?
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="px-3"
+                      onClick={() => {
+                        setPasswordMode('sign-up');
+                        setError(null);
+                      }}
+                    >
+                      Create account
+                    </Button>
+                  </>
+                ) : (
+                  <Button
                     type="button"
+                    variant="ghost"
+                    className="mx-auto px-3"
                     onClick={() => {
                       setPasswordMode('sign-in');
                       setError(null);
                     }}
-                    className={`rounded-lg py-2 text-sm font-medium transition-all ${
-                      passwordMode === 'sign-in'
-                        ? 'bg-primary/15 text-primary shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
                   >
-                    Sign in
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPasswordMode('sign-up');
-                      setError(null);
-                    }}
-                    className={`rounded-lg py-2 text-sm font-medium transition-all ${
-                      passwordMode === 'sign-up'
-                        ? 'bg-primary/15 text-primary shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Create account
-                  </button>
-                </div>
-
-                <form onSubmit={handlePasswordAuth} className="space-y-4">
-                  <div className="relative">
-                    <Mail className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
-                    <Input
-                      type="email"
-                      aria-label="Email address"
-                      autoComplete="email"
-                      placeholder="you@example.com"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
-                      // oxlint-disable-next-line jsx-a11y/no-autofocus -- the sign-in page's only task starts at this field
-                      autoFocus
-                    />
-                  </div>
-
-                  <div className="relative">
-                    <KeyRound className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
-                    <Input
-                      type="password"
-                      aria-label={passwordMode === 'sign-in' ? 'Password' : 'Create a password'}
-                      autoComplete={passwordMode === 'sign-in' ? 'current-password' : 'new-password'}
-                      placeholder={passwordMode === 'sign-in' ? 'Password' : 'Create a password'}
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
-                    />
-                  </div>
-
-                  {passwordMode === 'sign-up' && (
-                    <div className="relative">
-                      <KeyRound className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
-                      <Input
-                        type="password"
-                        aria-label="Confirm password"
-                        autoComplete="new-password"
-                        placeholder="Confirm password"
-                        required
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="bg-muted/50 border-border/50 focus:bg-background h-12 rounded-xl pl-11 transition-colors"
-                      />
-                    </div>
-                  )}
-
-                  <Button type="submit" className="h-12 w-full rounded-xl text-base font-semibold" disabled={isLoading}>
-                    {isLoading ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : passwordMode === 'sign-in' ? (
-                      'Sign in with password'
-                    ) : (
-                      'Create password account'
-                    )}
-                  </Button>
-                </form>
-
-                {passwordMode === 'sign-in' && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="w-full"
-                    onClick={handlePasswordReset}
-                    disabled={isLoading}
-                  >
-                    Email me a reset link
+                    I already have an account
                   </Button>
                 )}
-
-                <p className="text-muted-foreground text-center text-xs">
-                  {passwordMode === 'sign-in'
-                    ? 'Your usual password, straight to your collection.'
-                    : 'Keep your collection together with a Holo Folder account.'}
-                </p>
               </div>
-            )}
-            {!(authMethod === 'password' && passwordMode === 'sign-up') && (
-              <PasskeySignIn
-                disabled={isLoading}
-                onSuccess={() => {
-                  router.push('/');
-                  router.refresh();
-                }}
-              />
-            )}
-          </div>
-        )}
-      </div>
-    </>
+            </div>
+          )}
+
+          <div className={styles.divider}>or</div>
+
+          {!(authMethod === 'password' && passwordMode === 'sign-up') && (
+            <PasskeySignIn
+              disabled={isLoading}
+              onSuccess={() => {
+                router.push('/');
+                router.refresh();
+              }}
+            />
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-muted-foreground h-11 w-full rounded-xl"
+            onClick={() => {
+              resetState();
+              setPasswordMode('sign-in');
+              setAuthMethod(authMethod === 'magic-link' ? 'password' : 'magic-link');
+            }}
+          >
+            {authMethod === 'magic-link' ? 'Use a password instead' : 'Email me a sign-in link instead'}
+          </Button>
+        </div>
+      )}
+    </AuthShell>
+  );
+}
+
+function Field({
+  icon: Icon,
+  label,
+  onChange,
+  ...props
+}: Omit<React.ComponentProps<typeof Input>, 'onChange' | 'aria-label'> & {
+  icon: typeof Mail;
+  label: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="relative">
+      <Icon className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
+      <Input
+        aria-label={label}
+        placeholder={label}
+        required
+        onChange={(event) => onChange(event.target.value)}
+        className="bg-muted/50 border-border focus:bg-background h-12 rounded-xl pl-11 text-base transition-colors"
+        {...props}
+      />
+    </div>
+  );
+}
+
+function SubmitButton({ busy, children }: { busy: boolean; children: React.ReactNode }) {
+  return (
+    <Button type="submit" className="h-12 w-full rounded-xl text-base font-semibold" disabled={busy}>
+      {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : children}
+    </Button>
   );
 }

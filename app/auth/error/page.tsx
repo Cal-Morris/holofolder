@@ -1,26 +1,27 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Suspense } from 'react';
+import Link from 'next/link';
+import { AuthShell } from '@/components/auth/auth-shell';
+import { Button } from '@/components/ui/button';
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ error: string }> }) {
-  const params = await searchParams;
+type SearchParams = Promise<{ error?: string }>;
 
+async function ErrorCode({ searchParams }: { searchParams: SearchParams }) {
+  const { error } = await searchParams;
+  return error ? <p className="text-muted-foreground mt-4 text-center text-xs break-words">Error: {error}</p> : null;
+}
+
+export default function Page({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">Sorry, something went wrong.</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {params?.error ? (
-                <p className="text-muted-foreground text-sm">Code error: {params.error}</p>
-              ) : (
-                <p className="text-muted-foreground text-sm">An unspecified error occurred.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
+    <AuthShell
+      title="That link didn’t work"
+      intro="Sign-in links work once and expire after an hour. Request a new one and open the latest email."
+    >
+      <Button asChild className="h-12 w-full rounded-xl text-base font-semibold">
+        <Link href="/auth/login">Back to sign in</Link>
+      </Button>
+      <Suspense>
+        <ErrorCode searchParams={searchParams} />
+      </Suspense>
+    </AuthShell>
   );
 }
