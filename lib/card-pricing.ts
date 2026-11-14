@@ -199,7 +199,6 @@ const FETCH_CONCURRENCY = 8;
 export const CARD_PRICE_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 export const CARD_PRICE_MISSING_CACHE_TTL_MS = 5 * 60 * 1000;
 export const SUPPORTED_CARD_LANGUAGES: CardLanguage[] = ['en', 'fr', 'de', 'es', 'it', 'pt-br', 'ja', 'ko'];
-const CARDMARKET_FIRST_LANGUAGES = new Set<CardLanguage>(['fr', 'de', 'es', 'it', 'pt-br']);
 const STANDARD_VARIANT_KEYS = new Set<string>(['normal', 'unlimited', 'holo', 'holofoil', 'unlimited-holofoil']);
 const TCGPLAYER_VARIANT_PRIORITY = [
   'normal',
@@ -810,12 +809,12 @@ export function buildCardPriceSnapshotFromPricing(
   fxRates: FxRates,
   variants?: Record<string, unknown> | null,
 ): CardPriceSnapshot {
-  const pricingMap = pricing && typeof pricing === 'object' ? (pricing as Record<string, unknown>) : {};
+  const pricingMap: Record<string, unknown> = pricing && typeof pricing === 'object' ? { ...pricing } : {};
+  // TCGdex returns the English TCGplayer product on every language's endpoint, so it is no evidence for other languages.
+  if (language !== 'en') delete pricingMap.tcgplayer;
   const tcgplayerPrice = pickTcgplayerPrice(cardId, language, readRecord(pricingMap.tcgplayer), fxRates);
   const cardmarketPrice = pickCardmarketPrice(cardId, language, readRecord(pricingMap.cardmarket), fxRates);
-  const preferredPrice = CARDMARKET_FIRST_LANGUAGES.has(language)
-    ? cardmarketPrice || tcgplayerPrice
-    : tcgplayerPrice || cardmarketPrice;
+  const preferredPrice = tcgplayerPrice || cardmarketPrice;
 
   const snapshot = preferredPrice
     ? combineSourceEvidence(preferredPrice, [tcgplayerPrice, cardmarketPrice])
@@ -1884,7 +1883,7 @@ function buildFinishPrices(
         : 'normal';
     const isStandard = STANDARD_VARIANT_KEYS.has(variantKey);
     const sameFinishMarket = isStandard && finish === baseFinish ? cardmarket : null;
-    const preferred = CARDMARKET_FIRST_LANGUAGES.has(language) ? (sameFinishMarket ?? tcgplayer) : tcgplayer;
+    const preferred = tcgplayer;
     const combined = combineSourceEvidence(preferred, [tcgplayer, sameFinishMarket]);
     const timestamps = [tcgplayer.updatedAt, sameFinishMarket?.updatedAt].filter(
       (date): date is string => typeof date === 'string' && Number.isFinite(Date.parse(date)),
