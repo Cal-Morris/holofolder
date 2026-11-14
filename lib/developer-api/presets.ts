@@ -124,7 +124,7 @@ export const PRESET_OPERATIONS: readonly DeveloperOperation[] = [
     write: false,
     idempotent: true,
     description:
-      'Discover versioned copied target presets and explicit unsupported scopes. Metadata only, no owner planning snapshot or creation intent. Existing Premium/lifetime key or OAuth authority is required.',
+      'List the versioned presets a collection can be created from, and the scopes that are not supported. Metadata only. Needs Premium or lifetime API access.',
     schema: z.strictObject({
       limit: z.number().int().min(1).max(100).optional(),
       cursor: z.string().min(1).max(1024).optional(),
@@ -149,6 +149,6 @@ export const PRESET_OPERATIONS: readonly DeveloperOperation[] = [
     schema: presetPreviewInput,
     responseSchema: presetPreviewResponse,
     description:
-      'Preview a detached ordered copied manifest without saving, assigning ownership, creating wants or allocating operation/collection/slot IDs. Use version 1, with speciesIds only for selected-species or printings only for selected-printings. Exact catalog language and requested finish evidence must be available; incomplete/ambiguous evidence fails the whole preview. Set/master-set scopes are unsupported. Manifest entries are preset entry IDs, not slot IDs. Not complete planner or queue ACK evidence; no autosync.',
+      'Preview the ordered manifest a preset would create, without saving anything. Use version 1, with speciesIds only for selected-species or printings only for selected-printings. Missing or ambiguous catalog language or finish evidence fails the whole preview. Set and master-set scopes are unsupported. Manifest entries are preset entry IDs, not slot IDs.',
   },
 ];

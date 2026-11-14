@@ -45,7 +45,7 @@ export const catalogCardSchema = z.strictObject({
   externalIds: z
     .record(z.string(), z.array(z.string()))
     .describe('Provider-local IDs keyed by source, scoped to this record game. Not application IDs or aliases.'),
-  details: z.record(z.string(), z.unknown()),
+  details: z.record(z.string(), z.unknown()).optional().describe('Stored provider record, with includeDetails.'),
   artworkRef: z.string().nullable(),
   image: z.string().nullable(),
   imageAvailability: z.enum(['available', 'missing', 'unavailable']),

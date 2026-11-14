@@ -25,7 +25,7 @@
       "post": {
         "operationId": "restore_raw_collection_content",
         "summary": "Restore raw collection content",
-        "description": "Bounded explicit same-owner raw content reconciliation of one existing collection, same stable slot IDs, no copied manifest/configuration change. Version 4 is the only command version: it carries the exact current copied manifest, per-slot origins and slotOrder.before/after (identical, or a permutation that also advances the layout revision). Content and origins bind by ID; slot versions advance. At most 1025 slots/manifest entries, 2050 distinct raw-copy refs, 100 wants/slot, 8192 work units (2S+I+W) and 1.75 MiB UTF-8/JSONB command text plus a 2.5 MiB complete prospective audit/undo graph. SQL independently refuses oversized graphs before writes with invalid_input, never a terminal rejection proof. Other command versions return invalid_input. Receipts and dedicated rejections carry version:4. These bounds do not establish production full-Dex availability. Current actor/owner/session or credential and partner preconditions are required, file IDs never prove provenance. Exact item/slot/placement/content/layout versions bind review. Explicit releases retain ownership in Unassigned; copies placed elsewhere cannot move. SQL checks the complete actual graph and its undo before commit. No acquisition, metadata replacement, graded copies, structural slot-set/configuration/grid, multi-collection/settings/assets/CSV restore. Lifetime exact accepted/rejected replay precedes mutable reconstruction after current authority checks. Only committed dedicated inventory/collection/content predicate rejection yields REST409 storage_restore_rejected or MCP isError with error.rejection. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. Arbitrary conflicts, cancellation and failed COMMIT remain unknown; retain original intent and require a fresh complete read plus explicit reconciliation.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `restore_raw_collection_content`.",
+        "description": "Reconcile the raw (ungraded) contents of one existing collection in place: same slot IDs, no manifest, settings or grid change. Send version 4 with the exact current copied manifest, per-slot origins and slotOrder.before/after (identical, or a permutation that also advances the layout revision), plus the exact item, slot, placement, content and layout versions you reviewed. Released copies go to Unassigned; copies placed in other collections cannot move. Does not acquire copies, replace metadata, touch graded copies or restore settings, assets or CSV. Limits: 1025 slots, 2050 raw copies, 100 wants per slot, 1.75 MiB command; oversized requests return invalid_input. A committed rejection returns REST 409 storage_restore_rejected (MCP: isError) with error.rejection; retrying the same request replays the stored outcome. Other conflicts, cancellation and failed commits leave the outcome unknown: keep the original request and do a fresh full read before reconciling. outputSchema covers accepted receipts; errors are in _meta holofolder.com/errorSchemas.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `restore_raw_collection_content`.",
         "tags": [
           "Collection"
         ],
@@ -1556,7 +1556,7 @@
       "post": {
         "operationId": "import_storage_arrangement",
         "summary": "Import storage arrangement",
-        "description": " Migration 093 adds committed terminal noncommit proofs: REST 409 storage_creation_rejected or storage_import_rejected, MCP isError with strict error.rejection (outcome, original operationId, known code, inventoryRevision). Exact accepted/rejected replay is permanent and precedes mutable reconstruction after current authority checks. Arbitrary conflicts, billing, cancellation, failed COMMIT and network errors remain unknown. Consumers must bind the trusted response to the original family, immutable intent and owner/session scope; proof alone never authorizes discard. Fresh complete current reads and explicit reconciliation are a separate consumer gate. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. Atomic JSON v2 arrangement into an empty or target-only native collection with an already identical copied manifest. Every copy needs an explicit add or versioned existing-copy move. Retain the immutable request after unknown outcome. Does not replace collections/configuration, import assets, restore changed same-owner snapshots or authorize backup IDs.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `import_storage_arrangement`.",
+        "description": "A committed rejection returns REST 409 storage_creation_rejected or storage_import_rejected (MCP: isError) with error.rejection {outcome, operationId, code, inventoryRevision}; retrying the same request replays the stored outcome. Other errors (conflicts, billing, cancellation, network) leave the outcome unknown: keep the original request and do a fresh full read before reconciling. outputSchema covers accepted receipts; errors are in _meta holofolder.com/errorSchemas. Arrange copies into an empty or target-only native collection whose copied manifest already matches (JSON v2). Every copy needs an explicit add or a versioned move of an existing copy. Does not replace collections or configuration, import assets, restore changed snapshots or reuse backup IDs.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `import_storage_arrangement`.",
         "tags": [
           "Collection"
         ],
@@ -3049,7 +3049,7 @@
       "post": {
         "operationId": "execute_slot_commands",
         "summary": "Execute slot commands",
-        "description": "A committed terminal ledger rejection returns REST 409 storage_command_rejected or MCP isError with the same error.rejection: outcome, original operationId, known code and inventoryRevision. Other conflicts/timeouts are not rejection proof. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors. Atomic stable-ID slot insert/update/clear/remove/reorder, plus layout (the binder's rows × columns grid, migration 118; prefer set_binder_layout, which reviews it first). Requires exact inventory, collection, layout, slot/item/placement revisions and retry-stable operationId. Clear/remove release copies to Unassigned; neither deletes ownership. Set privateFields=preserve for create/reorder/target-only updates without replacing hidden wants; omitted or replace retains legacy full-replacement semantics.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `execute_slot_commands`.",
+        "description": "A committed rejection returns REST 409 storage_command_rejected (MCP: isError) with error.rejection {outcome, operationId, code, inventoryRevision}; other conflicts and timeouts leave the outcome unknown, so do a fresh full read before reconciling. outputSchema covers accepted receipts; errors are in _meta holofolder.com/errorSchemas. Atomic slot commands by stable ID: create, move, clear, remove, update (target and wants) and layout (the rows × columns grid; prefer set_binder_layout, which previews it). Needs exact inventory, collection, layout and slot/item/placement revisions plus a retry-stable operationId. Clear and remove release copies to Unassigned and never delete ownership. Use privateFields=preserve for create, reorder and target-only updates to keep hidden wants; omitted or replace keeps full-replacement semantics.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `execute_slot_commands`.",
         "tags": [
           "Collection"
         ],
@@ -4106,7 +4106,7 @@
       "post": {
         "operationId": "execute_inventory_commands",
         "summary": "Execute inventory commands",
-        "description": "A committed terminal ledger rejection returns REST 409 storage_command_rejected or MCP isError with the same error.rejection: outcome, original operationId, known code and inventoryRevision. Other conflicts/timeouts are not rejection proof. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors. Atomic insertAssign, owned-copy add/edit/remove/unassign/assign/move or collection deletion through the trusted executor. insertAssign creates one stable slot before an exact existing slot reference or appends with before:null, retaining explicit target:null/free or target intent. selection:null creates no ownership; existing requires an exact Unassigned item/version, new explicitly creates that stable item. It never auto-selects a grade or moves an assigned copy. Maximum 4096 slots and 8192 insertion work rows per request, 100 commands, 256 affected selected entities, 256 KiB ordinary request, 1 MiB ordinary receipt and unchanged 16 MiB/16384 audit bounds and 10s deadline; oversized evidence rejects atomically. Full selected-copy/destination and revision preconditions are mandatory. Only explicit removeOwned (a command, or removeOwned:true on deleteCollection, which deletes the raw copies in that collection and leaves graded copies Unassigned) deletes ownership; idempotent receipts require a fresh complete read before reconciliation. Set privateFields=preserve for add, explicit removeOwned, unassign or placement with fulfillWant:null; patchGrading updates only declared public fields on existing grading; setFinish corrects the recorded finish of a card copy in place (migration 114) and must still match the target of its pocket; selected-want expectedPublic compares the exact locked slot/index public projection. Hidden certificates/assets/provenance and unrelated wants are retained by migration 090 after original-intent replay lookup. Omitted or replace retains full-replacement semantics.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `execute_inventory_commands`.",
+        "description": "A committed rejection returns REST 409 storage_command_rejected (MCP: isError) with error.rejection {outcome, operationId, code, inventoryRevision}; other conflicts and timeouts leave the outcome unknown, so do a fresh full read before reconciling. outputSchema covers accepted receipts; errors are in _meta holofolder.com/errorSchemas. Atomic batch of owned-copy commands: insertAssign, add, edit, setFinish, patchGrading, removeOwned, unassign, assign, move, removeSlots and deleteCollection, each with exact revision preconditions for the copies and destinations it touches, plus a retry-stable operationId. insertAssign creates one slot before an existing slot (before:null appends); selection:null creates no ownership, existing takes an exact Unassigned item version and new creates the item. Nothing auto-selects a grade or moves an assigned copy. Only removeOwned (the command, or removeOwned:true on deleteCollection, which deletes raw copies there and leaves graded ones Unassigned) deletes ownership. setFinish must still match its pocket's target; patchGrading changes only the fields it names. Use privateFields=preserve for add, removeOwned, unassign and placements with fulfillWant:null to keep hidden certificates, assets and unrelated wants; omitted or replace keeps full-replacement semantics. Limits: 100 commands, 256 selected entities, 4096 slots, 256 KiB request, 10 s.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `execute_inventory_commands`.",
         "tags": [
           "Collection"
         ],
@@ -7287,7 +7287,7 @@
       "post": {
         "operationId": "create_storage_collection",
         "summary": "Create storage collection",
-        "description": " Migration 093 adds committed terminal noncommit proofs: REST 409 storage_creation_rejected or storage_import_rejected, MCP isError with strict error.rejection (outcome, original operationId, known code, inventoryRevision). Exact accepted/rejected replay is permanent and precedes mutable reconstruction after current authority checks. Arbitrary conflicts, billing, cancellation, failed COMMIT and network errors remain unknown. Consumers must bind the trusted response to the original family, immutable intent and owner/session scope; proof alone never authorizes discard. Fresh complete current reads and explicit reconciliation are a separate consumer gate. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. Atomically create native storage from an ordered copied manifest, never a legacy create-then-edit. Migration 101 additionally accepts manifest.setScope, the exact reviewed language, verified finishes, promos, exclusions, coverage warnings and capture time. This is an independent copied initial list; goals remain editable and free slots can be appended. Catalog eligibility is checked at creation, not enforced on later edits. Preserve collection/slot/operation IDs across retries. Empty goals and spacers create no ownership or wants; recoverySupported remains conservative false.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `create_storage_collection`.",
+        "description": "A committed rejection returns REST 409 storage_creation_rejected or storage_import_rejected (MCP: isError) with error.rejection {outcome, operationId, code, inventoryRevision}; retrying the same request replays the stored outcome. Other errors (conflicts, billing, cancellation, network) leave the outcome unknown: keep the original request and do a fresh full read before reconciling. outputSchema covers accepted receipts; errors are in _meta holofolder.com/errorSchemas. Atomically create a native collection from an ordered copied manifest (see preview_storage_preset), optionally with manifest.setScope: the reviewed language, verified finishes, promos, exclusions, coverage warnings and capture time. Catalog eligibility is checked only at creation; goals stay editable and free slots can be appended later. Keep the collection, slot and operation IDs across retries. Empty goals and spacers create no ownership or wants.\n\nRequired permissions: `collection:write`, `binders:write`. MCP tool: `create_storage_collection`.",
         "tags": [
           "Collection"
         ],
@@ -8203,7 +8203,7 @@
       "get": {
         "operationId": "list_storage_collections",
         "summary": "List storage collections",
-        "description": "Page current native storage metadata, the copied initial presetManifest including optional setScope historical evidence, private location, counts and independent collection/layout revisions. Mixed legacy owners fail closed. Copied preset discovery/preview uses the separate preset operations.\n\nRequired permissions: `collection:read`, `binders:read`. MCP tool: `list_storage_collections`.",
+        "description": "Page collections (binders) with their copied initial presetManifest (and setScope when created from a set), private location, counts, and collection and layout revisions.\n\nRequired permissions: `collection:read`, `binders:read`. MCP tool: `list_storage_collections`.",
         "tags": [
           "Collection"
         ],
@@ -9076,7 +9076,7 @@
       "post": {
         "operationId": "preview_storage_recovery",
         "summary": "Preview storage recovery",
-        "description": "Preview supported native audit evidence using the private native backend, never the legacy Activity facade. Unsupported events return conflicts/unsupported with no usable plan. Default-creation recovery needs explicit v2 replacement.\n\nRequired permissions: `collection:read`, `collection:write`, `binders:write`. MCP tool: `preview_storage_recovery`.",
+        "description": "Preview undoing an Activity event. Unsupported events return conflicts or unsupported with no usable plan. Undoing a default collection’s creation needs preview_storage_recovery_v2 with a replacement.\n\nRequired permissions: `collection:read`, `collection:write`, `binders:write`. MCP tool: `preview_storage_recovery`.",
         "tags": [
           "Collection"
         ],
@@ -9580,7 +9580,7 @@
       "post": {
         "operationId": "apply_storage_recovery",
         "summary": "Apply storage recovery",
-        "description": " A committed terminal rejection returns REST 409 storage_recovery_rejected or MCP isError with strict error.rejection (outcome, original operationId, code, inventoryRevision). Only recovery_plan_conflict and recovery_dependency_conflict are terminal. Accepted/rejected exact replay precedes mutable plan reconstruction but requires current authority. Preserve unknown requests; status, billing errors and cancellation are not proof. After proof, obtain a fresh complete current owner/session read and explicitly discard, or review a new preview and confirm a new operationId. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors. Apply exactly reviewed native version-1 recovery with confirmation, planToken and retry-stable operationId. Current authority and newer/ABA changes remain enforced. No fallback to legacy recovery.\n\nRequired permissions: `collection:read`, `collection:write`, `binders:write`. MCP tool: `apply_storage_recovery`.",
+        "description": "Only recovery_plan_conflict and recovery_dependency_conflict are terminal: REST 409 storage_recovery_rejected (MCP: isError) with error.rejection {outcome, operationId, code, inventoryRevision}. Retrying the same request replays the stored outcome. Status, billing errors and cancellation prove nothing; after a rejection, re-read and preview again with a new operationId. outputSchema covers accepted receipts; errors are in _meta holofolder.com/errorSchemas. Apply a reviewed version-1 recovery from preview_storage_recovery with confirmation, its planToken and a retry-stable operationId. Changes since the preview are rejected.\n\nRequired permissions: `collection:read`, `collection:write`, `binders:write`. MCP tool: `apply_storage_recovery`.",
         "tags": [
           "Collection"
         ],
@@ -10703,7 +10703,7 @@
       "post": {
         "operationId": "apply_storage_recovery_v2",
         "summary": "Apply storage recovery v2",
-        "description": " A committed terminal rejection returns REST 409 storage_recovery_rejected or MCP isError with strict error.rejection (outcome, original operationId, code, inventoryRevision). Only recovery_plan_conflict and recovery_dependency_conflict are terminal. Accepted/rejected exact replay precedes mutable plan reconstruction but requires current authority. Preserve unknown requests; status, billing errors and cancellation are not proof. After proof, obtain a fresh complete current owner/session read and explicitly discard, or review a new preview and confirm a new operationId. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors. Apply the exact confirmed version-2 default-creation plan with explicit replacement and stable operationId. Unsupported dependencies and conflicts reject atomically; no legacy fallback.\n\nRequired permissions: `collection:read`, `collection:write`, `binders:write`. MCP tool: `apply_storage_recovery_v2`.",
+        "description": "Only recovery_plan_conflict and recovery_dependency_conflict are terminal: REST 409 storage_recovery_rejected (MCP: isError) with error.rejection {outcome, operationId, code, inventoryRevision}. Retrying the same request replays the stored outcome. Status, billing errors and cancellation prove nothing; after a rejection, re-read and preview again with a new operationId. outputSchema covers accepted receipts; errors are in _meta holofolder.com/errorSchemas. Apply a confirmed version-2 default-collection recovery from preview_storage_recovery_v2 with its explicit replacement and a retry-stable operationId. Unsupported dependencies and conflicts reject the whole request.\n\nRequired permissions: `collection:read`, `collection:write`, `binders:write`. MCP tool: `apply_storage_recovery_v2`.",
         "tags": [
           "Collection"
         ],
@@ -11317,7 +11317,7 @@
       "get": {
         "operationId": "list_inventory_items",
         "summary": "List inventory items",
-        "description": "List physical copies with stable IDs, identity, recorded grade and placement. Certificates, private label assets and immutable source evidence are omitted. Pages are scope/filter/revision-bound and never complete snapshots or queue ACKs.\n\nRequired permissions: `collection:read`, `binders:read`. MCP tool: `list_inventory_items`.",
+        "description": "List physical copies with stable IDs, identity, recorded grade and placement. Certificates, private label assets and source evidence are omitted. A cursor only works for the same filters and revision.\n\nRequired permissions: `collection:read`, `binders:read`. MCP tool: `list_inventory_items`.",
         "tags": [
           "Collection"
         ],
@@ -12765,7 +12765,7 @@
       "get": {
         "operationId": "list_storage_slots",
         "summary": "List storage slots",
-        "description": "Page ordered stable slots, current targets and wanted entries with item/placement/collection/layout preconditions. Empty targets are goals, not ownership. Cursor rejects changed revisions, scope or filters.\n\nRequired permissions: `collection:read`, `binders:read`. MCP tool: `list_storage_slots`.",
+        "description": "Page a collection’s slots in order, with targets, wanted entries and the item, placement, collection and layout revisions commands need. A target is a goal, not ownership. A cursor only works for the same filters and revision.\n\nRequired permissions: `collection:read`, `binders:read`. MCP tool: `list_storage_slots`.",
         "tags": [
           "Collection"
         ],
@@ -14223,7 +14223,7 @@
       "get": {
         "operationId": "list_storage_presets",
         "summary": "List storage presets",
-        "description": "Discover versioned copied target presets and explicit unsupported scopes. Metadata only, no owner planning snapshot or creation intent. Existing Premium/lifetime key or OAuth authority is required.\n\nRequired permissions: `catalog:read`, `binders:read`. MCP tool: `list_storage_presets`.",
+        "description": "List the versioned presets a collection can be created from, and the scopes that are not supported. Metadata only. Needs Premium or lifetime API access.\n\nRequired permissions: `catalog:read`, `binders:read`. MCP tool: `list_storage_presets`.",
         "tags": [
           "Collection"
         ],
@@ -14758,7 +14758,7 @@
       "post": {
         "operationId": "preview_storage_preset",
         "summary": "Preview storage preset",
-        "description": "Preview a detached ordered copied manifest without saving, assigning ownership, creating wants or allocating operation/collection/slot IDs. Use version 1, with speciesIds only for selected-species or printings only for selected-printings. Exact catalog language and requested finish evidence must be available; incomplete/ambiguous evidence fails the whole preview. Set/master-set scopes are unsupported. Manifest entries are preset entry IDs, not slot IDs. Not complete planner or queue ACK evidence; no autosync.\n\nRequired permissions: `catalog:read`, `binders:read`. MCP tool: `preview_storage_preset`.",
+        "description": "Preview the ordered manifest a preset would create, without saving anything. Use version 1, with speciesIds only for selected-species or printings only for selected-printings. Missing or ambiguous catalog language or finish evidence fails the whole preview. Set and master-set scopes are unsupported. Manifest entries are preset entry IDs, not slot IDs.\n\nRequired permissions: `catalog:read`, `binders:read`. MCP tool: `preview_storage_preset`.",
         "tags": [
           "Collection"
         ],
@@ -15552,6 +15552,15 @@
             }
           },
           {
+            "name": "includeDetails",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Include details (the stored provider record). Default: true on REST, false on MCP.",
+              "type": "boolean"
+            }
+          },
+          {
             "name": "language",
             "in": "query",
             "required": false,
@@ -15770,6 +15779,7 @@
                             "description": "Provider-local IDs keyed by source, scoped to this record game. Not application IDs or aliases."
                           },
                           "details": {
+                            "description": "Stored provider record, with includeDetails.",
                             "type": "object",
                             "propertyNames": {
                               "type": "string"
@@ -15824,7 +15834,6 @@
                           "types",
                           "variants",
                           "externalIds",
-                          "details",
                           "artworkRef",
                           "image",
                           "imageAvailability",
@@ -16264,6 +16273,15 @@
                 "ko"
               ]
             }
+          },
+          {
+            "name": "includeDetails",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Include details (the stored provider record). Default: true on REST, false on MCP.",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -16413,6 +16431,7 @@
                       "description": "Provider-local IDs keyed by source, scoped to this record game. Not application IDs or aliases."
                     },
                     "details": {
+                      "description": "Stored provider record, with includeDetails.",
                       "type": "object",
                       "propertyNames": {
                         "type": "string"
@@ -16467,7 +16486,6 @@
                     "types",
                     "variants",
                     "externalIds",
-                    "details",
                     "artworkRef",
                     "image",
                     "imageAvailability",
@@ -16893,6 +16911,15 @@
                 "ko"
               ]
             }
+          },
+          {
+            "name": "includeDetails",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Include details (the stored provider record). Default: true on REST, false on MCP.",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -17064,6 +17091,7 @@
                                 "description": "Provider-local IDs keyed by source, scoped to this record game. Not application IDs or aliases."
                               },
                               "details": {
+                                "description": "Stored provider record, with includeDetails.",
                                 "type": "object",
                                 "propertyNames": {
                                   "type": "string"
@@ -17118,7 +17146,6 @@
                               "types",
                               "variants",
                               "externalIds",
-                              "details",
                               "artworkRef",
                               "image",
                               "imageAvailability",
@@ -17286,6 +17313,7 @@
                                 "description": "Provider-local IDs keyed by source, scoped to this record game. Not application IDs or aliases."
                               },
                               "details": {
+                                "description": "Stored provider record, with includeDetails.",
                                 "type": "object",
                                 "propertyNames": {
                                   "type": "string"
@@ -17340,7 +17368,6 @@
                               "types",
                               "variants",
                               "externalIds",
-                              "details",
                               "artworkRef",
                               "image",
                               "imageAvailability",
@@ -17796,6 +17823,10 @@
                       "ja",
                       "ko"
                     ]
+                  },
+                  "includeDetails": {
+                    "description": "Include details (the stored provider record). Default: true on REST, false on MCP.",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -17961,6 +17992,7 @@
                             "description": "Provider-local IDs keyed by source, scoped to this record game. Not application IDs or aliases."
                           },
                           "details": {
+                            "description": "Stored provider record, with includeDetails.",
                             "type": "object",
                             "propertyNames": {
                               "type": "string"
@@ -18015,7 +18047,6 @@
                           "types",
                           "variants",
                           "externalIds",
-                          "details",
                           "artworkRef",
                           "image",
                           "imageAvailability",
@@ -18466,6 +18497,10 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 20
+                  },
+                  "includeDetails": {
+                    "description": "Include details (the stored provider record). Default: true on REST, false on MCP.",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -18651,6 +18686,7 @@
                                 "description": "Provider-local IDs keyed by source, scoped to this record game. Not application IDs or aliases."
                               },
                               "details": {
+                                "description": "Stored provider record, with includeDetails.",
                                 "type": "object",
                                 "propertyNames": {
                                   "type": "string"
@@ -18705,7 +18741,6 @@
                               "types",
                               "variants",
                               "externalIds",
-                              "details",
                               "artworkRef",
                               "image",
                               "imageAvailability",
@@ -19696,6 +19731,15 @@
                 "ko"
               ]
             }
+          },
+          {
+            "name": "includeRaw",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Include the raw card or set list and supplemental sources. Default: true on REST, false on MCP.",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -20643,6 +20687,15 @@
                 "ja",
                 "ko"
               ]
+            }
+          },
+          {
+            "name": "includeRaw",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Include the raw card or set list and supplemental sources. Default: true on REST, false on MCP.",
+              "type": "boolean"
             }
           }
         ],
@@ -22175,7 +22228,7 @@
       "post": {
         "operationId": "get_prices",
         "summary": "Get prices",
-        "description": "Read existing price evidence without contacting providers.\n\nRequired permissions: `prices:read`. MCP tool: `get_prices`.",
+        "description": "Read existing price evidence without contacting providers. A card’s finish narrows finishPrices to the quotes that price it (rarity-named finishes take the holo quote; jumbo has none).\n\nRequired permissions: `prices:read`. MCP tool: `get_prices`.",
         "tags": [
           "Prices and insights"
         ],
@@ -22228,6 +22281,10 @@
                       ],
                       "additionalProperties": false
                     }
+                  },
+                  "includeHistory": {
+                    "description": "Include history, trend points, buySignal and fxDate. Default: true on REST, false on MCP.",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -22328,6 +22385,10 @@
                       ],
                       "additionalProperties": false
                     }
+                  },
+                  "includeHistory": {
+                    "description": "Include history, trend points, buySignal and fxDate. Default: true on REST, false on MCP.",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -22424,6 +22485,15 @@
                 "soldcomps"
               ]
             }
+          },
+          {
+            "name": "includeItems",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Include individual sales and listings. Default: true on REST, false on MCP.",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -22509,6 +22579,10 @@
                       "ebay",
                       "soldcomps"
                     ]
+                  },
+                  "includeItems": {
+                    "description": "Include individual sales and listings. Default: true on REST, false on MCP.",
+                    "type": "boolean"
                   }
                 },
                 "required": [],
@@ -23139,6 +23213,15 @@
               "format": "date-time",
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
             }
+          },
+          {
+            "name": "includeChanges",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Include before/after changes; otherwise changeCount and changedFields. Default: true on REST, false on MCP.",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -23335,6 +23418,10 @@
                       "walkAwayPct"
                     ],
                     "additionalProperties": false
+                  },
+                  "includeHistory": {
+                    "description": "Include the full price; otherwise only gbpAmount, confidence and updatedAt. Default: true on REST, false on MCP.",
+                    "type": "boolean"
                   }
                 },
                 "required": [

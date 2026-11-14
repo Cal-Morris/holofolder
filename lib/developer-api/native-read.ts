@@ -95,7 +95,7 @@ export const NATIVE_READ_OPERATIONS: readonly DeveloperOperation[] = [
     method: 'GET',
     path: '/inventory/items',
     description:
-      'List physical copies with stable IDs, identity, recorded grade and placement. Certificates, private label assets and immutable source evidence are omitted. Pages are scope/filter/revision-bound and never complete snapshots or queue ACKs.',
+      'List physical copies with stable IDs, identity, recorded grade and placement. Certificates, private label assets and source evidence are omitted. A cursor only works for the same filters and revision.',
     schema: z.strictObject({ ...paging, ...filter, assignment: z.enum(['assigned', 'unassigned']).optional() }),
     responseSchema: page(developerItemSchema),
     permissions: ['collection:read', 'binders:read'],
@@ -119,7 +119,7 @@ export const NATIVE_READ_OPERATIONS: readonly DeveloperOperation[] = [
     method: 'GET',
     path: '/storage/collections',
     description:
-      'Page current native storage metadata, the copied initial presetManifest including optional setScope historical evidence, private location, counts and independent collection/layout revisions. Mixed legacy owners fail closed. Copied preset discovery/preview uses the separate preset operations.',
+      'Page collections (binders) with their copied initial presetManifest (and setScope when created from a set), private location, counts, and collection and layout revisions.',
     schema: z.strictObject(paging),
     responseSchema: page(developerCollectionSchema),
     permissions: ['collection:read', 'binders:read'],
@@ -131,7 +131,7 @@ export const NATIVE_READ_OPERATIONS: readonly DeveloperOperation[] = [
     method: 'GET',
     path: '/storage/collections/{collectionId}/slots',
     description:
-      'Page ordered stable slots, current targets and wanted entries with item/placement/collection/layout preconditions. Empty targets are goals, not ownership. Cursor rejects changed revisions, scope or filters.',
+      'Page a collection’s slots in order, with targets, wanted entries and the item, placement, collection and layout revisions commands need. A target is a goal, not ownership. A cursor only works for the same filters and revision.',
     schema: z.strictObject({
       ...paging,
       collectionId: z.uuid(),

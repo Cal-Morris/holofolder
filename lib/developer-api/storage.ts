@@ -448,13 +448,13 @@ export const rawRestoreErrorSchema = z.strictObject({
   }),
 });
 const creationImportTerminalDescription =
-  ' Migration 093 adds committed terminal noncommit proofs: REST 409 storage_creation_rejected or storage_import_rejected, MCP isError with strict error.rejection (outcome, original operationId, known code, inventoryRevision). Exact accepted/rejected replay is permanent and precedes mutable reconstruction after current authority checks. Arbitrary conflicts, billing, cancellation, failed COMMIT and network errors remain unknown. Consumers must bind the trusted response to the original family, immutable intent and owner/session scope; proof alone never authorizes discard. Fresh complete current reads and explicit reconciliation are a separate consumer gate. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. ';
+  'A committed rejection returns REST 409 storage_creation_rejected or storage_import_rejected (MCP: isError) with error.rejection {outcome, operationId, code, inventoryRevision}; retrying the same request replays the stored outcome. Other errors (conflicts, billing, cancellation, network) leave the outcome unknown: keep the original request and do a fresh full read before reconciling. outputSchema covers accepted receipts; errors are in _meta holofolder.com/errorSchemas. ';
 const recoveryErrors = { 409: z.union([developerErrorSchema, recoveryErrorSchema]) };
 const recoveryTerminalDescription =
-  ' A committed terminal rejection returns REST 409 storage_recovery_rejected or MCP isError with strict error.rejection (outcome, original operationId, code, inventoryRevision). Only recovery_plan_conflict and recovery_dependency_conflict are terminal. Accepted/rejected exact replay precedes mutable plan reconstruction but requires current authority. Preserve unknown requests; status, billing errors and cancellation are not proof. After proof, obtain a fresh complete current owner/session read and explicitly discard, or review a new preview and confirm a new operationId. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors. ';
+  'Only recovery_plan_conflict and recovery_dependency_conflict are terminal: REST 409 storage_recovery_rejected (MCP: isError) with error.rejection {outcome, operationId, code, inventoryRevision}. Retrying the same request replays the stored outcome. Status, billing errors and cancellation prove nothing; after a rejection, re-read and preview again with a new operationId. outputSchema covers accepted receipts; errors are in _meta holofolder.com/errorSchemas. ';
 const commandErrors = { 409: z.union([developerErrorSchema, storageCommandErrorSchema]) };
 const terminalDescription =
-  'A committed terminal ledger rejection returns REST 409 storage_command_rejected or MCP isError with the same error.rejection: outcome, original operationId, known code and inventoryRevision. Other conflicts/timeouts are not rejection proof. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas metadata declares errors.';
+  'A committed rejection returns REST 409 storage_command_rejected (MCP: isError) with error.rejection {outcome, operationId, code, inventoryRevision}; other conflicts and timeouts leave the outcome unknown, so do a fresh full read before reconciling. outputSchema covers accepted receipts; errors are in _meta holofolder.com/errorSchemas.';
 const receipt = { inventoryRevision: revision };
 const changed = { ...receipt, changed: z.boolean() };
 const recoveryReceipt = z.strictObject({
@@ -485,7 +485,7 @@ const operations: readonly DeveloperOperation[] = [
     method: 'POST',
     path: '/storage/restores/raw-content',
     description:
-      'Bounded explicit same-owner raw content reconciliation of one existing collection, same stable slot IDs, no copied manifest/configuration change. Version 4 is the only command version: it carries the exact current copied manifest, per-slot origins and slotOrder.before/after (identical, or a permutation that also advances the layout revision). Content and origins bind by ID; slot versions advance. At most 1025 slots/manifest entries, 2050 distinct raw-copy refs, 100 wants/slot, 8192 work units (2S+I+W) and 1.75 MiB UTF-8/JSONB command text plus a 2.5 MiB complete prospective audit/undo graph. SQL independently refuses oversized graphs before writes with invalid_input, never a terminal rejection proof. Other command versions return invalid_input. Receipts and dedicated rejections carry version:4. These bounds do not establish production full-Dex availability. Current actor/owner/session or credential and partner preconditions are required, file IDs never prove provenance. Exact item/slot/placement/content/layout versions bind review. Explicit releases retain ownership in Unassigned; copies placed elsewhere cannot move. SQL checks the complete actual graph and its undo before commit. No acquisition, metadata replacement, graded copies, structural slot-set/configuration/grid, multi-collection/settings/assets/CSV restore. Lifetime exact accepted/rejected replay precedes mutable reconstruction after current authority checks. Only committed dedicated inventory/collection/content predicate rejection yields REST409 storage_restore_rejected or MCP isError with error.rejection. MCP outputSchema describes accepted receipts only; holofolder.com/errorSchemas declares errors. Arbitrary conflicts, cancellation and failed COMMIT remain unknown; retain original intent and require a fresh complete read plus explicit reconciliation.',
+      'Reconcile the raw (ungraded) contents of one existing collection in place: same slot IDs, no manifest, settings or grid change. Send version 4 with the exact current copied manifest, per-slot origins and slotOrder.before/after (identical, or a permutation that also advances the layout revision), plus the exact item, slot, placement, content and layout versions you reviewed. Released copies go to Unassigned; copies placed in other collections cannot move. Does not acquire copies, replace metadata, touch graded copies or restore settings, assets or CSV. Limits: 1025 slots, 2050 raw copies, 100 wants per slot, 1.75 MiB command; oversized requests return invalid_input. A committed rejection returns REST 409 storage_restore_rejected (MCP: isError) with error.rejection; retrying the same request replays the stored outcome. Other conflicts, cancellation and failed commits leave the outcome unknown: keep the original request and do a fresh full read before reconciling. outputSchema covers accepted receipts; errors are in _meta holofolder.com/errorSchemas.',
     permissions,
     write: true,
     schema: rawRestoreSchema,
@@ -512,7 +512,7 @@ const operations: readonly DeveloperOperation[] = [
     path: '/storage/imports/arrangement',
     description:
       creationImportTerminalDescription +
-      'Atomic JSON v2 arrangement into an empty or target-only native collection with an already identical copied manifest. Every copy needs an explicit add or versioned existing-copy move. Retain the immutable request after unknown outcome. Does not replace collections/configuration, import assets, restore changed same-owner snapshots or authorize backup IDs.',
+      'Arrange copies into an empty or target-only native collection whose copied manifest already matches (JSON v2). Every copy needs an explicit add or a versioned move of an existing copy. Does not replace collections or configuration, import assets, restore changed snapshots or reuse backup IDs.',
     permissions,
     write: true,
     schema: nativeArrangementSchema,
@@ -535,7 +535,7 @@ const operations: readonly DeveloperOperation[] = [
     path: '/storage/slots/commands',
     description:
       terminalDescription +
-      " Atomic stable-ID slot insert/update/clear/remove/reorder, plus layout (the binder's rows × columns grid, migration 118; prefer set_binder_layout, which reviews it first). Requires exact inventory, collection, layout, slot/item/placement revisions and retry-stable operationId. Clear/remove release copies to Unassigned; neither deletes ownership. Set privateFields=preserve for create/reorder/target-only updates without replacing hidden wants; omitted or replace retains legacy full-replacement semantics.",
+      ' Atomic slot commands by stable ID: create, move, clear, remove, update (target and wants) and layout (the rows × columns grid; prefer set_binder_layout, which previews it). Needs exact inventory, collection, layout and slot/item/placement revisions plus a retry-stable operationId. Clear and remove release copies to Unassigned and never delete ownership. Use privateFields=preserve for create, reorder and target-only updates to keep hidden wants; omitted or replace keeps full-replacement semantics.',
     permissions,
     write: true,
     schema: nativeSlotSchema,
@@ -554,7 +554,7 @@ const operations: readonly DeveloperOperation[] = [
     path: '/storage/inventory/commands',
     description:
       terminalDescription +
-      ' Atomic insertAssign, owned-copy add/edit/remove/unassign/assign/move or collection deletion through the trusted executor. insertAssign creates one stable slot before an exact existing slot reference or appends with before:null, retaining explicit target:null/free or target intent. selection:null creates no ownership; existing requires an exact Unassigned item/version, new explicitly creates that stable item. It never auto-selects a grade or moves an assigned copy. Maximum 4096 slots and 8192 insertion work rows per request, 100 commands, 256 affected selected entities, 256 KiB ordinary request, 1 MiB ordinary receipt and unchanged 16 MiB/16384 audit bounds and 10s deadline; oversized evidence rejects atomically. Full selected-copy/destination and revision preconditions are mandatory. Only explicit removeOwned (a command, or removeOwned:true on deleteCollection, which deletes the raw copies in that collection and leaves graded copies Unassigned) deletes ownership; idempotent receipts require a fresh complete read before reconciliation. Set privateFields=preserve for add, explicit removeOwned, unassign or placement with fulfillWant:null; patchGrading updates only declared public fields on existing grading; setFinish corrects the recorded finish of a card copy in place (migration 114) and must still match the target of its pocket; selected-want expectedPublic compares the exact locked slot/index public projection. Hidden certificates/assets/provenance and unrelated wants are retained by migration 090 after original-intent replay lookup. Omitted or replace retains full-replacement semantics.',
+      " Atomic batch of owned-copy commands: insertAssign, add, edit, setFinish, patchGrading, removeOwned, unassign, assign, move, removeSlots and deleteCollection, each with exact revision preconditions for the copies and destinations it touches, plus a retry-stable operationId. insertAssign creates one slot before an existing slot (before:null appends); selection:null creates no ownership, existing takes an exact Unassigned item version and new creates the item. Nothing auto-selects a grade or moves an assigned copy. Only removeOwned (the command, or removeOwned:true on deleteCollection, which deletes raw copies there and leaves graded ones Unassigned) deletes ownership. setFinish must still match its pocket's target; patchGrading changes only the fields it names. Use privateFields=preserve for add, removeOwned, unassign and placements with fulfillWant:null to keep hidden certificates, assets and unrelated wants; omitted or replace keeps full-replacement semantics. Limits: 100 commands, 256 selected entities, 4096 slots, 256 KiB request, 10 s.",
     permissions,
     write: true,
     schema: nativeInventorySchema,
@@ -568,7 +568,7 @@ const operations: readonly DeveloperOperation[] = [
     path: '/storage/collections',
     description:
       creationImportTerminalDescription +
-      'Atomically create native storage from an ordered copied manifest, never a legacy create-then-edit. Migration 101 additionally accepts manifest.setScope, the exact reviewed language, verified finishes, promos, exclusions, coverage warnings and capture time. This is an independent copied initial list; goals remain editable and free slots can be appended. Catalog eligibility is checked at creation, not enforced on later edits. Preserve collection/slot/operation IDs across retries. Empty goals and spacers create no ownership or wants; recoverySupported remains conservative false.',
+      'Atomically create a native collection from an ordered copied manifest (see preview_storage_preset), optionally with manifest.setScope: the reviewed language, verified finishes, promos, exclusions, coverage warnings and capture time. Catalog eligibility is checked only at creation; goals stay editable and free slots can be appended later. Keep the collection, slot and operation IDs across retries. Empty goals and spacers create no ownership or wants.',
     permissions,
     write: true,
     schema: nativeCreationSchema,
@@ -589,7 +589,7 @@ const operations: readonly DeveloperOperation[] = [
     method: 'POST',
     path: '/storage/recovery/preview',
     description:
-      'Preview supported native audit evidence using the private native backend, never the legacy Activity facade. Unsupported events return conflicts/unsupported with no usable plan. Default-creation recovery needs explicit v2 replacement.',
+      'Preview undoing an Activity event. Unsupported events return conflicts or unsupported with no usable plan. Undoing a default collection’s creation needs preview_storage_recovery_v2 with a replacement.',
     permissions: recoveryPermissions,
     write: false,
     schema: previewSchema,
@@ -602,7 +602,7 @@ const operations: readonly DeveloperOperation[] = [
     path: '/storage/recovery/apply',
     description:
       recoveryTerminalDescription +
-      'Apply exactly reviewed native version-1 recovery with confirmation, planToken and retry-stable operationId. Current authority and newer/ABA changes remain enforced. No fallback to legacy recovery.',
+      'Apply a reviewed version-1 recovery from preview_storage_recovery with confirmation, its planToken and a retry-stable operationId. Changes since the preview are rejected.',
     permissions: recoveryPermissions,
     write: true,
     schema: applySchema,
@@ -628,7 +628,7 @@ const operations: readonly DeveloperOperation[] = [
     path: '/storage/recovery/v2/apply',
     description:
       recoveryTerminalDescription +
-      'Apply the exact confirmed version-2 default-creation plan with explicit replacement and stable operationId. Unsupported dependencies and conflicts reject atomically; no legacy fallback.',
+      'Apply a confirmed version-2 default-collection recovery from preview_storage_recovery_v2 with its explicit replacement and a retry-stable operationId. Unsupported dependencies and conflicts reject the whole request.',
     permissions: recoveryPermissions,
     write: true,
     schema: applyV2Schema,
