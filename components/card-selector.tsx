@@ -307,17 +307,18 @@ export default function CardSelector({
     () =>
       !isAnyCard
         ? speciesCards
-        : // A result keeps its own language. The server leaves it unset when the card isn't printed in the chosen one;
-          // in English that means no English print (a Japanese-only card), so it is dropped unless it is the reserved
-          // printing. Other languages price English prints, so their unset cards stay. One found on this device with no
-          // language recorded stays unknown rather than being guessed.
+        : // A result keeps its own language. The server leaves it unset when the card isn't printed in the chosen one,
+          // and labels a card printed only in another language (a Japanese-only promo) with that language. Unless it is
+          // the reserved printing, a card labelled with another language is dropped, and in English so is an unset one
+          // (no English print). Other languages price English prints, so their unset cards stay. One found on this
+          // device with no language recorded stays unknown rather than being guessed.
           searchCards.flatMap((card) => {
             if (reservedCardId && !matchesCatalogCardId(card, reservedCardId)) return [];
             if (
               !reservedCardId &&
               !catalogSearch.offline &&
-              selectedCardLanguage === 'en' &&
-              !isCardLanguage(card.language)
+              fixedLanguage &&
+              (isCardLanguage(card.language) ? card.language !== fixedLanguage : fixedLanguage === 'en')
             )
               return [];
             return [
@@ -331,7 +332,7 @@ export default function CardSelector({
               },
             ];
           }),
-    [isAnyCard, reservedCardId, searchCards, catalogSearch.offline, selectedCardLanguage, fixedLanguage, speciesCards],
+    [isAnyCard, reservedCardId, searchCards, catalogSearch.offline, fixedLanguage, speciesCards],
   );
   const isLoading = anyCard ? (showingSuggestions ? suggestions.loading : catalogSearch.loading) : isLoadingSpecies;
   const error = anyCard ? null : speciesError;
