@@ -40,3 +40,18 @@ test('named binder previews use their own rendered image', () => {
   assert.deepEqual(metadata.openGraph?.images, images);
   assert.deepEqual(metadata.twitter?.images, images);
 });
+
+test('only the showcase account’s named binders are indexable', () => {
+  const url = 'https://holofolder.com/@showcase/base-set-classics';
+  const showcase = binderShareMetadata('showcase', 'Base Set classics', undefined, url);
+  assert.deepEqual(showcase.robots, { index: true, follow: true });
+  assert.equal(showcase.alternates?.canonical, url);
+  // A token share of a showcase binder, and anyone else's named binder, stay out of search.
+  for (const metadata of [
+    binderShareMetadata('showcase', 'Base Set classics'),
+    binderShareMetadata('synthetic-owner', 'National Dex', undefined, 'https://holofolder.com/@synthetic-owner/dex'),
+  ]) {
+    assert.deepEqual(metadata.robots, { index: false, follow: false });
+    assert.equal(metadata.alternates, undefined);
+  }
+});

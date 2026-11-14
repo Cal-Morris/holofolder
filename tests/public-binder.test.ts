@@ -90,7 +90,11 @@ test('deep public field allowlist, certificate contamination and canonical artwo
     if (slot.item) assert.deepEqual(Object.keys(slot.item), ['grading']);
     if (slot.item?.grading) assert.deepEqual(Object.keys(slot.item.grading), ['grade']);
     if (slot.card)
-      assert.ok(Object.keys(slot.card).every((k) => ['name', 'image', 'id', 'language', 'pokemonIds'].includes(k)));
+      assert.ok(
+        Object.keys(slot.card).every((k) =>
+          ['name', 'image', 'localId', 'set', 'id', 'language', 'pokemonIds'].includes(k),
+        ),
+      );
     if (slot.card?.image)
       assert.match(
         slot.card.image,
@@ -252,6 +256,8 @@ test('native wants keep stored order and repeats, name and artwork only', async 
   assert.deepEqual(result.slots[0].card, {
     name: 'Synthetic Snorlax',
     image: 'https://assets.holofolder.com/pokemon/tcg/cards/en/synthetic/0/high.webp',
+    localId: '0',
+    set: { name: 'Synthetic Set' },
     id: 'synthetic-mon',
     language: 'en',
     pokemonIds: [143],

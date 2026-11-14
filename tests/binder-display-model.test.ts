@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   adaptLegacyDisplaySlots,
   buildSlotDisplay,
+  displayCardAlt,
   displaySlotImageUrl,
   displaySlotPreview,
   paginateDisplaySlots,
@@ -214,4 +215,12 @@ describe('native page-turn image urls', () => {
     assert.match(displaySlotImageUrl(target)!, /official-artwork%2F6\.png&w=/);
     assert.equal(displaySlotImageUrl({ ...target, target: null, pokemon: null }), null);
   });
+});
+
+test('card image alt text names the card, its number and set', () => {
+  assert.equal(
+    displayCardAlt({ name: 'Synthetic Charizard', localId: '4', set: { name: 'Synthetic Base' } }),
+    'Synthetic Charizard 4 Synthetic Base',
+  );
+  assert.equal(displayCardAlt({ name: 'Synthetic Charizard' }), 'Synthetic Charizard');
 });

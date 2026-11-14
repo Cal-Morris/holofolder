@@ -295,11 +295,18 @@ async function readPublicBinder(
     const catalogLinks = new Map<string, number[]>();
     const catalog = new Map<
       string,
-      { name: string; image?: string; ref: { id: string; language?: CardLanguage; pokemonIds?: number[] } }
+      {
+        name: string;
+        image?: string;
+        localId?: string;
+        set?: { name: string };
+        ref: { id: string; language?: CardLanguage; pokemonIds?: number[] };
+      }
     >();
     async function preloadCatalog(ids: string[]) {
       const unique = [...new Set(ids)];
-      const projection = 'id,name_en,series_id,set_id,local_id,image_languages_json,external_ids_json';
+      const projection =
+        'id,name_en,series_id,set_id,local_id,image_languages_json,external_ids_json,tcg_sets(name_en)';
       await mapWithConcurrency(chunks(unique, 100), PARALLEL, async (batch) => {
         const direct = rows(
           (await run(db.from('tcg_cards').select(projection).in('id', batch).abortSignal(controller.signal))).data,
@@ -382,9 +389,13 @@ async function readPublicBinder(
       const image = validLanguage
         ? pickCardAssetUrl(row.external_ids_json, tcgdex ? imageLanguage : null, tcgdex, language)
         : undefined;
+      const setName = (row.tcg_sets as Row | null | undefined)?.name_en;
       const value = {
         name: typeof row.name_en === 'string' && row.name_en.trim() ? row.name_en : 'Unknown card',
         ...(image ? { image } : {}),
+        // Number and set name, for image alt text.
+        ...(typeof row.local_id === 'string' && row.local_id ? { localId: row.local_id } : {}),
+        ...(typeof setName === 'string' && setName.trim() ? { set: { name: setName } } : {}),
         // Public catalog reference: the canonical printing and the requested language, never the stored alias.
         ref: {
           id: canonical,
@@ -565,6 +576,8 @@ async function readPublicBinder(
             ? {
                 name: found?.name ?? 'Unknown card',
                 ...(found?.image ? { image: found.image } : {}),
+                ...(found?.localId ? { localId: found.localId } : {}),
+                ...(found?.set ? { set: found.set } : {}),
                 ...(found ? found.ref : {}),
               }
             : null,

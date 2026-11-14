@@ -73,6 +73,7 @@ export function syntheticPublicDatabase(
     series_id: 'synthetic',
     set_id: 'synthetic',
     local_id: `${i}`,
+    tcg_sets: { name_en: 'Synthetic Set' },
     image_languages_json: ['en'],
     external_ids_json: { private: { image: 'https://PRIVATE-catalog-source' } },
   }));
@@ -194,6 +195,8 @@ export function syntheticPublicDatabase(
           ? row
           : Object.fromEntries(
               projection.split(',').map((k) => {
+                // A PostgREST embed (`tcg_sets(name_en)`) returns the related row as stored.
+                if (k.endsWith(')')) return [k.slice(0, k.indexOf('(')), row[k.slice(0, k.indexOf('('))]];
                 const [alias, path] = k.includes(':') ? k.split(':') : [k, k];
                 const [field, child] = path.split('->');
                 const value =
