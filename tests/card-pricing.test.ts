@@ -154,7 +154,7 @@ test('buildCardPriceSnapshotFromPricing marks inferred price ranges as medium co
   assert.equal(snapshot.confidence, 'medium');
 });
 
-test('buildCardPriceSnapshotFromPricing lowers confidence and widens range when sources disagree', () => {
+test('buildCardPriceSnapshotFromPricing widens range and caps English confidence at medium when Cardmarket disagrees', () => {
   const snapshot = buildCardPriceSnapshotFromPricing(
     'sv1-004',
     'en',
@@ -181,7 +181,8 @@ test('buildCardPriceSnapshotFromPricing lowers confidence and widens range when 
   assert.equal(snapshot.marketGbpAmount, 7.5);
   assert.equal(snapshot.lowGbpAmount, 6);
   assert.equal(snapshot.highGbpAmount, 19.55);
-  assert.equal(snapshot.confidence, 'low');
+  // Cardmarket mixes every language, so on an English card it caps confidence at medium rather than low.
+  assert.equal(snapshot.confidence, 'medium');
   assert.equal(snapshot.sourcePrices.length, 2);
 });
 
