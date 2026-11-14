@@ -1,7 +1,7 @@
 import { cacheLife, cacheTag } from 'next/cache';
 import { readSetCardPages } from '@/lib/catalog-queries';
 import { readCatalogMetadata } from '@/lib/card-catalog';
-import { pickCardAssetUrl, toSmallCardAssetSrc } from '@/lib/card-image-url';
+import { pickCardAssetUrl } from '@/lib/card-image-url';
 import { getSetArtwork } from '@/lib/set-artwork';
 import { assignSetSlugs, type PublicSetSummary } from '@/lib/set-pages';
 import { buildTcgdexAssetImageUrl, pickImageLanguage, pickLocalizedText } from '@/lib/tcgdex-shared';
@@ -13,8 +13,6 @@ export interface PublicSetCard {
   rarity?: string;
   illustrator?: string;
   image?: string;
-  /** The small stored rendition, for list and binder thumbnails. */
-  thumb?: string;
   /** National Dex numbers of the Pokémon on the card (several on tag teams, none on Trainers and Energy). */
   dexIds: number[];
 }
@@ -106,7 +104,7 @@ export async function getPublicSetCards(setId: string): Promise<PublicSetCard[]>
       name: pickLocalizedText(card.name_json, 'en') || card.name_en || card.id,
       ...(card.rarity ? { rarity: card.rarity } : {}),
       ...(card.illustrator ? { illustrator: card.illustrator } : {}),
-      ...(image ? { image, thumb: toSmallCardAssetSrc(image) ?? image } : {}),
+      ...(image ? { image } : {}),
       dexIds: (card.tcg_card_dex_ids ?? [])
         .map((row: { dex_id: number }) => row.dex_id)
         .sort((a: number, b: number) => a - b),

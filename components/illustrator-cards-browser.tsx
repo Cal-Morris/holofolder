@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, Heart, Loader2, Palette, Search as SearchIcon, X } from 'lucide-react';
+import { CardGridArt, CardGridBadges, CardGridBody, CardGridTile } from '@/components/card-grid-tile';
 import CardsBrowserSheet from '@/components/cards-browser-sheet';
 import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
@@ -210,43 +211,24 @@ export default function IllustratorCardsBrowser({
           <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4" aria-label={`Cards by ${illustrator}`}>
             {visibleEntries.map((entry) => {
               const { card } = entry;
-              const image = getProxiedThumbnailUrl(card.image);
               const priceSnapshot = pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')];
               const price = formatPrice(priceSnapshot)?.split(' (')[0] ?? null;
               return (
-                <li
+                <CardGridTile
                   key={card.id}
                   data-card-id={card.id}
                   aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${entry.owned ? ', owned' : ''}${entry.wanted ? ', wanted' : ''}`}
                   data-price={price ?? undefined}
-                  className={`bg-background/60 relative flex min-w-0 flex-col overflow-hidden rounded-2xl border ${
-                    entry.owned ? 'border-emerald-400/45' : entry.wanted ? 'border-amber-400/45' : 'border-border/50'
-                  } ${onOpenCard ? 'focus-within:border-primary/60 hover:border-primary/45 transition-colors' : ''}`}
+                  className={entry.owned ? 'border-emerald-400/45' : entry.wanted ? 'border-amber-400/45' : undefined}
+                  onOpen={onOpenCard && (() => onOpenCard(card))}
+                  openLabel={`Open ${card.name}, ${card.set.name} ${entry.numberLabel}`}
                 >
-                  {/* One button over the whole tile, so the exact card tapped is the one that opens. */}
-                  {onOpenCard ? (
-                    <button
-                      type="button"
-                      aria-label={`Open ${card.name}, ${card.set.name} ${entry.numberLabel}`}
-                      onClick={() => onOpenCard(card)}
-                      className="focus-visible:ring-primary/70 absolute inset-0 z-[1] rounded-2xl focus-visible:ring-2 focus-visible:outline-none"
-                    />
-                  ) : null}
-                  <div className="trading-card bg-muted/40 relative w-full">
-                    {image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={image}
-                        alt={`${card.name} – ${card.set.name} ${entry.numberLabel}`}
-                        loading="lazy"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="text-muted-foreground flex h-full items-center justify-center p-2 text-center text-[11px]">
-                        No image
-                      </div>
-                    )}
-                    <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
+                  <CardGridArt
+                    image={getProxiedThumbnailUrl(card.image)}
+                    alt={`${card.name} – ${card.set.name} ${entry.numberLabel}`}
+                    sizes="(max-width: 639px) 45vw, 180px"
+                  >
+                    <CardGridBadges>
                       {entry.owned ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
                           <Check className="h-3 w-3" /> Owned
@@ -257,10 +239,10 @@ export default function IllustratorCardsBrowser({
                           <Heart className="h-3 w-3 fill-current" /> Wanted
                         </span>
                       ) : null}
-                    </div>
+                    </CardGridBadges>
                     <PriceRisingBadge price={priceSnapshot} className="absolute top-1.5 right-1.5" />
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5 p-2">
+                  </CardGridArt>
+                  <CardGridBody>
                     <p className="truncate text-xs font-semibold" title={card.name}>
                       {card.name}
                     </p>
@@ -287,8 +269,8 @@ export default function IllustratorCardsBrowser({
                         {[card.rarity, ...entry.variantLabels].filter(Boolean).join(' · ')}
                       </p>
                     ) : null}
-                  </div>
-                </li>
+                  </CardGridBody>
+                </CardGridTile>
               );
             })}
           </ul>

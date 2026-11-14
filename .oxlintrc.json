@@ -256,6 +256,7 @@
           "^show-hunt-group$",
           "^pocket-wiggle$",
           "^safe-area-bottom$",
+          "^safe-area-top$",
           "^not-prose$",
           "^binder-studio$",
           "^(?:.*:)?(?:text|bg|border)-fd-",
