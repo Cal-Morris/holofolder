@@ -179,12 +179,11 @@ test.describe('explicit stable-slot picker', () => {
     const { page } = harness;
     const { cards } = syntheticSlotPickerSnapshot();
     const languages: (string | null)[] = [];
-    // A synthetic printing served as Japanese-only, returned only when the search asks for every language.
+    // A synthetic printing served as Japanese-only. Like the real search, an English search returns it labelled
+    // Japanese too (found by its English name), and the English picker must hide it.
     await page.route('**/app/api/tcg-card-search**', (route) => {
-      const language = new URL(route.request().url()).searchParams.get('language');
-      languages.push(language);
-      const japanese = { ...cards[3], language: 'ja' };
-      return route.fulfill({ json: { cards: language === 'any' ? [cards[0], japanese] : [cards[0]] } });
+      languages.push(new URL(route.request().url()).searchParams.get('language'));
+      return route.fulfill({ json: { cards: [cards[0], { ...cards[3], language: 'ja' }] } });
     });
     const dialog = await search(page, 'slot-g', 'snorlax');
     await expect(tile(dialog, 'Snorlax A')).toBeVisible();
@@ -196,7 +195,7 @@ test.describe('explicit stable-slot picker', () => {
     await expect(filters).toHaveCount(0);
     const japanese = tile(dialog, 'Energy');
     await expect(japanese).toContainText('JA');
-    expect(languages).toContain('any');
+    await expect.poll(() => languages).toContain('any');
     await harness.expectNoHorizontalOverflow();
     await japanese.click();
     await variant(page)
