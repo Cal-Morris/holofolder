@@ -84,8 +84,10 @@ export const showPurchaseStore: ShowPurchaseStore & { ensureQueue(now: number): 
 
 export function useShowSession() {
   const raw = useSyncExternalStore(subscribe, readRaw, () => null);
-  // Read once per mount: the age check only has to start a new session on the next visit.
-  const [openedAt] = useState(() => Date.now());
+  // Read once per mount: the age check only has to start a new session on the next visit. Not on the server:
+  // the server renders no tally (raw is null there), and reading the clock while prerendering makes Next drop the
+  // whole page to client rendering, so cached share pages would ship without their binder.
+  const [openedAt] = useState(() => (typeof window === 'undefined' ? 0 : Date.now()));
   const session = useMemo(() => parseShowSession(raw, openedAt), [openedAt, raw]);
 
   const logPurchases = useCallback((purchases: Array<Omit<ShowPurchase, 'id' | 'at'>>) => {

@@ -191,9 +191,10 @@ export type PriceSummary = {
 export function summarizeOwnedCardPrices(
   collection: CollectedPokemon[],
   prices: Parameters<typeof buildCollectionAnalytics>[1],
-  now = Date.now(),
+  now?: number,
 ) {
-  const summary = buildCollectionAnalytics(collection, prices, now);
+  // No prices, nothing time-dependent to value: skip the clock so a prerender (share pages) stays static.
+  const summary = buildCollectionAnalytics(collection, prices, now ?? (Object.keys(prices).length ? Date.now() : 0));
   return {
     gbpTotal: summary.valueGbp,
     originalTotals: {},

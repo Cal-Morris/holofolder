@@ -80,16 +80,23 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
   }
 }
 
-/** Named shares (`/@username/slug`) skip the stamp: the payload is cached until the owner's next write expires
- * `publicBinderTag` (lib/server/public-binder-cache.ts), so the page itself can be served from cache. */
-export async function loadNamedPublicBinder(username: string, binderSlug: string): Promise<PublicBinder | null> {
+/** Share pages (`/@username/slug` and `/share/<token>`) skip the stamp: the payload is cached until the owner's next
+ * write expires `publicBinderTag` (lib/server/public-binder-cache.ts), so the whole page is served from cache. Every
+ * writer that changes what a share shows, including disabling or rotating it, expires that tag. */
+export async function loadCachedPublicBinder(identity: PublicShareIdentity): Promise<PublicBinder | null> {
   'use cache';
   // Card names and images come from the mirror, which a card sync revalidates.
   cacheTag('tcg-mirror');
   try {
-    if (normalizeUsername(username) !== username || normalizeBinderSlug(binderSlug) !== binderSlug) missing();
+    if (
+      'username' in identity &&
+      (normalizeUsername(identity.username) !== identity.username ||
+        normalizeBinderSlug(identity.binderSlug) !== identity.binderSlug)
+    )
+      missing();
+    if ('token' in identity && !/^[a-zA-Z0-9_-]{1,200}$/.test(identity.token)) missing();
     const db = (await import('@/lib/supabase/admin')).createAdminClient();
-    const read = await readPublicBinder({ username, binderSlug }, db);
+    const read = await readPublicBinder(identity, db);
     cacheLife('days');
     cacheTag(publicBinderTag(read.owner!));
     return read.binder!;

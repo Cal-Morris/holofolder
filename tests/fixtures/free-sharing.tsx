@@ -98,13 +98,20 @@ async function run() {
   }));
   const { loadPublicBinder: realLoad } = await import('../../lib/server/public-binder');
   mock.module('../../lib/server/public-binder', () => ({
-    // Named pages are cached: a missing or foreign share resolves to null (a 404), never a stale payload.
-    loadNamedPublicBinder: async (username: string, binderSlug: string) => {
-      if (!share?.is_enabled || !named || username !== 'synthetic' || binderSlug !== 'binder' || wrongBinder)
+    // Share pages are cached: a missing or foreign share resolves to null (a 404), never a stale payload.
+    loadCachedPublicBinder: async (identity: { token: string } | { username: string; binderSlug: string }) => {
+      if (
+        !share?.is_enabled ||
+        wrongBinder ||
+        ('token' in identity
+          ? identity.token !== share.token
+          : !named || identity.username !== 'synthetic' || identity.binderSlug !== 'binder')
+      )
         return null;
+      if (collectionError) throw new Error('unavailable');
       const db = syntheticPublicDatabase({ prices: share.show_prices });
       for (const table of ['binder_shares', 'resolve_named_binder_share']) db.tables[table][0].token = share.token;
-      return realLoad({ username, binderSlug }, db.client);
+      return realLoad(identity, db.client);
     },
     loadPublicBinder: async (identity: { token: string } | { username: string; binderSlug: string }) => {
       if (
