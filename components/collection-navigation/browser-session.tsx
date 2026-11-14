@@ -12,7 +12,7 @@ import { useBinderOnboarding } from '@/hooks/use-binder-onboarding';
 import { recoveryUnresolved } from '@/lib/collection/recovery-rejection';
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { DatabaseBackup, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { DatabaseBackup, FileUp, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { StorageMenu, type StorageMenuAction } from './storage-menu';
 import dynamic from 'next/dynamic';
 import { toast } from '@/components/ui/toast';
@@ -56,6 +56,7 @@ import type { InventoryCatalogEvidence } from '@/lib/domain/inventory-browse';
 
 const NativeCollectionDeletion = dynamic(() => import('@/components/native-collection-deletion'), { ssr: false });
 const NativeBackup = dynamic(() => import('@/components/native-backup'), { ssr: false });
+const NativeImport = dynamic(() => import('@/components/native-import'), { ssr: false });
 const NativeBinderCreation = dynamic(() => import('@/components/native-binder-creation'), { ssr: false });
 
 const ChangeConflictDialog = dynamic(() => import('./change-conflict-dialog'), { ssr: false });
@@ -228,6 +229,7 @@ function ScopedBrowserSession({
     intent: SlotOfflineIntent | null;
   } | null>(null);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [creating, setCreating] = useState<{ binding: NativeBinderCreationBinding } | null>(null);
   const creation = useRef<{
@@ -1281,6 +1283,17 @@ function ScopedBrowserSession({
                   onClose={() => setBackupOpen(false)}
                 />
               )}
+              {importOpen && surface.state.collectionId && (
+                <NativeImport
+                  key={`${scope.sessionId}:${surface.state.collectionId}`}
+                  acquire={() => acquireAdmission.current()}
+                  collectionId={surface.state.collectionId}
+                  binderName={
+                    snapshot?.collections.find((c) => c.id === surface.state.collectionId)?.name ?? 'this binder'
+                  }
+                  onClose={() => setImportOpen(false)}
+                />
+              )}
               {renderSurface({
                 nativeConsumer: {
                   scope: navigationScope,
@@ -1301,6 +1314,9 @@ function ScopedBrowserSession({
                     actions={[
                       ...extra,
                       { label: 'Backup', icon: DatabaseBackup, separated: true, onSelect: () => setBackupOpen(true) },
+                      ...(surface.state.main === 'collection' && surface.state.collectionId
+                        ? [{ label: 'Import cards', icon: FileUp, onSelect: () => setImportOpen(true) }]
+                        : []),
                       {
                         label: 'New binder',
                         icon: Plus,
