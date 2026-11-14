@@ -158,29 +158,16 @@ function isPublicCardAsset(url) {
   );
 }
 
-// Existing installs keep their proxy and old-layout caches when public images move to the asset domain.
+// A public card image may already be cached as its proxy fallback (`?key=`) or under the old bucket layout.
 function publicCardAssetPath(value) {
   try {
-    let url = new URL(value, self.location.origin);
-    if (url.pathname.endsWith('/api/card-image-proxy')) url = new URL(url.searchParams.get('url'));
+    const url = new URL(value, self.location.origin);
+    if (url.pathname.endsWith('/api/card-image-proxy')) {
+      const key = url.searchParams.get('key');
+      return key ? `/${key}` : null;
+    }
     if (['assets.holofolder.com', 'pub-47cc306087724b00a06ee44b2d4ff58a.r2.dev'].includes(url.hostname))
       return currentCardAssetPath(url.pathname);
-    if (url.hostname === 'assets.tcgdex.net') {
-      const parts = url.pathname.split('/');
-      if (parts.length === 6) return `${CARD_ASSET_ROOT}/cards/${parts[1]}/${parts[3]}/${parts[4]}/${parts[5]}`;
-    }
-    const sources = [
-      ['product-images.tcgplayer.com', /^\/([1-9]\d*)\.jpg$/, 'tcgplayer'],
-      ['images.pokemontcg.io', /^\/([^/]+)\/([^/]+)\.png$/, 'pokemontcg'],
-      ['images.scrydex.com', /^\/pokemon\/([^/]+)\/(large|medium|small)$/, 'scrydex'],
-      ['limitlesstcg.nyc3.cdn.digitaloceanspaces.com', /^\/tpci\/([^/]+)\/([^/]+)\.(?:png|jpg|webp)$/, 'limitless'],
-      ['cdn.shopify.com', /^\/s\/files\/1\/1015\/7057\/6719\/files\/([^/]+)\.(?:png|jpg)$/, 'playshop'],
-    ];
-    for (const [host, pattern, provider] of sources) {
-      const match = url.hostname === host && pattern.exec(url.pathname);
-      if (match)
-        return `${CARD_ASSET_ROOT}/cards/src/${provider}/${match.slice(1).join('/').replaceAll('!', 'exclamation')}.webp`;
-    }
   } catch {}
   return null;
 }

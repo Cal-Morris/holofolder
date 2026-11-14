@@ -9,7 +9,7 @@ const alpha = '22222222-2222-4222-8222-222222222222';
 const want = (id: string, name: string) => ({
   card_id: id,
   card_name: name,
-  card_image: `https://assets.tcgdex.net/en/base/base1/${id.split('-')[1]}`,
+  card_image: `https://assets.holofolder.com/pokemon/tcg/cards/en/base1/${id.split('-')[1]}/high.webp`,
   added_at: '2026-11-10T00:00:00Z',
 });
 

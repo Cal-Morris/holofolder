@@ -92,7 +92,10 @@ test('deep public field allowlist, certificate contamination and canonical artwo
     if (slot.card)
       assert.ok(Object.keys(slot.card).every((k) => ['name', 'image', 'id', 'language', 'pokemonIds'].includes(k)));
     if (slot.card?.image)
-      assert.match(slot.card.image, /^https:\/\/assets\.tcgdex\.net\/en\/synthetic\/synthetic\/\d\/high.webp$/);
+      assert.match(
+        slot.card.image,
+        /^https:\/\/assets\.holofolder\.com\/pokemon\/tcg\/cards\/en\/synthetic\/\d\/high.webp$/,
+      );
   }
   assert.ok(!JSON.stringify(result).includes('PRIVATE'));
 });
@@ -194,7 +197,7 @@ test('cards without a TCGdex image use the shared fallback source, never an unkn
   };
   assert.equal(
     (await loadPublicBinder({ token: 'synthetic-token' }, db.client)).slots[0].card!.image,
-    'https://images.pokemontcg.io/synthetic/1_hires.png',
+    'https://assets.holofolder.com/pokemon/tcg/cards/src/pokemontcg/synthetic/1_hires.webp',
   );
   db.tables.tcg_cards[0].external_ids_json = { pokemon_tcg: { imageLarge: 'https://PRIVATE.example/1.png' } };
   assert.equal((await loadPublicBinder({ token: 'synthetic-token' }, db.client)).slots[0].card!.image, undefined);
@@ -238,14 +241,17 @@ test('native wants keep stored order and repeats, name and artwork only', async 
   );
   assert.match(
     result.slots[6].wantedCards![0].card_image!,
-    /^https:\/\/assets\.tcgdex\.net\/en\/synthetic\/synthetic\/1\/high.webp$/,
+    /^https:\/\/assets\.holofolder\.com\/pokemon\/tcg\/cards\/en\/synthetic\/1\/high.webp$/,
   );
   assert.deepEqual(result.slots[1].wantedCards, [
-    { card_name: 'Synthetic Promo', card_image: 'https://assets.tcgdex.net/en/synthetic/synthetic/9/high.webp' },
+    {
+      card_name: 'Synthetic Promo',
+      card_image: 'https://assets.holofolder.com/pokemon/tcg/cards/en/synthetic/9/high.webp',
+    },
   ]);
   assert.deepEqual(result.slots[0].card, {
     name: 'Synthetic Snorlax',
-    image: 'https://assets.tcgdex.net/en/synthetic/synthetic/0/high.webp',
+    image: 'https://assets.holofolder.com/pokemon/tcg/cards/en/synthetic/0/high.webp',
     id: 'synthetic-mon',
     language: 'en',
     pokemonIds: [143],

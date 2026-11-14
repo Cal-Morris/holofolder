@@ -24,7 +24,7 @@ const LONG_WANT_LIST = [
           set_total: 165,
           card_language: 'en',
           card_finish: 'normal',
-          card_image: `https://assets.tcgdex.net/en/mock/sv03.5/${localId}/high.webp`,
+          card_image: `https://assets.holofolder.com/pokemon/tcg/cards/en/sv03.5/${localId}/high.webp`,
           added_at: '2026-02-01T00:00:00.000Z',
         },
       ],

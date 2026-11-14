@@ -337,7 +337,7 @@ test.describe('Show mode finder', () => {
         rarity: 'Common',
         local_id: n,
         set_total: 165,
-        card_image: `https://assets.tcgdex.net/en/sv/sv03.5/${n}/high.webp`,
+        card_image: `https://assets.holofolder.com/pokemon/tcg/cards/en/sv03.5/${n}/high.webp`,
         added_at: '2026-10-01T00:00:00.000Z',
       };
     });

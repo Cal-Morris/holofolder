@@ -2,7 +2,7 @@ import { SEEDED_COLLECTION } from './fixtures';
 
 const ADDED = '2026-10-01T00:00:00.000Z';
 const image = (set: string, setId: string, localId: string) =>
-  `https://assets.tcgdex.net/en/${set}/${setId}/${localId}/high.webp`;
+  `https://assets.holofolder.com/pokemon/tcg/cards/en/${setId}/${localId}/high.webp`;
 
 /** Owned Bulbasaur and Charmander (as seeded), plus a want list across four Pokémon. */
 export const HUNT_COLLECTION = [

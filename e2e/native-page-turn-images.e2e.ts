@@ -37,7 +37,7 @@ function nativeFixture() {
           {
             card_id: `synw-${n}`,
             card_name: `Synthetic want ${n}`,
-            card_image: `https://assets.tcgdex.net/en/syn/synw/${n}/high.webp`,
+            card_image: `https://assets.holofolder.com/pokemon/tcg/cards/en/synw/${n}/high.webp`,
             added_at: '2026-11-10T00:00:00Z',
           },
         ],
@@ -60,7 +60,7 @@ function nativeFixture() {
         localId: String(n),
         language: 'en',
         set: { id: 'syns', name: 'Synthetic set' },
-        image: `https://assets.tcgdex.net/en/syn/syns/${n}/high.webp`,
+        image: `https://assets.holofolder.com/pokemon/tcg/cards/en/syns/${n}/high.webp`,
       },
       speciesNames: [],
       pokemonIds: [target.pokemonId],

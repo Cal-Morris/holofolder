@@ -18,8 +18,17 @@ describe('toCardImageSrc', () => {
     ]) {
       assert.equal(toCardImageSrc(url), 'https://assets.holofolder.com/' + key);
       assert.equal(toCardImageSrc(proxied(url)), 'https://assets.holofolder.com/' + key);
-      assert.equal(toCardImageProxySrc(url), proxied(url));
+      assert.equal(toCardImageSrc(`https://assets.holofolder.com/${key}`), `https://assets.holofolder.com/${key}`);
+      // The fallback names our key, never the upstream URL.
+      assert.equal(toCardImageProxySrc(url), `/app/api/card-image-proxy?${new URLSearchParams({ key })}`);
+      assert.equal(toCardImageSrc(toCardImageProxySrc(url)), 'https://assets.holofolder.com/' + key);
     }
+  });
+
+  test('never hands the client an upstream card host it cannot map', () => {
+    assert.equal(toCardImageSrc('https://assets.tcgdex.net/en/me/30th'), null);
+    assert.equal(toCardImageSrc('https://en.tcgdex.net/whatever.png'), null);
+    assert.equal(toCardImageProxySrc('https://example.com/card.png'), 'https://example.com/card.png');
   });
 
   test('keeps same-origin, data, blob and other-host images unchanged', () => {

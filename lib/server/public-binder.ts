@@ -11,7 +11,7 @@ import { normalizeBinderName } from '@/lib/binders/model';
 import { getPokemonSummary } from '@/lib/pokemon-catalog';
 import { mapWithConcurrency } from '@/lib/card-db-sync-concurrency';
 import { buildTcgdexAssetImageUrl, pickImageLanguage } from '@/lib/tcgdex-shared';
-import { isCardImageSourceUrl, pickCardImageUrl } from '@/lib/card-image-sources';
+import { pickCardAssetUrl, PUBLIC_CARD_IMAGE_BASE, toCardImageSrc } from '@/lib/card-image-url';
 import { isCardLanguage, type CardLanguage } from '@/lib/domain/cards';
 import { MISSING_PUBLIC_BINDER_TAG, publicBinderTag } from '@/lib/server/public-binder-cache';
 
@@ -31,15 +31,10 @@ type PublicWant = NonNullable<PublicDisplaySlot['wantedCards']>[number];
 const label = (v: unknown) =>
   typeof v === 'string' && v.trim() && v.length <= 200 && !/https?:|www\.|[<>]/i.test(v) ? v.trim() : undefined;
 /** A recorded image survives only when it is an https card-image source the app already proxies. */
+/** A saved want's picture as our asset URL (older saves hold the upstream URL); anything else is dropped. */
 function wantImage(v: unknown) {
-  try {
-    const url = new URL(String(v));
-    return url.protocol === 'https:' && (url.hostname === 'assets.tcgdex.net' || isCardImageSourceUrl(url))
-      ? url.toString()
-      : undefined;
-  } catch {
-    return undefined;
-  }
+  const src = toCardImageSrc(v);
+  return src?.startsWith(PUBLIC_CARD_IMAGE_BASE) ? src : undefined;
 }
 export class PublicBinderUnavailable extends Error {
   constructor() {
@@ -385,7 +380,7 @@ async function readPublicBinder(
           : null;
       // The same picker as every other surface (ledger, catalog, pokemon.com, other-language TCGdex, fallback sources).
       const image = validLanguage
-        ? wantImage(pickCardImageUrl(row.external_ids_json, tcgdex ? imageLanguage : null, tcgdex, language))
+        ? pickCardAssetUrl(row.external_ids_json, tcgdex ? imageLanguage : null, tcgdex, language)
         : undefined;
       const value = {
         name: typeof row.name_en === 'string' && row.name_en.trim() ? row.name_en : 'Unknown card',

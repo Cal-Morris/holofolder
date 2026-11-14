@@ -105,7 +105,7 @@ function mockCard(
     id: `${setId}-${localId}`,
     localId,
     name,
-    image: `https://assets.tcgdex.net/en/mock/${setId}/${localId}/high.webp`,
+    image: `https://assets.holofolder.com/pokemon/tcg/cards/en/${setId}/${localId}/high.webp`,
     set: { id: setId, name: setName, officialCardCount: total, releaseDate },
     rarity,
     variants,

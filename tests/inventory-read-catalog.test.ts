@@ -23,11 +23,11 @@ test('native catalog projects attested printing images just like legacy mirror r
   f.tables.tcg_sets = [{ id: 'base1', name_en: 'Base Set' }];
   const read = async () => buildInventoryCatalog(catalogRows(f.tables, snapshotCardIds(snapshot)));
   let cards = await read();
-  assert.equal(cards[0].card.image, 'https://assets.tcgdex.net/en/base/base1/4/high.webp');
-  assert.equal(cards[1].card.image, 'https://assets.tcgdex.net/ja/base/base1/4/high.webp');
+  assert.equal(cards[0].card.image, 'https://assets.holofolder.com/pokemon/tcg/cards/en/base1/4/high.webp');
+  assert.equal(cards[1].card.image, 'https://assets.holofolder.com/pokemon/tcg/cards/ja/base1/4/high.webp');
   f.tables.tcg_cards[0].external_ids_json = { catalog: { image: 'https://images.pokemontcg.io/base1/4.png' } };
   cards = await read();
-  assert.equal(cards[0].card.image, 'https://images.pokemontcg.io/base1/4.png');
+  assert.equal(cards[0].card.image, 'https://assets.holofolder.com/pokemon/tcg/cards/src/pokemontcg/base1/4.webp');
   f.tables.tcg_cards[0].external_ids_json = {};
   f.tables.tcg_cards[0].image_languages_json = [];
   assert.equal((await read())[0].card.image, undefined);

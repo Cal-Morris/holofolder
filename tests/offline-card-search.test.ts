@@ -175,7 +175,7 @@ test("card show prep uses the Sets view's exact URLs and proxied low-res thumbna
   assert.equal(getSetSlotsUrl(BASE), '/app/api/tcg-set-slots?query=Base+Set&setId=base1&v=2');
   assert.equal(
     getProxiedThumbnailUrl('https://assets.tcgdex.net/en/base/base1/44/high.webp'),
-    `/app/api/card-image-proxy?url=${encodeURIComponent('https://assets.tcgdex.net/en/base/base1/44/low.webp')}`,
+    `/app/api/card-image-proxy?key=${encodeURIComponent('pokemon/tcg/cards/en/base1/44/low.webp')}`,
   );
   assert.equal(getProxiedThumbnailUrl('/app/api/card-image-proxy?url=x'), '/app/api/card-image-proxy?url=x');
   assert.equal(getProxiedThumbnailUrl('javascript:alert(1)'), null);
@@ -284,8 +284,8 @@ test('card show preparation includes Trainer and Energy highlight thumbnails', (
     cards: [setSlots.slots[0].cards[0], card('synthetic-trainer', 'Trainer fixture', '99')],
   };
   assert.deepEqual(getSetThumbnailUrls(payload), [
-    '/app/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fbase%2Fbase1%2F44%2Flow.webp',
-    '/app/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fbase%2Fbase1%2F99%2Flow.webp',
+    '/app/api/card-image-proxy?key=pokemon%2Ftcg%2Fcards%2Fen%2Fbase1%2F44%2Flow.webp',
+    '/app/api/card-image-proxy?key=pokemon%2Ftcg%2Fcards%2Fen%2Fbase1%2F99%2Flow.webp',
   ]);
 });
 

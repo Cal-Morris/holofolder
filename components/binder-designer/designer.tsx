@@ -216,7 +216,7 @@ export default function BinderDesigner({
   );
   const maxPreviewPages = geometryDesign.pageCount;
   const previewPage = Math.min(page, maxPreviewPages);
-  // Featured cards until there's a query, then the whole catalogue. Only TCGdex images can be saved as artwork.
+  // Featured cards until there's a query, then the whole catalogue. Only card prints (not fallback-source photos) can be saved as artwork.
   const cardSearch = useCardSearch(search, true);
   const searching = search.trim().length >= 2;
   const picker = searching

@@ -1,3 +1,4 @@
+import { parseCardImageKey } from '@/lib/tcgdex-card-image';
 import { appPath } from '@/lib/app-path';
 import { PUBLIC_CARD_IMAGE_BASE, toCardImageProxySrc, toCardImageSrc } from '@/lib/card-image-url';
 import { isBinderGridSize } from '@/lib/binder-layout';
@@ -86,6 +87,7 @@ export function cardTextureSources(value: unknown): { image: string; fallback?: 
   const fallback = drawable(proxy);
   return primary ? { image: primary, ...(fallback && fallback !== primary ? { fallback } : {}) } : { image: '' };
 }
+/** Saved card artwork: one of our card print images through the proxy (`?key=`), never an upstream URL. */
 export function isCardArtworkUrl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   try {
@@ -95,14 +97,8 @@ export function isCardArtworkUrl(value: unknown): value is string {
       !['/api/card-image-proxy', '/app/api/card-image-proxy'].includes(url.pathname)
     )
       return false;
-    const src = new URL(url.searchParams.get('url') || '');
-    return (
-      src.protocol === 'https:' &&
-      src.hostname === 'assets.tcgdex.net' &&
-      !src.username &&
-      !src.password &&
-      src.port === ''
-    );
+    const key = url.searchParams.get('key');
+    return key !== null && parseCardImageKey(key) !== null;
   } catch {
     return false;
   }

@@ -1,6 +1,7 @@
 import { fetchOfflineResource } from '@/lib/offline-download';
 import { mapWithConcurrency } from '@/lib/card-db-sync-concurrency';
 import { appPath } from '@/lib/app-path';
+import { toCardImageProxySrc, toCardImageSrc } from '@/lib/card-image-url';
 // "Prepare for card show": download chosen sets (coverage data + card thumbnails through the image proxy)
 // so they open offline. The service worker caches what this fetches: /app/api/tcg-set-slots in its data cache
 // (network-first) and /app/api/card-image-proxy in its image cache (cache-first).
@@ -41,20 +42,10 @@ export function getSetSlotsUrl(set: Pick<TCGSetSummary, 'id' | 'name'>, language
   return `/app/api/tcg-set-slots?${getSetSlotsQuery(set, language)}`;
 }
 
-/** The low-res thumbnail of a card image, through the image proxy. */
+/** The low-res thumbnail of a card image, through the image proxy (which copies it into our store on a miss). */
 export function getProxiedThumbnailUrl(image: string | undefined | null) {
-  if (!image) return null;
-  const trimmed = image.trim();
-  if (!trimmed) return null;
-  const low = trimmed.replace(/\/high\.(webp|png|jpg)$/, '/low.$1');
-  if (low.startsWith('/')) return appPath(low);
-  try {
-    const url = new URL(low);
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
-    return `/app/api/card-image-proxy?url=${encodeURIComponent(url.toString())}`;
-  } catch {
-    return null;
-  }
+  const src = toCardImageSrc(image);
+  return src ? toCardImageProxySrc(src.replace(/\/high\.(webp|png|jpg)$/, '/low.$1')) : null;
 }
 
 /** Every distinct card thumbnail in the set, including value-ranking printings. */

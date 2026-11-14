@@ -4,7 +4,7 @@ import type { InventoryCatalogEvidence } from '@/lib/domain/inventory-browse';
 import { readCatalogMetadata } from '@/lib/card-catalog';
 import { formatPokemonDisplayName, getPokemonById } from '@/lib/pokemon-catalog';
 import { buildTcgdexAssetImageUrl, pickImageLanguage } from '@/lib/tcgdex-shared';
-import { pickCardImageUrl } from '@/lib/card-image-sources';
+import { pickCardAssetUrl } from '@/lib/card-image-url';
 
 type Row = Record<string, unknown>;
 /** Public mirror rows from inventory_snapshot_v2's catalog: the cards the snapshot names, their dex links and sets. */
@@ -52,7 +52,7 @@ export function buildInventoryCatalog({ cards, dex, sets }: InventoryCatalogRows
           ? buildTcgdexAssetImageUrl(imageLanguage, raw.series_id, String(set.id), String(raw.local_id))
           : null;
       return (
-        pickCardImageUrl(raw.external_ids_json, tcgdexImage ? imageLanguage : null, tcgdexImage, language) ?? undefined
+        pickCardAssetUrl(raw.external_ids_json, tcgdexImage ? imageLanguage : null, tcgdexImage, language) ?? undefined
       );
     };
     const translations =
