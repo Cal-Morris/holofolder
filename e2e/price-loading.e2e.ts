@@ -37,7 +37,7 @@ test.beforeEach(async ({ page, standalone, insets, baseURL }) => {
 test('a failed stale batch keeps the successful missing-card batch', async ({ page, insets }) => {
   await page.evaluate(
     (snapshot) => localStorage.setItem('binderdex_card_price_cache_v7', JSON.stringify({ 'base1-46::en': snapshot })),
-    quote('base1-46', 9, Date.now() - 3 * 60 * 60 * 1000),
+    quote('base1-46', 9, Date.now() - 25 * 60 * 60 * 1000),
   );
   await page.route('**/app/api/card-prices**', (route) =>
     route

@@ -111,7 +111,7 @@ async function listSetsForSearch(query: string) {
 }
 export async function listCatalogCards(rawParams: string) {
   'use cache: remote';
-  cacheLife({ stale: 60, revalidate: 60, expire: 120 });
+  cacheLife('days');
   cacheTag('tcg-mirror');
   const params = new URLSearchParams(rawParams),
     page = decodePage(params),
@@ -184,7 +184,7 @@ export async function listCatalogCards(rawParams: string) {
 }
 export async function getCatalogCard(id: string, lang: CardLanguage) {
   'use cache: remote';
-  cacheLife({ stale: 60, revalidate: 60, expire: 120 });
+  cacheLife('days');
   cacheTag('tcg-mirror');
   const { data, error } = await createAdminClient().from('tcg_cards').select(CARD_COLUMNS).eq('id', id).maybeSingle();
   if (error) throw new Error('Card lookup unavailable');
@@ -192,7 +192,7 @@ export async function getCatalogCard(id: string, lang: CardLanguage) {
 }
 export async function listCatalogGroups(kind: 'sets' | 'series', rawParams: string) {
   'use cache: remote';
-  cacheLife('hours');
+  cacheLife('days');
   cacheTag('tcg-mirror');
   const params = new URLSearchParams(rawParams),
     page = decodePage(params),
@@ -233,7 +233,7 @@ export async function listCatalogGroups(kind: 'sets' | 'series', rawParams: stri
 
 export async function getCatalogGroup(kind: 'tcg_sets' | 'tcg_series', id: string) {
   'use cache: remote';
-  cacheLife('hours');
+  cacheLife('days');
   cacheTag('tcg-mirror');
   const { data, error } = await createAdminClient()
     .from(kind)
@@ -258,7 +258,7 @@ export async function getCatalogGroup(kind: 'tcg_sets' | 'tcg_series', id: strin
 /** Similar cards by picture (get_similar_cards): other printings of the same artwork, then cards with a similar look. */
 export async function getCatalogSimilarCards(id: string, lang: CardLanguage) {
   'use cache: remote';
-  cacheLife({ stale: 60, revalidate: 60, expire: 120 });
+  cacheLife('days');
   cacheTag('tcg-mirror');
   const split = await getSimilarCardNeighbours(id, lang);
   const neighbours = [...split.sameArtwork, ...split.similarLook];

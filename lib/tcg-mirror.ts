@@ -111,7 +111,8 @@ const MIRRORED_CARD_SELECT = `
   )
 `;
 
-const MIRROR_CACHE_LIFE = 'days';
+// Card data only changes when a sync runs, and every sync revalidates the tcg-mirror tag.
+const MIRROR_CACHE_LIFE = 'weeks';
 const HIDDEN_SET_IDS = new Set(['jumbo']);
 /** A set query ("30th", "abra 151") returns the whole set; the largest (Cosmic Eclipse) has 272 cards. */
 // ponytail: one row cap shared by up to 4 matched sets; page it if several large sets must show in full.
