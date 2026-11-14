@@ -186,7 +186,7 @@ export function PublicCardGrid({
           ))}
         </ul>
       )}
-      {open && <PublicCardDetail card={open} links={links} onClose={() => setOpen(null)} />}
+      {open && <PublicCardDetail card={open} links={links} onOpenCard={setOpen} onClose={() => setOpen(null)} />}
     </section>
   );
 }

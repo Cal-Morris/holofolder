@@ -5,7 +5,8 @@ import type { ReactNode } from 'react';
 import CardImage from '@/components/card-image';
 import { Button } from '@/components/ui/button';
 import { OverlayCloseButton, OverlayDialog, OverlayGrabber } from '@/components/ui/overlay-dialog';
-import type { CatalogueCard } from '@/lib/catalogue-cards';
+import { SimilarCardsRow } from '@/components/similar-cards-row';
+import { catalogueCardFromSearch, type CatalogueCard } from '@/lib/catalogue-cards';
 import { formatReleaseDate } from '@/lib/set-pages';
 
 export interface PublicCardLinks {
@@ -17,10 +18,13 @@ export interface PublicCardLinks {
 export default function PublicCardDetail({
   card,
   links,
+  onOpenCard,
   onClose,
 }: {
   card: CatalogueCard;
   links: PublicCardLinks;
+  /** Show another card (a similar card tapped here) in this sheet. */
+  onOpenCard: (card: CatalogueCard) => void;
   onClose: () => void;
 }) {
   return (
@@ -46,7 +50,7 @@ export default function PublicCardDetail({
         </div>
         <dl className="min-w-0 flex-1 space-y-2 text-sm">
           <Fact label="Set">
-            <Link href={`/sets/${card.setSlug}`}>{card.setName}</Link>
+            {card.setSlug ? <Link href={`/sets/${card.setSlug}`}>{card.setName}</Link> : card.setName}
           </Fact>
           <Fact label="Number">{card.number}</Fact>
           {card.rarity && <Fact label="Rarity">{card.rarity}</Fact>}
@@ -66,6 +70,13 @@ export default function PublicCardDetail({
         <Button asChild size="lg" variant="outline">
           <Link href="/?view=wanted">Add to your want list</Link>
         </Button>
+      </div>
+      <div className="mt-5">
+        <SimilarCardsRow
+          cardId={card.id}
+          language="en"
+          onOpenCard={(similar) => onOpenCard(catalogueCardFromSearch(similar))}
+        />
       </div>
     </OverlayDialog>
   );

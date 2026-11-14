@@ -5,7 +5,7 @@ import { cache } from 'react';
 import { PublicCardGrid } from '@/components/public-card-grid';
 import { CatalogueFact, PublicCataloguePage } from '@/components/public-catalogue-page';
 import { Button } from '@/components/ui/button';
-import type { CatalogueCard } from '@/lib/catalogue-cards';
+import { knownRarity, type CatalogueCard } from '@/lib/catalogue-cards';
 import { getOfficialArtworkUrl } from '@/lib/pokemon-artwork';
 import { formatDexNumber } from '@/lib/pokemon-catalog';
 import { findPokemonById, findPokemonBySlug, groupCardsBySet, type PublicPokemon } from '@/lib/pokemon-pages';
@@ -158,7 +158,7 @@ function toCatalogueCard(card: PublicPokemonCard, set: PublicSetSummary): Catalo
     setSlug: set.slug,
     ...(set.seriesName ? { series: set.seriesName } : {}),
     ...(set.releaseDate ? { releaseDate: set.releaseDate } : {}),
-    ...(card.rarity ? { rarity: card.rarity } : {}),
+    ...(knownRarity(card.rarity) ? { rarity: card.rarity } : {}),
     ...(card.illustrator ? { illustrator: card.illustrator } : {}),
     ...(card.image ? { image: card.image } : {}),
   };
