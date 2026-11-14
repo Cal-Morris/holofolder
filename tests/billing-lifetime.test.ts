@@ -92,9 +92,22 @@ test('a £0 checkout with a 100% promotion code grants lifetime but is not reven
   assert.deepEqual(h.firstPaid, []);
 });
 
+test('a £0 checkout reported as paid, as live Stripe does, grants lifetime but is not revenue', async () => {
+  const h = harness();
+  const free = session({
+    payment_status: 'paid',
+    amount_total: 0,
+    discounts: [{ coupon: null, promotion_code: 'promo_synthetic' }],
+  });
+  assert.equal(await h.run(free), 'granted');
+  assert.equal(h.grants[0].amountPaid, 0);
+  assert.deepEqual(h.firstPaid, []);
+});
+
 test('£0 without a promotion code, unpaid or wrong price/owner/amount grants nothing', async () => {
   for (const patch of [
     { payment_status: 'no_payment_required', amount_total: 0 },
+    { payment_status: 'paid', amount_total: 0 },
     { payment_status: 'unpaid' },
     { line_items: { has_more: false, data: [{ quantity: 1, price: { id: 'price_month' } }] } },
     { line_items: { has_more: false, data: [{ quantity: 2, price: { id: 'price_life' } }] } },
