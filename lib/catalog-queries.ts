@@ -890,7 +890,7 @@ export async function searchCardCatalog(
     cacheSafeTag('language', language),
   );
 
-  if (parsed.text.length < 2 && !parsed.cardId) {
+  if (!parsed.text && !parsed.cardId) {
     return { cards: [], correction: null };
   }
 
@@ -947,7 +947,7 @@ export async function searchCardCatalog(
     if (parsed.text) bySet = bySet.ilike('name_en', `%${parsed.text}%`);
     if (numberCandidates) bySet = bySet.in('local_id', numberCandidates);
     requests.push(bySet.order('local_id_sort', { ascending: true, nullsFirst: false }).limit(SET_BROWSE_LIMIT));
-  } else if (parsed.text.length >= 2) {
+  } else if (parsed.text) {
     let byName = admin.from('tcg_cards').select(select).or(cardNameSearchFilter(parsed.text));
     if (numberCandidates) byName = byName.in('local_id', numberCandidates);
     requests.push(byName.limit(limit));
@@ -974,23 +974,24 @@ export async function searchCardCatalog(
     }
 
     // The set lookup and the card query that depends on it run alongside the name query
-    // instead of before it.
-    requests.push(
-      (async () => {
-        const setMatches = await printedInEnglish(admin.from('tcg_sets').select('id'), language)
-          .or(`id.ilike.${parsed.text},id.ilike.${resolveSetSearchAlias(parsed.text)},name_en.ilike.%${parsed.text}%`)
-          .order('release_date', { ascending: false, nullsFirst: false })
-          .limit(4);
-        if (setMatches.error) return { data: null, error: setMatches.error };
-        const setIds = ((setMatches.data || []) as Array<{ id: string }>).flatMap(({ id }) =>
-          HIDDEN_SET_IDS.has(id) ? [] : [id],
-        );
-        if (setIds.length === 0) return { data: [], error: null };
-        let bySet = admin.from('tcg_cards').select(select).in('set_id', setIds);
-        if (numberCandidates) bySet = bySet.in('local_id', numberCandidates);
-        return await bySet.order('local_id_sort', { ascending: true, nullsFirst: false }).limit(SET_BROWSE_LIMIT);
-      })(),
-    );
+    // instead of before it. One letter is a card name ("n"), not a set.
+    if (parsed.text.length >= 2)
+      requests.push(
+        (async () => {
+          const setMatches = await printedInEnglish(admin.from('tcg_sets').select('id'), language)
+            .or(`id.ilike.${parsed.text},id.ilike.${resolveSetSearchAlias(parsed.text)},name_en.ilike.%${parsed.text}%`)
+            .order('release_date', { ascending: false, nullsFirst: false })
+            .limit(4);
+          if (setMatches.error) return { data: null, error: setMatches.error };
+          const setIds = ((setMatches.data || []) as Array<{ id: string }>).flatMap(({ id }) =>
+            HIDDEN_SET_IDS.has(id) ? [] : [id],
+          );
+          if (setIds.length === 0) return { data: [], error: null };
+          let bySet = admin.from('tcg_cards').select(select).in('set_id', setIds);
+          if (numberCandidates) bySet = bySet.in('local_id', numberCandidates);
+          return await bySet.order('local_id_sort', { ascending: true, nullsFirst: false }).limit(SET_BROWSE_LIMIT);
+        })(),
+      );
   }
 
   const responses = await Promise.all(requests);
