@@ -5,7 +5,7 @@ test('email explains account creation and keeps password signup available', asyn
   await page.goto('/app/auth/login');
   await expect(page.getByRole('heading', { name: 'Start your binder' })).toBeVisible();
   await expect(
-    page.getByText('New here? We’ll create your account. Already collecting? We’ll sign you in.'),
+    page.getByText('Sign in or create an account. We’ll email you a secure link, no password needed.'),
   ).toBeVisible();
   const email = page.getByRole('textbox', { name: 'Email address' });
   // Synthetic account; no email is sent.
@@ -22,7 +22,7 @@ test('email explains account creation and keeps password signup available', asyn
   await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
   expect(signupAllowed).toBe(true);
   await page.getByRole('button', { name: 'Use a different email' }).click();
-  await page.getByRole('button', { name: 'Password', exact: true }).click();
+  await page.getByRole('button', { name: 'Use a password instead' }).click();
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await expect(page.getByPlaceholder('Confirm password')).toBeVisible();
 });

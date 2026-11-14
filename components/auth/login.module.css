@@ -1,21 +1,23 @@
+/* Auth pages are always dark, whatever the device theme, so they match the emails and the binder. */
 .page {
   --background: #07070a;
   --foreground: #f4f3f8;
   --card: #111116;
   --primary: #b9a6ff;
   --primary-foreground: #07070a;
-  --muted: #23222c;
-  --muted-foreground: #b9b8c2;
-  --accent: #292535;
-  --accent-foreground: #f4f3f8;
-  --border: #35333f;
-  --input: #1a1921;
+  --muted: #1b1a23;
+  --muted-foreground: #aaa6b8;
+  --accent: #292236;
+  --accent-foreground: #ede7ff;
+  --border: #ffffff17;
+  --input: #383341;
   --ring: #b9a6ff;
   --destructive: #ff9eab;
+  --highlight: #b8ffcf;
   min-height: 100svh;
   display: grid;
   place-items: center;
-  padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+  padding: max(32px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
     max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
   background: var(--background);
   color: var(--foreground);
@@ -24,38 +26,24 @@
 
 .frame {
   width: 100%;
-  max-width: 440px;
-}
-.navigation {
+  max-width: 420px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 28px;
 }
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-height: 44px;
-  font-size: 19px;
+  margin-bottom: 28px;
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.6px;
+  letter-spacing: -0.5px;
   white-space: nowrap;
 }
 .brand img {
   flex-shrink: 0;
-}
-.backLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  color: var(--muted-foreground);
-  font-size: 12px;
-}
-.backLink:hover {
-  color: var(--foreground);
 }
 .page a:focus-visible {
   outline: 2px solid var(--ring);
@@ -63,34 +51,61 @@
   border-radius: 4px;
 }
 .card {
-  background: var(--card);
+  width: 100%;
   border: 1px solid var(--border);
-  border-radius: 24px;
+  border-radius: 28px;
   overflow: hidden;
 }
 .header {
   padding: 32px 28px 24px;
 }
 .heading {
-  font-size: clamp(29px, 7vw, 36px);
-  line-height: 1.12;
+  font-size: clamp(26px, 7vw, 32px);
+  line-height: 1.15;
   font-weight: 650;
-  letter-spacing: -1.2px;
+  letter-spacing: -1px;
   text-wrap: balance;
 }
 .intro {
-  margin-top: 14px;
+  margin-top: 10px;
   color: var(--muted-foreground);
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: 15px;
+  line-height: 1.55;
+  text-wrap: pretty;
 }
 .body {
   padding: 0 28px 28px;
 }
-.tagline {
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.footer {
   margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   text-align: center;
   color: var(--muted-foreground);
   font-size: 12px;
   line-height: 1.6;
+}
+.footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+}
+.footer a:hover {
+  color: var(--foreground);
 }
