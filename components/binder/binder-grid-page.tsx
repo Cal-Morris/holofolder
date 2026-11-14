@@ -11,6 +11,7 @@ import {
   TRADING_CARD_INNER_CORNER_RADIUS,
 } from '@/components/binder/pokemon-slot';
 import { getPokemonSummary } from '@/lib/pokemon-catalog';
+import { TRADING_CARD_ASPECT_RATIO } from '@/lib/page-scan';
 import { getBinderDisplayCard } from '@/lib/selected-slot-card-display';
 import type { User } from '@supabase/supabase-js';
 import type { BinderSettings } from '@/hooks/use-settings';
@@ -204,6 +205,23 @@ const BinderGridSlot = memo(function BinderGridSlot({ pageNumber, actions, ...sl
   );
 });
 
+// Pages past 4x4 scroll instead of shrinking: pockets keep the card shape, fit the page when they can and
+// never go under 64px wide. Stretching 1fr rows to the page height made wide pages (2x6) tall, cropped strips.
+function scrollableGridTracks(rows: number, cols: number, isDesktopViewport: boolean) {
+  const padX = isDesktopViewport ? 32 : 16;
+  const padY = isDesktopViewport ? 40 : 32;
+  const width = `(100cqw - ${padX + (cols - 1) * 6}px) / ${cols}`;
+  const widthFromHeight = `(100cqh - ${padY + (rows - 1) * 6}px) / ${rows} * ${TRADING_CARD_ASPECT_RATIO}`;
+  const slot = `max(64px, min(${width}, ${widthFromHeight}))`;
+  return {
+    width: 'max-content',
+    gridTemplateColumns: `repeat(${cols}, ${slot})`,
+    gridTemplateRows: `repeat(${rows}, calc(${slot} / ${TRADING_CARD_ASPECT_RATIO}))`,
+    justifyContent: 'center',
+    alignContent: 'center',
+  };
+}
+
 export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber: number, side: 'left' | 'right') {
   const {
     binderSlotImageSizes,
@@ -269,23 +287,22 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
         role={scrollable ? 'region' : undefined}
         aria-label={scrollable ? `Scrollable binder page ${pageNumber}` : undefined}
         tabIndex={scrollable ? 0 : undefined}
+        style={scrollable ? { containerType: 'size' } : undefined}
       >
         <div
-          className="relative h-full w-full p-2 pb-6 sm:p-4 sm:pb-6"
+          className={`relative p-2 pb-6 sm:p-4 sm:pb-6 ${scrollable ? 'min-h-full min-w-full' : 'h-full w-full'}`}
           style={{
-            minWidth:
-              settings.binderCols * (scrollable ? 64 : 36) +
-              (settings.binderCols - 1) * 6 +
-              (isDesktopViewport ? 32 : 16),
-            minHeight:
-              settings.binderRows * (scrollable ? 90 : 36) +
-              (settings.binderRows - 1) * 6 +
-              (isDesktopViewport ? 32 : 16) +
-              16,
             display: 'grid',
-            gridTemplateColumns: `repeat(${settings.binderCols}, minmax(0, 1fr))`,
-            gridTemplateRows: `repeat(${settings.binderRows}, minmax(0, 1fr))`,
             gap: '0.375rem',
+            ...(scrollable
+              ? scrollableGridTracks(settings.binderRows, settings.binderCols, isDesktopViewport)
+              : {
+                  minWidth: settings.binderCols * 36 + (settings.binderCols - 1) * 6 + (isDesktopViewport ? 32 : 16),
+                  minHeight:
+                    settings.binderRows * 36 + (settings.binderRows - 1) * 6 + (isDesktopViewport ? 32 : 16) + 16,
+                  gridTemplateColumns: `repeat(${settings.binderCols}, minmax(0, 1fr))`,
+                  gridTemplateRows: `repeat(${settings.binderRows}, minmax(0, 1fr))`,
+                }),
           }}
         >
           {pageSlots.map((displaySlot, index) => {
