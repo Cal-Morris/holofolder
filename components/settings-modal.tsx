@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { BinderLayoutSettings } from '@/components/binder-layout-settings';
 import { OverlayLink } from '@/components/overlay-link';
 import { BillingSettings } from '@/components/billing-settings';
+import { InviteSettings } from '@/components/invite-settings';
 import { AccountPasskeys } from '@/components/account-passkeys';
 import { AccountIdentitySettings } from '@/components/account-identity-settings';
 import { PartnerPushSettings } from '@/components/partner-push-settings';
@@ -414,13 +415,17 @@ export default function SettingsModal({
         );
       case 'plan':
         return (
-          <BillingSettings
-            signedIn={isSignedIn}
-            onSignIn={() => {
-              onClose();
-              window.dispatchEvent(new Event('holofolder-sign-in'));
-            }}
-          />
+          <div className="space-y-6">
+            <BillingSettings
+              signedIn={isSignedIn}
+              onSignIn={() => {
+                onClose();
+                window.dispatchEvent(new Event('holofolder-sign-in'));
+              }}
+            />
+            {/* Rewards are per owner, so a partner (whose plan the owner manages) doesn't get a link here. */}
+            {isSignedIn && billing?.canManage && <InviteSettings isOnline={isOnline} />}
+          </div>
         );
       case 'security':
         return user && <AccountPasskeys key={`passkeys-${user.id}`} isOnline={isOnline} />;

@@ -32,7 +32,7 @@ API keys are REST-only. MCP requires resource-bound OAuth with explicit grants. 
 
 ## App-only and device-only boundaries
 
-- Website-only: billing and checkout, account deletion, API key and OAuth client administration, push-device enrollment, starting sold-comps checks and background comparison jobs (`ui_only`).
+- Website-only: billing and checkout (including invite-a-friend links and granted Premium time: they are plan state like the trial, and a developer key reads collection data, not account plans), account deletion, API key and OAuth client administration, push-device enrollment, starting sold-comps checks and background comparison jobs (`ui_only`).
 - Device-only: camera capture and OCR, page scanning, wake lock, offline storage and the durable command queue. Picture matching of a photo is public as `identify_card`; the app's same-origin `/app/api/card-identify` returns the same matches in the scanner's raw shape (ids and scores, no hints) for online scans before the on-device scanner is downloaded, rate limited per account or IP instead of per key.
 - First-party app routes use the signed-in session, not developer credentials: `/app/api/inventory`, `/app/api/binder-slots`, `/app/api/storage-collections`, `/app/api/native-recovery`, `/app/api/raw-content-restore` and `/app/api/collection-activity`. They share the same server operations as the registry, so behaviour matches, but they have no API-key requirement or developer paywall.
 - Admin sync/backfill and payment webhooks are not public tools.

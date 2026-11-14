@@ -1,4 +1,4 @@
-import { test, expect, E2E_USER } from './fixtures';
+import { test, expect, E2E_USER, openSettingsPage } from './fixtures';
 
 test.use({ signedIn: true });
 
@@ -49,4 +49,55 @@ test('signup trial shows its terms and expires offline without losing the collec
   await expect(plan.getByRole('heading', { name: 'Unlock Holo Folder' })).toBeVisible();
   await expect(plan).toContainText('2 of 100 free entries saved');
   await harness.expectNoHorizontalOverflow();
+});
+
+test('@matrix invite rewards show the granted month and the owner invite link', async ({ harness }, info) => {
+  const { page } = harness;
+  // Synthetic grant and invite link, no real database requests.
+  const grantedUntil = new Date(Date.now() + 20 * 86_400_000).toISOString();
+  await page.route('**/app/api/billing', (route) =>
+    route.fulfill({
+      json: {
+        access: {
+          ownerUserId: E2E_USER.id,
+          tier: 'paid',
+          source: 'grant',
+          trialEndsAt: null,
+          grantedUntil,
+          paidThrough: null,
+          savedCardCount: 12,
+          cardLimit: null,
+          freeCardLimit: 2_147_483_647,
+          freeBinderLimit: 1,
+          enforced: true,
+        },
+        canManage: true,
+        hasBillingAccount: false,
+      },
+    }),
+  );
+  await page.route('**/app/api/referrals', (route) =>
+    route.fulfill({
+      json: { url: 'https://holofolder.com/app/invite/abcde23456', rewarded: 1, pending: 2, cap: 12, rewardDays: 30 },
+    }),
+  );
+  await page.evaluate(() => window.dispatchEvent(new Event('holofolder-refresh-billing')));
+  await page.getByTestId('app-header').getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
+  await openSettingsPage(dialog, 'Plan & billing');
+  const plan = dialog.getByRole('region', { name: 'Holo Folder plan' });
+  await expect(plan.getByRole('heading', { name: 'Holo Folder Premium' })).toBeVisible();
+  await expect(plan).toContainText('Free Premium from invites until');
+  await expect(plan).toContainText("you won't be charged");
+  const invite = dialog.getByRole('region', { name: 'Invite a friend' });
+  await expect(invite).toContainText('https://holofolder.com/app/invite/abcde23456');
+  await expect(invite).toContainText('1 of 12 free months earned, 2 friends yet to save 10 cards.');
+  const copy = invite.getByRole('button', { name: 'Copy invite link', exact: true });
+  await copy.scrollIntoViewIfNeeded();
+  await harness.expectMinTapTarget(copy);
+  await harness.expectWithinSafeViewport(copy);
+  await harness.expectHittable(copy);
+  await harness.expectNoHorizontalOverflow();
+  await invite.screenshot({ path: `test-results/invite/${info.project.name}.png` });
 });

@@ -1,6 +1,6 @@
 'use client';
 import { createContext, use, useCallback, useEffect, useState } from 'react';
-import { resolveBillingAccess, type BillingAccess } from '@/lib/billing';
+import { billingAccessRow, resolveBillingAccess, type BillingAccess } from '@/lib/billing';
 import { BILLING_CHANGED, readBillingCache, writeBillingCache } from '@/lib/billing-cache';
 
 export function useBilling(accountId: string | null, ownerId: string | null, onUpgrade: () => void) {
@@ -30,16 +30,7 @@ export function useBilling(accountId: string | null, ownerId: string | null, onU
         if (!response.ok || result.access?.ownerUserId !== ownerId)
           throw new Error(result.error ?? 'Your plan could not be checked.');
         const row = result.access;
-        const access = resolveBillingAccess(ownerId, {
-          enforced: row.enforced,
-          perpetual: row.source === 'perpetual',
-          status: row.source === 'subscription' ? 'active' : 'none',
-          paid_through: row.paidThrough,
-          trial_ends_at: row.trialEndsAt,
-          saved_card_count: row.savedCardCount,
-          free_card_limit: row.freeCardLimit,
-          free_binder_limit: row.freeBinderLimit,
-        });
+        const access = resolveBillingAccess(ownerId, billingAccessRow(row));
         writeBillingCache(localStorage, accountId, access);
         setRecord({
           accountId,
@@ -110,18 +101,7 @@ export function useBilling(accountId: string | null, ownerId: string | null, onU
     }
   };
   const active = record?.accountId === accountId && record.access.ownerUserId === ownerId ? record : null;
-  const access = active
-    ? resolveBillingAccess(active.access.ownerUserId, {
-        perpetual: active.access.source === 'perpetual',
-        status: active.access.source === 'subscription' ? 'active' : 'none',
-        paid_through: active.access.paidThrough,
-        trial_ends_at: active.access.trialEndsAt,
-        enforced: active.access.enforced,
-        saved_card_count: active.access.savedCardCount,
-        free_card_limit: active.access.freeCardLimit,
-        free_binder_limit: active.access.freeBinderLimit,
-      })
-    : null;
+  const access = active ? resolveBillingAccess(active.access.ownerUserId, billingAccessRow(active.access)) : null;
   return {
     access,
     hasBillingAccount: active?.hasBillingAccount ?? false,
