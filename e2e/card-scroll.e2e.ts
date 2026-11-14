@@ -11,7 +11,7 @@ for (const picker of [false, true]) {
       id: `scroll-${index}`,
       localId: String(index),
     }));
-    await page.route('**/app/api/tcgdex-cache**', (route) => route.fulfill({ json: { cards } }));
+    await page.route('**/app/api/cards/pokemon**', (route) => route.fulfill({ json: { cards } }));
     const detail = await harness.openCardDetail();
     await detail
       .getByRole('button', { name: picker ? /change owned card|add owned card/i : /all bulbasaur cards/i })

@@ -202,7 +202,7 @@ test('offline, a set lookup saved before the slim v=2 response still answers fro
   const request = { url: `https://holofolder.com${old}&v=2` };
   assert.equal(await runInContext(`networkFirst(${JSON.stringify(request)}, 'data')`, context), 'synthetic saved set');
   assert.equal(
-    runInContext(`unversionedSetSlotsRequest({url:'https://holofolder.com/app/api/tcgdex-cache?v=2'})`, context),
+    runInContext(`unversionedSetSlotsRequest({url:'https://holofolder.com/app/api/cards/pokemon?v=2'})`, context),
     null,
   );
 });

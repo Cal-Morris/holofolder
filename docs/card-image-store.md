@@ -74,7 +74,7 @@ R2 free tier (Standard storage, per month): 10 GB-month storage, 1M Class A ops 
 
 ## Fallback sources
 
-Which image a card shows is decided by `pickCardImageUrl` in `lib/card-image-sources.ts`, which every surface uses (search, sets and card detail through `lib/tcg-mirror.ts`, binder slots through `lib/server/inventory-read-catalog.ts`, and the developer API):
+Which image a card shows is decided by `pickCardImageUrl` in `lib/card-image-sources.ts`, which every surface uses (search, sets and card detail through `lib/catalog-queries.ts`, binder slots through `lib/server/inventory-read-catalog.ts`, and the developer API):
 
 1. The image published from the [`card-assets`](../card-assets/AGENTS.md) ledger for the requested language (`external_ids_json.assets.<language>.image`).
 2. A reviewed catalog image (`external_ids_json.catalog.image`), set by the catalog tooling when TCGdex has no image or the card is a printing TCGdex doesn't list. Allowed hosts are in `lib/card-catalog.ts`.

@@ -77,7 +77,7 @@ test('cached set coverage, per-Pokémon lists and earlier searches all become se
     ],
   );
 
-  const fromPokemon = extractCardsFromCachedResponse('/app/api/tcgdex-cache?pokemonId=6&language=en', {
+  const fromPokemon = extractCardsFromCachedResponse('/app/api/cards/pokemon?dexId=6&language=en', {
     cards: [card('sv03.5-006', 'Charizard ex', '006', { id: 'sv03.5', name: '151', officialCardCount: 165 })],
   });
   assert.deepEqual(fromPokemon[0].dexIds, [6]);
@@ -95,7 +95,7 @@ test('cached set coverage, per-Pokémon lists and earlier searches all become se
   assert.deepEqual(fromSearch[1].dexIds, []);
 
   assert.deepEqual(
-    extractCardsFromCachedResponse('/app/api/tcgdex-cache?pokemonId=0', { cards: [card('a-1', 'A', '1')] }),
+    extractCardsFromCachedResponse('/app/api/cards/pokemon?dexId=0', { cards: [card('a-1', 'A', '1')] }),
     [],
   );
   assert.deepEqual(extractCardsFromCachedResponse('/app/api/other', setSlots), []);
@@ -313,7 +313,7 @@ test('offline search also finds cards by illustrator once the query is 3+ charac
 test('offline set search reads only set responses and sees later cache updates', async () => {
   // Synthetic unrelated card responses must not consume the set reader's 600-response budget.
   const responses = new Map<string, unknown>(
-    Array.from({ length: 600 }, (_, i) => [`http://x/app/api/tcgdex-cache?pokemonId=${i + 1}`, { cards: [] }]),
+    Array.from({ length: 600 }, (_, i) => [`http://x/app/api/cards/pokemon?dexId=${i + 1}`, { cards: [] }]),
   );
   const setUrl = 'http://x/app/api/tcg-set-slots?query=base';
   responses.set(setUrl, { sets: [BASE] });

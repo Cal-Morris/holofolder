@@ -31,7 +31,7 @@ import {
 } from '@/lib/domain/cards';
 import { cardMatchesLanguages, DEFAULT_BINDER_CARD_LANGUAGES, parseLanguageSearch } from '@/lib/card-languages';
 import CardsBrowserSheet from '@/components/cards-browser-sheet';
-import { peekCardsForPokemon, useTCGdex, type TCGCard } from '@/hooks/use-tcgdex';
+import { peekCardsForPokemon, useCards, type TCGCard } from '@/hooks/use-cards';
 import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { DEFAULT_PRICING_REGION, type PricingRegion } from '@/lib/pricing-region';
@@ -107,7 +107,7 @@ export default function PokemonCardsBrowser({
   const binderLanguages = cardLanguages ?? DEFAULT_BINDER_CARD_LANGUAGES;
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
   const bodyRef = useRef<HTMLDivElement | null>(null);
-  const { fetchCardsForPokemon, error: fetchError } = useTCGdex();
+  const { fetchCardsForPokemon, error: fetchError } = useCards();
   const [cards, setCards] = useState<TCGCard[] | null>(() =>
     nativeConsumer && !pokemon && cardDetails
       ? [

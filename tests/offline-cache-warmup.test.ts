@@ -40,21 +40,21 @@ test('buildOfflineCacheWarmupUrls warms shell, current card lists, collection ca
   });
 
   assert.equal(urls[0], '/app');
-  assert.ok(urls.includes('/app/api/tcgdex-cache?pokemonId=25&language=en'));
-  assert.ok(urls.includes('/app/api/tcgdex-cache?pokemonId=26&language=en'));
-  assert.ok(urls.includes('/app/api/tcgdex-cache?pokemonId=1&language=en'));
+  assert.ok(urls.includes('/app/api/cards/pokemon?dexId=25&language=en'));
+  assert.ok(urls.includes('/app/api/cards/pokemon?dexId=26&language=en'));
+  assert.ok(urls.includes('/app/api/cards/pokemon?dexId=1&language=en'));
   assert.ok(urls.includes('/wanted/local.png'));
   assert.ok(urls.includes('/app/api/card-image-proxy?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fbase1%2F1%2Fhigh.png'));
-  assert.equal(urls.filter((url) => url === '/app/api/tcgdex-cache?pokemonId=25&language=en').length, 1);
+  assert.equal(urls.filter((url) => url === '/app/api/cards/pokemon?dexId=25&language=en').length, 1);
 });
 
 test('shouldPostOfflineCacheWarmup only posts when the warmup URL set changes', () => {
-  const urls = ['/', '/app/api/tcgdex-cache?pokemonId=25&language=en'];
+  const urls = ['/', '/app/api/cards/pokemon?dexId=25&language=en'];
 
   assert.equal(shouldPostOfflineCacheWarmup(null, urls), true);
   assert.equal(shouldPostOfflineCacheWarmup(urls.join('\n'), [...urls]), false);
   assert.equal(
-    shouldPostOfflineCacheWarmup(urls.join('\n'), [...urls, '/app/api/tcgdex-cache?pokemonId=26&language=en']),
+    shouldPostOfflineCacheWarmup(urls.join('\n'), [...urls, '/app/api/cards/pokemon?dexId=26&language=en']),
     true,
   );
 });
@@ -77,7 +77,7 @@ test('buildOfflineCacheWarmupUrls warms what visible slots render before the res
   );
   assert.ok(!urls.includes(getOfficialArtworkUrl(2)));
   assert.ok(urls.includes(getOfficialArtworkUrl(3)));
-  assert.ok(urls.indexOf('/app/api/tcgdex-cache?pokemonId=1&language=en') < 10);
+  assert.ok(urls.indexOf('/app/api/cards/pokemon?dexId=1&language=en') < 10);
 });
 
 test('warmup stops scanning discarded collection and wanted URLs at the cap', () => {

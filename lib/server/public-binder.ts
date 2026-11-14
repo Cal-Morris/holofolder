@@ -86,7 +86,7 @@ export async function loadPublicBinder(identity: PublicShareIdentity, client?: S
 export async function loadCachedPublicBinder(identity: PublicShareIdentity): Promise<PublicBinder | null> {
   'use cache';
   // Card names and images come from the mirror, which a card sync revalidates.
-  cacheTag('tcg-mirror');
+  cacheTag('card-catalog');
   try {
     if (
       'username' in identity &&
@@ -113,7 +113,7 @@ async function cachedPublicBinder(identity: PublicShareIdentity, stamp: string):
   'use cache: remote';
   cacheLife('days');
   // Card names and images come from the mirror, which a card sync revalidates.
-  cacheTag('tcg-mirror');
+  cacheTag('card-catalog');
   const db = (await import('@/lib/supabase/admin')).createAdminClient();
   const read = await readPublicBinder(identity, db);
   // Only ever store a payload under the stamp it was read at; throwing keeps it out of the cache.

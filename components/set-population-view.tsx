@@ -790,7 +790,7 @@ export default function SetPopulationView({
             {checklistView === 'cards' ? (
               <p className="text-muted-foreground text-xs">
                 {hasFullCardList
-                  ? 'Mirrored cards. Owned means the printing tracked in your binder.'
+                  ? 'Every card in the set. Owned means the printing tracked in your binder.'
                   : 'Saved Pokémon cards only. Full set checklist unavailable in this saved lookup.'}
               </p>
             ) : (

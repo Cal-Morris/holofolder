@@ -116,10 +116,9 @@ test('an owned-pocket action during a routine focus refresh waits for it and sav
 
 test('the finish switch corrects the owned copy in place and keeps its details open', async ({ page }) => {
   // Synthetic catalog row for the harness copy: printed in Holo and Reverse.
-  await page.route('**/app/api/tcgdex-cache**', (route) =>
+  await page.route('**/app/api/cards/pokemon**', (route) =>
     route.fulfill({
       json: {
-        source: 'mirror',
         cards: [
           {
             id: 'synthetic-owned-bulbasaur',
@@ -149,10 +148,9 @@ test('the finish switch corrects the owned copy in place and keeps its details o
 });
 
 test('a second finish switch queues behind one still syncing instead of failing', async ({ page }) => {
-  await page.route('**/app/api/tcgdex-cache**', (route) =>
+  await page.route('**/app/api/cards/pokemon**', (route) =>
     route.fulfill({
       json: {
-        source: 'mirror',
         cards: [
           {
             id: 'synthetic-owned-bulbasaur',
@@ -195,10 +193,9 @@ test('a second finish switch queues behind one still syncing instead of failing'
 test('an edit made while the background read is failing still saves instead of saying the collection is syncing', async ({
   page,
 }) => {
-  await page.route('**/app/api/tcgdex-cache**', (route) =>
+  await page.route('**/app/api/cards/pokemon**', (route) =>
     route.fulfill({
       json: {
-        source: 'mirror',
         cards: [
           {
             id: 'synthetic-owned-bulbasaur',

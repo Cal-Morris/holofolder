@@ -86,7 +86,7 @@ function getCacheNameForUrl(url) {
   }
 
   if (
-    url.pathname.startsWith('/app/api/tcgdex-cache') ||
+    url.pathname.startsWith('/app/api/cards/pokemon') ||
     url.pathname.startsWith('/app/api/tcg-set-slots') ||
     url.pathname.startsWith('/app/api/tcg-card-search') ||
     url.pathname.startsWith('/app/api/tcg-illustrators')
@@ -653,7 +653,7 @@ self.addEventListener('fetch', (event) => {
 
   if (
     url.origin === self.location.origin &&
-    (url.pathname.startsWith('/app/api/tcgdex-cache') ||
+    (url.pathname.startsWith('/app/api/cards/pokemon') ||
       url.pathname.startsWith('/app/api/tcg-set-slots') ||
       url.pathname.startsWith('/app/api/tcg-card-search') ||
       url.pathname.startsWith('/app/api/tcg-illustrators'))

@@ -20,7 +20,7 @@ The importer validates the group identity, collector numbers, denominators, cate
 
 On 2026-11-06, the dry run and apply verified 141 cards: 114 Pokémon, 24 Trainers and 3 Energy, with 114 Pokédex links and 141 source links. All 141 TCGplayer image endpoints returned an image response. The target initially had zero me06 cards; the transaction committed 141 distinct card numbers. No migration was required.
 
-After applying, invalidate the existing `tcg-mirror` production cache tag. This was done through Vercel's tag invalidation API; the previously stale `query=delta` result then included Delta Reign.
+After applying, invalidate the existing `card-catalog` production cache tag. This was done through Vercel's tag invalidation API; the previously stale `query=delta` result then included Delta Reign.
 
 Production API verification:
 

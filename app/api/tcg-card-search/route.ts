@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMirroredCardsByIds, searchMirroredCards, suggestMirroredCards } from '@/lib/tcg-mirror';
+import { getCardsByIds, searchCardCatalog, suggestCards } from '@/lib/catalog-queries';
 import { normalizeCardLanguage } from '@/lib/domain/cards';
 import { PUBLIC_JSON_CACHE_HEADERS } from '@/lib/http-cache';
 
@@ -26,19 +26,19 @@ export async function GET(request: NextRequest) {
       if (like.length + pokemon.length > 40)
         return NextResponse.json({ error: 'At most 40 cards.', cards: [] }, { status: 400 });
       return NextResponse.json(
-        { cards: await suggestMirroredCards(like, pokemon, normalizeCardLanguage(searchParams.get('language'))) },
+        { cards: await suggestCards(like, pokemon, normalizeCardLanguage(searchParams.get('language'))) },
         { headers: PUBLIC_JSON_CACHE_HEADERS },
       );
     }
     if (ids.length) {
       if (ids.length > 20) return NextResponse.json({ error: 'At most 20 ids.', cards: [] }, { status: 400 });
       return NextResponse.json(
-        { cards: await getMirroredCardsByIds(ids, normalizeCardLanguage(searchParams.get('language'))) },
+        { cards: await getCardsByIds(ids, normalizeCardLanguage(searchParams.get('language'))) },
         { headers: PUBLIC_JSON_CACHE_HEADERS },
       );
     }
     // Every match, not a sample: an illustrator like Nishida has ~700 cards. 1000 is PostgREST's row cap per query.
-    const result = await searchMirroredCards(query, language, 1000, searchParams.get('includeNonPokemon') === '1');
+    const result = await searchCardCatalog(query, language, 1000, searchParams.get('includeNonPokemon') === '1');
     return NextResponse.json(result, { headers: PUBLIC_JSON_CACHE_HEADERS });
   } catch (error) {
     console.error('[holofolder] Card search failed:', error);

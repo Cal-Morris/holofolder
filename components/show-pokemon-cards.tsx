@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useDisplayCardPrices } from '@/hooks/use-display-card-prices';
-import { loadCardsForPokemon } from '@/hooks/use-tcgdex';
+import { loadCardsForPokemon } from '@/hooks/use-cards';
 import type { CardFinish, WantedCard } from '@/lib/domain/cards';
 import { matchesCatalogCardId } from '@/lib/card-catalog';
 import { formatPokemonDisplayName } from '@/lib/pokemon-catalog';

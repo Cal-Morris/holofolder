@@ -1,7 +1,7 @@
 import { buildCollectionAnalytics } from '@/lib/collection-analytics';
 import { type CardPriceSnapshot, getCardPriceKey, type SupportedCurrency } from '@/hooks/use-card-prices';
 import type { CardFinish, CardLanguage, SlotStatus, WantedCard, CollectedPokemon } from '@/lib/domain/cards';
-import { peekCatalogCard } from '@/hooks/use-tcgdex';
+import { peekCatalogCard } from '@/hooks/use-cards';
 import { toCardImageSrc } from '@/lib/card-image-url';
 import { ARTWORK_DETAIL_WIDTH, getOfficialArtworkUrl, type PokemonSummary } from '@/lib/pokemon-catalog';
 

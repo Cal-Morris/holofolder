@@ -20,7 +20,7 @@ function watch(page: Page) {
     if (/\/app\/api\/card-prices/.test(r.url())) prices.push(r);
     else if (r.method() !== 'GET' && r.method() !== 'HEAD') writes.push(`${r.method()} ${r.url()}`);
     if (
-      /\/app\/api\/(?!card-image-proxy|tcg-card-search|tcg-similar-cards|tcg-set-slots|tcg-illustrators|tcgdex-cache|card-prices)/.test(
+      /\/app\/api\/(?!card-image-proxy|tcg-card-search|tcg-similar-cards|tcg-set-slots|tcg-illustrators|cards\/pokemon|card-prices)/.test(
         r.url(),
       )
     )

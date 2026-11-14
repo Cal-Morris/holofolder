@@ -27,7 +27,7 @@ type CardsCacheEntry = { promise: Promise<TCGCard[]>; settledAt: number | null; 
 const cardsCache = new Map<string, CardsCacheEntry>();
 
 async function requestCardsForPokemon(dexId: number, language: CardLanguage): Promise<TCGCard[]> {
-  const response = await fetch(`/app/api/tcgdex-cache?pokemonId=${dexId}&language=${encodeURIComponent(language)}`);
+  const response = await fetch(`/app/api/cards/pokemon?dexId=${dexId}&language=${encodeURIComponent(language)}`);
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     throw new Error(payload?.error || `API error: ${response.status}`);
@@ -157,7 +157,7 @@ export function loadCatalogCard(dexId: number, cardId: string, language: CardLan
   return promise;
 }
 
-export function useTCGdex() {
+export function useCards() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

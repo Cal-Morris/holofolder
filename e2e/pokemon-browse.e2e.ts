@@ -54,7 +54,7 @@ test.describe('Pokémon perspective', () => {
 
   test('unavailable card lookup stays distinct from an empty mirror', async ({ harness }) => {
     const page = harness.page;
-    await page.route('**/app/api/tcgdex-cache**', (route) => route.abort());
+    await page.route('**/app/api/cards/pokemon**', (route) => route.abort());
     await harness.dock().getByRole('button', { name: 'Browse', exact: true }).click();
     await page.getByRole('group', { name: 'Browse perspective' }).getByRole('button', { name: 'Pokémon' }).click();
     await page.getByRole('searchbox').fill('mew');
@@ -63,7 +63,7 @@ test.describe('Pokémon perspective', () => {
     await expect(dialog.getByText(/Could not load cards/)).toBeVisible();
     await expect(dialog.getByText('Card catalogue unavailable', { exact: true })).toBeVisible();
     await harness.closeControl(dialog).click();
-    await page.route('**/app/api/tcgdex-cache**', (route) => route.fulfill({ json: { cards: [] } }));
+    await page.route('**/app/api/cards/pokemon**', (route) => route.fulfill({ json: { cards: [] } }));
     await page.getByRole('searchbox').fill('mewtwo');
     await page.getByRole('button', { name: 'Browse Mewtwo cards', exact: true }).click();
     await expect(page.getByText('No mirrored cards found for this Pokémon yet.')).toBeVisible();

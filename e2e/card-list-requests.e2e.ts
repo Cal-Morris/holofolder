@@ -11,7 +11,7 @@ test.describe('card list requests', () => {
       window.fetch = (input, init) => {
         const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
         const url = new URL(raw, window.location.href);
-        if (url.pathname === '/app/api/tcgdex-cache') {
+        if (url.pathname === '/app/api/cards/pokemon') {
           const key = `${url.searchParams.get('pokemonId')}:${url.searchParams.get('language')}`;
           counts[key] = (counts[key] ?? 0) + 1;
         }
@@ -19,7 +19,7 @@ test.describe('card list requests', () => {
       };
     });
     // Answer slowly, like a real network, so re-renders happen while requests are still in flight.
-    await page.route('**/app/api/tcgdex-cache**', async (route) => {
+    await page.route('**/app/api/cards/pokemon**', async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 1_500));
       await route.fallback();
     });

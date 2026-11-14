@@ -113,7 +113,7 @@ function mockCard(
   };
 }
 
-/** Printings served by the mocked TCG mirror (/app/api/tcgdex-cache and /app/api/tcg-card-search). */
+/** Printings served by the mocked TCG mirror (/app/api/cards/pokemon and /app/api/tcg-card-search). */
 export const MOCK_CARDS: MockCard[] = [
   mockCard(1, 'Bulbasaur', 'base1', 'Base Set', '44', 102, '1999-01-09', 'Common', {
     normal: true,
@@ -358,12 +358,12 @@ export async function mockBackends(
       },
     });
   });
-  await target.route('**/app/api/tcgdex-cache**', (route) => {
+  await target.route('**/app/api/cards/pokemon**', (route) => {
     const pokemonId = Number(new URL(route.request().url()).searchParams.get('pokemonId'));
     const cards = MOCK_CARDS.filter((card) => card.dexIds.includes(pokemonId)).map(
       ({ dexIds: _dexIds, ...card }) => card,
     );
-    return route.fulfill({ json: { cards, source: 'mirror' } });
+    return route.fulfill({ json: { cards } });
   });
   await target.route('**/app/api/tcg-card-search**', (route) => {
     const params = new URL(route.request().url()).searchParams;
@@ -382,7 +382,7 @@ export async function mockBackends(
       if (!haystack.includes(first)) return false;
       return !second || card.localId.replace(/^0+/, '') === second.replace(/^#/, '').split('/')[0].replace(/^0+/, '');
     });
-    // Like the real route (lib/tcg-mirror.ts searchMirroredCards), each result carries the searched language.
+    // Like the real route (lib/catalog-queries.ts searchCardCatalog), each result carries the searched language.
     return route.fulfill({ json: { cards: cards.map((card) => ({ ...card, language: 'en' })) } });
   });
   // Placeholder art for card images and Pokémon artwork (external hosts are otherwise blocked).

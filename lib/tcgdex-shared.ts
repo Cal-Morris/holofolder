@@ -1,5 +1,5 @@
 /**
- * Small TCGdex helpers shared by the card DB sync (lib/card-db-sync.ts), the read side (lib/tcg-mirror.ts)
+ * Small TCGdex helpers shared by the card DB sync (lib/card-db-sync.ts), the read side (lib/catalog-queries.ts)
  * and the Blob image mirror (lib/card-image-blob.ts). Keep this module free of Node, Supabase and Blob
  * imports so any of those can use it without pulling in each other's dependencies.
  */

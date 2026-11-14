@@ -17,9 +17,7 @@ const snorlaxList = () =>
     .cards.filter((c) => c.id.startsWith('synthetic-snorlax'))
     .map(({ dexIds: _dexIds, ...card }) => card);
 const routeCards = async (page: Page) => {
-  await page.route('**/app/api/tcgdex-cache**', (route) =>
-    route.fulfill({ json: { cards: snorlaxList(), source: 'mirror' } }),
-  );
+  await page.route('**/app/api/cards/pokemon**', (route) => route.fulfill({ json: { cards: snorlaxList() } }));
   await page.route('**/app/api/tcg-card-search**', (route) =>
     route.fulfill({ json: { cards: syntheticSlotPickerSnapshot().cards.slice(2, 5) } }),
   );

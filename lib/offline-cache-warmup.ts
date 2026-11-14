@@ -90,7 +90,7 @@ function addPokemonCacheUrls(urls: Set<string>, values: unknown, language: strin
 
   for (const value of values) {
     if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) continue;
-    urls.add(`/app/api/tcgdex-cache?pokemonId=${value}&language=${encodeURIComponent(language)}`);
+    urls.add(`/app/api/cards/pokemon?dexId=${value}&language=${encodeURIComponent(language)}`);
   }
 }
 

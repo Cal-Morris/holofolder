@@ -5,7 +5,7 @@ import { type CSSProperties, type SyntheticEvent, memo, useState } from 'react';
 import CardImage from '@/components/card-image';
 import CardFinishShader from '@/components/card-finish-shader';
 import type { CardFinish, SlotStatus } from '@/lib/domain/cards';
-import { loadCatalogCard } from '@/hooks/use-tcgdex';
+import { loadCatalogCard } from '@/hooks/use-cards';
 import { useLongPress } from '@/hooks/use-long-press';
 import { getBinderSlotQuickActions } from '@/lib/binder-slot-actions';
 import { toCardImageSrc } from '@/lib/card-image-url';

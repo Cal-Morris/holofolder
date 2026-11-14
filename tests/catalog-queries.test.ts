@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pickExternalCardImageUrl } from '../lib/tcg-mirror';
+import { pickExternalCardImageUrl } from '../lib/catalog-queries';
 
 test('a reviewed printing image takes precedence over its base card artwork', () => {
   assert.equal(
@@ -38,7 +38,7 @@ test('pickExternalCardImageUrl falls back to TCGplayer product art from TCGdex t
 });
 
 test('explicit-slot catalog mode includes non-dex rows while legacy search stays Pokémon-only', async () => {
-  const { toSearchCardResult, cardSearchSelect } = await import('../lib/tcg-mirror');
+  const { toSearchCardResult, cardSearchSelect } = await import('../lib/catalog-queries');
   // Synthetic mirror row, not a real card or provider record.
   const trainer = {
     id: 'synthetic-trainer',

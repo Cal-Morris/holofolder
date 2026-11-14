@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  searchMirroredSets,
-  getMirroredSetDexSlots,
-  getRecentMirroredSets,
-  getBrowsableMirroredSets,
-} from '@/lib/tcg-mirror';
+import { searchSets, getSetDexSlots, getRecentSets, getBrowsableSets } from '@/lib/catalog-queries';
 import { normalizeCardLanguage } from '@/lib/domain/cards';
 import { POKEMON_CATALOG } from '@/lib/pokemon-catalog';
 import { SET_SEARCH_RESULT_LIMIT, SET_SLOTS_WIRE_VERSION, slimSetSlotsResponse } from '@/lib/tcg-set-slots';
@@ -18,14 +13,14 @@ export async function GET(request: NextRequest) {
   try {
     if (searchParams.get('all') === '1') {
       return NextResponse.json(
-        { sets: await getBrowsableMirroredSets(), selectedSet: null, slots: [] },
+        { sets: await getBrowsableSets(), selectedSet: null, slots: [] },
         { headers: PUBLIC_JSON_CACHE_HEADERS },
       );
     }
 
     if (searchParams.get('recent') === '1') {
       const asOfDate = new Date().toISOString().slice(0, 10);
-      const recentSets = await getRecentMirroredSets(asOfDate, 6);
+      const recentSets = await getRecentSets(asOfDate, 6);
 
       return NextResponse.json(
         {
@@ -43,7 +38,7 @@ export async function GET(request: NextRequest) {
     const pokemonNames = new Map(POKEMON_CATALOG.map((pokemon) => [pokemon.id, pokemon.name] as const));
     const sets =
       query.length >= 2 || requestedSetId
-        ? await searchMirroredSets(requestedSetId || query, requestedSetId ? 12 : SET_SEARCH_RESULT_LIMIT, language)
+        ? await searchSets(requestedSetId || query, requestedSetId ? 12 : SET_SEARCH_RESULT_LIMIT, language)
         : [];
     const selectedSetId = requestedSetId || null;
 
@@ -58,7 +53,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { selectedSet, slots, cards } = await getMirroredSetDexSlots(selectedSetId, language, pokemonNames);
+    const { selectedSet, slots, cards } = await getSetDexSlots(selectedSetId, language, pokemonNames);
     const allSets = sets.some((set) => set.id === selectedSetId) || !selectedSet ? sets : [selectedSet, ...sets];
 
     const response = { sets: allSets, selectedSet, slots, cards };
