@@ -462,7 +462,7 @@ test('untouched authenticated owner reconstructs genuine complete revision zero 
     if (result.status === 'complete') assert.ok(isCompleteInventorySnapshot(result.snapshot));
   });
   assert.deepEqual(f.tables, before);
-  assert.ok(f.requests.every((r) => r.table === 'inventory_read_v2'));
+  assert.ok(f.requests.every((r) => ['inventory_read_v3', 'inventory_read_v2'].includes(r.table)));
 });
 
 for (const table of ['binders', 'storage_collection_state', 'inventory_items']) {

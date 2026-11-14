@@ -230,7 +230,8 @@ export function fixture(
   let actor = owner,
     allowed = true,
     oauth = false,
-    revoked = false;
+    revoked = false,
+    catalogFromCache = false;
   const requests: { table: string; url: URL; method: string; headers: Headers }[] = [];
   let intercept: ((table: string, url: URL, init?: RequestInit) => Response | void) | undefined;
   const transport: typeof fetch = async (input, init) => {
@@ -240,7 +241,10 @@ export function fixture(
     requests.push({ table, url, method, headers: new Headers(init?.headers) });
     const overridden = intercept?.(table, url, init);
     if (overridden) return overridden;
-    if (table === 'inventory_read_v2' || table === 'inventory_read_scope_v2') {
+    // Before migration 128, PostgREST doesn't know inventory_read_v3.
+    if (table === 'inventory_read_v3' && !catalogFromCache)
+      return Response.json({ code: 'PGRST202', message: 'Could not find the function' }, { status: 404 });
+    if (table === 'inventory_read_v2' || table === 'inventory_read_v3' || table === 'inventory_read_scope_v2') {
       const fail = (message: string, code = '42501') =>
         Response.json({ code, message }, { status: code === '42501' ? 403 : 400 });
       if (oauth || revoked) return fail('inventory_sign_in_required');
@@ -274,7 +278,9 @@ export function fixture(
           : null,
       };
       return Response.json(
-        table === 'inventory_read_scope_v2' ? scope : { scope, snapshot: snapshotDocument(tables, owner) },
+        table === 'inventory_read_scope_v2'
+          ? scope
+          : { scope, snapshot: snapshotDocument(tables, owner, table === 'inventory_read_v3' ? 'slots' : 'all') },
       );
     }
     if (table === 'billing_partner_allowed') return Response.json(allowed);
@@ -287,7 +293,15 @@ export function fixture(
           .slice(4, -1)
           .split(',')
           .map((v) => v.replace(/^"|"$/g, ''));
-        rows = rows.filter((r) => values.includes(String(r[key])));
+        rows = rows.filter((r) =>
+          values.includes(
+            String(
+              key === 'external_ids_json->catalog->>canonicalId'
+                ? (r.external_ids_json as { catalog?: { canonicalId?: string } })?.catalog?.canonicalId
+                : r[key],
+            ),
+          ),
+        );
       }
       if (filter.startsWith('cs.') && key === 'external_ids_json->catalog->aliasIds')
         rows = rows.filter((r) => {
@@ -363,6 +377,10 @@ export function fixture(
     },
     revoke: (value = true) => {
       revoked = value;
+    },
+    /** Migration 128 applied: inventory_read_v3 answers without the catalog. */
+    catalogFromCache: () => {
+      catalogFromCache = true;
     },
     intercept: (fn: typeof intercept) => {
       intercept = fn;

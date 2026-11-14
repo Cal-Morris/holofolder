@@ -16,7 +16,7 @@ test('one inventory_read_v2 call returns >1025 copies and ordered slots as a bra
   assert.equal(snapshot.items[1].identity.kind, 'card');
   assert.deepEqual(
     f.requests.map((r) => r.table),
-    ['inventory_read_v2'],
+    ['inventory_read_v3', 'inventory_read_v2'],
   );
 });
 
