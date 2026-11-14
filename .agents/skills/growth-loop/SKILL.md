@@ -1,15 +1,15 @@
 ---
 name: growth-loop
-description: Run Holo Folder's weekly marketing and user-growth loop from marketing/growth-plan.md, covering measurement, SEO work, social drafting and queueing, and preparing human-only community and outreach tasks. Use when asked to drive growth, run the growth or marketing loop, or work on SEO, social posts, launches or the scoreboard.
+description: Run Holo Folder's weekly marketing and user-growth loop from the private growth plan (marketing/private/), covering measurement, SEO work, social drafting and queueing, and preparing human-only community and outreach tasks. Use when asked to drive growth, run the growth or marketing loop, or work on SEO, social posts, launches or the scoreboard.
 ---
 
 # Growth loop
 
-The plan lives in [`marketing/growth-plan.md`](../../../marketing/growth-plan.md). This skill is the routine for carrying it out. Read the plan, [`brand-voice.md`](../../../marketing/brand-voice.md) and the last few rows of [`scoreboard.md`](../../../marketing/scoreboard.md) before doing anything, because they hold the current priorities, the claims rules and what happened last week.
+The detailed plan lives in `marketing/private/growth-plan.md`, with the calendar, research, outreach list and scoreboard beside it. That folder is gitignored and exists only on Cal's machine; if it is missing (for example in a cloud run), stop and say so rather than reconstructing it. Read the plan, [`brand-voice.md`](../../../marketing/brand-voice.md) and the last few rows of `marketing/private/scoreboard.md` before doing anything, because they hold the current priorities, the claims rules and what happened last week. Never copy names, contacts or business numbers from the private folder into commits, PRs or public posts.
 
 ## Each run
 
-1. **Measure.** Collect this week's numbers and add one row to `marketing/scoreboard.md`.
+1. **Measure.** Collect this week's numbers and add one row to `marketing/private/scoreboard.md`.
    - From Supabase (read only): total accounts, accounts created in the last 7 days, share links.
    - From `bun --env-file=.env.local scripts/report-collector-funnel.ts --from=<monday> --to=<next monday>`: activation and source breakdown.
    - From Search Console (if verified): clicks and impressions.
@@ -19,7 +19,7 @@ The plan lives in [`marketing/growth-plan.md`](../../../marketing/growth-plan.md
 3. **Ship product and SEO changes** the normal way: small PRs off the latest `main`, merged on a green Typecheck under [release-and-deploy](../release-and-deploy/SKILL.md). Public set, Pokémon and card pages follow [nextjs-conventions](../nextjs-conventions/SKILL.md) (`'use cache'`, not `'use cache: remote'`, for page content), override the root `noindex` per route, and get added to `app/sitemap.ts`. Prices appear only at high or medium confidence ([pricing-signal-changes](../pricing-signal-changes/SKILL.md)).
 4. **Framer edits** (SEO fixes, footer links, blog and set posts) follow [framer-feature-updates](../framer-feature-updates/SKILL.md) for inspecting, editing and publishing, and [release-posts-and-changelog](../release-posts-and-changelog/SKILL.md) for CMS posts. Preserve collaborator edits and never publish someone else's unpublished work.
 5. **Social.**
-   - Draft the week's posts from [`content-calendar.md`](../../../marketing/content-calendar.md) using real data: the mirror, confidence-gated `card_prices`, showcase binders and shipped changes.
+   - Draft the week's posts from `marketing/private/content-calendar.md` using real data: the mirror, confidence-gated `card_prices`, showcase binders and shipped changes.
    - Render images as JPEG at a public URL (Instagram accepts JPEG only).
    - Queue the posts in Buffer through its API, using the key from the secret store.
    - Auto-publish only the formats the plan marks safe: changelog posts and set checklist graphics. Everything else goes to the queue as a draft for Cal.
@@ -41,4 +41,4 @@ The plan lives in [`marketing/growth-plan.md`](../../../marketing/growth-plan.md
 - Every link uses approved UTM values from `lib/collector-funnel.ts`.
 - Keep secrets (Buffer key, Search Console, GA credentials) out of the repo, PRs and logs. Ask for missing ones through the secret prompt.
 - One concern per PR and push once per PR (Hobby plan deploy limit). Marketing docs updates can ride along with a related PR, or batch into one weekly docs PR.
-- When the plan and reality disagree (a channel is dead, a date moved, a decision was made), update `growth-plan.md` and the calendar in the same run so the next run starts from the truth.
+- When the plan and reality disagree (a channel is dead, a date moved, a decision was made), update `marketing/private/growth-plan.md` and the calendar in the same run so the next run starts from the truth.

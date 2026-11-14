@@ -125,8 +125,8 @@ The PageSpeed Insights API refused every request with `429 Quota exceeded ... Qu
 
 **Observed:** I crawled all 122 HTML pages in the Framer sitemap plus the sampled app pages. There are **no links to a Holo Folder Instagram, X, TikTok, YouTube, Threads, Bluesky, Discord or Facebook account** anywhere on the site. The footer offers only `mailto:contact@holofolder.com`. The only social links on the site point to third parties:
 
-- `https://x.com/justmeg/status/2120464415237767364`, an attribution on one collection page.
-- `https://www.reddit.com/user/hexcalibur01000/`, on `/app/credits`.
+- An image attribution to an individual's X post on one collection page.
+- A credit to an individual's Reddit profile on `/app/credits`.
 
 If brand accounts exist, they should go in the footer and in Organization `sameAs`.
 
