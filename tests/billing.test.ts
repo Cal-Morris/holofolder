@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveBillingAccess, canCreateOwnerBinder } from '../lib/billing';
+import { resolveBillingAccess, canCreateOwnerBinder, UNLIMITED_FREE_CARD_LIMIT } from '../lib/billing';
 
 describe('billing access', () => {
   test('a signup trial unlocks all premium limits until its exact expiry', () => {
@@ -65,6 +65,17 @@ describe('billing access', () => {
   test('uses the server allowance', () => {
     const free = resolveBillingAccess('owner', { enforced: true, free_card_limit: 100, free_binder_limit: 1 });
     assert.equal(free.cardLimit, 100);
+    assert.equal(free.binderLimit, 1);
+  });
+  test('treats the unlimited allowance as no card cap but keeps the binder limit', () => {
+    const free = resolveBillingAccess('owner', {
+      enforced: true,
+      free_card_limit: UNLIMITED_FREE_CARD_LIMIT,
+      free_binder_limit: 1,
+    });
+    assert.equal(free.tier, 'free');
+    assert.equal(free.cardLimit, null);
+    assert.equal(free.freeCardLimit, UNLIMITED_FREE_CARD_LIMIT);
     assert.equal(free.binderLimit, 1);
   });
   test('keeps legacy enforcement until server allowance fields exist', () => {
