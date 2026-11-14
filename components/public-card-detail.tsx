@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { OverlayCloseButton, OverlayDialog, OverlayGrabber } from '@/components/ui/overlay-dialog';
 import { SimilarCardsRow } from '@/components/similar-cards-row';
 import { catalogueCardFromSearch, type CatalogueCard } from '@/lib/catalogue-cards';
+import { illustratorSlug } from '@/lib/illustrators';
 import { formatReleaseDate } from '@/lib/set-pages';
 
 export interface PublicCardLinks {
@@ -54,7 +55,11 @@ export default function PublicCardDetail({
           </Fact>
           <Fact label="Number">{card.number}</Fact>
           {card.rarity && <Fact label="Rarity">{card.rarity}</Fact>}
-          {card.illustrator && <Fact label="Illustrator">{card.illustrator}</Fact>}
+          {card.illustrator && (
+            <Fact label="Illustrator">
+              <Link href={`/illustrators/${illustratorSlug(card.illustrator)}`}>{card.illustrator}</Link>
+            </Fact>
+          )}
           {card.releaseDate && <Fact label="Released">{formatReleaseDate(card.releaseDate)}</Fact>}
           {card.pokemon && (
             <Fact label="Pokémon">
