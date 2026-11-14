@@ -38,6 +38,15 @@ export const foldText = (value: string) =>
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim();
 
+/** Every word of `query` starts a word of `text`, ignoring case and accents ("umbr" and "197" find "197 Umbreon"). */
+export function matchesWords(text: string, query: string) {
+  const haystack = ` ${foldText(text)} `;
+  return foldText(query)
+    .split(' ')
+    .filter(Boolean)
+    .every((word) => haystack.includes(` ${word}`));
+}
+
 /**
  * A facet's values with their card counts. Series and sets keep the cards' order (newest first on the pages that
  * mix sets); rarities and illustrators are alphabetical.
@@ -62,13 +71,10 @@ export function filterCatalogueCards(
   cards: readonly CatalogueCard[],
   { text = '', facets = {}, sort }: CatalogueFilter,
 ) {
-  const words = foldText(text).split(' ').filter(Boolean);
   const chosen = Object.entries(facets).filter(([, value]) => value) as [CatalogueFacet, string][];
   const matches = cards.filter((card) => {
     if (chosen.some(([facet, value]) => card[facet] !== value)) return false;
-    if (!words.length) return true;
-    const haystack = ` ${foldText([card.name, card.number, card.setName, card.illustrator ?? ''].join(' '))} `;
-    return words.every((word) => haystack.includes(` ${word}`));
+    return matchesWords([card.name, card.number, card.setName, card.illustrator ?? ''].join(' '), text);
   });
   if (sort === 'reverse') return matches.toReversed();
   if (sort === 'name') return matches.toSorted((a, b) => a.name.localeCompare(b.name, 'en'));

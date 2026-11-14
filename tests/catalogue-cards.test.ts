@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { facetOptions, filterCatalogueCards, foldText, type CatalogueCard } from '@/lib/catalogue-cards';
+import { facetOptions, filterCatalogueCards, foldText, matchesWords, type CatalogueCard } from '@/lib/catalogue-cards';
 
 // Synthetic cards for the filter logic; not real catalogue data.
 const card = (id: string, extra: Partial<CatalogueCard>): CatalogueCard => ({
@@ -59,4 +59,14 @@ describe('facetOptions', () => {
     ]);
     assert.equal(facetOptions(cards, 'illustrator').length, 2);
   });
+});
+
+describe('matchesWords', () => {
+  test('matches word starts, any order', () => {
+    assert.equal(matchesWords('197 Umbreon', 'umbr'), true);
+    assert.equal(matchesWords('197 Umbreon', '197'), true);
+    assert.equal(matchesWords('Mr. Mime 122', 'mime mr'), true);
+    assert.equal(matchesWords('197 Umbreon', 'breon'), false);
+  });
+  test('an empty query matches everything', () => assert.equal(matchesWords('anything', '  '), true));
 });
