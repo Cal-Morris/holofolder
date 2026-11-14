@@ -340,7 +340,13 @@ async function capture() {
 
 // ---------------------------------------------------------------- render
 
-const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const esc = (s) =>
+  String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 const shotUrl = (name) => `file://${join(SHOTS, `${name}.png`)}`;
 
 function visualHtml(v) {
