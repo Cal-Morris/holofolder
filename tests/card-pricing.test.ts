@@ -132,6 +132,24 @@ test('buildCardPriceSnapshotFromPricing never prices from Cardmarket low (any la
   assert.equal(withTrend.sourcePrices[0].lowGbpAmount, null);
 });
 
+test('buildCardPriceSnapshotFromPricing prefers Unlimited over 1st Edition for vintage cards', () => {
+  // Synthetic fixture: 1st Edition trades at a large premium over the Unlimited printing.
+  const snapshot = buildCardPriceSnapshotFromPricing(
+    'neo4-111',
+    'en',
+    {
+      tcgplayer: {
+        updated: '2026-06-27T10:00:00.000Z',
+        '1st-edition-holofoil': { midPrice: 15000 },
+        'unlimited-holofoil': { lowPrice: 500, marketPrice: 600 },
+      },
+    },
+    fxRates,
+  );
+  assert.equal(snapshot.gbpAmount, 450);
+  assert.equal(snapshot.variantLabel, 'Unlimited Holofoil');
+});
+
 test('buildCardPriceSnapshotFromPricing marks inferred price ranges as medium confidence', () => {
   const snapshot = buildCardPriceSnapshotFromPricing(
     'sv1-003',
