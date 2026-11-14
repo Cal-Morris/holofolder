@@ -67,3 +67,19 @@ export function appRedirectUrl(path: string | null, requestUrl: string) {
   const origin = ['app.holofolder.com', 'holofolder.com'].includes(url.hostname) ? PRODUCTION_SITE_URL : url.origin;
   return new URL(appReturnPath(path), origin);
 }
+
+const TOKEN_HASH_MARKER = '?token_hash=';
+
+/**
+ * Email templates link to `{{ .RedirectTo }}?token_hash=…&type=…` so the link verifies on any device.
+ * When the redirect already carries `?next=…`, the appended `?token_hash=` lands inside the encoded
+ * `next` value instead, so read it back out of there.
+ */
+export function readEmailLinkParams(params: URLSearchParams) {
+  const next = params.get('next');
+  const type = params.get('type');
+  const tokenHash = params.get('token_hash');
+  const marker = next?.lastIndexOf(TOKEN_HASH_MARKER) ?? -1;
+  if (tokenHash || !next || marker < 0) return { tokenHash, type, next };
+  return { tokenHash: next.slice(marker + TOKEN_HASH_MARKER.length), type, next: next.slice(0, marker) };
+}

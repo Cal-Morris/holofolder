@@ -87,14 +87,16 @@ Keep the existing `/app` and `/app/*` rules. Framer rewrites the request while p
 
 Apply `scripts/045_named_binder_shares.sql`, `scripts/047_account_usernames.sql` and `scripts/048_named_share_account_identity.sql` in order before enabling named addresses. Account usernames use the existing 047 profile settings and canonical identity store; 048 preserves existing saved names while connecting binder sharing. These migrations have been applied and verified on the hosted project. If it is missing, the new controls report unavailable and token sharing still works. Named routes and token routes are read-only, noindex and request-time rendered. The service worker excludes both from private offline-shell fallback; `/@…` is outside the app scope. Open pages retain already downloaded cards, so revocation prevents new loads rather than erasing a visitor's existing copy.
 
-## Email signup confirmation across devices
+## Email links across devices
 
-The hosted Supabase **Confirm sign up** email template uses this URL for every confirmation button and plain-text fallback:
+Every hosted Supabase email that carries a sign-in link (**Confirm sign up**, **Magic link**, **Reset password** and **Invite**) uses this URL for its button and plain-text fallback, with `type` set to `email`, `email`, `recovery` and `invite` respectively:
 
 ```html
 {{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=email
 ```
 
-`RedirectTo` is the `/app/auth/callback` URL passed by both signup forms. The callback calls `verifyOtp`, so the email can be opened on a different device. Do not switch this template back to `ConfirmationURL`: with the SSR client's PKCE flow that verifies the email upstream, then redirects with a code whose exchange needs the original browser's verifier cookie.
+`RedirectTo` is the `/app/auth/callback` URL the form passed. The callback calls `verifyOtp`, so the email can be opened on a different device. Do not switch these templates back to `ConfirmationURL`: with the SSR client's PKCE flow that verifies upstream, then redirects with a code whose exchange needs the original browser's verifier cookie.
 
-Applied to all three links in the production signup template on 8 November 2026. A fresh-session production request with a generated email token returned 307 to `/app` and set the session cookie without a verifier. Existing emails retain their original links; after an old cross-device code exchange fails, the email may already be confirmed, so password sign-in can succeed. New confirmations must use a newly requested email.
+When the form passed a return path (`getMagicLinkRedirectUrl(returnTo)` from the sign-in sheet) or the reset page (`getPasswordRecoveryRedirectUrl()`), `RedirectTo` already ends in `?next=…`, so the appended `?token_hash=…` lands inside the encoded `next` value. `readEmailLinkParams` in `lib/auth-redirects.ts` reads it back out, so one template shape works for every caller.
+
+The signup template has used this URL since 8 November 2026. Existing emails retain their original links; after an old cross-device code exchange fails, the email may already be confirmed, so password sign-in can succeed. New confirmations must use a newly requested email.

@@ -4,6 +4,7 @@ import {
   getMagicLinkRedirectUrl,
   getPasswordRecoveryRedirectUrl,
   getSignedOutRedirectPath,
+  readEmailLinkParams,
 } from '../lib/auth-redirects';
 
 const ENV_KEYS = [
@@ -122,5 +123,25 @@ test('docs sign-in can return to the key guide without allowing external redirec
       getMagicLinkRedirectUrl('https://untrusted.example/'),
       'https://holofolder.com/app/auth/callback?next=%2Fapp',
     );
+  });
+});
+
+test('email links read token_hash from the top-level query', () => {
+  assert.deepEqual(readEmailLinkParams(new URLSearchParams('token_hash=abc&type=email')), {
+    tokenHash: 'abc',
+    type: 'email',
+    next: null,
+  });
+});
+
+test('email links recover token_hash appended after an encoded next path', () => {
+  // `{{ .RedirectTo }}?token_hash=…` where RedirectTo is getPasswordRecoveryRedirectUrl().
+  const link = new URL(
+    'https://holofolder.com/app/auth/callback?next=%2Fapp%2Fauth%2Flogin%3Fmode%3Drecovery?token_hash=abc&type=recovery',
+  );
+  assert.deepEqual(readEmailLinkParams(link.searchParams), {
+    tokenHash: 'abc',
+    type: 'recovery',
+    next: '/app/auth/login?mode=recovery',
   });
 });
