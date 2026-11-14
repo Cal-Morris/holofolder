@@ -1,6 +1,6 @@
 # Card catalog supplements
 
-TCGdex remains the primary catalog. The supplementary importer unions its records with a pinned historical Pokémon TCG dataset and current TCGCSV product metadata. It does not run during card selection, so provider outages do not slow down or empty the selector.
+The catalog in `tcg_*` is Holo Folder's own, aggregated from several sources (see "Holo Folder owns the data" in [AGENTS.md](../AGENTS.md)). TCGdex is the largest source and is imported by `sync-card-db`. The supplementary importer adds to it a pinned historical Pokémon TCG dataset and current TCGCSV product metadata. It does not run during card selection, so provider outages do not slow down or empty the selector.
 
 ```bash
 bun run sync-card-supplements --source-dir /path/to/source-cache --report /path/to/report.json
