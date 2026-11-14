@@ -6,12 +6,12 @@ import { sanitizeAttribution } from '@/lib/collector-funnel';
 const Enabled = createContext(false);
 const SOURCE_KEY = 'holofolder_funnel_source';
 const inFlight = new Set<string>();
-function captureSource() {
+function captureSource(search = location.search) {
   try {
     const old = JSON.parse(sessionStorage.getItem(SOURCE_KEY) ?? 'null');
     if (old && typeof old.at === 'number' && Date.now() - old.at < 2 * 60 * 60_000) return;
     sessionStorage.removeItem(SOURCE_KEY);
-    const params = new URLSearchParams(location.search);
+    const params = new URLSearchParams(search);
     const attribution = sanitizeAttribution({
       source: params.get('utm_source'),
       medium: params.get('utm_medium'),
@@ -29,6 +29,11 @@ export function CollectorFunnelProvider({ enabled, children }: { enabled: boolea
     if (enabled) captureSource();
   }, [enabled]);
   return <Enabled.Provider value={enabled}>{children}</Enabled.Provider>;
+}
+/** Records an in-app link's source (e.g. a share page CTA) the same way a landing URL's UTM values are, first touch only. */
+export function useCaptureCollectorSource() {
+  const enabled = use(Enabled);
+  return useCallback((search: string) => enabled && captureSource(search), [enabled]);
 }
 export function useTrackCollectorEvent() {
   const enabled = use(Enabled);

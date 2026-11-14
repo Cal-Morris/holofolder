@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { PromptStrip } from '@/components/ui/prompt-strip';
 import { readPushMembership } from '@/lib/partner-push';
 
 export function PartnerPushPrompt({ userId, onOpen }: { userId: string; onOpen(): void }) {
@@ -36,11 +37,10 @@ export function PartnerPushPrompt({ userId, onOpen }: { userId: string; onOpen()
   };
   if (!visible) return null;
   return (
-    <section
-      aria-label="Partner updates at the show"
-      className="border-border bg-muted/50 flex shrink-0 items-center gap-2 border-b px-3 py-2 text-xs"
+    <PromptStrip
+      label="Partner updates at the show"
+      message="Hear when your partner finds a card. Enable notifications on this device."
     >
-      <p className="min-w-0 flex-1">Hear when your partner finds a card. Enable notifications on this device.</p>
       <button
         type="button"
         className="border-border min-h-9 shrink-0 rounded-lg border px-2 font-semibold"
@@ -54,6 +54,6 @@ export function PartnerPushPrompt({ userId, onOpen }: { userId: string; onOpen()
       <button type="button" className="min-h-9 shrink-0 rounded-lg px-2" onClick={dismiss}>
         Not now
       </button>
-    </section>
+    </PromptStrip>
   );
 }

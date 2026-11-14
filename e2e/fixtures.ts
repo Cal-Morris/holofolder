@@ -51,7 +51,7 @@ function base64Url(value: string) {
 }
 
 /** A locally valid (unsigned) Supabase session so the browser client treats the user as signed in. */
-function fakeSessionCookieValue() {
+export function fakeSessionCookieValue() {
   const expiresAt = Math.floor(Date.now() / 1000) + 3600;
   const accessToken = [
     base64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' })),

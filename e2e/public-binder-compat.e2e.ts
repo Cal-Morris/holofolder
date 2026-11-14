@@ -1,4 +1,4 @@
-import { test, expect, emulateStandalone } from './fixtures';
+import { test, expect, emulateStandalone, fakeSessionCookieValue, SUPABASE_URL } from './fixtures';
 import { mockCardPrices } from './price-fixtures';
 import type { CDPSession, Locator, Page, Request } from '@playwright/test';
 
@@ -258,6 +258,52 @@ for (const path of paths('stress')) {
     },
   );
 }
+
+for (const path of paths('token', 'mixed')) {
+  test(`@matrix signed-out viewers get the start-your-own CTA above the binder: ${path}`, async ({
+    page,
+    standalone,
+    insets,
+  }, info) => {
+    const phone = await open(page, path, standalone, insets);
+    const cta = page.getByRole('region', { name: 'Made with Holo Folder' });
+    await expect(cta).toContainText('Start your own binder free');
+    await expect(cta).toContainText('unlimited cards');
+    const start = cta.getByRole('button', { name: 'Start free' });
+    const dismiss = cta.getByRole('button', { name: 'Dismiss' });
+    await phone.expectMinTapTarget(start, 36);
+    await phone.expectMinTapTarget(dismiss, 36);
+    await phone.expectWithinSafeViewport(cta);
+    // Above the binder page, never over it.
+    const strip = (await cta.boundingBox())!,
+      binder = (await page.locator('[data-binder-page]').boundingBox())!;
+    expect(strip.y + strip.height).toBeLessThanOrEqual(binder.y + 0.5);
+    await phone.expectNoHorizontalOverflow();
+    if (path.includes('/share/')) await page.screenshot({ path: `test-results/share-cta/${info.project.name}.png` });
+    await start.click();
+    await expect(page.getByRole('dialog', { name: 'Create account' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await dismiss.click();
+    await expect(cta).toHaveCount(0);
+    await page.reload();
+    await expect(page.locator('[data-binder-page]')).toBeVisible({ timeout: 30_000 });
+    await expect(cta).toHaveCount(0);
+  });
+}
+
+test('signed-in viewers, the owner included, never see the CTA', async ({ page, baseURL }) => {
+  await page.context().addCookies([
+    {
+      name: `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`,
+      value: fakeSessionCookieValue(),
+      url: baseURL!,
+    },
+  ]);
+  await page.goto('/app/share/synthetic-token');
+  await expect(page.locator('[data-binder-page]')).toBeVisible({ timeout: 30_000 });
+  await page.waitForLoadState('networkidle');
+  await expect(page.getByRole('region', { name: 'Made with Holo Folder' })).toHaveCount(0);
+});
 
 for (const path of paths('revoked')) {
   test(`a revoked share is not found and renders no pockets: ${path}`, async ({ page }) => {
