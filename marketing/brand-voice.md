@@ -4,12 +4,14 @@ These rules apply to every public word the growth loop drafts or publishes: soci
 
 ## Accounts
 
-| Platform         | Handle           | Status                                                                             |
-| ---------------- | ---------------- | ---------------------------------------------------------------------------------- |
-| Instagram        | not recorded yet | Exists, needs switching to a Professional account and linking in the Framer footer |
-| X                | not recorded yet | Exists, needs linking in the Framer footer                                         |
-| Threads, Bluesky | none             | Add through Buffer once Instagram is connected                                     |
-| TikTok, YouTube  | none             | Add once there is filmed footage                                                   |
+| Platform         | Handle      | Status                                                                 |
+| ---------------- | ----------- | ---------------------------------------------------------------------- |
+| Instagram        | @holofolder | Professional account, connected to Buffer, linked in the Framer footer |
+| X                | @HoloFolder | Connected to Buffer, linked in the Framer footer                       |
+| Threads, Bluesky | none        | Optional later through Buffer                                          |
+| TikTok           | @holofolder | Connected to Buffer, linked in the Framer footer. Needs video          |
+| Facebook         | page exists | Mirror of Instagram via Accounts Center, no direct posting             |
+| YouTube          | none        | Add once there is filmed footage                                       |
 
 ## Voice
 
