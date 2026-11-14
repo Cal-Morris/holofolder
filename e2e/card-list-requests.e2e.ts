@@ -12,7 +12,7 @@ test.describe('card list requests', () => {
         const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
         const url = new URL(raw, window.location.href);
         if (url.pathname === '/app/api/cards/pokemon') {
-          const key = `${url.searchParams.get('pokemonId')}:${url.searchParams.get('language')}`;
+          const key = `${url.searchParams.get('dexId')}:${url.searchParams.get('language')}`;
           counts[key] = (counts[key] ?? 0) + 1;
         }
         return originalFetch(input, init);

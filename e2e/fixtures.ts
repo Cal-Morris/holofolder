@@ -359,7 +359,7 @@ export async function mockBackends(
     });
   });
   await target.route('**/app/api/cards/pokemon**', (route) => {
-    const pokemonId = Number(new URL(route.request().url()).searchParams.get('pokemonId'));
+    const pokemonId = Number(new URL(route.request().url()).searchParams.get('dexId'));
     const cards = MOCK_CARDS.filter((card) => card.dexIds.includes(pokemonId)).map(
       ({ dexIds: _dexIds, ...card }) => card,
     );

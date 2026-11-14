@@ -101,7 +101,7 @@ async function mockNetwork(context: BrowserContext, page: Page) {
   await context.route(
     '**/app/api/cards/pokemon**',
     guard((route) => {
-      const pokemonId = Number(new URL(route.request().url()).searchParams.get('pokemonId'));
+      const pokemonId = Number(new URL(route.request().url()).searchParams.get('dexId'));
       return route.fulfill({
         json: {
           cards: MOCK_CARDS.filter((card) => card.dexIds.includes(pokemonId)).map((card) => ({

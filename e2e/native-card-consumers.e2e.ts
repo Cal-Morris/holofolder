@@ -13,7 +13,7 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
     route.fulfill({
       json: {
         cards: cards.filter((c) =>
-          c.dexIds.includes(Number(new URL(route.request().url()).searchParams.get('pokemonId'))),
+          c.dexIds.includes(Number(new URL(route.request().url()).searchParams.get('dexId'))),
         ),
       },
     }),
