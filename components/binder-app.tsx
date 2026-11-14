@@ -67,6 +67,7 @@ import {
   type SupportedCurrency,
 } from '@/hooks/use-card-prices';
 import { PartnerPushPrompt } from '@/components/partner-push-prompt';
+import { ShareCta } from '@/components/share-cta';
 import { usePartnerPush } from '@/hooks/use-partner-push';
 import { clearPushDevice } from '@/lib/push-device-client';
 import { type CardFinish, type WantedCard } from '@/lib/domain/cards';
@@ -4653,6 +4654,16 @@ function BinderAppSurface(props: BinderAppProps) {
             </div>
           )}
           {browserHeader}
+          {publicIndex && !user && (
+            <ShareCta
+              onStart={() =>
+                openExclusively(() => {
+                  setAuthInitialMode('sign-up');
+                  setIsAuthOpen(true);
+                })
+              }
+            />
+          )}
           {isInstalledApp && isShowModeOn && user && !readOnlyMode && (
             <PartnerPushPrompt
               userId={user.id}

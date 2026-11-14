@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sanitizeAttribution, readClientFunnelEvent, funnelReport } from '../lib/collector-funnel';
+import { readFileSync, readdirSync } from 'node:fs';
+import {
+  approved,
+  sanitizeAttribution,
+  readClientFunnelEvent,
+  funnelReport,
+  SHARE_CTA_ATTRIBUTION,
+} from '../lib/collector-funnel';
 
 test('only approved non-identifying acquisition slugs survive', () => {
   assert.deepEqual(sanitizeAttribution({ source: 'YouTube', medium: 'social', campaign: 'launch' }), {
@@ -17,6 +24,30 @@ test('only approved non-identifying acquisition slugs survive', () => {
   ])
     assert.equal(sanitizeAttribution({ source }).source, null);
   assert.equal(sanitizeAttribution(null).source, null);
+});
+test('the share page CTA and X posts carry approved attribution', () => {
+  const params = new URLSearchParams(SHARE_CTA_ATTRIBUTION);
+  const raw = {
+    source: params.get('utm_source'),
+    medium: params.get('utm_medium'),
+    campaign: params.get('utm_campaign'),
+  };
+  assert.deepEqual(sanitizeAttribution(raw), { source: 'share', medium: 'referral', campaign: 'share-link' });
+  assert.equal(sanitizeAttribution({ source: 'X' }).source, 'x');
+});
+test('the database allowlist matches the approved slugs', () => {
+  // The latest migration that sets each collector_accounts check is the live allowlist.
+  const sql = readdirSync('scripts')
+    .filter((f) => /^\d{3}_.*\.sql$/.test(f))
+    .sort()
+    .map((f) => readFileSync(`scripts/${f}`, 'utf8'))
+    .join('\n');
+  for (const field of ['source', 'medium', 'campaign'] as const) {
+    const lists = [...sql.matchAll(new RegExp(`check \\(${field} is null or ${field} in \\(([^)]*)\\)`, 'g'))];
+    const list = lists.at(-1)!;
+    const values = list[1].split(',').map((v) => v.trim().replace(/'/g, ''));
+    assert.deepEqual(new Set(values), approved[field], field);
+  }
 });
 test('clients cannot forge trusted milestones or arbitrary telemetry fields', () => {
   assert.equal(readClientFunnelEvent({ event: 'app_open', attribution: { source: 'reddit' } }).event, 'app_open');

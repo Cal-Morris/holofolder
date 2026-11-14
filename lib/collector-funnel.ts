@@ -11,7 +11,7 @@ export const FUNNEL_EVENTS = [
   'cancelled',
 ] as const;
 export type FunnelEventName = (typeof FUNNEL_EVENTS)[number];
-const approved = {
+export const approved = {
   source: new Set([
     'direct',
     'google',
@@ -29,10 +29,23 @@ const approved = {
     'shop',
     'newsletter',
     'community',
+    'share',
+    'x',
   ]),
   medium: new Set(['social', 'organic', 'cpc', 'referral', 'email', 'affiliate', 'qr', 'creator', 'shop']),
-  campaign: new Set(['launch', 'collector-growth', 'free-plan', 'import', 'card-show', 'social', 'newsletter']),
+  campaign: new Set([
+    'launch',
+    'collector-growth',
+    'free-plan',
+    'import',
+    'card-show',
+    'social',
+    'newsletter',
+    'share-link',
+  ]),
 };
+/** UTM query the public share page's call to action records as the visit's first touch. */
+export const SHARE_CTA_ATTRIBUTION = '?utm_source=share&utm_medium=referral&utm_campaign=share-link';
 export interface FunnelAttribution {
   source: string | null;
   medium: string | null;
