@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import sitemap from '@/app/sitemap';
+import { docsSitemapEntries } from '@/lib/docs-source';
 import { DEVELOPER_OPERATIONS } from '@/lib/developer-api/operations';
 
-test('the sitemap discovers public guides and every generated API reference at their canonical URLs', async () => {
-  const entries = await sitemap();
+test('the docs sitemap entries discover public guides and every generated API reference at their canonical URLs', async () => {
+  const entries = await docsSitemapEntries();
   const urls = entries.map((entry) => entry.url);
   assert.equal(new Set(urls).size, urls.length, 'sitemap URLs must be unique');
   for (const path of ['/docs', '/docs/api-keys', '/docs/bulk-layout', '/docs/set-checklist-drafts']) {
