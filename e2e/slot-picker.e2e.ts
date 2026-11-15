@@ -184,6 +184,24 @@ test.describe('explicit stable-slot picker', () => {
     ]);
   });
 
+  test('Pick all picks every shown card in one tap, ready to add in one save', async ({ harness }) => {
+    const { page } = harness;
+    const dialog = await search(page, 'slot-g', 'synthetic');
+    const pickAll = dialog.getByRole('button', { name: /^Pick all \(\d+\)$/ });
+    await harness.expectMinTapTarget(pickAll, 36);
+    await harness.expectNoHorizontalOverflow();
+    const shown = Number((await pickAll.textContent())!.match(/\d+/)![0]);
+    expect(shown).toBeGreaterThan(1);
+    await pickAll.click();
+    await expect(variant(page)).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: 'Pick one', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(dialog.getByRole('button', { name: /^Pick card /, pressed: true })).toHaveCount(shown);
+    await expect(dialog).toContainText(`${shown} picked`);
+    await dialog.getByRole('button', { name: `Add ${shown} cards`, exact: true }).click();
+    await expect(count(page)).toHaveText('1');
+    expect((await draft(page)).intent.request.commands).toHaveLength(shown);
+  });
+
   test('any-card search says it finds artists, the Artist filter narrows to one, and filters show before results', async ({
     harness,
   }) => {
