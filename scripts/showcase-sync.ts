@@ -458,15 +458,18 @@ async function syncPage(read: Read, api: Api, ownerId: string, page: PageConfig,
       ...(art.frame ? { frame: art.frame } : {}),
     }));
     const [stored] = await read<{ page_art: unknown }>('SELECT page_art FROM binders WHERE id = $1', [id]);
-    const key = (value: unknown) =>
-      JSON.stringify(
-        ((value as typeof pageArt | null) ?? []).map(({ id, anchorSlotId, rows, cols }) => [
-          id,
-          anchorSlotId,
-          rows,
-          cols,
-        ]),
-      );
+    // jsonb reorders object keys, so compare with sorted keys.
+    const sorted = (value: unknown): unknown =>
+      Array.isArray(value)
+        ? value.map(sorted)
+        : value && typeof value === 'object'
+          ? Object.fromEntries(
+              Object.entries(value)
+                .toSorted(([x], [y]) => x.localeCompare(y))
+                .map(([k, v]) => [k, sorted(v)]),
+            )
+          : value;
+    const key = (value: unknown) => JSON.stringify(sorted(value ?? []));
     if (key(stored?.page_art) !== key(pageArt)) {
       say(`${page.slug}: set ${pageArt.length} page art pictures`);
       if (!dryRun) await api('update_binder', { id, pageArt });
