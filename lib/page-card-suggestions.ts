@@ -6,9 +6,30 @@ export type SuggestionTraits = { id: string; setId: string; illustrator?: string
 /** Points per page card a candidate shares something with, so a page's dominant theme wins. */
 const WEIGHTS = { pokemon: 4, illustrator: 3, type: 1, set: 1 };
 
+/** Most seeds one suggestion request takes (the API's cap). */
+export const MAX_SUGGESTION_SEEDS = 40;
+
+export type SuggestionSeedSet = { cardIds: string[]; pokemonIds: number[] };
+
+function seedSet(
+  cards: ReadonlyArray<{ cardId?: string; pokemonId?: number }>,
+  max = Infinity,
+): SuggestionSeedSet | null {
+  const cardIds = [...new Set(cards.flatMap((c) => (c.cardId ? [c.cardId] : [])))].toSorted();
+  const pokemonIds = [...new Set(cards.flatMap((c) => (c.pokemonId ? [c.pokemonId] : [])))].toSorted((a, b) => a - b);
+  if (!cardIds.length && !pokemonIds.length) return null;
+  const total = cardIds.length + pokemonIds.length;
+  if (total <= max) return { cardIds, pokemonIds };
+  // ponytail: evenly spaced sample of a big binder, weight by repeated Pokémon/sets if suggestions feel off-theme.
+  const pick = <T>(list: T[], n: number) =>
+    Array.from({ length: n }, (_, i) => list[Math.floor((i * list.length) / n)]);
+  const cardShare = Math.round((max * cardIds.length) / total);
+  return { cardIds: pick(cardIds, cardShare), pokemonIds: pick(pokemonIds, max - cardShare) };
+}
+
 /**
- * The page a free pocket is on, as suggestion seeds: card ids and Pokémon on that page, plus every card already in the
- * binder (never suggested again).
+ * Suggestion seeds for a free pocket: the cards and Pokémon on its page, a spread of the whole binder's (at most
+ * MAX_SUGGESTION_SEEDS), plus every card already in the binder (never suggested again).
  */
 export function pageSuggestionSeeds(
   snapshot: InventorySnapshot,
@@ -20,19 +41,22 @@ export function pageSuggestionSeeds(
   const at = slots.findIndex((s) => s.id === slotId);
   if (at < 0 || perPage < 1) return null;
   const items = new Map(snapshot.items.map((item) => [item.id, item]));
-  const cardOf = (slot: (typeof slots)[number]) => {
+  const cardOf = (slot: (typeof slots)[number]): { cardId?: string; pokemonId?: number } => {
     const identity = slot.inventoryItemId ? items.get(slot.inventoryItemId)?.identity : undefined;
     if (identity) return identity.kind === 'card' ? { cardId: identity.cardId } : { pokemonId: identity.pokemonId };
     if (slot.target)
       return slot.target.kind === 'card' ? { cardId: slot.target.cardId } : { pokemonId: slot.target.pokemonId };
     return {};
   };
+  const all = slots.map(cardOf);
   const first = at - (at % perPage);
-  const page = slots.slice(first, first + perPage).map(cardOf);
-  const cardIds = [...new Set(page.flatMap((c) => (c.cardId ? [c.cardId] : [])))].toSorted();
-  const pokemonIds = [...new Set(page.flatMap((c) => (c.pokemonId ? [c.pokemonId] : [])))].toSorted((a, b) => a - b);
-  if (!cardIds.length && !pokemonIds.length) return null;
-  return { cardIds, pokemonIds, binderCardIds: slots.flatMap((s) => cardOf(s).cardId ?? []) };
+  const binder = seedSet(all, MAX_SUGGESTION_SEEDS);
+  if (!binder) return null;
+  return {
+    page: seedSet(all.slice(first, first + perPage)),
+    binder,
+    binderCardIds: all.flatMap((c) => c.cardId ?? []),
+  };
 }
 
 /** Candidates ranked by what they share with the page's cards (and Pokémon-only pockets). Seeds themselves are left out. */

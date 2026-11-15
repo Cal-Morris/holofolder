@@ -34,11 +34,14 @@ with Japanese names. `similarity` is the cosine similarity of the two pictures, 
 the card has no fingerprint yet, and an unknown card ID returns `404 not_found`. Same artwork returns at most 24 cards
 and Similar look at most 12.
 
-## Suggestions for a binder page
+## Suggestions for a binder page or binder
 
 Tapping an empty pocket that isn't kept for a Pokémon or a card opens the card picker. Turn on the sparkle button in its
 search box to see cards that would fit the page while the search is empty. The choice is remembered on the device, and
 typing a search shows the usual results. Suggestions need a connection; offline the picker only searches.
+
+Suggestions start from the cards on the pocket's page. Switch to **Whole binder** below the search box to suggest from
+the whole binder instead (a spread of up to 40 of its cards and Pokémon); a page with nothing on it starts there.
 
 Cards that look like several cards on the page come first: each page card's Similar look neighbours (never other
 printings of the same artwork) add up their similarity. The list is then filled with cards sharing a Pokémon,

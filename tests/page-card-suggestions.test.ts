@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { InventorySnapshot } from '@/lib/domain/inventory';
 import {
+  MAX_SUGGESTION_SEEDS,
   pageSuggestionSeeds,
   rankPageSuggestions,
   rankVisualSuggestions,
@@ -71,17 +72,39 @@ describe('pageSuggestionSeeds', () => {
     ],
   } as unknown as InventorySnapshot;
 
-  test('reads the tapped pocket’s page and excludes every card in the binder', () => {
+  test('reads the tapped pocket’s page and the whole binder, and excludes every card in the binder', () => {
     assert.deepEqual(pageSuggestionSeeds(snapshot, 'b1', 's3', 4), {
-      cardIds: ['owned-1', 'reserved-1'],
-      pokemonIds: [4],
+      page: { cardIds: ['owned-1', 'reserved-1'], pokemonIds: [4] },
+      binder: { cardIds: ['next-page', 'owned-1', 'reserved-1'], pokemonIds: [4] },
       binderCardIds: ['owned-1', 'reserved-1', 'next-page'],
     });
   });
 
-  test('an empty page has nothing to suggest from', () => {
-    assert.equal(pageSuggestionSeeds(snapshot, 'b1', 's3', 1), null);
+  test('an empty page still suggests from the binder; an empty binder has nothing', () => {
+    assert.deepEqual(pageSuggestionSeeds(snapshot, 'b1', 's3', 1)?.page, null);
+    assert.ok(pageSuggestionSeeds(snapshot, 'b1', 's3', 1)?.binder);
     assert.equal(pageSuggestionSeeds(snapshot, 'b1', 'missing', 4), null);
+    const empty = {
+      items: [],
+      binders: [{ collectionId: 'b1', slots: [{ id: 's0', inventoryItemId: null, target: null }] }],
+    };
+    assert.equal(pageSuggestionSeeds(empty as unknown as InventorySnapshot, 'b1', 's0', 4), null);
+  });
+
+  test('a big binder is sampled across its whole length to the request cap', () => {
+    const slots = Array.from({ length: 300 }, (_, i) => ({
+      id: `s${i}`,
+      inventoryItemId: null,
+      target:
+        i % 3 ? { kind: 'card', cardId: `c${String(i).padStart(3, '0')}` } : { kind: 'pokemon', pokemonId: i + 1 },
+    }));
+    const big = { items: [], binders: [{ collectionId: 'b1', slots }] } as unknown as InventorySnapshot;
+    const seeds = pageSuggestionSeeds(big, 'b1', 's0', 9);
+    assert.ok(seeds);
+    assert.equal(seeds.binder.cardIds.length + seeds.binder.pokemonIds.length, MAX_SUGGESTION_SEEDS);
+    assert.equal(seeds.binder.cardIds[0], 'c001');
+    assert.ok(seeds.binder.cardIds.at(-1)! > 'c280', 'reaches the end of the binder');
+    assert.equal(seeds.binderCardIds.length, 200);
   });
 });
 

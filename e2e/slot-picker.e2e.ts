@@ -1020,6 +1020,17 @@ test.describe('explicit stable-slot picker', () => {
     ]);
     expect(requests[0].get('like')).toBeTruthy();
     await harness.expectNoHorizontalOverflow();
+    // This page is the default; Whole binder suggests from every card in the binder (the same request when the
+    // synthetic binder is one page).
+    const scope = dialog.getByRole('radiogroup', { name: 'Suggest from' });
+    await expect(scope.getByRole('radio', { name: 'This page' })).toHaveAttribute('aria-checked', 'true');
+    await harness.expectMinTapTarget(scope.getByRole('radio', { name: 'Whole binder' }), 36);
+    await scope.getByRole('radio', { name: 'Whole binder' }).click();
+    await expect(dialog.getByText('Suggested for this binder')).toBeVisible();
+    const binderLike = requests.at(-1)?.get('like')?.split(',') ?? [];
+    for (const id of requests[0].get('like')?.split(',') ?? []) expect(binderLike).toContain(id);
+    await scope.getByRole('radio', { name: 'This page' }).click();
+    await expect(dialog.getByText('Suggested for this page')).toBeVisible();
     // Typing searches as usual; clearing the search brings the suggestions back.
     await dialog.getByRole('searchbox', { name: 'Search cards' }).fill('snorlax');
     await expect(dialog.getByText('Suggested for this page')).toHaveCount(0);

@@ -1196,7 +1196,9 @@ export default function CardSelector({
                   {several && (showingSuggestions || anyCardQuery.trim() || !anyCard)
                     ? pickCounter(picks.length, room, placed, atCap)
                     : showingSuggestions
-                      ? 'Suggested for this page'
+                      ? suggestions.scope === 'page'
+                        ? 'Suggested for this page'
+                        : 'Suggested for this binder'
                       : anyCard && !anyCardQuery.trim()
                         ? 'Any card, Trainer or Energy'
                         : isLoading
@@ -1326,6 +1328,31 @@ export default function CardSelector({
               </div>
               <CardResultsFiltersButton activeCount={activeFilterChips.length} onOpen={() => setIsFiltersOpen(true)} />
             </div>
+            {showingSuggestions && (
+              <div role="radiogroup" aria-label="Suggest from" className="mt-2 flex gap-1.5">
+                {(
+                  [
+                    ['page', 'This page'],
+                    ['binder', 'Whole binder'],
+                  ] as const
+                ).map(([scope, label]) => {
+                  const active = suggestions.scope === scope;
+                  return (
+                    <button
+                      key={scope}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      disabled={scope === 'page' && !suggestions.canUsePage}
+                      onClick={() => suggestions.setScope(scope)}
+                      className={`flex h-9 shrink-0 items-center rounded-full border px-3.5 text-xs font-semibold disabled:opacity-40 ${active ? 'border-primary/40 bg-primary/15 text-primary' : 'border-border/70 bg-card'}`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <ActiveFilterChips
               chips={activeFilterChips}
@@ -1511,7 +1538,9 @@ export default function CardSelector({
                   )}
                   <p className="text-sm font-semibold">
                     {showingSuggestions
-                      ? 'No suggestions for this page'
+                      ? suggestions.scope === 'page'
+                        ? 'No suggestions for this page'
+                        : 'No suggestions for this binder'
                       : !anyCardQuery.trim()
                         ? 'Search for a card'
                         : !isOnline
@@ -1520,7 +1549,9 @@ export default function CardSelector({
                   </p>
                   <p className="text-muted-foreground text-xs">
                     {showingSuggestions
-                      ? 'Add a few cards to this page first, or search for one.'
+                      ? suggestions.scope === 'page'
+                        ? 'Try the whole binder, or search for a card.'
+                        : 'Add a few cards to this binder first, or search for one.'
                       : !anyCardQuery.trim()
                         ? 'Type a name, a set or a card number. Trainers and Energy work too.'
                         : !isOnline
