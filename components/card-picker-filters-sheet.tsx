@@ -8,8 +8,9 @@ import { CARD_PICKER_LANGUAGES, CARD_PICKER_VARIANTS, type CardPickerVariantChoi
 import { Select } from '@/components/ui/select';
 
 interface CardPickerFiltersSheetProps {
-  sort: CardPickerSort;
-  onSortChange: (sort: CardPickerSort) => void;
+  /** Left out where the order is fixed (the new binder wizard): hides Sort. */
+  sort?: CardPickerSort;
+  onSortChange?: (sort: CardPickerSort) => void;
   language: CardSearchLanguage;
   onLanguageChange: (language: CardSearchLanguage) => void;
   /** Card search only: offer "Any", every printing in its own language. */
@@ -77,21 +78,23 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-2">
-        <label className="block space-y-1.5">
-          <span className="text-muted-foreground text-xs font-semibold">Sort</span>
-          <Select
-            aria-label="Sort cards"
-            className={selectClass}
-            value={props.sort}
-            onChange={(event) => props.onSortChange(normalizeCardPickerSort(event.target.value))}
-          >
-            {CARD_PICKER_SORTS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </label>
+        {props.onSortChange && (
+          <label className="block space-y-1.5">
+            <span className="text-muted-foreground text-xs font-semibold">Sort</span>
+            <Select
+              aria-label="Sort cards"
+              className={selectClass}
+              value={props.sort}
+              onChange={(event) => props.onSortChange?.(normalizeCardPickerSort(event.target.value))}
+            >
+              {CARD_PICKER_SORTS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+        )}
 
         <fieldset className="space-y-1.5">
           <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">Card language</legend>

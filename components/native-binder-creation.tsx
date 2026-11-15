@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Layers3, Lock, Minus, Plus, Search, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Layers3, Lock, Minus, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import CardImage from '@/components/card-image';
+import CardPickerFiltersSheet from '@/components/card-picker-filters-sheet';
 import { SetPresetPicker } from '@/components/set-preset-picker';
 import { OverlayCloseButton, OverlayDialog, OverlayFooter, OverlayGrabber } from '@/components/ui/overlay-dialog';
 import { useBilling } from '@/hooks/use-billing';
-import { useCardSearch } from '@/hooks/use-card-search';
+import { useCardSearch, useIllustratorSearch } from '@/hooks/use-card-search';
 import { canCreateOwnerBinder } from '@/lib/billing';
 import {
   blankPreset,
@@ -21,9 +22,12 @@ import { MAX_BINDER_GRID_SIZE } from '@/lib/binder-layout';
 import {
   BLANK_PAGES,
   blankPageLimit,
+  CARD_SEARCH_MATCH_CAP,
+  cardsToAddAll,
   clampBlankPages,
   creationSummary,
   customPageSize,
+  filterChosenCardMatches,
   FREE_PAGE_SIZES,
   isFreePageSize,
   pageSizeLabel,
@@ -31,6 +35,7 @@ import {
   samePageSize,
   suggestedBinderName,
   wizardSteps,
+  type ChosenCardFilters,
   type CreationPreset,
   type PageSize,
   type PreviewCard,
@@ -38,7 +43,11 @@ import {
 } from '@/lib/binder-creation-wizard';
 import type { SlotLocalAcceptance } from '@/lib/binder-slot-editing';
 import type { SetChecklist } from '@/lib/domain/binder-presets';
+import type { CardLanguage } from '@/lib/domain/cards';
+import { SLOT_LIMITS } from '@/lib/domain/slot-commands';
 import { COLLECTION_CREATION_LIMITS } from '@/lib/domain/storage-creation';
+import { loadIllustratorCards } from '@/lib/illustrator-client';
+import type { IllustratorCardsResponse } from '@/lib/illustrators';
 import { buildOfflineCardIndex } from '@/lib/offline-card-index';
 import {
   formatDexNumber,
@@ -64,6 +73,8 @@ export interface NativeBinderCreationBinding {
 
 const offlineCards = () => buildOfflineCardIndex([]);
 const NUMBERED_GENERATIONS = GENERATIONS.filter((g) => g.id > 0);
+const NO_CARD_FILTERS: ChosenCardFilters = { variant: 'any' };
+const formatCount = (n: number) => n.toLocaleString('en-GB');
 const field =
   'min-h-11 w-full rounded-2xl border border-border/60 bg-background/60 px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/50 md:text-sm';
 const choice =
@@ -202,15 +213,49 @@ export default function NativeBinderCreation({
   const [species, setSpecies] = useState<number[]>([]);
   const [printings, setPrintings] = useState<SearchCardResult[]>([]);
   const [query, setQuery] = useState('');
+  const [cardLanguage, setCardLanguage] = useState<CardLanguage>('en');
+  const [cardFilters, setCardFilters] = useState<ChosenCardFilters>(NO_CARD_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // "Chosen cards" by one artist: their whole list, not the capped name search.
+  const [artist, setArtist] = useState<IllustratorCardsResponse | null>(null);
+  const [artistStatus, setArtistStatus] = useState<{ name: string; failed: boolean } | null>(null);
+  const artistRequest = useRef(0);
   const [previewPage, setPreviewPage] = useState(0);
   const [draft, setDraft] = useState<BinderCreationDraft | null>(null);
   const [busy, setBusy] = useState(false),
     [saved, setSaved] = useState(false),
     [message, setMessage] = useState('');
-  const search = useCardSearch(query, step === 'scope' && preset === 'printings', offlineCards, {
-    language: 'en',
+  const findingCards = step === 'scope' && preset === 'printings' && !artist && !artistStatus;
+  const search = useCardSearch(query, findingCards, offlineCards, {
+    language: cardLanguage,
     includeNonPokemon: true,
   });
+  const artists = useIllustratorSearch(query, findingCards).slice(0, 3);
+  const cardPool = artist?.cards ?? search.cards;
+  const cardMatches = useMemo(() => filterChosenCardMatches(cardPool, cardFilters), [cardPool, cardFilters]);
+  const addable = useMemo(() => cardsToAddAll(cardMatches, printings), [cardMatches, printings]);
+  const searchCapped = !artist && search.cards.length >= CARD_SEARCH_MATCH_CAP;
+  const filterCount =
+    Number(Boolean(cardFilters.set)) +
+    Number(Boolean(cardFilters.rarity)) +
+    Number(cardFilters.variant !== 'any') +
+    Number(cardLanguage !== 'en');
+  const showArtist = (name: string, language = cardLanguage) => {
+    const request = ++artistRequest.current;
+    setArtistStatus({ name, failed: false });
+    setCardFilters((f) => ({ ...f, set: undefined, rarity: undefined }));
+    void loadIllustratorCards(name, language).then((result) => {
+      if (request !== artistRequest.current) return;
+      setArtist(result.data);
+      setArtistStatus(result.data ? null : { name, failed: true });
+    });
+  };
+  const clearArtist = () => {
+    artistRequest.current++;
+    setArtist(null);
+    setArtistStatus(null);
+    setCardFilters((f) => ({ ...f, set: undefined, rarity: undefined }));
+  };
   const gen = GENERATIONS.find((g) => g.id === generation)!;
   const premium = billing.premium;
   const pageSize = custom ? (premium ? customPageSize(customRows, customCols) : null) : size;
@@ -454,19 +499,44 @@ export default function NativeBinderCreation({
               )}
               {step === 'scope' && (preset === 'species' || preset === 'printings') && (
                 <>
-                  <div className="relative">
-                    <Search
-                      aria-hidden="true"
-                      className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
-                    />
-                    <input
-                      type="search"
-                      aria-label={preset === 'species' ? 'Find Pokémon' : 'Find cards'}
-                      placeholder={preset === 'species' ? 'Pokémon name or number' : 'Card name, set or number'}
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      className={`${field} pl-9`}
-                    />
+                  <div className="flex gap-2">
+                    <div className="relative min-w-0 flex-1">
+                      <Search
+                        aria-hidden="true"
+                        className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+                      />
+                      <input
+                        type="search"
+                        aria-label={preset === 'species' ? 'Find Pokémon' : 'Find cards'}
+                        placeholder={preset === 'species' ? 'Pokémon name or number' : 'Card name, set or number'}
+                        value={query}
+                        onChange={(e) => {
+                          setQuery(e.target.value);
+                          if (artist || artistStatus) clearArtist();
+                        }}
+                        className={`${field} pl-9`}
+                      />
+                    </div>
+                    {preset === 'printings' && (
+                      <button
+                        type="button"
+                        onClick={() => setFiltersOpen(true)}
+                        aria-haspopup="dialog"
+                        aria-label={filterCount ? `Filters, ${filterCount} on` : 'Filters'}
+                        className={`flex h-11 shrink-0 items-center gap-1.5 rounded-2xl border px-3 text-xs font-semibold transition-colors ${
+                          filterCount
+                            ? 'border-primary/45 bg-primary/12 text-primary'
+                            : 'border-border/60 bg-background/60 text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
+                        {filterCount > 0 && (
+                          <span className="bg-primary text-primary-foreground flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px]">
+                            {filterCount}
+                          </span>
+                        )}
+                      </button>
+                    )}
                   </div>
                   {preset === 'species' && (
                     <>
@@ -537,19 +607,83 @@ export default function NativeBinderCreation({
                   )}
                   {preset === 'printings' && (
                     <>
-                      {search.loading && (
+                      {(artists.length > 0 || artist || artistStatus) && (
+                        <div aria-label="Artists" className="flex flex-wrap gap-1.5">
+                          {artist || artistStatus ? (
+                            <button
+                              type="button"
+                              aria-label={`Stop showing cards by ${artist?.illustrator ?? artistStatus?.name}`}
+                              onClick={clearArtist}
+                              className="border-primary/45 bg-primary/12 text-primary flex min-h-9 items-center gap-1 rounded-full border px-3 text-xs font-semibold"
+                            >
+                              Cards by {artist?.illustrator ?? artistStatus?.name}
+                              <X aria-hidden="true" className="h-3 w-3" />
+                            </button>
+                          ) : (
+                            artists.map((a) => (
+                              <button
+                                key={a.name}
+                                type="button"
+                                onClick={() => showArtist(a.name)}
+                                className="border-border/60 bg-background/50 flex min-h-9 items-center gap-1 rounded-full border px-3 text-xs font-medium"
+                              >
+                                Cards by {a.name}
+                                <span className="text-muted-foreground tabular-nums">{formatCount(a.cardCount)}</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                      {artistStatus && !artistStatus.failed && (
+                        <p role="status" className="text-muted-foreground text-xs">
+                          Loading cards by {artistStatus.name}…
+                        </p>
+                      )}
+                      {artistStatus?.failed && (
+                        <p role="status" className="text-muted-foreground text-sm">
+                          Couldn&apos;t load cards by {artistStatus.name}. Check your connection and try again.
+                        </p>
+                      )}
+                      {findingCards && search.loading && (
                         <p role="status" className="text-muted-foreground text-xs">
                           Searching…
                         </p>
                       )}
-                      {!search.loading && query.trim().length >= 2 && !search.cards.length && (
+                      {findingCards && !search.loading && query.trim().length >= 2 && !search.cards.length && (
                         <p className="text-muted-foreground text-sm">
                           No cards found. Try a different name, set or number.
                         </p>
                       )}
-                      {search.cards.length > 0 && (
+                      {cardPool.length > 0 && (
+                        <div className="flex items-center justify-between gap-2">
+                          <p role="status" className="text-muted-foreground min-w-0 text-xs">
+                            {searchCapped
+                              ? `Showing the first ${formatCount(CARD_SEARCH_MATCH_CAP)} matches. Pick an artist or narrow the search to see the rest.`
+                              : `${formatCount(cardMatches.length)} ${cardMatches.length === 1 ? 'card matches' : 'cards match'}`}
+                          </p>
+                          {addable.length > 0 && (
+                            <button
+                              type="button"
+                              disabled={printings.length + addable.length > SLOT_LIMITS.capacity}
+                              onClick={() =>
+                                setPrintings((previous) => [...previous, ...addable.map((c) => structuredClone(c))])
+                              }
+                              className="border-border/60 min-h-9 shrink-0 rounded-full border px-3 text-xs font-semibold disabled:opacity-45"
+                            >
+                              Add all {formatCount(addable.length)} {addable.length === 1 ? 'card' : 'cards'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {printings.length + addable.length > SLOT_LIMITS.capacity && (
+                        <p role="status" className="text-sm">
+                          That would make {formatCount(printings.length + addable.length)} pockets, and a binder holds
+                          up to {formatCount(SLOT_LIMITS.capacity)}. Narrow the cards with Filters first.
+                        </p>
+                      )}
+                      {cardMatches.length > 0 && (
                         <div aria-label="Card results" className="grid grid-cols-3 gap-1.5">
-                          {search.cards.slice(0, 18).map((card) => (
+                          {cardMatches.slice(0, 18).map((card) => (
                             <button
                               key={`${card.id}:${card.language}`}
                               type="button"
@@ -593,8 +727,40 @@ export default function NativeBinderCreation({
                       )}
                       {!printings.length && query.trim().length < 2 && (
                         <p className="text-muted-foreground text-sm">
-                          Search and tap each card you want a pocket for, in the order you want them.
+                          Search and tap each card you want a pocket for, in the order you want them. Search an artist
+                          to add every card they drew.
                         </p>
+                      )}
+                      {filtersOpen && (
+                        <CardPickerFiltersSheet
+                          language={cardLanguage}
+                          onLanguageChange={(language) => {
+                            if (language === 'any') return;
+                            setCardLanguage(language);
+                            if (artist) showArtist(artist.illustrator, language);
+                          }}
+                          variant={cardFilters.variant}
+                          onVariantChange={(variant) => setCardFilters((f) => ({ ...f, variant }))}
+                          pokemonOptions={[]}
+                          onPokemonChange={() => undefined}
+                          set={cardFilters.set}
+                          sets={Array.from(new Map(cardPool.map((c) => [c.set.id, c.set])).values()).toSorted((x, y) =>
+                            x.name.localeCompare(y.name),
+                          )}
+                          onSetChange={(set) => setCardFilters((f) => ({ ...f, set }))}
+                          rarity={cardFilters.rarity}
+                          rarities={[...new Set(cardPool.flatMap((c) => (c.rarity ? [c.rarity] : [])))]}
+                          onRarityChange={(rarity) => setCardFilters((f) => ({ ...f, rarity }))}
+                          resultCount={cardPool.length ? cardMatches.length : null}
+                          onReset={() => {
+                            setCardFilters(NO_CARD_FILTERS);
+                            if (cardLanguage !== 'en') {
+                              setCardLanguage('en');
+                              if (artist) showArtist(artist.illustrator, 'en');
+                            }
+                          }}
+                          onClose={() => setFiltersOpen(false)}
+                        />
                       )}
                     </>
                   )}

@@ -296,6 +296,34 @@ test('selected catalog printings persist in order, repeat targets are independen
   expect(new Set(request.slotIds).size).toBe(3);
   expect(r.snapshot.items).toHaveLength(0);
 });
+test('chosen cards adds every filtered card by one artist, oldest set first', async ({ page }) => {
+  const { mockIllustratorResponse } = await import('./fixtures');
+  // The real list carries each card's language; the shared synthetic mock does not.
+  await page.route('**/app/api/tcg-illustrators**', (route) => {
+    const body = mockIllustratorResponse(route.request().url());
+    return route.fulfill({
+      json: body.cards ? { ...body, cards: body.cards.map((c) => ({ ...c, language: 'en' })) } : body,
+    });
+  });
+  await page.goto(entry);
+  const dialog = await open(page, 'printings');
+  await dialog.getByRole('searchbox', { name: 'Find cards' }).fill('Arita');
+  await dialog.getByRole('button', { name: /^Cards by Mitsuhiro Arita/ }).click();
+  await expect(dialog.getByRole('button', { name: 'Add all 3 cards', exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Filters', exact: true }).click();
+  const filters = page.getByRole('dialog', { name: 'Filters and sort', exact: true });
+  await expect(filters.getByRole('combobox', { name: 'Sort cards' })).toHaveCount(0);
+  await filters.getByRole('combobox', { name: 'Rarity' }).selectOption('Common');
+  await filters.getByRole('button', { name: 'Show 2 cards', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Add all 2 cards', exact: true }).click();
+  await expect(dialog.getByLabel('Chosen cards').getByRole('button')).toHaveCount(2);
+  await expect(dialog.getByRole('button', { name: /^Add all/ })).toHaveCount(0);
+  await confirm(page);
+  await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
+  expect((await record(page))!.receipts[0].intent.request.manifest.entries.map((e) => e.target)).toEqual(
+    ['base1-44', 'base1-46'].map((cardId) => ({ kind: 'card', cardId, language: 'en' })),
+  );
+});
 test('IDB transaction abort retries original IDs/time before first durable handoff', async ({ page }) => {
   await page.goto(entry);
   await open(page, 'generation');
