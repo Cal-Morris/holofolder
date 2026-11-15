@@ -1,5 +1,3 @@
-import { MAX_BINDERS_PER_OWNER } from '@/lib/binders/model';
-
 export const BILLING_PRICES = { month: 399, year: 3499 } as const;
 /** One-time Lifetime price in pence, sold through Checkout payment mode on its own Stripe product. */
 export const BILLING_LIFETIME_PRICE = 7900;
@@ -71,10 +69,7 @@ export function resolveBillingAccess(
   const positiveInteger = (value: unknown, fallback: number) =>
     typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
   const freeCardLimit = positiveInteger(row.free_card_limit, 10);
-  const freeBinderLimit = Math.min(
-    MAX_BINDERS_PER_OWNER,
-    positiveInteger(row.free_binder_limit, MAX_BINDERS_PER_OWNER),
-  );
+  const freeBinderLimit = positiveInteger(row.free_binder_limit, Infinity);
   const paidThrough =
     typeof row.paid_through === 'string' && Number.isFinite(Date.parse(row.paid_through)) ? row.paid_through : null;
   const time = (value: unknown) => (typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : null);
@@ -102,7 +97,8 @@ export function resolveBillingAccess(
     cardLimit: source === 'free' && freeCardLimit < UNLIMITED_FREE_CARD_LIMIT ? freeCardLimit : null,
     freeCardLimit,
     freeBinderLimit,
-    binderLimit: source === 'free' && row.enforced === true ? freeBinderLimit : MAX_BINDERS_PER_OWNER,
+    // Paid owners have no binder limit.
+    binderLimit: source === 'free' && row.enforced === true ? freeBinderLimit : Infinity,
     enforced: row.enforced === true,
   };
 }

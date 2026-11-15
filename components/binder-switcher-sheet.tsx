@@ -13,7 +13,7 @@ import { CARD_LANGUAGES, type CardLanguage } from '@/lib/domain/cards';
 import { DEFAULT_BINDER_CARD_LANGUAGES } from '@/lib/card-languages';
 import { CARD_LANGUAGE_LABELS } from '@/lib/card-labels';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
-import { BINDER_NAME_MAX_LENGTH, MAX_BINDERS_PER_OWNER, type Binder } from '@/lib/binders/model';
+import { BINDER_NAME_MAX_LENGTH, type Binder } from '@/lib/binders/model';
 import { POKEMON_CATALOG } from '@/lib/pokemon-catalog';
 import { moveBinder } from '@/lib/binders/manage';
 import { BinderRequestError, bindersApi, type BinderWithCount } from '@/lib/binders/client';
@@ -175,9 +175,8 @@ export default function BinderSwitcherSheet({
   };
 
   const managing = canManage && isManaging;
-  const atLimit = rows.length >= MAX_BINDERS_PER_OWNER;
   const freeBinders = billing?.access?.freeBinderLimit;
-  const needsUpgrade = Boolean(billing?.access && !canCreateOwnerBinder(billing.access, rows.length) && !atLimit);
+  const needsUpgrade = Boolean(billing?.access && !canCreateOwnerBinder(billing.access, rows.length));
 
   if (typeof document === 'undefined') return null;
 
@@ -527,7 +526,7 @@ export default function BinderSwitcherSheet({
             <BinderCreationPresets
               {...stagedCreation}
               isOnline={isOnline}
-              disabled={atLimit || busy !== null || billing?.loading}
+              disabled={busy !== null || billing?.loading}
             />
           )}
           {canManage && !needsUpgrade && !stagedCreation && (
@@ -536,14 +535,14 @@ export default function BinderSwitcherSheet({
                 value={newName}
                 maxLength={BINDER_NAME_MAX_LENGTH}
                 onChange={(event) => setNewName(event.target.value)}
-                placeholder={atLimit ? `Up to ${MAX_BINDERS_PER_OWNER} binders` : 'New binder name'}
+                placeholder="New binder name"
                 aria-label="New binder name"
-                disabled={atLimit || !isOnline}
+                disabled={!isOnline}
                 className="border-border/60 bg-background h-11 min-w-0 flex-1 rounded-xl border px-3 text-base disabled:opacity-50 md:text-sm"
               />
               <button
                 type="submit"
-                disabled={atLimit || !isOnline || busy !== null || billing?.loading || !newName.trim()}
+                disabled={!isOnline || busy !== null || billing?.loading || !newName.trim()}
                 className="bg-primary text-primary-foreground flex h-11 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold disabled:opacity-40"
               >
                 {busy === 'create' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}

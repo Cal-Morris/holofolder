@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { matchBinder } from '@/lib/binders/url';
 import { bindersFromRows, isBinderId, pickActiveBinder, type Binder } from '@/lib/binders/model';
+import { fetchAllRows } from '@/lib/supabase/fetch-all-rows';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabaseClient = SupabaseClient<any, any, any>;
@@ -21,13 +22,18 @@ export function isMissingBindersError(error: { code?: string; message?: string }
 
 /** The owner's binders in switcher order; [] when the table isn't there yet. Pass the caller's client so RLS applies. */
 export async function listOwnerBinders(client: AnySupabaseClient, ownerUserId: string): Promise<Binder[]> {
+  // Binders are unlimited for paid owners, so page past PostgREST's row cap.
   const read = (columns: string) =>
-    client
-      .from('binders')
-      .select(columns)
-      .eq('owner_user_id', ownerUserId)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true });
+    fetchAllRows<unknown>((from, to) =>
+      client
+        .from('binders')
+        .select(columns)
+        .eq('owner_user_id', ownerUserId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to),
+    ) as Promise<{ data: unknown[]; error: { code?: string; message?: string } | null }>;
   let { data, error } = await read(`${BINDER_COLUMNS}, slug:binder_slug, card_languages`);
   // Before migration 115 there is no card_languages: every binder shows English cards.
   if (error && /card_languages/.test(error.message ?? ''))
