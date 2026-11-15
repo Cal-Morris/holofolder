@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Holo Folder",
+    "slug": "holofolder",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "platforms": ["ios"],
+    "ios": {
+      "bundleIdentifier": "com.holofolder.app",
+      "supportsTablet": true,
+      "infoPlist": {
+        "WKAppBoundDomains": ["holofolder.com", "app.holofolder.com", "assets.holofolder.com"],
+        "NSCameraUsageDescription": "Holo Folder uses the camera to scan your cards.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
