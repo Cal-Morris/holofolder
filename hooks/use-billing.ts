@@ -118,7 +118,7 @@ export function useBilling(accountId: string | null, ownerId: string | null, onU
     premium: access ? !access.enforced || access.tier === 'paid' : false,
     refresh,
     upgrade: onUpgrade,
-    checkout: (interval: BillingPlan) => navigate('checkout', { interval }),
+    checkout: (interval: BillingPlan, promotionCode = false) => navigate('checkout', { interval, promotionCode }),
     portal: () => navigate('portal'),
   };
 }

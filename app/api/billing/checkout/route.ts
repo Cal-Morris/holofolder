@@ -15,7 +15,10 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null);
     if (!body || !['month', 'year', 'lifetime'].includes(body.interval))
       return Response.json({ error: 'Choose monthly, yearly or lifetime.' }, { status: 400, headers: billingHeaders });
-    return Response.json({ url: await startCheckout(user.id, user.email, body.interval) }, { headers: billingHeaders });
+    return Response.json(
+      { url: await startCheckout(user.id, user.email, body.interval, body.promotionCode === true) },
+      { headers: billingHeaders },
+    );
   } catch (error) {
     return billingErrorResponse(error);
   }

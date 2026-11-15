@@ -1,11 +1,30 @@
 'use client';
 import { useBillingContext } from '@/hooks/use-billing';
 import { Button } from '@/components/ui/button';
-import { BILLING_PRICES, BILLING_ANNUAL_SAVING, BILLING_LIFETIME_PRICE, billingAmount } from '@/lib/billing';
-import { useEffect } from 'react';
+import {
+  BILLING_PRICES,
+  BILLING_ANNUAL_SAVING,
+  BILLING_LIFETIME_PRICE,
+  LAUNCH_OFFER,
+  billingAmount,
+  launchOfferActive,
+  launchOfferCoupon,
+  launchOfferText,
+  type BillingPlan,
+} from '@/lib/billing';
+import { useEffect, useState } from 'react';
 import { useTrackCollectorEvent } from '@/components/collector-funnel';
-export function BillingSettings({ signedIn, onSignIn }: { signedIn: boolean; onSignIn: () => void }) {
+export function BillingSettings({
+  signedIn,
+  onSignIn,
+  now = Date.now(),
+}: {
+  signedIn: boolean;
+  onSignIn: () => void;
+  now?: number;
+}) {
   const billing = useBillingContext();
+  const [withCode, setWithCode] = useState(false);
   const track = useTrackCollectorEvent();
   const accountId =
     // oxlint-disable-next-line react-doctor/no-event-handler -- records that a free account viewed the plan, once it is known
@@ -15,14 +34,40 @@ export function BillingSettings({ signedIn, onSignIn }: { signedIn: boolean; onS
   }, [accountId, track]);
   if (!billing) return null;
   const { access, busy } = billing;
+  const offer = launchOfferActive(now);
+  // The offer's own wording, minus the "Launch offer:" prefix the notice above the buttons already carries.
+  const label = (plan: BillingPlan, normal: string) =>
+    launchOfferCoupon(plan, withCode, now) ? launchOfferText(plan).replace('Launch offer: ', '') : normal;
+  const offerButton = 'h-auto min-h-11 w-full py-2 whitespace-normal';
   const lifetimeButton = billing.lifetimeAvailable ? (
     <Button
-      className="min-h-11 w-full"
+      className={offerButton}
       variant="outline"
       disabled={busy || billing.loading}
-      onClick={() => void billing.checkout('lifetime')}
+      onClick={() => void billing.checkout('lifetime', withCode)}
     >
-      {billingAmount(BILLING_LIFETIME_PRICE)} once, lifetime access
+      {label('lifetime', `${billingAmount(BILLING_LIFETIME_PRICE)} once, lifetime access`)}
+    </Button>
+  ) : null;
+  const offerNotice = offer ? (
+    <div className="space-y-1">
+      <p className="text-sm font-semibold">Launch offer: 50% off, ends {LAUNCH_OFFER.endLabel}</p>
+      {withCode ? (
+        <p className="text-muted-foreground text-sm">
+          Enter your code at checkout. A code replaces the launch offer on monthly and lifetime; annual keeps the launch
+          offer.
+        </p>
+      ) : null}
+    </div>
+  ) : null;
+  const codeToggle = offer ? (
+    <Button
+      className="min-h-9 w-full"
+      variant="ghost"
+      disabled={busy || billing.loading}
+      onClick={() => setWithCode(!withCode)}
+    >
+      {withCode ? 'Use the launch offer instead' : 'Have a creator code?'}
     </Button>
   ) : null;
   return (
@@ -97,7 +142,9 @@ export function BillingSettings({ signedIn, onSignIn }: { signedIn: boolean; onS
               <Button className="min-h-11 w-full" disabled={busy} onClick={() => void billing.portal()}>
                 Manage billing
               </Button>
+              {lifetimeButton ? offerNotice : null}
               {lifetimeButton}
+              {lifetimeButton ? codeToggle : null}
               {lifetimeButton ? (
                 <p className="text-muted-foreground text-sm">
                   Buying lifetime doesn&apos;t cancel your subscription. Cancel it in Manage billing afterwards.
@@ -106,22 +153,27 @@ export function BillingSettings({ signedIn, onSignIn }: { signedIn: boolean; onS
             </div>
           ) : (
             <div className="space-y-2">
+              {offerNotice}
               <Button
-                className="min-h-11 w-full"
+                className={offerButton}
                 disabled={busy || billing.loading}
-                onClick={() => void billing.checkout('month')}
+                onClick={() => void billing.checkout('month', withCode)}
               >
-                {billingAmount(BILLING_PRICES.month)} / month
+                {label('month', `${billingAmount(BILLING_PRICES.month)} / month`)}
               </Button>
               <Button
-                className="min-h-11 w-full"
+                className={offerButton}
                 variant="outline"
                 disabled={busy || billing.loading}
-                onClick={() => void billing.checkout('year')}
+                onClick={() => void billing.checkout('year', withCode)}
               >
-                {billingAmount(BILLING_PRICES.year)} / year, save {billingAmount(BILLING_ANNUAL_SAVING)}
+                {label(
+                  'year',
+                  `${billingAmount(BILLING_PRICES.year)} / year, save ${billingAmount(BILLING_ANNUAL_SAVING)}`,
+                )}
               </Button>
               {lifetimeButton}
+              {codeToggle}
               <Button
                 className="min-h-9 w-full"
                 variant="ghost"
