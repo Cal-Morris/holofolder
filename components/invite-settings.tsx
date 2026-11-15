@@ -87,7 +87,26 @@ export function InviteSettings({ isOnline }: { isOnline: boolean }) {
           </p>
         )}
       </section>
+      {invites && !invites.earnings && <AffiliateInvite />}
     </>
+  );
+}
+
+/** Points people with an audience at the commission programme. Cal enrols affiliates by hand (docs/billing.md). */
+function AffiliateInvite() {
+  return (
+    <section aria-label="Affiliate programme" className="space-y-3">
+      <h3 className="font-semibold">Affiliate programme</h3>
+      <p className="text-muted-foreground text-xs">
+        Make Pokémon card content or run a community? Affiliates earn 30% of what the people they bring in pay in their
+        first year, and 30% of lifetime purchases, paid out monthly.
+      </p>
+      <Button asChild variant="outline" className="w-full">
+        <a href="mailto:contact@holofolder.com?subject=Holo%20Folder%20affiliate%20programme">
+          Apply to be an affiliate
+        </a>
+      </Button>
+    </section>
   );
 }
 

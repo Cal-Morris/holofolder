@@ -106,4 +106,12 @@ test('@matrix invite rewards show the granted month and the owner invite link', 
   await harness.expectHittable(copy);
   await harness.expectNoHorizontalOverflow();
   await invite.screenshot({ path: `test-results/invite/${info.project.name}.png` });
+  // Not an enrolled affiliate (no earnings), so the programme is offered with a way to apply.
+  const affiliate = dialog.getByRole('region', { name: 'Affiliate programme' });
+  const apply = affiliate.getByRole('link', { name: 'Apply to be an affiliate', exact: true });
+  await expect(apply).toHaveAttribute('href', /^mailto:contact@holofolder\.com/);
+  await apply.scrollIntoViewIfNeeded();
+  await harness.expectMinTapTarget(apply);
+  await harness.expectNoHorizontalOverflow();
+  await affiliate.screenshot({ path: `test-results/affiliate/${info.project.name}.png` });
 });
