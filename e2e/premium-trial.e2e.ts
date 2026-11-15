@@ -29,13 +29,13 @@ test('@matrix signup trial shows its terms and expires offline without losing th
     }),
   );
   await page.evaluate(() => window.dispatchEvent(new Event('holofolder-refresh-billing')));
-  // Free and trial owners get a standing Upgrade button in the header, straight to Plan & billing.
+  // Free and trial owners get a standing Upgrade button beside the brand; it opens the small plan picker.
   const upgrade = page.getByTestId('header-upgrade');
   await page.getByTestId('app-header').screenshot({ path: `test-results/header/${info.project.name}.png` });
   await harness.expectMinTapTarget(upgrade);
   await harness.expectHittable(upgrade);
   await upgrade.click();
-  const dialog = page.getByRole('dialog', { name: /settings/i });
+  const dialog = page.getByRole('dialog', { name: 'Upgrade to Premium' });
   const plan = dialog.getByRole('region', { name: 'Holo Folder plan' });
   await expect(plan.getByRole('heading', { name: '7-day Premium trial' })).toBeVisible();
   await expect(plan).toContainText('No payment details needed');

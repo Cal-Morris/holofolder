@@ -39,6 +39,7 @@ export const DashboardBinderPreview = dynamic(loadBinderPreview, {
 });
 export const SettingsModal = dynamic(() => import('@/components/settings-modal'), { ssr: false });
 export const AuthModal = dynamic(() => import('@/components/auth-modal'), { ssr: false });
+export const UpgradeDialog = dynamic(() => import('@/components/upgrade-dialog'), { ssr: false });
 export const PartnerModal = dynamic(() => import('@/components/partner-modal'), { ssr: false });
 export const BinderSwitcherSheet = dynamic(() => import('@/components/binder-switcher-sheet'), { ssr: false });
 export const CardSelector = dynamic(loadCardSelector, { ssr: false });

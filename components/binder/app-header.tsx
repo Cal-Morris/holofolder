@@ -185,6 +185,17 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
       ? `${showTally.count} bought · ${formatMoney(showTally.spent, showTally.currency as Parameters<typeof formatMoney>[1])}`
       : null;
   const syncStatus = !isOnline ? 'Offline · using saved cards and prices' : null;
+  // Sits beside the brand on the left, away from the page controls.
+  const upgradeButton = ctx.onUpgrade && !isShowModeOn && (
+    <Button
+      type="button"
+      data-testid="header-upgrade"
+      className="ml-1 h-9 shrink-0 rounded-xl px-2 text-xs"
+      onClick={ctx.onUpgrade}
+    >
+      Upgrade
+    </Button>
+  );
   return (
     <nav
       ref={shellNavRef}
@@ -199,22 +210,25 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
         >
           {isShowModeOn && <span className="sr-only">Show mode on</span>}
           {activeBinder && !readOnlyMode ? (
-            <button
-              type="button"
-              data-testid="binder-switcher-trigger"
-              onClick={() => openExclusively(() => setIsBinderSwitcherOpen(true))}
-              aria-haspopup="dialog"
-              aria-label={`Binders: ${activeBinder.name}`}
-              className="hover:bg-muted/60 flex min-h-11 min-w-0 flex-1 items-center gap-1 rounded-xl px-1.5 text-left xl:max-w-48 xl:flex-none"
-            >
-              <Grid3X3 className="text-primary hidden h-4 w-4 shrink-0 sm:block" aria-hidden />
-              <span className="truncate text-sm font-semibold">{activeBinder.name}</span>
-              <ChevronDown className="text-muted-foreground h-3.5 w-3.5 shrink-0" aria-hidden />
-            </button>
+            <>
+              <button
+                type="button"
+                data-testid="binder-switcher-trigger"
+                onClick={() => openExclusively(() => setIsBinderSwitcherOpen(true))}
+                aria-haspopup="dialog"
+                aria-label={`Binders: ${activeBinder.name}`}
+                className="hover:bg-muted/60 flex min-h-11 min-w-0 flex-1 items-center gap-1 rounded-xl px-1.5 text-left xl:max-w-48 xl:flex-none"
+              >
+                <Grid3X3 className="text-primary hidden h-4 w-4 shrink-0 sm:block" aria-hidden />
+                <span className="truncate text-sm font-semibold">{activeBinder.name}</span>
+                <ChevronDown className="text-muted-foreground h-3.5 w-3.5 shrink-0" aria-hidden />
+              </button>
+              {upgradeButton}
+            </>
           ) : (
             // Brand is home: back to this scope's binder (a share stays in its own read-only binder).
             // With Upgrade in the row, phones keep only the mark (and give that up first on the narrowest screens).
-            <div className={`flex min-w-0 flex-1 ${readOnlyMode ? '' : 'xl:flex-none'}`}>
+            <div className={`flex min-w-0 flex-1 items-center ${readOnlyMode ? '' : 'xl:flex-none'}`}>
               <button
                 type="button"
                 data-testid="header-brand-home"
@@ -235,6 +249,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
                   Holo Folder
                 </span>
               </button>
+              {upgradeButton}
             </div>
           )}
 
@@ -350,16 +365,6 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             >
               <SlidersHorizontal className="h-4 w-4" aria-hidden />
               <span className={ctx.user ? undefined : 'hidden md:inline'}>View</span>
-            </Button>
-          )}
-          {ctx.onUpgrade && !isShowModeOn && (
-            <Button
-              type="button"
-              data-testid="header-upgrade"
-              className="h-9 shrink-0 rounded-xl px-1.5 text-xs md:px-2"
-              onClick={ctx.onUpgrade}
-            >
-              Upgrade
             </Button>
           )}
           {!ctx.user ? (

@@ -5,6 +5,7 @@ import { OptionRow } from '@/components/ui/option-row';
 import { LAUNCH_OFFER, launchOfferActive, launchOfferCoupon, planChoice, type BillingPlan } from '@/lib/billing';
 import { useEffect, useState } from 'react';
 import { useTrackCollectorEvent } from '@/components/collector-funnel';
+import { cn } from '@/lib/utils';
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
 
@@ -12,10 +13,12 @@ export function BillingSettings({
   signedIn,
   onSignIn,
   now,
+  className,
 }: {
   signedIn: boolean;
   onSignIn: () => void;
   now?: number;
+  className?: string;
 }) {
   const billing = useBillingContext();
   const [withCode, setWithCode] = useState(false);
@@ -79,7 +82,10 @@ export function BillingSettings({
     </div>
   );
   return (
-    <section aria-label="Holo Folder plan" className="border-border bg-card space-y-3 rounded-2xl border p-4">
+    <section
+      aria-label="Holo Folder plan"
+      className={cn('border-border bg-card space-y-3 rounded-2xl border p-4', className)}
+    >
       <h3 className="font-bold">
         {access?.source === 'perpetual'
           ? 'Lifetime access'
