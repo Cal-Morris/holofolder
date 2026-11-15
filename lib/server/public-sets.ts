@@ -81,6 +81,41 @@ export async function getPublicSets(): Promise<PublicSetSummary[]> {
   return sets.map((set) => ({ ...set, slug: slugs.get(set.id)! }));
 }
 
+export const PUBLIC_CARD_COLUMNS =
+  'id, series_id, set_id, local_id, name_json, name_en, rarity, illustrator, image_languages_json, external_ids_json, tcg_card_dex_ids(dex_id)';
+
+/** A `tcg_cards` row read with PUBLIC_CARD_COLUMNS as a public card: English name, printed number, image. */
+export function toPublicSetCard(card: {
+  id: string;
+  series_id: string;
+  set_id: string;
+  local_id: string;
+  name_json: unknown;
+  name_en: string | null;
+  rarity: string | null;
+  illustrator: string | null;
+  image_languages_json: unknown;
+  external_ids_json: unknown;
+  tcg_card_dex_ids: { dex_id: number }[] | null;
+}): PublicSetCard {
+  const imageLanguage = pickImageLanguage(card.image_languages_json, 'en');
+  const image = pickCardAssetUrl(
+    card.external_ids_json,
+    imageLanguage,
+    imageLanguage && buildTcgdexAssetImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id),
+    'en',
+  );
+  return {
+    id: card.id,
+    number: readCatalogMetadata(card.external_ids_json).localId ?? card.local_id,
+    name: pickLocalizedText(card.name_json, 'en') || card.name_en || card.id,
+    ...(card.rarity ? { rarity: card.rarity } : {}),
+    ...(card.illustrator ? { illustrator: card.illustrator } : {}),
+    ...(image ? { image } : {}),
+    dexIds: (card.tcg_card_dex_ids ?? []).map((row) => row.dex_id).sort((a, b) => a - b),
+  };
+}
+
 /** The set's cards in number order, English names and images from our asset domain. */
 export async function getPublicSetCards(setId: string): Promise<PublicSetCard[]> {
   'use cache';
@@ -90,32 +125,11 @@ export async function getPublicSetCards(setId: string): Promise<PublicSetCard[]>
   const rows = await readSetCardPages((from, to) =>
     db
       .from('tcg_cards')
-      .select(
-        'id, series_id, set_id, local_id, name_json, name_en, rarity, illustrator, image_languages_json, external_ids_json, tcg_card_dex_ids(dex_id)',
-      )
+      .select(PUBLIC_CARD_COLUMNS)
       .eq('set_id', setId)
       .order('local_id_sort', { ascending: true, nullsFirst: false })
       .order('id')
       .range(from, to),
   );
-  return rows.map((card) => {
-    const imageLanguage = pickImageLanguage(card.image_languages_json, 'en');
-    const image = pickCardAssetUrl(
-      card.external_ids_json,
-      imageLanguage,
-      imageLanguage && buildTcgdexAssetImageUrl(imageLanguage, card.series_id, card.set_id, card.local_id),
-      'en',
-    );
-    return {
-      id: card.id,
-      number: readCatalogMetadata(card.external_ids_json).localId ?? card.local_id,
-      name: pickLocalizedText(card.name_json, 'en') || card.name_en || card.id,
-      ...(card.rarity ? { rarity: card.rarity } : {}),
-      ...(card.illustrator ? { illustrator: card.illustrator } : {}),
-      ...(image ? { image } : {}),
-      dexIds: (card.tcg_card_dex_ids ?? [])
-        .map((row: { dex_id: number }) => row.dex_id)
-        .sort((a: number, b: number) => a - b),
-    };
-  });
+  return rows.map(toPublicSetCard);
 }

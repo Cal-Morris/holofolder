@@ -29,6 +29,7 @@ export const RESERVED_BINDER_SLUGS = [
   'pokemon',
   'illustrators',
   'search',
+  'cards',
 ] as const;
 
 const SLUG = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;

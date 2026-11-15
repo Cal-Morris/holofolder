@@ -69,11 +69,13 @@ export function PublicCataloguePage({
 }
 
 /** A labelled fact in a catalogue page header ("Released 8 November 2024"). */
-export function CatalogueFact({ label, value }: { label: string; value: string }) {
+export function CatalogueFact({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="holo-tile min-w-0 rounded-xl px-3 py-2">
       <dt className="text-muted-foreground truncate text-xs">{label}</dt>
-      <dd className="truncate font-medium tabular-nums">{value}</dd>
+      <dd className="[&_a]:text-primary truncate font-medium tabular-nums [&_a]:-my-2.5 [&_a]:inline-block [&_a]:py-2.5 [&_a]:underline-offset-2 hover:[&_a]:underline">
+        {value}
+      </dd>
     </div>
   );
 }

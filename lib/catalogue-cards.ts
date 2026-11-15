@@ -20,6 +20,10 @@ export interface CatalogueCard {
   pokemon?: { slug: string; name: string };
 }
 
+/** The card's public page (app-relative), for cards in a set with a public page; undefined for the rest. */
+export const publicCardPath = (card: Pick<CatalogueCard, 'id' | 'setSlug'>) =>
+  card.setSlug ? `/cards/${encodeURIComponent(card.id)}` : undefined;
+
 /** A printed rarity, or undefined for none: the catalogue stores "None" for cards without one. */
 export const knownRarity = (rarity: string | undefined) => (rarity && rarity !== 'None' ? rarity : undefined);
 
