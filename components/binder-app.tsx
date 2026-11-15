@@ -117,6 +117,7 @@ import { registerServiceWorker } from '@/lib/service-worker-registration';
 import { ADJACENT_PREFETCH_DELAY_MS, getAdjacentPageNumbers } from '@/lib/binder-page-turn';
 import { BinderSlotImages } from '@/lib/binder-slot-images';
 import { useNavigationTransition } from '@/hooks/use-navigation-transition';
+import { startNavigationProgress } from '@/lib/navigation-progress';
 import { useViewScrollRestoration } from '@/hooks/use-view-scroll-restoration';
 import { useEdgeSwipeBack } from '@/hooks/use-edge-swipe-back';
 import { usePressFeedback } from '@/hooks/use-press-feedback';
@@ -847,8 +848,11 @@ function BinderAppSurface(props: BinderAppProps) {
       );
       // Offline, a full load lets the service worker open that binder's saved copy from the app shell.
       if (typeof navigator !== 'undefined' && navigator.onLine === false) window.location.assign(appPath(href));
-      // oxlint-disable-next-line react-doctor/nextjs-no-client-side-redirect -- a user-chosen binder switch, deferred until the switcher has closed; not a redirect
-      else router.push(href);
+      else {
+        startNavigationProgress();
+        // oxlint-disable-next-line react-doctor/nextjs-no-client-side-redirect -- a user-chosen binder switch, deferred until the switcher has closed; not a redirect
+        router.push(href);
+      }
     });
   }, [binders, isBinderSwitcherOpen, pendingBinderSwitch, router]);
   const closeBinderSwitcher = useCallback(() => setIsBinderSwitcherOpen(false), []);

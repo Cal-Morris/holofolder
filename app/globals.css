@@ -90,6 +90,41 @@
   }
 }
 
+/* Top progress bar for slow page loads (components/navigation-progress.tsx), in the holo loading palette.
+   It creeps to 85% while the next page loads, then fills and fades; under the status bar inset in the PWA. */
+.holo-nav-progress {
+  position: fixed;
+  top: env(safe-area-inset-top);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: 2px;
+  pointer-events: none;
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left;
+  background: linear-gradient(90deg, #ff9ad5, #b9a6ff 25%, #7fe7ff 50%, #b8ffcf 75%, #ff9ad5) 0 0 / 200% 100% repeat-x;
+  box-shadow: 0 0 8px #b9a6ff80;
+  animation: holo-loading-sweep 1.6s linear infinite;
+}
+.holo-nav-progress[data-state='loading'] {
+  opacity: 1;
+  transform: scaleX(0.85);
+  transition: transform 10s cubic-bezier(0.08, 0.7, 0.2, 1);
+}
+.holo-nav-progress[data-state='done'] {
+  opacity: 0;
+  transform: scaleX(1);
+  transition:
+    transform 0.2s ease-out,
+    opacity 0.3s ease 0.2s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .holo-nav-progress {
+    animation: none;
+  }
+}
+
 /* Binder startup skeleton only (components/binder-skeleton.tsx). The spread is fitted into its stage with
    the same sums as binderFitSize in binder-app.tsx (pocket gap 6px, page padding 8px or 16px from 640px with a 24px page-label gutter at the bottom,
    a two-page spread with a 16px gutter from 1024px, 4px outline clearance), so the real page lands on it. */
