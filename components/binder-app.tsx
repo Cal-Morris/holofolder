@@ -834,21 +834,27 @@ function BinderAppSurface(props: BinderAppProps) {
   useEffect(() => {
     queueMicrotask(closeSlotDetail);
   }, [stagedSlotDisplay?.inventory.ownerUserId, stagedSlotDisplay?.binder.collectionId, user?.id, closeSlotDetail]);
+  // Recent searches and cards are one list per collection, stored on the owner's default binder, so switching
+  // binders keeps them.
+  const historyBinderId =
+    binders.find((binder) => binder.isDefault && binder.ownerUserId === resolvedCollectionOwnerUserId)?.id ??
+    initialBinderId ??
+    'local';
   const historyScope = useMemo(
     () =>
       readOnlyMode
         ? null
         : user
           ? resolvedCollectionOwnerUserId
-            ? { accountId: user.id, ownerId: resolvedCollectionOwnerUserId, binderId: initialBinderId ?? 'local' }
+            ? { accountId: user.id, ownerId: resolvedCollectionOwnerUserId, binderId: historyBinderId }
             : null
           : undefined,
-    [readOnlyMode, user, resolvedCollectionOwnerUserId, initialBinderId],
+    [readOnlyMode, user, resolvedCollectionOwnerUserId, historyBinderId],
   );
   const history = useBinderHistory(historyScope);
   const refreshHistory = history.refresh;
   useEffect(() => {
-    // oxlint-disable-next-line react-doctor/no-event-handler, react-doctor/no-pass-data-to-parent -- refreshes history while Search or Quick mode is open, whichever of their many entry points opened them
+    // oxlint-disable-next-line react-doctor/no-event-handler, react-doctor/no-pass-data-to-parent, react-doctor/no-pass-live-state-to-parent -- refreshes history while Search or Quick mode is open, whichever of their many entry points opened them
     if (isSearchOpen || isQuickModeOpen) refreshHistory();
   }, [isSearchOpen, isQuickModeOpen, refreshHistory]);
 

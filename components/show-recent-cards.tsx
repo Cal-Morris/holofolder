@@ -32,7 +32,7 @@ export default function ShowRecentCards({
         <button
           type="button"
           onClick={onClear}
-          aria-label={shared ? 'Clear recently viewed cards for this binder' : 'Clear recently viewed cards'}
+          aria-label={shared ? 'Clear recently viewed cards for this collection' : 'Clear recently viewed cards'}
           className="text-muted-foreground min-h-9 rounded-full px-3 text-xs font-semibold"
         >
           {shared ? 'Clear for everyone' : 'Clear'}

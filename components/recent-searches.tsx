@@ -17,7 +17,7 @@ export default function RecentSearches({
         <button
           type="button"
           onClick={() => history.clear('search')}
-          aria-label={history.shared ? 'Clear recent searches for this binder' : 'Clear recent searches'}
+          aria-label={history.shared ? 'Clear recent searches for this collection' : 'Clear recent searches'}
           className="text-muted-foreground min-h-9 rounded-full px-3 text-xs font-semibold"
         >
           {history.shared ? 'Clear for everyone' : 'Clear'}
