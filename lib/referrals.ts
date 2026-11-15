@@ -10,7 +10,8 @@ export const INVITE_COOKIE = 'hf_invite';
 /** How long a click stays claimable. The database also requires the account to be under 7 days old. */
 export const INVITE_COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
 
-const CODE = /^[a-z2-9]{10}$/;
+// The random referral code (`[a-z2-9]{10}`, migration 133) or a username (047), which paid affiliates share (146).
+const CODE = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
 export const isInviteCode = (value: unknown): value is string => typeof value === 'string' && CODE.test(value);
 export const inviteUrl = (code: string) => `https://holofolder.com/app/invite/${code}`;
 

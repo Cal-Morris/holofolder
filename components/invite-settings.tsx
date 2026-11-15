@@ -92,18 +92,19 @@ export function InviteSettings({ isOnline }: { isOnline: boolean }) {
   );
 }
 
-/** Points people with an audience at the commission programme. Cal enrols affiliates by hand (docs/billing.md). */
+/** Free accounts: paying makes you an affiliate (migration 146); creators can still ask for a code (docs/billing.md). */
 function AffiliateInvite() {
   return (
     <section aria-label="Affiliate programme" className="space-y-3">
       <h3 className="font-semibold">Affiliate programme</h3>
       <p className="text-muted-foreground text-xs">
-        Make Pokémon card content or run a community? Affiliates earn 30% of what the people they bring in pay in their
-        first year, and 30% of lifetime purchases, paid out monthly.
+        Premium members are affiliates automatically: your invite link earns 30% of what the people you bring in pay in
+        their first year, and 30% of lifetime purchases, paid out monthly. Make Pokémon card content or run a community?
+        Ask us for a creator code.
       </p>
       <Button asChild variant="outline" className="w-full">
         <a href="mailto:contact@holofolder.com?subject=Holo%20Folder%20affiliate%20programme">
-          Apply to be an affiliate
+          Ask about a creator code
         </a>
       </Button>
     </section>
@@ -125,7 +126,7 @@ function EarningsSettings({ earnings }: { earnings: Earnings }) {
         You earn 30% of what customers pay in their first 12 months when they use your
         {earnings.code ? ` code ${earnings.code} or` : ''} invite link, and 30% of a lifetime purchase. Earnings are
         held for 30 days in case of refunds, then paid out monthly.
-        {earnings.active ? '' : ' Your enrolment is paused, so new payments are not earning.'}
+        {earnings.active ? '' : ' You are paused, so new payments are not earning. Premium members earn automatically.'}
       </p>
       <dl className="border-border/50 bg-muted/25 divide-border/50 divide-y rounded-2xl border px-3 text-xs">
         {rows.map(([label, value]) => (

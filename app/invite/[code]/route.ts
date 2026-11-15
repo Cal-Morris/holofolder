@@ -4,7 +4,7 @@ import { INVITE_COOKIE, INVITE_COOKIE_MAX_AGE, isInviteCode, signInviteCookie } 
 
 /** An invite link: remember the click (signed, server time), then go to the app, which sends new visitors to sign in. */
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
-  const { code } = await params;
+  const code = (await params).code.toLowerCase();
   const response = NextResponse.redirect(appRedirectUrl('/', request.url));
   if (!isInviteCode(code)) return response;
   // First touch: a second invite link on this device doesn't replace a click that is still pending.
