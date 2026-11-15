@@ -61,7 +61,7 @@ The setting requires a fresh deployment. Verify the build log no longer says `Ap
 
 Framer's `Code/SessionLabel.tsx` checks `GET /app/api/auth/session` with same-origin credentials and no caching. The endpoint verifies the existing Supabase cookie and returns only `{ signedIn: boolean }`, with `Cache-Control: private, no-store` and `Vary: Cookie`. It needs no CORS or shared token storage. Keep this response uncached in the Framer proxy.
 
-The nav, hero and pricing CTAs retain their `/app/` links and show “Go to dashboard” for a signed-in visitor. Their original labels remain the fallback during loading, offline or on errors. The label rechecks on focus, visibility and page restore so signing in or out in another tab is picked up when returning to marketing. This requires signing in on the public `holofolder.com` origin; cookies from `app.holofolder.com` or `binder.cal.gg` cannot identify a visitor on another hostname.
+The nav, hero and pricing CTAs retain their `/app/` links and show “View your binder” for a signed-in visitor. Their original labels remain the fallback during loading, offline or on errors. The label rechecks on focus, visibility and page restore so signing in or out in another tab is picked up when returning to marketing. This requires signing in on the public `holofolder.com` origin; cookies from `app.holofolder.com` or `binder.cal.gg` cannot identify a visitor on another hostname.
 
 ## Binder addresses
 
