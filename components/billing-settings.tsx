@@ -67,6 +67,11 @@ export function BillingSettings({
       <Button className="min-h-11 w-full" disabled={blocked} onClick={() => void billing.checkout(selected, withCode)}>
         {selected === 'lifetime' && access?.source === 'subscription' ? 'Buy lifetime' : 'Upgrade to Premium'}
       </Button>
+      <p className="text-muted-foreground text-center text-xs">
+        {selected === 'lifetime'
+          ? 'Upgrading charges you once at checkout.'
+          : 'Upgrading charges you at checkout and renews until you cancel.'}
+      </p>
       <div className="flex flex-wrap justify-center gap-x-1">
         {offer ? (
           <Button variant="ghost" className="min-h-9 text-xs" disabled={blocked} onClick={() => setWithCode(!withCode)}>
@@ -91,7 +96,7 @@ export function BillingSettings({
           {access?.source === 'perpetual'
             ? 'Lifetime access'
             : access?.source === 'trial'
-              ? '7-day Premium trial'
+              ? 'Free 7-day Premium trial'
               : access?.tier === 'paid'
                 ? 'Holo Folder Premium'
                 : 'Unlock Holo Folder'}
@@ -120,13 +125,13 @@ export function BillingSettings({
           </p>
           {access?.source === 'trial' ? (
             <p className="text-sm">
-              Ends {day(access.trialEndsAt!)}
-              {access.grantedUntil ? `, then invite rewards keep Premium until ${day(access.grantedUntil)}` : ''}. No
-              card needed, nothing auto-charges.
+              Your trial ends {day(access.trialEndsAt!)}
+              {access.grantedUntil ? `, then invite rewards keep Premium until ${day(access.grantedUntil)}` : ''}. The
+              trial is free and never charges you.
             </p>
           ) : access?.source === 'grant' ? (
             <p className="text-sm">
-              Free Premium from invites until {day(access.grantedUntil!)}. No card needed, nothing auto-charges.
+              Free Premium from invites until {day(access.grantedUntil!)}. This is free and never charges you.
             </p>
           ) : access?.tier === 'paid' ? (
             <p className="text-sm">
