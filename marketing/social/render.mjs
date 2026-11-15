@@ -493,6 +493,20 @@ function visualHtml(v) {
   return '';
 }
 
+// Inspo page on Instagram and TikTok: the page fills the frame like a real binder photo, over a blurred copy of
+// its own nine cards so the backdrop always picks up the page's colours. Title lives in the caption, not here.
+function bleedPageHtml(format, post, width, height) {
+  const cards = post.cards.map((c) => `<img src="${c.image}">`).join('');
+  return `<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&family=JetBrains+Mono:wght@500&display=block" rel="stylesheet">
+<style>${CSS}${BLEED_CSS}</style></head>
+<body class="${format} bleed" style="width:${width}px;height:${height}px;--w:${width}px;--h:${height}px">
+<div class="glow">${cards}</div>
+<div class="sheet">${cards}</div>
+<div class="mark"><span><img src="${MARK}">${esc(post.title)} · holofolder.com/@showcase</span><small>Not affiliated with The Pokémon Company</small></div>
+</body></html>`;
+}
+
 const showsCardArt = (v) => Boolean(v && (v.phone || v.panel || v.cards || v.page || v.closeup));
 
 function slideHtml(format, post, slide, index, total) {
@@ -500,6 +514,7 @@ function slideHtml(format, post, slide, index, total) {
   if (format === 'preview')
     return `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head>
 <body class="preview" style="width:${width}px;height:${height}px">${visualHtml(slide.visual)}</body></html>`;
+  if (post.inspo && slide.kind === 'page' && format !== 'x') return bleedPageHtml(format, post, width, height);
   const art = showsCardArt(slide.visual);
   const count = total > 1 ? `<span class="count">${index + 1}/${total}</span>` : '';
   let body;
@@ -532,6 +547,24 @@ function slideHtml(format, post, slide, index, total) {
 <footer><span>${post.inspo ? 'Open this binder on holofolder.com' : 'holofolder.com'}</span>${art ? '<span>Not affiliated with The Pokémon Company</span>' : ''}</footer>
 </body></html>`;
 }
+
+// --top/--bot/--side keep TikTok's controls clear; the card width is whichever of height or width runs out first.
+const BLEED_CSS = `
+body.bleed { padding:0; align-items:center; justify-content:center; background:#000; --g:14px; --top:28px; --bot:84px; --side:28px;
+  --cw:min(calc((var(--h) - var(--top) - var(--bot) - 2 * var(--g)) / 3 * 63 / 88), calc((var(--w) - 2 * var(--side) - 2 * var(--g)) / 3)); }
+.tiktok.bleed { --top:150px; --bot:330px; --side:72px; }
+.glow { position:absolute; inset:-12%; display:grid; grid-template:repeat(3, 1fr) / repeat(3, 1fr); filter:blur(70px) saturate(1.6) brightness(.6); }
+.glow img { width:100%; height:100%; object-fit:cover; }
+body.bleed::after { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,.55)); }
+.sheet { position:relative; z-index:1; display:grid; grid-template-columns:repeat(3, var(--cw)); gap:var(--g);
+  margin:var(--top) 0 var(--bot); }
+.sheet img { width:100%; aspect-ratio:63/88; display:block; border-radius:4.5% / 3.3%; box-shadow:0 14px 34px rgba(0,0,0,.55); }
+.mark { position:absolute; z-index:1; left:0; right:0; bottom:calc(var(--bot) - 72px); display:flex; flex-direction:column; align-items:center; gap:6px;
+  font-family:'JetBrains Mono',monospace; text-transform:uppercase; letter-spacing:.08em; font-size:20px; color:rgba(255,255,255,.7); }
+.mark span { display:flex; align-items:center; gap:10px; }
+.mark img { width:26px; height:26px; }
+.mark small { font-family:Inter,sans-serif; text-transform:none; letter-spacing:0; font-size:15px; color:rgba(255,255,255,.45); }
+`;
 
 const CSS = `
 :root { --bg:#07070a; --card:#111116; --fg:#f4f3f8; --muted:#a3a1b3; --accent:#b9a6ff; --line:rgba(244,243,248,.10); }

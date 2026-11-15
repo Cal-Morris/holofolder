@@ -26,11 +26,11 @@ Add an entry to `POSTS` with the blog post's slug, a cover (eyebrow, title, sub 
 
 ## Binder inspiration series
 
-A weekly themed nine-pocket page (a type, an evolution line, an artist, a region, a mood or a trainer), posted to Instagram, TikTok and X. Every theme is a real showcase binder anyone can open at `holofolder.com/@showcase/<slug>`, with a matching item in the Framer Collections CMS. The template is our own: the theme title, the cards laid out exactly as the 3 × 3 page, "Open this binder on holofolder.com" and "Not affiliated with The Pokémon Company". Instagram and TikTok get the page and close-ups of three standout pockets, X gets the page beside the theme line, and a 900×900 square goes to the Collections item.
+A weekly themed nine-pocket page (a type, an evolution line, an artist, a region, a mood or a trainer), posted to Instagram, TikTok and X. Every theme is a real showcase binder anyone can open at `holofolder.com/@showcase/<slug>`, with a matching item in the Framer Collections CMS. The page slide is the 3 × 3 page filling the frame like a photo of a real binder page, over a blurred copy of its own cards, with only a small theme and holofolder.com line and "Not affiliated with The Pokémon Company" underneath. The theme title goes in the caption. Instagram and TikTok get the page and close-ups of three standout pockets, X gets the page beside the theme line, and a 900×900 square goes to the Collections item.
 
 A weekly run:
 
-1. **Pick a theme** that isn't on [holofolder.com/collections](https://holofolder.com/collections) yet, and find cards in our catalogue. `find` lists illustration rares and special illustration rares by default, and marks any card whose image doesn't load from `assets.holofolder.com`:
+1. **Pick a theme** that isn't on [holofolder.com/collections](https://holofolder.com/collections) yet, and find cards in our catalogue. Keep the nine cards to one colour story (all reds, all night skies, all pastels): the page reads as one picture and the blurred backdrop takes that colour, while a mixed page turns it muddy. Full-art cards (illustration rares and up) fill the pockets best. `find` lists illustration rares and special illustration rares by default, and marks any card whose image doesn't load from `assets.holofolder.com`:
 
    ```fish
    bun run binder-inspo find --type Dragon
