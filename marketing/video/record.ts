@@ -6,17 +6,18 @@
 //   --setup  rebuild the golden simulator (install the app and sign in again)
 // Films the installed PWA signed in as @demo (seed it first with marketing/video/seed-demo.ts).
 // Needs Xcode (simctl), AXe (`brew install cameroncooke/axe/axe`) and ffmpeg. See marketing/video/README.md.
-/* oxlint-disable react-doctor/async-await-in-loop, react-doctor/js-index-maps, react-doctor/js-set-map-lookups -- one simulator driven strictly in order; the loops are retries over a handful of on-screen items */
+/* oxlint-disable react-doctor/async-await-in-loop, react-doctor/async-defer-await, react-doctor/js-index-maps, react-doctor/js-set-map-lookups -- one simulator driven strictly in order: every action must finish before the next check; the loops are retries over a handful of on-screen items */
 import { chromium } from '@playwright/test';
 import { createWorker } from 'tesseract.js';
-import { execFile, spawn } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { demoPassword } from './seed-demo';
+import { CLIPS, DOCK, type Clip, type Step } from './clips';
+import { demoPassword, withDemoKey } from './seed-demo';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '../..');
@@ -31,8 +32,8 @@ const PT = { w: 440, h: 956, scale: 3 };
 const CROP_PT = 904; // status bar, app and dock; drops the empty home-indicator strip
 const W = 1080;
 const H = 1920;
-const TOP = 140; // margin above the phone screen
-const SCREEN_H = H - TOP - 80;
+const TOP = 340; // the caption band above the phone screen, so captions never cover the app
+const SCREEN_H = H - TOP - 40;
 const SCREEN_W = Math.round((PT.w * SCREEN_H) / CROP_PT / 2) * 2;
 const SCREEN_X = (W - SCREEN_W) / 2;
 const K = SCREEN_W / PT.w; // output px per point
@@ -40,180 +41,6 @@ const END_CARD_S = 1.4; // a short brand sting, so the video loops straight back
 const END_FADE = 0.25;
 const DRAFT = process.argv.includes('--draft');
 const UTM = (source: string) => `https://holofolder.com/app?utm_source=${source}&utm_medium=social&utm_campaign=social`;
-
-type Step =
-  | { tap: [number, number]; hold?: number; after?: number }
-  | { tapText: string; after?: number } // found on screen by OCR
-  | { swipe: [number, number, number, number]; dur: number; after?: number }
-  | { type: string; after?: number }
-  | { keys: number[]; after?: number } // HID keycodes, e.g. 42 = backspace
-  | { wait: number }
-  | { caption: string }
-  | { mark: string }; // names a moment for the cold open
-
-interface Clip {
-  name: string;
-  hook: string; // shown over the cold open
-  // The payoff, shown first: `dur` seconds from the step marked `mark`, with a slow push-in.
-  coldOpen: { mark: string; dur: number };
-  setup?: Step[]; // runs before recording starts
-  steps: Step[];
-  post: string;
-  question: string; // asked in the post copy: comments are what push a video out
-  tags: string;
-}
-
-const DOCK = {
-  search: [52, 862],
-  binder: [136, 862],
-  inventory: [220, 862],
-  wanted: [304, 862],
-  browse: [388, 862],
-} as const;
-const HEADER = { threeD: [310, 102], show: [363, 102], more: [407, 102] } as const;
-
-const CLIPS: Clip[] = [
-  {
-    name: 'kanto-3d',
-    hook: 'Ladies and gentlemen. My Kanto binder. In THREE. DIMENSIONS.',
-    coldOpen: { mark: '3d', dur: 1.8 },
-    setup: [
-      // Warm the first pages' images and the 3D view off camera, so nothing loads on screen.
-      { swipe: [380, 470, 60, 470], dur: 0.3, after: 2.5 },
-      { swipe: [380, 470, 60, 470], dur: 0.3, after: 2.5 },
-      { swipe: [380, 470, 60, 470], dur: 0.3, after: 2.5 },
-      { swipe: [60, 470, 380, 470], dur: 0.3, after: 1.0 },
-      { swipe: [60, 470, 380, 470], dur: 0.3, after: 1.0 },
-      { swipe: [60, 470, 380, 470], dur: 0.3, after: 1.5 },
-      { tap: [...HEADER.threeD], after: 8 },
-      { tap: [...HEADER.threeD], after: 2 },
-    ],
-    steps: [
-      {
-        caption:
-          "A hundred and forty-one of a hundred and fifty-one Kanto Pokémon. My landlord thinks I'm saving for a deposit.",
-      },
-      { caption: 'Every single one from the 151 set. Look at it. Page by glorious page.' },
-      { swipe: [380, 470, 60, 470], dur: 0.3, after: 0.9 },
-      { caption: 'Swipe, swipe. No sticky sleeves. No crisps in the pockets. Bliss.' },
-      { swipe: [380, 470, 60, 470], dur: 0.3, after: 0.9 },
-      { caption: 'And now. The moment. Hold onto something.' },
-      { tap: [...HEADER.threeD], after: 2.2 },
-      { tap: [320, 796], after: 0.8 },
-      { mark: '3d' },
-      { caption: 'It is a BINDER. In 3D. On my PHONE. Science has gone too far.' },
-      { tap: [320, 796], after: 1.2 },
-      { tap: [320, 796], after: 1.2 },
-      { caption: 'Ten pockets left. My bank account has started making noises.' },
-    ],
-    question: 'Which empty pocket would you fill first?',
-    post: 'Our Kanto binder: 141 of the 151 Kanto Pokémon, every one from the 151 set, page by page and in 3D. Ten pockets to go.',
-    tags: '#pokemon151 #pokemonbinder #pokemoncards #pokemontcg #kanto #pokemoncollection',
-  },
-  {
-    name: 'national-dex',
-    hook: 'Every. Single. Pokémon. One. Binder. I need a lie down.',
-    coldOpen: { mark: 'flip', dur: 1.8 },
-    setup: [
-      // Open the National Dex and flip through the first pages off camera, so their cards are loaded on screen.
-      { tap: [50, 151], after: 1.0 },
-      { tapText: 'National Dex', after: 3.0 },
-      ...Array.from({ length: 8 }, () => ({ swipe: [380, 470, 60, 470], dur: 0.25, after: 1.6 }) as Step),
-      ...Array.from({ length: 8 }, () => ({ swipe: [60, 470, 380, 470], dur: 0.25, after: 0.5 }) as Step),
-      { tap: [50, 151], after: 1.0 },
-      { tapText: 'Kanto', after: 3.0 },
-    ],
-    steps: [
-      { caption: 'Ten twenty-five Pokémon. One binder. Zero shelves were harmed.' },
-      { tap: [50, 151], after: 1.0 },
-      { tapText: 'National Dex', after: 2.0 },
-      { mark: 'flip' },
-      { caption: 'National Dex order, so Bulbasaur gets page one. As the ancients intended.' },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.6 },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.6 },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.6 },
-      { caption: 'Page. After page. After page. My thumb has filed a complaint.' },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.6 },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.6 },
-      { swipe: [380, 470, 60, 470], dur: 0.25, after: 0.6 },
-      { caption: 'Prefer a list? Fine. Every pocket, as a checklist. Tick, tick, tick.' },
-      { tap: [...DOCK.inventory], after: 1.4 },
-      { swipe: [220, 780, 220, 200], dur: 0.35, after: 0.8 },
-      { swipe: [220, 780, 220, 200], dur: 0.35, after: 0.8 },
-      { caption: "Gotta catch them all? Gotta BINDER them all. I'll see myself out." },
-    ],
-    question: 'Which Pokémon would you put on page one?',
-    post: 'A National Dex binder in Holo Folder: a pocket for every Pokémon in Dex order, page by page or as a checklist.',
-    tags: '#nationaldex #pokemonbinder #pokemoncards #pokemontcg #livingdex #pokemoncollection',
-  },
-  {
-    name: 'similar-look',
-    hook: 'Hang on. Hang ON. There are MORE cards like this?',
-    coldOpen: { mark: 'similar', dur: 2.0 },
-    steps: [
-      { caption: 'Tap any card in your binder. Any card. Live a little.' },
-      { tap: [78, 445], after: 2.4 },
-      { caption: 'Scroll down to Similar look. This is where my money goes to die.' },
-      { swipe: [220, 760, 220, 380], dur: 0.9, after: 1.4 },
-      { mark: 'similar' },
-      { caption: 'Cards with the same vibe, from every set ever made. Look at them all. LOOK at them.' },
-      { swipe: [400, 700, 60, 700], dur: 0.6, after: 1.2 },
-      { caption: 'Tap one and boom. Swap it straight into your binder, or stick it on your want list.' },
-      { tap: [100, 700], after: 2.0 },
-      { caption: 'My want list just doubled. Thanks, I hate it.' },
-    ],
-    question: 'What card should we look up next?',
-    post: 'Similar look finds cards that share a card’s feel, colours and style, across every set. Tap one to see the card and its price in pounds.',
-    tags: '#pokemoncards #pokemontcg #pokemonart #illustrationrare #pokemoncollection #tcguk',
-  },
-  {
-    name: 'binder-worth',
-    hook: 'I priced my ENTIRE Kanto binder and I need to sit down.',
-    coldOpen: { mark: 'value', dur: 1.8 },
-    steps: [
-      { caption: 'Menu. Analytics. Deep breath. Do not look directly at it.' },
-      { tap: [...HEADER.more], after: 1.2 },
-      { tap: [252, 325], after: 2.4 },
-      { mark: 'value' },
-      { caption: 'Every card priced in pounds, and it even tells you how sure it is. Polite. Very British.' },
-      { caption: "Here's who's carrying the team. Charmander. Absolute unit. Pays the rent." },
-      { swipe: [220, 760, 220, 420], dur: 0.9, after: 1.2 },
-      { caption: 'And this is what the last ten cards would cost. Tell my mum I love her.' },
-      { swipe: [220, 760, 220, 300], dur: 0.9, after: 1.0 },
-      { swipe: [220, 760, 220, 300], dur: 0.9, after: 1.0 },
-      { caption: 'Right. Back to the card show. Hide the bank statements.' },
-    ],
-    question: 'Guess what yours is worth?',
-    post: 'What our Kanto binder is worth, worked out card by card in pounds, plus what the last ten chase cards would cost to finish it.',
-    tags: '#pokemon151 #pokemoncards #pokemontcg #pokemoncollection #tcguk #pokemonbinder',
-  },
-  {
-    name: 'card-show-hunt',
-    hook: 'STOP!!! Put the wallet DOWN. Do not pay £150 for this card.',
-    coldOpen: { mark: 'verdict', dur: 2.0 },
-    steps: [
-      { caption: 'Card show. Nine a.m. I have had four coffees and I can hear colours.' },
-      { tap: [...HEADER.show], after: 1.4 },
-      { tap: [...DOCK.search], after: 1.6 },
-      { caption: 'Show mode on. My want list. My hit list. My little list of financial ruin.' },
-      { swipe: [220, 680, 220, 420], dur: 0.8, after: 1.0 },
-      { caption: 'And there he is. Blastoise. Glistening. On the table. Winking at me.' },
-      { tap: [200, 649], after: 2.2 },
-      { caption: "Bloke behind the table goes, a hundred and fifty, mate. Let's ask the app, shall we." },
-      { tap: [220, 793], after: 0.4 },
-      { type: '150', after: 0.4 },
-      { mark: 'verdict' },
-      { caption: 'WALK AWAY. Walk away! Put the Blastoise DOWN! Back away slowly, sir!' },
-      { caption: 'Right. Haggling face on. Seventy-five?' },
-      { keys: [42, 42, 42], after: 0.3 },
-      { type: '75', after: 1.0 },
-      { caption: 'FAIR PRICE! Get in! Blastoise, pack your bags, son, you are coming home!' },
-    ],
-    question: 'Would you pay £150 for it?',
-    post: "Card show tip: Holo Folder's Show mode keeps your want list on screen and tells you straight away how an asking price compares with the market, in pounds.",
-    tags: '#pokemoncardshow #pokemoncards #pokemontcg #blastoise #pokemon151 #tcguk',
-  },
-];
 
 // ---------- shell helpers ----------
 const exec = promisify(execFile);
@@ -330,7 +157,7 @@ async function dismissKeyboard(udid: string) {
 async function tapText(
   udid: string,
   text: string,
-  opts: { tries?: number; before?: () => Promise<unknown> } = {},
+  opts: { tries?: number; before?: () => Promise<unknown>; offset?: [number, number] } = {},
 ): Promise<[number, number]> {
   for (let attempt = 0; attempt < (opts.tries ?? 8); attempt++) {
     if (opts.before) await opts.before();
@@ -344,7 +171,8 @@ async function tapText(
       const boxes = (words.length ? words : [line]).map((w) => w.bbox);
       const x = (Math.min(...boxes.map((b) => b.x0)) + Math.max(...boxes.map((b) => b.x1))) / 2;
       const y = (Math.min(...boxes.map((b) => b.y0)) + Math.max(...boxes.map((b) => b.y1))) / 2;
-      const at: [number, number] = [Math.round(x / PT.scale), Math.round(y / PT.scale)];
+      const [dx, dy] = opts.offset ?? [0, 0];
+      const at: [number, number] = [Math.round(x / PT.scale) + dx, Math.round(y / PT.scale) + dy];
       await tap(udid, ...at);
       return at;
     }
@@ -422,8 +250,37 @@ async function launchApp(udid: string) {
     ]);
     await sleep(1.5);
   }
-  await sleep(12);
+  // The web app can sit on a black screen for a while after a deploy (cold caches), so wait until it draws.
+  // Ready once the dock's labels can be read (a blank black or white screen has none).
+  for (let waited = 0; waited < 120; waited += 3) {
+    const text = (await screenLines(udid)).map((l) => l.text).join(' ');
+    if (/Binder/.test(text) && /Wanted/.test(text)) break;
+    await sleep(3);
+  }
+  await sleep(4);
 }
+
+// The brightest pixel (0–255) in part of the screen, as an ffmpeg crop.
+async function brightest(udid: string, crop: string) {
+  const shot = join(tmpdir(), `holofolder-luma-${udid}.png`);
+  await run(['xcrun', 'simctl', 'io', udid, 'screenshot', shot]);
+  const out = await run([
+    'ffmpeg',
+    '-loglevel',
+    'error',
+    '-i',
+    shot,
+    '-vf',
+    `${crop},signalstats,metadata=print:key=lavfi.signalstats.YMAX:file=-`,
+    '-f',
+    'null',
+    '-',
+  ]);
+  return Number(/YMAX=(\d+)/.exec(out)?.[1] ?? 255);
+}
+
+// True while a system prompt dims the screen: the header's white "Holo Folder" title drops from ~225 to ~125.
+const dimmed = async (udid: string) => (await brightest(udid, 'crop=270:60:120:276')) < 170;
 
 // Back to a known screen: the Kanto binder, first page, with the motion prompt (holo tilt) answered off camera.
 async function resetApp(udid: string) {
@@ -433,10 +290,18 @@ async function resetApp(udid: string) {
   await launchApp(udid);
   // The app reopens on the last view. This first touch after a launch always raises the motion prompt, which a
   // web app doesn't expose to accessibility, so answer it (Cancel) by position.
-  await tap(udid, 220, 812); // the empty strip above the dock: raises it without touching anything
-  await sleep(1.5);
-  await tap(udid, 293, 526); // Allow (Cancel only lasts until Show mode asks again; Allow also turns on holo tilt)
-  await sleep(1.2);
+  // The prompt can take a few seconds to appear, and a missed tap leaves it over the whole take. It is invisible to
+  // OCR and accessibility, but it dims the screen, so check the header title's brightness and tap Allow by position
+  // until it is gone. Allow, because Cancel only lasts until Show mode asks again; it also turns on holo tilt.
+  // It can turn up several seconds after the first touch, so keep looking until it has been seen and answered.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await tap(udid, ...DOCK.binder); // a real button, and harmless on the binder
+    await sleep(3);
+    if (!(await dimmed(udid))) continue;
+    await tap(udid, 293, 526);
+    await sleep(1.5);
+    if (!(await dimmed(udid))) break;
+  }
   await tap(udid, ...DOCK.binder); // also closes any sheet a stray touch opened
   await sleep(2);
 }
@@ -469,11 +334,12 @@ async function perform(
   let i = 0;
   let line = 0;
   let talkingUntil = 0;
+  let lastText: [number, number] = [0, 0];
   for (const s of steps) {
     if ('caption' in s) {
       if (now() < talkingUntil) await sleep(talkingUntil - now());
       tl.captions.push({ t: now(), text: s.caption });
-      talkingUntil = now() + (voice[line++] ?? 0) + 0.1;
+      talkingUntil = now() + (voice[line++] ?? 0);
     } else if ('mark' in s) tl.marks[s.mark] = now();
     else if ('wait' in s) await sleep(s.wait);
     else if ('tap' in s) {
@@ -483,8 +349,13 @@ async function perform(
       // AXe takes a second or so to start; it returns once the touch ends, so time the dot from there.
       tl.gestures.push({ kind: 'tap', t: now() - dur, dur, from: [x, y], to: [x, y] });
       await sleep(s.after ?? 1);
+    } else if ('again' in s) {
+      await tap(udid, ...lastText);
+      tl.gestures.push({ kind: 'tap', t: now() - 0.12, dur: 0.12, from: lastText, to: lastText });
+      await sleep(s.after ?? 1);
     } else if ('tapText' in s) {
-      const at = await tapText(udid, s.tapText);
+      const at = await tapText(udid, s.tapText, { offset: s.offset });
+      lastText = at;
       tl.gestures.push({ kind: 'tap', t: now() - 0.12, dur: 0.12, from: at, to: at });
       await sleep(s.after ?? 1);
     } else if ('swipe' in s) {
@@ -534,13 +405,117 @@ async function record(udid: string, clip: Clip, raw: string, voice: number[]): P
   const t0 = performance.now();
   const now = () => (performance.now() - t0) / 1000;
   const tl: Timeline = { marks: {}, captions: [], gestures: [], end: 0 };
-  await perform(udid, clip.steps, now, tl, undefined, voice);
-  // Let the last line finish over the final frames.
+  try {
+    await perform(udid, clip.steps, now, tl, undefined, voice); // each line waits for the last one to finish
+    // Let the last line finish over the final frames.
+    const last = tl.captions.at(-1);
+    if (last) await sleep(Math.max(0, last.t + (voice[tl.captions.length - 1] ?? 0) + 0.3 - now()));
+    tl.end = now();
+  } finally {
+    rec.kill('SIGINT'); // stop recording even when a step fails, so no recorder is left running
+    await exited;
+  }
+  return tl;
+}
+
+// ---------- terminal clips ----------
+// The commands really run, against the API as @demo with a short-lived key, and their real output is what shows.
+// The footage is drawn frame by frame in Chromium on a virtual clock, typing each command out as the voice talks.
+const TERM_FPS = 30;
+const TYPE_CPS = 32; // characters typed a second
+
+async function recordTerminal(clip: Clip, raw: string, voice: number[]): Promise<Timeline> {
+  const cmds = clip.steps.flatMap((s) => ('cmd' in s ? [s] : []));
+  const outputs = await withDemoKey(async (key) => {
+    const env = { ...process.env, HF: 'https://app.holofolder.com/app/api/v1', HF_KEY: key };
+    const results: string[] = [];
+    for (const c of cmds) {
+      // A brand-new key or a cold API can return nothing for a moment, so give each command a few tries.
+      let out = '';
+      for (let attempt = 0; attempt < 4; attempt++) {
+        out = execFileSync('zsh', ['-c', c.cmd], { env }).toString().trimEnd();
+        if (!c.expect || out.includes(c.expect)) break;
+        await sleep(4);
+      }
+      if (c.expect && !out.includes(c.expect)) throw new Error(`Expected "${c.expect}" from:\n${c.cmd}\ngot:\n${out}`);
+      results.push(out);
+    }
+    return results;
+  });
+  // Lay the steps out on a clock: a line of voice holds the next line back, as in perform().
+  const tl: Timeline = { marks: {}, captions: [], gestures: [], end: 0 };
+  const shown: { cmd: string; out: string; at: number; outAt: number }[] = [];
+  let t = 0.5;
+  let talkingUntil = 0;
+  let line = 0;
+  for (const s of clip.steps) {
+    if ('caption' in s) {
+      t = Math.max(t, talkingUntil);
+      tl.captions.push({ t, text: s.caption });
+      talkingUntil = t + (voice[line++] ?? 0);
+    } else if ('mark' in s) tl.marks[s.mark] = t;
+    else if ('wait' in s) t += s.wait;
+    else if ('cmd' in s) {
+      const outAt = t + s.cmd.length / TYPE_CPS + 0.45;
+      shown.push({ cmd: s.cmd, out: outputs[shown.length], at: t, outAt });
+      t = outAt + (s.after ?? 1);
+    }
+  }
   const last = tl.captions.at(-1);
-  if (last) await sleep(Math.max(0, last.t + (voice[tl.captions.length - 1] ?? 0) + 0.3 - now()));
-  tl.end = now();
-  rec.kill('SIGINT');
-  await exited;
+  tl.end = Math.max(t, last ? last.t + (voice[tl.captions.length - 1] ?? 0) + 0.3 : 0);
+
+  const width = PT.w * PT.scale;
+  const height = CROP_PT * PT.scale;
+  const browser = await chromium.launch();
+  const p = await browser.newPage({ viewport: { width, height } });
+  await p.setContent(`<!doctype html><html><head><style>
+    html,body{margin:0;width:${width}px;height:${height}px;background:#101014;color:#e8e6f0;overflow:hidden;
+      font:600 52px/1.35 "SF Mono",Menlo,monospace;-webkit-font-smoothing:antialiased}
+    #bar{height:${60 * PT.scale}px}
+    #t{position:absolute;left:48px;right:40px;bottom:${150 * PT.scale}px;white-space:pre-wrap;overflow-wrap:anywhere}
+    .p{color:#9d8cff}.o{color:#8fe3b0;margin:12px 0 44px}.c{background:#e8e6f0;color:#101014}
+  </style></head><body><div id="bar"></div><div id="t"></div></body></html>`);
+  const ffmpeg = spawn('ffmpeg', [
+    '-y',
+    '-loglevel',
+    'error',
+    '-f',
+    'image2pipe',
+    '-framerate',
+    `${TERM_FPS}`,
+    '-i',
+    '-',
+    '-c:v',
+    'libx264',
+    '-preset',
+    'veryfast',
+    '-crf',
+    '14',
+    '-pix_fmt',
+    'yuv420p',
+    raw,
+  ]);
+  const done = new Promise((r) => ffmpeg.once('exit', r));
+  for (let f = 0; f <= tl.end * TERM_FPS; f++) {
+    const now = f / TERM_FPS;
+    const html = shown
+      .flatMap((c) => {
+        if (c.at > now) return [];
+        const typed = Math.min(c.cmd.length, Math.floor((now - c.at) * TYPE_CPS));
+        const cursor = now < c.outAt && Math.floor(now * 2) % 2 === 0 ? '<span class="c"> </span>' : '';
+        const out = now >= c.outAt ? `<div class="o">${escapeHtml(c.out)}</div>` : '';
+        return [`<div><span class="p">$ </span>${escapeHtml(c.cmd.slice(0, typed))}${cursor}</div>${out}`];
+      })
+      .join('');
+    const idle = shown.every((c) => now >= c.outAt)
+      ? `<div><span class="p">$ </span>${Math.floor(now * 2) % 2 ? '' : '<span class="c"> </span>'}</div>`
+      : '';
+    await p.evaluate((h) => (document.getElementById('t')!.innerHTML = h), html + idle);
+    ffmpeg.stdin.write(await p.screenshot({ type: 'jpeg', quality: 95 }));
+  }
+  ffmpeg.stdin.end();
+  await done;
+  await browser.close();
   return tl;
 }
 
@@ -554,13 +529,14 @@ const page = (body: string, bg = 'transparent') => `<!doctype html><html><head><
 // TikTok-style captions: a few words at a time, big and bold over the lower middle of the screen, with the word
 // being spoken in the accent colour. The hook is the same treatment, larger.
 const ACCENT = '#c9b8ff';
+// Captions sit in their own band above the phone (below TikTok's top tabs), so the whole app stays visible: a few
+// words at a time, bold, with the word being spoken in the accent colour. The hook shows whole.
 const captionHtml = (words: string[], active: number, hook: boolean) =>
   page(
-    `<div style="position:absolute;left:70px;right:150px;top:${hook ? 700 : 300}px;display:flex;justify-content:center;text-align:center">
-      <div style="font-size:${hook ? 96 : 84}px;font-weight:900;line-height:1.05;letter-spacing:-1.5px;text-wrap:balance;
-        -webkit-text-stroke:${hook ? 12 : 10}px #000;paint-order:stroke fill;text-shadow:0 6px 30px rgba(0,0,0,.55)">${words
-          .map((w, i) => `<span style="color:${i === active ? ACCENT : '#fff'}">${escapeHtml(w)}</span>`)
-          .join(' ')}</div></div>`,
+    `<div style="position:absolute;left:56px;right:56px;top:150px;height:${TOP - 172}px;display:flex;align-items:flex-end;justify-content:center;text-align:center">
+      <div style="font-size:${hook ? 56 : 62}px;font-weight:900;line-height:1.1;letter-spacing:-1px;text-wrap:balance">${words
+        .map((w, i) => `<span style="color:${i === active ? ACCENT : '#fff'}">${escapeHtml(w)}</span>`)
+        .join(' ')}</div></div>`,
   );
 
 const maskHtml = () =>
@@ -638,7 +614,7 @@ async function scheduleCues(dir: string, clip: Clip, tl: Timeline): Promise<Cue[
     );
     const start = Math.max(co + line.t + 0.05, free);
     cues.push({ text: line.text, start, dur, file, hook: i === 0 });
-    free = start + dur + 0.12;
+    free = start + dur;
   }
   return cues;
 }
@@ -661,7 +637,7 @@ async function renderCaptionTrack(dir: string, cues: Cue[], length: number): Pro
     const words = cue.text.split(/\s+/);
     const weights = words.map((w) => w.length + 2);
     const total = weights.reduce((a, b) => a + b, 0);
-    const per = cue.hook ? words.length : 4; // the hook stays whole; other lines show four words at a time
+    const per = cue.hook ? words.length : 6; // the hook stays whole; other lines show up to six words (two lines)
     const nextStart = ci + 1 < cues.length ? cues[ci + 1].start : length;
     hold(join(dir, 'blank.png'), cue.start);
     let t = cue.start;
@@ -791,11 +767,16 @@ async function composite(
 }
 
 async function writeCaptionFile(clip: Clip, file: string) {
+  // A baked-in track's licence line sits next to it as music/<clip>.txt (or default.txt) and goes in the post.
+  const credit = [`${clip.name}.txt`, 'default.txt'].map((f) => join(HERE, 'music', f));
+  const musicCredit = (
+    await readFile(credit[0], 'utf8').catch(() => readFile(credit[1], 'utf8').catch(() => ''))
+  ).trim();
   await writeFile(
     file,
     [
       '# TikTok (short caption, the hook first, then a question to start the comments)',
-      `${clip.hook}. ${clip.question} ${clip.tags.split(' ').slice(0, 4).join(' ')}`,
+      `${clip.hook.replace(/[.!?]*$/, '.')} ${clip.question} ${clip.tags.split(' ').slice(0, 4).join(' ')}`,
       '',
       '# Instagram Reels',
       `${clip.post} ${clip.question}`,
@@ -806,6 +787,8 @@ async function writeCaptionFile(clip: Clip, file: string) {
       `Instagram link (bio): ${UTM('instagram')}`,
       '',
       'Card images © The Pokémon Company, Nintendo, Creatures and GAME FREAK. Holo Folder is not affiliated with The Pokémon Company.',
+      'Voice: synthesised locally, cloned from the VCTK corpus (CC BY 4.0, CSTR, University of Edinburgh).',
+      musicCredit,
       '',
     ].join('\n'),
   );
@@ -848,10 +831,19 @@ async function main() {
     await run(['xcrun', 'simctl', 'shutdown', golden]);
     await writeFile(ready, new Date().toISOString());
   }
-  for (const clip of clips) {
+  // One failed clip (a missed tap, a slow load) shouldn't lose the rest of the run.
+  const failed: string[] = [];
+  const film = async (clip: Clip) => {
     const work = join(OUT, '.work', clip.name);
     await rm(work, { recursive: true, force: true });
     await mkdir(work, { recursive: true });
+    if (clip.terminal) {
+      console.log(`▶ ${clip.name}: terminal`);
+      const tl = await recordTerminal(clip, join(work, 'raw.mp4'), (await voiceLines(work, clip)).captions);
+      await writeFile(join(work, 'timeline.json'), JSON.stringify(tl, null, 2));
+      await finish(work, clip, tl);
+      return;
+    }
     let udid = golden;
     if (!reuse) {
       // A fresh clone of the golden device: same signed-in app, no state left over from the last take.
@@ -878,7 +870,7 @@ async function main() {
     if (probe) {
       await perform(udid, clip.steps, () => 0, tl0, work);
       console.log(`  probe screenshots in ${work}`);
-      continue;
+      return;
     }
     const raw = join(work, 'raw.mp4');
     console.log('  recording');
@@ -888,84 +880,75 @@ async function main() {
     await writeFile(join(work, 'timeline.json'), JSON.stringify(tl, null, 2));
     if (udid !== golden) await run(['xcrun', 'simctl', 'shutdown', udid]).catch(() => {});
     await finish(work, clip, tl);
+  };
+  for (const clip of clips)
+    await film(clip).catch((error: unknown) => {
+      console.error(`  ✗ ${clip.name}: ${error instanceof Error ? error.message : error}`);
+      failed.push(clip.name);
+    });
+  if (failed.length) {
+    process.exitCode = 1;
+    console.error(`Failed: ${failed.join(' ')}`);
   }
 }
 
 // ---------- audio ----------
 // Everything is synthesised here or spoken by Qwen3-TTS running locally, so there is nothing to license.
-const VOICE = process.env.VO_VOICE ?? 'lewis'; // a reference voice in voices/; see tts.py
+// The narrator is cloned from voices/<VOICE>.wav; see tts.py and voices/README.md.
+const VOICE = process.env.VO_VOICE ?? 'york';
+const ONES =
+  'zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen'.split(
+    ' ',
+  );
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+// 0–999 as a British speaker says it: "a hundred and fifty", "seventy-five".
+function numberWords(n: number): string {
+  if (n >= 100)
+    return `${n < 200 ? 'a' : ONES[Math.floor(n / 100)]} hundred${n % 100 ? ` and ${numberWords(n % 100)}` : ''}`;
+  if (n < 20) return ONES[n];
+  return TENS[Math.floor(n / 10)] + (n % 10 ? `-${ONES[n % 10]}` : '');
+}
 // How the voice should say words it gets wrong. Applied to the spoken text only, never to captions.
-const SAY_AS: [RegExp, string][] = [
-  [/£(\d+)\b/g, '$1 quid'],
+const SAY_AS: [RegExp, string | ((m: string, n: string) => string)][] = [
+  [/£(\d{1,3})\b/g, (_, n) => `${numberWords(Number(n))} quid`],
   [/\bPOV\b/g, 'P O V'],
   [/\bPokémon\b/gi, 'Pokemon'],
   [/\s+ex\b/g, ''], // say the Pokémon's name only
-  [/\b141 of 151\b/g, 'a hundred and forty-one of a hundred and fifty-one'],
-  [/\b151 set\b/g, 'one-five-one set'],
-  [/\b1,025\b/g, 'ten twenty-five'],
+  [/\b151\b/g, 'one-five-one'],
   [/\b3D\b/g, 'three D'],
+  [/\b(\d{1,3})\b(?!,\d)/g, (_, n) => numberWords(Number(n))],
 ];
+const say = (text: string) =>
+  SAY_AS.reduce(
+    (t, [re, to]) => t.replace(re, to as string),
+    text.replace(/(?<!^)\b([A-Z]{2,})\b/g, (w) => (w === 'POV' ? w : w.toLowerCase())),
+  );
 
+// The clip's whole script is voiced as one take (tts.py) and cut back into a file per line. Cached by voice and
+// exact wording, so re-edits only voice a clip again when its script changes.
 async function speak(lines: { out: string; text: string }[]) {
-  const spoken = lines.map((l) => ({
-    ...l,
-    text: SAY_AS.reduce((t, [re, to]) => t.replace(re, to), l.text),
-    check: l.text.replace(/£(\d+)\b/g, '$1 quid'), // what Whisper should hear
-  }));
-  // Cache each line by voice, reference take and exact wording; re-edits only voice what changed.
-  const cacheDir = join(OUT, '.voice-cache');
-  await mkdir(cacheDir, { recursive: true });
+  const spoken = lines.map((l) => say(l.text));
   const ref = await readFile(join(HERE, 'voices', `${VOICE}.wav`));
-  const keyed = spoken.map((l) => ({
-    ...l,
-    cached: join(
-      cacheDir,
-      `${createHash('sha1')
-        .update(ref)
-        .update(`chatterbox:${process.env.VO_EXAGGERATION ?? '0.9'}:${process.env.VO_CFG ?? '0.4'}`)
-        .update(l.text)
-        .digest('hex')}.wav`,
-    ),
-  }));
-  const missing: ((typeof keyed)[number] & { out: string })[] = [];
-  for (const l of keyed) if (!(await stat(l.cached).catch(() => null))) missing.push({ ...l, out: l.cached });
-  if (missing.length)
+  const key = createHash('sha1')
+    .update(ref)
+    .update('qwen3-base-untrimmed')
+    .update(JSON.stringify(spoken))
+    .digest('hex');
+  const cacheDir = join(OUT, '.voice-cache', key);
+  const cached = spoken.map((_, i) => join(cacheDir, `${i}.wav`));
+  if (!(await stat(cached.at(-1)!).catch(() => null))) {
+    await mkdir(cacheDir, { recursive: true });
     await new Promise<void>((resolve, reject) => {
       const p = spawn('uv', ['run', '-q', join(HERE, 'tts.py'), VOICE], { stdio: ['pipe', 'inherit', 'inherit'] });
       p.once('exit', (code) => (code === 0 ? resolve() : reject(new Error(`tts.py exited ${code}`))));
-      p.stdin.end(JSON.stringify(missing.map(({ out, text, check }) => ({ out, text, check }))));
+      p.stdin.end(JSON.stringify(spoken.map((text, i) => ({ out: cached[i], text }))));
     });
-  for (const l of keyed) await copyFile(l.cached, l.out);
+  }
+  for (const [i, l] of lines.entries()) await copyFile(cached[i], l.out);
 }
 
-const BPM_BEAT = 60 / 100;
-
-// A soft lo-fi bed: four jazzy chords, a sine kick on the beat and a quiet hat on the off-beat.
-function musicExpr(): string {
-  const chords = [
-    [130.81, 261.63, 329.63, 392.0, 493.88], // Cmaj7
-    [110.0, 220.0, 261.63, 329.63, 392.0], // Am7
-    [87.31, 174.61, 220.0, 261.63, 329.63], // Fmaj7
-    [98.0, 196.0, 246.94, 293.66, 349.23], // G7
-  ];
-  const bar = BPM_BEAT * 4;
-  const env = `min(1,mod(t,${bar})/0.25)*exp(-mod(t,${bar})*0.35)`;
-  const pad = chords
-    .map((c, i) => {
-      const notes = c.map((hz, j) => `${j === 0 ? 0.5 : 0.22}*sin(2*PI*${hz}*t)`).join('+');
-      return `between(mod(t,${bar * 4}),${bar * i},${bar * (i + 1)})*(${notes})`;
-    })
-    .join('+');
-  const kick = `sin(2*PI*(48+70*exp(-mod(t,${BPM_BEAT})*28))*mod(t,${BPM_BEAT}))*exp(-mod(t,${BPM_BEAT})*9)`;
-  const hat = `(random(0)*2-1)*exp(-mod(t+${BPM_BEAT / 2},${BPM_BEAT})*70)`;
-  return `0.3*(${pad})*${env}+0.8*${kick}+0.1*${hat}`;
-}
-
-// Makes the raw voice sound produced, like a creator's mic: cut the rumble, lift presence and air, tame the S's,
-// compress it so it sits on top of the music.
-const VOICE_CHAIN =
-  'aresample=48000,highpass=f=90,equalizer=f=250:t=q:w=1:g=-2,equalizer=f=3200:t=q:w=1:g=3,' +
-  'equalizer=f=9000:t=h:w=0.7:g=2,deesser=i=0.4,acompressor=threshold=0.08:ratio=3.5:attack=4:release=90:makeup=2,';
+// The voice goes in as generated, unprocessed: the take you hear in the voice samples is the take in the video.
+const VOICE_CHAIN = 'aresample=48000,';
 
 // --voice-preview: the clip's voiceover on its own, as it will sound in the edit.
 async function voicePreview(clip: Clip) {
@@ -992,55 +975,36 @@ async function voicePreview(clip: Clip) {
   return out;
 }
 
-async function buildAudio(dir: string, clip: Clip, tl: Timeline, cues: Cue[], withVoice: boolean, out: string) {
-  const co = clip.coldOpen.dur; // where the app recording starts
-  const length = videoLength(clip, tl);
-  const fx = [
-    ['click.wav', 'sin(2*PI*1900*t)*exp(-t*110)*0.6+sin(2*PI*950*t)*exp(-t*60)*0.25', 0.08],
-    ['whoosh.wav', '(random(0)*2-1)*sin(PI*t/0.4)*0.5', 0.4],
-    // The short-form staples, synthesised: a sub boom on the hook, a pop as each caption lands, a riser into the
-    // payoff and a bright ding when it lands.
-    ['boom.wav', 'sin(2*PI*(38+90*exp(-t*9))*t)*exp(-t*3.2)*0.95+(random(0)*2-1)*exp(-t*40)*0.25', 1.4],
-    ['pop.wav', 'sin(2*PI*(520+700*t*10)*t)*exp(-t*55)*0.7', 0.09],
-    ['riser.wav', '(random(0)*2-1)*pow(t/1.2,2.2)*0.55+sin(2*PI*(200+500*t)*t)*pow(t/1.2,3)*0.25', 1.2],
-    ['ding.wav', '(sin(2*PI*1318.5*t)+0.6*sin(2*PI*1975.5*t)+0.35*sin(2*PI*2637*t))*exp(-t*5)*0.45', 1.2],
-  ] as const;
-  for (const [file, expr, dur] of fx)
-    await run([
-      'ffmpeg',
-      '-y',
-      '-loglevel',
-      'error',
-      '-f',
-      'lavfi',
-      '-i',
-      `aevalsrc='${expr}':s=44100:d=${dur}`,
-      join(dir, file),
-    ]);
-  const inputs = ['-f', 'lavfi', '-i', `aevalsrc='${musicExpr()}':s=44100:d=${length.toFixed(3)}`];
-  const f = [
-    `[0:a]lowpass=f=5000,aecho=0.8:0.4:240:0.2,volume=${withVoice ? 0.32 : 0.6},afade=t=out:st=${(length - 1.2).toFixed(2)}:d=1.2[music]`,
-  ];
-  const parts = ['[music]'];
-  const add = (file: string, at: number, gain: number, chain = '') => {
-    const n = inputs.filter((x) => x === '-i').length;
-    inputs.push('-i', file);
-    const ms = Math.max(0, Math.round(at * 1000));
-    f.push(`[${n}:a]${chain}adelay=${ms}|${ms},volume=${gain}[a${n}]`);
-    parts.push(`[a${n}]`);
-  };
-  add(join(dir, 'boom.wav'), 0, 0.9); // the hook lands
-  add(join(dir, 'whoosh.wav'), co - 0.2, 0.45); // the cut into the app
-  const payoff = tl.marks[clip.coldOpen.mark];
-  if (payoff !== undefined) {
-    add(join(dir, 'riser.wav'), co + payoff - 1.2, 0.5);
-    add(join(dir, 'ding.wav'), co + payoff, 0.7);
-  }
-  for (const cue of cues) add(join(dir, 'pop.wav'), cue.start, 0.45);
-  for (const g of tl.gestures)
-    add(join(dir, g.kind === 'tap' ? 'click.wav' : 'whoosh.wav'), co + g.t, g.kind === 'tap' ? 0.5 : 0.18);
-  if (withVoice) for (const cue of cues) add(cue.file, cue.start, 1.3, VOICE_CHAIN);
-  f.push(`${parts.join('')}amix=inputs=${parts.length}:normalize=0:duration=first,loudnorm=I=-15:TP=-1.5:LRA=11[out]`);
+// The narration, mastered. No sound effects, and no music unless a track is given: by default the music is added in
+// TikTok or Instagram when posting (a trending sound or the platform's licensed library). To bake one in, put a
+// track you have the rights to at music/<clip>.mp3 or music/default.mp3; it sits under the voice and dips while the
+// narrator talks.
+async function buildAudio(clip: Clip, cues: Cue[], length: number, out: string) {
+  const track = [join(HERE, 'music', `${clip.name}.mp3`), join(HERE, 'music', 'default.mp3')];
+  const music = (await stat(track[0]).catch(() => null))
+    ? track[0]
+    : (await stat(track[1]).catch(() => null))
+      ? track[1]
+      : null;
+  const inputs = ['-f', 'lavfi', '-i', `anullsrc=r=48000:cl=stereo:d=${length.toFixed(3)}`];
+  const f: string[] = [];
+  const voices = cues.map((cue, i) => {
+    inputs.push('-i', cue.file);
+    const ms = Math.round(cue.start * 1000);
+    f.push(`[${i + 1}:a]${VOICE_CHAIN}adelay=${ms}|${ms}[v${i}]`);
+    return `[v${i}]`;
+  });
+  f.push(`[0:a]${voices.join('')}amix=inputs=${voices.length + 1}:normalize=0:duration=first[vo]`);
+  if (music) {
+    inputs.push('-stream_loop', '-1', '-i', music);
+    const n = cues.length + 1;
+    f.push(`[vo]asplit[vo1][key]`);
+    f.push(
+      `[${n}:a]aresample=48000,atrim=0:${length.toFixed(3)},volume=0.5,afade=t=out:st=${(length - 1.2).toFixed(2)}:d=1.2[bed]`,
+    );
+    f.push(`[bed][key]sidechaincompress=threshold=0.02:ratio=8:attack=15:release=400[ducked]`);
+    f.push(`[ducked][vo1]amix=inputs=2:normalize=0,loudnorm=I=-15:TP=-1.5:LRA=11[out]`);
+  } else f.push(`[vo]loudnorm=I=-15:TP=-1.5:LRA=11[out]`);
   await run([
     'ffmpeg',
     '-y',
@@ -1086,36 +1050,9 @@ async function finish(work: string, clip: Clip, tl: Timeline) {
   const cues = await scheduleCues(work, clip, tl);
   await renderOverlays(work);
   const captions = await renderCaptionTrack(work, cues, clip.coldOpen.dur + tl.end);
-  // Two cuts: with a voiceover, and music plus sound effects only (for adding a trending sound in the app instead).
   const mp4 = join(OUT, `${clip.name}.mp4`);
-  const voiced = join(OUT, `${clip.name}-voiceover.mp4`);
-  await buildAudio(work, clip, tl, cues, false, join(work, 'audio.wav'));
-  await buildAudio(work, clip, tl, cues, true, join(work, 'audio-vo.wav'));
+  await buildAudio(clip, cues, videoLength(clip, tl), join(work, 'audio.wav'));
   await composite(work, join(work, 'raw.mp4'), tl, clip, captions, join(work, 'audio.wav'), mp4);
-  await run([
-    'ffmpeg',
-    '-y',
-    '-loglevel',
-    'error',
-    '-i',
-    mp4,
-    '-i',
-    join(work, 'audio-vo.wav'),
-    '-map',
-    '0:v',
-    '-map',
-    '1:a',
-    '-c:v',
-    'copy',
-    '-c:a',
-    'aac',
-    '-b:a',
-    '160k',
-    '-shortest',
-    '-movflags',
-    '+faststart',
-    voiced,
-  ]);
   await writeCaptionFile(clip, join(OUT, `${clip.name}.txt`));
   console.log(`  ✓ ${mp4} (${videoLength(clip, tl).toFixed(1)} s)`);
 }

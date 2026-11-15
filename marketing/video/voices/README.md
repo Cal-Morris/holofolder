@@ -1,1 +1,1 @@
-Reference voices for `tts.py`. `lewis.wav` is Kokoro-82M's `bm_lewis` voice (Apache-2.0), a synthetic British voice, not a real person; Chatterbox clones its timbre and accent for every line.
+Reference voice for `tts.py`. `york.wav` is speaker p287 (male, 23, York) from the VCTK corpus, and `york.txt` is what he reads in it. VCTK is © Centre for Speech Technology Research, University of Edinburgh, licensed CC BY 4.0 (https://datashare.ed.ac.uk/handle/10283/3443). Qwen3-TTS clones its timbre and accent for the narration.

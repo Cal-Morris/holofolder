@@ -98,16 +98,17 @@ export async function demoPassword(): Promise<string> {
   }
 }
 
-async function main() {
+// Runs `fn` with a fresh developer API key for the demo account (and its database connection), revoked afterwards.
+export async function withDemoKey<T>(fn: (key: string, db: Client, read: Read) => Promise<T>): Promise<T> {
   await loadProjectEnvFiles();
   const url = new URL(process.env.POSTGRES_URL_NON_POOLING ?? process.env.DATABASE_URL ?? '');
   url.searchParams.delete('sslmode');
   const db = new Client({ connectionString: url.toString(), ssl: { rejectUnauthorized: false } });
   await db.connect();
-  const read = async <T>(sql: string, params: unknown[] = []): Promise<T[]> => {
+  const read = async <R>(sql: string, params: unknown[] = []): Promise<R[]> => {
     await db.query("BEGIN READ ONLY; SET LOCAL statement_timeout = '60s'");
     try {
-      return (await db.query(sql, params)).rows as T[];
+      return (await db.query(sql, params)).rows as R[];
     } finally {
       await db.query('ROLLBACK');
     }
@@ -129,7 +130,17 @@ async function main() {
       30,
     ]);
     keyId = key.id;
-    const api = apiClient(key.key);
+    return await fn(key.key, db, read);
+  } finally {
+    if (keyId) await db.query('UPDATE developer_api_keys SET revoked_at = now() WHERE id = $1', [keyId]);
+    await db.end();
+  }
+}
+
+async function main() {
+  await withDemoKey(async (key, db, read) => {
+    const ownerId = await ensureAccount(db, read);
+    const api = apiClient(key);
 
     const [identity] = await read<{ username: string | null }>(
       'SELECT username FROM account_identities WHERE user_id = $1',
@@ -144,10 +155,7 @@ async function main() {
     const purchases = (await api('list_show_purchases', {})) as { data?: { id: string }[] };
     for (const p of purchases.data ?? []) await api('remove_show_purchase', { clientId: p.id });
     if (purchases.data?.length) console.log(`removed ${purchases.data.length} show purchases`);
-  } finally {
-    if (keyId) await db.query('UPDATE developer_api_keys SET revoked_at = now() WHERE id = $1', [keyId]);
-    await db.end();
-  }
+  });
 }
 
 async function ensureAccount(db: Client, read: Read): Promise<string> {

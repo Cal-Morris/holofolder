@@ -19,6 +19,6 @@
     // Only a JSDoc type reference in postcss.config.mjs.
     "postcss-load-config",
   ],
-  // System tools: gitleaks for `scan:secrets`, psql for the opt-in local SQL tests, uv for the demo video voiceover.
-  "ignoreBinaries": ["gitleaks", "psql", "uv"],
+  // System tools: gitleaks for `scan:secrets`, psql for the opt-in local SQL tests, uv and ffmpeg for the demo videos.
+  "ignoreBinaries": ["gitleaks", "psql", "uv", "ffmpeg"],
 }
