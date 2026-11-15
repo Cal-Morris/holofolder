@@ -301,6 +301,7 @@
     }
   },
   "ignorePatterns": [
+    "native/**",
     ".cache/**",
     ".next/**",
     ".source/**",
