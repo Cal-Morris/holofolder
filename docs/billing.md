@@ -109,6 +109,28 @@ Migration `134_lifetime_purchases.sql` adds `stripe_checkout_session_id` (unique
 
 Switch-on order, matching the cutover above: the price and coupons exist first with the app merged but the option hidden; then the Framer pricing copy is published; then `STRIPE_LIFETIME_PRICE_ID=price_1UbnGbGnHtZtNtvxlBrhBnu0` is staged in Vercel Production and the latest main is deployed and verified. Rollback is removing that variable and redeploying, which hides the option; existing purchased licences stay. Stripe objects can be archived but not deleted once used.
 
+## Launch offer, 15 November to 31 December 2026
+
+Cal approved a launch offer on 15 November 2026: 50% off the first payment period of every plan, ending 31 December 2026. It is an introductory offer, so the normal prices genuinely apply afterwards and the app never shows a "was" price. The wording is the same everywhere: "Launch offer: 50% off, ends 31 December 2026", "Launch offer: £2.00 a month for 3 months, then £3.99 a month", "Launch offer: £17.50 for your first year, then £34.99 a year" and "Launch offer: £39.50 until 31 December, then £79" (`launchOfferText` in `lib/billing.ts`).
+
+`LAUNCH_OFFER` in `lib/billing.ts` holds the end (`2026-12-31T23:59:59` Europe/London, which is GMT that day), the offer prices and the coupon IDs. While `launchOfferActive()` is true, `startCheckout` adds the plan's coupon as `discounts` on the Checkout Session, and Settings → Plan shows the offer wording on the plan buttons. After the end both switch off on their own, with no deploy. Each coupon takes an exact amount off in GBP rather than a percentage, so Checkout charges exactly what the app shows.
+
+| Coupon ID                         | Amount off | Duration            | Applies to       | Charged                          |
+| --------------------------------- | ---------- | ------------------- | ---------------- | -------------------------------- |
+| `holofolder-launch-2026-month`    | 199 pence  | repeating, 3 months | Premium product  | £2.00 for 3 months, then £3.99   |
+| `holofolder-launch-2026-year`     | 1749 pence | once                | Premium product  | £17.50 for year one, then £34.99 |
+| `holofolder-launch-2026-lifetime` | 3950 pence | once                | Lifetime product | £39.50 once                      |
+
+Stripe coupons can only be limited by product, not by price, so the monthly and annual coupons are both scoped to the Premium product. That is safe because none of them has a promotion code: only the server attaches them, and it picks the coupon for the plan being bought. Each coupon has `redeem_by` set to 24 hours after the end date as a backstop, because a Checkout opened just before midnight can stay open for up to a day.
+
+Stripe accepts either `discounts` or `allow_promotion_codes` on a session, never both (checked live: it rejects the pair), so a launch coupon and a creator or audience code can never stack. Settings has a "Have a creator code?" button. With it on, monthly and lifetime Checkouts open with the code box and no launch coupon, so the customer's code replaces the offer; annual has no code box and keeps the offer. The session's `offer` metadata records the coupon (or `none`), and an open session is only reused when that matches, so sessions from before the offer, with a code, or after the end are expired instead of reused.
+
+Fulfilment needed no change. A discounted lifetime order completes `paid` with a positive total and is granted like a full-price one; only positive amounts record `first_paid` (lifetime) or count as collector payments (subscriptions), and the 100% creator and audience codes still work as before.
+
+Verified live on 15 November 2026 with Checkout Sessions that had no customer and were expired straight away (no customer, payment method or charge): monthly 399 → 200, annual 3499 → 1750 and lifetime 7900 → 3950 with the launch coupon; with the code box, monthly 399 and lifetime 7900 with no coupon; temporary 100% codes brought monthly and lifetime to 0 and were then deactivated unused. Stripe rejected coupon plus code box together, and each launch coupon on the other product's price.
+
+Clean-up on 1 January 2027: the app switches itself off, but remove the Framer offer copy (pricing page, homepage pricing and the banner) and publish. Later, in a normal PR, delete `LAUNCH_OFFER` and its helpers, UI and tests. The coupons expire through `redeem_by`; subscriptions already on the monthly coupon keep it until their three months end.
+
 ## Free read-only sharing
 
 After migration `053_free_binder_sharing.sql` and its app release, signed-in owners can create, copy, disable and re-enable their existing named or token share links without a subscription. Enabled links remain viewable after subscription expiry. Owner-only RLS, origin checks, explicit link enablement, private response headers, noindex metadata and public-field filtering are retained. Partner editing and sold comparisons remain paid. Price visibility and existing share appearance are unchanged.

@@ -42,6 +42,8 @@ export function canReuseCheckout(
   interval: BillingPlan,
   priceId: string,
   lines: Stripe.ApiList<Stripe.LineItem>,
+  /** The launch coupon ID this Checkout should carry, or 'none'. Sessions from before or after the offer don't match. */
+  offer = 'none',
 ) {
   return (
     session.status === 'open' &&
@@ -50,6 +52,7 @@ export function canReuseCheckout(
     session.metadata.owner_user_id === ownerId &&
     session.client_reference_id === ownerId &&
     session.metadata.interval === interval &&
+    (session.metadata.offer ?? 'none') === offer &&
     Boolean(session.url) &&
     !lines.has_more &&
     lines.data.length === 1 &&

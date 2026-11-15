@@ -10,6 +10,8 @@ function render(
   hasBillingAccount = false,
   freeCardLimit = 100,
   extra: { lifetimeAvailable?: boolean; subscriptionActive?: boolean } = { lifetimeAvailable: true },
+  // After the launch offer by default, so the normal prices show.
+  now = Date.parse('2027-01-01T00:00:00Z'),
 ) {
   const state: BillingState = {
     access: resolveBillingAccess('owner', {
@@ -37,7 +39,7 @@ function render(
   };
   return renderToStaticMarkup(
     <BillingContext.Provider value={state}>
-      <BillingSettings signedIn onSignIn={() => {}} />
+      <BillingSettings signedIn onSignIn={() => {}} now={now} />
     </BillingContext.Provider>,
   );
 }
@@ -94,4 +96,25 @@ test('subscribers can buy lifetime and are told to cancel their subscription the
     render('perpetual', true, true, 100, { subscriptionActive: true }),
     /Your subscription is still active. Cancel it in Manage billing/,
   );
+});
+
+const duringOffer = Date.parse('2026-12-31T23:59:59Z');
+test('during the launch offer the plan picker shows offer price, renewal price and end date', () => {
+  const html = render('free', true, false, 100, { lifetimeAvailable: true }, duringOffer);
+  assert.match(html, /Launch offer: 50% off, ends 31 December 2026/);
+  assert.match(html, /£2.00 a month for 3 months, then £3.99 a month/);
+  assert.match(html, /£17.50 for your first year, then £34.99 a year/);
+  assert.match(html, /£39.50 until 31 December, then £79</);
+  assert.match(html, /Have a creator code\?/);
+  assert.doesNotMatch(html, /was|<s>|line-through/);
+});
+test('subscribers see the lifetime launch offer', () => {
+  const html = render('subscription', true, false, 100, { lifetimeAvailable: true }, duringOffer);
+  assert.match(html, /£39.50 until 31 December, then £79/);
+  assert.doesNotMatch(html, /£2.00/);
+});
+test('after the end date the normal prices return with no offer copy', () => {
+  const html = render('free', true, false, 100, { lifetimeAvailable: true }, duringOffer + 1000);
+  assert.doesNotMatch(html, /Launch offer|creator code/);
+  assert.match(html, /£3.99 \/ month/);
 });

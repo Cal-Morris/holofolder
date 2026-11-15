@@ -148,3 +148,26 @@ test('an open lifetime Checkout is only reused for lifetime in payment mode', ()
   assert.equal(canReuseCheckout(open, 'owner', 'month', 'price_life', lines), false);
   assert.equal(canReuseCheckout({ ...open, mode: 'subscription' }, 'owner', 'lifetime', 'price_life', lines), false);
 });
+
+test('a launch offer lifetime order at £39.50 grants lifetime and counts as first paid', async () => {
+  const h = harness();
+  const discounted = session({ amount_total: 3950, discounts: [{ coupon: 'holofolder-launch-2026-lifetime' }] });
+  assert.equal(await h.run(discounted), 'granted');
+  assert.equal(h.grants[0].amountPaid, 3950);
+  assert.equal(h.grants[0].promotionCodeId, null);
+  assert.equal(h.firstPaid.length, 1);
+});
+
+test('an open Checkout is only reused when it carries the launch coupon this sale should get', () => {
+  const open = session({ status: 'open', url: 'https://checkout.stripe.com/synthetic' });
+  const withOffer = {
+    ...open,
+    metadata: { ...open.metadata, offer: 'holofolder-launch-2026-lifetime' },
+  } as Stripe.Checkout.Session;
+  const lines = open.line_items!;
+  const coupon = 'holofolder-launch-2026-lifetime';
+  assert.equal(canReuseCheckout(withOffer, 'owner', 'lifetime', 'price_life', lines, coupon), true);
+  // A pre-offer session (no coupon) is expired during the offer, and an offer session is expired after it.
+  assert.equal(canReuseCheckout(open, 'owner', 'lifetime', 'price_life', lines, coupon), false);
+  assert.equal(canReuseCheckout(withOffer, 'owner', 'lifetime', 'price_life', lines, 'none'), false);
+});

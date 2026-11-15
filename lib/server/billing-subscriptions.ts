@@ -9,7 +9,7 @@ import {
   billingRecognizedPriceIds,
   billingReturnUrl,
 } from '@/lib/server/stripe';
-import type { BillingPlan } from '@/lib/billing';
+import { launchOfferCoupon, type BillingPlan } from '@/lib/billing';
 import { assertLifetimePrice, fulfilLifetimeCheckout } from '@/lib/billing-lifetime';
 import {
   assertCheckoutPrice,
@@ -90,7 +90,12 @@ async function reconcileLocked(ownerId: string, token: string, eventId?: string)
 export async function reconcileBilling(ownerId: string, eventId?: string) {
   await withBillingLock(ownerId, (token) => reconcileLocked(ownerId, token, eventId));
 }
-export async function startCheckout(ownerId: string, email: string | undefined, interval: BillingPlan) {
+export async function startCheckout(
+  ownerId: string,
+  email: string | undefined,
+  interval: BillingPlan,
+  wantsPromotionCode = false,
+) {
   return withBillingLock(ownerId, async (token) => {
     if ((await getBillingAccess(ownerId)).source === 'perpetual')
       throw new Error('Your account already has lifetime access.');
@@ -128,6 +133,8 @@ export async function startCheckout(ownerId: string, email: string | undefined, 
     ) {
       throw new Error('You already have a subscription. Use Manage billing.');
     }
+    const coupon = launchOfferCoupon(interval, wantsPromotionCode);
+    const offer = coupon ?? 'none';
     let reuse: Stripe.Checkout.Session | undefined;
     for await (const session of stripe.checkout.sessions.list({
       customer: account.stripe_customer_id,
@@ -136,11 +143,11 @@ export async function startCheckout(ownerId: string, email: string | undefined, 
     })) {
       if (session.metadata?.app !== 'holofolder') continue;
       const lines = await stripe.checkout.sessions.listLineItems(session.id, { limit: 2 });
-      if (!reuse && canReuseCheckout(session, ownerId, interval, price, lines)) reuse = session;
+      if (!reuse && canReuseCheckout(session, ownerId, interval, price, lines, offer)) reuse = session;
       else await stripe.checkout.sessions.expire(session.id);
     }
     if (reuse?.url) return reuse.url;
-    const metadata = { app: 'holofolder', interval, owner_user_id: ownerId, price_id: price };
+    const metadata = { app: 'holofolder', interval, owner_user_id: ownerId, price_id: price, offer };
     const session = await stripe.checkout.sessions.create(
       {
         ...(lifetime
@@ -149,8 +156,9 @@ export async function startCheckout(ownerId: string, email: string | undefined, 
               mode: 'subscription' as const,
               subscription_data: { metadata: { app: 'holofolder', owner_user_id: ownerId } },
             }),
-        // Creator codes are lifetime-only and audience codes monthly-only (coupon product scope); annual takes none.
-        allow_promotion_codes: interval !== 'year',
+        // Stripe takes a discount or the code box, not both. Creator codes are lifetime-only and audience codes
+        // monthly-only (coupon product scope); annual takes none.
+        ...(coupon ? { discounts: [{ coupon }] } : { allow_promotion_codes: interval !== 'year' }),
         customer: account.stripe_customer_id,
         client_reference_id: ownerId,
         metadata,
@@ -158,7 +166,7 @@ export async function startCheckout(ownerId: string, email: string | undefined, 
         success_url: billingReturnUrl(),
         cancel_url: billingReturnUrl(),
       },
-      { idempotencyKey: `holofolder-checkout:${ownerId}:${interval}:${token}` },
+      { idempotencyKey: `holofolder-checkout:${ownerId}:${interval}:${offer}:${token}` },
     );
     if (!session.url) throw new Error('Checkout could not be opened');
     scheduleCollectorTracking(async () => {
