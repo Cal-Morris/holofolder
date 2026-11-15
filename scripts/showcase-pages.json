@@ -832,6 +832,90 @@
         "cols": 3,
         "showPrices": false
       }
+    },
+    {
+      "page": -1,
+      "name": "First partners, Michi style",
+      "slug": "first-partners-michi",
+      "cards": [
+        {
+          "kind": "card",
+          "cardId": "sv03.5-166",
+          "language": "en",
+          "finish": "holo"
+        },
+        null,
+        null,
+        {
+          "kind": "card",
+          "cardId": "sv03.5-168",
+          "language": "en",
+          "finish": "holo"
+        },
+        null,
+        null,
+        {
+          "kind": "card",
+          "cardId": "sv03.5-170",
+          "language": "en",
+          "finish": "holo"
+        },
+        null,
+        null
+      ],
+      "pageArt": [
+        {
+          "pocket": 2,
+          "rows": 1,
+          "cols": 2,
+          "source": {
+            "kind": "pokemon",
+            "pokemonId": 1
+          },
+          "frame": {
+            "fit": "fill",
+            "zoom": 1,
+            "x": 0,
+            "y": -0.1
+          }
+        },
+        {
+          "pocket": 5,
+          "rows": 1,
+          "cols": 2,
+          "source": {
+            "kind": "pokemon",
+            "pokemonId": 4
+          },
+          "frame": {
+            "fit": "fill",
+            "zoom": 1,
+            "x": 0,
+            "y": -0.1
+          }
+        },
+        {
+          "pocket": 8,
+          "rows": 1,
+          "cols": 2,
+          "source": {
+            "kind": "pokemon",
+            "pokemonId": 7
+          },
+          "frame": {
+            "fit": "fill",
+            "zoom": 1,
+            "x": 0,
+            "y": -0.1
+          }
+        }
+      ],
+      "view": {
+        "preset": "blank",
+        "rows": 3,
+        "cols": 3,
+        "showPrices": false
+      }
     }
   ]
 }
