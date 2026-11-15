@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { docsSitemapEntries } from '@/lib/docs-source';
+import { helpSitemapEntries } from '@/lib/help-source';
 import { pokemonByGeneration } from '@/lib/pokemon-pages';
 import { getPublicCardIds } from '@/lib/server/public-cards';
 import { getPublicIllustrators } from '@/lib/server/public-illustrators';
@@ -13,6 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getPublicCardIds(),
   ]);
   return [
+    ...helpSitemapEntries(),
     ...docs,
     { url: 'https://holofolder.com/app/sets' },
     ...sets.map((set) => ({ url: `https://holofolder.com/app/sets/${set.slug}` })),

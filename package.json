@@ -30,6 +30,7 @@
     "test:e2e:compare": "bun --no-env-file scripts/e2e-compare.ts",
     "analyze:first-load": "node scripts/first-load-js.mjs .next",
     "test:e2e:install": "playwright install chromium",
+    "help:screenshots": "HELP_SCREENSHOTS=1 playwright test e2e/help-screenshots.e2e.ts --project=browser-390x844",
     "typecheck": "next typegen && bun check",
     "typecheck:tsc": "next typegen && tsc --noEmit",
     "scan:secrets": "gitleaks git --log-opts=--all --redact --ignore-gitleaks-allow --no-banner"

@@ -249,3 +249,10 @@ body:has(.holo-docs) [role='dialog'] input {
   padding-top: 0;
   padding-bottom: 0;
 }
+/* Help articles show phone screenshots: keep them phone-sized and framed instead of stretched to the column. */
+.holo-docs[data-help] .prose img {
+  width: min(100%, 320px);
+  height: auto;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 20px;
+}
