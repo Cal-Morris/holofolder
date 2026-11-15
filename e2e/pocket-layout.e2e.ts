@@ -437,6 +437,35 @@ test.describe('layout editing on the pockets', () => {
     }
   });
 
+  test('on a spread, a card carried a spread on and back lands on the spread it left', async ({ harness }) => {
+    const { page } = harness;
+    // From 1024px wide a 1x1 binder opens spreads: [1], [2 3], [4 5], [6 7] (slot-a to slot-g).
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/app/e2e-harness?signedIn=1&slots=picker&rows=1&cols=1&page=2');
+    await expect(pocket(page, 'slot-b')).toBeVisible();
+    await expect(pocket(page, 'slot-c')).toBeVisible();
+    await edit(page);
+    const box = (await pocket(page, 'slot-b').boundingBox())!;
+    const stage = (await page.locator('[data-page-turn-ms]').boundingBox())!;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(stage.x + stage.width - 4, y, { steps: 10 });
+    await expect(pocket(page, 'slot-d')).toBeVisible();
+    await expect(pocket(page, 'slot-e')).toBeVisible();
+    await page.mouse.move(stage.x + stage.width / 2, y, { steps: 6 });
+    await page.mouse.move(stage.x + 4, y, { steps: 6 });
+    await expect(pocket(page, 'slot-b')).toBeVisible();
+    await expect(pocket(page, 'slot-c')).toBeVisible();
+    // Off the edge before it repeats: the pickup spread stays, it doesn't keep turning.
+    await page.mouse.move(stage.x + stage.width / 2, y, { steps: 2 });
+    await page.waitForTimeout(1200);
+    await expect(pocket(page, 'slot-b')).toBeVisible();
+    await expect(pocket(page, 'slot-d')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+  });
+
   test('while the binder wiggles, a resting finger never opens the pocket menu', async ({ harness }) => {
     const { page } = harness;
     await edit(page);
