@@ -95,7 +95,11 @@ test.describe('search fields do not trigger iOS focus zoom', () => {
       .click();
     await search.getByRole('button', { name: 'All cards by Mitsuhiro Arita', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: /cards illustrated by mitsuhiro arita/i });
-    await expectNoFocusZoom(dialog.getByRole('combobox', { name: 'Sort cards' }), 'Illustrator sort');
+    await dialog.getByRole('button', { name: 'Filters · Sort' }).click();
+    await expectNoFocusZoom(
+      page.getByRole('dialog', { name: 'Filters and sort' }).getByRole('combobox', { name: 'Sort cards' }),
+      'Illustrator sort',
+    );
   });
 
   test('settings page-range end', async ({ harness }) => {

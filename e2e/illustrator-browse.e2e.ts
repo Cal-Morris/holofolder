@@ -9,8 +9,17 @@ const SCREENS = process.env.E2E_SCREENSHOT_DIR;
 const illustratorDialog = (harness: Harness) => harness.page.getByRole('dialog', { name: ARITA });
 const illustratorCards = (harness: Harness) =>
   illustratorDialog(harness)
-    .getByRole('list', { name: /cards by mitsuhiro arita/i })
-    .getByRole('listitem');
+    .getByRole('region', { name: /cards by mitsuhiro arita/i })
+    .getByRole('button');
+
+/** Sort lives in Filters · Sort, the card picker's sheet. */
+async function sortBy(harness: Harness, sort: string) {
+  await illustratorDialog(harness).getByRole('button', { name: 'Filters · Sort' }).click();
+  const sheet = harness.page.getByRole('dialog', { name: 'Filters and sort' });
+  await sheet.getByRole('combobox', { name: 'Sort cards' }).selectOption(sort);
+  await sheet.getByRole('button', { name: /^Show \d+ cards?$/ }).click();
+  await expect(sheet).toBeHidden();
+}
 
 async function openSearch(harness: Harness) {
   await harness.dock().getByRole('button', { name: 'Search', exact: true }).click();
@@ -76,8 +85,8 @@ test.describe('browse by illustrator', () => {
     const dialog = await openFromSearch(harness, 'arita');
     await expect(dialog.getByTestId('illustrator-summary')).toHaveText('3 cards · 2 sets · 2 owned · 0 wanted');
     await expect(illustratorCards(harness).first()).toHaveAccessibleName(/bulbasaur 166\/165 151$/i);
-    await expect(dialog.getByRole('listitem', { name: /charmander 46\/102 base set, owned/i })).toBeVisible();
-    await expect(dialog.getByRole('listitem', { name: /bulbasaur 44\/102 base set, owned/i })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /charmander 46\/102 base set, owned/i })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /bulbasaur 44\/102 base set, owned/i })).toBeVisible();
     await expect(dialog.getByRole('img').first()).toBeVisible();
     // Read-only: browsing never opens the card selector / edit flow.
     await expect(dialog.getByRole('button', { name: /^(add|want)\b/i })).toHaveCount(0);
@@ -101,7 +110,7 @@ test.describe('browse by illustrator', () => {
 
     const dialog = await openFromSearch(harness, 'arita');
     await expect(dialog.getByTestId('illustrator-summary')).toHaveText('3 cards · 2 sets · 2 owned · 1 wanted');
-    await expect(dialog.getByRole('listitem', { name: /bulbasaur 166\/165 151, wanted/i })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /bulbasaur 166\/165 151, wanted/i })).toBeVisible();
 
     const filters = dialog.getByRole('group', { name: 'Filter cards' });
     for (const chip of await filters.getByRole('button').all()) await harness.expectMinTapTarget(chip);
@@ -113,12 +122,12 @@ test.describe('browse by illustrator', () => {
     await expect(illustratorCards(harness)).toHaveCount(1);
     await filters.getByRole('button', { name: /^all/i }).click();
 
-    await dialog.getByRole('combobox', { name: 'Sort cards' }).selectOption('oldest');
+    await sortBy(harness, 'oldest');
     await expect(illustratorCards(harness).first()).toHaveAccessibleName(/base set, owned$/i);
     await expect(illustratorCards(harness).last()).toHaveAccessibleName(/166\/165 151, wanted$/i);
-    await dialog.getByRole('combobox', { name: 'Sort cards' }).selectOption('name');
-    await expect(illustratorCards(harness).first()).toHaveAccessibleName(/^bulbasaur/i);
-    await expect(illustratorCards(harness).last()).toHaveAccessibleName(/^charmander/i);
+    await expect(dialog.getByRole('list', { name: 'Active filters' })).toContainText('Oldest set');
+    await sortBy(harness, 'newest');
+    await expect(illustratorCards(harness).first()).toHaveAccessibleName(/166\/165 151, wanted$/i);
 
     await dialog.getByRole('searchbox').fill('charm');
     await expect(illustratorCards(harness)).toHaveCount(1);
@@ -188,7 +197,7 @@ test.describe('browse by illustrator', () => {
 
     const offline = await openFromSearch(harness, 'arita');
     await expect(offline.getByText('Offline: showing the copy saved on this device.')).toBeVisible();
-    await expect(offline.getByRole('listitem', { name: /bulbasaur 44\/102 base set, owned/i })).toBeVisible();
+    await expect(offline.getByRole('button', { name: /bulbasaur 44\/102 base set, owned/i })).toBeVisible();
     await offline.getByRole('button', { name: 'Close illustrator cards' }).click();
 
     // An illustrator never opened before says so rather than showing an empty list.
@@ -254,13 +263,13 @@ test.describe('illustrator prices (UK)', () => {
     await harness.open();
 
     const dialog = await openFromSearch(harness, 'arita');
-    const price = (name: RegExp) => dialog.getByRole('listitem', { name }).getByTestId('illustrator-card-price');
-    await expect(price(/bulbasaur 44\/102/i)).toHaveText('£120');
-    await expect(price(/bulbasaur 166\/165/i)).toHaveText('£45.50');
-    await expect(price(/charmander 46\/102/i)).toHaveText('No price');
+    // The card picker's price lines: market (M) and the "good" price (L), a dash when there is none.
+    const price = (name: RegExp) => dialog.getByRole('button', { name }).locator('[data-price-line]');
+    await expect(price(/bulbasaur 44\/102/i)).toContainText('M £120');
+    await expect(price(/bulbasaur 166\/165/i)).toContainText('M £45.50');
+    await expect(price(/charmander 46\/102/i)).toContainText('M -');
 
-    const sort = dialog.getByRole('combobox', { name: 'Sort cards' });
-    await sort.selectOption('price-desc');
+    await sortBy(harness, 'price-desc');
     await expect(illustratorCards(harness).nth(0)).toHaveAccessibleName(/^bulbasaur 44\/102/i);
     await expect(illustratorCards(harness).nth(1)).toHaveAccessibleName(/^bulbasaur 166\/165/i);
     await expect(illustratorCards(harness).nth(2)).toHaveAccessibleName(/^charmander 46\/102/i);
@@ -269,7 +278,7 @@ test.describe('illustrator prices (UK)', () => {
     );
     await screenshot(harness, 'price-sort');
 
-    await sort.selectOption('price-asc');
+    await sortBy(harness, 'price-asc');
     await expect(illustratorCards(harness).nth(0)).toHaveAccessibleName(/^bulbasaur 166\/165/i);
     await expect(illustratorCards(harness).nth(1)).toHaveAccessibleName(/^bulbasaur 44\/102/i);
     await expect(illustratorCards(harness).nth(2)).toHaveAccessibleName(/^charmander 46\/102/i);

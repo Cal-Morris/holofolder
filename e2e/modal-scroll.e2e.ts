@@ -247,7 +247,7 @@ for (const theme of ['light', 'dark'] as const) {
       await search.getByRole('button', { name: /illustrator mitsuhiro arita/i }).click();
       await search.getByRole('button', { name: 'All cards by Mitsuhiro Arita', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: /cards illustrated by/i });
-      await expect(dialog.getByRole('listitem')).toHaveCount(35);
+      await expect(dialog.getByRole('region', { name: /^Cards by / }).getByRole('button')).toHaveCount(35);
       await ends(page, dialog);
       if (hasTouch) {
         await touch(page, scrollBody(dialog), -150);

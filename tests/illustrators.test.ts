@@ -138,33 +138,10 @@ describe('illustrator view entries', () => {
     assert.deepEqual(countIllustratorEntries(entries), { all: 5, owned: 2, wanted: 2, missing: 3 });
   });
 
-  test('sorts newest, oldest, by set and by name', () => {
-    const ids = (sort: 'newest' | 'oldest' | 'set' | 'name') =>
-      buildIllustratorEntries(CARDS, [], { sort }).map((entry) => entry.card.id);
-    assert.deepEqual(ids('newest'), ['30th-c-001', 'sv03.5-166', 'sv03.5-196', 'base1-44', 'promo-1']);
-    assert.deepEqual(ids('oldest'), ['base1-44', 'sv03.5-166', 'sv03.5-196', '30th-c-001', 'promo-1']);
-    assert.deepEqual(ids('set'), ['sv03.5-166', 'sv03.5-196', '30th-c-001', 'base1-44', 'promo-1']);
-    assert.deepEqual(ids('name'), ['promo-1', 'sv03.5-166', 'base1-44', '30th-c-001', 'sv03.5-196']);
-  });
-
-  test('sorts by price either way, with unpriced cards last and ties newest first', () => {
-    const prices: Record<string, number | null> = {
-      'base1-44': 120,
-      'sv03.5-166': 45.5,
-      'sv03.5-196': 45.5,
-      'promo-1': 0,
-      '30th-c-001': null,
-    };
-    const priceOf = (card: { id: string }) => prices[card.id];
-    const ids = (sort: 'price-desc' | 'price-asc') =>
-      buildIllustratorEntries(CARDS, [], { sort, priceOf }).map((entry) => entry.card.id);
-    // A zero price counts as unpriced.
-    assert.deepEqual(ids('price-desc'), ['base1-44', 'sv03.5-166', 'sv03.5-196', '30th-c-001', 'promo-1']);
-    assert.deepEqual(ids('price-asc'), ['sv03.5-166', 'sv03.5-196', 'base1-44', '30th-c-001', 'promo-1']);
-    // With no prices loaded yet, a price sort is just newest first.
+  test('lists newest first', () => {
     assert.deepEqual(
-      buildIllustratorEntries(CARDS, [], { sort: 'price-desc' }).map((entry) => entry.card.id),
-      buildIllustratorEntries(CARDS, [], { sort: 'newest' }).map((entry) => entry.card.id),
+      buildIllustratorEntries(CARDS, []).map((entry) => entry.card.id),
+      ['30th-c-001', 'sv03.5-166', 'sv03.5-196', 'base1-44', 'promo-1'],
     );
   });
 

@@ -11,15 +11,17 @@ interface CardPickerFiltersSheetProps {
   /** Left out where the order is fixed (the new binder wizard): hides Sort. */
   sort?: CardPickerSort;
   onSortChange?: (sort: CardPickerSort) => void;
-  language: CardSearchLanguage;
-  onLanguageChange: (language: CardSearchLanguage) => void;
+  /** Left out where results keep their own language (Search, an illustrator's cards): hides Card language. */
+  language?: CardSearchLanguage;
+  onLanguageChange?: (language: CardSearchLanguage) => void;
   /** Card search only: offer "Any", every printing in its own language. */
   allowAnyLanguage?: boolean;
   /** Binder slots only: limit results to cards printed in the binder's languages. Undefined hides the toggle. */
   binderLanguagesOnly?: boolean;
   onBinderLanguagesOnlyChange?: (only: boolean) => void;
-  variant: CardPickerVariantChoice;
-  onVariantChange: (variant: CardPickerVariantChoice) => void;
+  /** Left out where nothing is recorded with a finish: hides Variant. */
+  variant?: CardPickerVariantChoice;
+  onVariantChange?: (variant: CardPickerVariantChoice) => void;
   pokemon?: number;
   pokemonOptions: Array<{ id: number; name: string }>;
   onPokemonChange: (pokemon: number | undefined) => void;
@@ -114,58 +116,62 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
           </label>
         )}
 
-        <fieldset className="space-y-1.5">
-          <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">Card language</legend>
-          <p className="text-muted-foreground text-[11px]">
-            {props.language === 'any'
-              ? 'Every printing, saved and priced in the language it was printed in.'
-              : 'Prices follow this language; card art stays on the English print.'}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {(props.allowAnyLanguage
-              ? [{ id: 'any' as const, label: 'Any language', shortLabel: 'Any' }, ...CARD_PICKER_LANGUAGES]
-              : CARD_PICKER_LANGUAGES
-            ).map((language) => (
+        {props.onLanguageChange && (
+          <fieldset className="space-y-1.5">
+            <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">Card language</legend>
+            <p className="text-muted-foreground text-[11px]">
+              {props.language === 'any'
+                ? 'Every printing, saved and priced in the language it was printed in.'
+                : 'Prices follow this language; card art stays on the English print.'}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {(props.allowAnyLanguage
+                ? [{ id: 'any' as const, label: 'Any language', shortLabel: 'Any' }, ...CARD_PICKER_LANGUAGES]
+                : CARD_PICKER_LANGUAGES
+              ).map((language) => (
+                <button
+                  key={language.id}
+                  type="button"
+                  aria-pressed={props.language === language.id}
+                  aria-label={language.label}
+                  onClick={() => props.onLanguageChange?.(language.id)}
+                  className={chipClass(props.language === language.id)}
+                >
+                  {language.shortLabel}
+                </button>
+              ))}
+            </div>
+            {props.binderLanguagesOnly !== undefined && (
               <button
-                key={language.id}
                 type="button"
-                aria-pressed={props.language === language.id}
-                aria-label={language.label}
-                onClick={() => props.onLanguageChange(language.id)}
-                className={chipClass(props.language === language.id)}
+                aria-pressed={props.binderLanguagesOnly}
+                onClick={() => props.onBinderLanguagesOnlyChange?.(!props.binderLanguagesOnly)}
+                className={chipClass(props.binderLanguagesOnly)}
               >
-                {language.shortLabel}
+                Only this binder’s languages
               </button>
-            ))}
-          </div>
-          {props.binderLanguagesOnly !== undefined && (
-            <button
-              type="button"
-              aria-pressed={props.binderLanguagesOnly}
-              onClick={() => props.onBinderLanguagesOnlyChange?.(!props.binderLanguagesOnly)}
-              className={chipClass(props.binderLanguagesOnly)}
-            >
-              Only this binder’s languages
-            </button>
-          )}
-        </fieldset>
+            )}
+          </fieldset>
+        )}
 
-        <fieldset className="space-y-1.5">
-          <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">Variant</legend>
-          <div className="flex flex-wrap gap-1.5">
-            {CARD_PICKER_VARIANTS.map((variant) => (
-              <button
-                key={variant.id}
-                type="button"
-                aria-pressed={props.variant === variant.id}
-                onClick={() => props.onVariantChange(variant.id)}
-                className={chipClass(props.variant === variant.id)}
-              >
-                {variant.label}
-              </button>
-            ))}
-          </div>
-        </fieldset>
+        {props.onVariantChange && (
+          <fieldset className="space-y-1.5">
+            <legend className="text-muted-foreground mb-1.5 text-xs font-semibold">Variant</legend>
+            <div className="flex flex-wrap gap-1.5">
+              {CARD_PICKER_VARIANTS.map((variant) => (
+                <button
+                  key={variant.id}
+                  type="button"
+                  aria-pressed={props.variant === variant.id}
+                  onClick={() => props.onVariantChange?.(variant.id)}
+                  className={chipClass(props.variant === variant.id)}
+                >
+                  {variant.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         {props.pokemonOptions.length > 1 && (
           <label className="block space-y-1.5">

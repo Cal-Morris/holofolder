@@ -1,6 +1,5 @@
 'use client';
 
-import CardImage from '@/components/card-image';
 import { toCardImageSrc } from '@/lib/card-image-url';
 import { SINGLE_CARD_GUIDE, captureSingleCardFrame, delay } from '@/lib/camera-frame';
 import { useCameraStream } from '@/hooks/use-camera-stream';
@@ -21,6 +20,16 @@ import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { useCardSearch } from '@/hooks/use-card-search';
 import { buildOfflineCardIndex } from '@/lib/offline-card-index';
 import CardPickerFiltersSheet from '@/components/card-picker-filters-sheet';
+import {
+  ActiveFilterChips,
+  CardResultImage,
+  CardResultsFiltersButton,
+  CardResultsGrid,
+  CardResultsSkeleton,
+  CardResultTile,
+  CardStandingMark,
+} from '@/components/card-results-grid';
+import { cardResultFilterOptions, cardResultPriceLabels } from '@/lib/card-results';
 import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import {
@@ -61,21 +70,9 @@ import {
 import { selectCandidateCardsForAssetTextOcr } from '@/lib/card-scan-candidate-text';
 import { rankAggregatedCardScanMatchesWithText } from '@/lib/card-scan-ranking';
 import { buildCardMetadataTextSignals, mergeCardTextSignals, type CardTextSignals } from '@/lib/card-scan-text';
-import {
-  X,
-  Search,
-  Check,
-  Loader2,
-  Camera,
-  Heart,
-  MoreHorizontal,
-  SlidersHorizontal,
-  Sparkles,
-  WifiOff,
-} from 'lucide-react';
+import { X, Search, Check, Loader2, Camera, Heart, MoreHorizontal, Sparkles, WifiOff } from 'lucide-react';
 import { usePageCardSuggestions, type PageSuggestionSeeds } from '@/hooks/use-page-card-suggestions';
 import { cardMatchesLanguages, type CardSearchLanguage } from '@/lib/card-languages';
-import { Skeleton } from '@/components/ui/skeleton';
 
 export type CardSelectorMode = 'collect' | 'wishlist';
 
@@ -161,25 +158,6 @@ function formatGbpAmount(amount: number | null | undefined) {
   return typeof amount === 'number' && Number.isFinite(amount) ? GBP_AMOUNT_FORMAT.format(amount) : null;
 }
 
-function getCardSelectorPriceLabels(
-  price: CardPriceSnapshot | undefined,
-  formatAmount: CardSelectorAmountFormatter = formatGbpAmount,
-) {
-  const low = formatAmount(price?.lowGbpAmount, price);
-  const high = formatAmount(price?.highGbpAmount, price);
-  const confidence =
-    price?.confidence && price.confidence !== 'unknown'
-      ? price.confidence.charAt(0).toUpperCase() + price.confidence.slice(1)
-      : null;
-
-  return {
-    good: formatAmount(price?.goodGbpAmount, price),
-    market: formatAmount(price?.marketGbpAmount ?? price?.gbpAmount, price),
-    range: low && high ? (low === high ? low : `${low}-${high}`) : low || high,
-    confidence,
-  };
-}
-
 function parseCardNumber(value?: string) {
   if (!value) return null;
   const match = value.match(/\d+/);
@@ -208,54 +186,6 @@ function inferCardFinish(card: TCGCard): CardFinish {
   if (card.variants?.holo) return 'holo';
   if (card.variants?.reverse) return 'reverse_holo';
   return 'normal';
-}
-
-function CardSelectorImage({
-  src,
-  sizes = '(max-width: 639px) 45vw, 180px',
-  alt,
-  className,
-  fallbackClassName = 'flex h-full w-full items-center justify-center bg-muted',
-  shimmer = false,
-}: {
-  src?: string;
-  sizes?: string;
-  alt: string;
-  className: string;
-  fallbackClassName?: string;
-  /** Holo shimmer behind the image until it loads; the parent must be positioned. */
-  shimmer?: boolean;
-}) {
-  // Remembers which src failed, so a new src gets a fresh try.
-  const [failedSrc, setFailedSrc] = useState<string>();
-  const failed = failedSrc !== undefined && failedSrc === src;
-  const [loadedSrc, setLoadedSrc] = useState<string>();
-  const imageSrc = toCardImageSrc(src);
-
-  if (!imageSrc || failed) {
-    return (
-      <div className={fallbackClassName}>
-        <span className="text-muted-foreground text-xs">No Image</span>
-      </div>
-    );
-  }
-
-  // The original URL, not the CDN one: CardImage falls back to the proxy (which mirrors the miss) only from the original.
-  // The holo shimmer shows until the image arrives, then goes so hundreds of tiles don't keep animating.
-  return (
-    <>
-      {shimmer && loadedSrc !== src && <Skeleton className="absolute inset-0 rounded-[inherit]" />}
-      <CardImage
-        sizes={sizes}
-        src={src!}
-        alt={alt}
-        className={className}
-        loading="lazy"
-        onLoad={() => setLoadedSrc(src)}
-        onError={() => setFailedSrc(src)}
-      />
-    </>
-  );
 }
 
 export default function CardSelector({
@@ -733,21 +663,11 @@ export default function CardSelector({
     return () => observer.disconnect();
   }, [hasMoreCards, renderLimit.count, showMoreCards]);
 
-  const uniqueSets = useMemo(() => {
-    return [...new Map(cards.map((card) => [card.set.id, card.set])).values()]
-      .filter((set) => Boolean(set.id))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [cards]);
-
-  const uniqueRarities = useMemo(() => {
-    return [...new Set(cards.flatMap((c) => (c.rarity ? [c.rarity] : [])))];
-  }, [cards]);
-
-  const uniqueIllustrators = useMemo(
-    () =>
-      [...new Set(cards.flatMap((c) => (c.illustrator ? [c.illustrator] : [])))].toSorted((a, b) => a.localeCompare(b)),
-    [cards],
-  );
+  const {
+    sets: uniqueSets,
+    rarities: uniqueRarities,
+    illustrators: uniqueIllustrators,
+  } = useMemo(() => cardResultFilterOptions(cards), [cards]);
 
   const defaultLanguage = defaultCardLanguage ?? 'en';
   const activeFilterChips = useMemo(
@@ -1404,56 +1324,15 @@ export default function CardSelector({
                   </button>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => setIsFiltersOpen(true)}
-                aria-haspopup="dialog"
-                className={`flex h-11 shrink-0 items-center gap-1.5 rounded-2xl border px-3 text-xs font-semibold transition-colors ${
-                  activeFilterChips.length > 0
-                    ? 'border-primary/45 bg-primary/12 text-primary'
-                    : 'border-border/60 bg-background/85 text-foreground hover:bg-muted/60'
-                }`}
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                <span>Filters · Sort</span>
-                {activeFilterChips.length > 0 && (
-                  <span className="bg-primary text-primary-foreground flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px]">
-                    {activeFilterChips.length}
-                  </span>
-                )}
-              </button>
+              <CardResultsFiltersButton activeCount={activeFilterChips.length} onOpen={() => setIsFiltersOpen(true)} />
             </div>
 
-            {activeFilterChips.length > 0 && (
-              <div
-                role="list"
-                aria-label="Active filters"
-                className="scrollbar-hide -mx-4 mt-2 flex items-center gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0"
-              >
-                {activeFilterChips.map((chip) => (
-                  <span role="listitem" key={chip.key} className="shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => clearFilter(chip.key)}
-                      aria-label={`Remove filter ${chip.label}`}
-                      className="border-primary/35 bg-primary/10 text-primary flex h-9 items-center gap-1 rounded-full border pr-2 pl-3 text-xs font-semibold"
-                    >
-                      <span className="max-w-[10rem] truncate">{chip.label}</span>
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </span>
-                ))}
-                {activeFilterChips.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={resetFilters}
-                    className="text-muted-foreground hover:text-foreground h-9 shrink-0 rounded-full px-3 text-xs font-semibold"
-                  >
-                    Clear all
-                  </button>
-                )}
-              </div>
-            )}
+            <ActiveFilterChips
+              chips={activeFilterChips}
+              onClear={clearFilter}
+              onClearAll={resetFilters}
+              className="-mx-4 mt-2 px-4 sm:mx-0 sm:px-0"
+            />
           </div>
 
           {pendingCard && (
@@ -1548,7 +1427,7 @@ export default function CardSelector({
                       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         {scanMatches.map((match, index) => {
                           const price = pricesByCardId[getCardPriceKey(match.card.id, priceLanguage(match.card))];
-                          const priceLabels = getCardSelectorPriceLabels(price, formatAmount);
+                          const priceLabels = cardResultPriceLabels(price, formatAmount);
 
                           return (
                             <button
@@ -1557,7 +1436,7 @@ export default function CardSelector({
                               onClick={() => pickCard(match.card)}
                               className={`border-border bg-muted/40 hover:bg-muted/60 flex items-center gap-3 rounded-2xl border p-3 text-left transition-[background-color,border-color,transform,scale] ${intentHoverCardClass}`}
                             >
-                              <CardSelectorImage
+                              <CardResultImage
                                 src={match.card.image}
                                 sizes="56px"
                                 alt={match.card.name}
@@ -1622,31 +1501,7 @@ export default function CardSelector({
                 </p>
               )}
               {isLoading && cards.length === 0 ? (
-                <div
-                  role="status"
-                  aria-label="Loading cards"
-                  className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5"
-                >
-                  {Array.from({ length: 20 }, (_, index) => (
-                    <div
-                      key={index}
-                      aria-hidden="true"
-                      className="bg-card overflow-hidden rounded-xl border-2 border-transparent"
-                    >
-                      <Skeleton variant="card" className="aspect-[63/88] w-full rounded-[10px]" />
-                      <div className="space-y-1.5 p-1.5 sm:p-2">
-                        <Skeleton className="h-2.5 w-3/4" />
-                        <Skeleton className="h-2 w-1/2" />
-                        <div className="grid h-[1.125rem] grid-cols-2 gap-1 sm:h-5">
-                          <Skeleton className="rounded-md" />
-                          <Skeleton className="rounded-md" />
-                        </div>
-                        <Skeleton className="h-2 w-1/4" />
-                      </div>
-                    </div>
-                  ))}
-                  <span className="sr-only">Loading cards…</span>
-                </div>
+                <CardResultsSkeleton />
               ) : anyCard && cards.length === 0 ? (
                 <div className="mx-auto flex max-w-xs flex-col items-center gap-2 py-10 text-center">
                   {!isOnline ? (
@@ -1722,21 +1577,22 @@ export default function CardSelector({
                   </Button>
                 </div>
               ) : (
-                <div
-                  aria-busy={isLoading}
-                  className={`grid grid-cols-2 gap-2 transition-opacity min-[400px]:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5 ${isLoading ? 'opacity-50' : ''}`}
-                >
+                <CardResultsGrid busy={isLoading}>
                   {renderedCards.map((card) => {
                     const price = pricesByCardId[getCardPriceKey(card.id, priceLanguage(card))];
-                    const priceLabels = getCardSelectorPriceLabels(price, formatAmount);
                     const pickNumber = several ? picks.findIndex((pick) => pick.card.id === card.id) + 1 : 0;
                     const isCurrent = pickNumber > 0 || matchesCatalogCardId(card, activeSelectedCardId);
                     const isWantedHere = !isWishlistMode && matchesCatalogCardId(card, selectedWantedCardId);
 
                     return (
-                      <button
+                      <CardResultTile
                         key={card.id}
-                        type="button"
+                        card={card}
+                        showName={Boolean(anyCard)}
+                        subtitle={card.name.includes('(') ? card.name : null}
+                        price={price}
+                        priceLabels={cardResultPriceLabels(price, formatAmount)}
+                        pricesLoading={isLoadingPrices}
                         {...(canPickSeveral ? longPress.bind(() => holdCard(card)) : {})}
                         onClick={(event) => {
                           if (longPress.suppressClick(event)) return;
@@ -1748,107 +1604,39 @@ export default function CardSelector({
                         aria-disabled={
                           noRoom && !pickNumber && !fits(card, recordedFinish ?? undefined) ? true : undefined
                         }
-                        className={`group/card bg-card focus-visible:ring-primary/70 relative flex flex-col justify-start overflow-hidden rounded-xl border-2 text-left transition-[background-color,border-color,transform,scale] select-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:outline-none aria-disabled:opacity-45 sm:hover:scale-[1.03] ${
-                          isCurrent ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
-                        }`}
+                        highlight={isCurrent ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`}
+                        languageTag={
+                          selectedCardLanguage === 'any' && card.language
+                            ? (CARD_PICKER_LANGUAGES.find((language) => language.id === card.language)?.shortLabel ??
+                              card.language)
+                            : undefined
+                        }
+                        intent={{ label: intentCopy.shortLabel, wanted: isWishlistMode, className: intentTextClass }}
                       >
                         {scanRankById.has(card.id) && (
                           <div className="absolute top-2 left-2 z-10 rounded-full bg-black/80 px-2 py-1 text-[10px] font-medium text-white">
                             Match {scanRankById.get(card.id)}
                           </div>
                         )}
-                        <div className="trading-card bg-muted relative w-full">
-                          <CardSelectorImage
-                            src={card.image}
-                            alt={card.name}
-                            className="absolute inset-0 h-full w-full object-cover"
-                            shimmer
-                          />
-                          {pickNumber > 0 ? (
-                            <div className="absolute top-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white tabular-nums">
-                              {pickNumber}
-                            </div>
-                          ) : isCurrent ? (
-                            <div
-                              className={`absolute top-1.5 right-1.5 rounded-full border px-2 py-1 text-[9px] font-bold tracking-[0.12em] uppercase backdrop-blur-sm ${intentCopy.activeClass}`}
-                            >
-                              {intentCopy.currentLabel}
-                            </div>
-                          ) : isWantedHere ? (
-                            <div className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-full border border-amber-400/60 bg-black/70 px-2 py-1 text-[9px] font-bold tracking-[0.12em] text-amber-300 uppercase">
-                              <Heart className="h-2.5 w-2.5 fill-current" />
-                              Wanted
-                            </div>
-                          ) : (
-                            <PriceRisingBadge price={price} className="absolute top-1.5 right-1.5" />
-                          )}
-                        </div>
-                        <div className="p-1.5 sm:p-2">
-                          {anyCard && (
-                            <p className="text-foreground truncate text-[11px] font-semibold sm:text-xs">{card.name}</p>
-                          )}
-                          <p
-                            className={`truncate text-[10px] sm:text-xs ${anyCard ? 'text-muted-foreground' : 'text-foreground font-semibold'}`}
-                          >
-                            {card.set.name}
-                          </p>
-                          {!anyCard && card.name.includes('(') && (
-                            <p className="text-foreground mt-0.5 text-[10px]">{card.name}</p>
-                          )}
-                          {/* Both price lines keep their height while loading, loaded or missing, so tiles never jump. */}
+                        {pickNumber > 0 ? (
+                          <div className="absolute top-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white tabular-nums">
+                            {pickNumber}
+                          </div>
+                        ) : isCurrent ? (
                           <div
-                            className="mt-1 grid h-[1.125rem] grid-cols-2 gap-1 text-[9px] leading-[1.125rem] font-semibold tabular-nums sm:h-5 sm:text-[10px] sm:leading-5"
-                            data-price-line
+                            className={`absolute top-1.5 right-1.5 rounded-full border px-2 py-1 text-[9px] font-bold tracking-[0.12em] uppercase backdrop-blur-sm ${intentCopy.activeClass}`}
                           >
-                            {priceLabels.good || priceLabels.market || !isLoadingPrices ? (
-                              <>
-                                <span className="bg-muted truncate rounded-md px-1 text-emerald-600 dark:text-emerald-300">
-                                  L {priceLabels.good ?? '-'}
-                                </span>
-                                <span className="bg-muted text-foreground truncate rounded-md px-1">
-                                  M {priceLabels.market ?? '-'}
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                <Skeleton className="rounded-md" />
-                                <Skeleton className="rounded-md" />
-                                <span className="sr-only">Loading price</span>
-                              </>
-                            )}
+                            {intentCopy.currentLabel}
                           </div>
-                          <p className="text-muted-foreground mt-1 h-3 truncate text-[9px] leading-3" data-price-range>
-                            {[priceLabels.range ? `R ${priceLabels.range}` : null, priceLabels.confidence]
-                              .filter(Boolean)
-                              .join(' · ')}
-                          </p>
-                          <div className="mt-1 flex items-center justify-between gap-1">
-                            <p className="text-muted-foreground text-[9px] sm:text-[10px]">
-                              #{card.localId}
-                              {selectedCardLanguage === 'any' && card.language && (
-                                <span className="ml-1 font-semibold uppercase">
-                                  {CARD_PICKER_LANGUAGES.find((language) => language.id === card.language)
-                                    ?.shortLabel ?? card.language}
-                                </span>
-                              )}
-                            </p>
-                            <span
-                              aria-hidden="true"
-                              className={`flex items-center gap-0.5 text-[9px] font-bold uppercase sm:text-[10px] ${intentTextClass}`}
-                            >
-                              {isWishlistMode ? (
-                                <Heart className="h-2.5 w-2.5 fill-current" />
-                              ) : (
-                                <Check className="h-2.5 w-2.5" />
-                              )}
-                              {intentCopy.shortLabel}
-                            </span>
-                          </div>
-                        </div>
-                      </button>
+                        ) : isWantedHere ? (
+                          <CardStandingMark standing="wanted" />
+                        ) : (
+                          <PriceRisingBadge price={price} className="absolute top-1.5 right-1.5" />
+                        )}
+                      </CardResultTile>
                     );
                   })}
-                </div>
+                </CardResultsGrid>
               )}
               {hasMoreCards && (
                 <Button

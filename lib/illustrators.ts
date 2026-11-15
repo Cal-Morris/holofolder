@@ -203,7 +203,6 @@ export function groupIllustratorsBySlug(rows: readonly { name: string; cardCount
 // Illustrator view
 
 export type IllustratorCardFilter = 'all' | 'owned' | 'wanted' | 'missing';
-export type IllustratorCardSort = 'newest' | 'oldest' | 'set' | 'name' | 'price-desc' | 'price-asc';
 
 export const ILLUSTRATOR_CARD_FILTERS: Array<{ id: IllustratorCardFilter; label: string }> = [
   { id: 'all', label: 'All' },
@@ -211,22 +210,6 @@ export const ILLUSTRATOR_CARD_FILTERS: Array<{ id: IllustratorCardFilter; label:
   { id: 'wanted', label: 'Wanted' },
   { id: 'missing', label: 'Missing' },
 ];
-
-export const ILLUSTRATOR_CARD_SORTS: Array<{ id: IllustratorCardSort; label: string }> = [
-  { id: 'newest', label: 'Newest first' },
-  { id: 'oldest', label: 'Oldest first' },
-  { id: 'set', label: 'Set name' },
-  { id: 'name', label: 'Card name' },
-  { id: 'price-desc', label: 'Price: high to low' },
-  { id: 'price-asc', label: 'Price: low to high' },
-];
-
-/** A card's headline price (GBP, region-weighted) or null when it has none. */
-export type CardPriceOf = (card: BrowseCard) => number | null | undefined;
-
-function usablePrice(value: number | null | undefined) {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
-}
 
 export interface IllustratorCollectionItem {
   card_id?: string | null;
@@ -242,49 +225,16 @@ export interface IllustratorCardEntry {
   variantLabels: string[];
 }
 
-function compareByNumber(a: BrowseCard, b: BrowseCard) {
-  return a.localId.localeCompare(b.localId, undefined, { numeric: true });
-}
-
-/** Cards with no price always sort last, in either direction; ties fall back to newest first. */
-export function compareIllustratorCards(sort: IllustratorCardSort, priceOf?: CardPriceOf) {
-  return (a: BrowseCard, b: BrowseCard) => {
-    if (sort === 'price-desc' || sort === 'price-asc') {
-      const aPrice = usablePrice(priceOf?.(a));
-      const bPrice = usablePrice(priceOf?.(b));
-      if (aPrice !== bPrice) {
-        if (aPrice == null) return 1;
-        if (bPrice == null) return -1;
-        return sort === 'price-desc' ? bPrice - aPrice : aPrice - bPrice;
-      }
-      return compareBrowseCards(a, b);
-    }
-    if (sort === 'newest') return compareBrowseCards(a, b);
-    if (sort === 'oldest') {
-      const aDate = a.set.releaseDate ?? '';
-      const bDate = b.set.releaseDate ?? '';
-      if (aDate !== bDate) {
-        if (!aDate) return 1;
-        if (!bDate) return -1;
-        return aDate.localeCompare(bDate);
-      }
-      return a.set.id.localeCompare(b.set.id) || compareByNumber(a, b);
-    }
-    if (sort === 'set') return a.set.name.localeCompare(b.set.name) || compareByNumber(a, b);
-    return a.name.localeCompare(b.name) || compareBrowseCards(a, b);
-  };
-}
-
 /**
  * Mark each card owned/wanted from the whole collection (one row per Pokémon, so a card can be owned in
- * one slot and wanted in another), then filter and sort for the view.
+ * one slot and wanted in another), then filter for the view, newest first (the grid sorts it).
  */
 export function buildIllustratorEntries(
   cards: readonly IllustratorCard[],
   collection: Iterable<IllustratorCollectionItem>,
-  options: { filter?: IllustratorCardFilter; sort?: IllustratorCardSort; text?: string; priceOf?: CardPriceOf } = {},
+  options: { filter?: IllustratorCardFilter; text?: string } = {},
 ): IllustratorCardEntry[] {
-  const { filter = 'all', sort = 'newest', text = '', priceOf } = options;
+  const { filter = 'all', text = '' } = options;
   const ownedIds = new Set<string>();
   const wantedIds = new Set<string>();
   for (const item of collection) {
@@ -293,7 +243,7 @@ export function buildIllustratorEntries(
   }
 
   const needle = normalizeIllustratorText(text);
-  return cards.toSorted(compareIllustratorCards(sort, priceOf)).flatMap((card) => {
+  return cards.toSorted(compareBrowseCards).flatMap((card) => {
     const ids = catalogCardIds(card);
     const entry = {
       card,

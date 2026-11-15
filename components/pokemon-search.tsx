@@ -26,7 +26,7 @@ import {
   type PokemonSearchStateFilter,
   type PokemonSearchSlotState,
 } from '@/lib/pokemon-search-state';
-import { formatCardNumber, type SearchCardResult } from '@/lib/pokemon-card-browse';
+import { formatCardNumber, inferCardFinish, type SearchCardResult } from '@/lib/pokemon-card-browse';
 import type { BinderHistory } from '@/hooks/use-binder-history';
 import RecentSearches from '@/components/recent-searches';
 import { toRecentCard, type RecentCard } from '@/lib/recent-cards';
@@ -42,6 +42,16 @@ import { CARD_STANDING_BADGES, getCardStanding, type PokemonCardStanding } from 
 import QuickDestinations from '@/components/quick-destinations';
 import { PriceRisingBadge } from '@/components/price-rising-badge';
 import { visibleQuickDestinations, type QuickDestinationId } from '@/lib/quick-mode';
+import {
+  ActiveFilterChips,
+  CardResultsControls,
+  CardResultsGrid,
+  CardResultTile,
+  CardStandingMark,
+} from '@/components/card-results-grid';
+import { useCardResultsFilters } from '@/hooks/use-card-results-filters';
+import { cardResultPriceLabels } from '@/lib/card-results';
+import { getCardPickerSortAmount } from '@/lib/card-selector-sort';
 import { matchesSearchChip, searchChipKey, searchChipQuery, type SearchChip } from '@/lib/search-chips';
 
 type SearchStateFilter = PokemonSearchStateFilter;
@@ -83,6 +93,8 @@ export interface PokemonSearchProps {
   onBrowseSet?: (set: TCGSetSummary) => void;
   /** Formats a card's headline price in the user's display currency; card hits show no price without it. */
   formatPrice?: (price: CardPriceSnapshot | undefined) => string | null;
+  /** Formats a GBP amount in the user's display currency: the cards-first grid's price lines. */
+  formatAmount?: (amount: number | null | undefined, price?: CardPriceSnapshot) => string | null;
   /** The user's pricing region, used to weight card hit prices. */
   pricingRegion?: PricingRegion;
   /** Whether a printing is in the binder or on the want list: card hits get Show mode's Owned / Wanted badge. */
@@ -126,6 +138,7 @@ const RESULT_STEP = 60;
 const QUERY_RESULT_STEP = 40;
 /** Card tiles shown first and per "Show more cards", so the Pokémon rows below stay a short scroll away. */
 const CARD_STEP = 24;
+const formatNoAmount = () => null;
 const NO_POKEMON: { id: number; name: string }[] = [];
 
 export default function PokemonSearch({
@@ -150,6 +163,7 @@ export default function PokemonSearch({
   query: controlledQuery,
   onQueryChange,
   cardsFirst = false,
+  formatAmount,
 }: PokemonSearchProps) {
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
   const [ownQuery, setOwnQuery] = useState('');
@@ -544,7 +558,7 @@ export default function PokemonSearch({
                 nativeConsumer={nativeConsumer}
                 nativeModel={nativeModel}
                 getCardState={getCardState}
-                formatPrice={formatPrice}
+                formatAmount={formatAmount}
                 pricingRegion={pricingRegion}
                 onOpenCard={openGridCard}
                 onBrowseCards={onBrowseCards}
@@ -891,7 +905,7 @@ interface CardsFirstResultsProps {
   nativeConsumer?: NativeConsumerBinding;
   nativeModel: ReturnType<typeof nativeCardConsumers> | null;
   getCardState?: PokemonSearchProps['getCardState'];
-  formatPrice?: PokemonSearchProps['formatPrice'];
+  formatAmount?: PokemonSearchProps['formatAmount'];
   pricingRegion: PricingRegion;
   onOpenCard: (card: SearchCardResult, pokemon: { id: number; name: string }) => void;
   onBrowseCards?: PokemonSearchProps['onBrowseCards'];
@@ -915,7 +929,7 @@ function CardsFirstResults({
   nativeConsumer,
   nativeModel,
   getCardState,
-  formatPrice,
+  formatAmount,
   pricingRegion,
   onOpenCard,
   onBrowseCards,
@@ -948,25 +962,45 @@ function CardsFirstResults({
     () => (activeChip ? cardSearch.cards.filter((card) => matchesSearchChip(card, activeChip)) : cardSearch.cards),
     [activeChip, cardSearch.cards],
   );
-  const shownCards = useMemo(() => cards.slice(0, shownCount), [cards, shownCount]);
-  // One batched price lookup for the tiles shown (cached on the device, so offline hits keep their prices).
+  // Batched price lookups for every hit, so a price sort covers them all (cached on the device, so offline hits keep
+  // their prices). Native binders price from their saved inventory prices, like the rest of the native app.
   const priceLookups = useMemo(
     () =>
-      formatPrice
-        ? shownCards.map((card) => ({
+      formatAmount
+        ? cards.map((card) => ({
             cardId: card.id,
             language: nativeConsumer ? card.language : (card.language ?? 'en'),
           }))
         : [],
-    [formatPrice, nativeConsumer, shownCards],
+    [formatAmount, nativeConsumer, cards],
   );
-  // Native binders price from their saved inventory prices, like the rest of the native app.
-  const { pricesByCardId } = useRegionalCardPrices(
+  const { pricesByCardId, isLoading: pricesLoading } = useRegionalCardPrices(
     priceLookups,
     priceLookups.length > 0,
     pricingRegion,
     Boolean(nativeConsumer),
   );
+  const priceOf = useCallback(
+    (card: SearchCardResult) =>
+      nativeConsumer
+        ? isCardLanguage(card.language)
+          ? pricesByCardId[getCardPriceKey(card.id, card.language)]
+          : undefined
+        : pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')],
+    [nativeConsumer, pricesByCardId],
+  );
+  // Best match keeps the search's own order.
+  const searchRank = useMemo(() => new Map(cards.map((card, index) => [card, index])), [cards]);
+  const results = useCardResultsFilters(
+    cards,
+    useCallback(
+      (card: SearchCardResult) =>
+        getCardPickerSortAmount(priceOf(card), inferCardFinish(card.rarity, card.variants), pricingRegion),
+      [priceOf, pricingRegion],
+    ),
+    useCallback((card: SearchCardResult) => searchRank.get(card) ?? Number.POSITIVE_INFINITY, [searchRank]),
+  );
+  const shownCards = useMemo(() => results.visible.slice(0, shownCount), [results.visible, shownCount]);
   const toggleChip = (chip: SearchChip) => {
     if (activeChip && searchChipKey(activeChip) === searchChipKey(chip)) {
       setView({ query, chip: null, count: CARD_STEP });
@@ -1056,70 +1090,80 @@ function CardsFirstResults({
       ) : null}
       {cardSearch.cards.length > 0 || cardSearch.loading ? (
         <section aria-label="Card results" className="pb-2">
-          <p className="text-muted-foreground flex items-center gap-2 px-4 pt-3 pb-1 text-[11px] font-semibold">
-            Cards
-            {!cardSearch.loading ? <span className="font-normal tabular-nums">{cards.length}</span> : null}
-            {cardSearch.loading ? <Loader2 className="h-3 w-3 animate-spin" aria-label="Searching cards" /> : null}
-            {cardSearch.offline ? (
-              <span className="font-normal tracking-normal normal-case">· offline: your cards and saved sets</span>
-            ) : null}
-          </p>
+          <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+            <p className="text-muted-foreground flex min-w-0 flex-1 flex-wrap items-center gap-x-2 text-[11px] font-semibold">
+              Cards
+              {!cardSearch.loading ? <span className="font-normal tabular-nums">{results.visible.length}</span> : null}
+              {cardSearch.loading ? <Loader2 className="h-3 w-3 animate-spin" aria-label="Searching cards" /> : null}
+              {cardSearch.offline ? (
+                <span className="font-normal tracking-normal normal-case">· offline: your cards and saved sets</span>
+              ) : null}
+            </p>
+            <CardResultsControls results={results} className="h-9 rounded-full" />
+          </div>
+          <ActiveFilterChips
+            chips={results.chips}
+            onClear={results.clear}
+            onClearAll={results.reset}
+            className="px-4 pb-1"
+          />
           {cardSearch.correction ? (
             <p role="status" className="text-muted-foreground px-4 py-1 text-xs">
               Showing cards for {cardSearch.correction}
             </p>
           ) : null}
-          {activeChip && !cardSearch.loading && cards.length === 0 ? (
+          {!cardSearch.loading && results.visible.length === 0 ? (
             <p className="text-muted-foreground px-4 py-2 text-xs">
               {cardSearch.offline ? 'None of your saved cards match this.' : 'No cards match this.'}
             </p>
           ) : null}
-          <div className="grid grid-cols-3 gap-2 px-3 sm:grid-cols-4">
-            {shownCards.map((card) => {
-              const dexId = activeChip?.kind === 'pokemon' ? activeChip.id : card.dexIds[0];
-              const pokemon = { id: dexId ?? 0, name: (dexId && getPokemonSummary(dexId)?.name) || card.name };
-              const native = nativeConsumer ? nativeCardState(nativeModel, card) : null;
-              const standing = native
-                ? native.owned
-                  ? 'owned'
-                  : native.wanted
-                    ? 'wanted'
-                    : null
-                : getCardState
-                  ? getCardStanding(getCardState(card, pokemon))
-                  : null;
-              const priceSnapshot = nativeConsumer
-                ? isCardLanguage(card.language)
-                  ? pricesByCardId[getCardPriceKey(card.id, card.language)]
-                  : undefined
-                : pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')];
-              const price = formatPrice?.(priceSnapshot)?.split(' (')[0] ?? null;
-              const status = native
-                ? `, ${nativeCardLabel(native)}${price ? `, ${price}` : ''}`
-                : standing && standing !== 'missing'
-                  ? `, ${CARD_STANDING_BADGES[standing].label}`
-                  : '';
-              return (
-                <SearchCardTile
-                  key={`${card.id}:${card.language ?? ''}`}
-                  card={card}
-                  standing={standing}
-                  price={price}
-                  priceSnapshot={priceSnapshot}
-                  label={`${card.name} ${formatCardNumber(card)} ${card.set.name}${status}`}
-                  grid
-                  onClick={() => onOpenCard(card, pokemon)}
-                />
-              );
-            })}
+          <div className="px-3">
+            <CardResultsGrid>
+              {shownCards.map((card) => {
+                const dexId = activeChip?.kind === 'pokemon' ? activeChip.id : card.dexIds[0];
+                const pokemon = { id: dexId ?? 0, name: (dexId && getPokemonSummary(dexId)?.name) || card.name };
+                const native = nativeConsumer ? nativeCardState(nativeModel, card) : null;
+                const standing = native
+                  ? native.owned
+                    ? 'owned'
+                    : native.wanted
+                      ? 'wanted'
+                      : null
+                  : getCardState
+                    ? getCardStanding(getCardState(card, pokemon))
+                    : null;
+                const price = priceOf(card);
+                const status = native
+                  ? `, ${nativeCardLabel(native)}`
+                  : standing && standing !== 'missing'
+                    ? `, ${CARD_STANDING_BADGES[standing].label}`
+                    : '';
+                return (
+                  <CardResultTile
+                    key={`${card.id}:${card.language ?? ''}`}
+                    card={card}
+                    price={price}
+                    priceLabels={cardResultPriceLabels(price, formatAmount ?? formatNoAmount)}
+                    pricesLoading={pricesLoading}
+                    aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}${status}`}
+                    data-standing={standing ?? undefined}
+                    onClick={() => onOpenCard(card, pokemon)}
+                  >
+                    {standing === 'owned' || standing === 'wanted' ? (
+                      <CardStandingMark standing={standing} />
+                    ) : undefined}
+                  </CardResultTile>
+                );
+              })}
+            </CardResultsGrid>
           </div>
-          {cards.length > shownCards.length ? (
+          {results.visible.length > shownCards.length ? (
             <button
               type="button"
               onClick={() => setView({ query, chip: activeChip, count: shownCount + CARD_STEP })}
               className="text-primary hover:bg-primary/10 mt-2 min-h-11 w-full px-4 py-2 text-left text-xs font-semibold"
             >
-              Show more cards ({cards.length - shownCards.length} more)
+              Show more cards ({results.visible.length - shownCards.length} more)
             </button>
           ) : null}
         </section>
@@ -1128,14 +1172,13 @@ function CardsFirstResults({
   );
 }
 
-/** One card hit: its art with the Owned / Wanted mark, then (in the grid) its name, or (in a Pokémon's row) its set, then its number and price. */
+/** One card hit in a Pokémon's row: its art with the Owned / Wanted mark, then its set, number and price. */
 function SearchCardTile({
   card,
   standing,
   price,
   priceSnapshot,
   label,
-  grid = false,
   onClick,
 }: {
   card: SearchCardResult;
@@ -1143,7 +1186,6 @@ function SearchCardTile({
   price: string | null;
   priceSnapshot: CardPriceSnapshot | undefined;
   label: string;
-  grid?: boolean;
   onClick: () => void;
 }) {
   const badge = standing && standing !== 'missing' ? CARD_STANDING_BADGES[standing] : null;
@@ -1153,7 +1195,7 @@ function SearchCardTile({
       onClick={onClick}
       aria-label={label}
       data-standing={standing ?? undefined}
-      className={grid ? 'min-w-0 text-left' : 'w-[6.5rem] shrink-0 text-left'}
+      className="w-[6.5rem] shrink-0 text-left"
     >
       <div
         className={`trading-card bg-muted/40 relative w-full border ${standing === 'owned' ? 'border-emerald-500/60' : standing === 'wanted' ? 'border-rose-500/60' : 'border-border/50'}`}
@@ -1170,12 +1212,8 @@ function SearchCardTile({
           </span>
         ) : null}
       </div>
-      <p className={`mt-1 truncate font-semibold ${grid ? 'text-[11px]' : 'text-[10px]'}`}>
-        {grid ? card.name : card.set.name}
-      </p>
-      <p className="text-muted-foreground truncate text-[10px] tabular-nums">
-        {grid ? `${card.set.name} · ${formatCardNumber(card)}` : formatCardNumber(card)}
-      </p>
+      <p className="mt-1 truncate text-[10px] font-semibold">{card.set.name}</p>
+      <p className="text-muted-foreground truncate text-[10px] tabular-nums">{formatCardNumber(card)}</p>
       {price ? (
         <p className="truncate text-[11px] font-bold tabular-nums" data-testid="search-card-price">
           {price}
