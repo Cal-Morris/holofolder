@@ -4422,6 +4422,7 @@ function BinderAppSurface(props: BinderAppProps) {
             onShare={(cards) => {
               void handleShareWantedList(cards);
             }}
+            onCheckAnyCardPrice={pricingEnabled ? openPriceLookup : undefined}
             // The want list's bulk price check, for your own (or your partner's) binders, never a shared view.
             priceCheck={
               user?.id && !accountSettingsReadOnly && speciesCollection

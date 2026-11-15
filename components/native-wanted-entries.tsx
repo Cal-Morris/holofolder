@@ -3,7 +3,8 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Printer, Share2 } from 'lucide-react';
+import { Printer, Search, Share2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ListClearButton, ListControls, ListFiltersButton, ListSearch, ListSelect } from '@/components/list-controls';
 import type { CardPriceSnapshot } from '@/hooks/use-card-prices';
 import { useInventoryPriceState } from '@/hooks/use-inventory-prices';
@@ -58,6 +59,7 @@ export default function NativeWantedEntries({
   pricing,
   onShare,
   priceCheck,
+  onCheckAnyCardPrice,
 }: {
   presentation?: 'lookup' | 'wanted';
   /** The Wanted tab only: the want list's bulk price check, under the header (as in Show's Hunting list). */
@@ -69,6 +71,8 @@ export default function NativeWantedEntries({
   };
   /** The Wanted tab only: share or copy the list as it is currently filtered and sorted. */
   onShare?: (cards: WantedDashboardCard[]) => void;
+  /** The Wanted tab only: opens Quick mode as a lookup-only "Price check", with this search typed. */
+  onCheckAnyCardPrice?: (query: string) => void;
   binding: NativeConsumerBinding;
   card?: SearchCardResult;
   finish?: CardFinish;
@@ -294,10 +298,22 @@ export default function NativeWantedEntries({
       {!entries.length && model && (
         <p className="text-muted-foreground text-sm">{card ? 'Not on your want list' : 'No wanted cards yet'}</p>
       )}
+      {isWanted && !entries.length && model && onCheckAnyCardPrice && (
+        <Button className="min-h-11 px-4 font-semibold" onClick={() => onCheckAnyCardPrice('')}>
+          <Search className="h-4 w-4" aria-hidden="true" />
+          Check a card price
+        </Button>
+      )}
       {isWanted && entries.length > 0 && !ordered.length && (
         <p role="status" className="text-muted-foreground text-sm">
           No wanted cards match. Try another search or clear the filters.
         </p>
+      )}
+      {isWanted && entries.length > 0 && !ordered.length && search.trim() && onCheckAnyCardPrice && (
+        <Button className="h-12 w-full rounded-2xl font-bold" onClick={() => onCheckAnyCardPrice(search.trim())}>
+          <Search className="h-4 w-4" aria-hidden="true" />
+          Check price of any card
+        </Button>
       )}
       {isWanted && noticeEl}
       {ordered.length > 0 && (
@@ -510,6 +526,16 @@ export default function NativeWantedEntries({
             );
           })}
         </div>
+      )}
+      {isWanted && ordered.length > 0 && search.trim() && onCheckAnyCardPrice && (
+        <button
+          type="button"
+          onClick={() => onCheckAnyCardPrice(search.trim())}
+          className="border-border/60 text-primary flex h-11 w-full items-center justify-center gap-2 rounded-2xl border text-sm font-semibold dark:border-white/10"
+        >
+          <Search className="h-4 w-4" aria-hidden="true" />
+          Not here? Check price of any card
+        </button>
       )}
       {!isWanted && noticeEl}
     </section>

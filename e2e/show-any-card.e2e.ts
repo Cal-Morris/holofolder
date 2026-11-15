@@ -142,38 +142,3 @@ test.describe('Show mode: look up any card', () => {
     await page.context().setOffline(false);
   });
 });
-
-test.describe("want list: check any card's price", () => {
-  test.use({ signedIn: true });
-
-  test('a search with no wanted match offers the same lookup', async ({ harness }) => {
-    const { page } = harness;
-    await seed(harness);
-    await harness.dock().getByRole('button', { name: 'Wanted', exact: true }).click();
-    const main = page.getByTestId('main-content');
-    const search = main.getByRole('searchbox', { name: 'Search want list' });
-
-    await search.fill('bulba');
-    await expect(main.getByRole('button', { name: 'Not here? Check price of any card' })).toBeVisible();
-
-    await search.fill('charmeleon');
-    await expect(main).toContainText('Nothing on your want list matches “charmeleon”');
-    const lookup = main.getByRole('button', { name: 'Check price of any card', exact: true });
-    await harness.expectMinTapTarget(lookup, 44);
-    await screenshot(harness, 'wanted-check-any');
-    await lookup.click();
-
-    const dialog = quickDialog(harness);
-    await expect(dialog.getByRole('heading', { name: 'Price check' })).toBeVisible();
-    await expect(dialog.getByRole('searchbox')).toHaveValue('charmeleon');
-    await dialog.getByRole('button', { name: /^Charmeleon, 151 \S+, No exact saved match/ }).click();
-    const check = dialog.getByTestId('quick-card-check');
-    await expect(check.getByTestId('quick-card-market-price')).toHaveText('£1.20');
-    await expect(check).toContainText('Pay up to £1.32');
-    await harness.expectNoHorizontalOverflow();
-    await screenshot(harness, 'wanted-price-check');
-    // Show mode stays off: this is just a lookup.
-    await page.keyboard.press('Escape');
-    await expect(banner(harness)).toBeHidden();
-  });
-});

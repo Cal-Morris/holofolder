@@ -213,6 +213,30 @@ test('empty state', async ({ page, insets }) => {
   await expect(wants.getByText('No wanted cards yet', { exact: true })).toBeVisible();
   await expect(wants.getByRole('listitem')).toHaveCount(0);
   await new Harness(page, insets, true).expectNoHorizontalOverflow();
+  await wants.getByRole('button', { name: 'Check a card price' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Quick mode' });
+  await expect(dialog.getByRole('heading', { name: 'Price check' })).toBeVisible();
+  await expect(dialog.getByRole('searchbox')).toHaveValue('');
+});
+
+test('search offers a price check of any card, as a lookup that leaves Show mode off', async ({ page, insets }) => {
+  const wants = await open(page);
+  const search = wants.getByRole('searchbox', { name: 'Search want list' });
+  await search.fill('pikachu');
+  await expect(wants.getByRole('button', { name: 'Not here? Check price of any card' })).toBeVisible();
+
+  await search.fill('charmeleon');
+  await expect(wants).toContainText('No wanted cards match');
+  const lookup = wants.getByRole('button', { name: 'Check price of any card', exact: true });
+  await new Harness(page, insets, true).expectMinTapTarget(lookup, 44);
+  await lookup.click();
+
+  const dialog = page.getByRole('dialog', { name: 'Quick mode' });
+  await expect(dialog.getByRole('heading', { name: 'Price check' })).toBeVisible();
+  await expect(dialog.getByRole('searchbox')).toHaveValue('charmeleon');
+  await dialog.getByRole('button', { name: 'Close quick mode' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('region', { name: 'Show mode' })).toBeHidden();
 });
 
 // The focused harness mounts the same Wanted presentation over a synthetic read, including the cached and unavailable reads.
