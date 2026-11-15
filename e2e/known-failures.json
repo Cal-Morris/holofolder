@@ -1309,13 +1309,6 @@
       "failure": "Error: page.evaluate: NotFoundError: Failed to execute 'transaction' on 'IDBDatabase': One of the specified object store"
     },
     {
-      "file": "show-any-card.e2e.ts",
-      "title": ["want list: check any card's price", "a search with no wanted match offers the same lookup"],
-      "cause": "harness-or-fixture",
-      "batch": 2,
-      "failure": "Error: expect(locator).toBeVisible() failed — locator('button[data-dex-id=\"1\"]').first()"
-    },
-    {
       "file": "show-budget.e2e.ts",
       "title": [
         "Show spending budget",
