@@ -8,7 +8,7 @@ import { isContractRecord, isSlotContractId, type SlotTarget } from '@/lib/domai
 import { normalizeBinderName } from '@/lib/binders/model';
 import { isCardLanguage } from '@/lib/domain/cards';
 import { POKEMON_CATALOG } from '@/lib/pokemon-catalog';
-import type { SearchCardResult } from '@/lib/pokemon-card-browse';
+import type { BrowseCard } from '@/lib/pokemon-card-browse';
 import { SLOT_LIMITS } from '@/lib/domain/slot-commands';
 
 export type Immutable<T> = T extends object ? { readonly [K in keyof T]: Immutable<T[K]> } : T;
@@ -90,12 +90,12 @@ export function blankPreset(pockets = 0): PresetDefinition {
   };
 }
 /** Require catalog evidence; unknown language is not silently inferred as English. */
-export function printingTarget(card: SearchCardResult): Extract<SlotTarget, { kind: 'card' }> | undefined {
+export function printingTarget(card: BrowseCard): Extract<SlotTarget, { kind: 'card' }> | undefined {
   if (!isSlotContractId(card.id) || !isSlotContractId(card.set?.id) || !card.localId || !isCardLanguage(card.language))
     return undefined;
   return { kind: 'card', cardId: card.canonicalId ?? card.id, language: card.language };
 }
-export function printingPreset(cards: readonly SearchCardResult[]): PresetDefinition {
+export function printingPreset(cards: readonly BrowseCard[]): PresetDefinition {
   const targets = cards.map(printingTarget);
   if (targets.some((t) => !t)) throw new Error('A printing needs catalog, set and language evidence');
   return {

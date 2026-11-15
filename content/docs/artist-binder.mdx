@@ -1,0 +1,52 @@
+---
+title: A binder of one artist's cards
+description: Recipe for list_cards by illustrator, then create_storage_collection with one pocket per card.
+---
+
+The app's new binder wizard does this under **Chosen cards**: search an artist, narrow with Filters, then **Add all**. Developers get the same result with two existing operations. Nothing here adds owned cards; every pocket starts empty with its card as the goal.
+
+## 1. Find the credited name
+
+`list_illustrators` (`GET /app/api/v1/illustrators?q=arita`, permission `catalog:read`) returns illustrator names as the catalog credits them. The `illustrator` filter on `list_cards` matches that exact spelling, so copy it rather than typing your own.
+
+## 2. Page every card
+
+Call `list_cards` (`GET /app/api/v1/cards`) with `illustrator`, the `language` you collect and `limit` up to 100, then follow `nextCursor` until it is `null`. Results come in ID order; sort by `set.releaseDate` (then `localId`) yourself if you want oldest set first, as the app does. Filter by `set.id`, `rarity` or `variants` on your side if you only want some of them.
+
+```http
+GET /app/api/v1/cards?illustrator=Synthetic%20Artist&language=en&limit=100
+Authorization: Bearer <api key>
+```
+
+## 3. Create the collection
+
+Send `create_storage_collection` (`POST /app/api/v1/storage/collections`, permissions `collection:write` and `binders:write`) with one manifest entry per card. Each target is `{ "kind": "card", "cardId": <card id>, "language": <card language> }`. Allocate the `operationId`, `collectionId` and one slot ID per entry once, take `inventoryRevision` from a current [native read](/docs/native-reads), and resend the identical request on a retry. See [native storage](/docs/native-storage) for retry and rejection rules.
+
+Synthetic example:
+
+```json
+{
+  "version": 1,
+  "operationId": "<new uuid>",
+  "inventoryRevision": 12,
+  "collectionId": "<new uuid>",
+  "name": "Synthetic Artist",
+  "kind": "binder",
+  "defaultPresentation": "binder",
+  "location": null,
+  "grid": { "rows": 3, "cols": 3 },
+  "manifest": {
+    "source": { "id": "selected-printings", "version": "1" },
+    "name": "Selected printings",
+    "entries": [
+      { "id": "printing-1", "target": { "kind": "card", "cardId": "synthetic-set-1", "language": "en" } },
+      { "id": "printing-2", "target": { "kind": "card", "cardId": "synthetic-set-2", "language": "en" } }
+    ]
+  },
+  "slotIds": ["<new uuid>", "<new uuid>"]
+}
+```
+
+## Limits
+
+A collection holds at most 4,096 pockets and a creation request at most 2 MiB, so split a very large artist across binders or narrow by set. Normal owner/partner access, permissions and plan limits apply.

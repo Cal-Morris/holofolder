@@ -2,6 +2,10 @@ import { isBinderGridSize } from '@/lib/binder-layout';
 import type { InventorySnapshot } from '@/lib/domain/inventory';
 import type { SlotTarget } from '@/lib/domain/binder-slots';
 import { SLOT_LIMITS } from '@/lib/domain/slot-commands';
+import { getVariantFilter, matchesRarityChoice, type CardPickerVariantChoice } from '@/lib/card-picker-filters';
+import { sortCardPickerCards } from '@/lib/card-selector-sort';
+import { printingTarget } from '@/lib/binder-creation-draft';
+import type { BrowseCard, BrowseCardVariants } from '@/lib/pokemon-card-browse';
 
 export type CreationPreset = 'set' | 'blank' | 'national' | 'generation' | 'species' | 'printings';
 export interface PageSize {
@@ -65,6 +69,36 @@ export function wizardSteps(preset: CreationPreset): WizardStep[] {
   if (preset === 'set') return ['kind', 'scope', 'extras', 'layout', 'preview'];
   if (preset === 'national' || preset === 'blank') return ['kind', 'layout', 'preview'];
   return ['kind', 'scope', 'layout', 'preview'];
+}
+
+/** Card search returns at most this many matches (PostgREST's row cap), so a full page means there may be more. */
+export const CARD_SEARCH_MATCH_CAP = 1000;
+
+export interface ChosenCardFilters {
+  set?: string;
+  rarity?: string;
+  variant: CardPickerVariantChoice;
+}
+/** "Chosen cards" results narrowed by the Filters sheet's set, rarity and variant. */
+export function filterChosenCardMatches<T extends BrowseCard>(cards: readonly T[], filters: ChosenCardFilters): T[] {
+  const variantKey = getVariantFilter(filters.variant) as keyof BrowseCardVariants | undefined;
+  return cards.filter(
+    (card) =>
+      (!filters.set || card.set.id === filters.set) &&
+      (!filters.rarity || card.rarity === filters.rarity) &&
+      (!variantKey || Boolean(card.variants?.[variantKey])) &&
+      matchesRarityChoice(card, filters.variant),
+  );
+}
+/** What "Add all" adds: matches with catalogue evidence not already chosen (same card and language), oldest set first. */
+export function cardsToAddAll<T extends BrowseCard>(matches: readonly T[], chosen: readonly BrowseCard[]): T[] {
+  const key = (card: BrowseCard) => `${card.id}:${card.language ?? ''}`;
+  const taken = new Set(chosen.map(key));
+  return sortCardPickerCards(
+    matches.filter((card) => printingTarget(card) && !taken.has(key(card))),
+    'oldest',
+    () => null,
+  );
 }
 
 export function samePageSize(a: PageSize | null | undefined, b: PageSize | null | undefined) {
