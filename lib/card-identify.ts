@@ -10,7 +10,6 @@ import {
   pictureIndexLanguages,
   pictureReadAgreement,
   PICTURE_SUGGEST_MARGIN,
-  PICTURE_SUGGEST_SIMILARITY,
   type PictureAgreementCard,
 } from '@/lib/card-picture-match';
 
@@ -32,6 +31,8 @@ export const IDENTIFY_INDEX_LANGUAGES = ['en', 'ja'] as const;
  * and ≥ 0.03 ahead of the second was right 92% of the time, ≥ 0.76 86%. Below that it's a list to choose from.
  */
 export const PICTURE_MEDIUM_MEASURED = { similarity: 0.76, margin: 0.03, precision: 0.86, recall: 0.38 } as const;
+/** The API's `high`, kept at the 0.78 measured above (the app pre-selects from `medium` since 2026-11-15). */
+const PICTURE_HIGH_SIMILARITY = 0.78;
 
 export type IdentifyConfidence = 'confirmed' | 'high' | 'medium' | 'low' | 'none';
 
@@ -77,7 +78,7 @@ export function pictureConfidence(scores: readonly number[]): Exclude<IdentifyCo
   if (!scores.length) return 'none';
   const margin = scores[0] - (scores[1] ?? 0);
   for (const [label, rule] of [
-    ['high', { similarity: PICTURE_SUGGEST_SIMILARITY, margin: PICTURE_SUGGEST_MARGIN }],
+    ['high', { similarity: PICTURE_HIGH_SIMILARITY, margin: PICTURE_SUGGEST_MARGIN }],
     ['medium', PICTURE_MEDIUM_MEASURED],
   ] as const)
     if (scores[0] >= rule.similarity && margin >= rule.margin) return label;
