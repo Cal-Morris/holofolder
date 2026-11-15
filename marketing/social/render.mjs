@@ -307,6 +307,66 @@ const INSPO = [
     sub: 'Sea, sky and sunshine from Hoenn: Wailord, Milotic ex, Tropius and Latios, all on one page.',
     standouts: [0, 4, 8],
   },
+  {
+    slug: 'sweet-tooth',
+    sub: 'Ice cream from White Flare on top, three apples in the middle and Milcery, Slurpuff and Fidough for pudding.',
+    standouts: [2, 4, 7],
+  },
+  {
+    slug: 'past-and-future',
+    sub: 'Ancient Paradox Pokémon on top, their future twins in the middle and four legends of Area Zero to finish.',
+    standouts: [0, 5, 6],
+  },
+  {
+    slug: 'three-birds-three-eras',
+    sub: 'Articuno, Zapdos and Moltres from Fossil in 1999, Majestic Dawn in 2008 and 151 in 2023.',
+    standouts: [1, 4, 7],
+  },
+  {
+    slug: 'desert-crossing',
+    sub: 'Sandile’s line from Black Bolt, Vibrava, Flygon and Claydol in the dunes, and Maractus, Orthworm and Rabsca.',
+    standouts: [2, 4, 7],
+  },
+  {
+    slug: 'fossil-museum',
+    sub: 'Kanto’s fossils on top, then Lileep, Tirtouga and Carracosta, and Archen, Archeops and Aurorus.',
+    standouts: [0, 5, 8],
+  },
+  {
+    slug: 'puddle-jumpers',
+    sub: 'Tympole’s line from Black Bolt, then Froakie, two Wooper, two Marill and Sliggoo out in the rain.',
+    standouts: [2, 4, 6],
+  },
+  {
+    slug: 'gig-night',
+    sub: 'Toxtricity on guitar, Meloetta ex and Primarina on vocals, and Loudred, Noibat, Chatot and friends in the crowd.',
+    standouts: [0, 1, 7],
+  },
+  {
+    slug: 'starry-night',
+    sub: 'Cleffa’s line, Minior, Elgyem and Beheeyem, Sigilyph, Chimecho and a Jirachi to wish on.',
+    standouts: [0, 3, 8],
+  },
+  {
+    slug: 'drawn-by-arita',
+    sub: 'Nine cards by Mitsuhiro Arita, from Squirtle’s line in 151 to Excadrill ex, Mega Absol ex and Team Rocket’s Mewtwo ex.',
+    standouts: [2, 4, 8],
+  },
+  {
+    slug: 'drawn-by-okacheke',
+    sub: 'Nine OKACHEKE illustrations, from Plusle and Minun to Misty’s Psyduck and Latias ex.',
+    standouts: [0, 4, 8],
+  },
+  {
+    slug: 'drawn-by-komiya',
+    sub: 'Nine cards by Tomokazu Komiya, from Frigibax’s line to Gengar, Oricorio and a sleepy Snorlax.',
+    standouts: [2, 6, 8],
+  },
+  {
+    slug: 'drawn-by-yuu-nishida',
+    sub: 'Nine cards by Yuu Nishida, from Scorbunny and Morpeko to Dachsbun ex, Keldeo ex and Dawn.',
+    standouts: [0, 4, 8],
+  },
 ];
 
 function inspoPosts() {
