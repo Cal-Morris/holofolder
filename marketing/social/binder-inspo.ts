@@ -92,7 +92,10 @@ async function find(db: Client) {
 
 async function check(db: Client) {
   const only = process.argv[3]?.split(',');
-  const pages = (config.pages as unknown as InspoPage[]).filter((p) => p.cards && (!only || only.includes(p.slug)));
+  // Inspo pages fill all nine pockets. Pages with empty pockets (e.g. the Michi scenery page) aren't inspo posts.
+  const pages = (config.pages as unknown as InspoPage[]).filter(
+    (p) => p.cards?.every(Boolean) && (!only || only.includes(p.slug)),
+  );
   const result: Record<string, unknown> = {};
   let missing = 0;
   for (const page of pages) {
