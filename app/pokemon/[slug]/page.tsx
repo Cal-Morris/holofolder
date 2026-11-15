@@ -131,7 +131,7 @@ export default async function PokemonPage({ params }: Props) {
           <PublicCardGrid
             cards={ordered.map(({ card, set }) => toPublicCatalogueCard(card, set))}
             label={`${pokemon.name} cards`}
-            facets={['series', 'setName']}
+            facets={['series', 'setName', 'rarity', 'illustrator']}
             sortLabels={{ default: 'Newest', reverse: 'Oldest' }}
             meta="set"
             links={{ binderHref: '/?view=pokemon' }}
