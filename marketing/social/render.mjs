@@ -8,7 +8,7 @@
 // Output goes to marketing/social/out/ (git-ignored). Copy on the slides comes from the published blog posts;
 // keep it that way, and never put prices or card data on a slide that the app or the post doesn't show.
 /* oxlint-disable react-doctor/async-await-in-loop -- one browser and one upload at a time, on purpose */
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from '@playwright/test';
 
@@ -28,6 +28,12 @@ const FORMATS = {
   // Square binder page for the theme's Collections CMS item on holofolder.com (inspo themes only, not posted).
   preview: { width: 900, height: 900 },
 };
+// Inspo carousels use Instagram's taller 3:4 post so the page fills more of the feed. The first slide sets a
+// carousel's shape, so every slide of an inspo post gets it, and blog carousels stay 4:5.
+const sizeFor = (post, format) => (post.inspo && format === 'ig' ? { width: 1080, height: 1440 } : FORMATS[format]);
+// Optional themed scenery behind an inspo page (backdrops/<slug>.jpg, no creatures or text in it). Without one the
+// page sits over a blurred copy of its own cards.
+const backdropFor = (slug) => ['jpg', 'png'].map((ext) => join(HERE, 'backdrops', `${slug}.${ext}`)).find(existsSync);
 
 // Visuals: phone = full app screenshot in a plain frame, panel = cropped screenshot, cards = mirror card images.
 const phone = (shot) => ({ phone: shot });
@@ -497,11 +503,12 @@ function visualHtml(v) {
 // its own nine cards so the backdrop always picks up the page's colours. Title lives in the caption, not here.
 function bleedPageHtml(format, post, width, height) {
   const cards = post.cards.map((c) => `<img src="${c.image}">`).join('');
+  const backdrop = backdropFor(post.slug);
   return `<!doctype html><html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&family=JetBrains+Mono:wght@500&display=block" rel="stylesheet">
 <style>${CSS}${BLEED_CSS}</style></head>
 <body class="${format} bleed" style="width:${width}px;height:${height}px;--w:${width}px;--h:${height}px">
-<div class="glow">${cards}</div>
+${backdrop ? `<img class="backdrop" src="file://${backdrop}">` : `<div class="glow">${cards}</div>`}
 <div class="sheet">${cards}</div>
 <div class="mark"><span><img src="${MARK}">${esc(post.title)} · holofolder.com/@showcase</span><small>Not affiliated with The Pokémon Company</small></div>
 </body></html>`;
@@ -510,7 +517,7 @@ function bleedPageHtml(format, post, width, height) {
 const showsCardArt = (v) => Boolean(v && (v.phone || v.panel || v.cards || v.page || v.closeup));
 
 function slideHtml(format, post, slide, index, total) {
-  const { width, height } = FORMATS[format];
+  const { width, height } = sizeFor(post, format);
   if (format === 'preview')
     return `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head>
 <body class="preview" style="width:${width}px;height:${height}px">${visualHtml(slide.visual)}</body></html>`;
@@ -555,6 +562,7 @@ body.bleed { padding:0; align-items:center; justify-content:center; background:#
 .tiktok.bleed { --top:150px; --bot:330px; --side:72px; }
 .glow { position:absolute; inset:-12%; display:grid; grid-template:repeat(3, 1fr) / repeat(3, 1fr); filter:blur(70px) saturate(1.6) brightness(.6); }
 .glow img { width:100%; height:100%; object-fit:cover; }
+.backdrop { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(.7) saturate(1.1); }
 body.bleed::after { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,.55)); }
 .sheet { position:relative; z-index:1; display:grid; grid-template-columns:repeat(3, var(--cw)); gap:var(--g);
   margin:var(--top) 0 var(--bot); }
@@ -600,6 +608,7 @@ h2 { font-size:var(--h2); line-height:1.05; letter-spacing:-.04em; font-weight:7
 .card:first-child { transform:rotate(-6deg) translateX(8%); }
 .card:last-child { transform:rotate(6deg) translateX(-8%); }
 .card.solo { height:auto; max-height:100%; max-width:100%; transform:none; }
+body.closeup .visual { padding-bottom:var(--gap); }
 .flat { gap:4%; }
 .flat figure { height:100%; display:flex; flex-direction:column; align-items:center; gap:18px; min-width:0; }
 .flat .card { height:auto; width:100%; max-height:calc(100% - 60px); object-fit:contain; transform:none !important; box-shadow:none; }
@@ -678,7 +687,7 @@ async function render() {
     for (const format of Object.keys(FORMATS)) {
       const slides = slidesFor(post, format);
       for (const [i, slide] of slides.entries()) {
-        const page = await browser.newPage({ viewport: FORMATS[format] });
+        const page = await browser.newPage({ viewport: sizeFor(post, format) });
         const html = slideHtml(format, post, slide, i, slides.length);
         const htmlPath = join(OUT, post.slug, `${format}-${i + 1}.html`);
         writeFileSync(htmlPath, html);
