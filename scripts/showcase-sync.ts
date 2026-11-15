@@ -5,7 +5,10 @@
 //   bun run scripts/showcase-sync.ts --dry-run      print the plan, write nothing
 //   bun run scripts/showcase-sync.ts --bootstrap    first run: create the account, licence and username
 //   bun run scripts/showcase-sync.ts                sync again after the source pages change
+//   --allow-unmerged                                 write from a config that differs from origin/main (new pages in a PR)
+import { execFileSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { Client } from 'pg';
 import config from './showcase-pages.json';
 import { createAdminClient } from '../lib/supabase/admin';
@@ -63,7 +66,23 @@ const same = (a: Target, b: Target) =>
         a.language === (b as Identity).language &&
         a.finish === (b as Identity).finish));
 
+/**
+ * The sync writes every page to match this checkout's config, so a stale checkout puts back whatever main has since
+ * replaced. Writes need the config to match origin/main (after a fetch), unless --allow-unmerged says it's on purpose.
+ */
+function assertConfigMatchesMain() {
+  if (dryRun || process.argv.includes('--allow-unmerged')) return;
+  const path = new URL('./showcase-pages.json', import.meta.url).pathname;
+  execFileSync('git', ['fetch', '--quiet', 'origin', 'main'], { stdio: 'ignore' });
+  const main = execFileSync('git', ['show', 'origin/main:scripts/showcase-pages.json'], { encoding: 'utf8' });
+  if (JSON.stringify(JSON.parse(main)) !== JSON.stringify(JSON.parse(readFileSync(path, 'utf8'))))
+    throw new Error(
+      'scripts/showcase-pages.json differs from origin/main, so this run would undo newer showcase changes. Pull main, or pass --allow-unmerged for a page that is still in review.',
+    );
+}
+
 async function main() {
+  assertConfigMatchesMain();
   await loadProjectEnvFiles();
   const url = new URL(process.env.POSTGRES_URL_NON_POOLING ?? process.env.DATABASE_URL ?? '');
   url.searchParams.delete('sslmode');
