@@ -72,7 +72,7 @@ export function rememberDeviceBinders(
     userId,
     ownerUserId,
     binders: binders.map(
-      ({ id, ownerUserId: owner, name, slug, color, sortOrder, isDefault, rows, cols, createdAt, updatedAt }) => ({
+      ({
         id,
         ownerUserId: owner,
         name,
@@ -82,6 +82,21 @@ export function rememberDeviceBinders(
         isDefault,
         rows,
         cols,
+        pageArt,
+        createdAt,
+        updatedAt,
+      }) => ({
+        id,
+        ownerUserId: owner,
+        name,
+        slug,
+        color,
+        sortOrder,
+        isDefault,
+        rows,
+        cols,
+        // Page art shows offline too (uploads come from IndexedDB, see hooks/use-page-art-uploads.ts).
+        ...(pageArt?.length ? { pageArt } : {}),
         createdAt,
         updatedAt,
       }),

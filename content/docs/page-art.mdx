@@ -1,0 +1,71 @@
+---
+title: Page art
+description: Lay one picture behind several pockets of a binder page (the Michi method), with your cards on top.
+---
+
+Page art lays one picture behind a rectangle of pockets, from a single pocket up to the whole page. Empty pockets under
+the picture lose their own edge and show their part of it, so neighbouring pockets join into one picture without a
+seam. Cards sit on top in their own pockets, and taking a card out shows the picture again. Collectors call this the
+Michi method.
+
+In the app, tap **Edit layout**, select the pockets you want (or none), then **More options → Page art on page N**.
+Drag across the pockets on the small page, or tap two corners, then choose a picture:
+
+- **Card**: any card in our catalogue, by name, set or number.
+- **Pokémon**: a Pokémon's official artwork.
+- **Your image**: a PNG, JPEG or WebP under 5 MB, kept in your private artwork store.
+
+Fill or fit the area, zoom and move the picture, then save. A new picture replaces any other on the page it overlaps.
+Partners can add and change page art on the owner's binders.
+
+Each picture is attached to the pocket at its top-left corner, so it moves with that pocket when you move a page, add
+pages or undo a move. A picture that runs past the edge of the page is cut to fit. If that pocket is removed, its
+picture goes too.
+
+## Shares and offline
+
+Shared links show page art, including your own uploaded images, which are served only while the share is on and the
+binder uses them. Page art shows offline once the binder has opened on the device; uploaded images are kept on the
+device for that. Adding or changing page art needs a connection.
+
+## Printing
+
+**Print this page's art** prints each pocket's piece at 63 × 88 mm, nine to a sheet on A4 or US Letter, with cut
+marks and a 50 mm line to check the scale. Print at 100% ("Actual size"). Set **Gap between pockets** to the distance
+from the edge of one sleeved card to the edge of the next in your binder: the print leaves that strip out of the
+picture, so once the pieces are in their pockets the picture lines up across the welds. Pockets that already hold a
+card are skipped unless you turn that off. Each piece carries a small "PAGE ART" label.
+
+Catalogue pictures are small (about 480 to 600 pixels wide), so they look soft printed across a large area. Your own
+image prints sharper.
+
+## REST and MCP
+
+`list_binders` returns each binder's `pageArt`. Set it with `update_binder` (`PATCH /app/api/v1/binders/{id}`), which
+replaces the whole list; send `null` or `[]` to clear it:
+
+```json
+{
+  "id": "00000000-0000-4000-8000-000000000001",
+  "pageArt": [
+    {
+      "id": "top-row",
+      "anchorSlotId": "slot-a",
+      "rows": 1,
+      "cols": 3,
+      "source": { "kind": "pokemon", "pokemonId": 25 },
+      "frame": { "fit": "fill", "zoom": 1, "x": 0, "y": 0 }
+    }
+  ]
+}
+```
+
+- `anchorSlotId` is the slot id of the top-left pocket, from `list_storage_slots`. It must be a pocket of this binder
+  (`409` otherwise).
+- `rows` and `cols` are 1 to 8. A binder holds at most 200 pictures.
+- `source` is `{ "kind": "card", "cardId", "image" }` with the card's image from `get_card`, `{ "kind": "pokemon",
+"pokemonId" }`, or `{ "kind": "upload", "id" }` with the `artworkRef` from `prepare_artwork_upload` after uploading the
+  bytes (`400` if the upload isn't there).
+- `frame` is optional: `fit` is `fill` or `fit`, `zoom` 0.25 to 4, `x` and `y` -1 to 1.
+
+Until the database migration is applied, `update_binder` with `pageArt` returns `503`.

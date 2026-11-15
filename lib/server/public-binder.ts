@@ -14,6 +14,7 @@ import { buildTcgdexAssetImageUrl, pickImageLanguage } from '@/lib/tcgdex-shared
 import { pickCardAssetUrl, PUBLIC_CARD_IMAGE_BASE, toCardImageSrc } from '@/lib/card-image-url';
 import { isCardLanguage, type CardLanguage } from '@/lib/domain/cards';
 import { MISSING_PUBLIC_BINDER_TAG, publicBinderTag } from '@/lib/server/public-binder-cache';
+import { normalizePageArt, type PageArt } from '@/lib/page-art';
 
 const KNOWN_GRADERS = new Set(['psa', 'ace', 'cgc', 'beckett']);
 
@@ -104,6 +105,18 @@ export async function loadCachedPublicBinder(identity: PublicShareIdentity): Pro
   }
 }
 
+/** Owner and page art behind a public share, for serving its uploaded artwork; null when no enabled share answers. */
+export async function readPublicPageArt(identity: PublicShareIdentity) {
+  const db = (await import('@/lib/supabase/admin')).createAdminClient();
+  try {
+    const { owner, pageArt } = await readPublicBinder(identity, db, true);
+    return owner && pageArt ? { owner, pageArt } : null;
+  } catch (error) {
+    if (error instanceof PublicBinderMissing) return null;
+    throw error;
+  }
+}
+
 async function cachedPublicBinder(identity: PublicShareIdentity, stamp: string): Promise<PublicBinder> {
   'use cache: remote';
   cacheLife('days');
@@ -122,7 +135,7 @@ async function readPublicBinder(
   identity: PublicShareIdentity,
   db: SupabaseClient,
   stampOnly = false,
-): Promise<{ stamp: string; owner?: string; binder?: PublicBinder }> {
+): Promise<{ stamp: string; owner?: string; binder?: PublicBinder; pageArt?: PageArt[] }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
   let requests = 0;
@@ -183,9 +196,16 @@ async function readPublicBinder(
       owner = id(share.owner_user_id);
     // Historical binderless tokens resolve only the current default, never list other binders.
     async function binder() {
-      let query = db.from('binders').select(BINDER).eq('owner_user_id', owner);
-      query = share.binder_id ? query.eq('id', share.binder_id) : query.eq('is_default', true);
-      const result = await run(query.abortSignal(controller.signal).maybeSingle());
+      const read = (columns: string) => {
+        const query = db.from('binders').select(columns).eq('owner_user_id', owner);
+        return (share.binder_id ? query.eq('id', share.binder_id) : query.eq('is_default', true))
+          .abortSignal(controller.signal)
+          .maybeSingle();
+      };
+      let result = await execute(read(`${BINDER},page_art`));
+      // Before migration 145 there is no page art.
+      if (result.error && /page_art/.test(result.error.message ?? '')) result = await execute(read(BINDER));
+      if (result.error) return fail();
       const value = object(result.data ?? missing());
       if (value.owner_user_id !== owner || (share.binder_id && value.id !== share.binder_id)) return missing();
       return value;
@@ -267,7 +287,8 @@ async function readPublicBinder(
       revision(),
     ]);
     const stamp = JSON.stringify([share, initialBinder, initialState, settings.data ?? null, publicUsername, rev]);
-    if (stampOnly) return { stamp };
+    const pageArt = normalizePageArt(initialBinder.page_art);
+    if (stampOnly) return { stamp, owner, pageArt };
     const appearanceRow: Row = settings.data ? object(settings.data) : {};
     const pageColors: Record<string, BinderColor> = {};
     if (appearanceRow.binder_page_colors && typeof appearanceRow.binder_page_colors === 'object') {
@@ -288,6 +309,7 @@ async function readPublicBinder(
         pageColors,
         glare: appearanceRow.binder_slot_glare_enabled !== false,
       },
+      ...(pageArt.length ? { pageArt } : {}),
     };
     const grades = new Map<string, string>();
     const providers = new Map<string, string>();

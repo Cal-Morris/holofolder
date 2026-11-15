@@ -62,6 +62,8 @@ export interface LayoutEditHost {
   /** The one-based page on screen, and how to show another, so a whole page can move. */
   page?: number;
   onPage?: (page: number) => void;
+  /** Open page art for the page on screen, starting from the selected pockets. */
+  onPageArt?: (selectedIds: readonly string[]) => void;
 }
 export interface LayoutSessionStart {
   ids: readonly string[];
@@ -589,7 +591,7 @@ function LayoutBar({
                 <span className="max-sm:hidden">Remove</span>
               </LayoutButton>
             )}
-            {(single || pageToMove) && (
+            {(single || pageToMove || host.onPageArt) && (
               <LayoutButton
                 aria-label="More options"
                 aria-haspopup="menu"
@@ -651,11 +653,25 @@ function LayoutBar({
           </button>
         </div>
       )}
-      {menu === 'more' && (single || pageToMove) && (
+      {menu === 'more' && (single || pageToMove || host.onPageArt) && (
         <div role="menu" aria-label="More options" className={popover + ' sm:w-72'}>
           {pageToMove && (
             <button type="button" role="menuitem" className={menuItem} onClick={() => setMenu('page')}>
               Move page {pageToMove} to another page
+            </button>
+          )}
+          {host.onPageArt && host.page && (
+            <button
+              type="button"
+              role="menuitem"
+              className={cn(menuItem, 'flex-col items-start justify-center')}
+              onClick={() => {
+                setMenu(null);
+                host.onPageArt?.(ids);
+              }}
+            >
+              <span>Page art on page {host.page}</span>
+              <span className="text-muted-foreground text-xs font-normal">One picture behind several pockets.</span>
             </button>
           )}
           {single && !single.inventoryItemId && (

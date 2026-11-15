@@ -7,6 +7,8 @@ import { resolveCollectionOwnerUserId } from '@/lib/server/collection-owner';
 import { ensureDefaultBinderId, listOwnerBinders } from '@/lib/server/binders';
 import { isBinderId, normalizeBinderName, type Binder } from '@/lib/binders/model';
 import { normalizeBinderCardLanguages } from '@/lib/card-languages';
+import { pageArtUploadIds, parsePageArtInput, type PageArt } from '@/lib/page-art';
+import { requireArtworkStore } from '@/lib/server/binder-appearance';
 import { isMissingColumnError } from '@/lib/settings';
 import { validateBinderOrder } from '@/lib/binders/manage';
 import { BillingAccessError, canCreateOwnerBinder, isBillingError } from '@/lib/billing';
@@ -110,6 +112,7 @@ export async function updateBinder(request: NextRequest, actor: Pick<User, 'id'>
       name?: unknown;
       order?: unknown;
       cardLanguages?: unknown;
+      pageArt?: unknown;
     } | null;
     const binders = await listOwnerBinders(admin, ownerUserId);
 
@@ -128,8 +131,8 @@ export async function updateBinder(request: NextRequest, actor: Pick<User, 'id'>
     if (!isBinderId(body?.id) || !binders.some((binder) => binder.id === body.id)) {
       return NextResponse.json({ error: 'Binder not found' }, { status: 404 });
     }
-    const update: { name?: string; card_languages?: string[] } = {};
-    if (body.name !== undefined || body.cardLanguages === undefined) {
+    const update: { name?: string; card_languages?: string[]; page_art?: PageArt[] | null } = {};
+    if (body.name !== undefined || (body.cardLanguages === undefined && body.pageArt === undefined)) {
       const name = normalizeBinderName(body.name);
       if (!name) return NextResponse.json({ error: 'Give the binder a name (up to 40 characters)' }, { status: 400 });
       update.name = name;
@@ -139,15 +142,54 @@ export async function updateBinder(request: NextRequest, actor: Pick<User, 'id'>
       if (!cardLanguages) return NextResponse.json({ error: 'Choose at least one card language' }, { status: 400 });
       update.card_languages = cardLanguages;
     }
+    if (body.pageArt !== undefined) {
+      const pageArt = body.pageArt === null ? [] : parsePageArtInput(body.pageArt);
+      if (!pageArt) return NextResponse.json({ error: 'Some page art could not be read' }, { status: 400 });
+      const problem = await checkPageArt(admin, ownerUserId, body.id, pageArt);
+      if (problem) return problem;
+      update.page_art = pageArt.length ? pageArt : null;
+    }
     const { error } = await admin.from('binders').update(update).eq('id', body.id).eq('owner_user_id', ownerUserId);
     if (error && isMissingColumnError(error))
-      return NextResponse.json({ error: 'Card languages are not available yet' }, { status: 503 });
+      return NextResponse.json(
+        { error: `${update.page_art !== undefined ? 'Page art is' : 'Card languages are'} not available yet` },
+        { status: 503 },
+      );
     if (error) throw error;
     expirePublicBinders(ownerUserId);
     return respond(await listWithCounts(admin, ownerUserId));
   } catch (error) {
     return failure('update the binder', error);
   }
+}
+
+/** Every artwork sits on a pocket of this binder, and every upload it uses is one of the owner's stored uploads. */
+async function checkPageArt(admin: Admin, ownerUserId: string, binderId: string, pageArt: PageArt[]) {
+  const anchors = [...new Set(pageArt.map((art) => art.anchorSlotId))];
+  if (anchors.length) {
+    const { data, error } = await admin
+      .from('binder_slots')
+      .select('id')
+      .eq('owner_user_id', ownerUserId)
+      .eq('collection_id', binderId)
+      .in('id', anchors);
+    if (error) throw error;
+    if ((data ?? []).length !== anchors.length)
+      return NextResponse.json({ error: 'Some page art is on a pocket this binder no longer has' }, { status: 409 });
+  }
+  const uploads = pageArtUploadIds(pageArt);
+  if (uploads.length) {
+    let store;
+    try {
+      store = requireArtworkStore();
+    } catch {
+      return NextResponse.json({ error: 'Artwork storage is unavailable' }, { status: 503 });
+    }
+    const stored = await Promise.all(uploads.map((id) => store.exists(ownerUserId, id)));
+    if (stored.includes(false))
+      return NextResponse.json({ error: 'Upload the artwork before using it' }, { status: 400 });
+  }
+  return null;
 }
 
 export async function deleteBinder(request: NextRequest, actor: Pick<User, 'id'>, verifiedOwnerId?: string) {

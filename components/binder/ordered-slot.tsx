@@ -594,7 +594,10 @@ export function OrderedSlot({
   glare,
   interactionKey,
   priceLabel,
+  joined,
 }: {
+  /** Under a page artwork: an empty pocket shows the picture through it, with no pocket edge, so neighbours join. */
+  joined?: boolean;
   /** The saved market price shown on the pocket in the Prices view. */
   priceLabel?: string | null;
   interactionKey?: string;
@@ -635,7 +638,12 @@ export function OrderedSlot({
     },
     [],
   );
-  const { image, isCard: hasCardImage, tone } = displaySlotPreview(slot);
+  const showsArt = joined && !slot.item;
+  const {
+    image,
+    isCard: hasCardImage,
+    tone,
+  } = showsArt ? { image: null, isCard: false, tone: '' } : displaySlotPreview(slot);
   return (
     <button
       ref={ref}
@@ -731,7 +739,7 @@ export function OrderedSlot({
         held.current = false;
         if (allowed) onSelect(slot.id);
       }}
-      className={`relative h-full min-h-9 w-full min-w-9 overflow-hidden text-white select-none [-webkit-touch-callout:none] active:scale-[0.98] ${hasCardImage ? 'bg-transparent' : 'border border-white/25 bg-white/10 shadow-inner'} ${marked || (marked === undefined && selected) ? 'border-primary ring-primary ring-2' : hasCardImage ? 'ring-1 ring-black/5 dark:ring-white/6' : ''} ${dimmed ? 'opacity-45' : ''} ${wiggling ? 'pocket-wiggle' : ''}`}
+      className={`relative h-full min-h-9 w-full min-w-9 overflow-hidden text-white select-none [-webkit-touch-callout:none] active:scale-[0.98] ${hasCardImage || showsArt ? 'bg-transparent' : 'border border-white/25 bg-white/10 shadow-inner'} ${marked || (marked === undefined && selected) ? 'border-primary ring-primary ring-2' : hasCardImage ? 'ring-1 ring-black/5 dark:ring-white/6' : ''} ${dimmed ? 'opacity-45' : ''} ${wiggling ? 'pocket-wiggle' : ''}`}
       style={{ borderRadius: TRADING_CARD_CORNER_RADIUS }}
     >
       {image && (

@@ -20,6 +20,51 @@ const id = z.string().min(1).max(200),
   language = z.enum(CARD_LANGUAGES).optional();
 const paging = { limit: z.number().int().min(1).max(100).optional(), cursor: z.string().max(1024).optional() };
 /** Opt-in detail. REST keeps full responses by default; MCP results go into a model's context, so lean by default. */
+const pageArtSchema = z
+  .array(
+    z.strictObject({
+      id: z
+        .string()
+        .regex(/^[a-z0-9-]{1,40}$/i)
+        .describe('Your own id for this artwork, unique within the binder.'),
+      anchorSlotId: z
+        .string()
+        .min(1)
+        .max(200)
+        .describe('Slot id of the top-left pocket. The artwork follows this pocket when pages move.'),
+      rows: z.number().int().min(1).max(8).describe('Pockets down, clipped to the page.'),
+      cols: z.number().int().min(1).max(8).describe('Pockets across, clipped to the page.'),
+      source: z
+        .discriminatedUnion('kind', [
+          z.strictObject({
+            kind: z.literal('card'),
+            cardId: z.string().min(1).max(200),
+            image: z
+              .string()
+              .min(1)
+              .max(500)
+              .describe('The card image from get_card (our assets.holofolder.com URL or its key).'),
+          }),
+          z.strictObject({ kind: z.literal('pokemon'), pokemonId: z.number().int().min(1).max(100000) }),
+          z.strictObject({
+            kind: z.literal('upload'),
+            id: z.string().describe('artworkRef from prepare_artwork_upload, after uploading the bytes.'),
+          }),
+        ])
+        .describe('A catalogue card, a Pokémon’s official artwork or your own uploaded image.'),
+      frame: z
+        .strictObject({
+          fit: z.enum(['fill', 'fit']),
+          zoom: z.number().min(0.25).max(4),
+          x: z.number().min(-1).max(1),
+          y: z.number().min(-1).max(1),
+        })
+        .optional()
+        .describe('Fill or fit the area, zoom, and offset (-1 to 1). Default: fill, 1, 0, 0.'),
+    }),
+  )
+  .max(200)
+  .nullable();
 const include = (what: string) => z.boolean().optional().describe(`${what} Default: true on REST, false on MCP.`);
 const includeDetails = include('Include details (the stored provider record).');
 const includeRaw = include('Include the raw card or set list and supplemental sources.');
@@ -247,7 +292,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     method: 'PATCH',
     path: '/binders/{id}',
     description:
-      'Rename a binder or choose the card languages its card lists show (default English only). Send name, cardLanguages or both.',
+      'Rename a binder, choose the card languages its card lists show (default English only), or set its page art (Michi method: pictures laid behind a rectangle of pockets, up to a whole page, with cards on top; empty pockets under a picture join into one). pageArt replaces the whole list; send null or [] to clear it. Send any of name, cardLanguages and pageArt.',
     permissions: ['binders:write'],
     write: true,
     schema: z
@@ -255,9 +300,10 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
         id: binderId,
         name: z.string().min(1).max(40).optional(),
         cardLanguages: z.array(z.enum(CARD_LANGUAGES)).min(1).max(CARD_LANGUAGES.length).optional(),
+        pageArt: pageArtSchema.optional(),
       })
-      .refine((input) => input.name !== undefined || input.cardLanguages !== undefined, {
-        message: 'Send name or cardLanguages.',
+      .refine((input) => input.name !== undefined || input.cardLanguages !== undefined || input.pageArt !== undefined, {
+        message: 'Send name, cardLanguages or pageArt.',
       }),
   },
   {

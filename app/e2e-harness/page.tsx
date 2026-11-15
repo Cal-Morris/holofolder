@@ -36,6 +36,7 @@ export default async function E2EHarnessPage({
     binder?: string;
     partner?: string;
     slots?: string;
+    pageArt?: string;
     rows?: string;
     cols?: string;
   }>;
@@ -57,6 +58,7 @@ export default async function E2EHarnessPage({
     binder,
     partner,
     slots,
+    pageArt,
     rows,
     cols,
   } = await searchParams;
@@ -81,6 +83,21 @@ export default async function E2EHarnessPage({
             isDefault: true,
             rows: null,
             cols: null,
+            // ?pageArt=1: synthetic Michi method art, Pikachu's artwork behind the first two rows of three pockets.
+            ...(pageArt === '1'
+              ? {
+                  pageArt: [
+                    {
+                      id: 'e2e-art',
+                      anchorSlotId: 'slot-a',
+                      rows: 2,
+                      cols: 3,
+                      source: { kind: 'pokemon' as const, pokemonId: 25 },
+                      frame: { fit: 'fill' as const, zoom: 1, x: 0, y: 0 },
+                    },
+                  ],
+                }
+              : {}),
             createdAt: null,
             updatedAt: null,
           },

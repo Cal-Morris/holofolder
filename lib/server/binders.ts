@@ -34,7 +34,10 @@ export async function listOwnerBinders(client: AnySupabaseClient, ownerUserId: s
         .order('id', { ascending: true })
         .range(from, to),
     ) as Promise<{ data: unknown[]; error: { code?: string; message?: string } | null }>;
-  let { data, error } = await read(`${BINDER_COLUMNS}, slug:binder_slug, card_languages`);
+  let { data, error } = await read(`${BINDER_COLUMNS}, slug:binder_slug, card_languages, page_art`);
+  // Before migration 145 there is no page_art: no page art.
+  if (error && /page_art/.test(error.message ?? ''))
+    ({ data, error } = await read(`${BINDER_COLUMNS}, slug:binder_slug, card_languages`));
   // Before migration 115 there is no card_languages: every binder shows English cards.
   if (error && /card_languages/.test(error.message ?? ''))
     ({ data, error } = await read(`${BINDER_COLUMNS}, slug:binder_slug`));

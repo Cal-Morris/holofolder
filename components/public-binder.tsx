@@ -40,6 +40,7 @@ export default function PublicBinderView({ binder, sharePath }: { binder: Public
       stagedSlotDisplay={display}
       publicIndex={index}
       initialSharePath={sharePath}
+      publicPageArt={binder.pageArt ?? []}
       // The owner's "Show prices" switch: off means no price lookup at all; on opens in the Prices view, as shares did at 9a6eb23.
       pricingEnabled={binder.prices}
       initialPriceMode={binder.prices}
