@@ -75,9 +75,8 @@ test('a subscriber later granted lifetime access can still stop their existing b
 test('trial explains its expiry and no automatic charge, with optional purchase controls', () => {
   const html = render('trial');
   assert.match(html, /7-day Premium trial/);
-  assert.match(html, /Trial ends/);
-  assert.match(html, /No payment details needed/);
-  assert.match(html, /won&#x27;t be charged automatically/);
+  assert.match(html, /Ends /);
+  assert.match(html, /No card needed, nothing auto-charges/);
   assert.match(html, /£3.99 \/ month/);
   assert.doesNotMatch(html, /Paid access until|>Manage billing</);
   assert.doesNotMatch(render('trial', false), /£3.99/);
@@ -101,15 +100,16 @@ test('subscribers can buy lifetime and are told to cancel their subscription the
 });
 
 const duringOffer = Date.parse('2026-12-31T23:59:59Z');
-test('during the launch offer the plan picker shows offer price, renewal price and end date', () => {
+test('during the launch offer the plan picker shows offer and renewal prices, without the end date', () => {
   const html = render('free', true, false, 100, { lifetimeAvailable: true }, duringOffer);
-  assert.match(html, /Launch offer: 50% off, ends 31 December 2026/);
+  assert.match(html, /50% off/);
+  assert.doesNotMatch(html, /31 December/);
   assert.match(html, /£2.00 \/ month/);
-  assert.match(html, /For 3 months, then £3.99 a month/);
+  assert.match(html, /For 3 months, then £3.99</);
   assert.match(html, /£17.50 first year/);
-  assert.match(html, /Then £34.99 a year/);
+  assert.match(html, /Then £34.99</);
   assert.match(html, /£39.50 once/);
-  assert.match(html, /until 31 December, then £79</);
+  assert.match(html, /Lifetime access, normally £79.00</);
   assert.match(html, /Have a creator code\?/);
   assert.doesNotMatch(html, /was|<s>|line-through/);
 });
@@ -123,4 +123,8 @@ test('after the end date the normal prices return with no offer copy', () => {
   const html = render('free', true, false, 100, { lifetimeAvailable: true }, duringOffer + 1000);
   assert.doesNotMatch(html, /Launch offer|creator code/);
   assert.match(html, /£3.99 \/ month/);
+});
+test('manage existing billing is offered only to owners who already have a billing account', () => {
+  assert.doesNotMatch(render('trial'), /Manage existing billing/);
+  assert.match(render('trial', true, true), /Manage existing billing/);
 });

@@ -11,7 +11,6 @@ export const BILLING_ANNUAL_SAVING = BILLING_PRICES.month * 12 - BILLING_PRICES.
 export const LAUNCH_OFFER = {
   // 31 Dec 2026 23:59:59 Europe/London (GMT, so UTC+0).
   endsAt: Date.parse('2026-12-31T23:59:59Z'),
-  endLabel: '31 December 2026',
   price: { month: 200, year: 1750, lifetime: 3950 },
   monthlyMonths: 3,
   coupon: {
@@ -39,13 +38,12 @@ export function planChoice(plan: BillingPlan, discounted: boolean) {
     if (plan === 'month')
       return {
         title: `${offer} / month`,
-        detail: `For ${LAUNCH_OFFER.monthlyMonths} months, then ${billingAmount(BILLING_PRICES.month)} a month`,
+        detail: `For ${LAUNCH_OFFER.monthlyMonths} months, then ${billingAmount(BILLING_PRICES.month)}`,
       };
-    if (plan === 'year')
-      return { title: `${offer} first year`, detail: `Then ${billingAmount(BILLING_PRICES.year)} a year` };
+    if (plan === 'year') return { title: `${offer} first year`, detail: `Then ${billingAmount(BILLING_PRICES.year)}` };
     return {
       title: `${offer} once`,
-      detail: `Lifetime access, until 31 December, then £${BILLING_LIFETIME_PRICE / 100}`,
+      detail: `Lifetime access, normally ${billingAmount(BILLING_LIFETIME_PRICE)}`,
     };
   }
   if (plan === 'month') return { title: `${billingAmount(BILLING_PRICES.month)} / month`, detail: 'Billed monthly' };
