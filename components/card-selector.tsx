@@ -16,6 +16,7 @@ import type { CardFinish } from '@/lib/domain/cards';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 import { INVENTORY_LIMITS } from '@/lib/domain/inventory-commands';
+import { pickAllCards } from '@/lib/card-picker-pick-all';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { useCardSearch } from '@/hooks/use-card-search';
 import { buildOfflineCardIndex } from '@/lib/offline-card-index';
@@ -698,6 +699,25 @@ export default function CardSelector({
     showingSuggestions,
   ]);
   const renderedCards = useMemo(() => displayedCards.slice(0, renderLimit.count), [displayedCards, renderLimit.count]);
+  /** Picks every shown card (filters and sort applied) that fits, up to one save, with the finish chosen in Filters. */
+  const pickAll = () => {
+    const toPick = (card: TCGCard) => ({
+      card: isAnyCard ? card : { ...card, language: fixedLanguage ?? card.language },
+      finish: recordedFinish ?? undefined,
+    });
+    const { picks: chosen, left } = pickAllCards(picks, displayedCards.map(toPick), MAX_PICKS, (next) =>
+      place ? place(next) : true,
+    );
+    setSeveral(true);
+    setPicks(chosen);
+    if (left > 0)
+      toast(
+        chosen.length >= MAX_PICKS
+          ? `Picked ${chosen.length}, the most for one save. Add these, then pick the other ${left}.`
+          : `Picked ${chosen.length}. The other ${left} ${left === 1 ? 'has' : 'have'} no empty pocket in this binder.`,
+        'error',
+      );
+  };
   const hasMoreCards = renderedCards.length < displayedCards.length;
   // About two screens ahead of the end of the list, so tiles and their images are ready before they scroll into view.
   useEffect(() => {
@@ -1281,6 +1301,15 @@ export default function CardSelector({
                   }`}
                 >
                   {several ? 'Pick one' : 'Pick several'}
+                </button>
+              )}
+              {canPickSeveral && displayedCards.length > 1 && (anyCardQuery.trim() || !anyCard) && (
+                <button
+                  type="button"
+                  onClick={pickAll}
+                  className="border-border/60 text-muted-foreground hover:text-foreground h-9 shrink-0 rounded-full border px-3 text-xs font-semibold transition-colors"
+                >
+                  Pick all ({displayedCards.length})
                 </button>
               )}
               {!native && (
