@@ -69,9 +69,23 @@ export function CardResultImage({
   );
 }
 
-export function CardResultsGrid({ busy = false, children }: { busy?: boolean; children: ReactNode }) {
-  return (
-    <div aria-busy={busy} className={cn(GRID_CLASS, 'transition-opacity', busy && 'opacity-50')}>
+/** The grid; with `label` it is a named list, for tiles in list-item mode (see `CardResultTile`'s `footer`). */
+export function CardResultsGrid({
+  busy = false,
+  label,
+  children,
+}: {
+  busy?: boolean;
+  label?: string;
+  children: ReactNode;
+}) {
+  const className = cn(GRID_CLASS, 'transition-opacity', busy && 'opacity-50');
+  return label ? (
+    <ul aria-label={label} aria-busy={busy} className={className}>
+      {children}
+    </ul>
+  ) : (
+    <div aria-busy={busy} className={className}>
       {children}
     </div>
   );
@@ -100,16 +114,22 @@ export function CardResultsSkeleton({ count = 20 }: { count?: number }) {
 }
 
 /** The Owned / Wanted mark in a tile's top-right corner. */
-export function CardStandingMark({ standing }: { standing: 'owned' | 'wanted' }) {
+export function CardStandingMark({
+  standing,
+  count,
+}: {
+  standing: 'owned' | 'wanted';
+  /** Copies, when known. */ count?: number;
+}) {
   return standing === 'wanted' ? (
     <div className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-full border border-amber-400/60 bg-black/70 px-2 py-1 text-[9px] font-bold tracking-[0.12em] text-amber-300 uppercase">
       <Heart className="h-2.5 w-2.5 fill-current" />
-      Wanted
+      Wanted{count ? ` ×${count}` : ''}
     </div>
   ) : (
     <div className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-full border border-emerald-400/60 bg-black/70 px-2 py-1 text-[9px] font-bold tracking-[0.12em] text-emerald-300 uppercase">
       <Check className="h-2.5 w-2.5" />
-      Owned
+      Owned{count ? ` ×${count}` : ''}
     </div>
   );
 }
@@ -129,6 +149,12 @@ interface CardResultTileProps extends Omit<ComponentProps<'button'>, 'type'> {
   intent?: { label: string; wanted: boolean; className: string };
   /** Border classes: the picker's selected or hover colour. */
   highlight?: string;
+  /**
+   * List-item mode, for tiles with buttons of their own (Want, Add): the tile is a named `<li>` in a labelled
+   * `CardResultsGrid`, one cover button (these props, when there is an `onClick`) opens the card, and `footer` sits
+   * above it.
+   */
+  listItem?: { label: string; cardId?: string; footer?: ReactNode };
 }
 
 /** One card in the grid: art and mark, name and set, both price lines (fixed height), range and confidence, number. */
@@ -144,18 +170,16 @@ export function CardResultTile({
   highlight = 'border-transparent',
   className,
   children,
+  listItem,
   ...button
 }: CardResultTileProps) {
-  return (
-    <button
-      type="button"
-      {...button}
-      className={cn(
-        'group/card bg-card focus-visible:ring-primary/70 relative flex min-w-0 flex-col justify-start overflow-hidden rounded-xl border-2 text-left transition-[background-color,border-color,transform,scale] select-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:outline-none aria-disabled:opacity-45 sm:hover:scale-[1.03]',
-        highlight,
-        className,
-      )}
-    >
+  const tileClass = cn(
+    'group/card bg-card focus-visible:ring-primary/70 relative flex min-w-0 flex-col justify-start overflow-hidden rounded-xl border-2 text-left transition-[background-color,border-color,transform,scale] select-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:outline-none aria-disabled:opacity-45 sm:hover:scale-[1.03]',
+    highlight,
+    className,
+  );
+  const body = (
+    <>
       <div className="trading-card bg-muted relative w-full">
         <CardResultImage
           src={card.image}
@@ -213,7 +237,29 @@ export function CardResultTile({
           )}
         </div>
       </div>
-    </button>
+    </>
+  );
+  if (!listItem) {
+    return (
+      <button type="button" {...button} className={tileClass}>
+        {body}
+      </button>
+    );
+  }
+  return (
+    <li aria-label={listItem.label} data-card-id={listItem.cardId} className={tileClass}>
+      {button.onClick ? (
+        <button
+          type="button"
+          {...button}
+          className="focus-visible:ring-primary/70 absolute inset-0 z-[1] rounded-[inherit] focus-visible:ring-2 focus-visible:outline-none"
+        />
+      ) : null}
+      {body}
+      {listItem.footer ? (
+        <div className="relative z-[2] mt-auto px-1.5 pb-1.5 sm:px-2 sm:pb-2">{listItem.footer}</div>
+      ) : null}
+    </li>
   );
 }
 

@@ -4984,6 +4984,7 @@ function BinderAppSurface(props: BinderAppProps) {
               readOnly={nativeReadOnly}
               onClose={() => setNativeLookup(null)}
               formatPrice={priceFormat.label}
+              formatAmount={priceFormat.amount}
               pricingRegion={pricingPreferences.region}
             />
           )}
@@ -5031,6 +5032,7 @@ function BinderAppSurface(props: BinderAppProps) {
               onWantCard={readOnlyMode ? undefined : requireAccount}
               onAddCard={readOnlyMode ? undefined : requireAccount}
               formatPrice={priceFormat.label}
+              formatAmount={priceFormat.amount}
               pricingRegion={pricingPreferences.region}
               cardLanguages={activeBinder?.cardLanguages}
             />
@@ -5048,6 +5050,7 @@ function BinderAppSurface(props: BinderAppProps) {
               readOnly={nativeReadOnly}
               onClose={() => setNamedCardsBrowser(null)}
               formatPrice={priceFormat.label}
+              formatAmount={priceFormat.amount}
               pricingRegion={pricingPreferences.region}
               cardLanguages={activeBinder?.cardLanguages}
             />
