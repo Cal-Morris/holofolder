@@ -2,7 +2,7 @@
 import { useBillingContext } from '@/hooks/use-billing';
 import { Button } from '@/components/ui/button';
 import { OptionRow } from '@/components/ui/option-row';
-import { LAUNCH_OFFER, launchOfferActive, launchOfferCoupon, planChoice, type BillingPlan } from '@/lib/billing';
+import { launchOfferActive, launchOfferCoupon, planChoice, type BillingPlan } from '@/lib/billing';
 import { useEffect, useState } from 'react';
 import { useTrackCollectorEvent } from '@/components/collector-funnel';
 import { cn } from '@/lib/utils';
@@ -43,16 +43,16 @@ export function BillingSettings({
       ? ['lifetime']
       : ['month', 'year', ...(billing.lifetimeAvailable ? (['lifetime'] as const) : [])];
   const selected = plans.includes(plan) ? plan : plans[0];
+  const showPicker =
+    signedIn &&
+    billing.canManage &&
+    access?.source !== 'perpetual' &&
+    (access?.source !== 'subscription' || billing.lifetimeAvailable);
   const picker = (
     <div className="space-y-2">
-      {offer ? (
-        <p className="text-sm font-semibold">
-          Launch offer: 50% off, ends {LAUNCH_OFFER.endLabel}
-          {withCode ? (
-            <span className="text-muted-foreground block text-xs font-normal">
-              Enter your code at checkout. A code replaces the launch offer on monthly and lifetime; annual keeps it.
-            </span>
-          ) : null}
+      {withCode ? (
+        <p className="text-muted-foreground text-xs">
+          Enter your code at checkout. A code replaces the launch offer on monthly and lifetime; annual keeps it.
         </p>
       ) : null}
       {plans.map((option) => (
@@ -73,7 +73,7 @@ export function BillingSettings({
             {withCode ? 'Use the launch offer instead' : 'Have a creator code?'}
           </Button>
         ) : null}
-        {access?.source !== 'subscription' ? (
+        {access?.source !== 'subscription' && billing.hasBillingAccount ? (
           <Button variant="ghost" className="min-h-9 text-xs" disabled={blocked} onClick={() => void billing.portal()}>
             Manage existing billing
           </Button>
@@ -86,15 +86,22 @@ export function BillingSettings({
       aria-label="Holo Folder plan"
       className={cn('border-border bg-card space-y-3 rounded-2xl border p-4', className)}
     >
-      <h3 className="font-bold">
-        {access?.source === 'perpetual'
-          ? 'Lifetime access'
-          : access?.source === 'trial'
-            ? '7-day Premium trial'
-            : access?.tier === 'paid'
-              ? 'Holo Folder Premium'
-              : 'Unlock Holo Folder'}
-      </h3>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <h3 className="font-bold">
+          {access?.source === 'perpetual'
+            ? 'Lifetime access'
+            : access?.source === 'trial'
+              ? '7-day Premium trial'
+              : access?.tier === 'paid'
+                ? 'Holo Folder Premium'
+                : 'Unlock Holo Folder'}
+        </h3>
+        {offer && showPicker ? (
+          <span className="border-border/50 bg-background/70 text-muted-foreground shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.12em] uppercase">
+            50% off
+          </span>
+        ) : null}
+      </div>
       {access?.source === 'perpetual' ? (
         <>
           <p className="text-muted-foreground text-sm">
@@ -109,20 +116,17 @@ export function BillingSettings({
       ) : (
         <>
           <p className="text-muted-foreground text-sm">
-            Unlimited cards, multiple binders, custom layouts, partner mode and sold price comparisons, for you and your
-            partner. Read-only sharing is free.
+            Unlimited cards, binders, custom layouts, partner mode and sold prices.
           </p>
           {access?.source === 'trial' ? (
             <p className="text-sm">
-              Trial ends {day(access.trialEndsAt!)}
-              {access.grantedUntil ? `, then your invite rewards keep Premium until ${day(access.grantedUntil)}` : ''}.
-              No payment details needed, you won&apos;t be charged automatically. Afterwards you&apos;re back on free
-              and keep everything you saved.
+              Ends {day(access.trialEndsAt!)}
+              {access.grantedUntil ? `, then invite rewards keep Premium until ${day(access.grantedUntil)}` : ''}. No
+              card needed, nothing auto-charges.
             </p>
           ) : access?.source === 'grant' ? (
             <p className="text-sm">
-              Free Premium from invites until {day(access.grantedUntil!)}. No payment details needed, you won&apos;t be
-              charged. Afterwards you&apos;re back on free and keep everything you saved.
+              Free Premium from invites until {day(access.grantedUntil!)}. No card needed, nothing auto-charges.
             </p>
           ) : access?.tier === 'paid' ? (
             <p className="text-sm">

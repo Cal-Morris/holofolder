@@ -38,8 +38,7 @@ test('@matrix signup trial shows its terms and expires offline without losing th
   const dialog = page.getByRole('dialog', { name: 'Upgrade to Premium' });
   const plan = dialog.getByRole('region', { name: 'Holo Folder plan' });
   await expect(plan.getByRole('heading', { name: '7-day Premium trial' })).toBeVisible();
-  await expect(plan).toContainText('No payment details needed');
-  await expect(plan).toContainText("you won't be charged automatically");
+  await expect(plan).toContainText('No card needed, nothing auto-charges');
   await expect(plan.getByRole('button', { name: 'Manage billing', exact: true })).toHaveCount(0);
   const monthly = plan.getByRole('button', { name: /\/ month/ });
   await monthly.scrollIntoViewIfNeeded();
@@ -95,7 +94,7 @@ test('@matrix invite rewards show the granted month and the owner invite link', 
   const plan = dialog.getByRole('region', { name: 'Holo Folder plan' });
   await expect(plan.getByRole('heading', { name: 'Holo Folder Premium' })).toBeVisible();
   await expect(plan).toContainText('Free Premium from invites until');
-  await expect(plan).toContainText("you won't be charged");
+  await expect(plan).toContainText('nothing auto-charges');
   const invite = dialog.getByRole('region', { name: 'Invite a friend' });
   await expect(invite).toContainText('https://holofolder.com/app/invite/abcde23456');
   await expect(invite).toContainText('1 of 12 free months earned, 2 friends yet to save 10 cards.');

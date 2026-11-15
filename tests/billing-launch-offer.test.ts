@@ -45,11 +45,11 @@ test('after the end date no plan gets a coupon', () => {
 });
 
 test('plan choices show the price paid now and what it renews at, never a "was" price', () => {
-  assert.deepEqual(planChoice('month', true), { title: '£2.00 / month', detail: 'For 3 months, then £3.99 a month' });
-  assert.deepEqual(planChoice('year', true), { title: '£17.50 first year', detail: 'Then £34.99 a year' });
+  assert.deepEqual(planChoice('month', true), { title: '£2.00 / month', detail: 'For 3 months, then £3.99' });
+  assert.deepEqual(planChoice('year', true), { title: '£17.50 first year', detail: 'Then £34.99' });
   assert.deepEqual(planChoice('lifetime', true), {
     title: '£39.50 once',
-    detail: 'Lifetime access, until 31 December, then £79',
+    detail: 'Lifetime access, normally £79.00',
   });
   assert.deepEqual(planChoice('month', false), { title: '£3.99 / month', detail: 'Billed monthly' });
   assert.deepEqual(planChoice('year', false), { title: '£34.99 / year', detail: 'Save £12.89 on monthly' });
