@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCardsByIds, searchCardCatalog, suggestCards } from '@/lib/catalog-queries';
+import { APP_SUGGESTION_LIMIT, getCardsByIds, searchCardCatalog, suggestCards } from '@/lib/catalog-queries';
 import { normalizeCardLanguage } from '@/lib/domain/cards';
 import { MAX_SUGGESTION_SEEDS } from '@/lib/page-card-suggestions';
 import { PUBLIC_JSON_CACHE_HEADERS } from '@/lib/http-cache';
@@ -27,7 +27,14 @@ export async function GET(request: NextRequest) {
       if (like.length + pokemon.length > MAX_SUGGESTION_SEEDS)
         return NextResponse.json({ error: `At most ${MAX_SUGGESTION_SEEDS} cards.`, cards: [] }, { status: 400 });
       return NextResponse.json(
-        { cards: await suggestCards(like, pokemon, normalizeCardLanguage(searchParams.get('language'))) },
+        {
+          cards: await suggestCards(
+            like,
+            pokemon,
+            normalizeCardLanguage(searchParams.get('language')),
+            APP_SUGGESTION_LIMIT,
+          ),
+        },
         { headers: PUBLIC_JSON_CACHE_HEADERS },
       );
     }
