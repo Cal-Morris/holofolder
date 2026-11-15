@@ -6,6 +6,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Client } from 'pg';
 import { inferDexIdsFromCardName } from './card-dex-inference';
+import { applyTcgplayerVariants, fetchTcgplayerVariants } from './tcgplayer-variants';
 import { mapWithConcurrency } from './card-db-sync-concurrency';
 import type { CardImageMirror } from './card-image-blob';
 import {
@@ -1365,6 +1366,9 @@ export async function upsertRestSetPayload(
   logger?: (message: string) => void,
   manageTransaction = true,
 ) {
+  // Fetched before the transaction opens; an unreachable TCGCSV leaves the stored evidence in place (below).
+  const variants = await fetchTcgplayerVariants(payload.sets, payload.cards, logger);
+  payload = { ...payload, cards: payload.cards.map((card) => applyTcgplayerVariants(card, variants.get(card.id))) };
   if (manageTransaction) await client.query('BEGIN');
   try {
     await insertJsonBatch(
@@ -1441,7 +1445,13 @@ export async function upsertRestSetPayload(
           illustrator = EXCLUDED.illustrator,
           types_json = EXCLUDED.types_json,
           image_languages_json = EXCLUDED.image_languages_json,
-          variants_json = EXCLUDED.variants_json,
+          -- TCGplayer finishes (lib/tcgplayer-variants.ts) win over TCGdex's flags; the stored ones stay when this
+          -- sync couldn't fetch fresh ones.
+          variants_json = EXCLUDED.variants_json || coalesce(
+            EXCLUDED.external_ids_json->'tcgplayerVariants',
+            public.tcg_cards.external_ids_json->'tcgplayerVariants',
+            '{}'::jsonb
+          ),
           external_ids_json = public.tcg_cards.external_ids_json || EXCLUDED.external_ids_json
             || CASE WHEN public.tcg_cards.external_ids_json ? 'catalog' OR EXCLUDED.external_ids_json ? 'catalog'
                  THEN jsonb_build_object('catalog', coalesce(public.tcg_cards.external_ids_json->'catalog', '{}'::jsonb)

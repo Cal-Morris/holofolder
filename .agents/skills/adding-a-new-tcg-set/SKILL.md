@@ -19,6 +19,7 @@ Our card catalogue lives in the Postgres `tcg_*` tables. New sets usually arrive
 3. **Sync it.** Drop `dryRun`, or omit `?set=` to sync everything missing or incomplete, newest first. Repeat the call until the response has `"done": true`. Each call handles `maxSets` sets (default 4, max 12) and returns `remainingSetIds`.
    - The sync upserts (it never truncates), runs under an advisory lock (`409` if another sync is running), and revalidates the `card-catalog` cache tag.
    - It also copies each synced set's English `high` and `low` images into the mirror. Add `?images=0` to skip that.
+   - It also sets each card's normal / holo / reverse flags from TCGplayer's catalogue (TCGCSV, `lib/tcgplayer-variants.ts`), because TCGdex often has none or placeholders for new sets. The log line `TCGplayer variants: <id> ← "<group>"` confirms it. A set TCGplayer names differently, or splits over several groups, needs an entry in `TCGPLAYER_GROUPS`. If TCGplayer hadn't listed the set yet, run `bun run sync-card-variants --set <id> --apply` later (dry run without `--apply`), then sync the set again so the cache expires.
    - The full rebuild is local: `bun run sync-card-db` (needs `POSTGRES_URL_NON_POOLING` or `DATABASE_URL`; supports `--dry-run`). It upserts every TCGdex set and never truncates or deletes, so cards imported by `card-assets fill-gaps` and their catalog metadata survive; prefer the API route for one set.
 4. **Back-fill the images**, if they weren't copied during the sync or other languages or qualities are needed:
    - API, resumable:
