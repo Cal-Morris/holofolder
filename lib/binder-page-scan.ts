@@ -113,9 +113,23 @@ interface CanvasImage {
   canvas: HTMLCanvasElement;
   width: number;
   height: number;
+  /** The same page cut from the full-resolution photo, for pocket crops; absent when the photo is already small. */
+  sharp?: () => Promise<HTMLCanvasElement | null>;
+}
+
+/** Where pocket crops are cut from: `canvas` is the page at `scaleX`/`scaleY` times the analysed page's size. */
+interface CropSource {
+  canvas: HTMLCanvasElement;
+  scaleX: number;
+  scaleY: number;
 }
 
 const MAX_IMAGE_DIMENSION = 1200;
+/**
+ * Pockets are cut from the photo at up to this size, so a phone photo's collector numbers stay readable (at 1200 px a
+ * 4×3 page left about 280 px per card). Under iOS Safari's 16.7M-pixel canvas limit.
+ */
+const SHARP_IMAGE_DIMENSION = 3200;
 const MAX_GRID_DIMENSION = 720;
 const SCANIC_MAX_PROCESSING_DIMENSION = 960;
 const SCANIC_MIN_DOCUMENT_AREA_RATIO = 0.18;
@@ -146,7 +160,7 @@ const PAGE_EDGE_THRESHOLD_FLOOR = 52;
 const PAGE_EDGE_SEARCH_PADDING = 0.32;
 const SLOT_CARD_CROP_INSET = 0.04;
 const SLOT_CARD_CROP_MIN_WIDTH = 240;
-const SLOT_CARD_CROP_MAX_WIDTH = 500;
+const SLOT_CARD_CROP_MAX_WIDTH = 800;
 const SLOT_CARD_CROP_ASPECT = 88 / 63;
 
 let scanicScannerPromise: Promise<ScanicScanner> | null = null;
@@ -170,14 +184,26 @@ export async function scanBinderPageImage(
   }
 
   const analysisData = analysisContext.getImageData(0, 0, analysisImage.width, analysisImage.height);
-  const candidates = await buildNormalizedPageCandidates(analysisImage, analysisData, rows, cols);
+  let fullCanvas: HTMLCanvasElement | null = null;
+  const full =
+    Math.max(image.width, image.height) > MAX_IMAGE_DIMENSION
+      ? () => (fullCanvas ??= drawScaledImage(image, SHARP_IMAGE_DIMENSION).canvas)
+      : null;
+  const candidates = await buildNormalizedPageCandidates(analysisImage, analysisData, rows, cols, full);
 
-  for (const candidate of candidates) {
-    const result = scanNormalizedBinderPage(candidate, rows, cols);
+  let candidate: CanvasImage | undefined;
+  let grid: BinderPageGridRegion | null = null;
+  for (candidate of candidates) {
+    grid = detectNormalizedGrid(candidate, rows, cols);
+    if (grid) break;
+  }
 
-    if (result) {
-      return result;
-    }
+  if (candidate && grid) {
+    const sharp = await candidate.sharp?.().catch(() => null);
+    const crops = sharp
+      ? { canvas: sharp, scaleX: sharp.width / candidate.width, scaleY: sharp.height / candidate.height }
+      : undefined;
+    return classifySlotsForGrid(candidate, rows, cols, grid, crops);
   }
 
   throw new Error(
@@ -205,7 +231,9 @@ async function buildNormalizedPageCandidates(
   analysisData: ImageData,
   rows: number,
   cols: number,
+  full: (() => HTMLCanvasElement) | null,
 ) {
+  const toFull = (sourceWidth: number) => (full ? full().width / sourceWidth : 1);
   const candidates: CanvasImage[] = [];
   const seen = new Set<HTMLCanvasElement>();
 
@@ -218,21 +246,51 @@ async function buildNormalizedPageCandidates(
     candidates.push(candidate);
   };
 
-  addCandidate(await rectifyPageWithScanic(analysisImage.canvas));
+  const scanic = await rectifyPageWithScanic(analysisImage.canvas);
+  if (scanic && full) {
+    scanic.sharp = async () => {
+      const scale = toFull(analysisImage.width);
+      const at = ({ x, y }: { x: number; y: number }) => ({ x: x * scale, y: y * scale });
+      const { topLeft, topRight, bottomRight, bottomLeft } = scanic.corners;
+      const corners = {
+        topLeft: at(topLeft),
+        topRight: at(topRight),
+        bottomRight: at(bottomRight),
+        bottomLeft: at(bottomLeft),
+      };
+      const result = await (await getScanicScanner()).extract(full(), corners, { output: 'canvas' });
+      return result.success && result.output instanceof HTMLCanvasElement ? result.output : null;
+    };
+  }
+  addCandidate(scanic);
 
   const roughGrid = detectRoughGridRegion(analysisImage.canvas, rows, cols);
 
   if (roughGrid) {
     const pageRect = detectBinderPageRect(analysisData, analysisImage.width, analysisImage.height, roughGrid);
-    addCandidate(pageRect ? rectifyPageCanvas(analysisImage.canvas, pageRect) : null);
+    const rectified = pageRect ? rectifyPageCanvas(analysisImage.canvas, pageRect) : null;
+    if (rectified && pageRect && full) {
+      rectified.sharp = async () => {
+        const scale = toFull(analysisImage.width);
+        const { cx, cy, width, height, angle } = pageRect;
+        return rectifyPageCanvas(full(), {
+          cx: cx * scale,
+          cy: cy * scale,
+          width: width * scale,
+          height: height * scale,
+          angle,
+        }).canvas;
+      };
+    }
+    addCandidate(rectified);
   }
 
-  addCandidate(analysisImage);
+  addCandidate(full ? { ...analysisImage, sharp: async () => full() } : analysisImage);
 
   return candidates;
 }
 
-function scanNormalizedBinderPage(image: CanvasImage, rows: number, cols: number): BinderPageScanResult | null {
+function detectNormalizedGrid(image: CanvasImage, rows: number, cols: number): BinderPageGridRegion | null {
   const rectifiedContext = image.canvas.getContext('2d', { willReadFrequently: true });
 
   if (!rectifiedContext) {
@@ -253,9 +311,7 @@ function scanNormalizedBinderPage(image: CanvasImage, rows: number, cols: number
     return null;
   }
 
-  const grid = scaleGridRegion(detectedGrid, image.width / gridImage.width, image.height / gridImage.height);
-
-  return classifySlotsForGrid(image, rows, cols, grid);
+  return scaleGridRegion(detectedGrid, image.width / gridImage.width, image.height / gridImage.height);
 }
 
 function classifySlotsForGrid(
@@ -263,6 +319,7 @@ function classifySlotsForGrid(
   rows: number,
   cols: number,
   grid: BinderPageGridRegion,
+  crops: CropSource = { canvas: image.canvas, scaleX: 1, scaleY: 1 },
 ): BinderPageScanResult {
   const rectifiedContext = image.canvas.getContext('2d', { willReadFrequently: true });
 
@@ -309,8 +366,16 @@ function classifySlotsForGrid(
       const confidence = scoreSlotConfidence(metrics, score);
       const cardImageDataUrl = occupied
         ? cropSlotCardImageDataUrl(
-            image.canvas,
-            insetRect({ x: slotX, y: slotY, width: slotWidth, height: slotHeight }, SLOT_CARD_CROP_INSET),
+            crops.canvas,
+            insetRect(
+              {
+                x: slotX * crops.scaleX,
+                y: slotY * crops.scaleY,
+                width: slotWidth * crops.scaleX,
+                height: slotHeight * crops.scaleY,
+              },
+              SLOT_CARD_CROP_INSET,
+            ),
           )
         : undefined;
 
@@ -577,7 +642,11 @@ function detectRoughGridRegion(sourceCanvas: HTMLCanvasElement, rows: number, co
   );
 }
 
-async function rectifyPageWithScanic(sourceCanvas: HTMLCanvasElement): Promise<CanvasImage | null> {
+type ScanicCorners = Parameters<ScanicScanner['extract']>[1];
+
+async function rectifyPageWithScanic(
+  sourceCanvas: HTMLCanvasElement,
+): Promise<(CanvasImage & { corners: ScanicCorners }) | null> {
   try {
     const scanner = await getScanicScanner();
     const minArea = Math.round(sourceCanvas.width * sourceCanvas.height * SCANIC_MIN_DOCUMENT_AREA_RATIO);
@@ -591,7 +660,7 @@ async function rectifyPageWithScanic(sourceCanvas: HTMLCanvasElement): Promise<C
       minArea,
     });
 
-    if (!result.success || !(result.output instanceof HTMLCanvasElement)) {
+    if (!result.success || !(result.output instanceof HTMLCanvasElement) || !result.corners) {
       return null;
     }
 
@@ -603,6 +672,7 @@ async function rectifyPageWithScanic(sourceCanvas: HTMLCanvasElement): Promise<C
       canvas: result.output,
       width: result.output.width,
       height: result.output.height,
+      corners: result.corners,
     };
   } catch {
     return null;
@@ -786,7 +856,7 @@ function detectBinderPageRect(
   };
 }
 
-function rectifyPageCanvas(sourceCanvas: HTMLCanvasElement, pageRect: BinderPageRect) {
+function rectifyPageCanvas(sourceCanvas: HTMLCanvasElement, pageRect: BinderPageRect): CanvasImage {
   const width = Math.max(1, Math.round(pageRect.width));
   const height = Math.max(1, Math.round(pageRect.height));
   const canvas = document.createElement('canvas');
