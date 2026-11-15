@@ -291,7 +291,7 @@ const trainerCard = (id: string, localId: string) => ({
 });
 const trainer = trainerCard('synthetic-owned-trainer', '101');
 
-async function swapTrainerIn(page: Page) {
+test('a pocket reserved for a card or Pokémon shows no Same artwork or Similar look', async ({ page }) => {
   await page.route('**/app/api/tcg-similar-cards**', (route) =>
     route.fulfill({
       json: {
@@ -304,28 +304,9 @@ async function swapTrainerIn(page: Page) {
   );
   await page.goto(entry);
   await page.locator('[data-slot-id="synthetic-slot-0"]').click();
-  await page
-    .getByRole('dialog', { name: /details$/ })
-    .getByRole('button', { name: 'Open Synthetic Trainer, Synthetic owned set 101' })
-    .click();
-  const card = page.getByRole('region', { name: 'Card details' });
-  await expect(card.getByRole('checkbox', { name: 'Keep old card in collection' })).toBeChecked();
-  // The card's tile has the same quick Want and Swap as the All cards grid.
-  const lookup = page.getByRole('dialog', { name: 'All Synthetic Trainer cards' });
-  await expect(lookup.getByRole('button', { name: /^Want Synthetic Trainer .* 101$/ })).toBeVisible();
-  await expect(lookup.getByRole('button', { name: /^Swap Synthetic Trainer .* 101 into its pocket$/ })).toBeVisible();
-  await card.getByRole('button', { name: 'Swap into this pocket' }).click();
-  // Clear the Bulbasaur reservation, place the Trainer, reserve the pocket for the Trainer.
-  await expect.poll(async () => (await record(page))?.receipts.length, { timeout: 15_000 }).toBe(3);
-  expect((await record(page))!.receipts.every((r) => r.outcome === 'acknowledged')).toBe(true);
-  await expect(card.getByRole('button', { name: 'In this pocket' })).toBeDisabled();
-  await expect(lookup.getByRole('button', { name: /^Synthetic Trainer .* 101 is in its pocket$/ })).toBeDisabled();
-}
-
-test("a card opened from a pocket's Similar look swaps into that pocket, even a Trainer with no pocket of its own", async ({
-  page,
-}) => {
-  await swapTrainerIn(page);
+  const dialog = page.getByRole('dialog', { name: /details$/ });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('similar-cards')).toHaveCount(0);
 });
 
 test("a Trainer pocket's All cards lists its printings by name, and a tile swaps into that pocket", async ({

@@ -484,7 +484,7 @@ export default function SlotDetail({
             {slot.target ? 'Nothing in this pocket yet.' : 'This pocket is empty.'}
           </p>
         )}
-        {identity && host?.onOpenCard && isCardLanguage(identity.language) && (
+        {!slot.target && identity && host?.onOpenCard && isCardLanguage(identity.language) && (
           <SimilarCardsRow cardId={identity.cardId} language={identity.language} onOpenCard={host.onOpenCard} />
         )}
       </div>
