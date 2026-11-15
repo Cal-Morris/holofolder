@@ -20,6 +20,7 @@ import { displaySlotName, formatGradeLabel } from '@/lib/pocket-labels';
 import { formatDexNumber, getOfficialArtworkUrl } from '@/lib/pokemon-catalog';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 import { SimilarCardsRow } from '@/components/similar-cards-row';
+import { Button } from '@/components/ui/button';
 
 /** What the host adds to a card's details: saved prices (never in shares), its routes and where the card sits. */
 export interface CardDetailHost {
@@ -50,8 +51,11 @@ export default function SlotDetail({
   picker,
   host,
   priceLabel,
+  gotIt,
 }: {
   slot: BinderDisplaySlot;
+  /** An empty pocket kept for one printing: save exactly that card in one tap, or choose a copy in the selector. */
+  gotIt?: { busy: boolean; onGot: () => void; onChoose: () => void };
   /** A share's Prices view: the market price of the card in this pocket. */ priceLabel?: string | null;
   onClose: () => void;
   picker?: SlotPickerBoundary;
@@ -305,6 +309,22 @@ export default function SlotDetail({
               </button>
             </div>
           </section>
+        )}
+        {gotIt && (
+          <div className="flex gap-2">
+            <Button type="button" className="min-h-11 flex-1 rounded-2xl" disabled={gotIt.busy} onClick={gotIt.onGot}>
+              {gotIt.busy ? 'Saving…' : 'Got it'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 rounded-2xl"
+              disabled={gotIt.busy}
+              onClick={gotIt.onChoose}
+            >
+              Choose a copy
+            </Button>
+          </div>
         )}
         {action.failed && (
           <div role="alert" className="border-destructive/40 bg-destructive/10 rounded-2xl border p-3">

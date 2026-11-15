@@ -181,6 +181,29 @@ export function speciesSelectorCard(card: TCGCard, pokemonId: number): SearchCar
   return { ...card, dexIds: [pokemonId] };
 }
 
+/**
+ * The card an empty pocket is reserved for, as picker input, so "Got it" saves exactly that printing without a
+ * search. Identity comes only from the target and the catalog's species links; the shown name, art and number are
+ * the pocket's own display copy, kept until a read includes the card.
+ */
+export function reservedPocketCard(
+  target: Extract<SlotTarget, { kind: 'card' }>,
+  shown: { name: string; image?: string; localId?: string; set?: { name: string } } | null,
+  pokemonIds: readonly number[],
+): SearchCardResult {
+  // TCGdex card ids are `<set id>-<local id>`; the set id only labels the card until the next read.
+  const cut = target.cardId.lastIndexOf('-');
+  return {
+    id: target.cardId,
+    name: shown?.name ?? target.cardId,
+    image: shown?.image,
+    localId: shown?.localId ?? target.cardId.slice(cut + 1),
+    set: { id: cut > 0 ? target.cardId.slice(0, cut) : target.cardId, name: shown?.set?.name ?? '' },
+    ...(target.language ? { language: target.language } : {}),
+    dexIds: [...pokemonIds],
+  };
+}
+
 /** Indexes of the slot's own wants this exact printing, language and finish could fulfil. Never fulfils anything by itself. */
 export function matchingWantIndexes(
   wants: readonly WantedCard[],
