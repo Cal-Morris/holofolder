@@ -893,6 +893,24 @@ export default function SettingsModal({
               <p className="text-muted-foreground text-center text-xs">
                 Holo Folder helps you organize your Pokemon card collection by National Dex number.
               </p>
+              <nav aria-label="Legal" className="text-muted-foreground flex justify-center gap-4 text-xs">
+                <a
+                  href="https://holofolder.com/terms"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-9 items-center underline-offset-2 hover:underline"
+                >
+                  Terms
+                </a>
+                <a
+                  href="https://holofolder.com/privacy"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-9 items-center underline-offset-2 hover:underline"
+                >
+                  Privacy
+                </a>
+              </nav>
             </div>
           </div>
 
