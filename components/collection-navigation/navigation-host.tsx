@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
 import SlabsGallery from '@/components/slabs/slabs-gallery';
 import { slabCollectionCopies } from '@/lib/slabs/collection';
+import { Award, Grid3X3, List } from 'lucide-react';
 import { SelectorMenu } from '@/components/collection-navigation/selector-menu';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import InventoryView, { type InventorySavedState } from '@/components/inventory/inventory-view';
 import { closeAllOverlays, isOverlayHistoryCleanup, runAfterOverlayHistory } from '@/hooks/use-overlay';
 import type { InventoryLocationIntent } from '@/lib/domain/inventory-browse';
@@ -81,7 +83,11 @@ export interface CollectionNavigationHostProps {
   renderNationalDex: () => ReactNode;
 }
 const NO_BINDERS: readonly { id: string; slug?: string | null }[] = [];
-const VIEW_LABELS: Record<CollectionViewState['view'], string> = { binder: 'Binder', list: 'List', slabs: 'Slabs' };
+const VIEW_OPTIONS: Record<CollectionViewState['view'], { label: string; icon: ReactNode }> = {
+  binder: { label: 'Binder', icon: <Grid3X3 className="size-4" aria-hidden /> },
+  list: { label: 'List', icon: <List className="size-4" aria-hidden /> },
+  slabs: { label: 'Slabs', icon: <Award className="size-4" aria-hidden /> },
+};
 /** Shared navigation for checked authenticated sessions and read-only cached display. */
 export default function CollectionNavigationHost(props: CollectionNavigationHostProps) {
   if (!props.scope) return <p role="status">Sign in to open your collections.</p>;
@@ -426,7 +432,7 @@ function ScopedNavigation({
       : savedCollectionState;
   // Compact: enclosed selectors, so the active collection name reads as a control. National Dex and Inventory live in the dock.
   const views: CollectionViewState['view'][] = slabsOffered ? ['binder', 'list', 'slabs'] : ['binder', 'list'];
-  const viewOptions = views.map((value) => ({ value, label: VIEW_LABELS[value] }));
+  const viewOptions = views.map((value) => ({ value, ...VIEW_OPTIONS[value] }));
   const creationEntry = entryId.current,
     creationRequest = request.current;
   const openCreated: NavigationSurface['openCreated'] = (id, latest) => {
@@ -481,22 +487,16 @@ function ScopedNavigation({
         onSelect={(id) => navigate({ ...visible, main: 'collection', collectionId: id })}
       />
       {visible.main === 'collection' && (
-        <SelectorMenu
+        <SegmentedControl
           label="Collection view"
-          heading="View"
-          menuLabel="Choose view"
-          width={192}
-          className="shrink-0"
-          textClassName="text-xs font-medium"
           value={collectionState.view}
-          valueLabel={VIEW_LABELS[collectionState.view] ?? collectionState.view}
           options={viewOptions}
-          onSelect={(view) =>
+          onChange={(view) =>
             navigate({
               ...visible,
               collections: {
                 ...visible.collections,
-                [collectionId!]: { ...collectionState, view: view as CollectionViewState['view'], scroll: 0 },
+                [collectionId!]: { ...collectionState, view, scroll: 0 },
               },
             })
           }

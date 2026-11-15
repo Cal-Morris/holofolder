@@ -349,12 +349,7 @@ for (const width of [1280, 1440])
 test("the collection's List presentation keeps Binder as the one pressed dock tab", async ({ page }, info) => {
   await page.goto(`${entry}&binder=${alpha}&view=list`);
   const pressed = dock(page).locator('button[aria-pressed="true"]');
-  await expect(
-    page
-      .getByRole('combobox', { name: 'Collection view', exact: true })
-      .or(page.getByRole('button', { name: /Collection view/ }))
-      .first(),
-  ).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Collection view', exact: true })).toHaveAttribute('data-value', 'list');
   await expect(page.getByTestId('binder-grid')).toHaveCount(0);
   await expect(pressed).toHaveCount(1);
   await expect(pressed).toHaveAccessibleName('Binder');

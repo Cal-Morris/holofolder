@@ -121,7 +121,7 @@ async function checkToolbar(
         document.querySelector('[data-testid="app-header"]'),
         document.querySelector('[data-testid="app-header"] span.truncate'),
         document.querySelector('button[aria-label="Collection"]'),
-        document.querySelector('button[aria-label="Collection view"]'),
+        document.querySelector('[role="group"][aria-label="Collection view"]'),
         ...Array.from(document.querySelectorAll('button')).filter(
           (e) =>
             ['Show'].includes(e.textContent?.trim() ?? '') ||
@@ -169,8 +169,6 @@ async function checkToolbar(
   }
   await expect(picker).toHaveCSS('font-size', '14px');
   await expect(picker).toHaveCSS('font-weight', '600');
-  await expect(view).toHaveCSS('font-size', '12px');
-  await expect(view).toHaveCSS('font-weight', '500');
   // Edit layout is a compact icon in the binder actions row, not its own row.
   const storage = page.getByRole('button', { name: 'Storage', exact: true });
   const [editBox, storageBox] = [await edit.boundingBox(), await storage.boundingBox()];

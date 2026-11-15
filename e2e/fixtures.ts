@@ -231,7 +231,8 @@ export async function openSettingsPage(dialog: Locator, title: string) {
 }
 
 export const collectionPicker = (page: Page) => page.getByRole('button', { name: 'Collection', exact: true });
-export const viewPicker = (page: Page) => page.getByRole('button', { name: 'Collection view', exact: true });
+/** The Binder / List / Slabs icon toggle; its `data-value` is the current view. */
+export const viewPicker = (page: Page) => page.getByRole('group', { name: 'Collection view', exact: true });
 async function choose(page: Page, trigger: Locator, menu: string, value: string) {
   await trigger.click();
   await page
@@ -241,7 +242,11 @@ async function choose(page: Page, trigger: Locator, menu: string, value: string)
 }
 export const chooseCollection = (page: Page, id: string) =>
   choose(page, collectionPicker(page), 'Choose collection', id);
-export const chooseView = (page: Page, view: string) => choose(page, viewPicker(page), 'Choose view', view);
+/** Taps a view and waits for it to commit (navigation runs after overlay history settles). */
+export async function chooseView(page: Page, view: string) {
+  await viewPicker(page).locator(`button[data-value="${view}"]`).click();
+  await expect(viewPicker(page)).toHaveAttribute('data-value', view);
+}
 /** The binder's pocket filter ("Show pockets"): all, owned, wanted or needed (shown as Missing). */
 export const pocketFilter = (page: Page) => page.getByRole('button', { name: 'Show pockets', exact: true });
 export const choosePockets = (page: Page, filter: 'all' | 'owned' | 'wanted' | 'needed') =>
