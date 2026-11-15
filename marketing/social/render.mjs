@@ -1,4 +1,5 @@
-// Social images for Holo Folder posts: Instagram 4:5 carousels, X 16:9 cards and TikTok 9:16 photo slides.
+// Social images for Holo Folder posts: Instagram 4:5 carousels, X 16:9 cards and TikTok 9:16 photo slides,
+// plus the weekly binder inspiration pages (see README.md).
 //
 //   node marketing/social/render.mjs capture   # screenshots of the public showcase binders (390x844, en-GB)
 //   node marketing/social/render.mjs render    # every slide as JPEG, plus contact-sheet.html
@@ -24,6 +25,8 @@ const FORMATS = {
   ig: { width: 1080, height: 1350 },
   x: { width: 1600, height: 900 },
   tiktok: { width: 1080, height: 1920 },
+  // Square binder page for the theme's Collections CMS item on holofolder.com (inspo themes only, not posted).
+  preview: { width: 900, height: 900 },
 };
 
 // Visuals: phone = full app screenshot in a plain frame, panel = cropped screenshot, cards = mirror card images.
@@ -260,6 +263,66 @@ const POSTS = [
   },
 ];
 
+// Binder inspiration: one nine-pocket showcase page per theme. The cards and their order come from
+// scripts/showcase-pages.json (resolved by `binder-inspo.ts check` into out/binder-inspo.json), so the image
+// always matches the binder people open. `standouts` are the pockets that get a close-up slide.
+const INSPO = [
+  {
+    slug: 'dragons-den',
+    sub: 'Dreepy’s line by Jerky across the top, Axew’s line from Black Bolt in the middle and three big dragons to finish.',
+    standouts: [2, 5, 8],
+  },
+  {
+    slug: 'bug-catcher',
+    sub: 'Sewaddle’s whole line from White Flare up top, little bugs in the middle and the heavy hitters on the bottom row.',
+    standouts: [2, 3, 5],
+  },
+  {
+    slug: 'cosy-night-in',
+    sub: 'Candles, a warm hearth and a pot of tea: Litwick’s line from White Flare, Vulpix by the fire and Sinistcha ex to finish.',
+    standouts: [0, 3, 4],
+  },
+  {
+    slug: 'little-ones',
+    sub: 'Baby Pokémon then and now: Neo Genesis Pichu, Cleffa and Elekid on top, six modern babies underneath.',
+    standouts: [0, 3, 5],
+  },
+  {
+    slug: 'ionos-stream',
+    sub: 'Nine pockets of Iono: her Supporter cards, Bellibolt ex and the Wattrel line, all electric yellow and pink.',
+    standouts: [1, 3, 7],
+  },
+  {
+    slug: 'charmander-through-the-eras',
+    sub: 'The same three Pokémon three ways: Base Set from 1999, the 151 illustration rares and the Paldean Fates shinies.',
+    standouts: [2, 5, 8],
+  },
+  {
+    slug: 'painted-by-teeziro',
+    sub: 'Nine Teeziro paintings, from Caterpie in the leaves to Walking Wake ex, Gouging Fire ex and Hydrapple ex.',
+    standouts: [0, 2, 6],
+  },
+  {
+    slug: 'hoenn-holiday',
+    sub: 'Sea, sky and sunshine from Hoenn: Wailord, Milotic ex, Tropius and Latios, all on one page.',
+    standouts: [0, 4, 8],
+  },
+];
+
+function inspoPosts() {
+  let resolved;
+  try {
+    resolved = JSON.parse(readFileSync(join(OUT, 'binder-inspo.json'), 'utf8'));
+  } catch {
+    return [];
+  }
+  return INSPO.flatMap((theme) => {
+    const page = resolved[theme.slug];
+    if (!page || page.cards.length !== 9) return [];
+    return [{ ...theme, inspo: true, eyebrow: 'Binder inspiration', title: page.name, cards: page.cards }];
+  });
+}
+
 // ---------------------------------------------------------------- capture
 
 async function capture() {
@@ -351,6 +414,11 @@ const shotUrl = (name) => `file://${join(SHOTS, `${name}.png`)}`;
 
 function visualHtml(v) {
   if (!v) return '';
+  if (v.page)
+    return `<div class="visual"><div class="binder">${v.page
+      .map((c) => `<div class="pocket"><img src="${c.image}"></div>`)
+      .join('')}</div></div>`;
+  if (v.closeup) return `<div class="visual cards"><img class="card solo" src="${v.closeup.image}"></div>`;
   if (v.phone) return `<div class="visual"><div class="phone"><img src="${shotUrl(v.phone)}"></div></div>`;
   if (v.panel) return `<div class="visual"><img class="panel" src="${shotUrl(v.panel)}"></div>`;
   if (v.labels)
@@ -365,10 +433,13 @@ function visualHtml(v) {
   return '';
 }
 
-const showsCardArt = (v) => Boolean(v && (v.phone || v.panel || v.cards));
+const showsCardArt = (v) => Boolean(v && (v.phone || v.panel || v.cards || v.page || v.closeup));
 
 function slideHtml(format, post, slide, index, total) {
   const { width, height } = FORMATS[format];
+  if (format === 'preview')
+    return `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head>
+<body class="preview" style="width:${width}px;height:${height}px">${visualHtml(slide.visual)}</body></html>`;
   const art = showsCardArt(slide.visual);
   const count = total > 1 ? `<span class="count">${index + 1}/${total}</span>` : '';
   let body;
@@ -378,6 +449,15 @@ function slideHtml(format, post, slide, index, total) {
         ? `<ul class="check">${post.checklist.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>`
         : ''
     }`;
+  } else if (slide.kind === 'page') {
+    body = `<div class="eyebrow">${esc(post.eyebrow)}</div><h1>${esc(post.title)}</h1>${
+      format === 'ig' ? '' : `<p class="sub">${esc(post.sub)}</p>`
+    }`;
+  } else if (slide.kind === 'closeup') {
+    const c = slide.visual.closeup;
+    body = `<div class="num">Pocket ${slide.n} of 9</div><h2>${esc(c.name)}</h2><p class="body">${esc(
+      [c.set, c.number, c.illustrator && `Illus. ${c.illustrator}`].filter(Boolean).join(' · '),
+    )}</p>`;
   } else if (slide.kind === 'point') {
     body = `<div class="num">0${slide.n}</div><h2>${esc(slide.title)}</h2><p class="body">${esc(slide.body)}</p>`;
   } else {
@@ -389,7 +469,7 @@ function slideHtml(format, post, slide, index, total) {
 <body class="${format} ${slide.kind}${slide.visual ? ' has-visual' : ''}" style="width:${width}px;height:${height}px">
 <header><div class="brand"><img src="${MARK}">Holo Folder</div>${count}</header>
 <main><div class="text">${body}</div>${visualHtml(slide.visual)}</main>
-<footer><span>holofolder.com</span>${art ? '<span>Not affiliated with The Pokémon Company</span>' : ''}</footer>
+<footer><span>${post.inspo ? 'Open this binder on holofolder.com' : 'holofolder.com'}</span>${art ? '<span>Not affiliated with The Pokémon Company</span>' : ''}</footer>
 </body></html>`;
 }
 
@@ -419,9 +499,14 @@ h2 { font-size:var(--h2); line-height:1.05; letter-spacing:-.04em; font-weight:7
 .phone img { width:100%; display:block; }
 .panel { max-width:100%; max-height:100%; border-radius:28px; border:1px solid var(--line); align-self:center; }
 .cards { align-items:center; }
+.binder { align-self:center; display:grid; grid-template-columns:repeat(3, var(--pocket)); gap:var(--pocket-gap); padding:var(--pocket-gap);
+  background:var(--card); border:1px solid var(--line); border-radius:28px; }
+.pocket { aspect-ratio:63/88; border-radius:10px; background:rgba(244,243,248,.04); border:1px solid var(--line); padding:4px; }
+.pocket img { width:100%; height:100%; object-fit:cover; display:block; border-radius:4.5% / 3.3%; }
 .card { height:92%; max-height:var(--card-h); border-radius:3.6% / 2.6%; box-shadow:0 30px 60px rgba(0,0,0,.55); }
 .card:first-child { transform:rotate(-6deg) translateX(8%); }
 .card:last-child { transform:rotate(6deg) translateX(-8%); }
+.card.solo { height:auto; max-height:100%; max-width:100%; transform:none; }
 .flat { gap:4%; }
 .flat figure { height:100%; display:flex; flex-direction:column; align-items:center; gap:18px; min-width:0; }
 .flat .card { height:auto; width:100%; max-height:calc(100% - 60px); object-fit:contain; transform:none !important; box-shadow:none; }
@@ -434,7 +519,8 @@ h2 { font-size:var(--h2); line-height:1.05; letter-spacing:-.04em; font-weight:7
 footer { height:var(--foot); flex:none; display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:var(--small);
   border-top:1px solid var(--line); background:var(--bg); position:relative; z-index:1; margin:0 calc(var(--pr) * -1) var(--pb) calc(var(--pl) * -1); padding:0 var(--pr) 0 var(--pl); }
 
-.ig { --pt:64px; --pr:72px; --pl:72px; --pb:0px; --foot:76px; --gap:40px; --brand:30px; --eyebrow:24px; --h1:88px; --h2:72px; --sub:34px; --small:22px; --phone:500px; --card-h:640px; --prompt:900px; }
+.ig { --pt:64px; --pr:72px; --pl:72px; --pb:0px; --foot:76px; --gap:40px; --brand:30px; --eyebrow:24px; --h1:88px; --h2:72px; --sub:34px; --small:22px; --phone:500px; --card-h:640px; --prompt:900px; --pocket:180px; --pocket-gap:16px; }
+.ig.page h1 { font-size:72px; }
 .ig.cover .visual { padding-top:48px; }
 .ig.point h2 { font-size:68px; }
 .ig.cta main, .tiktok.cta main, body.point:not(.has-visual) main { justify-content:center; }
@@ -444,12 +530,16 @@ body.point:not(.has-visual) .text { padding-bottom:var(--gap); }
 body.point:not(.has-visual) .body { font-size:calc(var(--sub) * 1.2); color:var(--fg); opacity:.78; }
 .ig.cta h1 { font-size:104px; }
 
-.tiktok { --pt:150px; --pr:120px; --pl:72px; --pb:330px; --foot:76px; --gap:44px; --brand:30px; --eyebrow:26px; --h1:96px; --h2:76px; --sub:36px; --small:22px; --phone:560px; --card-h:760px; --prompt:880px; }
+.tiktok { --pt:150px; --pr:120px; --pl:72px; --pb:330px; --foot:76px; --gap:44px; --brand:30px; --eyebrow:26px; --h1:96px; --h2:76px; --sub:36px; --small:22px; --phone:560px; --card-h:760px; --prompt:880px; --pocket:172px; --pocket-gap:16px; }
+.tiktok.page h1 { font-size:84px; }
+.preview { --pocket:168px; --pocket-gap:14px; padding:0; justify-content:center; align-items:center; background:#0e0d14; }
+.preview .visual { padding:0; flex:none; }
+.preview .binder { transform:rotate(-3deg); box-shadow:0 30px 60px rgba(0,0,0,.5); }
 .tiktok footer { border-top:0; }
 .tiktok .phone { border-radius:64px; border-bottom:14px solid #1c1c24; height:auto; max-height:100%; }
 .tiktok .visual { overflow:hidden; }
 
-.x { --pt:64px; --pr:72px; --pl:80px; --pb:0px; --foot:72px; --gap:0px; --brand:30px; --eyebrow:24px; --h1:88px; --h2:72px; --sub:32px; --small:22px; --phone:500px; --card-h:700px; --prompt:640px; }
+.x { --pt:64px; --pr:72px; --pl:80px; --pb:0px; --foot:72px; --gap:0px; --brand:30px; --eyebrow:24px; --h1:88px; --h2:72px; --sub:32px; --small:22px; --phone:500px; --card-h:700px; --prompt:640px; --pocket:148px; --pocket-gap:12px; }
 .x main { flex-direction:row; align-items:stretch; gap:56px; }
 .x .text { flex:1.15; display:flex; flex-direction:column; justify-content:center; padding:0 0 24px; }
 .x .visual { flex:1; padding-top:48px; }
@@ -461,6 +551,12 @@ body.point:not(.has-visual) .body { font-size:calc(var(--sub) * 1.2); color:var(
 `;
 
 function slidesFor(post, format) {
+  if (format === 'preview') return post.inspo ? [{ kind: 'page', visual: { page: post.cards } }] : [];
+  if (post.inspo) {
+    const page = { kind: 'page', visual: { page: post.cards } };
+    if (format === 'x') return [page];
+    return [page, ...post.standouts.map((i) => ({ kind: 'closeup', n: i + 1, visual: { closeup: post.cards[i] } }))];
+  }
   const cover = { kind: 'cover', visual: post.visual };
   if (format === 'x') return [cover];
   const points = post.points.map((p, i) => ({ kind: 'point', n: i + 1, ...p }));
@@ -468,18 +564,23 @@ function slidesFor(post, format) {
 }
 
 const altText = (post, slide) =>
-  slide.kind === 'cover'
-    ? `${post.title} ${post.sub}`
-    : slide.kind === 'point'
-      ? `${slide.title}. ${slide.body}`
-      : `${post.cta.title}. ${post.cta.sub}`;
+  slide.kind === 'page'
+    ? `${post.title}: a nine-pocket binder page with ${post.cards.map((c) => c.name).join(', ')}.`.replace(/\.\.$/, '.')
+    : slide.kind === 'closeup'
+      ? `${slide.visual.closeup.name}, ${slide.visual.closeup.set} ${slide.visual.closeup.number}, illustrated by ${slide.visual.closeup.illustrator}.`
+      : slide.kind === 'cover'
+        ? `${post.title} ${post.sub}`
+        : slide.kind === 'point'
+          ? `${slide.title}. ${slide.body}`
+          : `${post.cta.title}. ${post.cta.sub}`;
 
 async function render() {
   const only = process.argv[3]?.split(',');
   const browser = await chromium.launch();
   const manifest = [];
   const wanted = only && new Set(only);
-  for (const post of POSTS.filter((p) => !wanted || wanted.has(p.slug))) {
+  const posts = [...POSTS, ...inspoPosts()];
+  for (const post of posts.filter((p) => !wanted || wanted.has(p.slug))) {
     mkdirSync(join(OUT, post.slug), { recursive: true });
     for (const format of Object.keys(FORMATS)) {
       const slides = slidesFor(post, format);
@@ -506,14 +607,14 @@ async function render() {
   }
   await browser.close();
   writeFileSync(join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2));
-  writeContactSheet(manifest);
+  writeContactSheet(manifest, posts);
   console.log(`${manifest.length} images, contact sheet at ${join(OUT, 'contact-sheet.html')}`);
 }
 
-function writeContactSheet(manifest) {
+function writeContactSheet(manifest, posts) {
   const rendered = new Set(manifest.map((m) => m.slug));
   let rows = '';
-  for (const p of POSTS) {
+  for (const p of posts) {
     if (!rendered.has(p.slug)) continue;
     const imgs = (format) => {
       let html = '';
@@ -522,11 +623,11 @@ function writeContactSheet(manifest) {
           html += `<a href="${m.file}"><img class="${format}" src="${m.file}" title="${esc(m.alt)}"></a>`;
       return html;
     };
-    rows += `<section><h2>${esc(p.slug)}</h2><h3>Instagram 1080×1350</h3><div class="row">${imgs('ig')}</div><h3>X 1600×900 · TikTok 1080×1920</h3><div class="row">${imgs('x')}${imgs('tiktok')}</div></section>`;
+    rows += `<section><h2>${esc(p.slug)}</h2><h3>Instagram 1080×1350</h3><div class="row">${imgs('ig')}</div><h3>X 1600×900 · TikTok 1080×1920 · Collections preview 900×900</h3><div class="row">${imgs('x')}${imgs('tiktok')}${imgs('preview')}</div></section>`;
   }
   writeFileSync(
     join(OUT, 'contact-sheet.html'),
-    `<!doctype html><meta charset="utf-8"><title>Holo Folder social images</title><style>body{background:#0e0e12;color:#f4f3f8;font:14px Inter,system-ui,sans-serif;margin:24px}section{margin-bottom:40px}h2{font-size:18px;margin-bottom:8px}h3{font-size:12px;color:#a3a1b3;font-weight:500;margin:12px 0 6px}.row{display:flex;gap:8px;align-items:flex-start;overflow-x:auto}img{border:1px solid #2a2a33;display:block}img.ig{height:300px}img.x{height:225px}img.tiktok{height:300px}</style><h1>Holo Folder social images</h1>${rows}`,
+    `<!doctype html><meta charset="utf-8"><title>Holo Folder social images</title><style>body{background:#0e0e12;color:#f4f3f8;font:14px Inter,system-ui,sans-serif;margin:24px}section{margin-bottom:40px}h2{font-size:18px;margin-bottom:8px}h3{font-size:12px;color:#a3a1b3;font-weight:500;margin:12px 0 6px}.row{display:flex;gap:8px;align-items:flex-start;overflow-x:auto}img{border:1px solid #2a2a33;display:block}img.ig{height:300px}img.x{height:225px}img.tiktok{height:300px}img.preview{height:225px}</style><h1>Holo Folder social images</h1>${rows}`,
   );
 }
 

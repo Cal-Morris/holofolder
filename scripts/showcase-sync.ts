@@ -28,10 +28,12 @@ type Pocket = { identity: Identity | null; target: Target };
 type Source = { binderId: string; username: string };
 // A page can come from another public binder (e.g. Meg's own showcase binder) instead of the themed pages.
 // Or be one card over and over (`repeat`), e.g. the Kabuto King meme binder.
+// Or list its cards directly (`cards`), e.g. the binder inspiration pages from marketing/social/.
 type PageConfig = (typeof config.pages)[number] & {
   view: { preset: Preset };
   source?: Source;
   repeat?: { identity: Identity; count: number };
+  cards?: Identity[];
 };
 type Slot = {
   id: string;
@@ -87,7 +89,7 @@ async function main() {
     for (const page of pages) {
       const pockets = page.repeat
         ? Array<Identity>(page.repeat.count).fill(page.repeat.identity)
-        : (await pagesOf(page.source ?? config.source)).get(page.page);
+        : (page.cards ?? (await pagesOf(page.source ?? config.source)).get(page.page));
       if (!pockets) {
         say(`page ${page.page} (${page.slug}) is empty in the source, skipped`);
         continue;
@@ -95,7 +97,7 @@ async function main() {
       desired.set(page.slug, await withTargets(read, pockets, page.view.preset, page.slug));
     }
     for (const index of sourcePages.keys())
-      if (!pages.some((p) => !p.source && !p.repeat && p.page === index))
+      if (!pages.some((p) => !p.source && !p.repeat && !p.cards && p.page === index))
         say(`page ${index} has cards but no entry in showcase-pages.json, skipped`);
 
     let ownerId: string | undefined = (

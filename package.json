@@ -17,6 +17,7 @@
     "commissions": "bun --env-file=.env.local scripts/commissions.ts",
     "card-nicknames": "bun scripts/card-nicknames.ts",
     "social-images": "node marketing/social/render.mjs",
+    "binder-inspo": "bun run marketing/social/binder-inspo.ts",
     "start": "next start",
     "test": "bun test --parallel tests/",
     "test:api:smoke": "bun scripts/api-smoke.ts",

@@ -23,3 +23,25 @@ bun run social-images upload    # out/*.jpg to R2 at marketing/social/<yyyy-mm>/
 ## Adding a post
 
 Add an entry to `POSTS` with the blog post's slug, a cover (eyebrow, title, sub and visual) and three points. Every word and number has to come from the published blog post or what the app shows. Don't write new claims, prices or card facts on a slide. Check the contact sheet before uploading. Buffer fetches the image when the post goes out, so an uploaded URL must stay in place until then.
+
+## Binder inspiration series
+
+A weekly themed nine-pocket page (a type, an evolution line, an artist, a region, a mood or a trainer), posted to Instagram, TikTok and X. Every theme is a real showcase binder anyone can open at `holofolder.com/@showcase/<slug>`, with a matching item in the Framer Collections CMS. The template is our own: the theme title, the cards laid out exactly as the 3 × 3 page, "Open this binder on holofolder.com" and "Not affiliated with The Pokémon Company". Instagram and TikTok get the page and close-ups of three standout pockets, X gets the page beside the theme line, and a 900×900 square goes to the Collections item.
+
+A weekly run:
+
+1. **Pick a theme** that isn't on [holofolder.com/collections](https://holofolder.com/collections) yet, and find cards in our catalogue. `find` lists illustration rares and special illustration rares by default, and marks any card whose image doesn't load from `assets.holofolder.com`:
+
+   ```fish
+   bun run binder-inspo find --type Dragon
+   bun run binder-inspo find --artist '^Teeziro$'
+   bun run binder-inspo find --dex 252-386 --limit 90           # a region, by National Dex number
+   bun run binder-inspo find --name '^(pichu|cleffa)$' --rarity 'Rare,Illustration rare'
+   ```
+
+2. **Add the page** to `scripts/showcase-pages.json` with `"cards"` (nine `{ kind, cardId, language, finish }` identities in pocket order) and a 3 × 3 `view`. Use `holo` when the printing only exists as a holo (check `variants_json`).
+3. **Check every image**: `bun run binder-inspo check <slug>` fails on any card without a working image, so swap it before going further. It also writes `out/binder-inspo.json` for the renderer.
+4. **Create the binder**: `bun run scripts/showcase-sync.ts --dry-run`, then without `--dry-run`. It creates the binder on the showcase account, fills it, sets the slug and turns sharing on.
+5. **Render**: add `{ slug, sub, standouts }` to `INSPO` in `render.mjs` (the sub line is the only free text on the images, so keep it to what the page shows), run `bun run social-images render <slug>`, check `out/contact-sheet.html`, then `upload`.
+6. **Collections page**: add a Collections CMS item in Framer like the existing ones (Name, Slug, Description, Preview from `out/<slug>/preview-1.jpg` on R2, Binder URL, Cards list, Story with The colours, Standout cards and Make your own linking Binder Studio, Embed URL), then publish once `api.publishing.status()` shows only your changes.
+7. **Buffer**: Instagram and TikTok use the carousel images and "link in bio", X uses `x-1.jpg` and the binder link with `?utm_source=x&utm_medium=social&utm_campaign=social`. Ask "Which pocket would you swap?". The free plan holds 10 scheduled posts, so anything past that goes in as a dated draft.
