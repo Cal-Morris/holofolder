@@ -418,3 +418,34 @@ test('a native pick saves at once only when no graded copy or slot want needs an
     /picker-scope-changed/,
   );
 });
+
+test('a pocket reserved for one printing saves that exact printing and finish in one tap', async () => {
+  const { planNativePick, reservedPocketCard } = await import('@/lib/slot-picker');
+  const { inventory, scope } = setup();
+  const target = {
+    kind: 'card' as const,
+    cardId: 'synthetic-set-042',
+    language: 'en' as const,
+    finish: 'reverse_holo' as const,
+  };
+  const card = reservedPocketCard(
+    target,
+    { name: 'Synthetic Mon', localId: '42', set: { name: 'Synthetic set' } },
+    [25],
+  );
+  assert.deepEqual(
+    { id: card.id, set: card.set, localId: card.localId, dexIds: card.dexIds },
+    { id: 'synthetic-set-042', set: { id: 'synthetic-set', name: 'Synthetic set' }, localId: '42', dexIds: [25] },
+  );
+  const plan = planNativePick(inventory, scope, card, target.finish, () => undefined, 'new-id');
+  assert.deepEqual(plan.immediate, {
+    kind: 'catalog',
+    identity: { kind: 'card', cardId: 'synthetic-set-042', language: 'en', finish: 'reverse_holo' },
+    newItemId: 'new-id',
+  });
+  // Unknown to the catalog: the id still names the printing; no finish is guessed for a finish-free target.
+  const bare = reservedPocketCard({ kind: 'card', cardId: 'synthetic-set-007' }, null, []);
+  assert.equal(bare.name, 'synthetic-set-007');
+  assert.equal(bare.localId, '007');
+  assert.equal(planNativePick(inventory, scope, bare, undefined, () => undefined, 'n').identity.finish, undefined);
+});

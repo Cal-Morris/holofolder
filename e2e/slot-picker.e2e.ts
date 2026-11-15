@@ -205,11 +205,25 @@ test.describe('explicit stable-slot picker', () => {
     expect(JSON.stringify(await draft(page))).toContain('"language":"ja"');
   });
 
-  test('a pocket kept for one printing shows that printing in the selector and saves it', async ({ harness }) => {
+  test('a pocket kept for one printing is marked as got in one tap', async ({ harness }) => {
     const { page } = harness;
     await pocket(page, 'slot-f').click();
+    const sheet = details(page);
+    await expect(selector(page)).toHaveCount(0);
+    const got = sheet.getByRole('button', { name: 'Got it', exact: true });
+    await harness.expectMinTapTarget(got, 36);
+    await harness.expectNoHorizontalOverflow();
+    await got.click();
+    await expect(count(page)).toHaveText('1');
+    await expect(pocket(page, 'slot-f')).toHaveAccessibleName('Trainer, Owned');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('a pocket kept for one printing can still choose a copy in the selector', async ({ harness }) => {
+    const { page } = harness;
+    await pocket(page, 'slot-f').click();
+    await details(page).getByRole('button', { name: 'Choose a copy', exact: true }).click();
     const dialog = selector(page);
-    await expect(details(page)).toHaveCount(0);
     await expect(dialog.getByRole('heading', { name: 'Add Trainer', exact: true })).toHaveCount(1);
     // Only the reserved printing is offered, so a card that doesn't fit can't be picked for it.
     await expect(tile(dialog, 'Trainer')).toBeVisible();

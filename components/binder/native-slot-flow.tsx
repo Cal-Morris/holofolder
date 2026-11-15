@@ -7,10 +7,11 @@ import NativePickQuestion from '@/components/binder/native-pick-question';
 import { useNativeSlotPick } from '@/hooks/use-native-slot-pick';
 import type { BinderDisplaySlot } from '@/lib/binder-display-model';
 import type { PricingRegion } from '@/lib/pricing-region';
-import { speciesSelectorCard, type SlotPickerBoundary } from '@/lib/slot-picker';
+import { reservedPocketCard, speciesSelectorCard, type SlotPickerBoundary } from '@/lib/slot-picker';
 import { displaySlotName } from '@/lib/pocket-labels';
 import type { SearchCardResult } from '@/lib/pokemon-card-browse';
 import type { TCGCard } from '@/lib/domain/cards';
+import type { SlotTarget } from '@/lib/domain/binder-slots';
 import { pageSuggestionSeeds } from '@/lib/page-card-suggestions';
 import type { CardSelectorPick } from '@/components/card-selector';
 import type { StagedSlotCommandIntent } from '@/lib/binder-slot-editing';
@@ -38,10 +39,11 @@ type SelectorPricing = Pick<
 const unusedLegacySelect = () => {};
 
 /**
- * What a tap on a native pocket opens. An editable empty pocket always opens the existing visual card selector:
- * a Pokémon pocket lists that Pokémon's cards, a pocket reserved for one printing shows that printing, and a free
- * pocket searches every card. The pick (and variant) is saved headlessly through the native durable sink and the
- * selector closes back onto the binder. Owned and read-only pockets open the card's details.
+ * What a tap on a native pocket opens. An editable empty pocket reserved for one printing opens that card's details
+ * with "Got it", which saves exactly that printing (and the pocket's finish) in one tap; "Choose a copy" falls back
+ * to the selector. Other empty pockets open the existing visual card selector: a Pokémon pocket lists that
+ * Pokémon's cards and a free pocket searches every card. The pick (and variant) is saved headlessly through the
+ * native durable sink and the selector closes back onto the binder. Owned and read-only pockets open the card's details.
  * Mounted per tapped slot (keyed by the host).
  */
 export default function NativeSlotFlow({
@@ -56,7 +58,7 @@ export default function NativeSlotFlow({
   const { slot, picker, onClose } = detail;
   // Decided once from the pocket as it was tapped; a pocket filled meanwhile falls back to its details. The picker can
   // be missing for a moment (the session dips while syncing), so an empty pocket opens search as soon as it's back.
-  const [choosing] = useState(() => !slot.item);
+  const [choosing, setChoosing] = useState(() => !slot.item && slot.target?.kind !== 'card');
   const selecting = choosing && picker && !slot.item;
   const closeOffline = useEffectEvent(() => onClose());
   useEffect(() => {
@@ -67,9 +69,40 @@ export default function NativeSlotFlow({
   }, [selecting]);
   if (selecting)
     return <PocketSelector boundary={picker} slot={slot} pricing={pricing} page={page} onClose={onClose} />;
+  if (picker && !slot.item && slot.target?.kind === 'card')
+    return <ReservedPocket {...detail} boundary={picker} target={slot.target} onChoose={() => setChoosing(true)} />;
   // A free empty pocket with no wants has nothing to show; never open a sheet that only says it's empty.
   if (!slot.item && !slot.target && !slot.wantedCards.length) return null;
   return <SlotDetail {...detail} />;
+}
+
+/** An empty pocket kept for one printing: its details plus a one-tap "Got it" that saves exactly that card. */
+function ReservedPocket({
+  boundary,
+  target,
+  onChoose,
+  ...detail
+}: ComponentProps<typeof SlotDetail> & {
+  boundary: SlotPickerBoundary;
+  target: Extract<SlotTarget, { kind: 'card' }>;
+  onChoose: () => void;
+}) {
+  const save = useNativeSlotPick(boundary, detail.onClose);
+  const { slot } = detail;
+  const pokemonIds = boundary.catalog(target.cardId)?.pokemonIds ?? (slot.pokemon ? [slot.pokemon.id] : []);
+  return (
+    <>
+      <SlotDetail
+        {...detail}
+        gotIt={{
+          busy: save.busy,
+          onGot: () => save.pick(reservedPocketCard(target, slot.card, pokemonIds), target.finish),
+          onChoose,
+        }}
+      />
+      {save.question && <NativePickQuestion question={save.question} onClose={save.dismiss} />}
+    </>
+  );
 }
 
 function PocketSelector({
