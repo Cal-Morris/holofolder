@@ -83,7 +83,7 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
       <div data-sheet-grabber className="-mx-4 -mt-3 shrink-0 px-4 pt-3">
         <div aria-hidden="true" className="bg-muted-foreground/30 mx-auto mb-2 h-1.5 w-10 rounded-full" />
         <div className="mb-2 flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold">Filters &amp; sort</p>
+          <p className="text-sm font-semibold">{props.onSortChange ? 'Filters & sort' : 'Filters'}</p>
           <button
             type="button"
             onClick={onClose}
