@@ -142,6 +142,28 @@ test.describe('global search', () => {
     await expect(browser.locator('[data-card-id="sv03.5-168"]')).toBeInViewport();
   });
 
+  test("narrows and sorts card hits with the card picker's Filters · Sort sheet", async ({ harness }) => {
+    const dialog = await openSearch(harness);
+    await dialog.getByRole('textbox').fill('charm');
+    const cards = dialog.getByRole('region', { name: /card results/i });
+    const tiles = cards.getByRole('button', { name: /^charm/i });
+    await expect(tiles.first()).toBeVisible();
+    const button = cards.getByRole('button', { name: 'Filters · Sort' });
+    await harness.expectMinTapTarget(button, 36);
+    await button.click();
+    const sheet = harness.page.getByRole('dialog', { name: 'Filters and sort' });
+    await expect(sheet.getByRole('group', { name: 'Card language' })).toHaveCount(0);
+    await sheet.getByRole('combobox', { name: 'Set' }).selectOption({ label: '151' });
+    await sheet.getByRole('button', { name: /^Show \d+ cards?$/ }).click();
+    await expect(dialog.getByRole('list', { name: 'Active filters' })).toContainText('151');
+    const count = await tiles.count();
+    expect(count).toBeGreaterThan(0);
+    await expect(cards.getByRole('button', { name: /^charm.* 151$/i })).toHaveCount(count);
+    await harness.expectNoHorizontalOverflow();
+    await dialog.getByRole('button', { name: 'Remove filter 151' }).click();
+    await expect(dialog.getByRole('list', { name: 'Active filters' })).toHaveCount(0);
+  });
+
   test('searches by set and card number', async ({ harness }) => {
     const dialog = await openSearch(harness);
     await dialog.getByRole('textbox').fill('base 46');
@@ -174,8 +196,9 @@ test.describe('card hit prices in search (UK)', () => {
     await dialog.getByRole('textbox').fill('charm');
     const cards = dialog.getByRole('region', { name: /card results/i });
     const hit = cards.getByRole('button', { name: /charmander 168\/165 151/i });
-    await expect(hit.getByTestId('search-card-price')).toHaveText('£0.05');
-    await expect(cards.getByTestId('search-card-price')).toHaveCount(4);
+    // The card picker's price lines: market (M) and the "good" price (L).
+    await expect(hit.locator('[data-price-line]')).toContainText('M £0.05');
+    await expect(cards.locator('[data-price-line]')).toHaveCount(4);
     await harness.expectNoHorizontalOverflow();
     // Prices for every hit come from batched requests, never one request per card.
     expect(prices.length).toBeLessThanOrEqual(2);

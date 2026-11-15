@@ -5061,7 +5061,7 @@ function BinderAppSurface(props: BinderAppProps) {
               collection={illustratorCollection}
               isDesktop={isDesktopViewport}
               pricingRegion={pricingPreferences.region}
-              formatPrice={priceFormat.label}
+              formatAmount={priceFormat.amount}
               onOpenCard={openGridCard}
               onClose={closeIllustratorBrowser}
             />

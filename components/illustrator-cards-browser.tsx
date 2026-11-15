@@ -1,24 +1,29 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, Heart, Loader2, Palette, Search as SearchIcon, X } from 'lucide-react';
-import { CardGridArt, CardGridBadges, CardGridBody, CardGridTile } from '@/components/card-grid-tile';
+import { Loader2, Palette, Search as SearchIcon, X } from 'lucide-react';
 import CardsBrowserSheet from '@/components/cards-browser-sheet';
+import {
+  ActiveFilterChips,
+  CardResultsControls,
+  CardResultsGrid,
+  CardResultTile,
+  CardStandingMark,
+} from '@/components/card-results-grid';
 import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices';
+import { useCardResultsFilters } from '@/hooks/use-card-results-filters';
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
-import { PriceRisingBadge } from '@/components/price-rising-badge';
 import type { PricingRegion } from '@/lib/pricing-region';
-import { getProxiedThumbnailUrl } from '@/lib/card-show-prep';
-import type { BrowseCard } from '@/lib/pokemon-card-browse';
+import { cardResultPriceLabels } from '@/lib/card-results';
+import { getCardPickerSortAmount } from '@/lib/card-selector-sort';
+import { inferCardFinish } from '@/lib/pokemon-card-browse';
 import { loadIllustratorCards } from '@/lib/illustrator-client';
 import {
   buildIllustratorEntries,
   countIllustratorEntries,
   ILLUSTRATOR_CARD_FILTERS,
-  ILLUSTRATOR_CARD_SORTS,
   type IllustratorCard,
   type IllustratorCardFilter,
-  type IllustratorCardSort,
   type IllustratorCollectionItem,
 } from '@/lib/illustrators';
 
@@ -29,8 +34,8 @@ export interface IllustratorCardsBrowserProps {
   isDesktop: boolean;
   /** The user's pricing region; prices are re-weighted for it before sorting and display. */
   pricingRegion: PricingRegion;
-  /** Formats a headline price in the user's display currency. */
-  formatPrice: (price: CardPriceSnapshot | undefined) => string | null;
+  /** Formats a GBP amount in the user's display currency. */
+  formatAmount: (amount: number | null | undefined, price?: CardPriceSnapshot) => string | null;
   /** Open one card's own details above this view. Closing them returns here. */
   onOpenCard?: (card: IllustratorCard) => void;
   onClose: () => void;
@@ -48,13 +53,12 @@ export default function IllustratorCardsBrowser({
   collection,
   isDesktop,
   pricingRegion,
-  formatPrice,
+  formatAmount,
   onOpenCard,
   onClose,
 }: IllustratorCardsBrowserProps) {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [filter, setFilter] = useState<IllustratorCardFilter>('all');
-  const [sort, setSort] = useState<IllustratorCardSort>('newest');
   const [textFilter, setTextFilter] = useState('');
 
   useEffect(() => {
@@ -85,15 +89,27 @@ export default function IllustratorCardsBrowser({
     pricingEnabled && priceLookups.length > 0,
     pricingRegion,
   );
-  const priceOf = useCallback(
-    (card: BrowseCard) => pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')]?.gbpAmount ?? null,
-    [pricesByCardId],
+  const amountOf = useCallback(
+    (card: IllustratorCard) =>
+      getCardPickerSortAmount(
+        pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')],
+        inferCardFinish(card.rarity, card.variants),
+        pricingRegion,
+      ),
+    [pricesByCardId, pricingRegion],
   );
+  const shownEntries = useMemo(
+    () => buildIllustratorEntries(cards ?? [], collection, { filter, text: textFilter }),
+    [cards, collection, filter, textFilter],
+  );
+  const shownCards = useMemo(() => shownEntries.map((entry) => entry.card), [shownEntries]);
+  const results = useCardResultsFilters(shownCards, amountOf);
+  const entryById = useMemo(() => new Map(shownEntries.map((entry) => [entry.card.id, entry])), [shownEntries]);
   const visibleEntries = useMemo(
-    () => buildIllustratorEntries(cards ?? [], collection, { filter, sort, text: textFilter, priceOf }),
-    [cards, collection, filter, sort, textFilter, priceOf],
+    () => results.visible.flatMap((card) => entryById.get(card.id) ?? []),
+    [entryById, results.visible],
   );
-  const isPriceSort = sort === 'price-desc' || sort === 'price-asc';
+  const isPriceSort = results.sort === 'price-desc' || results.sort === 'price-asc';
   const setCount = useMemo(() => new Set((cards ?? []).map((card) => card.set.id)).size, [cards]);
 
   return (
@@ -159,22 +175,14 @@ export default function IllustratorCardsBrowser({
                 className="border-border/60 bg-background/70 focus:border-primary/50 h-9 w-full min-w-0 rounded-full border pr-3 pl-8 text-base outline-none md:text-sm"
               />
             </label>
-            <label className="shrink-0">
-              <span className="sr-only">Sort cards</span>
-              <select
-                aria-label="Sort cards"
-                value={sort}
-                onChange={(event) => setSort(event.target.value as IllustratorCardSort)}
-                className="border-border/60 bg-background/70 focus:border-primary/50 h-9 rounded-full border px-3 text-base font-semibold outline-none md:text-xs"
-              >
-                {ILLUSTRATOR_CARD_SORTS.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <CardResultsControls results={results} className="h-9 rounded-full" />
           </div>
+          <ActiveFilterChips
+            chips={results.chips}
+            onClear={results.clear}
+            onClearAll={results.reset}
+            className="mt-2"
+          />
         </>
       }
     >
@@ -208,72 +216,30 @@ export default function IllustratorCardsBrowser({
                   : 'No cards match that filter.'}
           </div>
         ) : (
-          <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4" aria-label={`Cards by ${illustrator}`}>
-            {visibleEntries.map((entry) => {
-              const { card } = entry;
-              const priceSnapshot = pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')];
-              const price = formatPrice(priceSnapshot)?.split(' (')[0] ?? null;
-              return (
-                <CardGridTile
-                  key={card.id}
-                  data-card-id={card.id}
-                  aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${entry.owned ? ', owned' : ''}${entry.wanted ? ', wanted' : ''}`}
-                  data-price={price ?? undefined}
-                  className={entry.owned ? 'border-emerald-400/45' : entry.wanted ? 'border-amber-400/45' : undefined}
-                  onOpen={onOpenCard && (() => onOpenCard(card))}
-                  openLabel={`Open ${card.name}, ${card.set.name} ${entry.numberLabel}`}
-                >
-                  <CardGridArt
-                    image={getProxiedThumbnailUrl(card.image)}
-                    alt={`${card.name} – ${card.set.name} ${entry.numberLabel}`}
-                    sizes="(max-width: 639px) 45vw, 180px"
+          <section aria-label={`Cards by ${illustrator}`}>
+            <CardResultsGrid>
+              {visibleEntries.map((entry) => {
+                const { card } = entry;
+                const price = pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')];
+                return (
+                  <CardResultTile
+                    key={card.id}
+                    data-card-id={card.id}
+                    card={card}
+                    price={price}
+                    priceLabels={cardResultPriceLabels(price, formatAmount)}
+                    pricesLoading={isLoadingPrices}
+                    aria-label={`${card.name} ${entry.numberLabel} ${card.set.name}${entry.owned ? ', owned' : ''}${entry.wanted ? ', wanted' : ''}`}
+                    onClick={onOpenCard && (() => onOpenCard(card))}
                   >
-                    <CardGridBadges>
-                      {entry.owned ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
-                          <Check className="h-3 w-3" /> Owned
-                        </span>
-                      ) : null}
-                      {entry.wanted ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-white uppercase shadow-sm">
-                          <Heart className="h-3 w-3 fill-current" /> Wanted
-                        </span>
-                      ) : null}
-                    </CardGridBadges>
-                    <PriceRisingBadge price={priceSnapshot} className="absolute top-1.5 right-1.5" />
-                  </CardGridArt>
-                  <CardGridBody>
-                    <p className="truncate text-xs font-semibold" title={card.name}>
-                      {card.name}
-                    </p>
-                    <p className="text-muted-foreground truncate text-[11px]" title={card.set.name}>
-                      {card.set.name}
-                    </p>
-                    <div className="text-muted-foreground flex items-center justify-between gap-1 text-[10px]">
-                      <span className="tabular-nums">{entry.numberLabel}</span>
-                      {card.set.releaseDate ? (
-                        <span className="tabular-nums">{card.set.releaseDate.slice(0, 4)}</span>
-                      ) : null}
-                    </div>
-                    <p className="truncate text-xs font-bold tabular-nums" data-testid="illustrator-card-price">
-                      {price ? (
-                        <span className="text-foreground">{price}</span>
-                      ) : (
-                        <span className="text-muted-foreground font-medium">
-                          {isLoadingPrices ? 'Pricing…' : 'No price'}
-                        </span>
-                      )}
-                    </p>
-                    {card.rarity || entry.variantLabels.length > 0 ? (
-                      <p className="text-muted-foreground truncate text-[10px]">
-                        {[card.rarity, ...entry.variantLabels].filter(Boolean).join(' · ')}
-                      </p>
-                    ) : null}
-                  </CardGridBody>
-                </CardGridTile>
-              );
-            })}
-          </ul>
+                    {entry.owned || entry.wanted ? (
+                      <CardStandingMark standing={entry.owned ? 'owned' : 'wanted'} />
+                    ) : undefined}
+                  </CardResultTile>
+                );
+              })}
+            </CardResultsGrid>
+          </section>
         )}
       </div>
     </CardsBrowserSheet>
