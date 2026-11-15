@@ -208,9 +208,10 @@ See the skill [`release-and-deploy`](.agents/skills/release-and-deploy/SKILL.md)
 
 ## Feature delivery and marketing
 
-Cal authorizes completing each feature through ready PR merges and verified production deployment, then publishing the matching Framer marketing updates. API implementation and docs ship with **every feature delivery**; release posts/changelog and evergreen site updates ship after **each coherent user-facing feature block**, using current implemented behavior. Keep these as repeatable workflows:
+Cal authorizes completing each feature through ready PR merges and verified production deployment, then publishing the matching Framer marketing updates. API implementation, developer docs and the user help centre ship with **every feature delivery**; release posts/changelog and evergreen site updates ship after **each coherent user-facing feature block**, using current implemented behavior. Keep these as repeatable workflows:
 
 1. [feature-api-docs](.agents/skills/feature-api-docs/SKILL.md): shared REST/MCP contracts, generated OpenAPI/reference/Markdown/LLM exports and current help docs with the feature PR.
+   - **Help centre (`content/help/*.mdx`, live at `holofolder.com/help`):** any change a user can see (a new or renamed button, flow, setting, plan limit or Premium gate) updates the matching article in the same PR, or adds one and lists it in `content/help/meta.json` and `content/help/index.mdx`. Removed or moved features are taken out of the guides too. Use the exact on-screen labels, and describe only what the code does. When the UI in an article's screenshot changes, rerun `bun run help:screenshots` (own `E2E_PORT`) and look at every image. Say in the PR which articles changed, or why none needed to.
 2. [release-posts-and-changelog](.agents/skills/release-posts-and-changelog/SKILL.md): existing Framer Blog CMS and a visible CMS-backed changelog for verified shipped blocks.
 3. [framer-feature-updates](.agents/skills/framer-feature-updates/SKILL.md): affected homepage, feature/audience pages, copy, screenshots and links, reusing current CMS/components/styles and publishing to production.
 
@@ -222,7 +223,7 @@ Use [task-progress](.agents/skills/task-progress/SKILL.md) at start, review, mer
 
 - [ ] One concern per PR and commit, on a short-lived branch off the latest `main`; independent features use separate branches wherever possible
 - [ ] Commit and push, open a PR, and merge once Typecheck and required reviews pass
-- [ ] API/docs ship with each feature; matching Framer feature pages and CMS release/changelog updates are published and verified after each user-facing feature block, with live evidence on its issue/project
+- [ ] API/docs and the matching help centre articles (and their screenshots) ship with each feature; matching Framer feature pages and CMS release/changelog updates are published and verified after each user-facing feature block, with live evidence on its issue/project
 - [ ] Run focused local checks as needed; no full local test, build or e2e run required by default
 - [ ] New logic has unit coverage in `tests/`; no new lint warnings, and the cap is lowered if warnings were removed
 - [ ] UI changes were checked at 375, 390 and 430 with insets; overlays use `useOverlay` and meet the dismissal requirements
