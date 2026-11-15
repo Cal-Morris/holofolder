@@ -164,6 +164,7 @@ export function renderSearchOverlayView(ctx: SearchOverlayContext) {
                 formatPrice={priceFormat.label}
                 pricingRegion={pricingPreferences.region}
                 getCardState={getCardState}
+                cardsFirst
               />
               {selectedPokemon && (
                 <div className="border-border/50 mt-4 border-t pt-4">

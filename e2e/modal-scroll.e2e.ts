@@ -245,6 +245,7 @@ for (const theme of ['light', 'dark'] as const) {
       const search = page.getByRole('dialog', { name: /search pokemon/i });
       await search.getByRole('textbox').fill('arita');
       await search.getByRole('button', { name: /illustrator mitsuhiro arita/i }).click();
+      await search.getByRole('button', { name: 'All cards by Mitsuhiro Arita', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: /cards illustrated by/i });
       await expect(dialog.getByRole('listitem')).toHaveCount(35);
       await ends(page, dialog);

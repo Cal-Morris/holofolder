@@ -18,8 +18,8 @@ test('ordinary Search renders compound card hits and a useful empty state', asyn
   const input = dialog.getByRole('textbox');
   await input.fill('abra 151');
   const results = dialog.getByRole('region', { name: 'Card results' });
-  await expect(results.getByText('151', { exact: true })).toHaveCount(2);
-  await expect(results.getByText('Base Set', { exact: true })).toHaveCount(0);
+  await expect(results.getByRole('button', { name: / 151$/ })).toHaveCount(2);
+  await expect(results.getByRole('button', { name: /Base Set/ })).toHaveCount(0);
   await harness.expectNoHorizontalOverflow();
   await page.screenshot({ path: `/tmp/compound-${info.project.name}-results.png` });
   await input.fill('zzzz nonexistent');

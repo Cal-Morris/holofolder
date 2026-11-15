@@ -111,12 +111,30 @@ test.describe('global search', () => {
     await expect(dialog.getByRole('button', { name: /^bulbasaur/i }).first()).toBeVisible();
   });
 
-  test('groups card hits by Pokémon and opens the all-cards view at the picked printing', async ({ harness }) => {
+  test('shows card hits first, narrows them with a Pokémon chip and opens the all-cards view at the picked printing', async ({
+    harness,
+  }) => {
     const dialog = await openSearch(harness);
-    await dialog.getByRole('textbox').fill('charm');
+    const input = dialog.getByRole('textbox');
+    await input.fill('charm');
     const cards = dialog.getByRole('region', { name: /card results/i });
-    await expect(cards.getByRole('button', { name: /charmander: 3 matching cards/i })).toBeVisible();
-    await expect(cards.getByRole('button', { name: /charmeleon: 1 matching card/i })).toBeVisible();
+    const chips = dialog.getByRole('group', { name: 'Narrow card results' });
+    await expect(cards.getByRole('button', { name: /^charmeleon /i }).first()).toBeVisible();
+    await expect(chips.getByRole('button', { name: 'Pokémon Charmeleon', exact: true })).toBeVisible();
+    // Cards come before the Pokémon rows.
+    const cardsTop = (await cards.boundingBox())!.y;
+    const rowTop = (await dialog.locator('[data-result-index]').first().boundingBox())!.y;
+    expect(cardsTop).toBeLessThan(rowTop);
+
+    // A chip reruns the search for that Pokémon and keeps only its cards; tapping it again shows them all.
+    const charmander = chips.getByRole('button', { name: 'Pokémon Charmander', exact: true });
+    await harness.expectMinTapTarget(charmander, 36);
+    await charmander.click();
+    await expect(input).toHaveValue('Charmander');
+    await expect(charmander).toHaveAttribute('aria-pressed', 'true');
+    await expect(cards.getByRole('button', { name: /^charmeleon /i })).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: 'All Charmander cards', exact: true }).first()).toBeVisible();
+    await harness.expectNoHorizontalOverflow();
 
     await cards.getByRole('button', { name: /charmander 168\/165 151/i }).click();
     const browser = await expectUsableBrowser(harness, /all charmander cards/i);
@@ -128,8 +146,8 @@ test.describe('global search', () => {
     const dialog = await openSearch(harness);
     await dialog.getByRole('textbox').fill('base 46');
     const cards = dialog.getByRole('region', { name: /card results/i });
-    await expect(cards.getByRole('button', { name: /charmander: 1 matching card/i })).toBeVisible();
-    await cards.getByRole('button', { name: /charmander: 1 matching card/i }).click();
+    await expect(cards.getByRole('button')).toHaveCount(1);
+    await cards.getByRole('button', { name: /^charmander 46/i }).click();
     await expectUsableBrowser(harness, /all charmander cards/i);
   });
 

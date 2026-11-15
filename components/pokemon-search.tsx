@@ -10,7 +10,7 @@ import CardImage from '@/components/card-image';
 import type React from 'react';
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Search, ArrowRight, Star, MapPinned, Layers3, Loader2, Palette, History } from 'lucide-react';
+import { Search, ArrowRight, Star, MapPinned, Layers3, Loader2, Palette, History, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   POKEMON_CATALOG,
@@ -38,10 +38,11 @@ import { getCardPriceKey, type CardPriceSnapshot } from '@/hooks/use-card-prices
 import { useRegionalCardPrices } from '@/hooks/use-regional-card-prices';
 import { DEFAULT_PRICING_REGION, type PricingRegion } from '@/lib/pricing-region';
 import { isCardLanguage } from '@/lib/domain/cards';
-import { CARD_STANDING_BADGES, getCardStanding } from '@/lib/show-hunt';
+import { CARD_STANDING_BADGES, getCardStanding, type PokemonCardStanding } from '@/lib/show-hunt';
 import QuickDestinations from '@/components/quick-destinations';
 import { PriceRisingBadge } from '@/components/price-rising-badge';
 import { visibleQuickDestinations, type QuickDestinationId } from '@/lib/quick-mode';
+import { matchesSearchChip, searchChipKey, searchChipQuery, type SearchChip } from '@/lib/search-chips';
 
 type SearchStateFilter = PokemonSearchStateFilter;
 
@@ -100,6 +101,8 @@ export interface PokemonSearchProps {
   /** Controlled query, kept by a parent that unmounts the search (Quick mode's deal check and Back). */
   query?: string;
   onQueryChange?: (query: string) => void;
+  /** The Search sheet: every card hit in one grid first, with Pokémon, set and artist hits as chips that narrow it. */
+  cardsFirst?: boolean;
 }
 
 /** Card tiles are wide enough to tell printings apart; CardImage picks a sharp width and falls back to the proxy (also offline). */
@@ -121,6 +124,8 @@ const SEARCH_FILTERS: Array<{
 /** Rows mounted at first and per step (fewer while typing, so card hits stay close): every match stays reachable without mounting the whole dex. */
 const RESULT_STEP = 60;
 const QUERY_RESULT_STEP = 40;
+/** Card tiles shown first and per "Show more cards", so the Pokémon rows below stay a short scroll away. */
+const CARD_STEP = 24;
 const NO_POKEMON: { id: number; name: string }[] = [];
 
 export default function PokemonSearch({
@@ -144,6 +149,7 @@ export default function PokemonSearch({
   searchAtBottom = false,
   query: controlledQuery,
   onQueryChange,
+  cardsFirst = false,
 }: PokemonSearchProps) {
   const nativeModel = useMemo(() => (nativeConsumer ? nativeCardConsumers(nativeConsumer) : null), [nativeConsumer]);
   const [ownQuery, setOwnQuery] = useState('');
@@ -236,17 +242,21 @@ export default function PokemonSearch({
   const cardSearch = useCardSearch(query, Boolean(onBrowseCards || onPickCard || nativeConsumer), getOfflineCards, {
     includeNonPokemon: Boolean(nativeConsumer),
   });
-  const cardResultCount = nativeConsumer ? cardSearch.cards.length : cardSearch.groups.length;
-  // One batched price lookup for every card hit (cached on the device, so offline hits keep their prices).
+  const cardResultCount = nativeConsumer || cardsFirst ? cardSearch.cards.length : cardSearch.groups.length;
+  const illustratorResults = useIllustratorSearch(query, Boolean(onBrowseIllustrator));
+  const setResults = useSetSearch(query, Boolean(onBrowseSet));
+
+  // One batched price lookup for every card hit (cached on the device, so offline hits keep their prices). The
+  // cards-first grid looks up its own, only the tiles it shows.
   const cardPriceLookups = useMemo(
     () =>
-      formatPrice
+      formatPrice && !cardsFirst
         ? (nativeConsumer ? cardSearch.cards : cardSearch.groups.flatMap((group) => group.cards)).map((card) => ({
             cardId: card.id,
             language: nativeConsumer ? card.language : (card.language ?? 'en'),
           }))
         : [],
-    [cardSearch.groups, cardSearch.cards, nativeConsumer, formatPrice],
+    [cardsFirst, cardSearch.groups, cardSearch.cards, nativeConsumer, formatPrice],
   );
   // Native binders price from their saved inventory prices, like the rest of the native app.
   const { pricesByCardId: cardPrices } = useRegionalCardPrices(
@@ -255,8 +265,6 @@ export default function PokemonSearch({
     pricingRegion,
     Boolean(nativeConsumer),
   );
-  const illustratorResults = useIllustratorSearch(query, Boolean(onBrowseIllustrator));
-  const setResults = useSetSearch(query, Boolean(onBrowseSet));
 
   const showRecentCards = Boolean(onBrowseCards) && !query.trim() && recentCards.length > 0;
   const destinations = useMemo(
@@ -277,6 +285,12 @@ export default function PokemonSearch({
     },
     [onPickCard, query, rememberSearch],
   );
+  const openGridCard = (card: SearchCardResult, pokemon: { id: number; name: string }) => {
+    if (onPickCard) return pickCard(card, pokemon);
+    if (nativeConsumer) return nativeConsumer.openCard(card);
+    rememberCard(toRecentCard(card, pokemon));
+    onBrowseCards?.(pokemon, card.id);
+  };
   const hasTrailingResults =
     setResults.length > 0 || illustratorResults.length > 0 || cardResultCount > 0 || cardSearch.loading;
   const hasMoreResults = visibleResults.length > renderedResults.length;
@@ -518,6 +532,26 @@ export default function PokemonSearch({
                 </div>
               </section>
             ) : null}
+            {cardsFirst && query.trim() ? (
+              <CardsFirstResults
+                query={query}
+                onQueryChange={setQuery}
+                rememberSearch={rememberSearch}
+                cardSearch={cardSearch}
+                pokemonHits={visibleResults}
+                setHits={setResults}
+                illustratorHits={illustratorResults}
+                nativeConsumer={nativeConsumer}
+                nativeModel={nativeModel}
+                getCardState={getCardState}
+                formatPrice={formatPrice}
+                pricingRegion={pricingRegion}
+                onOpenCard={openGridCard}
+                onBrowseCards={onBrowseCards}
+                onBrowseSet={onBrowseSet}
+                onBrowseIllustrator={onBrowseIllustrator}
+              />
+            ) : null}
             {visibleResults.length > 0 &&
             (showRecentCards ||
               setResults.length > 0 ||
@@ -660,7 +694,7 @@ export default function PokemonSearch({
                 Show more Pokémon ({visibleResults.length - renderedResults.length} more)
               </button>
             ) : null}
-            {setResults.length > 0 ? (
+            {!cardsFirst && setResults.length > 0 ? (
               <section aria-label="Set results" className="border-border/50 border-t px-3 pb-2">
                 <p className="text-muted-foreground px-1 pt-3 pb-1 text-[11px] font-semibold">Sets</p>
                 <div className="flex flex-col gap-1">
@@ -691,7 +725,7 @@ export default function PokemonSearch({
                 </div>
               </section>
             ) : null}
-            {illustratorResults.length > 0 ? (
+            {!cardsFirst && illustratorResults.length > 0 ? (
               <section aria-label="Illustrator results" className="border-border/50 border-t px-3 pb-2">
                 <p className="text-muted-foreground px-1 pt-3 pb-1 text-[11px] font-semibold">Illustrators</p>
                 <div className="flex flex-col gap-1">
@@ -721,7 +755,7 @@ export default function PokemonSearch({
                 </div>
               </section>
             ) : null}
-            {cardResultCount > 0 || cardSearch.loading ? (
+            {!cardsFirst && (cardResultCount > 0 || cardSearch.loading) ? (
               <section aria-label="Card results" className="border-border/50 border-t pb-2">
                 <p className="text-muted-foreground flex items-center gap-2 px-4 pt-3 pb-1 text-[11px] font-semibold">
                   Cards
@@ -807,54 +841,20 @@ export default function PokemonSearch({
                                 : null;
                               const badge = standing && standing !== 'missing' ? CARD_STANDING_BADGES[standing] : null;
                               return (
-                                <button
+                                <SearchCardTile
                                   key={card.id}
-                                  type="button"
+                                  card={card}
+                                  standing={standing}
+                                  price={price}
+                                  priceSnapshot={priceSnapshot}
+                                  label={`${card.name} ${formatCardNumber(card)} ${card.set.name}${badge ? `, ${badge.label}` : ''}`}
                                   onClick={() => {
                                     const pokemon = { id: group.dexId, name: group.name };
                                     if (onPickCard) return pickCard(card, pokemon);
                                     rememberCard(toRecentCard(card, pokemon));
                                     onBrowseCards?.(pokemon, card.id);
                                   }}
-                                  aria-label={`${card.name} ${formatCardNumber(card)} ${card.set.name}${badge ? `, ${badge.label}` : ''}`}
-                                  data-standing={standing ?? undefined}
-                                  className="w-[6.5rem] shrink-0 text-left"
-                                >
-                                  <div
-                                    className={`trading-card bg-muted/40 relative w-full border ${standing === 'owned' ? 'border-emerald-500/60' : standing === 'wanted' ? 'border-rose-500/60' : 'border-border/50'}`}
-                                  >
-                                    {card.image ? (
-                                      <CardImage
-                                        src={card.image}
-                                        alt=""
-                                        fill
-                                        sizes={CARD_TILE_SIZES}
-                                        className="object-cover"
-                                      />
-                                    ) : null}
-                                    {badge ? (
-                                      <span
-                                        aria-hidden
-                                        className={`absolute inset-x-1 bottom-1 truncate rounded-full px-1 py-0.5 text-center text-[9px] leading-none font-bold text-white shadow-sm ${standing === 'owned' ? 'bg-emerald-600' : 'bg-rose-600'}`}
-                                      >
-                                        {badge.label}
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  <p className="mt-1 truncate text-[10px] font-semibold">{card.set.name}</p>
-                                  <p className="text-muted-foreground truncate text-[10px] tabular-nums">
-                                    {formatCardNumber(card)}
-                                  </p>
-                                  {price ? (
-                                    <p
-                                      className="truncate text-[11px] font-bold tabular-nums"
-                                      data-testid="search-card-price"
-                                    >
-                                      {price}
-                                    </p>
-                                  ) : null}
-                                  {price ? <PriceRisingBadge price={priceSnapshot} className="mt-0.5" /> : null}
-                                </button>
+                                />
                               );
                             })}
                           </div>
@@ -877,5 +877,311 @@ export default function PokemonSearch({
         )}
       </div>
     </div>
+  );
+}
+
+interface CardsFirstResultsProps {
+  query: string;
+  onQueryChange: (query: string) => void;
+  rememberSearch: (query: string) => void;
+  cardSearch: ReturnType<typeof useCardSearch>;
+  pokemonHits: Array<{ id: number; name: string }>;
+  setHits: TCGSetSummary[];
+  illustratorHits: Array<{ name: string; cardCount: number }>;
+  nativeConsumer?: NativeConsumerBinding;
+  nativeModel: ReturnType<typeof nativeCardConsumers> | null;
+  getCardState?: PokemonSearchProps['getCardState'];
+  formatPrice?: PokemonSearchProps['formatPrice'];
+  pricingRegion: PricingRegion;
+  onOpenCard: (card: SearchCardResult, pokemon: { id: number; name: string }) => void;
+  onBrowseCards?: PokemonSearchProps['onBrowseCards'];
+  onBrowseSet?: PokemonSearchProps['onBrowseSet'];
+  onBrowseIllustrator?: PokemonSearchProps['onBrowseIllustrator'];
+}
+
+/**
+ * The Search sheet's results while typing: Pokémon, set and artist hits as chips, then every card hit in one grid.
+ * A chip reruns the search for that category (see lib/search-chips.ts) and keeps only its cards; tapping it again
+ * shows them all.
+ */
+function CardsFirstResults({
+  query,
+  onQueryChange,
+  rememberSearch,
+  cardSearch,
+  pokemonHits,
+  setHits,
+  illustratorHits,
+  nativeConsumer,
+  nativeModel,
+  getCardState,
+  formatPrice,
+  pricingRegion,
+  onOpenCard,
+  onBrowseCards,
+  onBrowseSet,
+  onBrowseIllustrator,
+}: CardsFirstResultsProps) {
+  // A chip belongs to the query it set, so typing anything else drops it; the shown tile count resets with both.
+  const [view, setView] = useState<{ query: string; chip: SearchChip | null; count: number }>({
+    query,
+    chip: null,
+    count: CARD_STEP,
+  });
+  const activeChip = view.query === query ? view.chip : null;
+  const shownCount = view.query === query ? view.count : CARD_STEP;
+  const chips = useMemo(() => {
+    const found: SearchChip[] = [
+      ...pokemonHits.slice(0, 3).map((pokemon) => ({ kind: 'pokemon' as const, id: pokemon.id, name: pokemon.name })),
+      ...setHits.slice(0, 4).map((set) => ({ kind: 'set' as const, set })),
+      ...illustratorHits.slice(0, 3).map((illustrator) => ({
+        kind: 'illustrator' as const,
+        name: illustrator.name,
+        cardCount: illustrator.cardCount,
+      })),
+    ];
+    return activeChip && !found.some((chip) => searchChipKey(chip) === searchChipKey(activeChip))
+      ? [activeChip, ...found]
+      : found;
+  }, [activeChip, illustratorHits, pokemonHits, setHits]);
+  const cards = useMemo(
+    () => (activeChip ? cardSearch.cards.filter((card) => matchesSearchChip(card, activeChip)) : cardSearch.cards),
+    [activeChip, cardSearch.cards],
+  );
+  const shownCards = useMemo(() => cards.slice(0, shownCount), [cards, shownCount]);
+  // One batched price lookup for the tiles shown (cached on the device, so offline hits keep their prices).
+  const priceLookups = useMemo(
+    () =>
+      formatPrice
+        ? shownCards.map((card) => ({
+            cardId: card.id,
+            language: nativeConsumer ? card.language : (card.language ?? 'en'),
+          }))
+        : [],
+    [formatPrice, nativeConsumer, shownCards],
+  );
+  // Native binders price from their saved inventory prices, like the rest of the native app.
+  const { pricesByCardId } = useRegionalCardPrices(
+    priceLookups,
+    priceLookups.length > 0,
+    pricingRegion,
+    Boolean(nativeConsumer),
+  );
+  const toggleChip = (chip: SearchChip) => {
+    if (activeChip && searchChipKey(activeChip) === searchChipKey(chip)) {
+      setView({ query, chip: null, count: CARD_STEP });
+      return;
+    }
+    rememberSearch(query);
+    const next = searchChipQuery(chip);
+    onQueryChange(next);
+    setView({ query: next, chip, count: CARD_STEP });
+  };
+
+  return (
+    <>
+      {chips.length > 0 ? (
+        <div role="group" aria-label="Narrow card results" className="flex gap-2 overflow-x-auto px-3 pt-3 pb-1">
+          {chips.map((chip) => {
+            const active = activeChip !== null && searchChipKey(activeChip) === searchChipKey(chip);
+            const kind = chip.kind === 'pokemon' ? 'Pokémon' : chip.kind === 'set' ? 'Set' : 'Artist';
+            const name =
+              chip.kind === 'pokemon'
+                ? formatPokemonDisplayName(chip.name)
+                : chip.kind === 'set'
+                  ? chip.set.name
+                  : chip.name;
+            const detail =
+              chip.kind === 'set'
+                ? formatSetHitMeta(chip.set)
+                : chip.kind === 'illustrator'
+                  ? `${chip.cardCount} card${chip.cardCount === 1 ? '' : 's'}`
+                  : '';
+            return (
+              <button
+                key={searchChipKey(chip)}
+                type="button"
+                aria-pressed={active}
+                aria-label={`${chip.kind === 'illustrator' ? 'Illustrator' : kind} ${name}${detail ? `, ${detail}` : ''}`}
+                onClick={() => toggleChip(chip)}
+                className={`inline-flex min-h-9 max-w-[16rem] shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                  active
+                    ? 'border-primary/35 bg-primary/12 text-primary'
+                    : 'border-border/50 bg-card text-muted-foreground hover:border-primary/20 hover:text-foreground'
+                }`}
+              >
+                {chip.kind === 'illustrator' ? <Palette className="h-3 w-3 shrink-0" aria-hidden /> : null}
+                {chip.kind === 'set' ? <SetSymbol set={chip.set} compact /> : null}
+                <span className="truncate">
+                  {chip.kind === 'pokemon' ? null : <span className="opacity-70">{kind} · </span>}
+                  {name}
+                </span>
+                {active ? <X className="h-3 w-3 shrink-0" aria-hidden /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      {activeChip ? (
+        activeChip.kind === 'pokemon' ? (
+          onBrowseCards ? (
+            <button
+              type="button"
+              onClick={() => {
+                rememberSearch(query);
+                onBrowseCards({ id: activeChip.id, name: activeChip.name });
+              }}
+              className="text-primary hover:bg-primary/10 mx-3 flex min-h-11 w-[calc(100%-1.5rem)] items-center justify-between gap-2 rounded-xl px-2 text-left text-xs font-semibold"
+            >
+              <span className="truncate">All {formatPokemonDisplayName(activeChip.name)} cards</span>
+              <ArrowRight className="h-4 w-4 shrink-0" />
+            </button>
+          ) : null
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              rememberSearch(query);
+              if (activeChip.kind === 'set') onBrowseSet?.(activeChip.set);
+              else onBrowseIllustrator?.(activeChip.name);
+            }}
+            className="text-primary hover:bg-primary/10 mx-3 flex min-h-11 w-[calc(100%-1.5rem)] items-center justify-between gap-2 rounded-xl px-2 text-left text-xs font-semibold"
+          >
+            <span className="truncate">
+              {activeChip.kind === 'set' ? `Open set ${activeChip.set.name}` : `All cards by ${activeChip.name}`}
+            </span>
+            <ArrowRight className="h-4 w-4 shrink-0" />
+          </button>
+        )
+      ) : null}
+      {cardSearch.cards.length > 0 || cardSearch.loading ? (
+        <section aria-label="Card results" className="pb-2">
+          <p className="text-muted-foreground flex items-center gap-2 px-4 pt-3 pb-1 text-[11px] font-semibold">
+            Cards
+            {!cardSearch.loading ? <span className="font-normal tabular-nums">{cards.length}</span> : null}
+            {cardSearch.loading ? <Loader2 className="h-3 w-3 animate-spin" aria-label="Searching cards" /> : null}
+            {cardSearch.offline ? (
+              <span className="font-normal tracking-normal normal-case">· offline: your cards and saved sets</span>
+            ) : null}
+          </p>
+          {cardSearch.correction ? (
+            <p role="status" className="text-muted-foreground px-4 py-1 text-xs">
+              Showing cards for {cardSearch.correction}
+            </p>
+          ) : null}
+          {activeChip && !cardSearch.loading && cards.length === 0 ? (
+            <p className="text-muted-foreground px-4 py-2 text-xs">
+              {cardSearch.offline ? 'None of your saved cards match this.' : 'No cards match this.'}
+            </p>
+          ) : null}
+          <div className="grid grid-cols-3 gap-2 px-3 sm:grid-cols-4">
+            {shownCards.map((card) => {
+              const dexId = activeChip?.kind === 'pokemon' ? activeChip.id : card.dexIds[0];
+              const pokemon = { id: dexId ?? 0, name: (dexId && getPokemonSummary(dexId)?.name) || card.name };
+              const native = nativeConsumer ? nativeCardState(nativeModel, card) : null;
+              const standing = native
+                ? native.owned
+                  ? 'owned'
+                  : native.wanted
+                    ? 'wanted'
+                    : null
+                : getCardState
+                  ? getCardStanding(getCardState(card, pokemon))
+                  : null;
+              const priceSnapshot = nativeConsumer
+                ? isCardLanguage(card.language)
+                  ? pricesByCardId[getCardPriceKey(card.id, card.language)]
+                  : undefined
+                : pricesByCardId[getCardPriceKey(card.id, card.language ?? 'en')];
+              const price = formatPrice?.(priceSnapshot)?.split(' (')[0] ?? null;
+              const status = native
+                ? `, ${nativeCardLabel(native)}${price ? `, ${price}` : ''}`
+                : standing && standing !== 'missing'
+                  ? `, ${CARD_STANDING_BADGES[standing].label}`
+                  : '';
+              return (
+                <SearchCardTile
+                  key={`${card.id}:${card.language ?? ''}`}
+                  card={card}
+                  standing={standing}
+                  price={price}
+                  priceSnapshot={priceSnapshot}
+                  label={`${card.name} ${formatCardNumber(card)} ${card.set.name}${status}`}
+                  grid
+                  onClick={() => onOpenCard(card, pokemon)}
+                />
+              );
+            })}
+          </div>
+          {cards.length > shownCards.length ? (
+            <button
+              type="button"
+              onClick={() => setView({ query, chip: activeChip, count: shownCount + CARD_STEP })}
+              className="text-primary hover:bg-primary/10 mt-2 min-h-11 w-full px-4 py-2 text-left text-xs font-semibold"
+            >
+              Show more cards ({cards.length - shownCards.length} more)
+            </button>
+          ) : null}
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+/** One card hit: its art with the Owned / Wanted mark, then (in the grid) its name, or (in a Pokémon's row) its set, then its number and price. */
+function SearchCardTile({
+  card,
+  standing,
+  price,
+  priceSnapshot,
+  label,
+  grid = false,
+  onClick,
+}: {
+  card: SearchCardResult;
+  standing: PokemonCardStanding | null;
+  price: string | null;
+  priceSnapshot: CardPriceSnapshot | undefined;
+  label: string;
+  grid?: boolean;
+  onClick: () => void;
+}) {
+  const badge = standing && standing !== 'missing' ? CARD_STANDING_BADGES[standing] : null;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      data-standing={standing ?? undefined}
+      className={grid ? 'min-w-0 text-left' : 'w-[6.5rem] shrink-0 text-left'}
+    >
+      <div
+        className={`trading-card bg-muted/40 relative w-full border ${standing === 'owned' ? 'border-emerald-500/60' : standing === 'wanted' ? 'border-rose-500/60' : 'border-border/50'}`}
+      >
+        {card.image ? (
+          <CardImage src={card.image} alt="" fill sizes={CARD_TILE_SIZES} className="object-cover" />
+        ) : null}
+        {badge ? (
+          <span
+            aria-hidden
+            className={`absolute inset-x-1 bottom-1 truncate rounded-full px-1 py-0.5 text-center text-[9px] leading-none font-bold text-white shadow-sm ${standing === 'owned' ? 'bg-emerald-600' : 'bg-rose-600'}`}
+          >
+            {badge.label}
+          </span>
+        ) : null}
+      </div>
+      <p className={`mt-1 truncate font-semibold ${grid ? 'text-[11px]' : 'text-[10px]'}`}>
+        {grid ? card.name : card.set.name}
+      </p>
+      <p className="text-muted-foreground truncate text-[10px] tabular-nums">
+        {grid ? `${card.set.name} · ${formatCardNumber(card)}` : formatCardNumber(card)}
+      </p>
+      {price ? (
+        <p className="truncate text-[11px] font-bold tabular-nums" data-testid="search-card-price">
+          {price}
+        </p>
+      ) : null}
+      {price ? <PriceRisingBadge price={priceSnapshot} className="mt-0.5" /> : null}
+    </button>
   );
 }

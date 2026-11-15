@@ -408,7 +408,8 @@ test.describe('help centre screenshots', () => {
     await harness.dock().getByRole('button', { name: 'Search', exact: true }).click();
     const search = page.getByRole('dialog', { name: /search/i });
     await search.getByRole('textbox').fill('Charmander');
-    await expect(search.getByText('Charmander').first()).toBeVisible();
+    await expect(search.getByRole('group', { name: 'Narrow card results' })).toBeVisible();
+    await expect(search.getByRole('region', { name: 'Card results' }).getByRole('button').first()).toBeVisible();
     await shoot(page, 'browsing-cards-search');
   });
 

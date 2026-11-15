@@ -80,18 +80,24 @@ test.describe('search by set', () => {
     await harness.expectScrollUnlocked();
   });
 
-  test('the Search sheet lists a set hit; tapping it opens Sets on that set', async ({ harness }) => {
+  test('the Search sheet shows a set hit as a chip; its link opens Sets on that set', async ({ harness }) => {
     await mockSets(harness.page);
     await harness.dock().getByRole('button', { name: 'Search', exact: true }).click();
     const sheet = harness.page.getByRole('dialog', { name: /search pokemon/i });
     await expect(sheet).toBeVisible();
     await sheet.getByRole('textbox').fill('Fixture Search');
-    const hit = sheet
-      .getByRole('region', { name: 'Set results' })
-      .getByRole('button', { name: /^Open set Fixture Search Set/ });
-    await expect(hit).toBeVisible();
-    await harness.expectMinTapTarget(hit, 44);
+    const chip = sheet
+      .getByRole('group', { name: 'Narrow card results' })
+      .getByRole('button', { name: /^Set Fixture Search Set, Fixture Series · 2 cards/ });
+    await expect(chip).toBeVisible();
+    await harness.expectMinTapTarget(chip, 36);
     await harness.expectNoHorizontalOverflow();
+    // The chip reruns the search by the set's id, so only that set's cards are left.
+    await chip.click();
+    await expect(sheet.getByRole('textbox')).toHaveValue(set.id);
+    await expect(chip).toHaveAttribute('aria-pressed', 'true');
+    const hit = sheet.getByRole('button', { name: 'Open set Fixture Search Set', exact: true });
+    await harness.expectMinTapTarget(hit, 44);
     await hit.click();
     await expect(sheet).toBeHidden();
     await expectSetOpened(harness.page);
@@ -129,20 +135,26 @@ test.describe('search by set', () => {
         await page.mouse.up();
       } else await search.click();
       const dialog = page.getByRole('dialog', { name: mode === 'Search' ? /search pokemon/i : mode });
-      // Quick mode runs the Search sheet's search, so both share its field and set results.
+      // Quick mode runs the Search sheet's search with set rows; the Search sheet shows set hits as chips.
       const input = dialog.getByRole('textbox');
       await input.fill('2017');
-      const region = dialog.getByRole('region', { name: 'Set results', exact: true });
-      await expect(region.getByRole('button')).toHaveCount(4);
-      for (const row of await region.getByRole('button').all()) {
+      const region =
+        mode === 'Search'
+          ? dialog.getByRole('group', { name: 'Narrow card results', exact: true })
+          : dialog.getByRole('region', { name: 'Set results', exact: true });
+      await expect(region.getByRole('button', { name: /^(Set|Open set) / })).toHaveCount(4);
+      for (const row of await region.getByRole('button', { name: /^(Set|Open set) / }).all()) {
         await harness.expectMinTapTarget(row, 36);
         await expect(row.locator('img')).toHaveAttribute(
           'src',
           /^https:\/\/assets\.holofolder\.com\/pokemon\/tcg\/sets\//,
         );
       }
-      await region.getByRole('button').last().scrollIntoViewIfNeeded();
-      await harness.expectWithinSafeViewport(region.getByRole('button').last());
+      await region
+        .getByRole('button', { name: /^(Set|Open set) / })
+        .last()
+        .scrollIntoViewIfNeeded();
+      await harness.expectWithinSafeViewport(region.getByRole('button', { name: /^(Set|Open set) / }).last());
       await harness.expectNoHorizontalOverflow();
       // Exercise the hook's saved-data fallback without requiring a worker in this harness.
       await page.evaluate(async (sets) => {
@@ -151,9 +163,9 @@ test.describe('search by set', () => {
       }, releases);
       await page.context().setOffline(true);
       await input.fill('2016');
-      await expect(region).toHaveCount(0);
+      await expect(region.getByRole('button', { name: /^(Set|Open set) / })).toHaveCount(0);
       await input.fill('2017');
-      await expect(region.getByRole('button')).toHaveCount(4);
+      await expect(region.getByRole('button', { name: /^(Set|Open set) / })).toHaveCount(4);
       await page.context().setOffline(false);
     });
   }
@@ -200,9 +212,10 @@ plainTest.describe('search by set on desktop 1280×800', () => {
     await expect(sheet).toBeVisible();
     await sheet.getByRole('textbox').fill('fixture search');
     await sheet
-      .getByRole('region', { name: 'Set results' })
-      .getByRole('button', { name: /^Open set Fixture Search Set/ })
+      .getByRole('group', { name: 'Narrow card results' })
+      .getByRole('button', { name: /^Set Fixture Search Set/ })
       .click();
+    await sheet.getByRole('button', { name: 'Open set Fixture Search Set', exact: true }).click();
     await expect(sheet).toBeHidden();
     await expectSetOpened(page);
   });
