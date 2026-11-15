@@ -1,5 +1,6 @@
 import { normalizeCatalogName } from './card-catalog';
 import { mapWithConcurrency } from './card-db-sync-concurrency';
+import { pickTcgplayerProductIdsFromExternalIds } from './card-pricing';
 
 /**
  * Which standard finishes each printing is sold in, from TCGplayer's catalogue (via the TCGCSV daily dump). TCGdex
@@ -11,10 +12,28 @@ import { mapWithConcurrency } from './card-db-sync-concurrency';
 export type TcgplayerVariants = { normal: boolean; holo: boolean; reverse: boolean; firstEdition?: true };
 
 export type TcgcsvGroup = { groupId: number; name: string; publishedOn?: string };
-export type TcgcsvProduct = { productId: number; name: string; extendedData?: Array<{ name: string; value: string }> };
+export type TcgcsvProduct = {
+  productId: number;
+  groupId: number;
+  name: string;
+  extendedData?: Array<{ name: string; value: string }>;
+};
 export type TcgcsvPrice = { productId: number; subTypeName: string };
 type SetLike = { id: string; name_en: string | null; release_date?: string | null };
-type CardLike = { id: string; set_id: string; local_id: string; name_en: string | null };
+/**
+ * `known`: the card's TCGplayer product ids we already hold, most trusted first (our stored link, then TCGdex's).
+ * `knownGroup`: the TCGplayer group of our stored link.
+ */
+export type TcgplayerCard = {
+  id: string;
+  set_id: string;
+  local_id: string;
+  name_en: string | null;
+  known?: readonly string[];
+  knownGroup?: number;
+};
+/** How a card was matched: by an id we already held, or by collector number and name (a new link to store). */
+export type TcgplayerMatch = { productId: number; groupId: number; by: 'id' | 'number'; variants: TcgplayerVariants };
 
 const SUBTYPES: Record<string, Partial<Record<'normal' | 'holo' | 'reverse' | 'firstEdition', true>>> = {
   normal: { normal: true },
@@ -25,8 +44,10 @@ const SUBTYPES: Record<string, Partial<Record<'normal' | 'holo' | 'reverse' | 'f
   '1stedition': { firstEdition: true },
   '1steditionholofoil': { firstEdition: true },
 };
-/** Of a set's cards, how many must line up by collector number before a group is trusted as that set. */
+/** Of a set's cards, how many must line up (by id or collector number) before a group is trusted as that set. */
 const MIN_COVERAGE = 0.8;
+/** A group our stored links point at counts as one of the set's groups once this share of its cards use it. */
+const LINKED_GROUP_SHARE = 0.1;
 /**
  * TCGplayer groups for sets whose name differs there ("151" is "SV: Scarlet & Violet 151") or whose cards are split
  * over several groups (Crown Zenith and its Galarian Gallery). Still checked by collector number before use.
@@ -69,18 +90,30 @@ const numberOf = (p: TcgcsvProduct) => p.extendedData?.find((d) => d.name === 'N
 const days = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b)) / 86_400_000;
 
 /**
- * The groups to try for a set, each try being one or more groups read together: its mapped groups, else groups of
- * the same name (or with a short series prefix, "EX Delta Species"), nearest release first. Release dates only rank,
- * since TCGplayer dates some old groups to the day they were last edited.
+ * The groups to try for a set, each try being one or more groups read together: the groups its cards' stored links
+ * already point at, then its mapped groups, then groups of the same name (or with a short series prefix, "EX Delta
+ * Species"), nearest release first. Release dates only rank, since TCGplayer dates some old groups to the day they
+ * were last edited.
  */
-export function candidateGroups(set: SetLike, groups: readonly TcgcsvGroup[]): number[][] {
+export function candidateGroups(
+  set: SetLike,
+  groups: readonly TcgcsvGroup[],
+  cards: readonly Pick<TcgplayerCard, 'knownGroup'>[] = [],
+): number[][] {
+  const tries: number[][] = [];
+  const uses = new Map<number, number>();
+  for (const { knownGroup } of cards) if (knownGroup) uses.set(knownGroup, (uses.get(knownGroup) ?? 0) + 1);
+  const linked = [...uses]
+    .flatMap(([id, count]) => (count >= Math.max(2, cards.length * LINKED_GROUP_SHARE) ? [id] : []))
+    .sort((a, b) => a - b);
+  if (linked.length) tries.push(linked);
   const mapped = TCGPLAYER_GROUPS[set.id];
-  if (mapped) return [[...mapped]];
+  if (mapped) tries.push([...mapped]);
   const name = normalizeCatalogName(set.name_en ?? '');
-  if (name.length < 3) return [];
+  if (mapped || name.length < 3) return tries;
   const gap = (g: TcgcsvGroup) =>
     set.release_date && g.publishedOn ? days(set.release_date, g.publishedOn) : Number.POSITIVE_INFINITY;
-  return groups
+  const named = groups
     .filter((g) => {
       const n = groupName(g.name);
       // Exact, or a two-letter series prefix (EX, SM, XY), never a longer name that merely ends the same.
@@ -88,18 +121,21 @@ export function candidateGroups(set: SetLike, groups: readonly TcgcsvGroup[]): n
     })
     .sort((a, b) => gap(a) - gap(b))
     .map((g) => [g.groupId]);
+  return [...tries, ...named.filter((ids) => !tries.some((t) => t.length === 1 && t[0] === ids[0]))];
 }
 
 /**
- * Each card's finishes from one group's products and prices, or null when the group isn't this set (fewer than
- * 80% of the cards match by collector number). Several products on one number are told apart by name, then by
- * the one with no qualifier; a number that stays ambiguous is skipped rather than guessed.
+ * Each card's product and finishes from one try's products and prices, or null when those groups aren't this set
+ * (fewer than 80% of the cards line up). A card whose known product is here is matched by that id. Otherwise it is
+ * matched by collector number, several products on one number told apart by name and then by the one with no
+ * qualifier; a number that stays ambiguous is skipped. A number match that contradicts an id we hold for the card
+ * (its known product is elsewhere) is a conflict: reported, never applied.
  */
 export function matchGroupVariants(
-  cards: readonly CardLike[],
+  cards: readonly TcgplayerCard[],
   products: readonly TcgcsvProduct[],
   prices: readonly TcgcsvPrice[],
-): Map<string, TcgplayerVariants> | null {
+): { matches: Map<string, TcgplayerMatch>; conflicts: string[] } | null {
   const subtypes = new Map<number, Set<string>>();
   for (const price of prices) {
     const key = normalizeCatalogName(price.subTypeName);
@@ -108,35 +144,54 @@ export function matchGroupVariants(
     set.add(key);
     subtypes.set(price.productId, set);
   }
+  const byId = new Map<number, TcgcsvProduct>();
   const byNumber = new Map<string, TcgcsvProduct[]>();
   for (const product of products) {
+    if (!subtypes.has(product.productId)) continue;
+    byId.set(product.productId, product);
     const number = numberOf(product);
-    if (!number || !subtypes.has(product.productId)) continue;
+    if (!number) continue;
     const key = collectorNumber(number);
     byNumber.set(key, [...(byNumber.get(key) ?? []), product]);
   }
-  const matched = new Map<string, TcgplayerVariants>();
+  const matches = new Map<string, TcgplayerMatch>();
+  const conflicts: string[] = [];
   let lined = 0;
   for (const card of cards) {
+    let byKnownId: TcgcsvProduct | undefined;
+    for (const id of card.known ?? []) {
+      byKnownId = byId.get(Number(id));
+      if (byKnownId) break;
+    }
     const onNumber = byNumber.get(collectorNumber(card.local_id)) ?? [];
-    if (onNumber.length) lined++;
+    if (byKnownId || onNumber.length) lined++;
     const named = onNumber.filter((p) => cardName(p.name) === cardName(card.name_en ?? ''));
     // Several of one name ("Eevee", "Eevee (Poke Ball Pattern)"): the one without a qualifier is the base printing.
     const plain = named.filter((p) => !/\(/.test(p.name));
-    const product =
+    const byNumberMatch =
       onNumber.length === 1 ? onNumber[0] : named.length === 1 ? named[0] : plain.length === 1 ? plain[0] : undefined;
+    const product = byKnownId ?? byNumberMatch;
     if (!product) continue;
+    if (!byKnownId && card.known?.length) {
+      conflicts.push(card.id);
+      continue;
+    }
     const flags = Object.assign({}, ...[...subtypes.get(product.productId)!].map((s) => SUBTYPES[s]));
     // Patterned reverses ("Erika's Oddish (Poke Ball)") are their own products: still this card's reverse holo.
     const patternedReverse = named.some((p) => subtypes.get(p.productId)!.has('reverseholofoil'));
-    matched.set(card.id, {
-      normal: flags.normal === true,
-      holo: flags.holo === true,
-      reverse: flags.reverse === true || patternedReverse,
-      ...(flags.firstEdition ? { firstEdition: true as const } : {}),
+    matches.set(card.id, {
+      productId: product.productId,
+      groupId: product.groupId,
+      by: byKnownId ? 'id' : 'number',
+      variants: {
+        normal: flags.normal === true,
+        holo: flags.holo === true,
+        reverse: flags.reverse === true || patternedReverse,
+        ...(flags.firstEdition ? { firstEdition: true as const } : {}),
+      },
     });
   }
-  return cards.length && lined / cards.length >= MIN_COVERAGE ? matched : null;
+  return cards.length && lined / cards.length >= MIN_COVERAGE ? { matches, conflicts } : null;
 }
 
 const TCGCSV = 'https://tcgcsv.com/tcgplayer/3';
@@ -152,49 +207,55 @@ async function tcgcsv<T>(path: string): Promise<T[]> {
 }
 
 /**
- * TCGplayer finishes for every card of the given sets that TCGCSV can match. Never throws: a set whose group
- * can't be found or fetched is left out (its cards keep TCGdex's flags) and logged.
+ * TCGplayer products and finishes for every card of the given sets that TCGCSV can match, plus the cards whose
+ * number match contradicted an id we hold. Never throws: a set whose groups can't be found or fetched is left out
+ * (its cards keep TCGdex's flags) and logged.
  */
 export async function fetchTcgplayerVariants(
   sets: readonly SetLike[],
-  cards: readonly CardLike[],
+  cards: readonly TcgplayerCard[],
   logger?: (message: string) => void,
-): Promise<Map<string, TcgplayerVariants>> {
-  const result = new Map<string, TcgplayerVariants>();
+): Promise<{ matches: Map<string, TcgplayerMatch>; conflicts: string[] }> {
+  const matches = new Map<string, TcgplayerMatch>();
+  const conflicts: string[] = [];
   let groups: TcgcsvGroup[];
   try {
     groups = await tcgcsv<TcgcsvGroup>('groups');
   } catch (error) {
     logger?.(`TCGplayer variants skipped: ${error instanceof Error ? error.message : String(error)}`);
-    return result;
+    return { matches, conflicts };
   }
   const cardsBySet = Map.groupBy(cards, (card) => card.set_id);
   const groupNames = new Map(groups.map((g) => [g.groupId, g.name]));
   await mapWithConcurrency([...sets], 4, async (set) => {
     const setCards = cardsBySet.get(set.id) ?? [];
     if (!setCards.length) return;
-    for (const ids of candidateGroups(set, groups)) {
+    for (const ids of candidateGroups(set, groups, setCards)) {
       const label = ids.map((id) => groupNames.get(id) ?? id).join(' + ');
       try {
         // oxlint-disable-next-line react-doctor/async-await-in-loop -- the next candidate is only fetched when this one isn't the set
         const fetched = await Promise.all(
           ids.map((id) => Promise.all([tcgcsv<TcgcsvProduct>(`${id}/products`), tcgcsv<TcgcsvPrice>(`${id}/prices`)])),
         );
-        const matched = matchGroupVariants(
+        const result = matchGroupVariants(
           setCards,
           fetched.flatMap(([products]) => products),
           fetched.flatMap(([, prices]) => prices),
         );
-        if (!matched) continue;
-        for (const [id, variants] of matched) result.set(id, variants);
-        logger?.(`TCGplayer variants: ${set.id} ← "${label}", ${matched.size}/${setCards.length} cards`);
+        if (!result) continue;
+        for (const [id, match] of result.matches) matches.set(id, match);
+        conflicts.push(...result.conflicts);
+        const fresh = [...result.matches.values()].filter((m) => m.by === 'number').length;
+        logger?.(
+          `TCGplayer variants: ${set.id} ← "${label}", ${result.matches.size}/${setCards.length} cards (${fresh} new links, ${result.conflicts.length} conflicts)`,
+        );
         return;
       } catch (error) {
         logger?.(`TCGplayer variants ${set.id}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
   });
-  return result;
+  return { matches, conflicts };
 }
 
 /** A card row with TCGplayer's finishes applied over TCGdex's flags and kept as evidence for later syncs. */
@@ -207,4 +268,50 @@ export function applyTcgplayerVariants<
     variants_json: { ...card.variants_json, ...variants },
     external_ids_json: { ...card.external_ids_json, tcgplayerVariants: variants },
   };
+}
+
+/** Our one stored card ↔ TCGplayer product link per card (prices and their triggers read it too). */
+export const TCGPLAYER_LINK_SOURCE = 'tcgcsv-pricing';
+type StoredLink = { source_card_id: string; source_set_id: string | null };
+
+/** A catalog card with the TCGplayer ids we hold for it: our stored link first, then TCGdex's own ids. */
+export function tcgplayerCard(
+  card: Omit<TcgplayerCard, 'known' | 'knownGroup'> & { external_ids_json: unknown },
+  link: StoredLink | undefined,
+): TcgplayerCard {
+  const known = [
+    ...new Set([
+      ...(link ? [link.source_card_id] : []),
+      ...pickTcgplayerProductIdsFromExternalIds(card.external_ids_json),
+    ]),
+  ];
+  const knownGroup = Number(link?.source_set_id);
+  return {
+    id: card.id,
+    set_id: card.set_id,
+    local_id: card.local_id,
+    name_en: card.name_en,
+    ...(known.length ? { known } : {}),
+    ...(Number.isSafeInteger(knownGroup) && knownGroup > 0 ? { knownGroup } : {}),
+  };
+}
+
+/** Links to store for matched cards that have none yet. An existing link is never replaced. */
+export function newTcgplayerLinks(
+  matches: ReadonlyMap<string, TcgplayerMatch>,
+  linked: ReadonlySet<string>,
+): Array<StoredLink & { card_id: string; source: typeof TCGPLAYER_LINK_SOURCE; raw_json: Record<string, never> }> {
+  return [...matches].flatMap(([cardId, match]) =>
+    linked.has(cardId)
+      ? []
+      : [
+          {
+            card_id: cardId,
+            source: TCGPLAYER_LINK_SOURCE,
+            source_card_id: String(match.productId),
+            source_set_id: String(match.groupId),
+            raw_json: {},
+          },
+        ],
+  );
 }

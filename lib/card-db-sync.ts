@@ -6,7 +6,13 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Client } from 'pg';
 import { inferDexIdsFromCardName } from './card-dex-inference';
-import { applyTcgplayerVariants, fetchTcgplayerVariants } from './tcgplayer-variants';
+import {
+  applyTcgplayerVariants,
+  fetchTcgplayerVariants,
+  newTcgplayerLinks,
+  TCGPLAYER_LINK_SOURCE,
+  tcgplayerCard,
+} from './tcgplayer-variants';
 import { mapWithConcurrency } from './card-db-sync-concurrency';
 import type { CardImageMirror } from './card-image-blob';
 import {
@@ -63,7 +69,7 @@ export type MirrorCardRow = {
 
 export type MirrorCardExternalSourceRow = {
   card_id: string;
-  source: 'pokemon_tcg' | 'tcgcsv';
+  source: 'pokemon_tcg' | 'tcgcsv' | typeof TCGPLAYER_LINK_SOURCE;
   source_card_id: string;
   source_set_id: string | null;
   raw_json: JsonObject;
@@ -1366,9 +1372,23 @@ export async function upsertRestSetPayload(
   logger?: (message: string) => void,
   manageTransaction = true,
 ) {
-  // Fetched before the transaction opens; an unreachable TCGCSV leaves the stored evidence in place (below).
-  const variants = await fetchTcgplayerVariants(payload.sets, payload.cards, logger);
-  payload = { ...payload, cards: payload.cards.map((card) => applyTcgplayerVariants(card, variants.get(card.id))) };
+  // Fetched before the transaction opens; an unreachable TCGCSV leaves the stored evidence in place (below). Cards
+  // are matched by the TCGplayer ids we already hold first; a new match is stored as the card's link.
+  const stored = await client.query<{ card_id: string; source_card_id: string; source_set_id: string | null }>(
+    'select card_id, source_card_id, source_set_id from public.tcg_card_external_sources where source = $1 and card_id = any($2::text[])',
+    [TCGPLAYER_LINK_SOURCE, payload.cards.map((card) => card.id)],
+  );
+  const links = new Map(stored.rows.map((row) => [row.card_id, row]));
+  const tcgplayer = await fetchTcgplayerVariants(
+    payload.sets,
+    payload.cards.map((card) => tcgplayerCard(card, links.get(card.id))),
+    logger,
+  );
+  payload = {
+    ...payload,
+    cards: payload.cards.map((card) => applyTcgplayerVariants(card, tcgplayer.matches.get(card.id)?.variants)),
+    externalSources: [...payload.externalSources, ...newTcgplayerLinks(tcgplayer.matches, new Set(links.keys()))],
+  };
   if (manageTransaction) await client.query('BEGIN');
   try {
     await insertJsonBatch(
