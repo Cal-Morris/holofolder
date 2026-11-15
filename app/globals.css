@@ -999,6 +999,10 @@ html[data-binder-motion]::view-transition-new(binder-content) {
 [data-overlay-backdrop] {
   overscroll-behavior: none;
 }
+/* useOverlay focuses the sheet itself on open; the container needs no ring (its controls keep theirs). */
+[role='dialog']:focus {
+  outline: none;
+}
 /* While a sheet is open the page behind it stays put. */
 html[data-scroll-locked],
 html[data-scroll-locked] body {
