@@ -14,6 +14,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useCards, type TCGCard, type CardFilters, type CardLanguage } from '@/hooks/use-cards';
 import type { CardFinish } from '@/lib/domain/cards';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/toast';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { useCardSearch } from '@/hooks/use-card-search';
 import { buildOfflineCardIndex } from '@/lib/offline-card-index';
@@ -117,6 +118,8 @@ interface CardSelectorProps {
     /** Pick several cards at once for the empty pockets on this page (`room` of them). */
     many?: {
       room: number;
+      /** Free pockets left once these picks are placed as the save places them; null when they don't all fit. */
+      freeLeft: (picks: CardSelectorPick[]) => number | null;
       busy: boolean;
       error: string | null;
       onAdd: (picks: CardSelectorPick[]) => void;
@@ -401,7 +404,7 @@ export default function CardSelector({
         scanLabel: 'Scan card',
         emptyActionLabel: 'Mark owned without card',
         helper: 'Saves this printing as the card you own in this slot.',
-        searchPlaceholder: anyCard ? 'Search name, set or number' : 'Search name or number',
+        searchPlaceholder: anyCard ? 'Search name, set, number or artist' : 'Search name or number',
         currentLabel: 'Current card',
         activeClass:
           'border-emerald-400/55 bg-emerald-400/14 text-emerald-700 shadow-[0_10px_24px_-18px_rgba(52,211,153,0.85)] dark:text-emerald-300',
@@ -420,6 +423,14 @@ export default function CardSelector({
   const [several, setSeveral] = useState(false);
   const [picks, setPicks] = useState<CardSelectorPick[]>([]);
   const room = native?.many?.room ?? 0;
+  const freeLeft = native?.many?.freeLeft;
+  const pageFull = several && picks.length > 0 && freeLeft?.(picks) === 0;
+  /** Whether one more card fits on the page beside the current picks. */
+  const fits = useCallback(
+    (card: TCGCard, finish?: CardFinish) => (freeLeft?.([...picks, { card, finish }]) ?? null) !== null,
+    [freeLeft, picks],
+  );
+  const sayPageFull = useCallback(() => toast('This page is full. Remove a pick to choose another.', 'error'), []);
   const selectCard = useCallback(
     (card: TCGCard, finish?: CardFinish, many = several) => {
       if (native) {
@@ -427,8 +438,10 @@ export default function CardSelector({
           card: isAnyCard ? card : { ...card, language: fixedLanguage ?? card.language },
           finish: finish ?? recordedFinish ?? undefined,
         };
-        if (many) setPicks((current) => (current.length < room ? [...current, pick] : current));
-        else native.onPick(pick.card, pick.finish);
+        if (many) {
+          if (fits(pick.card, pick.finish)) setPicks((current) => [...current, pick]);
+          else sayPageFull();
+        } else native.onPick(pick.card, pick.finish);
         return;
       }
       completeCardSelectorSelection({
@@ -437,7 +450,19 @@ export default function CardSelector({
           onSelect({ ...card, language: fixedLanguage ?? card.language }, selectionMode, finish ?? finishFor(card)),
       });
     },
-    [finishFor, isAnyCard, native, onClose, onSelect, recordedFinish, room, fixedLanguage, selectionMode, several],
+    [
+      finishFor,
+      isAnyCard,
+      native,
+      onClose,
+      onSelect,
+      recordedFinish,
+      fixedLanguage,
+      selectionMode,
+      several,
+      fits,
+      sayPageFull,
+    ],
   );
   const [pendingCard, setPendingCard] = useState<TCGCard | null>(null);
   const pendingSnapshot = pendingCard
@@ -459,7 +484,10 @@ export default function CardSelector({
         setPicks((current) => current.filter((pick) => pick.card.id !== card.id));
         return;
       }
-      if (many && picks.length >= room) return;
+      if (many && !fits(card, recordedFinish ?? undefined)) {
+        sayPageFull();
+        return;
+      }
       if (
         getCardPickerFinishChoices(
           card.variants,
@@ -473,7 +501,7 @@ export default function CardSelector({
       }
       selectCard(card, undefined, many);
     },
-    [selectCard, variantChoice, pricesByCardId, priceLanguage, several, picks, room],
+    [selectCard, variantChoice, pricesByCardId, priceLanguage, several, picks, fits, recordedFinish, sayPageFull],
   );
   /** Holding a card turns on Pick several with that card as the first pick (a page needs 2+ empty pockets). */
   const longPress = useLongPress();
@@ -678,6 +706,12 @@ export default function CardSelector({
   const uniqueRarities = useMemo(() => {
     return [...new Set(cards.flatMap((c) => (c.rarity ? [c.rarity] : [])))];
   }, [cards]);
+
+  const uniqueIllustrators = useMemo(
+    () =>
+      [...new Set(cards.flatMap((c) => (c.illustrator ? [c.illustrator] : [])))].toSorted((a, b) => a.localeCompare(b)),
+    [cards],
+  );
 
   const defaultLanguage = defaultCardLanguage ?? 'en';
   const activeFilterChips = useMemo(
@@ -1204,7 +1238,9 @@ export default function CardSelector({
                 </p>
                 <p className="text-muted-foreground truncate text-[11px]">
                   {several && (showingSuggestions || anyCardQuery.trim() || !anyCard)
-                    ? `${picks.length} of ${room} empty pocket${room === 1 ? '' : 's'} on this page`
+                    ? pageFull
+                      ? `Page full · ${picks.length} picked`
+                      : `${picks.length} of ${room} empty pocket${room === 1 ? '' : 's'} on this page`
                     : showingSuggestions
                       ? 'Suggested for this page'
                       : anyCard && !anyCardQuery.trim()
@@ -1424,6 +1460,9 @@ export default function CardSelector({
               rarity={filters.rarity}
               rarities={uniqueRarities}
               onRarityChange={(rarity) => setFilters((f) => ({ ...f, rarity }))}
+              illustrator={filters.illustrator}
+              illustrators={uniqueIllustrators}
+              onIllustratorChange={(illustrator) => setFilters((f) => ({ ...f, illustrator }))}
               resultCount={cards.length ? filteredCards.length : null}
               onReset={resetFilters}
               onClose={() => setIsFiltersOpen(false)}
@@ -1662,7 +1701,11 @@ export default function CardSelector({
                         }}
                         aria-label={`${isWishlistMode ? 'Want card' : several ? 'Pick card' : 'Add card'} ${card.name} from ${card.set.name}`}
                         aria-pressed={several ? pickNumber > 0 : undefined}
-                        className={`group/card bg-card focus-visible:ring-primary/70 relative flex flex-col justify-start overflow-hidden rounded-xl border-2 text-left transition-[background-color,border-color,transform,scale] select-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:outline-none sm:hover:scale-[1.03] ${
+                        // Still tappable when the page is full, so a tap explains why instead of doing nothing.
+                        aria-disabled={
+                          pageFull && !pickNumber && !fits(card, recordedFinish ?? undefined) ? true : undefined
+                        }
+                        className={`group/card bg-card focus-visible:ring-primary/70 relative flex flex-col justify-start overflow-hidden rounded-xl border-2 text-left transition-[background-color,border-color,transform,scale] select-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:outline-none aria-disabled:opacity-45 sm:hover:scale-[1.03] ${
                           isCurrent ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
                         }`}
                       >

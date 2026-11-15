@@ -156,6 +156,66 @@ test.describe('explicit stable-slot picker', () => {
     await harness.expectScrollUnlocked();
   });
 
+  test('a full page says so: cards that no longer fit dim and a tap explains instead of doing nothing', async ({
+    harness,
+  }) => {
+    const { page } = harness;
+    const dialog = await search(page, 'slot-g', 'synthetic');
+    await dialog.getByRole('button', { name: 'Pick several', exact: true }).click();
+    await dialog.getByRole('button', { name: /^Pick card Energy from / }).click();
+    await variant(page)
+      .getByRole('button', { name: /^Add Normal/ })
+      .click();
+    // Energy takes the only free pocket (the tapped one); the other two are kept for Snorlax and the Trainer.
+    await expect(dialog).toContainText('Page full · 1 picked');
+    const item = dialog.getByRole('button', { name: /^Pick card Item from / });
+    await expect(item).toHaveAttribute('aria-disabled', 'true');
+    await expect(dialog.getByRole('button', { name: /^Pick card Trainer from / })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    // Still tappable, so a tap explains why (aria-disabled only dims it).
+    await item.click({ force: true });
+    await expect(page.getByRole('status').filter({ hasText: 'This page is full' })).toBeVisible();
+    await expect(variant(page)).toHaveCount(0);
+    await expect(item).toHaveAttribute('aria-pressed', 'false');
+    await harness.expectNoHorizontalOverflow();
+  });
+
+  test('any-card search says it finds artists, the Artist filter narrows to one, and filters show before results', async ({
+    harness,
+  }) => {
+    const { page } = harness;
+    // Synthetic artist credits, alternating A and B.
+    const { cards } = syntheticSlotPickerSnapshot();
+    await page.route('**/app/api/tcg-card-search**', (route) =>
+      route.fulfill({
+        json: {
+          cards: cards.map((c, i) => ({ ...c, illustrator: i % 2 ? 'Synthetic Artist B' : 'Synthetic Artist A' })),
+        },
+      }),
+    );
+    await pocket(page, 'slot-g').click();
+    const dialog = selector(page);
+    const box = dialog.getByRole('searchbox', { name: 'Search cards' });
+    await expect(box).toHaveAttribute('placeholder', 'Search name, set, number or artist');
+    const filters = sheet(page, 'Filters and sort');
+    await dialog.getByRole('button', { name: /filters · sort/i }).click();
+    for (const name of ['Set', 'Rarity', 'Artist'])
+      await expect(filters.getByRole('combobox', { name, exact: true })).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await expect(filters).toHaveCount(0);
+    await box.fill('synthetic');
+    await expect(tile(dialog, 'Snorlax B')).toBeVisible();
+    await dialog.getByRole('button', { name: /filters · sort/i }).click();
+    await filters.getByRole('combobox', { name: 'Artist', exact: true }).selectOption('Synthetic Artist A');
+    await filters.getByRole('button', { name: /^Show \d+ cards?$/ }).click();
+    await expect(dialog.getByRole('list', { name: 'Active filters' })).toContainText('Synthetic Artist A');
+    await expect(tile(dialog, 'Snorlax A')).toBeVisible();
+    await expect(tile(dialog, 'Snorlax B')).toHaveCount(0);
+    await harness.expectNoHorizontalOverflow();
+  });
+
   test('holding a card turns on Pick several with it picked, and picks survive a new search', async ({ harness }) => {
     const { page } = harness;
     const dialog = await search(page, 'slot-g', 'energy');
@@ -165,7 +225,8 @@ test.describe('explicit stable-slot picker', () => {
       .getByRole('button', { name: /^Add Normal/ })
       .click();
     await expect(dialog.getByRole('button', { name: 'Pick one', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(dialog).toContainText('1 of 3 empty pockets on this page');
+    // Energy took the only free pocket; the Trainer still fits the pocket kept for it.
+    await expect(dialog).toContainText('Page full · 1 picked');
     await dialog.getByRole('searchbox', { name: 'Search cards' }).fill('trainer');
     await dialog.getByRole('button', { name: /^Pick card Trainer from / }).click();
     await variant(page)

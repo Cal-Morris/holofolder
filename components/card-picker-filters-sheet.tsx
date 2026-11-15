@@ -29,6 +29,10 @@ interface CardPickerFiltersSheetProps {
   rarity?: string;
   rarities: string[];
   onRarityChange: (rarity: string | undefined) => void;
+  /** Artist filter; left out where artists are chosen another way. */
+  illustrator?: string;
+  illustrators?: string[];
+  onIllustratorChange?: (illustrator: string | undefined) => void;
   /** Cards the filters leave, or null before there are any results to filter (no search yet). */
   resultCount: number | null;
   onReset: () => void;
@@ -36,6 +40,24 @@ interface CardPickerFiltersSheetProps {
 }
 
 const selectClass = 'w-full';
+
+type CatalogFilter = 'set' | 'rarity' | 'illustrator';
+const CATALOG_FILTERS: Array<{ key: CatalogFilter; label: string; all: string }> = [
+  { key: 'set', label: 'Set', all: 'All sets' },
+  { key: 'rarity', label: 'Rarity', all: 'All rarities' },
+  { key: 'illustrator', label: 'Artist', all: 'All artists' },
+];
+
+function optionsFor(props: CardPickerFiltersSheetProps, key: CatalogFilter) {
+  if (key === 'set') return props.sets;
+  return (key === 'rarity' ? props.rarities : (props.illustrators ?? [])).map((name) => ({ id: name, name }));
+}
+
+function onCatalogChange(props: CardPickerFiltersSheetProps, key: CatalogFilter, value: string | undefined) {
+  if (key === 'set') props.onSetChange(value);
+  else if (key === 'rarity') props.onRarityChange(value);
+  else props.onIllustratorChange?.(value);
+}
 
 function chipClass(selected: boolean) {
   return `flex h-9 shrink-0 items-center rounded-full border px-3 text-xs font-semibold transition-colors ${
@@ -46,16 +68,12 @@ function chipClass(selected: boolean) {
 }
 
 /**
- * The card picker's filter and sort sheet: sort, card language, variant, Pokémon (any-card search), set and rarity in one place,
+ * The card picker's filter and sort sheet: sort, card language, variant, Pokémon (any-card search), set, rarity and artist in one place,
  * so the picker itself can open straight onto search and cards. Built on the shared overlay primitive
  * (Escape/back closes it, focus is trapped and returned).
  */
 export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProps) {
   const { onClose } = props;
-  // Set and rarity options come from the loaded results, so hide a picker with nothing to choose.
-  const showSets = props.sets.length > 1 || Boolean(props.set);
-  const showRarities = props.rarities.length > 1 || Boolean(props.rarity);
-
   return (
     <OverlayDialog
       onClose={onClose}
@@ -168,46 +186,32 @@ export default function CardPickerFiltersSheet(props: CardPickerFiltersSheetProp
           </label>
         )}
 
-        {(showSets || showRarities) && (
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(0,1fr))] gap-2">
-            {showSets && (
-              <label className="block min-w-0 space-y-1.5">
-                <span className="text-muted-foreground text-xs font-semibold">Set</span>
+        <div className="grid grid-cols-2 gap-2">
+          {(props.onIllustratorChange ? CATALOG_FILTERS : CATALOG_FILTERS.slice(0, 2)).map(({ key, label, all }) => {
+            const value = props[key];
+            const options = optionsFor(props, key);
+            return (
+              <label key={key} className={`block min-w-0 space-y-1.5 ${key === 'illustrator' ? 'col-span-2' : ''}`}>
+                <span className="text-muted-foreground text-xs font-semibold">{label}</span>
                 <Select
-                  aria-label="Set"
+                  aria-label={label}
                   className={selectClass}
-                  value={props.set ?? ''}
-                  onChange={(event) => props.onSetChange(event.target.value || undefined)}
+                  // Options come from the loaded results: before a search there is nothing to choose yet.
+                  disabled={!options.length && !value}
+                  value={value ?? ''}
+                  onChange={(event) => onCatalogChange(props, key, event.target.value || undefined)}
                 >
-                  <option value="">All sets</option>
-                  {props.sets.map((set) => (
-                    <option key={set.id} value={set.id}>
-                      {set.name}
+                  <option value="">{all}</option>
+                  {options.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
                     </option>
                   ))}
                 </Select>
               </label>
-            )}
-            {showRarities && (
-              <label className="block min-w-0 space-y-1.5">
-                <span className="text-muted-foreground text-xs font-semibold">Rarity</span>
-                <Select
-                  aria-label="Rarity"
-                  className={selectClass}
-                  value={props.rarity ?? ''}
-                  onChange={(event) => props.onRarityChange(event.target.value || undefined)}
-                >
-                  <option value="">All rarities</option>
-                  {props.rarities.map((rarity) => (
-                    <option key={rarity} value={rarity}>
-                      {rarity}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-            )}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
 
       <div className="mt-2 grid shrink-0 grid-cols-[auto_minmax(0,1fr)] gap-2">
