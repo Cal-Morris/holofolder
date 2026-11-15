@@ -13,6 +13,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useCards, type TCGCard, type CardFilters, type CardLanguage } from '@/hooks/use-cards';
 import type { CardFinish } from '@/lib/domain/cards';
 import { Button } from '@/components/ui/button';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { toast } from '@/components/ui/toast';
 import { INVENTORY_LIMITS } from '@/lib/domain/inventory-commands';
 import { pickAllCards } from '@/lib/card-picker-pick-all';
@@ -1196,8 +1197,8 @@ export default function CardSelector({
                   {several && (showingSuggestions || anyCardQuery.trim() || !anyCard)
                     ? pickCounter(picks.length, room, placed, atCap)
                     : showingSuggestions
-                      ? suggestions.scope === 'page'
-                        ? 'Suggested for this page'
+                      ? suggestions.canUsePage
+                        ? 'Suggested cards'
                         : 'Suggested for this binder'
                       : anyCard && !anyCardQuery.trim()
                         ? 'Any card, Trainer or Energy'
@@ -1328,30 +1329,14 @@ export default function CardSelector({
               </div>
               <CardResultsFiltersButton activeCount={activeFilterChips.length} onOpen={() => setIsFiltersOpen(true)} />
             </div>
-            {showingSuggestions && (
-              <div role="radiogroup" aria-label="Suggest from" className="mt-2 flex gap-1.5">
-                {(
-                  [
-                    ['page', 'This page'],
-                    ['binder', 'Whole binder'],
-                  ] as const
-                ).map(([scope, label]) => {
-                  const active = suggestions.scope === scope;
-                  return (
-                    <button
-                      key={scope}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      disabled={scope === 'page' && !suggestions.canUsePage}
-                      onClick={() => suggestions.setScope(scope)}
-                      className={`flex h-9 shrink-0 items-center rounded-full border px-3.5 text-xs font-semibold disabled:opacity-40 ${active ? 'border-primary/40 bg-primary/15 text-primary' : 'border-border/70 bg-card'}`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
+            {showingSuggestions && suggestions.canUsePage && (
+              <SegmentedControl
+                value={suggestions.scope}
+                options={SUGGESTION_SCOPES}
+                onChange={suggestions.setScope}
+                label="Suggest from"
+                className="mt-2"
+              />
             )}
 
             <ActiveFilterChips
@@ -1708,6 +1693,11 @@ export default function CardSelector({
     </>
   );
 }
+
+const SUGGESTION_SCOPES = [
+  { value: 'page', label: 'This page' },
+  { value: 'binder', label: 'Whole binder' },
+] as const;
 
 /** Most cards one Pick several save takes: one storage command per card. */
 const MAX_PICKS = INVENTORY_LIMITS.commands;
