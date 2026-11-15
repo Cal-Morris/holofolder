@@ -51,7 +51,9 @@ test('lifetime plan shows permanent access without purchase or billing controls'
 test('free plan shows both approved prices and the total card allowance', () => {
   const html = render('free');
   assert.match(html, /£3.99 \/ month/);
-  assert.match(html, /£34.99 \/ year, save £12.89/);
+  assert.match(html, /£34.99 \/ year/);
+  assert.match(html, /Save £12.89 on monthly/);
+  assert.match(html, /Upgrade to Premium/);
   assert.match(html, /10 of 100 free entries/);
   assert.match(html, /1 free binder/);
 });
@@ -82,15 +84,15 @@ test('trial explains its expiry and no automatic charge, with optional purchase 
 });
 
 test('lifetime is offered next to monthly and annual only once its price is configured', () => {
-  assert.match(render('free'), /£79.00 once, lifetime access/);
-  assert.doesNotMatch(render('free', true, false, 100, {}), /lifetime access/);
+  assert.match(render('free'), /£79.00 once/);
+  assert.doesNotMatch(render('free', true, false, 100, {}), /£79/);
 });
 test('owners who already have lifetime are not offered it again', () => {
   assert.doesNotMatch(render('perpetual'), /£79/);
 });
 test('subscribers can buy lifetime and are told to cancel their subscription themselves', () => {
   const html = render('subscription');
-  assert.match(html, /£79.00 once, lifetime access/);
+  assert.match(html, /£79.00 once/);
   assert.match(html, /doesn&#x27;t cancel your subscription/);
   assert.match(
     render('perpetual', true, true, 100, { subscriptionActive: true }),
@@ -102,15 +104,19 @@ const duringOffer = Date.parse('2026-12-31T23:59:59Z');
 test('during the launch offer the plan picker shows offer price, renewal price and end date', () => {
   const html = render('free', true, false, 100, { lifetimeAvailable: true }, duringOffer);
   assert.match(html, /Launch offer: 50% off, ends 31 December 2026/);
-  assert.match(html, /£2.00 a month for 3 months, then £3.99 a month/);
-  assert.match(html, /£17.50 for your first year, then £34.99 a year/);
-  assert.match(html, /£39.50 until 31 December, then £79</);
+  assert.match(html, /£2.00 \/ month/);
+  assert.match(html, /For 3 months, then £3.99 a month/);
+  assert.match(html, /£17.50 first year/);
+  assert.match(html, /Then £34.99 a year/);
+  assert.match(html, /£39.50 once/);
+  assert.match(html, /until 31 December, then £79</);
   assert.match(html, /Have a creator code\?/);
   assert.doesNotMatch(html, /was|<s>|line-through/);
 });
 test('subscribers see the lifetime launch offer', () => {
   const html = render('subscription', true, false, 100, { lifetimeAvailable: true }, duringOffer);
-  assert.match(html, /£39.50 until 31 December, then £79/);
+  assert.match(html, /£39.50 once/);
+  assert.match(html, /Buy lifetime/);
   assert.doesNotMatch(html, /£2.00/);
 });
 test('after the end date the normal prices return with no offer copy', () => {

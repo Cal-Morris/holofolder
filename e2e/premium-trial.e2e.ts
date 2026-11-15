@@ -2,7 +2,9 @@ import { test, expect, E2E_USER, openSettingsPage } from './fixtures';
 
 test.use({ signedIn: true });
 
-test('signup trial shows its terms and expires offline without losing the collection', async ({ harness }) => {
+test('@matrix signup trial shows its terms and expires offline without losing the collection', async ({
+  harness,
+}, info) => {
   const { page } = harness;
   // Synthetic account entitlement, no payment provider or real database requests.
   const trialEndsAt = new Date(Date.now() + 60_000).toISOString();
@@ -27,21 +29,25 @@ test('signup trial shows its terms and expires offline without losing the collec
     }),
   );
   await page.evaluate(() => window.dispatchEvent(new Event('holofolder-refresh-billing')));
-  await page.getByTestId('app-header').getByRole('button', { name: 'More', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Settings' }).click();
+  // Free and trial owners get a standing Upgrade button in the header, straight to Plan & billing.
+  const upgrade = page.getByTestId('header-upgrade');
+  await page.getByTestId('app-header').screenshot({ path: `test-results/header/${info.project.name}.png` });
+  await harness.expectMinTapTarget(upgrade);
+  await harness.expectHittable(upgrade);
+  await upgrade.click();
   const dialog = page.getByRole('dialog', { name: /settings/i });
-  await dialog.getByRole('button', { name: 'Account', exact: true }).click();
   const plan = dialog.getByRole('region', { name: 'Holo Folder plan' });
   await expect(plan.getByRole('heading', { name: '7-day Premium trial' })).toBeVisible();
   await expect(plan).toContainText('No payment details needed');
   await expect(plan).toContainText("you won't be charged automatically");
   await expect(plan.getByRole('button', { name: 'Manage billing', exact: true })).toHaveCount(0);
-  const monthly = plan.getByRole('button', { name: '£3.99 / month', exact: true });
+  const monthly = plan.getByRole('button', { name: /\/ month/ });
   await monthly.scrollIntoViewIfNeeded();
   await harness.expectMinTapTarget(monthly);
   await harness.expectWithinSafeViewport(monthly);
   await harness.expectHittable(monthly);
   await harness.expectNoHorizontalOverflow();
+  await plan.screenshot({ path: `test-results/plan/${info.project.name}.png` });
 
   await page.context().setOffline(true);
   await page.clock.setSystemTime(new Date(Date.parse(trialEndsAt) + 1));

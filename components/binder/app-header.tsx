@@ -89,6 +89,8 @@ export interface AppHeaderContext {
   onNationalDex?: () => void;
   /** Native binder: print its empty wanted pockets as card-sized placeholders. */
   onPrintWanted?: () => void;
+  /** Free and trial owners: opens Settings → Plan & billing. */
+  onUpgrade?: () => void;
   /** Native binder: the header's 2D/3D toggle (guests keep it in the View sheet). */
   onToggle3d?: () => void;
   setIsAuthOpen: Dispatch<SetStateAction<boolean>>;
@@ -211,6 +213,7 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             </button>
           ) : (
             // Brand is home: back to this scope's binder (a share stays in its own read-only binder).
+            // With Upgrade in the row, phones keep only the mark (and give that up first on the narrowest screens).
             <div className={`flex min-w-0 flex-1 ${readOnlyMode ? '' : 'xl:flex-none'}`}>
               <button
                 type="button"
@@ -226,9 +229,11 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
                   width={20}
                   height={20}
                   unoptimized
-                  className={`h-5 w-5 shrink-0 ${readOnlyMode && !ctx.user ? 'max-[389px]:hidden' : ''}`}
+                  className={`h-5 w-5 shrink-0 object-contain ${readOnlyMode && !ctx.user ? 'max-[389px]:hidden' : ''}`}
                 />
-                <span className="truncate text-sm font-semibold">Holo Folder</span>
+                <span className={`truncate text-sm font-semibold ${ctx.onUpgrade ? 'max-md:hidden' : ''}`}>
+                  Holo Folder
+                </span>
               </button>
             </div>
           )}
@@ -345,6 +350,16 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
             >
               <SlidersHorizontal className="h-4 w-4" aria-hidden />
               <span className={ctx.user ? undefined : 'hidden md:inline'}>View</span>
+            </Button>
+          )}
+          {ctx.onUpgrade && !isShowModeOn && (
+            <Button
+              type="button"
+              data-testid="header-upgrade"
+              className="h-9 shrink-0 rounded-xl px-1.5 text-xs md:px-2"
+              onClick={ctx.onUpgrade}
+            >
+              Upgrade
             </Button>
           )}
           {!ctx.user ? (

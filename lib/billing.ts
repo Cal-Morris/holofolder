@@ -29,14 +29,32 @@ export function launchOfferCoupon(plan: BillingPlan, wantsPromotionCode: boolean
   if (!launchOfferActive(now) || (wantsPromotionCode && plan !== 'year')) return null;
   return LAUNCH_OFFER.coupon[plan];
 }
-/** The single wording used everywhere in the app for each plan while the offer runs. */
-export function launchOfferText(plan: BillingPlan) {
-  const offer = billingAmount(LAUNCH_OFFER.price[plan]);
+/**
+ * The single wording for each plan in the plan picker: the price people pay now as the title, and what it renews at
+ * (or what it buys) as the detail. `discounted` is whether the launch coupon applies to this Checkout.
+ */
+export function planChoice(plan: BillingPlan, discounted: boolean) {
+  if (discounted) {
+    const offer = billingAmount(LAUNCH_OFFER.price[plan]);
+    if (plan === 'month')
+      return {
+        title: `${offer} / month`,
+        detail: `For ${LAUNCH_OFFER.monthlyMonths} months, then ${billingAmount(BILLING_PRICES.month)} a month`,
+      };
+    if (plan === 'year')
+      return { title: `${offer} first year`, detail: `Then ${billingAmount(BILLING_PRICES.year)} a year` };
+    return {
+      title: `${offer} once`,
+      detail: `Lifetime access, until 31 December, then £${BILLING_LIFETIME_PRICE / 100}`,
+    };
+  }
+  if (plan === 'month') return { title: `${billingAmount(BILLING_PRICES.month)} / month`, detail: 'Billed monthly' };
   if (plan === 'year')
-    return `Launch offer: ${offer} for your first year, then ${billingAmount(BILLING_PRICES.year)} a year`;
-  if (plan === 'month')
-    return `Launch offer: ${offer} a month for ${LAUNCH_OFFER.monthlyMonths} months, then ${billingAmount(BILLING_PRICES.month)} a month`;
-  return `Launch offer: ${offer} until 31 December, then £${BILLING_LIFETIME_PRICE / 100}`;
+    return {
+      title: `${billingAmount(BILLING_PRICES.year)} / year`,
+      detail: `Save ${billingAmount(BILLING_ANNUAL_SAVING)} on monthly`,
+    };
+  return { title: `${billingAmount(BILLING_LIFETIME_PRICE)} once`, detail: 'Lifetime access, no subscription' };
 }
 /** `free_card_limit` value meaning the free plan has no saved-entry cap (migration 129). */
 export const UNLIMITED_FREE_CARD_LIMIT = 2_147_483_647;
