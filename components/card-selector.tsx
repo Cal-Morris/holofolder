@@ -15,6 +15,7 @@ import { useCards, type TCGCard, type CardFilters, type CardLanguage } from '@/h
 import type { CardFinish } from '@/lib/domain/cards';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
+import { INVENTORY_LIMITS } from '@/lib/domain/inventory-commands';
 import { useOverlay, useSwipeToDismiss } from '@/hooks/use-overlay';
 import { useCardSearch } from '@/hooks/use-card-search';
 import { buildOfflineCardIndex } from '@/lib/offline-card-index';
@@ -115,11 +116,14 @@ interface CardSelectorProps {
    */
   native?: {
     onPick: (card: TCGCard & { dexIds?: number[] }, finish: CardFinish | undefined) => void;
-    /** Pick several cards at once for the empty pockets on this page (`room` of them). */
+    /** Pick several cards at once: this page's empty pockets (`room` of them) first, then the following pages. */
     many?: {
       room: number;
-      /** Free pockets left once these picks are placed as the save places them; null when they don't all fit. */
-      freeLeft: (picks: CardSelectorPick[]) => number | null;
+      /**
+       * Where these picks go, placed as the save places them: how many land on this page, and whether no free pocket is
+       * left for another card. Null when they don't all fit.
+       */
+      place: (picks: CardSelectorPick[]) => { onPage: number; full: boolean } | null;
       busy: boolean;
       error: string | null;
       onAdd: (picks: CardSelectorPick[]) => void;
@@ -423,14 +427,26 @@ export default function CardSelector({
   const [several, setSeveral] = useState(false);
   const [picks, setPicks] = useState<CardSelectorPick[]>([]);
   const room = native?.many?.room ?? 0;
-  const freeLeft = native?.many?.freeLeft;
-  const pageFull = several && picks.length > 0 && freeLeft?.(picks) === 0;
-  /** Whether one more card fits on the page beside the current picks. */
+  const place = native?.many?.place;
+  const placed = several && picks.length > 0 ? place?.(picks) : undefined;
+  const atCap = picks.length >= MAX_PICKS;
+  const noRoom = several && (atCap || Boolean(placed?.full));
+  /** Whether one more card fits beside the current picks, within one save. */
   const fits = useCallback(
-    (card: TCGCard, finish?: CardFinish) => (freeLeft?.([...picks, { card, finish }]) ?? null) !== null,
-    [freeLeft, picks],
+    (card: TCGCard, finish?: CardFinish) =>
+      picks.length < MAX_PICKS && (place?.([...picks, { card, finish }]) ?? null) !== null,
+    [place, picks],
   );
-  const sayPageFull = useCallback(() => toast('This page is full. Remove a pick to choose another.', 'error'), []);
+  const sayPageFull = useCallback(
+    () =>
+      toast(
+        picks.length >= MAX_PICKS
+          ? `You can add up to ${MAX_PICKS} cards at a time.`
+          : 'No empty pocket left for this card. Remove a pick to choose another.',
+        'error',
+      ),
+    [picks.length],
+  );
   const selectCard = useCallback(
     (card: TCGCard, finish?: CardFinish, many = several) => {
       if (native) {
@@ -505,7 +521,7 @@ export default function CardSelector({
   );
   /** Holding a card turns on Pick several with that card as the first pick (a page needs 2+ empty pockets). */
   const longPress = useLongPress();
-  const canPickSeveral = Boolean(native?.many) && room > 1;
+  const canPickSeveral = Boolean(native?.many);
   const holdCard = useCallback(
     (card: TCGCard) => {
       // Picks are already empty while Pick several is off, so the held card becomes pick 1.
@@ -1236,11 +1252,9 @@ export default function CardSelector({
                 <p className={`truncate text-sm leading-tight font-semibold ${anyCard ? '' : 'capitalize'}`}>
                   {anyCard?.title ?? pokemonName}
                 </p>
-                <p className="text-muted-foreground truncate text-[11px]">
+                <p className="text-muted-foreground line-clamp-2 text-[11px]">
                   {several && (showingSuggestions || anyCardQuery.trim() || !anyCard)
-                    ? pageFull
-                      ? `Page full · ${picks.length} picked`
-                      : `${picks.length} of ${room} empty pocket${room === 1 ? '' : 's'} on this page`
+                    ? pickCounter(picks.length, room, placed, atCap)
                     : showingSuggestions
                       ? 'Suggested for this page'
                       : anyCard && !anyCardQuery.trim()
@@ -1703,7 +1717,7 @@ export default function CardSelector({
                         aria-pressed={several ? pickNumber > 0 : undefined}
                         // Still tappable when the page is full, so a tap explains why instead of doing nothing.
                         aria-disabled={
-                          pageFull && !pickNumber && !fits(card, recordedFinish ?? undefined) ? true : undefined
+                          noRoom && !pickNumber && !fits(card, recordedFinish ?? undefined) ? true : undefined
                         }
                         className={`group/card bg-card focus-visible:ring-primary/70 relative flex flex-col justify-start overflow-hidden rounded-xl border-2 text-left transition-[background-color,border-color,transform,scale] select-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:outline-none aria-disabled:opacity-45 sm:hover:scale-[1.03] ${
                           isCurrent ? intentSelectedCardClass : `border-transparent ${intentHoverCardClass}`
@@ -1837,9 +1851,7 @@ export default function CardSelector({
                 disabled={!picks.length || native.many.busy}
                 onClick={() => native.many?.onAdd(picks)}
               >
-                {picks.length
-                  ? `Add ${picks.length} card${picks.length === 1 ? '' : 's'} to this page`
-                  : 'Tap cards to pick them'}
+                {picks.length ? `Add ${picks.length} card${picks.length === 1 ? '' : 's'}` : 'Tap cards to pick them'}
               </Button>
             </div>
           )}
@@ -1847,4 +1859,23 @@ export default function CardSelector({
       </div>
     </>
   );
+}
+
+/** Most cards one Pick several save takes: one storage command per card. */
+const MAX_PICKS = INVENTORY_LIMITS.commands;
+
+/** e.g. "7 picked · 4 fit on this page, 3 go onto the next pages". */
+function pickCounter(
+  count: number,
+  room: number,
+  placed: { onPage: number; full: boolean } | null | undefined,
+  atCap: boolean,
+) {
+  const later = placed ? count - placed.onPage : 0;
+  const where =
+    later > 0 ? `${placed!.onPage} fit on this page, ${later} go${later === 1 ? 'es' : ''} onto the next pages` : null;
+  if (atCap) return `${count} picked · the most for one save${where ? ` · ${where}` : ''}`;
+  if (placed?.full) return `No room for more · ${count} picked`;
+  if (where) return `${count} picked · ${where}`;
+  return `${count} of ${room} empty pocket${room === 1 ? '' : 's'} on this page`;
 }

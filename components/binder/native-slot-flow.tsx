@@ -158,8 +158,8 @@ function PocketSelector({
             fill && !reserved
               ? {
                   room: fill.room,
-                  freeLeft: (picks) =>
-                    fill.freeLeft(
+                  place: (picks) =>
+                    fill.place(
                       slot.id,
                       picks.map(({ card, finish }) => ({ card: toSearchCard(card), finish })),
                     ),
@@ -185,7 +185,8 @@ function PocketSelector({
  */
 function usePageFill(boundary: SlotPickerBoundary, grid: PageGrid | undefined, onSaved: () => void) {
   const { snapshot, scope, catalog } = boundary;
-  const slots = snapshot.binders.find((b) => b.collectionId === scope.collectionId)?.slots ?? [];
+  const binder = snapshot.binders.find((b) => b.collectionId === scope.collectionId);
+  const slots = binder?.slots ?? [];
   const perPage = grid ? grid.rows * grid.cols : 0;
   const at = slots.findIndex((s) => s.id === scope.slotId);
   const first = at - (at % perPage);
@@ -221,17 +222,25 @@ function usePageFill(boundary: SlotPickerBoundary, grid: PageGrid | undefined, o
   }, onSaved);
   if (!view || !capture) return null;
   const room = view.pageSlotIds.filter((id) => slots.find((s) => s.id === id)?.inventoryItemId === null).length;
+  // Cards beyond the page flow onto the following pages: a custom binder adds free pockets at its end, a preset binder
+  // keeps its layout and only uses empty pockets it already has.
+  const overflow = binder?.presetManifest === null ? 'append' : 'following';
   /**
-   * Free pockets the page still has once these picks are placed exactly as a save would place them, or null when they
-   * don't all fit. Pockets kept for one card or Pokémon only take that card, so they never count as free.
+   * Where these picks go, placed exactly as a save would place them: how many land on this page, and whether no free
+   * pocket is left for another card. Null when they don't all fit. Pockets kept for one card or Pokémon only take that
+   * card, so they never count as free.
    */
-  const freeLeft = (startSlotId: string, picks: PagePick[]) => {
+  const place = (startSlotId: string, picks: PagePick[]) => {
     try {
-      const used = new Set(planPageFill(snapshot, view, startSlotId, picks).map((choice) => choice.slotId));
-      return view.pageSlotIds.filter((id) => {
-        const slot = slots.find((s) => s.id === id);
-        return slot?.inventoryItemId === null && slot.target === null && !used.has(id);
-      }).length;
+      const plan = planPageFill(snapshot, view, startSlotId, picks, overflow);
+      const used = new Set(plan.map((choice) => choice.slotId));
+      const freeLeft = slots.some(
+        (s, i) => i >= first && s.inventoryItemId === null && s.target === null && !used.has(s.id),
+      );
+      return {
+        onPage: plan.filter((choice) => choice.cellIndex !== undefined).length,
+        full: overflow === 'following' && !freeLeft,
+      };
     } catch {
       return null;
     }
@@ -242,7 +251,7 @@ function usePageFill(boundary: SlotPickerBoundary, grid: PageGrid | undefined, o
         snapshot,
         view,
         capture,
-        planPageFill(snapshot, view, startSlotId, picks),
+        planPageFill(snapshot, view, startSlotId, picks, overflow),
         {
           source: 'app',
           clientId: null,
@@ -259,13 +268,13 @@ function usePageFill(boundary: SlotPickerBoundary, grid: PageGrid | undefined, o
       setError(pageFillProblem(cause));
     }
   };
-  return { room, freeLeft, add, busy: acceptance.busy, error: error ?? acceptance.message };
+  return { room, place, add, busy: acceptance.busy, error: error ?? acceptance.message };
 }
 
 function pageFillProblem(cause: unknown) {
   const reason = cause instanceof Error ? cause.message : '';
-  if (reason === 'page-full')
-    return 'Not every card fits: some pockets on this page are kept for other cards. Pick fewer.';
+  if (reason === 'page-full' || reason === 'binder-full')
+    return 'Not every card fits: the empty pockets left are kept for other cards. Pick fewer.';
   if (reason === 'scan-stale') return 'This page changed. Close this and try again. Nothing was added.';
   if (reason.startsWith('raw-creation-unavailable') || reason === 'copy-choice-required')
     return 'You already have graded copies of one of these. Add that card on its own to choose which copy.';
