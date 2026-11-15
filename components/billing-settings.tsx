@@ -17,7 +17,7 @@ import { useTrackCollectorEvent } from '@/components/collector-funnel';
 export function BillingSettings({
   signedIn,
   onSignIn,
-  now = Date.now(),
+  now,
 }: {
   signedIn: boolean;
   onSignIn: () => void;
@@ -25,6 +25,8 @@ export function BillingSettings({
 }) {
   const billing = useBillingContext();
   const [withCode, setWithCode] = useState(false);
+  // Read once per mount; the server decides the real discount at checkout anyway.
+  const [mountedAt] = useState(() => Date.now());
   const track = useTrackCollectorEvent();
   const accountId =
     // oxlint-disable-next-line react-doctor/no-event-handler -- records that a free account viewed the plan, once it is known
@@ -34,10 +36,11 @@ export function BillingSettings({
   }, [accountId, track]);
   if (!billing) return null;
   const { access, busy } = billing;
-  const offer = launchOfferActive(now);
+  const at = now ?? mountedAt;
+  const offer = launchOfferActive(at);
   // The offer's own wording, minus the "Launch offer:" prefix the notice above the buttons already carries.
   const label = (plan: BillingPlan, normal: string) =>
-    launchOfferCoupon(plan, withCode, now) ? launchOfferText(plan).replace('Launch offer: ', '') : normal;
+    launchOfferCoupon(plan, withCode, at) ? launchOfferText(plan).replace('Launch offer: ', '') : normal;
   const offerButton = 'h-auto min-h-11 w-full py-2 whitespace-normal';
   const lifetimeButton = billing.lifetimeAvailable ? (
     <Button
