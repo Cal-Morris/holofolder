@@ -1,4 +1,5 @@
 import type { CardLanguage } from '@/lib/domain/cards';
+import type { PageArt } from '@/lib/page-art';
 import { binderPath, parseBinderPath } from '@/lib/binders/url';
 import {
   ACTIVE_BINDER_COOKIE,
@@ -100,6 +101,8 @@ export const bindersApi = {
   rename: (id: string, name: string) => request({ method: 'PATCH', body: JSON.stringify({ id, name }) }),
   setCardLanguages: (id: string, cardLanguages: readonly CardLanguage[]) =>
     request({ method: 'PATCH', body: JSON.stringify({ id, cardLanguages }) }),
+  setPageArt: (id: string, pageArt: readonly PageArt[]) =>
+    request({ method: 'PATCH', body: JSON.stringify({ id, pageArt }) }),
   reorder: (order: string[]) => request({ method: 'PATCH', body: JSON.stringify({ order }) }),
   remove: (id: string, confirmed: boolean) =>
     request({ method: 'DELETE', query: `?id=${encodeURIComponent(id)}${confirmed ? '&confirm=1' : ''}` }),

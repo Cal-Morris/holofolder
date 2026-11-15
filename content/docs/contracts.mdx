@@ -69,7 +69,7 @@ Private uploaded binder artwork lives in a separate private R2 bucket. Upload pr
 
 ## Safe writes
 
-`update_binder` takes a `name`, a `cardLanguages` list (for example `["en", "ja"]`) or both. `cardLanguages` sets which printings the binder's card lists show; a binder that never set it shows English only, and owned or wanted cards always show. Send at least one language.
+`update_binder` takes a `name`, a `cardLanguages` list (for example `["en", "ja"]`) or both. `cardLanguages` sets which printings the binder's card lists show; a binder that never set it shows English only, and owned or wanted cards always show. Send at least one language. It also takes `pageArt`, the binder's Michi method pictures; see [Page art](/docs/page-art).
 
 `set_binder_layout` changes a binder's rows × columns: review it with `dryRun: true`, then apply with the returned preconditions and an `operationId` (see [bulk layout](/docs/bulk-layout#api)). `move_binder_page` moves a whole full page to another page number in one request.
 

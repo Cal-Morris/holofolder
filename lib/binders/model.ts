@@ -1,6 +1,7 @@
 import { isBinderSlug } from '@/lib/binders/url';
 import { normalizeBinderCardLanguages } from '@/lib/card-languages';
 import type { CardLanguage } from '@/lib/domain/cards';
+import { normalizePageArt, type PageArt } from '@/lib/page-art';
 
 // Multiple binders: shared types and row mapping (see docs/multiple-binders.md).
 // Every binder is a full National Dex binder; slots (pokemon_collection rows) belong to one binder.
@@ -19,6 +20,8 @@ export interface Binder {
   cols: number | null;
   /** Card languages its "All cards" sheet shows; null (or missing before migration 115) means English only. */
   cardLanguages?: CardLanguage[] | null;
+  /** Michi method artworks behind its pockets (lib/page-art.ts); missing before migration 145 or on stale copies. */
+  pageArt?: PageArt[];
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -60,6 +63,7 @@ export function binderFromRow(row: Record<string, unknown>): Binder | null {
     rows: intOrNull(row.binder_rows),
     cols: intOrNull(row.binder_cols),
     cardLanguages: normalizeBinderCardLanguages(row.card_languages),
+    pageArt: normalizePageArt(row.page_art),
     createdAt: stringOrNull(row.created_at),
     updatedAt: stringOrNull(row.updated_at),
   };

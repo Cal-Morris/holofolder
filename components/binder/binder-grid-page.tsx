@@ -32,9 +32,14 @@ import {
   type SetStateAction,
 } from 'react';
 import type { BinderColorTheme } from '@/lib/binder-colors';
+import { layoutPageArt, type PageArt, type PageArtSource } from '@/lib/page-art';
+import { PageArtLayer } from '@/components/binder/page-art-layer';
 
 export interface BinderGridPageContext {
   displaySlots?: (page: number) => (BinderDisplaySlot | null)[];
+  /** Michi method page art for this binder, and the image each source shows (uploads are resolved by the host). */
+  pageArt?: readonly PageArt[];
+  pageArtImage?: (source: PageArtSource) => string | null | undefined;
   slotInteractionKey?: string;
   selectedSlotId?: string | null;
   onSelectSlot?: (id: string) => void;
@@ -254,6 +259,12 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
         pokemon ? adaptLegacyDisplaySlots('legacy', [pokemon], getCollectionItem)[0] : null,
       );
   const isActivePage = pageNumber === currentBinderPage;
+  const art = layoutPageArt(
+    ctx.pageArt ?? [],
+    pageSlots.map((slot) => slot?.id),
+    settings.binderRows,
+    settings.binderCols,
+  );
   const scrollable = settings.binderRows > 4 || settings.binderCols > 4;
 
   return (
@@ -305,6 +316,7 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
                 }),
           }}
         >
+          {ctx.pageArtImage && <PageArtLayer placed={art.placed} imageFor={ctx.pageArtImage} />}
           {pageSlots.map((displaySlot, index) => {
             const pokemon = displaySlot?.legacyPokemonId ? displaySlot.pokemon : null;
             const row = Math.floor(index / settings.binderCols);
@@ -334,9 +346,12 @@ export function renderBinderGridPageView(ctx: BinderGridPageContext, pageNumber:
                   imageSizes={binderSlotImageSizes}
                   glareStyle={slotGlareOverlayStyle}
                   glare={settings.binderSlotGlareEnabled}
+                  joined={art.covered.has(index)}
                 />
               );
 
+            if (!pokemon && art.covered.has(index))
+              return <div key={`slot-${pageNumber}-${index}`} aria-hidden className="relative h-full w-full" />;
             if (!pokemon) {
               return (
                 <div

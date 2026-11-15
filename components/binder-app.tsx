@@ -172,6 +172,9 @@ import { renderMobileSlotActionBarView } from '@/components/binder/mobile-slot-a
 import { renderSpreadInfoPageView } from '@/components/binder/spread-info-page';
 import { renderSpreadBlankPageView } from '@/components/binder/spread-blank-page';
 import { renderBinderGridPageView, useBinderSlotActions } from '@/components/binder/binder-grid-page';
+import { pageArtCatalogSrc, pageArtUploadIds, type PageArt, type PageArtSource } from '@/lib/page-art';
+import { usePageArtUploads } from '@/hooks/use-page-art-uploads';
+import { publicPageArtUrl } from '@/lib/public-binder';
 import {
   AuthModal,
   BinderSwitcherSheet,
@@ -236,6 +239,7 @@ const BrowserCollectionSession = dynamic(() => import('@/components/collection-n
 
 const NativeWantedEntries = dynamic(() => import('@/components/native-wanted-entries'), { loading: () => null });
 const PrintWantedSheet = dynamic(() => import('@/components/print-wanted-sheet'), { ssr: false });
+const PageArtSheet = dynamic(() => import('@/components/binder/page-art-sheet'), { ssr: false });
 const NativeCollectionAnalytics = dynamic(() => import('@/components/native-collection-analytics'), { ssr: false });
 
 const CollectionSlotList = dynamic(() => import('@/components/collection-navigation/slot-list'), { ssr: false });
@@ -272,6 +276,8 @@ interface BinderAppProps {
   readOnlyMode?: boolean;
   shareViewToken?: string | null;
   initialSharePath?: string | null;
+  /** A public share's page art (the owner's comes from the binder list). */
+  publicPageArt?: PageArt[];
   /** The owner's binders and the one this page shows (null before migration 039). */
   initialBinders?: Binder[];
   initialBinderId?: string | null;
@@ -307,6 +313,15 @@ const readStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches ||
   Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
 const readNotStandalone = () => false;
+
+const NO_PAGE_ART: PageArt[] = [];
+// The surface remounts on every view switch with the page's first binder list; keep edits made since then
+// (renames, card languages, page art) for the same owner.
+let latestBinders: Binder[] | null = null;
+function freshestBinders(initial: Binder[]) {
+  const owner = initial[0]?.ownerUserId;
+  return owner && latestBinders?.[0]?.ownerUserId === owner ? latestBinders : initial;
+}
 
 /** Authenticated lifetimes never mount the writable legacy collection hook. */
 // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent startup flags, each set from a different callback (session ready, displayed, startup failure); React batches them, a reducer would only add indirection
@@ -550,6 +565,7 @@ function BinderAppSurface(props: BinderAppProps) {
     initialSharePath = null,
     initialBinders = [],
     initialBinderId = null,
+    publicPageArt,
     // oxlint-disable-next-line react-doctor/no-event-handler -- attributed to destructured props that feed the page-from-URL, host page sync, layout reset, filter clamp and theme sync effects below, which react to data changes, not user events
   } = props;
   const publicIndex = stagedSlotDisplay && !browserSurface ? props.publicIndex : undefined;
@@ -591,7 +607,11 @@ function BinderAppSurface(props: BinderAppProps) {
   const [isPartnerOpen, setIsPartnerOpen] = useState(false);
   const [isPrintWantedOpen, setIsPrintWantedOpen] = useState(false);
   const [isBinderSwitcherOpen, setIsBinderSwitcherOpen] = useState(false);
-  const [binders, setBinders] = useState<Binder[]>(initialBinders);
+  const [binders, setBinders] = useState<Binder[]>(() => freshestBinders(initialBinders));
+  useEffect(() => {
+    latestBinders = binders;
+  }, [binders]);
+  const [pageArtSheet, setPageArtSheet] = useState<{ selection: readonly string[] } | null>(null);
   const activeBinder = binders.find((binder) => binder.id === initialBinderId) ?? null;
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isQuickModeOpen, setIsQuickModeOpen] = useState(false);
@@ -740,6 +760,20 @@ function BinderAppSurface(props: BinderAppProps) {
   const user = initialUser;
   const collection = useMemo(() => normalizeCollectionItems(initialCollection), [initialCollection]);
   const resolvedCollectionOwnerUserId = user ? initialCollectionOwnerUserId : null;
+  const pageArt = publicPageArt ?? activeBinder?.pageArt ?? NO_PAGE_ART;
+  const pageArtUploadUrls = usePageArtUploads(
+    publicPageArt ? null : resolvedCollectionOwnerUserId,
+    pageArtUploadIds(pageArt),
+  );
+  const pageArtImage = useCallback(
+    (source: PageArtSource) =>
+      source.kind !== 'upload'
+        ? pageArtCatalogSrc(source)
+        : publicPageArt
+          ? initialSharePath && publicPageArtUrl(initialSharePath, source.id)
+          : pageArtUploadUrls[source.id],
+    [publicPageArt, initialSharePath, pageArtUploadUrls],
+  );
   // Owned cards in the collection on screen, which decides whether Show sits in the header or in More.
   // A signed-in binder is native and its legacy rows are always empty, so it counts the occupied pockets
   // of the binder in view, or every owned card when there is no binder to look at.
@@ -1741,6 +1775,10 @@ function BinderAppSurface(props: BinderAppProps) {
         cols: settings.binderCols,
         page: currentBinderPage,
         onPage: setCurrentBinderPage,
+        onPageArt:
+          activeBinder && resolvedCollectionOwnerUserId && orderedDisplayPages
+            ? (selection) => setPageArtSheet({ selection })
+            : undefined,
       }}
       start={layoutSession?.start}
       onTap={registerLayoutTap}
@@ -4174,6 +4212,8 @@ function BinderAppSurface(props: BinderAppProps) {
       renderBinderGridPageView(
         {
           displaySlots: getDisplayPageSlots,
+          pageArt,
+          pageArtImage,
           slotInteractionKey: `${layoutScopeKey}:${layoutSession?.id ?? 'browse'}`,
           selectedSlotId: selectedSlotId ?? browserSurface?.surface.collection?.highlight?.slotId,
           onSelectSlot: editingLayout ? (id: string) => layoutTap.current?.(id) : setSelectedSlotId,
@@ -4883,6 +4923,23 @@ function BinderAppSurface(props: BinderAppProps) {
               onClose={closeBinderSwitcher}
             />
           )}
+          {pageArtSheet && activeBinder && resolvedCollectionOwnerUserId && getDisplayPageSlots ? (
+            <PageArtSheet
+              binderId={activeBinder.id}
+              owner={resolvedCollectionOwnerUserId}
+              page={currentBinderPage}
+              rows={settings.binderRows}
+              cols={settings.binderCols}
+              pageSlots={getDisplayPageSlots(currentBinderPage).map((slot) =>
+                slot ? { id: slot.id, filled: Boolean(slot.item) } : null,
+              )}
+              pageArt={pageArt}
+              initialSelection={pageArtSheet.selection}
+              imageFor={pageArtImage}
+              onSaved={setBinders}
+              onClose={() => setPageArtSheet(null)}
+            />
+          ) : null}
           {isPrintWantedOpen && browserSurface?.nativeConsumer ? (
             <PrintWantedSheet
               binding={browserSurface.nativeConsumer}

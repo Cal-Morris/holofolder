@@ -62,6 +62,33 @@ export async function fetchArtwork(owner: string, design: BinderDesign): Promise
   );
   return Object.fromEntries(entries);
 }
+/** Put one image in the owner's private artwork store (Studio surfaces and page art). A stored id is kept as is. */
+export async function uploadBinderArtwork(owner: string, id: string, blob: Blob) {
+  const response = await fetch('/app/api/binder-appearance/upload', {
+    method: 'POST',
+    credentials: 'same-origin',
+    signal: AbortSignal.timeout(15000),
+    headers: { 'Content-Type': 'application/json', 'X-Binder-Owner': owner },
+    body: JSON.stringify({ id, mimeType: blob.type, size: blob.size }),
+  });
+  const upload = (await responseData(response)) as {
+    exists?: boolean;
+    signedUploadUrl?: string;
+    headers?: Record<string, string>;
+  };
+  if (upload.exists) return;
+  if (!upload.signedUploadUrl || !upload.headers) throw new Error('Could not prepare the artwork upload.');
+  const result = await fetch(upload.signedUploadUrl, {
+    method: 'PUT',
+    headers: upload.headers,
+    body: blob,
+    credentials: 'omit',
+    signal: AbortSignal.timeout(15000),
+  });
+  // A lost acknowledgement can leave an immutable upload already in R2.
+  if (!result.ok && result.status !== 412)
+    throw new Error('Artwork upload failed. Your draft is saved on this device.');
+}
 export async function syncBinderAppearance(
   owner: string,
   snapshot: SavedBinderDesign,
@@ -69,31 +96,7 @@ export async function syncBinderAppearance(
   for (const id of binderArtworkIds(snapshot.design)) {
     const blob = snapshot.uploads[id];
     if (!blob) throw new Error('Artwork is missing. Re-upload it before saving.');
-    const response = await fetch('/app/api/binder-appearance/upload', {
-      method: 'POST',
-      credentials: 'same-origin',
-      signal: AbortSignal.timeout(15000),
-      headers: { 'Content-Type': 'application/json', 'X-Binder-Owner': owner },
-      body: JSON.stringify({ id, mimeType: blob.type, size: blob.size }),
-    });
-    const upload = (await responseData(response)) as {
-      exists?: boolean;
-      signedUploadUrl?: string;
-      headers?: Record<string, string>;
-    };
-    if (!upload.exists) {
-      if (!upload.signedUploadUrl || !upload.headers) throw new Error('Could not prepare the artwork upload.');
-      const result = await fetch(upload.signedUploadUrl, {
-        method: 'PUT',
-        headers: upload.headers,
-        body: blob,
-        credentials: 'omit',
-        signal: AbortSignal.timeout(15000),
-      });
-      // A lost acknowledgement can leave an immutable upload already in R2.
-      if (!result.ok && result.status !== 412)
-        throw new Error('Artwork upload failed. Your draft is saved on this device.');
-    }
+    await uploadBinderArtwork(owner, id, blob);
   }
   const response = await fetch('/app/api/binder-appearance', {
     method: 'PUT',
