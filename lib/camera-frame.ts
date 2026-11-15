@@ -76,8 +76,16 @@ async function canvasToJpegFile(canvas: HTMLCanvasElement, index: number) {
 
 /** Grabs the camera frame, cropped to the single-card guide, as a JPEG file and a data URL preview. */
 export async function captureSingleCardFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement, index: number) {
-  const previewWidth = Math.max(480, Math.round((video.clientWidth || 360) * 2));
-  const previewHeight = Math.max(820, Math.round((video.clientHeight || 640) * 2));
+  // As many pixels as the camera gives for what's on screen (at least 2× the screen), so the collector number stays
+  // readable; a 1080p stream on a phone gives about 3×.
+  const displayWidth = video.clientWidth || 360;
+  const displayHeight = video.clientHeight || 640;
+  const density = Math.max(
+    2,
+    Math.min((video.videoWidth || 0) / displayWidth, (video.videoHeight || 0) / displayHeight),
+  );
+  const previewWidth = Math.max(480, Math.round(displayWidth * density));
+  const previewHeight = Math.max(820, Math.round(displayHeight * density));
   canvas.width = previewWidth;
   canvas.height = previewHeight;
   const context = canvas.getContext('2d');

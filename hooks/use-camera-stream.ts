@@ -28,7 +28,12 @@ export function describeCameraError(error: unknown) {
  * Shared by the card selector's scanner and Show mode's Scan. `playsInline` + `muted` on the video
  * are what let iOS (including the installed app) play it without going full screen.
  */
-export function useCameraStream(active: boolean, videoRef: RefObject<HTMLVideoElement | null>): CameraStreamState {
+export function useCameraStream(
+  active: boolean,
+  videoRef: RefObject<HTMLVideoElement | null>,
+  /** The resolution to ask for; the browser falls back to what the camera supports. */
+  ideal: { width: number; height: number } = { width: 1920, height: 1080 },
+): CameraStreamState {
   const [state, setState] = useState<CameraStreamState>(IDLE);
 
   useEffect(() => {
@@ -46,8 +51,8 @@ export function useCameraStream(active: boolean, videoRef: RefObject<HTMLVideoEl
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: 'environment' },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
+            width: { ideal: ideal.width },
+            height: { ideal: ideal.height },
           },
           audio: false,
         });
@@ -78,7 +83,7 @@ export function useCameraStream(active: boolean, videoRef: RefObject<HTMLVideoEl
       }
       setState(IDLE);
     };
-  }, [active, videoRef]);
+  }, [active, videoRef, ideal.width, ideal.height]);
 
   return active ? state : IDLE;
 }

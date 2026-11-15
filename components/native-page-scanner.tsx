@@ -40,6 +40,12 @@ const pageProblem = (cause: unknown) =>
 
 type PageReview = { capture: ScanDestinationCapture; cells: ScanReviewCell[] };
 
+/**
+ * A page photo is cut into 9 to 16 cards, so ask for 4K: pockets are cut at the photo's own resolution, and on real
+ * binder pages a 2160 px wide frame reads about half again as many collector numbers as a 1080 px one.
+ */
+const PAGE_CAMERA_RESOLUTION = { width: 3840, height: 2160 };
+
 export default function NativePageScanner({
   admission,
   onClose,
@@ -54,7 +60,7 @@ export default function NativePageScanner({
   const [scan, send] = useMachine(pageScanTransition<PageReview>, AIMING_PAGE_SCAN as PageScanSession<PageReview>);
   const busy = scan.kind === 'capturing' || scan.kind === 'reading';
   const review = scan.kind === 'review' ? scan.review : null;
-  const camera = useCameraStream(!review, video);
+  const camera = useCameraStream(!review, video, PAGE_CAMERA_RESOLUTION);
   // Fetch the card text reader while the page is lined up, so reading the pockets doesn't wait on the download.
   useEffect(() => {
     void warmCardTextReader();
