@@ -62,9 +62,9 @@ async function record(page: Page) {
 const PRESETS = {
   blank: 'Blank',
   national: 'National Dex',
-  generation: 'A generation',
-  species: 'Pick Pokémon',
-  printings: 'Pick cards',
+  generation: 'One region',
+  species: 'Chosen Pokémon',
+  printings: 'Chosen cards',
   set: 'A set',
 } as const;
 type Mode = keyof typeof PRESETS;

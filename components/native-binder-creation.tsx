@@ -70,7 +70,7 @@ const choice =
   'rounded-2xl border border-border/60 bg-background/40 transition-[background-color,border-color,transform] duration-150 ease-out hover:border-primary/45 active:scale-[0.98] aria-pressed:border-primary/55 aria-pressed:bg-primary/10';
 const speciesName = (id: number) =>
   formatPokemonDisplayName(POKEMON_CATALOG.find((p) => p.id === id)?.name ?? `Pokémon ${id}`);
-/** Real catalog card images for the "A set" and "Pick cards" tiles until the person has chosen their own cards. */
+/** Real catalog card images for the "A set" and "Chosen cards" tiles until the person has chosen their own cards. */
 const cardImage = (set: string, number: number) =>
   `https://assets.holofolder.com/pokemon/tcg/cards/en/${set}/${number}/high.webp`;
 const SAMPLE_CARDS = {
@@ -78,14 +78,14 @@ const SAMPLE_CARDS = {
   printings: [cardImage('base1', 10), cardImage('base1', 58), cardImage('base1', 16)],
 };
 
-/** Ordered as before: a set, blank, National Dex, a generation, chosen Pokémon, chosen cards. */
+/** Ordered as before: a set, blank, National Dex, one region, chosen Pokémon, chosen cards. */
 const PRESETS: { id: CreationPreset; title: string; line: string; art: number[] }[] = [
-  { id: 'set', title: 'A set', line: 'Every card in one set', art: [] },
-  { id: 'blank', title: 'Blank', line: 'Empty pages, fill them your way', art: [] },
-  { id: 'national', title: 'National Dex', line: 'A pocket for every Pokémon', art: [1, 4, 7] },
-  { id: 'generation', title: 'A generation', line: 'Kanto through Paldea', art: [25, 133, 150] },
-  { id: 'species', title: 'Pick Pokémon', line: 'Just the ones you collect', art: [6, 94, 448] },
-  { id: 'printings', title: 'Pick cards', line: 'Exact cards, in your order', art: [] },
+  { id: 'set', title: 'A set', line: 'A pocket for each card in one set', art: [] },
+  { id: 'blank', title: 'Blank', line: 'Empty pages with no cards assigned', art: [] },
+  { id: 'national', title: 'National Dex', line: 'One pocket per Pokémon, #1 to #1025', art: [1, 4, 7] },
+  { id: 'generation', title: 'One region', line: 'One pocket per Pokémon from one region', art: [25, 133, 150] },
+  { id: 'species', title: 'Chosen Pokémon', line: 'One pocket per Pokémon you choose', art: [6, 94, 448] },
+  { id: 'printings', title: 'Chosen cards', line: 'One pocket per exact card you choose', art: [] },
 ];
 const STEP_TITLES: Record<WizardStep, string> = {
   kind: 'What kind of binder?',
@@ -96,7 +96,7 @@ const STEP_TITLES: Record<WizardStep, string> = {
 };
 const SCOPE_TITLES: Partial<Record<CreationPreset, string>> = {
   set: 'Which set?',
-  generation: 'Which generation?',
+  generation: 'Which region?',
   species: 'Which Pokémon?',
   printings: 'Which cards?',
 };
@@ -403,7 +403,7 @@ export default function NativeBinderCreation({
                 <>
                   {binding.onboarding && (
                     <p className="text-muted-foreground text-sm">
-                      Pick what your binder is for. It takes a minute, and you can change it all later.
+                      This sets up empty pockets; it doesn&apos;t add cards you own. You can change it later.
                     </p>
                   )}
                   <div className="grid grid-cols-2 gap-2" role="group" aria-label="What is this binder for?">
@@ -435,7 +435,7 @@ export default function NativeBinderCreation({
                 </>
               )}
               {step === 'scope' && preset === 'generation' && (
-                <div role="group" aria-label="Generation" className="grid grid-cols-3 gap-1.5">
+                <div role="group" aria-label="Region" className="grid grid-cols-3 gap-1.5">
                   {NUMBERED_GENERATIONS.map((g) => (
                     <button
                       key={g.id}
