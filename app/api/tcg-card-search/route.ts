@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCardsByIds, searchCardCatalog, suggestCards } from '@/lib/catalog-queries';
 import { normalizeCardLanguage } from '@/lib/domain/cards';
+import { MAX_SUGGESTION_SEEDS } from '@/lib/page-card-suggestions';
 import { PUBLIC_JSON_CACHE_HEADERS } from '@/lib/http-cache';
 
 export const instant = false;
@@ -8,7 +9,7 @@ export const instant = false;
 /**
  * GET /app/api/tcg-card-search?q=bulbasaur%2044 → { cards: SearchCardResult[] }
  * GET /app/api/tcg-card-search?ids=sv01-001,base1-4&language=ja → those cards, in that order (picture scan)
- * GET /app/api/tcg-card-search?like=sv01-001,base1-4&pokemon=25 → cards similar to a binder page's cards
+ * GET /app/api/tcg-card-search?like=sv01-001,base1-4&pokemon=25 → cards similar to a binder page's (or binder's) cards
  */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -23,8 +24,8 @@ export async function GET(request: NextRequest) {
 
   try {
     if (like.length || pokemon.length) {
-      if (like.length + pokemon.length > 40)
-        return NextResponse.json({ error: 'At most 40 cards.', cards: [] }, { status: 400 });
+      if (like.length + pokemon.length > MAX_SUGGESTION_SEEDS)
+        return NextResponse.json({ error: `At most ${MAX_SUGGESTION_SEEDS} cards.`, cards: [] }, { status: 400 });
       return NextResponse.json(
         { cards: await suggestCards(like, pokemon, normalizeCardLanguage(searchParams.get('language'))) },
         { headers: PUBLIC_JSON_CACHE_HEADERS },
