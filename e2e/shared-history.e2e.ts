@@ -109,7 +109,7 @@ test.describe('shared binder history', () => {
       await show(page).getByTestId('quick-card-check').getByRole('button', { name: /^Back/ }).first().click();
       await search.fill('');
       await harness.expectMinTapTarget(
-        show(page).getByRole('button', { name: 'Clear recent searches for this binder' }),
+        show(page).getByRole('button', { name: 'Clear recent searches for this collection' }),
         36,
       );
       await harness.expectMinTapTarget(
@@ -118,8 +118,8 @@ test.describe('shared binder history', () => {
           .getByRole('button', { name: 'bulbasaur', exact: true }),
         36,
       );
-      await show(page).getByRole('button', { name: 'Clear recently viewed cards for this binder' }).click();
-      await show(page).getByRole('button', { name: 'Clear recent searches for this binder' }).click();
+      await show(page).getByRole('button', { name: 'Clear recently viewed cards for this collection' }).click();
+      await show(page).getByRole('button', { name: 'Clear recent searches for this collection' }).click();
       await expect.poll(() => server.data.get(BINDER)?.cards.length).toBe(0);
       await expect.poll(() => server.data.get(BINDER)?.searches.length).toBe(0);
       await other.evaluate(() => {
@@ -151,7 +151,7 @@ test.describe('shared binder history', () => {
     }
   });
 
-  test('binder/account caches stay separate; legacy global history and read-only shares never sync', async ({
+  test('binders share one history, accounts stay separate; legacy global history and read-only shares never sync', async ({
     harness,
   }) => {
     const { page } = harness;
@@ -186,16 +186,13 @@ test.describe('shared binder history', () => {
     await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false }));
     await picked.click();
     await expect(show(page).getByTestId('quick-card-check')).toBeVisible();
+    // Another binder of the same collection reads and syncs the default binder's history.
     await page.goto(`/app/e2e-harness?signedIn=1&binders=1&binder=${OTHER}`);
     await openShow(page);
-    await expect(rail(page)).toHaveCount(0);
-    await expect.poll(() => server.requests.some((request) => request.binder === OTHER)).toBe(true);
-    expect(server.data.get(BINDER)?.cards ?? []).toHaveLength(0);
-    expect(
-      server.requests.filter((request) => request.binder === OTHER).flatMap((request) => request.actions),
-    ).toHaveLength(0);
-    await page.goto('/app/e2e-harness?signedIn=1&binders=1');
     await expect.poll(() => server.data.get(BINDER)?.cards.length).toBe(1);
+    await expect(rail(page)).toHaveCount(1);
+    expect(server.requests.some((request) => request.binder === OTHER)).toBe(false);
+    await page.goto('/app/e2e-harness?signedIn=1&binders=1');
     await page.route('**/rest/v1/partnerships**', (route) =>
       route.fulfill({
         json: [
@@ -352,8 +349,8 @@ test.describe('same-origin history transactions', () => {
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect.poll(() => delayed).toBe(true);
     const count = server.requests.length;
-    await show(other).getByRole('button', { name: 'Clear recently viewed cards for this binder' }).click();
-    await show(other).getByRole('button', { name: 'Clear recent searches for this binder' }).click();
+    await show(other).getByRole('button', { name: 'Clear recently viewed cards for this collection' }).click();
+    await show(other).getByRole('button', { name: 'Clear recent searches for this collection' }).click();
     await pick(other, 'charmander');
     await expect.poll(async () => (await readQueue(page)).searches).toEqual(['charmander']);
     expect(server.requests.length).toBe(count);

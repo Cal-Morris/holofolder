@@ -512,7 +512,7 @@ export default function PokemonSearch({
                     type="button"
                     onClick={clearRecentCards}
                     aria-label={
-                      history.shared ? 'Clear recently viewed cards for this binder' : 'Clear recently viewed cards'
+                      history.shared ? 'Clear recently viewed cards for this collection' : 'Clear recently viewed cards'
                     }
                     className="text-muted-foreground hover:text-foreground -mr-2 min-h-9 rounded-full px-3 text-[11px] font-semibold"
                   >

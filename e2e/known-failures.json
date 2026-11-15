@@ -1258,7 +1258,7 @@
       "file": "shared-history.e2e.ts",
       "title": [
         "shared binder history",
-        "binder/account caches stay separate; legacy global history and read-only shares never sync"
+        "binders share one history, accounts stay separate; legacy global history and read-only shares never sync"
       ],
       "cause": "stale-selector-or-flow",
       "batch": 3,
