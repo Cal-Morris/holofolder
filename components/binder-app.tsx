@@ -185,6 +185,7 @@ import {
   QuickMode,
   scheduleIdleViewPreload,
   SettingsModal,
+  UpgradeDialog,
 } from '@/components/binder/lazy-views';
 import { renderAppHeaderView } from '@/components/binder/app-header';
 import { renderMainContentView } from '@/components/binder/main-content';
@@ -1012,12 +1013,13 @@ function BinderAppSurface(props: BinderAppProps) {
   }, [sharePath]);
   const [requestedSettingsPage, setRequestedSettingsPage] = useState<SettingsPageId | null>(null);
   useCollectorAppOpen(user?.id ?? null, !readOnlyMode);
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  // A blocked action opens the small plan picker over a closed stack; Settings → Plan keeps the full page.
   const requestUpgrade = useCallback(() => {
     closeAllOverlays();
     setSelectedPokemon(null);
-    setRequestedSettingsPage('plan');
-    runAfterOverlayHistory(() => setIsSettingsOpen(true));
-  }, [setIsSettingsOpen, setRequestedSettingsPage, setSelectedPokemon]);
+    runAfterOverlayHistory(() => setIsUpgradeOpen(true));
+  }, [setSelectedPokemon]);
   const billing = useBilling(
     accountSettingsReadOnly ? null : (user?.id ?? null),
     resolvedCollectionOwnerUserId,
@@ -4799,6 +4801,16 @@ function BinderAppSurface(props: BinderAppProps) {
               plan={layoutChange.plan}
               onConfirm={() => void confirmLayoutChange()}
               onCancel={cancelLayoutChange}
+            />
+          )}
+          {isUpgradeOpen && (
+            <UpgradeDialog
+              signedIn={Boolean(user)}
+              onClose={() => setIsUpgradeOpen(false)}
+              onSignIn={() => {
+                setIsUpgradeOpen(false);
+                window.dispatchEvent(new Event('holofolder-sign-in'));
+              }}
             />
           )}
           <SettingsModal
