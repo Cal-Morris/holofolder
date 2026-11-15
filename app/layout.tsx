@@ -1,6 +1,7 @@
 import { GoogleAnalyticsProvider } from '@/components/google-analytics';
 import { CollectorFunnelProvider } from '@/components/collector-funnel';
 import { Toaster } from '@/components/ui/toast';
+import { NavigationProgress } from '@/components/navigation-progress';
 import type React from 'react';
 import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
@@ -89,6 +90,7 @@ export default async function RootLayout({
             {children}
           </CollectorFunnelProvider>
         </GoogleAnalyticsProvider>
+        <NavigationProgress />
         <Toaster />
         <Analytics scriptSrc="/app/_vercel/insights/script.js" endpoint="/app/_vercel/insights" />
         {/* Real-user Core Web Vitals per route (enabled on the Vercel project). */}
