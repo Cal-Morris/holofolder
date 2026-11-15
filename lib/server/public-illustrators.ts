@@ -1,7 +1,7 @@
 import { cacheLife, cacheTag } from 'next/cache';
 import { getCardsByIllustrator, getIllustratorDirectory } from '@/lib/catalog-queries';
 import { groupIllustratorsBySlug, type IllustratorCard, type PublicIllustrator } from '@/lib/illustrators';
-import { getPublicSets } from '@/lib/server/public-sets';
+import { getPublicSets, hasCatalogDatabase } from '@/lib/server/public-sets';
 
 const isMissingFunction = (error: { code?: string; message?: string }) =>
   error.code === 'PGRST202' || error.code === '42883' || /could not find the function/i.test(error.message ?? '');
@@ -15,8 +15,7 @@ export async function getPublicIllustrators(): Promise<PublicIllustrator[]> {
   'use cache';
   cacheLife('weeks');
   cacheTag('card-catalog', 'public-illustrators');
-  // Builds without database credentials (CI) prerender an empty list instead of failing; deployed builds have them.
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!hasCatalogDatabase()) {
     cacheLife('seconds');
     return [];
   }

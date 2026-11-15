@@ -27,12 +27,20 @@ async function admin() {
  * Every English set we hold cards for, newest first, with its stable page slug. Plain `'use cache'` (not
  * remote) so the list lands in the prerendered HTML; a card sync expires the `card-catalog` tag.
  */
+/**
+ * Builds without database credentials (CI) prerender empty public catalogue pages instead of failing; deployed
+ * builds have them. The e2e build has synthetic credentials for a backend that only answers share fixtures, so it
+ * counts as having none.
+ */
+export const hasCatalogDatabase = () =>
+  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) &&
+  process.env.HOLOFOLDER_E2E !== '1';
+
 export async function getPublicSets(): Promise<PublicSetSummary[]> {
   'use cache';
   cacheLife('weeks');
   cacheTag('card-catalog', 'public-sets');
-  // Builds without database credentials (CI) prerender an empty list instead of failing; deployed builds have them.
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!hasCatalogDatabase()) {
     cacheLife('seconds');
     return [];
   }
