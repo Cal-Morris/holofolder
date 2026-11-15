@@ -763,6 +763,8 @@ const SUGGESTION_CANDIDATE_LIMIT = 150;
 /** Picture neighbours read per page card; cards near several page cards add up and rank first. */
 const VISUAL_NEIGHBOUR_LIMIT = 40;
 const SUGGESTION_LIMIT = 60;
+/** The app's picker drops cards already in the binder after the fetch, so it asks for more to keep a full list. */
+export const APP_SUGGESTION_LIMIT = 200;
 type SuggestionRow = {
   id: string;
   set_id: string;
@@ -789,6 +791,7 @@ export async function suggestCards(
   cardIds: readonly string[],
   pokemonIds: readonly number[],
   language: CatalogLanguage = 'en',
+  limit = SUGGESTION_LIMIT,
 ): Promise<SearchCardResult[]> {
   'use cache: remote';
   cacheLife(CATALOG_CACHE_LIFE);
@@ -846,7 +849,7 @@ export async function suggestCards(
   const catalog = rankPageSuggestions(seeds, pokemonIds, candidates).flatMap(({ card }) =>
     shown.has(card.id) ? [] : [card],
   );
-  return [...visual, ...catalog].slice(0, SUGGESTION_LIMIT);
+  return [...visual, ...catalog].slice(0, limit);
 }
 
 /**
