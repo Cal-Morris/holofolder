@@ -121,7 +121,7 @@ export function billingAccessRow(access: BillingAccess) {
   };
 }
 /**
- * Whether Premium-only views (price trends, analytics, deal checks, page scanning) are unlocked. Only a loaded
+ * Whether Premium-only views (price trends, analytics, deal checks) are unlocked. Only a loaded
  * free plan locks them: guests get the full demo (new accounts start on a Premium trial) and paid owners see no
  * flash of upsells while billing loads.
  */
@@ -139,7 +139,7 @@ export class BillingAccessError extends Error {
         ? 'You have reached your free entry allowance. Upgrade to save more. Your changes are kept on this device.'
         : code === 'binder_limit_reached'
           ? 'Your free plan includes one binder. Upgrade to create more binders.'
-          : 'Upgrade to Holo Folder for more binders, partner mode, price comparisons and trends, analytics, deal checks and page scanning.',
+          : 'Upgrade to Holo Folder for more binders, partner mode, price comparisons and trends, analytics and deal checks.',
     );
   }
 }
