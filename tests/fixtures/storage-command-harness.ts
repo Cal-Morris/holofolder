@@ -97,7 +97,7 @@ export function storageCommandHarness(id: string) {
         name_json: { en: 'Bulbasaur' },
         external_ids_json: {},
       },
-      // A Trainer with no Pokémon, the mocked Similar look swaps it into the Bulbasaur pocket.
+      // A Trainer with no Pokémon, for the Trainer pocket tests.
       {
         id: 'synthetic-owned-trainer',
         set_id: 'synthetic-owned',
