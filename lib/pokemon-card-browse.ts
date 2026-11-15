@@ -130,6 +130,8 @@ export interface ParsedCardSearchQuery {
   text: string;
   /** Card number within a set, e.g. "44" from "bulbasaur 44/102". */
   number: string | null;
+  /** The set's printed total after the slash, e.g. 102 from "44/102" (null for "TG05/TG30" or no slash). */
+  total: number | null;
   /** Looks like a TCGdex card id such as "base1-44" or "sv03.5-001". */
   cardId: string | null;
 }
@@ -143,19 +145,21 @@ export function sanitizeSearchText(value: string) {
 
 export function parseCardSearchQuery(raw: string): ParsedCardSearchQuery {
   const query = sanitizeSearchText(raw).toLowerCase();
-  if (!query) return { text: '', number: null, cardId: null };
+  if (!query) return { text: '', number: null, total: null, cardId: null };
 
   const cardId = /^[a-z0-9.]+-[a-z0-9]+(?:~\d+)?$/i.test(query) && /\d/.test(query) ? query : null;
 
   // "44/102", "#44", "no. 44" or a trailing/leading bare number next to other words.
   const tokens = query.split(' ');
   let number: string | null = null;
+  let total: number | null = null;
   const rest: string[] = [];
   for (const token of tokens) {
-    const slash = /^#?([a-z]{0,3}\d{1,4}[a-z]?)\/[a-z]{0,3}\d{1,4}$/.exec(token);
+    const slash = /^#?([a-z]{0,3}\d{1,4}[a-z]?)\/([a-z]{0,3}\d{1,4})$/.exec(token);
     const hash = /^#(\d{1,4}[a-z]?)$/.exec(token);
     if (!number && slash) {
       number = slash[1];
+      total = /^\d+$/.test(slash[2]) ? Number(slash[2]) : null;
     } else if (!number && hash && tokens.length > 1) {
       number = hash[1];
     } else if (!number && tokens.length > 1 && /^\d{1,4}[a-z]?$/.test(token)) {
@@ -166,7 +170,7 @@ export function parseCardSearchQuery(raw: string): ParsedCardSearchQuery {
   }
 
   // Literal text: "mew" is both a Pokémon and a printed set code, so callers try both via resolveSetSearchAlias.
-  return { text: rest.join(' '), number, cardId };
+  return { text: rest.join(' '), number, total, cardId };
 }
 
 /** Normalised local id for comparison ("004" → "4"). */

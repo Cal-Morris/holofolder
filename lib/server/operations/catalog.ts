@@ -14,7 +14,7 @@ import { expandSearchAliases, matchCardNicknames, matchRarityWords } from '@/lib
 import { correctedCardSearchQuery, resolveCardSearchQuery } from '@/lib/card-search-query';
 import { createDeveloperImageResolver, type DeveloperImageResolver } from '@/lib/server/developer-images';
 import { sanitizeDeveloperImages } from '@/lib/server/developer-image-fields';
-import { getSimilarCardNeighbours, suggestCards } from '@/lib/catalog-queries';
+import { getSimilarCardNeighbours, setIdsForNumberAndTotal, suggestCards } from '@/lib/catalog-queries';
 import { withoutDuplicateTcgdexRest } from '@/lib/developer-api/lean';
 
 const CARD_COLUMNS =
@@ -170,6 +170,10 @@ export async function listCatalogCards(rawParams: string) {
       }
       if (parsed.number)
         query = query.in('local_id', [parsed.number, parsed.number.padStart(2, '0'), parsed.number.padStart(3, '0')]);
+      // "284/217": the card numbered 284 in a set printed with 217 cards, or every 284 if no set matches.
+      const totalSetIds =
+        parsed.number && parsed.total ? await setIdsForNumberAndTotal(parsed.number, parsed.total) : [];
+      if (totalSetIds.length) query = query.in('set_id', totalSetIds);
     }
   }
   const { data, error } = await query;

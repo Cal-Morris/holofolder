@@ -60,7 +60,7 @@ export const DEVELOPER_OPERATIONS: readonly DeveloperOperation[] = [
     method: 'GET',
     path: '/cards',
     description:
-      'Browse all card printings, including Trainers and Energy, with pagination. q matches card names and collector nicknames ("moonbreon", "gold star rayquaza", "umbreon alt art"), and a rarity word at either end keeps that rarity ("charizard sir", "full art lugia"). Records declare game:pokemon; IDs are globally unique opaque application IDs, not provider-local keys.',
+      'Browse all card printings, including Trainers and Energy, with pagination. q matches card names and collector nicknames ("moonbreon", "gold star rayquaza", "umbreon alt art"), a collector number as printed finds that card ("284/217" is number 284 in a set of 217 cards, or every number 284 when no set has that total; "gengar 284/217" narrows a name the same way), and a rarity word at either end keeps that rarity ("charizard sir", "full art lugia"). Records declare game:pokemon; IDs are globally unique opaque application IDs, not provider-local keys.',
     permissions: ['catalog:read'],
     write: false,
     schema: z.strictObject(catalog),

@@ -647,6 +647,21 @@ function printedInEnglish<T extends { not: (column: string, operator: string, va
   return language === 'en' ? query.not('name_json->>en', 'is', null) : query;
 }
 
+/**
+ * Sets that hold card `number` and print `total` as their size ("284/217" → me02.5). Empty when there is none, so a
+ * mistyped total falls back to the number alone.
+ */
+export async function setIdsForNumberAndTotal(number: string, total: number): Promise<string[]> {
+  const { data, error } = await createAdminClient()
+    .from('tcg_cards')
+    .select('set_id,tcg_sets!inner(official_card_count)')
+    .in('local_id', localIdCandidates(number))
+    .eq('tcg_sets.official_card_count', total)
+    .limit(100);
+  if (error) throw error;
+  return [...new Set(((data ?? []) as Array<{ set_id: string }>).map((row) => row.set_id))];
+}
+
 function localIdCandidates(number: string) {
   const normalized = normalizeLocalId(number);
   const digits = /^(\d+)([a-z]?)$/.exec(normalized);
@@ -886,11 +901,12 @@ export async function searchCardCatalog(
     'card-catalog',
     CATALOG_CACHE_VERSION,
     'tcg-card-search',
-    cacheSafeTag('card-query', `${parsed.text}|${parsed.number ?? ''}|${parsed.cardId ?? ''}`),
+    cacheSafeTag('card-query', `${parsed.text}|${parsed.number ?? ''}/${parsed.total ?? ''}|${parsed.cardId ?? ''}`),
     cacheSafeTag('language', language),
   );
 
-  if (!parsed.text && !parsed.cardId) {
+  // "284/217" alone is a card: its number in a set of that printed size.
+  if (!parsed.text && !parsed.cardId && !(parsed.number && parsed.total)) {
     return { cards: [], correction: null };
   }
 
@@ -921,6 +937,8 @@ export async function searchCardCatalog(
   // Only used when the literal search finds nothing; single words ("garedevouir") have no set candidates.
   const correction = correctedCardSearchQuery(query, sets);
   const numberCandidates = parsed.number ? localIdCandidates(parsed.number) : null;
+  // The printed total narrows every number match to sets of that size, unless no such card exists (a mistyped total).
+  const totalSetIds = parsed.number && parsed.total ? await setIdsForNumberAndTotal(parsed.number, parsed.total) : [];
   const requests: Array<PromiseLike<{ data: any[] | null; error: unknown }>> = [];
 
   // Nicknames ("moonbreon", "gold star rayquaza") go first, so the cards they name lead the results.
@@ -947,10 +965,12 @@ export async function searchCardCatalog(
     let bySet = admin.from('tcg_cards').select(select).in('set_id', parsed.setIds);
     if (parsed.text) bySet = bySet.ilike('name_en', `%${parsed.text}%`);
     if (numberCandidates) bySet = bySet.in('local_id', numberCandidates);
+    if (totalSetIds.length) bySet = bySet.in('set_id', totalSetIds);
     requests.push(bySet.order('local_id_sort', { ascending: true, nullsFirst: false }).limit(SET_BROWSE_LIMIT));
   } else if (parsed.text) {
     let byName = admin.from('tcg_cards').select(select).or(cardNameSearchFilter(parsed.text));
     if (numberCandidates) byName = byName.in('local_id', numberCandidates);
+    if (totalSetIds.length) byName = byName.in('set_id', totalSetIds);
     requests.push(byName.limit(limit));
 
     // Japanese and Korean printings keep their own name in `name_en`, so outside English a Pokémon's name also finds
@@ -964,6 +984,7 @@ export async function searchCardCatalog(
     if (pokemon) {
       let byPokemon = admin.from('tcg_cards').select(CARD_SEARCH_SELECT).eq('tcg_card_dex_ids.dex_id', pokemon.id);
       if (numberCandidates) byPokemon = byPokemon.in('local_id', numberCandidates);
+      if (totalSetIds.length) byPokemon = byPokemon.in('set_id', totalSetIds);
       requests.push(byPokemon.limit(limit));
     }
 
@@ -971,6 +992,7 @@ export async function searchCardCatalog(
     if (parsed.text.length >= 3) {
       let byIllustrator = admin.from('tcg_cards').select(select).ilike('illustrator', `%${parsed.text}%`);
       if (numberCandidates) byIllustrator = byIllustrator.in('local_id', numberCandidates);
+      if (totalSetIds.length) byIllustrator = byIllustrator.in('set_id', totalSetIds);
       requests.push(byIllustrator.limit(limit));
     }
 
@@ -990,9 +1012,14 @@ export async function searchCardCatalog(
           if (setIds.length === 0) return { data: [], error: null };
           let bySet = admin.from('tcg_cards').select(select).in('set_id', setIds);
           if (numberCandidates) bySet = bySet.in('local_id', numberCandidates);
+          if (totalSetIds.length) bySet = bySet.in('set_id', totalSetIds);
           return await bySet.order('local_id_sort', { ascending: true, nullsFirst: false }).limit(SET_BROWSE_LIMIT);
         })(),
       );
+  } else if (numberCandidates) {
+    let byNumber = admin.from('tcg_cards').select(select).in('local_id', numberCandidates);
+    if (totalSetIds.length) byNumber = byNumber.in('set_id', totalSetIds);
+    requests.push(byNumber.limit(limit));
   }
 
   const responses = await Promise.all(requests);

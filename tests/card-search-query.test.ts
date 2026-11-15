@@ -30,6 +30,7 @@ describe('catalog-backed compound card search', () => {
       assert.deepEqual(resolveCardSearchQuery(query, sets), {
         text: 'abra',
         number: null,
+        total: null,
         cardId: null,
         setIds: ['sv03.5'],
       });
@@ -55,7 +56,13 @@ describe('catalog-backed compound card search', () => {
   });
   test('unknown bare numbers remain collector numbers, no catalog data is invented', () => {
     assert.deepEqual(ids('abra 43'), ['base1-43']);
-    assert.deepEqual(resolveCardSearchQuery('abra 151', []), { text: 'abra', number: '151', cardId: null, setIds: [] });
+    assert.deepEqual(resolveCardSearchQuery('abra 151', []), {
+      text: 'abra',
+      number: '151',
+      total: null,
+      cardId: null,
+      setIds: [],
+    });
     assert.deepEqual(ids('abra made up set'), []);
   });
 });
@@ -143,6 +150,7 @@ test('MEW is read as a Pokémon unless the rest of the query names one', () => {
   assert.deepEqual(resolveCardSearchQuery('Mew 30th', catalog), {
     text: 'mew',
     number: null,
+    total: null,
     cardId: null,
     setIds: ['30th'],
   });
