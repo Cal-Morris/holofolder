@@ -234,6 +234,7 @@ const BrowserCollectionSession = dynamic(() => import('@/components/collection-n
 });
 
 const NativeWantedEntries = dynamic(() => import('@/components/native-wanted-entries'), { loading: () => null });
+const PrintWantedSheet = dynamic(() => import('@/components/print-wanted-sheet'), { ssr: false });
 const NativeCollectionAnalytics = dynamic(() => import('@/components/native-collection-analytics'), { ssr: false });
 
 const CollectionSlotList = dynamic(() => import('@/components/collection-navigation/slot-list'), { ssr: false });
@@ -587,6 +588,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<'sign-in' | 'sign-up'>('sign-in');
   const [isPartnerOpen, setIsPartnerOpen] = useState(false);
+  const [isPrintWantedOpen, setIsPrintWantedOpen] = useState(false);
   const [isBinderSwitcherOpen, setIsBinderSwitcherOpen] = useState(false);
   const [binders, setBinders] = useState<Binder[]>(initialBinders);
   const activeBinder = binders.find((binder) => binder.id === initialBinderId) ?? null;
@@ -4288,6 +4290,11 @@ function BinderAppSurface(props: BinderAppProps) {
         : undefined,
       canManageShare,
       onNationalDex: browserSurface?.surface.onDex,
+      // A binder's empty wanted pockets as printable placeholders (the Wanted tab has its own Print button).
+      onPrintWanted:
+        browserSurface?.nativeConsumer && user && activeMainView === 'binder'
+          ? () => openExclusively(() => setIsPrintWantedOpen(true))
+          : undefined,
       activeJumpLabel,
       activeJumpPokemonList,
       activeMainView,
@@ -4869,6 +4876,13 @@ function BinderAppSurface(props: BinderAppProps) {
               onClose={closeBinderSwitcher}
             />
           )}
+          {isPrintWantedOpen && browserSurface?.nativeConsumer ? (
+            <PrintWantedSheet
+              binding={browserSurface.nativeConsumer}
+              initialBinderId={browserSurface.surface.state.collectionId}
+              onClose={() => setIsPrintWantedOpen(false)}
+            />
+          ) : null}
           {isPartnerOpen ? (
             <PartnerModal isOpen={isPartnerOpen} onClose={() => setIsPartnerOpen(false)} user={user} />
           ) : null}

@@ -1,0 +1,173 @@
+/*
+ * Printable wanted-card placeholders. Everything is in physical units so a page printed at 100% ("Actual size") gives
+ * 63 × 88 mm cards. On screen the printout is hidden; while it exists, printing shows only it.
+ */
+@media screen {
+  .root {
+    display: none;
+  }
+}
+@media print {
+  :global(body):has(> .root) > :not(.root) {
+    display: none !important;
+  }
+  :global(html):has(.root),
+  :global(body):has(> .root) {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
+}
+
+.root {
+  color: #111;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.sheet {
+  position: relative;
+  overflow: hidden;
+  break-after: page;
+  box-sizing: border-box;
+}
+.sheet:last-child {
+  break-after: auto;
+}
+
+.grid {
+  position: absolute;
+  display: grid;
+  grid-template-columns: repeat(3, 63mm);
+  grid-template-rows: repeat(3, 88mm);
+}
+
+/* Crop marks sit outside the grid, on its cut lines. */
+.mark {
+  position: absolute;
+  background: #b5b5b5;
+}
+
+.calibration {
+  position: absolute;
+  width: 0.3mm;
+  height: 50mm;
+  background: #111;
+}
+.calibration::before,
+.calibration::after {
+  content: '';
+  position: absolute;
+  left: -1mm;
+  width: 2.3mm;
+  height: 0.3mm;
+  background: #111;
+}
+.calibration::before {
+  top: 0;
+}
+.calibration::after {
+  bottom: 0;
+}
+.calibrationLabel {
+  position: absolute;
+  font-size: 2.1mm;
+  line-height: 1;
+  white-space: nowrap;
+  transform: rotate(-90deg);
+  transform-origin: 0 0;
+}
+
+.card {
+  position: relative;
+  width: 63mm;
+  height: 88mm;
+  box-sizing: border-box;
+  border: 0.2mm solid #b5b5b5;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.label {
+  flex: none;
+  height: 5mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 0.2mm solid #b5b5b5;
+  font-size: 2.4mm;
+  font-weight: 700;
+  letter-spacing: 0.6mm;
+}
+
+.art {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5mm;
+}
+.art img {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 1.5mm;
+}
+
+.outline {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2mm;
+  padding: 3mm;
+  text-align: center;
+  font-size: 2.8mm;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.outlineName {
+  font-size: 4.6mm;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.outlineMuted {
+  color: #555;
+}
+
+.footer {
+  flex: none;
+  padding: 1.6mm 2mm 1.8mm;
+  border-top: 0.2mm solid #b5b5b5;
+  font-size: 2.3mm;
+  line-height: 1.3;
+}
+.footerName {
+  font-size: 3mm;
+  font-weight: 700;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.footerLine {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.footerPosition {
+  font-weight: 600;
+}
