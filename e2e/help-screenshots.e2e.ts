@@ -13,6 +13,7 @@ import {
   SEEDED_COLLECTION,
   E2E_USER,
   type SeedRow,
+  expectLayoutEditable,
 } from './fixtures';
 import { mockCardPrices, requestedPriceCards } from './price-fixtures';
 import { HUNT_COLLECTION, HUNT_PRICES } from './hunt-fixtures';
@@ -610,7 +611,7 @@ test.describe('help centre screenshots', () => {
   test('offline sync notice', async ({ page, baseURL, context }) => {
     const harness = await start(page, baseURL);
     await toBinder(harness);
-    await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeEnabled({ timeout: 15_000 });
+    await expectLayoutEditable(page, 15_000);
     await context.setOffline(true);
     await appendPocket(page);
     await expect(page.locator('[data-sync-state="offline"]')).toBeVisible({ timeout: 15_000 });

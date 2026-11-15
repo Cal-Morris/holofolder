@@ -1,5 +1,14 @@
 import { readFile } from 'node:fs/promises';
-import { test, expect, mockBackends, emulateStandalone, Harness, storageAction, closeStorage } from './fixtures';
+import {
+  test,
+  expect,
+  mockBackends,
+  emulateStandalone,
+  Harness,
+  storageAction,
+  closeStorage,
+  expectLayoutNotEditable,
+} from './fixtures';
 import type { Page } from '@playwright/test';
 import { parseBinderBackupV2 } from '../lib/binder-backup-v2';
 const collection = '22222222-2222-4222-8222-222222222222';
@@ -154,7 +163,7 @@ test('lost committed reply survives reload as exact intent, fences sinks, retrie
   await d.getByRole('button', { name: 'Close backup' }).click();
   await expect(await storageAction(page, 'New storage')).toBeDisabled();
   await closeStorage(page);
-  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toHaveCount(0);
+  await expectLayoutNotEditable(page);
   await expect(page.getByRole('button', { name: /^Remove selected slots?$/ })).toHaveCount(0);
   dropReply = false;
   await page.reload();

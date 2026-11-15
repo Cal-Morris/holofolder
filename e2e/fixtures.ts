@@ -204,16 +204,33 @@ export async function storageAction(page: Page, name: string) {
 }
 /** Layout editing: opens Edit layout unless already editing, then Add → At the end of the binder (one empty pocket). */
 export async function appendPocket(page: Page) {
-  const edit = page.getByRole('button', { name: 'Edit layout', exact: true });
   const add = page.locator('[data-layout-bar]').getByRole('button', { name: 'Add', exact: true });
-  await expect(edit.or(add)).toBeVisible();
-  if (await edit.isVisible()) await edit.click();
+  if (!(await add.isVisible())) await editLayout(page);
   await add.click();
   await page.getByRole('menuitem', { name: 'At the end of the binder', exact: true }).click();
 }
 export async function closeStorage(page: Page) {
   const close = page.getByRole('button', { name: 'Close storage', exact: true });
   if (await close.isVisible()) await close.click();
+}
+/** Edit layout is a Storage menu item on the binder row (the harness without a browser host keeps its own button). */
+export async function editLayout(page: Page) {
+  await (await storageAction(page, 'Edit layout')).click();
+  await expect(page.locator('[data-layout-bar]')).toBeVisible();
+}
+/** The binder can't be edited: no layout bar, and the Storage menu (when there is one) doesn't offer Edit layout. */
+export async function expectLayoutNotEditable(page: Page) {
+  await expect(page.locator('[data-layout-bar]')).toHaveCount(0);
+  if (!(await page.getByRole('button', { name: 'Storage', exact: true }).isVisible())) return;
+  await expect((await openStorage(page)).getByRole('button', { name: 'Edit layout', exact: true })).toHaveCount(0);
+  await closeStorage(page);
+}
+/** Waits until the live binder can be edited: the Storage menu offers Edit layout. Leaves the menu closed. */
+export async function expectLayoutEditable(page: Page, timeout = 15_000) {
+  await expect(async () => {
+    await expect(await storageAction(page, 'Edit layout')).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout });
+  await closeStorage(page);
 }
 
 /** Native collection and view selectors are enclosed menu buttons. `data-value` carries the exact id or view. */
@@ -231,7 +248,8 @@ export async function openSettingsPage(dialog: Locator, title: string) {
 }
 
 export const collectionPicker = (page: Page) => page.getByRole('button', { name: 'Collection', exact: true });
-export const viewPicker = (page: Page) => page.getByRole('button', { name: 'Collection view', exact: true });
+/** The Binder / List / Slabs icon toggle; its `data-value` is the current view. */
+export const viewPicker = (page: Page) => page.getByRole('group', { name: 'Collection view', exact: true });
 async function choose(page: Page, trigger: Locator, menu: string, value: string) {
   await trigger.click();
   await page
@@ -241,7 +259,11 @@ async function choose(page: Page, trigger: Locator, menu: string, value: string)
 }
 export const chooseCollection = (page: Page, id: string) =>
   choose(page, collectionPicker(page), 'Choose collection', id);
-export const chooseView = (page: Page, view: string) => choose(page, viewPicker(page), 'Choose view', view);
+/** Taps a view and waits for it to commit (navigation runs after overlay history settles). */
+export async function chooseView(page: Page, view: string) {
+  await viewPicker(page).locator(`button[data-value="${view}"]`).click();
+  await expect(viewPicker(page)).toHaveAttribute('data-value', view);
+}
 /** The binder's pocket filter ("Show pockets"): all, owned, wanted or needed (shown as Missing). */
 export const pocketFilter = (page: Page) => page.getByRole('button', { name: 'Show pockets', exact: true });
 export const choosePockets = (page: Page, filter: 'all' | 'owned' | 'wanted' | 'needed') =>
@@ -562,16 +584,14 @@ export class Harness {
   async reload() {
     await this.page.reload();
     await expect(this.slot(1)).toBeVisible({ timeout: 30_000 });
-    if (this.signedIn) await expect(this.page.getByRole('button', { name: 'Edit layout', exact: true })).toBeEnabled();
+    if (this.signedIn) await expectLayoutEditable(this.page);
   }
 
   /** Toggle the binder to 3D (or back to 2D): the header button for signed-in binders, the View sheet for guests. */
   async setDimension(dimension: '2D' | '3D') {
     if (this.signedIn) {
       // The live read remounts the binder once it lands; toggle after it, as a settled user would.
-      await expect(this.page.getByRole('button', { name: 'Edit layout', exact: true })).toBeEnabled({
-        timeout: 30_000,
-      });
+      await expectLayoutEditable(this.page, 30_000);
       const toggle = this.page.getByTestId('app-header').getByRole('button', { name: '3D view', exact: true });
       if ((await toggle.getAttribute('aria-pressed')) !== String(dimension === '3D')) await toggle.click();
       await expect(toggle).toHaveAttribute('aria-pressed', String(dimension === '3D'));

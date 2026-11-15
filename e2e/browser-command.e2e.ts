@@ -1,4 +1,14 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER } from './fixtures';
+import {
+  test,
+  expect,
+  mockBackends,
+  emulateStandalone,
+  Harness,
+  E2E_USER,
+  editLayout,
+  expectLayoutEditable,
+  expectLayoutNotEditable,
+} from './fixtures';
 import type { Page } from '@playwright/test';
 test.use({ actionTimeout: 10_000 });
 const collection = '22222222-2222-4222-8222-222222222222';
@@ -40,8 +50,7 @@ const notSaved = (page: Page) => page.locator('[data-sync-state]');
 // A held change (conflict, billing or access) is sent again only when asked, from its notice.
 const retry = (page: Page) => page.getByRole('button', { name: /^Try (again|now)$/ });
 async function edit(page: Page) {
-  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  await editLayout(page);
   await page.locator('[data-slot-id="synthetic-slot-0"]').click();
   await layout(page).getByRole('button', { name: 'Add', exact: true }).click();
   await layout(page).getByRole('menuitem', { name: 'Before the selection' }).click();
@@ -72,7 +81,7 @@ test('actual host sends through HTTP bridge then fresh all-stream read before AC
   expect(freshReads).toBeGreaterThan(0);
   expect((await record(page))?.receipts[0].outcome).toBe('acknowledged');
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
+  await expectLayoutEditable(page);
   expect((await record(page))?.pending).toHaveLength(0);
   const h = new Harness(page, insets, true);
   await h.expectNoHorizontalOverflow();
@@ -208,7 +217,7 @@ for (const change of ['signout', 'account', 'owner'] as const)
       },
       { change, user: E2E_USER },
     );
-    await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).not.toBeVisible();
+    await expectLayoutNotEditable(page);
     // The same account's token refresh is a benign recheck: the open scope stays current until the check proves
     // the owner changed, and a reply inside that window is accepted. Release only once the new owner is established.
     if (change === 'owner')
@@ -304,9 +313,9 @@ test('offline enqueue stays durable then reconnect sends; billing/permanent erro
       });
   });
   await page.goto(entry);
-  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
+  await expectLayoutEditable(page);
   // Warm the existing lazy sheet before disconnecting; this is in-process IDB sync proof, not cold SW relaunch.
-  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  await editLayout(page);
   await page.locator('[data-slot-id="synthetic-slot-0"]').click();
   await expect(layout(page).getByRole('button', { name: 'Add', exact: true })).toBeVisible();
   await context.setOffline(true);

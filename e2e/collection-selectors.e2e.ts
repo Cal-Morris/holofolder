@@ -55,7 +55,11 @@ function snapshotFor(kind: 'plain' | 'long' | 'many') {
     p.slotId = slots.get(p.slotId)!;
   });
   const layouts = inventoryBrowseLayouts.map((l) => ({ ...l, collectionId: ids(l.collectionId) }));
-  if (kind === 'long') snapshot.collections[0].name = LONG;
+  if (kind === 'long') {
+    snapshot.collections[0].name = LONG;
+    // A graded copy in the long-named binder adds the third view (Slabs), the tightest header row.
+    snapshot.items[0].grading = structuredClone(snapshot.items[1].grading);
+  }
   if (kind === 'many')
     for (let n = 0; n < 18; n++) {
       const id = uuid(5, n);
@@ -125,23 +129,33 @@ test.beforeEach(async ({ page, context, standalone, insets, baseURL }) => {
   await mockBackends(page, context, { signedIn: true, baseURL });
 });
 const collectionMenu = (page: Page) => page.getByRole('dialog', { name: 'Choose collection', exact: true });
-const viewMenu = (page: Page) => page.getByRole('dialog', { name: 'Choose view', exact: true });
 
-test('selectors are enclosed buttons with the current value and a chevron', async ({ page, insets }) => {
+test('the collection selector is an enclosed button and the view is a labelled icon toggle', async ({
+  page,
+  insets,
+}) => {
   await open(page);
   const h = new Harness(page, insets, true);
-  for (const [trigger, text] of [
-    [collectionPicker(page), 'Alpha'],
-    [viewPicker(page), 'Binder'],
+  const trigger = collectionPicker(page);
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toHaveText('Alpha');
+  await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(trigger).toHaveCSS('border-top-width', '1px');
+  await expect(trigger.locator('svg')).toHaveCount(1);
+  await h.expectMinTapTarget(trigger, 36);
+  await h.expectWithinSafeViewport(trigger);
+  const views = viewPicker(page).getByRole('button');
+  await expect(views).toHaveCount(2);
+  for (const [name, pressed] of [
+    ['Binder', 'true'],
+    ['List', 'false'],
   ] as const) {
-    await expect(trigger).toBeVisible();
-    await expect(trigger).toHaveText(text);
-    await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
-    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    await expect(trigger).toHaveCSS('border-top-width', '1px');
-    await expect(trigger.locator('svg')).toHaveCount(1);
-    await h.expectMinTapTarget(trigger, 36);
-    await h.expectWithinSafeViewport(trigger);
+    const button = viewPicker(page).getByRole('button', { name, exact: true });
+    await expect(button).toHaveAttribute('aria-pressed', pressed);
+    await expect(button.locator('svg')).toHaveCount(1);
+    await h.expectMinTapTarget(button, 36);
+    await h.expectWithinSafeViewport(button);
   }
   await expect(page.getByRole('combobox', { name: 'Collection', exact: true })).toHaveCount(0);
   await h.expectNoHorizontalOverflow();
@@ -155,14 +169,15 @@ test('choosing a collection and a view navigates to exactly that', async ({ page
   await expect(page).toHaveURL(new RegExp(`binder=${trades}`));
   await chooseView(page, 'list');
   await expect(viewPicker(page)).toHaveAttribute('data-value', 'list');
-  await expect(viewPicker(page)).toHaveText('List');
+  await expect(viewPicker(page).getByRole('button', { name: 'List', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(page).toHaveURL(/view=list/);
   await expect(collectionPicker(page)).toHaveAttribute('data-value', trades);
-  await viewPicker(page).click();
-  await expect(viewMenu(page).getByRole('menuitemradio')).toContainText(['Binder', 'List']);
-  await expect(viewMenu(page).getByRole('menuitemradio', { name: 'List', exact: true })).toHaveAttribute(
-    'aria-checked',
-    'true',
+  await expect(viewPicker(page).getByRole('button', { name: 'Binder', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
   );
 });
 
@@ -266,8 +281,9 @@ for (const kind of ['long', 'many'] as const)
         view = viewPicker(page),
         storage = page.getByRole('button', { name: 'Storage', exact: true });
       await expect(trigger).toContainText('SYNTHETIC very long');
+      await expect(view.getByRole('button')).toHaveCount(kind === 'long' ? 3 : 2);
       await expect(trigger.locator('span')).toHaveCSS('text-overflow', 'ellipsis');
-      for (const control of [trigger, view, storage]) {
+      for (const control of [trigger, ...(await view.getByRole('button').all()), storage]) {
         await h.expectWithinSafeViewport(control);
         await h.expectHittable(control);
       }
@@ -275,6 +291,9 @@ for (const kind of ['long', 'many'] as const)
       const [t, v, s] = [await trigger.boundingBox(), await view.boundingBox(), await storage.boundingBox()];
       expect(t!.x + t!.width).toBeLessThanOrEqual(v!.x + 1);
       expect(v!.x + v!.width).toBeLessThanOrEqual(s!.x);
+      // Edit layout lives in Storage, so even with three views at 375px the name keeps about 73px: roughly eight
+      // characters of a mixed-case name before the ellipsis (it was about two with Edit layout on the row).
+      expect((await trigger.locator('span').boundingBox())!.width).toBeGreaterThanOrEqual(72);
       await trigger.click();
       const menu = collectionMenu(page);
       await expect(menu).toBeVisible();

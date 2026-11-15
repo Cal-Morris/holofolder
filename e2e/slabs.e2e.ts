@@ -9,6 +9,7 @@ import {
   viewPicker,
   chooseCollection,
   chooseView,
+  editLayout,
 } from './fixtures';
 import { slabFixture, slabCatalog } from '../tests/fixtures/slabs';
 import { inventoryBrowseLayouts } from '../tests/fixtures/inventory-browse';
@@ -125,8 +126,7 @@ test('view switches, back, reload and new page restore presentation without rewr
     .getByRole('button')
     .evaluateAll((elements) => elements.map((e) => e.getAttribute('data-item-id')));
   await chooseView(page, 'list');
-  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  await editLayout(page);
   await chooseView(page, 'slabs');
   await expect(copies(page).getByRole('button')).toHaveCount(15);
   expect(

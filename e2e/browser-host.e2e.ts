@@ -8,6 +8,8 @@ import {
   collectionPicker,
   viewPicker,
   chooseCollection,
+  editLayout,
+  expectLayoutEditable,
 } from './fixtures';
 import {
   inventoryBrowseFixture,
@@ -267,8 +269,7 @@ test('pending real IDB edits survive Edit layout teardown, view changes and fail
   );
   await page.goto(`${entry}&binder=${alpha}`);
   await expect(collectionPicker(page)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  await editLayout(page);
   await expect(page.getByRole('button', { name: 'Done', exact: true })).toBeVisible();
   // Existing real layout command controls, not a harness write to the queue.
   await page.locator(`[data-slot-id="${slotId(0)}"]`).click();
@@ -280,7 +281,7 @@ test('pending real IDB edits survive Edit layout teardown, view changes and fail
   await nav(page).getByRole('button', { name: 'Inventory', exact: true }).click();
   await expect(page.getByRole('searchbox', { name: 'Search inventory' })).toBeVisible();
   await page.goBack();
-  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
+  await expectLayoutEditable(page);
   await expect(page.getByRole('button', { name: 'Done', exact: true })).not.toBeVisible();
   await page.route('**/app/e2e-harness/storage/inventory?*', (route) =>
     route.fulfill({ status: 503, json: { error: 'inventory_operations_staged' } }),
