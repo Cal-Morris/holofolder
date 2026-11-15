@@ -18,6 +18,7 @@ test('printed set codes work with collector numbers online and against cached of
   assert.deepEqual(resolveCardSearchQuery('DLR 001', [card.set]), {
     text: '',
     number: '001',
+    total: null,
     cardId: null,
     setIds: ['me06'],
   });

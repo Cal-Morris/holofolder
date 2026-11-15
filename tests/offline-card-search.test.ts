@@ -133,6 +133,17 @@ test("offline search follows the server's rules: name, set name, set id, number,
   assert.deepEqual(ids('mewtwo'), []);
 });
 
+test('offline search finds an exact number with its set total, and falls back to the number for a wrong total', () => {
+  const other = { id: 'synthetic-set', name: 'Synthetic Set', officialCardCount: 50 };
+  const index = [card('base1-44', 'Bulbasaur', '44'), card('synthetic-set-44', 'Testmon', '44', other)].map(
+    (entry) => ({ ...entry, dexIds: [1] }),
+  );
+  const ids = (query: string) => searchOfflineCards(index, query).map((entry) => entry.id);
+  assert.deepEqual(ids('44/102'), ['base1-44']);
+  assert.deepEqual(ids('44/50'), ['synthetic-set-44']);
+  assert.deepEqual(ids('44/999'), ['base1-44', 'synthetic-set-44']);
+});
+
 test('duplicates across sources are merged and keep every Pokémon', () => {
   const merged = mergeSearchCards([
     [{ ...card('a-1', 'Nidoran', '1'), dexIds: [29] }],

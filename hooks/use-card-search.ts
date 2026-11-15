@@ -56,7 +56,8 @@ export function useCardSearch(
   });
   const { language, includeNonPokemon = false } = options ?? {};
   const parsed = parseCardSearchQuery(query);
-  const searchText = enabled && (parsed.text || parsed.cardId) ? query.trim().toLowerCase() : '';
+  const searchText =
+    enabled && (parsed.text || parsed.cardId || (parsed.number && parsed.total)) ? query.trim().toLowerCase() : '';
   const key = searchText ? `${language ?? 'en'}:${includeNonPokemon}:${searchText}` : '';
   const offlineCardsRef = useRef<Promise<SearchCardResult[]> | null>(null);
   const getOfflineCardsRef = useRef(getOfflineCards);

@@ -228,6 +228,12 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
   const text = parsed.text;
   const number = parsed.number ? normalizeLocalId(parsed.number) : null;
   const setIds = new Set(parsed.setIds);
+  // "284/217": only the sets printed with that total, unless none on the device has the card (a mistyped total).
+  const isNumber = (card: SearchCardResult) => !number || normalizeLocalId(card.localId) === number;
+  const total =
+    parsed.total && cards.some((card) => isNumber(card) && card.set.officialCardCount === parsed.total)
+      ? parsed.total
+      : null;
   for (const card of cards) {
     if (named.has(card)) continue;
     if (setIds.size && !setIds.has(card.set.id)) continue;
@@ -242,7 +248,7 @@ export function searchOfflineCards(cards: SearchCardResult[], query: string, lim
             (text.length >= 3 && Boolean(card.illustrator?.toLowerCase().includes(text)))));
       if (!matchesText) continue;
     }
-    if (number && normalizeLocalId(card.localId) !== number) continue;
+    if (!isNumber(card) || (total && card.set.officialCardCount !== total)) continue;
     results.push(card);
     if (results.length >= limit) break;
   }

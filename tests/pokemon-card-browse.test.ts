@@ -93,9 +93,23 @@ describe('parseCardSearchQuery', () => {
     assert.equal(parseCardSearchQuery('mep-070~685563').cardId, 'mep-070~685563');
   });
   test('name with card number', () => {
-    assert.deepEqual(parseCardSearchQuery('Bulbasaur 44/102'), { text: 'bulbasaur', number: '44', cardId: null });
-    assert.deepEqual(parseCardSearchQuery('pitch black #12'), { text: 'pitch black', number: '12', cardId: null });
-    assert.deepEqual(parseCardSearchQuery('me05 12'), { text: 'me05', number: '12', cardId: null });
+    assert.deepEqual(parseCardSearchQuery('Bulbasaur 44/102'), {
+      text: 'bulbasaur',
+      number: '44',
+      total: 102,
+      cardId: null,
+    });
+    assert.deepEqual(parseCardSearchQuery('pitch black #12'), {
+      text: 'pitch black',
+      number: '12',
+      total: null,
+      cardId: null,
+    });
+    assert.deepEqual(parseCardSearchQuery('me05 12'), { text: 'me05', number: '12', total: null, cardId: null });
+  });
+  test('an exact number with its set total', () => {
+    assert.deepEqual(parseCardSearchQuery('284/217'), { text: '', number: '284', total: 217, cardId: null });
+    assert.deepEqual(parseCardSearchQuery('TG05/TG30'), { text: '', number: 'tg05', total: null, cardId: null });
   });
   test('card ids', () => {
     assert.equal(parseCardSearchQuery('base1-44').cardId, 'base1-44');
@@ -103,8 +117,8 @@ describe('parseCardSearchQuery', () => {
     assert.equal(parseCardSearchQuery('ho-oh').cardId, null);
   });
   test('plain names and lone numbers stay as text', () => {
-    assert.deepEqual(parseCardSearchQuery('charizard'), { text: 'charizard', number: null, cardId: null });
-    assert.deepEqual(parseCardSearchQuery('25'), { text: '25', number: null, cardId: null });
+    assert.deepEqual(parseCardSearchQuery('charizard'), { text: 'charizard', number: null, total: null, cardId: null });
+    assert.deepEqual(parseCardSearchQuery('25'), { text: '25', number: null, total: null, cardId: null });
   });
   test('strips PostgREST-significant characters', () => {
     assert.equal(parseCardSearchQuery('pika,chu (ex%)').text, 'pika chu ex');
