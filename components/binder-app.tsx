@@ -48,7 +48,7 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { CreditsNotice } from '@/components/credits';
 import type { SettingsPageId } from '@/components/settings-modal';
 import { useRouter } from 'next/navigation';
-import { Coins, Grid3X3, Link2, Palette, WifiOff } from 'lucide-react';
+import { Coins, Grid3X3, Link2, Palette, PencilRuler, WifiOff } from 'lucide-react';
 import type { StorageMenuAction } from '@/components/collection-navigation/storage-menu';
 import type { PokemonSearchResultMeta } from '@/components/pokemon-search';
 import {
@@ -3488,6 +3488,10 @@ function BinderAppSurface(props: BinderAppProps) {
   const binderMenuActions: StorageMenuAction[] =
     browserSurface?.surface.state.main === 'collection'
       ? [
+          // In the menu rather than the row, so the binder name keeps its room on phones. Long-press and drag start it too.
+          ...(layoutBoundary && !editingLayout
+            ? [{ label: 'Edit layout', icon: PencilRuler, onSelect: () => startLayoutEditing() }]
+            : []),
           ...(!accountSettingsReadOnly
             ? [
                 {
@@ -4684,7 +4688,8 @@ function BinderAppSurface(props: BinderAppProps) {
                     <Coins className="h-4 w-4" aria-hidden />
                   </button>
                 )}
-              {editingLayout ? <div className="min-w-0 flex-1">{layoutToolbar}</div> : layoutToolbar}
+              {/* As tall as the view toggle it replaces (36 px buttons in a padded pill), so the binder stays put. */}
+              {editingLayout && <div className="flex min-h-10.5 min-w-0 flex-1 items-center">{layoutToolbar}</div>}
               {browserSurface.surface.state.main === 'collection' &&
               browserSurface.surface.collection?.state.view === 'binder' &&
               activeMainView === 'binder' &&

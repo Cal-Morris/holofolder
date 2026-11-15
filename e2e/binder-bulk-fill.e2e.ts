@@ -1,4 +1,13 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER } from './fixtures';
+import {
+  test,
+  expect,
+  mockBackends,
+  emulateStandalone,
+  Harness,
+  E2E_USER,
+  editLayout,
+  expectLayoutNotEditable,
+} from './fixtures';
 import type { Page } from '@playwright/test';
 const collection = '22222222-2222-4222-8222-222222222222';
 const entry = `/app/e2e-harness?signedIn=1&browserHost=1&binder=${collection}`;
@@ -33,7 +42,7 @@ async function record(page: Page) {
 }
 /** Layout editing: tap the first page's four pockets (two Snorlax pockets, one free, one holding a trainer), then Fill. */
 async function open(page: Page) {
-  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  await editLayout(page);
   const snorlax = page.getByRole('button', { name: 'Snorlax, Unfilled target', exact: true });
   await snorlax.nth(0).click();
   await snorlax.nth(1).click();
@@ -294,7 +303,7 @@ for (const change of ['signout', 'account', 'owner'] as const)
       { change, user: E2E_USER },
     );
     await expect(dialog(page)).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).not.toBeVisible();
+    await expectLayoutNotEditable(page);
     release();
     expect((await record(page))!.pending[0].intent).toEqual(original);
     expect((await record(page))?.receipts).toHaveLength(0);

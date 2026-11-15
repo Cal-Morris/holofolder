@@ -291,6 +291,9 @@ for (const kind of ['long', 'many'] as const)
       const [t, v, s] = [await trigger.boundingBox(), await view.boundingBox(), await storage.boundingBox()];
       expect(t!.x + t!.width).toBeLessThanOrEqual(v!.x + 1);
       expect(v!.x + v!.width).toBeLessThanOrEqual(s!.x);
+      // Edit layout lives in Storage, so even with three views at 375px the name keeps about 73px: roughly eight
+      // characters of a mixed-case name before the ellipsis (it was about two with Edit layout on the row).
+      expect((await trigger.locator('span').boundingBox())!.width).toBeGreaterThanOrEqual(72);
       await trigger.click();
       const menu = collectionMenu(page);
       await expect(menu).toBeVisible();

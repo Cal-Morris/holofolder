@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, expectLayoutEditable } from './fixtures';
 
 test.describe('settings', () => {
   test.use({ signedIn: true });
@@ -30,6 +30,6 @@ test.describe('settings', () => {
     // Once it closes, the live binder takes over.
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeEnabled();
+    await expectLayoutEditable(page);
   });
 });

@@ -1,4 +1,13 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER } from './fixtures';
+import {
+  test,
+  expect,
+  mockBackends,
+  emulateStandalone,
+  Harness,
+  E2E_USER,
+  editLayout,
+  expectLayoutEditable,
+} from './fixtures';
 import {
   inventoryBrowseFixture,
   inventoryBrowseCatalog,
@@ -114,7 +123,7 @@ for (const size of [3, 4, 8])
       const first = slot('alpha-empty-0');
       const toolbar = page.getByRole('region', { name: 'Layout editing', exact: true });
       const dialog = page.getByRole('dialog', { name: /details$/ });
-      await expect(toolbar.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
+      await expectLayoutEditable(page);
       await expect(page.getByRole('region', { name: 'Storage dashboard', exact: true })).toHaveCount(0);
       // Browse: an empty pocket opens the card selector for that pocket; an owned one opens its details.
       const selector = page.getByRole('dialog', { name: 'Card selector', exact: true });
@@ -129,7 +138,7 @@ for (const size of [3, 4, 8])
         await expect(dialog).toHaveCount(0);
       }
       const browse = await geometry(page);
-      await toolbar.getByRole('button', { name: 'Edit layout', exact: true }).click();
+      await editLayout(page);
       // Ordinary pointer clicks must reach the saved slot in both modes: in Edit they select it.
       await first.click();
       await expect(toolbar.getByRole('status')).toHaveText('1 selected');
@@ -183,7 +192,7 @@ for (const size of [3, 4, 8])
       await expect(toolbar.getByRole('status')).toHaveText('2 selected');
       await expect(first).toHaveAttribute('aria-pressed', 'true');
       await toolbar.getByRole('button', { name: 'Done', exact: true }).click();
-      await expect(toolbar.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
+      await expectLayoutEditable(page);
       await h.expectNoHorizontalOverflow();
       for (const name of ['Binder', 'Inventory']) {
         const button = dock.getByRole('button', { name, exact: true });
@@ -217,7 +226,7 @@ test('layout editing takes the toolbar row, so the binder stays put, and a drag 
   const order = () => pockets.evaluateAll((els) => els.map((el) => el.getAttribute('data-slot-id')));
   await expect(pockets.first()).toBeVisible();
   const before = await pockets.first().boundingBox();
-  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  await editLayout(page);
   const bar = page.getByRole('region', { name: 'Layout editing', exact: true });
   await expect(bar.getByRole('button', { name: 'Done', exact: true })).toBeVisible();
   expect(await pockets.first().boundingBox()).toEqual(before);

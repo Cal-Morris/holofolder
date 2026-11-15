@@ -11,6 +11,8 @@ import {
   viewPicker,
   chooseCollection,
   chooseView,
+  editLayout,
+  expectLayoutEditable,
 } from './fixtures';
 import {
   inventoryBrowseFixture,
@@ -110,9 +112,9 @@ async function checkToolbar(
   await page.goto(`/app/e2e-harness?signedIn=1&browserHost=1&binder=${alpha}&view=binder`);
   const picker = collectionPicker(page);
   const view = viewPicker(page);
-  const edit = page.getByRole('button', { name: 'Edit layout', exact: true });
+  const storage = page.getByRole('button', { name: 'Storage', exact: true });
   await expect(picker).toHaveAttribute('data-value', alpha);
-  await expect(edit).toBeVisible();
+  await expectLayoutEditable(page);
   await page.evaluate(() => document.fonts.ready);
   const sample = () =>
     page.evaluate(() => {
@@ -125,7 +127,7 @@ async function checkToolbar(
         ...Array.from(document.querySelectorAll('button')).filter(
           (e) =>
             ['Show'].includes(e.textContent?.trim() ?? '') ||
-            ['Edit layout', 'Scan page', 'Scan card', 'Storage'].includes(e.getAttribute('aria-label') ?? ''),
+            ['Scan page', 'Scan card', 'Storage'].includes(e.getAttribute('aria-label') ?? ''),
         ),
       ];
       return elements
@@ -158,7 +160,6 @@ async function checkToolbar(
   for (const control of [
     picker,
     view,
-    edit,
     ...['Show pockets', 'Storage'].map((name) => page.getByRole('button', { name, exact: true })),
   ]) {
     await expect(control).toHaveCSS('font-family', font);
@@ -169,16 +170,9 @@ async function checkToolbar(
   }
   await expect(picker).toHaveCSS('font-size', '14px');
   await expect(picker).toHaveCSS('font-weight', '600');
-  // Edit layout is a compact icon in the binder actions row, not its own row.
-  const storage = page.getByRole('button', { name: 'Storage', exact: true });
-  const [editBox, storageBox] = [await edit.boundingBox(), await storage.boundingBox()];
-  expect(Math.abs(editBox!.y + editBox!.height / 2 - (storageBox!.y + storageBox!.height / 2))).toBeLessThanOrEqual(1);
-  expect(editBox!.width).toBe(storageBox!.width);
-  await expect(edit).toHaveAttribute('title', 'Edit layout');
-  await expect(edit).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByTestId('main-content').getByRole('button', { name: 'Edit layout', exact: true })).toHaveCount(
-    0,
-  );
+  // Edit layout is a Storage menu item, so the row leaves the binder name room; it is not on the row or the page.
+  const edit = page.getByRole('button', { name: 'Edit layout', exact: true });
+  await expect(edit).toHaveCount(0);
   const h = new Harness(page, insets, true);
   await h.expectNoHorizontalOverflow();
   // Selector labels must stay bounded even with a realistic long collection name.
@@ -190,26 +184,28 @@ async function checkToolbar(
   await page.reload();
   await expect(picker).toHaveAttribute('data-value', alpha);
   await expect(picker).toContainText('Japanese illustration rares and special art favourites');
-  await expect(edit).toBeVisible();
+  await expectLayoutEditable(page);
   await h.expectNoHorizontalOverflow();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((theme) => document.documentElement.classList.toggle('dark', theme === 'dark'), theme);
-    await h.expectHittable(edit);
+    await h.expectHittable(storage);
     await h.expectNoHorizontalOverflow();
   }
-  await edit.click();
+  await editLayout(page);
   const done = page.getByRole('button', { name: 'Done', exact: true });
   await expect(done).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: /^Editing layout$/ })).toBeVisible();
   await expect(edit).toHaveCount(0);
   await h.expectNoHorizontalOverflow();
   await done.click();
-  await expect(edit).toBeVisible();
+  await expect(storage).toBeVisible();
+  await storage.focus();
+  await page.keyboard.press('Enter');
   await edit.focus();
   await page.keyboard.press('Enter');
   await expect(done).toBeVisible();
   await done.click();
-  await expect(edit).toBeVisible();
+  await expect(edit).toHaveCount(0);
   await chooseView(page, 'list');
   await expect(view).toHaveAttribute('data-value', 'list');
   await chooseCollection(page, trades);

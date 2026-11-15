@@ -15,6 +15,8 @@ import {
   viewPicker,
   chooseView,
   chooseCollection,
+  expectLayoutEditable,
+  expectLayoutNotEditable,
 } from './fixtures';
 import type { Route } from '@playwright/test';
 import {
@@ -449,7 +451,7 @@ for (const outcome of ['recovered', 'account', 'membership', 'denied', 'unavaila
     await expect(page.getByRole('status').filter({ hasText: /^1 pending edit to sync$/ })).toBeVisible();
     await expect(page.getByText(/Cached only|Access is being checked/)).toHaveCount(0);
     await expect(collectionPicker(page)).toHaveAttribute('data-value', alpha);
-    await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).not.toBeVisible();
+    await expectLayoutNotEditable(page);
     await expect(page.getByRole('button', { name: 'Storage', exact: true })).toHaveCount(0);
     expect(await savedQueue(page)).toEqual(before);
     expect(sends.length).toBe(sentBefore);
@@ -491,7 +493,7 @@ for (const outcome of ['recovered', 'account', 'membership', 'denied', 'unavaila
     if (outcome === 'recovered' || outcome === 'denied') release();
     await expect(page.getByRole('status').filter({ hasText: /^1 pending edit to sync$/ })).not.toBeVisible();
     if (outcome === 'recovered') {
-      await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeEnabled();
+      await expectLayoutEditable(page);
       // First reconcile the saved command before opening an unrelated creation plan.
       await expect(await storageAction(page, 'New binder')).toBeDisabled();
       await closeStorage(page);
@@ -558,7 +560,7 @@ test('native owner can open Account and save pricing preferences without legacy 
       legacyWrites.push(request.url());
   });
   await page.goto(`${entry}&binder=${alpha}`);
-  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeVisible();
+  await expectLayoutEditable(page);
   await page.getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });

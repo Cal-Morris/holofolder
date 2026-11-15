@@ -1,4 +1,4 @@
-import { test, expect, openSettingsPage, type Harness } from './fixtures';
+import { test, expect, openSettingsPage, type Harness, expectLayoutEditable } from './fixtures';
 
 test.use({ signedIn: true });
 
@@ -36,7 +36,7 @@ test('owner explicitly saves account username and binder slug, then gets the sav
   );
   await page.goto('/app/e2e-harness?signedIn=1&browserHost=1');
   // Sharing appears once the live binder replaces this device's saved copy (as in Harness.reload()).
-  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeEnabled({ timeout: 30_000 });
+  await expectLayoutEditable(page, 30_000);
   const dialog = await settings(harness);
   await openSettingsPage(dialog, 'Profile');
   const account = dialog.getByRole('region', { name: 'Your profile' });
@@ -102,7 +102,7 @@ test('share pricing defaults off and owner can enable and disable it', async ({ 
   });
   await page.goto('/app/e2e-harness?signedIn=1&browserHost=1');
   // Sharing appears once the live binder replaces this device's saved copy (as in Harness.reload()).
-  await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toBeEnabled({ timeout: 30_000 });
+  await expectLayoutEditable(page, 30_000);
   const dialog = await settings(harness);
   await openSettingsPage(dialog, 'Sharing');
   const toggle = dialog.getByRole('switch', { name: 'Show prices on shared binder' });

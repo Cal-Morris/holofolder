@@ -8,6 +8,7 @@ import {
   E2E_USER,
   storageAction,
   chooseCollection,
+  editLayout,
 } from './fixtures';
 import type { Page } from '@playwright/test';
 import { parseBinderBackupV2 } from '../lib/binder-backup-v2';
@@ -188,7 +189,7 @@ test('offline, pending IDB edits and unsupported assets refuse export', async ({
   await page.route('**/app/e2e-harness/storage/slots', (route) => route.abort('failed'));
   await context.setOffline(false);
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  await editLayout(page);
   await page.locator('[data-slot-id="synthetic-slot-2"]').click();
   await page.getByRole('button', { name: 'Insert free slot before', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Done', exact: true }).click();

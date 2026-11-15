@@ -9,6 +9,8 @@ import {
   viewPicker,
   chooseCollection,
   chooseView,
+  editLayout,
+  expectLayoutNotEditable,
 } from './fixtures';
 import {
   inventoryBrowseFixture,
@@ -166,7 +168,7 @@ test('previously cached native pending layout survives genuine page close and of
   page,
 }, info) => {
   await prepare(page);
-  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  await editLayout(page);
   // Stage a pending create command through the toolbar, independently of grid hit geometry.
   const layout = page.getByRole('region', { name: 'Layout editing', exact: true });
   await layout.getByRole('button', { name: 'Add', exact: true }).click();
@@ -189,7 +191,7 @@ test('previously cached native pending layout survives genuine page close and of
   });
   await expect(reopened.getByTestId('connection-chip')).toContainText('Offline');
   await expect(reopened.getByText(/Access will be checked|Saved on this device · Cached only/)).toHaveCount(0);
-  await expect(reopened.getByRole('button', { name: 'Edit layout', exact: true })).not.toBeVisible();
+  await expectLayoutNotEditable(reopened);
   await expect(reopened.getByRole('button', { name: 'Done', exact: true })).not.toBeVisible();
   await expect(collectionPicker(reopened)).toHaveAttribute('data-value', alpha);
   expect(await queueRecords(reopened)).toEqual(before);
@@ -288,7 +290,7 @@ test('missing grid metadata retains canonical pending bytes and refuses cached n
   page,
 }, info) => {
   await prepare(page);
-  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  await editLayout(page);
   // Stage a pending create command through the toolbar, independently of grid hit geometry.
   const layout = page.getByRole('region', { name: 'Layout editing', exact: true });
   await layout.getByRole('button', { name: 'Add', exact: true }).click();

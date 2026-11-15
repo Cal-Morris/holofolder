@@ -1,4 +1,14 @@
-import { test, expect, mockBackends, emulateStandalone, Harness, E2E_USER, storageAction } from './fixtures';
+import {
+  test,
+  expect,
+  mockBackends,
+  emulateStandalone,
+  Harness,
+  E2E_USER,
+  storageAction,
+  editLayout,
+  expectLayoutNotEditable,
+} from './fixtures';
 import type { Page } from '@playwright/test';
 import type { SlotOfflineRecord } from '../lib/collection/slot-offline-queue';
 
@@ -34,7 +44,7 @@ async function record(page: Page): Promise<SlotOfflineRecord> {
 }
 /** Edit layout, tap the pockets (1-based), then Remove opens the review. */
 async function select(page: Page, ids = [1, 2, 3, 4]) {
-  await button(page, 'Edit layout').click();
+  await editLayout(page);
   await expect(removeButton(page)).toBeDisabled();
   for (const id of ids) await pocket(page, id).click();
   await expect(bar(page).getByRole('status')).toHaveText(`${ids.length} selected`);
@@ -65,7 +75,7 @@ test('bulk consequences, duplicate/raw/graded/unknown retention and one atomic c
   await expect(removeButton(page)).toHaveCount(0);
   await expect.poll(async () => (await record(page))?.snapshot?.items.length).toBe(4);
   const before = (await record(page)).snapshot!;
-  const browse = await page.getByRole('region', { name: 'Layout editing', exact: true }).boundingBox();
+  const browse = await page.getByRole('button', { name: 'Storage', exact: true }).boundingBox();
   await select(page);
   await expect(dialog(page).getByRole('heading', { name: 'Remove 4 pockets?' })).toBeVisible();
   await expect(dialog(page).getByRole('list', { name: 'What happens' })).toContainText(
@@ -121,7 +131,7 @@ test('single selected slot has exact confirmation, cancel leaves Browse unchange
     .getByRole('button', { name: /^close/i })
     .first()
     .click();
-  await button(page, 'Edit layout').click();
+  await editLayout(page);
   await slot.click();
   await removeButton(page).click();
   await expect(dialog(page).getByRole('heading', { name: 'Remove 1 pocket?' })).toBeVisible();
@@ -195,7 +205,7 @@ test('unknown committed reply survives cached reload, exact retry and fresh comp
   await expect(button(page, 'Use current storage')).toHaveCount(0);
   await button(page, 'Done').click();
   await page.reload();
-  await expect(button(page, 'Edit layout')).not.toBeVisible();
+  await expectLayoutNotEditable(page);
   expect((await record(page)).pending[0].intent).toEqual(original);
   expect((await record(page)).receipts).toHaveLength(0);
   failRead = false;
@@ -316,7 +326,7 @@ for (const change of ['signout', 'account', 'owner'] as const)
       { change, user: E2E_USER },
     );
     await expect(dialog(page)).toHaveCount(0);
-    await expect(button(page, 'Edit layout')).not.toBeVisible();
+    await expectLayoutNotEditable(page);
     release();
     expect((await record(page)).pending[0].intent).toEqual(original);
     expect((await record(page)).receipts).toHaveLength(0);

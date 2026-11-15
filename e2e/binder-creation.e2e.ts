@@ -10,6 +10,7 @@ import {
   viewPicker,
   chooseCollection,
   chooseView,
+  expectLayoutNotEditable,
 } from './fixtures';
 import type { Page } from '@playwright/test';
 
@@ -546,7 +547,7 @@ for (const discarded of [false, true])
       await expect.poll(async () => (await record(page))?.receipts.length).toBe(1);
     } else {
       await expect(button).toBeDisabled();
-      await expect(page.getByRole('button', { name: 'Edit layout', exact: true })).toHaveCount(0);
+      await expectLayoutNotEditable(page);
     }
   });
 
