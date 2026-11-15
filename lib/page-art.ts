@@ -254,6 +254,14 @@ export function putPageArt(
   };
 }
 
+/** Page art for a public share: anchors swapped for the share's own pocket ids, unknown anchors dropped. */
+export function publicPageArt(arts: readonly PageArt[], publicIds: ReadonlyMap<string, string>): PageArt[] {
+  return arts.flatMap((art) => {
+    const anchorSlotId = publicIds.get(art.anchorSlotId);
+    return anchorSlotId ? [{ ...art, anchorSlotId }] : [];
+  });
+}
+
 /** A new artwork id. */
 export function newPageArtId() {
   return crypto.randomUUID().slice(0, 13);
