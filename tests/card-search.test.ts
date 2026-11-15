@@ -66,6 +66,14 @@ test('filterAndRankCards searches card metadata beyond name and set', () => {
   );
 });
 
+test('filterAndRankCards narrows to one exact artist', () => {
+  assert.deepEqual(
+    filterAndRankCards(cards, { illustrator: 'Ken Sugimori' }).map((card) => card.id),
+    ['base-010'],
+  );
+  assert.deepEqual(filterAndRankCards(cards, { illustrator: 'Ken' }), []);
+});
+
 test('filterAndRankCards matches fuzzy set words and ranks exact number matches first', () => {
   assert.deepEqual(
     filterAndRankCards(cards, { searchQuery: 'steam 10' }).map((card) => card.id),

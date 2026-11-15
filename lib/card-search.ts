@@ -23,6 +23,8 @@ export interface SearchableCard {
 export interface CardSearchFilters {
   set?: string;
   rarity?: string;
+  /** Exact credited artist. */
+  illustrator?: string;
   variant?: string;
   searchQuery?: string;
 }
@@ -181,6 +183,7 @@ function buildSearchDocument<TCard extends SearchableCard>(card: TCard): CardSea
 function passesStructuredFilters(card: SearchableCard, filters: CardSearchFilters) {
   if (filters.set && card.set.id !== filters.set) return false;
   if (filters.rarity && card.rarity !== filters.rarity) return false;
+  if (filters.illustrator && card.illustrator !== filters.illustrator) return false;
 
   if (filters.variant) {
     if (filters.variant === 'normal' && !card.variants?.normal) return false;

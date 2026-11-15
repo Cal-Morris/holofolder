@@ -11,6 +11,7 @@ export type { CardLanguage, TCGCard } from '@/lib/domain/cards';
 export interface CardFilters {
   set?: string;
   rarity?: string;
+  illustrator?: string;
   /** National Dex id; any-card search only, applied by the card selector (results carry dexIds). */
   pokemon?: number;
   variant?: string;

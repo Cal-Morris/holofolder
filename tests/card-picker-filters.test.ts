@@ -49,12 +49,18 @@ describe('card picker filters', () => {
       [],
     );
     const chips = getActiveFilterChips(
-      { ...base, filters: { set: 'sv03.5', rarity: 'Common' }, language: 'ja', variant: 'holo', sort: 'price-desc' },
+      {
+        ...base,
+        filters: { set: 'sv03.5', rarity: 'Common', illustrator: 'Mitsuhiro Arita' },
+        language: 'ja',
+        variant: 'holo',
+        sort: 'price-desc',
+      },
       (id) => (id === 'sv03.5' ? '151' : undefined),
     );
     assert.deepEqual(
       chips.map((chip) => chip.label),
-      ['Price: high to low', 'Japanese', 'Holo', '151', 'Common'],
+      ['Price: high to low', 'Japanese', 'Holo', '151', 'Common', 'Mitsuhiro Arita'],
     );
     assert.deepEqual(
       getActiveFilterChips({ ...base, language: 'any' }, () => undefined).map((chip) => chip.label),

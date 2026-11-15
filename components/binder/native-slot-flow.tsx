@@ -25,6 +25,8 @@ import {
   type ScanDestinationView,
 } from '@/lib/scan-destinations';
 
+type PagePick = { card: SearchCardResult; finish: CardSelectorPick['finish'] };
+
 /** The binder's page size, given only while the binder shows its full unfiltered page order. */
 type PageGrid = { rows: number; cols: number };
 
@@ -156,6 +158,11 @@ function PocketSelector({
             fill && !reserved
               ? {
                   room: fill.room,
+                  freeLeft: (picks) =>
+                    fill.freeLeft(
+                      slot.id,
+                      picks.map(({ card, finish }) => ({ card: toSearchCard(card), finish })),
+                    ),
                   busy: fill.busy,
                   error: fill.error,
                   onAdd: (picks) =>
@@ -214,7 +221,22 @@ function usePageFill(boundary: SlotPickerBoundary, grid: PageGrid | undefined, o
   }, onSaved);
   if (!view || !capture) return null;
   const room = view.pageSlotIds.filter((id) => slots.find((s) => s.id === id)?.inventoryItemId === null).length;
-  const add = (startSlotId: string, picks: { card: SearchCardResult; finish: CardSelectorPick['finish'] }[]) => {
+  /**
+   * Free pockets the page still has once these picks are placed exactly as a save would place them, or null when they
+   * don't all fit. Pockets kept for one card or Pokémon only take that card, so they never count as free.
+   */
+  const freeLeft = (startSlotId: string, picks: PagePick[]) => {
+    try {
+      const used = new Set(planPageFill(snapshot, view, startSlotId, picks).map((choice) => choice.slotId));
+      return view.pageSlotIds.filter((id) => {
+        const slot = slots.find((s) => s.id === id);
+        return slot?.inventoryItemId === null && slot.target === null && !used.has(id);
+      }).length;
+    } catch {
+      return null;
+    }
+  };
+  const add = (startSlotId: string, picks: PagePick[]) => {
     try {
       const prepared = prepareScanDraft(
         snapshot,
@@ -237,7 +259,7 @@ function usePageFill(boundary: SlotPickerBoundary, grid: PageGrid | undefined, o
       setError(pageFillProblem(cause));
     }
   };
-  return { room, add, busy: acceptance.busy, error: error ?? acceptance.message };
+  return { room, freeLeft, add, busy: acceptance.busy, error: error ?? acceptance.message };
 }
 
 function pageFillProblem(cause: unknown) {
