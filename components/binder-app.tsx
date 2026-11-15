@@ -201,7 +201,7 @@ import {
   type BinderLayoutChangePlan,
 } from '@/lib/binder-layout-change';
 import type { InventoryCatalogResolver, InventorySnapshot } from '@/lib/domain/inventory';
-import type { LayoutSessionStart, LayoutTap } from '@/components/binder/layout-editor';
+import type { LayoutSessionStart, LayoutTap, LayoutZoneDrop } from '@/components/binder/layout-editor';
 import type { WantedDashboardCard } from '@/lib/wanted-dashboard';
 import { pocketPlace } from '@/lib/pocket-labels';
 import { CollectionFilterBar } from '@/components/binder/collection-filter-bar';
@@ -1665,8 +1665,10 @@ function BinderAppSurface(props: BinderAppProps) {
     moving: false,
   });
   const layoutTap = useRef<LayoutTap | null>(null);
-  const registerLayoutTap = useCallback((tap: LayoutTap | null) => {
+  const layoutZoneDrop = useRef<LayoutZoneDrop | null>(null);
+  const registerLayoutTap = useCallback((tap: LayoutTap | null, zone?: LayoutZoneDrop) => {
     layoutTap.current = tap;
+    layoutZoneDrop.current = zone ?? null;
   }, []);
   const [pocketMenu, setPocketMenu] = useState<{ slotId: string; point: { x: number; y: number } } | null>(null);
   const reportLayoutSelection = useCallback(
@@ -1779,6 +1781,7 @@ function BinderAppSurface(props: BinderAppProps) {
           activeBinder && resolvedCollectionOwnerUserId && orderedDisplayPages
             ? (selection) => setPageArtSheet({ selection })
             : undefined,
+        turn: (direction) => turnUnderCard(direction),
       }}
       start={layoutSession?.start}
       onTap={registerLayoutTap}
@@ -2521,6 +2524,15 @@ function BinderAppSurface(props: BinderAppProps) {
     const previousPage = leftPage <= 2 ? 1 : leftPage - 2;
     navigateToPage(previousPage, 'right');
   }, [goToPrevPage, isSpreadLayout, navigateToPage]);
+  // A held card (a pocket's, or the layout tray's) turns the page, or the spread, under it.
+  const turnUnderCard = (direction: 1 | -1) =>
+    direction > 0
+      ? isSpreadLayout
+        ? goToNextSpread()
+        : goToNextPage()
+      : isSpreadLayout
+        ? goToPrevSpread()
+        : goToPrevPage();
 
   const lastVisibleBinderPageNumber = visibleBinderPageNumbers[visibleBinderPageNumbers.length - 1] ?? 0;
   const canGoToPreviousVisiblePage = (pendingBinderPage ?? currentBinderPage) > 1;
@@ -4230,14 +4242,8 @@ function BinderAppSurface(props: BinderAppProps) {
                 start: () => (editingLayout ? setPocketMenu(null) : startLayoutEditing()),
                 drop: (slotId: string, targetId: string, mode: PocketDropMode) =>
                   layoutTap.current?.(slotId, targetId, mode) ?? false,
-                turn: (direction: 1 | -1) =>
-                  direction > 0
-                    ? isSpreadLayout
-                      ? goToNextSpread()
-                      : goToNextPage()
-                    : isSpreadLayout
-                      ? goToPrevSpread()
-                      : goToPrevPage(),
+                zone: (slotId: string, zone: string) => layoutZoneDrop.current?.(slotId, zone) ?? false,
+                turn: turnUnderCard,
               }
             : undefined,
           binderSlotImageSizes,

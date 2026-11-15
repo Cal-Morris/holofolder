@@ -579,6 +579,119 @@ test.describe('layout editing on the pockets', () => {
     await expect(pocket(page, 'slot-a')).toHaveAttribute('aria-pressed', 'true');
   });
 
+  const tray = (page: Page) => page.locator('[data-pocket-zone="park"]');
+  const takeOutZone = (page: Page) => page.locator('[data-pocket-zone="take-out"]');
+  /** Carry a pocket (or the tray's stack) with the mouse onto a target, aiming again in case anything moved. */
+  const carry = async (page: Page, from: Locator, to: Locator) => {
+    const a = (await from.boundingBox())!;
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    // Pick it up first: drop zones such as take-out only open once a card is held.
+    await page.mouse.move(a.x + a.width / 2 + 12, a.y + a.height / 2 + 12, { steps: 2 });
+    const b = (await to.boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 8 });
+    const c = (await to.boundingBox())!;
+    await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2, { steps: 2 });
+  };
+
+  test(
+    'the parking tray sits above the dock and keeps the last row of pockets clear',
+    { tag: '@matrix' },
+    async ({ harness }) => {
+      const { page } = harness;
+      await expect(tray(page)).toHaveCount(0);
+      await edit(page);
+      await expect(tray(page)).toHaveAccessibleName(/^Parking tray/);
+      await expect(takeOutZone(page)).toBeHidden();
+      await harness.expectMinTapTarget(tray(page), 36);
+      const box = (await tray(page).boundingBox())!;
+      for (const id of ['slot-e', 'slot-g']) {
+        const pocketBox = (await pocket(page, id).boundingBox())!;
+        expect(pocketBox.y + pocketBox.height).toBeLessThanOrEqual(box.y);
+      }
+      await harness.expectNoHorizontalOverflow();
+      await bar(page).getByRole('button', { name: 'Done', exact: true }).click();
+      await expect(tray(page)).toHaveCount(0);
+    },
+  );
+
+  test('cards parked in the tray survive a page turn and land together, as one undoable step', async ({ harness }) => {
+    const { page } = harness;
+    await page.goto('/app/e2e-harness?signedIn=1&slots=picker&rows=2&cols=2');
+    await expect(pocket(page, 'slot-a')).toBeVisible();
+    await edit(page);
+    await carry(page, pocket(page, 'slot-a'), tray(page));
+    await expect(tray(page)).toHaveAttribute('data-drop-target', '');
+    await page.mouse.up();
+    await carry(page, pocket(page, 'slot-c'), tray(page));
+    await page.mouse.up();
+    await expect(tray(page)).toHaveAccessibleName(/^2 parked/);
+    await expect(tray(page)).toContainText('2 parked');
+    // Each parked card shrank into the tray.
+    await landed(page);
+    await expect(page.locator('[data-pocket-ghost]')).toHaveCount(0);
+    // Parking is only on this device until the cards are placed.
+    await expect(count(page)).toHaveText('0');
+    expect(await order(page)).toEqual(['slot-a', 'slot-b', 'slot-c', 'slot-d']);
+    await page.getByRole('button', { name: 'Next binder page', exact: true }).click();
+    await expect(pocket(page, 'slot-f')).toBeVisible();
+    await expect(tray(page)).toHaveAccessibleName(/^2 parked/);
+    // The stack is carried out with both cards, and lands before the pocket it's dropped on.
+    await carry(page, tray(page).locator('[data-tray-stack]'), pocket(page, 'slot-f'));
+    await expect(page.locator('[data-pocket-ghost]')).toHaveAttribute('data-carry', '2');
+    await page.mouse.up();
+    await expect(count(page)).toHaveText('1');
+    expect((await draft(page)).intent.request.commands).toHaveLength(2);
+    expect(await order(page)).toEqual(['slot-c', 'slot-f', 'slot-g']);
+    await expect(tray(page)).toHaveAccessibleName(/^Parking tray/);
+    await landed(page);
+    // The layout Undo puts them back where they were.
+    await bar(page).getByRole('button', { name: 'Undo move', exact: true }).click();
+    await expect(count(page)).toHaveText('2');
+    expect(await order(page)).toEqual(['slot-e', 'slot-f', 'slot-g']);
+    // Tapping the tray chooses where with a tap instead (the keyboard path); Done un-parks without moving anything.
+    await pocket(page, 'slot-e').click();
+    await tray(page).click();
+    await expect(bar(page).getByRole('status')).toHaveText('Tap where it goes');
+    await pocket(page, 'slot-g').click();
+    await expect(count(page)).toHaveText('3');
+    expect(await order(page)).toEqual(['slot-f', 'slot-e', 'slot-g']);
+    await pocket(page, 'slot-g').click();
+    await bar(page).getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(page.getByText('Unparked 1. Nothing moved.').first()).toBeVisible();
+    await expect(count(page)).toHaveText('3');
+  });
+
+  test('a card dropped on the take-out zone leaves its pocket but stays owned, and Undo puts it back', async ({
+    harness,
+  }) => {
+    const { page } = harness;
+    await edit(page);
+    // Graded cards don't offer the zone.
+    await carry(page, pocket(page, 'slot-b'), pocket(page, 'slot-e'));
+    await expect(takeOutZone(page)).toBeHidden();
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    await landed(page);
+    await carry(page, pocket(page, 'slot-a'), takeOutZone(page));
+    await expect(takeOutZone(page)).toBeVisible();
+    await expect(takeOutZone(page)).toHaveAttribute('data-drop-target', '');
+    await page.mouse.up();
+    await expect(count(page)).toHaveText('1');
+    const out = await draft(page);
+    expect(out.intent.kind).toBe('slots');
+    expect(out.intent.request.commands.map((c: { kind: string }) => c.kind)).toEqual(['clear']);
+    await expect(pocket(page, 'slot-a')).not.toHaveAttribute('data-filled', '');
+    await expect(takeOutZone(page)).toBeHidden();
+    const undo = page.getByRole('button', { name: 'Undo', exact: true });
+    await expect(page.getByText('It stays in your collection.').first()).toBeVisible();
+    await undo.click();
+    await expect(count(page)).toHaveText('2');
+    const back = await draft(page);
+    expect(back.intent.kind).toBe('inventory');
+    await expect(pocket(page, 'slot-a')).toHaveAttribute('data-filled', '');
+  });
+
   test('read-only binders have no pocket menu and no layout editing', async ({ harness }) => {
     const { page } = harness;
     await page.goto('/app/e2e-harness?signedIn=1&slots=picker&readOnly=1&rows=2&cols=4');

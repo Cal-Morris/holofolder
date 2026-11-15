@@ -248,7 +248,7 @@ export function renderMainContentView(ctx: MainContentContext) {
   return (
     <div
       data-testid="main-content"
-      className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(var(--dock-clearance)+0.5rem)] sm:px-4 md:pb-4 ${activeMainView === 'binder' ? 'max-w-none' : 'max-w-7xl'}`}
+      className={`mx-auto flex min-h-0 w-full max-w-[100vw] flex-1 flex-col overflow-hidden px-2 pb-[calc(var(--dock-clearance)+var(--layout-tray,0px)+0.5rem)] sm:px-4 md:pb-[calc(var(--layout-tray,0px)+1rem)] ${activeMainView === 'binder' ? 'max-w-none' : 'max-w-7xl'}`}
     >
       {!ctx.orderedDisplaySlots && ctx.layoutToolbar}
       <input

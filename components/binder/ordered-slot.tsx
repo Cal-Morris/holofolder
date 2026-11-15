@@ -57,7 +57,18 @@ export interface PocketDrag {
   drop: (id: string, targetId: string, mode: PocketDropMode) => boolean;
   /** Turn the page (or spread) under a held card: 1 forward, -1 back. */
   turn?: (direction: 1 | -1) => void;
+  /**
+   * It was dropped on a drop zone outside the pockets (`[data-pocket-zone]`, such as the layout tray or the take-out
+   * zone). Returns false when nothing will happen, so the card goes back.
+   */
+  zone?: (id: string, zone: string) => boolean;
 }
+
+/**
+ * What is being dragged, for drop zones to accept or not (`data-accepts` on a `[data-pocket-zone]`, a space-separated
+ * list). While a drag is on, `<html data-pocket-dragging>` says the same, so zones can show themselves with CSS.
+ */
+type DragKind = 'card' | 'graded' | 'empty' | 'group' | 'tray';
 
 type Timer = ReturnType<typeof setTimeout>;
 
@@ -79,6 +90,9 @@ interface ActiveDrag {
   carry: number;
   onDrag: PocketDrag;
   over: HTMLElement | null;
+  /** The drop zone under the finger, when it isn't over a pocket. */
+  zone: HTMLElement | null;
+  kind: DragKind;
   mode: PocketDropMode;
   pushed: HTMLElement[];
   hold: Timer | null;
@@ -110,6 +124,27 @@ function pocketAt(x: number, y: number, skip: HTMLElement) {
       return x >= r.left && x < r.right && y >= r.top && y < r.bottom;
     }) ?? null
   );
+}
+
+/** A drop zone under the point that takes this kind of drag (hidden zones have no box, so they never match). */
+function zoneAt(x: number, y: number, d: ActiveDrag) {
+  return (
+    [...document.querySelectorAll<HTMLElement>('[data-pocket-zone]')].find((el) => {
+      if (el.contains(d.source) || !el.dataset.accepts?.split(' ').includes(d.kind)) return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && x >= r.left && x < r.right && y >= r.top && y < r.bottom;
+    }) ?? null
+  );
+}
+
+function setZone(d: ActiveDrag, zone: HTMLElement | null) {
+  if (zone === d.zone) return;
+  if (d.zone) delete d.zone.dataset.dropTarget;
+  d.zone = zone;
+  if (zone) {
+    zone.dataset.dropTarget = '';
+    buzz(8);
+  }
 }
 
 function clearPush(d: ActiveDrag) {
@@ -217,7 +252,9 @@ function track(d: ActiveDrag, x: number, y: number) {
   d.y = y;
   d.ghost.style.translate = `${x - d.grabX}px ${y - d.grabY}px`;
   edgeDwell(d, x);
-  setOver(d, d.edge ? null : pocketAt(x, y, d.source));
+  const zone = d.edge ? null : zoneAt(x, y, d);
+  setZone(d, zone);
+  setOver(d, d.edge || zone ? null : pocketAt(x, y, d.source));
 }
 
 /** Put the card down: on the pocket it's over (`drop`), or back where it came from. */
@@ -227,8 +264,37 @@ function endDrag(d: ActiveDrag, drop: boolean) {
   d.detach();
   for (const timer of [d.hold, d.refresh]) if (timer) clearTimeout(timer);
   stopEdge(d);
+  delete document.documentElement.dataset.pocketDragging;
   for (const el of document.querySelectorAll<HTMLElement>('button[data-slot-id][data-carried]'))
     delete el.dataset.carried;
+  const zone = d.zone;
+  setZone(d, null);
+  if (drop && zone?.dataset.pocketZone && d.onDrag.zone?.(d.id, zone.dataset.pocketZone)) {
+    // Into the zone: the card shrinks into it and fades, and its pocket shows again (or empties) as the change renders.
+    clearPush(d);
+    if (d.over) delete d.over.dataset.dropTarget;
+    const box = zone.getBoundingClientRect();
+    const done = () => {
+      d.ghost.remove();
+      delete d.source.dataset.dragSource;
+    };
+    if (reducedMotion()) return done();
+    void d.ghost
+      .animate(
+        [
+          { translate: d.ghost.style.translate, scale: '1.06', opacity: 1 },
+          {
+            translate: `${box.left + box.width / 2 - d.ghost.offsetWidth / 2}px ${box.top + box.height / 2 - d.ghost.offsetHeight / 2}px`,
+            scale: '0.35',
+            opacity: 0,
+          },
+        ],
+        { duration: SHIFT_MS, easing: SHIFT_EASE, fill: 'forwards' },
+      )
+      .finished.catch(() => undefined)
+      .then(done);
+    return;
+  }
   const target = drop ? d.over : null;
   const targetId = target?.dataset.slotId;
   if (d.over) delete d.over.dataset.dropTarget;
@@ -281,7 +347,12 @@ function endDrag(d: ActiveDrag, drop: boolean) {
     });
 }
 
-function pickUp(
+/**
+ * Pick a card up from `source` and drag it under the pointer until it is let go. Pockets call this from their own
+ * press handling; the layout tray calls it to carry its parked cards out (`id` is then the first parked pocket).
+ */
+// oxlint-disable-next-line react-doctor/only-export-components -- the tray starts a drag with the same controller as a pocket
+export function pickUp(
   source: HTMLElement,
   id: string,
   pointerId: number,
@@ -293,7 +364,15 @@ function pickUp(
   const rect = offsetRect(source);
   const ghost = source.cloneNode(true) as HTMLElement;
   for (const el of [ghost, ...ghost.querySelectorAll('[id]')]) el.removeAttribute('id');
-  for (const name of ['data-slot-id', 'data-filled', 'aria-label', 'aria-describedby', 'aria-pressed', 'aria-haspopup'])
+  for (const name of [
+    'data-slot-id',
+    'data-filled',
+    'data-graded',
+    'aria-label',
+    'aria-describedby',
+    'aria-pressed',
+    'aria-haspopup',
+  ])
     ghost.removeAttribute(name);
   ghost.classList.remove('pocket-wiggle');
   ghost.setAttribute('aria-hidden', 'true');
@@ -318,7 +397,9 @@ function pickUp(
     pointerId,
     source,
     ghost,
-    stage: source.closest<HTMLElement>('[data-page-turn-ms]'),
+    // A card from outside the binder (the tray) still turns pages when held at the binder's side.
+    stage:
+      source.closest<HTMLElement>('[data-page-turn-ms]') ?? document.querySelector<HTMLElement>('[data-page-turn-ms]'),
     grabX: origin.x - rect.left,
     grabY: origin.y - rect.top,
     x: origin.x,
@@ -326,6 +407,17 @@ function pickUp(
     carry,
     onDrag,
     over: null,
+    zone: null,
+    kind:
+      carry > 1
+        ? 'group'
+        : source.dataset.slotId === undefined
+          ? 'tray'
+          : source.dataset.filled === undefined
+            ? 'empty'
+            : source.dataset.graded !== undefined
+              ? 'graded'
+              : 'card',
     mode: 'place',
     pushed: [],
     hold: null,
@@ -398,6 +490,7 @@ function pickUp(
     document.removeEventListener('visibilitychange', onHidden);
   };
   active = d;
+  document.documentElement.dataset.pocketDragging = d.kind;
   buzz(10);
   if (!reducedMotion()) ghost.animate([{ scale: '1' }, { scale: '1.06' }], { duration: 160, easing: SHIFT_EASE });
   onDrag.start(id);
@@ -650,6 +743,7 @@ export function OrderedSlot({
       type="button"
       data-slot-id={slot.id}
       data-filled={slot.item ? '' : undefined}
+      data-graded={slot.item?.grading ? '' : undefined}
       aria-label={displaySlotLabel(slot)}
       aria-describedby={slotLabel ? coordinateId : undefined}
       aria-pressed={marked ?? selected}
