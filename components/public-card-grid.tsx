@@ -105,7 +105,7 @@ export function PublicCardGrid({
               onChange={(event) =>
                 setFilter((current) => ({ ...current, facets: { ...current.facets, [facet]: event.target.value } }))
               }
-              className="min-w-0 flex-1 sm:w-48 sm:flex-none"
+              className="min-w-[45%] flex-1 sm:w-48 sm:min-w-0 sm:flex-none"
             >
               <option value="">{FACET_LABELS[facet]}: all</option>
               {values.map(({ value, count }) => (
@@ -119,7 +119,7 @@ export function PublicCardGrid({
             aria-label="Sort cards"
             value={filter.sort ?? 'default'}
             onChange={(event) => setFilter((current) => ({ ...current, sort: event.target.value as CatalogueSort }))}
-            className="min-w-0 flex-1 sm:w-48 sm:flex-none"
+            className="min-w-[45%] flex-1 sm:w-48 sm:min-w-0 sm:flex-none"
           >
             <option value="default">{sortLabels.default}</option>
             {sortLabels.reverse && <option value="reverse">{sortLabels.reverse}</option>}
