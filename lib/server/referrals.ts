@@ -39,14 +39,14 @@ export async function inviteSummary(ownerId: string) {
   const admin = createAdminClient();
   const { data: code, error } = await admin.rpc('referral_code_v1', { owner: ownerId });
   if (error) return MISSING.includes(error.code) ? null : Promise.reject(error);
-  const { data: rows, error: listError } = await admin
-    .from('referrals')
-    .select('rewarded_at')
-    .eq('inviter_user_id', ownerId)
-    .limit(1000);
+  const [{ data: rows, error: listError }, identity] = await Promise.all([
+    admin.from('referrals').select('rewarded_at').eq('inviter_user_id', ownerId).limit(1000),
+    admin.from('account_identities').select('username').eq('user_id', ownerId).maybeSingle(),
+  ]);
   if (listError) throw listError;
   return {
-    code: code as string,
+    // The username is the friendlier join code; the random code still works for links already shared.
+    code: (identity.data?.username as string | undefined) ?? (code as string),
     rewarded: rows.filter((r) => r.rewarded_at).length,
     pending: rows.filter((r) => !r.rewarded_at).length,
   };

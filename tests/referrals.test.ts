@@ -29,10 +29,15 @@ describe('invite cookie', () => {
     for (const junk of [undefined, '', 'abc', `${value}.extra`, `ABCDE23456.${at}.${sig}`])
       assert.equal(readInviteCookie(SECRET, junk, now), null);
   });
-  test('codes match the database format only', () => {
-    assert.ok(isInviteCode('abcde23456'));
-    for (const bad of ['ABCDE23456', 'abcde2345', 'abcde234567', 'abcde-2345', 'abcde01234', 42])
-      assert.ok(!isInviteCode(bad));
+  test('codes are a random referral code or a username, in their database formats', () => {
+    for (const good of ['abcde23456', 'ash', 'ash-ketchum', 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5'])
+      assert.ok(isInviteCode(good), good);
+    for (const bad of ['ABCDE23456', 'ab', '-ash', 'ash-', 'ash.ketchum', 'a'.repeat(31), 42])
+      assert.ok(!isInviteCode(bad), String(bad));
+  });
+  test('a username survives the cookie round trip', () => {
+    const value = signInviteCookie(SECRET, 'ash-ketchum', now - 1000);
+    assert.equal(readInviteCookie(SECRET, value, now)?.code, 'ash-ketchum');
   });
 });
 

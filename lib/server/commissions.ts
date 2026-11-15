@@ -24,17 +24,34 @@ function check<T>(result: { data: T; error: { code?: string; message?: string } 
 
 const ref = (value: string | { id: string } | null | undefined) => (typeof value === 'string' ? value : value?.id);
 
+/**
+ * Earning right now: an enrolled affiliate who isn't paused, or a paid account (enrolled automatically here, migration
+ * 146) while it is still paid. Before 146 only the `active` flag counts.
+ */
+async function affiliateActive(ownerId: string) {
+  const admin = createAdminClient();
+  const result = await admin.rpc('affiliate_active_v1', { owner: ownerId });
+  if (!result.error) return result.data === true;
+  if (!missing(result.error)) throw new Error('Affiliate could not be checked. Retry this event.');
+  const row = check(
+    await admin.from('affiliates').select('active').eq('owner_user_id', ownerId).maybeSingle(),
+    'Affiliate read',
+  );
+  return row?.active === true;
+}
+
 async function attribution(customerId: string): Promise<CustomerAttribution | null> {
   const row = check(
     await createAdminClient()
       .from('affiliate_customers')
-      .select('affiliate_owner_id,attributed_at,affiliates!inner(active)')
+      .select('affiliate_owner_id,attributed_at')
       .eq('customer_owner_id', customerId)
-      .eq('affiliates.active', true)
       .maybeSingle(),
     'Commission attribution read',
   );
-  return row ? { affiliateId: row.affiliate_owner_id, customerId, attributedAt: row.attributed_at } : null;
+  return row && (await affiliateActive(row.affiliate_owner_id))
+    ? { affiliateId: row.affiliate_owner_id, customerId, attributedAt: row.attributed_at }
+    : null;
 }
 
 async function candidate(ownerId: string | undefined, payoutEmail: string): Promise<AffiliateCandidate | null> {
@@ -82,17 +99,17 @@ export async function attributeCheckout(customerId: string, session: Stripe.Chec
   if (referral.error && !missing(referral.error)) throw new Error('Referral read failed. Retry this event.');
   if (coded.error) throw new Error('Affiliate read failed. Retry this event.');
   const inviter = referral.data?.inviter_user_id;
-  const invited = inviter
-    ? check(
-        await admin
-          .from('affiliates')
-          .select('owner_user_id,payout_email')
-          .eq('owner_user_id', inviter)
-          .eq('active', true)
-          .maybeSingle(),
-        'Affiliate read',
-      )
-    : null;
+  const invited =
+    inviter && (await affiliateActive(inviter))
+      ? check(
+          await admin
+            .from('affiliates')
+            .select('owner_user_id,payout_email')
+            .eq('owner_user_id', inviter)
+            .maybeSingle(),
+          'Affiliate read',
+        )
+      : null;
   if (!invited && !coded.data) return 'no_affiliate';
 
   const stripeCustomer = ref(session.customer) ?? null;
@@ -197,11 +214,13 @@ export async function recordCommissionAdjustment(event: Stripe.Event) {
   if (error && !missing(error)) throw new Error('Commission adjustment failed. Retry this event.');
 }
 
-/** Settings → Plan, for enrolled affiliates only: their code, how many customers, and totals. No customer details. */
+/** Settings → Plan, for affiliates (enrolled or paid): their code, how many customers, and totals. No customer details. */
 export async function earningsSummary(ownerId: string) {
   const admin = createAdminClient();
+  // Also enrols a paid account the first time it opens Plan.
+  const active = await affiliateActive(ownerId);
   const affiliate = check(
-    await admin.from('affiliates').select('promotion_code,active').eq('owner_user_id', ownerId).maybeSingle(),
+    await admin.from('affiliates').select('promotion_code').eq('owner_user_id', ownerId).maybeSingle(),
     'Affiliate read',
   );
   if (!affiliate) return null;
@@ -222,7 +241,7 @@ export async function earningsSummary(ownerId: string) {
   if (customers.error || entries.error) throw new Error('Earnings could not be loaded');
   return {
     code: affiliate.promotion_code,
-    active: affiliate.active,
+    active,
     customers: customers.count ?? 0,
     ...summariseEarnings(entries.data),
   };

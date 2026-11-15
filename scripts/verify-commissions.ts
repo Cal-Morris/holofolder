@@ -1,4 +1,4 @@
-// Explicit verification of migration 140 only. The transaction and every synthetic record roll back.
+// Explicit verification of migrations 140 and 146 only. The transaction and every synthetic record roll back.
 // COMMISSIONS_TEST_DATABASE_URL=postgresql://... bun scripts/verify-commissions.ts --hosted-rollback
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -144,7 +144,61 @@ async function main() {
       ),
       0,
     );
-    console.log('Migration 140 verified; rolling back.');
+
+    // 146: paid accounts are affiliates automatically, paused while unpaid; usernames are invite codes.
+    const sql146 = await readFile(new URL('./146_paid_affiliates.sql', import.meta.url), 'utf8');
+    await db.query(sql146);
+    await db.query(sql146);
+    const [payer, friend] = [crypto.randomUUID(), crypto.randomUUID()];
+    await db.query(
+      `INSERT INTO auth.users(id,email,created_at) VALUES($1,'payer@example.test',now()-interval '1 day'),($2,null,now())`,
+      [payer, friend],
+    );
+    await db.query(
+      `INSERT INTO public.account_username_reservations VALUES('synthetic-old',$1),('synthetic-payer',$1)`,
+      [payer],
+    );
+    await db.query(`INSERT INTO public.account_identities VALUES($1,'synthetic-payer')`, [payer]);
+    await as('service_role');
+    const active = async (owner: string) => (await one('SELECT public.affiliate_active_v1($1) a', [owner])).a;
+    assert.equal(await active(payer), false, 'free accounts are not affiliates');
+    assert.equal(Number((await one('SELECT count(*) c FROM public.affiliates WHERE owner_user_id=$1', [payer])).c), 0);
+    await db.query(
+      `INSERT INTO public.billing_accounts(owner_user_id,status,paid_through) VALUES($1,'active',now()+interval '20 days')`,
+      [payer],
+    );
+    assert.equal(await active(payer), true, 'paying makes an affiliate');
+    assert.equal(await active(payer), true, 'idempotent');
+    assert.deepEqual(
+      await one('SELECT display_name,payout_email,automatic,active FROM public.affiliates WHERE owner_user_id=$1', [
+        payer,
+      ]),
+      { display_name: 'synthetic-payer', payout_email: 'payer@example.test', automatic: true, active: true },
+    );
+    await db.query(`UPDATE public.billing_accounts SET status='canceled' WHERE owner_user_id=$1`, [payer]);
+    assert.equal(await active(payer), false, 'lapsed payer is paused');
+    await db.query(`UPDATE public.billing_accounts SET status='active' WHERE owner_user_id=$1`, [payer]);
+    await db.query(`UPDATE public.affiliates SET active=false WHERE owner_user_id=$1`, [payer]);
+    assert.equal(await active(payer), false, 'a manual pause still wins');
+    // An old username still credits its owner, so renaming never hands shared links to someone else.
+    assert.equal(
+      (await one(`SELECT public.attribute_referral_v1($1,'synthetic-old',now()-interval '1 minute') r`, [friend])).r,
+      'attributed',
+    );
+    assert.equal(
+      (await one('SELECT inviter_user_id FROM public.referrals WHERE invitee_user_id=$1', [friend])).inviter_user_id,
+      payer,
+    );
+    assert.equal(
+      (await one(`SELECT public.attribute_referral_v1($1,'synthetic-none',now()) r`, [friend])).r,
+      'unknown_code',
+    );
+    await as('authenticated', payer);
+    assert.equal((await one('SELECT automatic FROM public.affiliates')).automatic, true, 'own row readable');
+    await db.query('SAVEPOINT p');
+    await assert.rejects(db.query('SELECT public.affiliate_active_v1($1)', [payer]), /permission denied/);
+    await db.query('ROLLBACK TO SAVEPOINT p');
+    console.log('Migrations 140 and 146 verified; rolling back.');
   } finally {
     await db.query('ROLLBACK');
     await db.end();
