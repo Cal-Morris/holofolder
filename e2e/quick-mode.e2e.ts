@@ -46,7 +46,7 @@ test.describe('quick mode', () => {
       await expect(harness.page.getByRole('dialog', { name: /search pokemon/i })).toHaveCount(0);
       await expectUsable(harness);
       const goTo = dialog.getByRole('region', { name: 'Go to' });
-      for (const name of ['Binder', 'Want list', 'List', 'Sets', 'Analytics', 'Settings']) {
+      for (const name of ['Binder', 'Want list', 'List', 'Sets', 'Analytics', 'Settings', 'Help']) {
         const button = goTo.getByRole('button', { name: new RegExp(`^${name}`) });
         await expect(button).toBeVisible();
         await harness.expectMinTapTarget(button, 48);

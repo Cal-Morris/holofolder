@@ -43,6 +43,7 @@ import {
   ChevronLeft,
   LogIn,
   Info,
+  LifeBuoy,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -85,7 +86,9 @@ export type SettingsPageId =
   | 'credits';
 
 interface SettingsRow {
-  id: SettingsPageId;
+  id: SettingsPageId | 'help';
+  /** Opens this route instead of a settings page. */
+  href?: string;
   title: string;
   icon: LucideIcon;
   summary?: string;
@@ -328,7 +331,10 @@ export default function SettingsModal({
     {
       label: 'About',
       quiet: true,
-      rows: [{ id: 'credits', title: 'Credits & attributions', icon: Info, visible: true }],
+      rows: [
+        { id: 'help', title: 'Help', icon: LifeBuoy, href: '/help', visible: true },
+        { id: 'credits', title: 'Credits & attributions', icon: Info, visible: true },
+      ],
     },
   ];
   const rows = groups.flatMap((group) => group.rows);
@@ -863,29 +869,39 @@ export default function SettingsModal({
               if (visibleRows.length === 0) return null;
               return (
                 <SettingsGroup key={group.label} label={group.label} quiet={group.quiet}>
-                  {visibleRows.map((row) => (
-                    <button
-                      key={row.id}
-                      type="button"
-                      data-settings-row={row.id}
-                      aria-label={row.summary ? `${row.title}, ${row.summary}` : row.title}
-                      onClick={() => openPage(row.id)}
-                      className={`hover:bg-muted/50 flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left transition-colors ${group.quiet ? 'text-muted-foreground' : ''}`}
-                    >
-                      <span
-                        className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${group.quiet ? 'bg-muted/60' : 'bg-primary/10 text-primary'}`}
-                      >
-                        <row.icon className="size-4" />
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.title}</span>
-                      {row.summary && (
-                        <span className="text-muted-foreground max-w-[45%] min-w-0 truncate text-sm">
-                          {row.summary}
-                        </span>
-                      )}
-                      <ChevronRight className="text-muted-foreground/70 size-4 shrink-0" />
-                    </button>
-                  ))}
+                  {visibleRows.map((row) => {
+                    const rowProps = {
+                      'data-settings-row': row.id,
+                      'aria-label': row.summary ? `${row.title}, ${row.summary}` : row.title,
+                      className: `hover:bg-muted/50 flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left transition-colors ${group.quiet ? 'text-muted-foreground' : ''}`,
+                      children: (
+                        <>
+                          <span
+                            className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${group.quiet ? 'bg-muted/60' : 'bg-primary/10 text-primary'}`}
+                          >
+                            <row.icon className="size-4" />
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.title}</span>
+                          {row.summary && (
+                            <span className="text-muted-foreground max-w-[45%] min-w-0 truncate text-sm">
+                              {row.summary}
+                            </span>
+                          )}
+                          <ChevronRight className="text-muted-foreground/70 size-4 shrink-0" />
+                        </>
+                      ),
+                    };
+                    return row.href ? (
+                      <OverlayLink key={row.id} href={row.href} onClose={onClose} {...rowProps} />
+                    ) : (
+                      <button
+                        key={row.id}
+                        type="button"
+                        onClick={() => openPage(row.id as SettingsPageId)}
+                        {...rowProps}
+                      />
+                    );
+                  })}
                 </SettingsGroup>
               );
             })}

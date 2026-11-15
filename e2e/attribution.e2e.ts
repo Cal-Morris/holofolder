@@ -34,3 +34,14 @@ test('the credits page stands alone for links from outside the binder', async ({
   await expect(page.getByTestId('credits').getByRole('link', { name: 'PTCG Image Atlas' })).toBeVisible();
   await expect(page.getByTestId('credits')).toContainText('not produced, endorsed, supported or affiliated');
 });
+
+test('settings opens the help guide', async ({ harness, page }) => {
+  await harness.open();
+  await page.locator('nav').first().getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Settings' }).click();
+  const help = page.getByRole('dialog').getByRole('link', { name: 'Help', exact: true });
+  await expect(help).toHaveAttribute('href', '/app/help');
+  await help.click();
+  await expect(page).toHaveURL(/\/app\/help/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
