@@ -74,9 +74,10 @@ test('a subscriber later granted lifetime access can still stop their existing b
 });
 test('trial explains its expiry and no automatic charge, with optional purchase controls', () => {
   const html = render('trial');
-  assert.match(html, /7-day Premium trial/);
-  assert.match(html, /Ends /);
-  assert.match(html, /No card needed, nothing auto-charges/);
+  assert.match(html, /Free 7-day Premium trial/);
+  assert.match(html, /Your trial ends /);
+  assert.match(html, /The trial is free and never charges you/);
+  assert.match(html, /Upgrading charges you at checkout and renews until you cancel/);
   assert.match(html, /£3.99 \/ month/);
   assert.doesNotMatch(html, /Paid access until|>Manage billing</);
   assert.doesNotMatch(render('trial', false), /£3.99/);
