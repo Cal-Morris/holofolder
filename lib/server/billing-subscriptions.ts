@@ -23,6 +23,12 @@ import {
   recordCollectorEvent,
 } from '@/lib/server/collector-funnel';
 import { recordCollectorPayments, recordCollectorCancellation } from '@/lib/server/collector-payments';
+import {
+  attributeCheckout,
+  recordCommissionAdjustment,
+  recordInvoiceCommission,
+  recordLifetimeCommission,
+} from '@/lib/server/commissions';
 
 async function withBillingLock<T>(ownerId: string, action: (token: string) => Promise<T>): Promise<T> {
   const admin = createAdminClient(),
@@ -198,6 +204,9 @@ export async function openBillingPortal(ownerId: string) {
 export async function handleBillingEvent(event: Stripe.Event) {
   const stripeLive = /^(sk|rk)_live_/.test(process.env.STRIPE_SECRET_KEY ?? '');
   if (event.livemode !== stripeLive) throw new Error('Stripe event mode does not match');
+  // Refunds and disputes only move commission; idempotent on their own key, unrelated charges match nothing.
+  if (['charge.refunded', 'charge.dispute.created', 'charge.dispute.closed'].includes(event.type))
+    return recordCommissionAdjustment(event);
   if (
     ![
       'invoice.paid',
@@ -228,8 +237,15 @@ export async function handleBillingEvent(event: Stripe.Event) {
     .maybeSingle();
   if (error) throw new Error('Event account could not be checked');
   if (account) {
-    if (event.type.startsWith('checkout.session.'))
-      await fulfilLifetime(account.owner_user_id, event.data.object as Stripe.Checkout.Session);
+    // Commission is recorded before reconcile commits the event receipt, so a failure is retried by Stripe.
+    if (event.type.startsWith('checkout.session.')) {
+      const session = event.data.object as Stripe.Checkout.Session;
+      if (session.status === 'complete' && session.metadata?.app === 'holofolder')
+        await attributeCheckout(account.owner_user_id, session);
+      await fulfilLifetime(account.owner_user_id, session);
+    }
+    if (event.type === 'invoice.paid')
+      await recordInvoiceCommission(account.owner_user_id, event.data.object as Stripe.Invoice);
     await reconcileBilling(account.owner_user_id, event.id);
     if (event.type === 'invoice.paid')
       scheduleCollectorTracking(() => recordCollectorPayments(account.owner_user_id, customer));
@@ -254,6 +270,7 @@ async function fulfilLifetime(ownerId: string, completed: Stripe.Checkout.Sessio
     priceId,
     ownerId,
     grant: async (grant) => {
+      if (grant.amountPaid > 0) await recordLifetimeCommission(ownerId, session);
       const { data, error } = await createAdminClient()
         .from('perpetual_licences')
         .upsert(

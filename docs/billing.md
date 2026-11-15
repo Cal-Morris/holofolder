@@ -47,6 +47,55 @@ The flow, all server-side:
 
 Before 133 is applied, `get_billing_access` has no grant fields, the invite route still sets its cookie, attribution and claims are no-ops, and Settings shows "Invites are not available yet". Verify with `REFERRAL_REWARDS_TEST_DATABASE_URL=postgresql://... bun scripts/verify-referral-rewards.ts --hosted-rollback`, which applies 133 twice inside a rolled-back transaction and checks every rule above, the cap, RLS, function privileges, deletion and an EXPLAIN ANALYZE of `get_billing_access`. Rollback: restore `billing_has_paid` and `get_billing_access` from 056 (grants then stop counting) and revert the app; the tables can stay.
 
+## Commission programme
+
+Cal approved a commission programme on 15 November 2026. People Cal enrols as affiliates (creators with an audience promotion code, and anyone else he enrols as a partner) earn cash: 30% of each payment from a customer they brought in, for that customer's first 12 months of subscription payments, and 30% of a lifetime purchase. Ordinary users are not affiliates and keep the free-month invite reward above; an affiliate keeps it too, since that rewards activation, not payment. Commission is on what the customer actually paid in GBP after discounts and refunds (Stripe's `amount_paid` and `amount_total`, before Stripe fees), so it works unchanged with launch discounts, a free audience month earns nothing and a £0 creator lifetime code earns nothing. No money moves automatically: Cal pays out by hand and marks entries paid.
+
+Migration `140_commission_programme.sql` adds three service-role-written tables:
+
+- `affiliates`: owner, display name, private payout email (no client role can read that column), optional `stripe_promotion_code_id` and code text, and `active`. Pausing stops new customers and new earnings; the ledger stays.
+- `affiliate_customers`: one row per customer, primary key on the customer, so a customer has at most one affiliate, ever. No client access; the app shows only a count.
+- `commission_entries`: the ledger. Earnings are keyed on the Stripe invoice id or lifetime Checkout session id (unique), with the PaymentIntent the refunds point back to. Adjustments are rows linked to their earning. Affiliates can read their own entries, without customer or Stripe ids.
+
+Attribution is decided once, when a Holo Folder Checkout completes (`attributeCheckout` in `lib/server/commissions.ts`, rules in `chooseAffiliate` in `lib/commissions.ts`). The first subscription invoice can arrive before `checkout.session.completed`, so `invoice.paid` for a `subscription_create` invoice runs the same attribution from that subscription's Checkout first. Candidates are the active affiliate whose invite link made the account (first touch, so it wins) and the active affiliate who owns the promotion code used at Checkout. A candidate is skipped if they are the customer, a partner of the customer, share the Stripe customer, or share any email (account, payout or Checkout email, compared lower case without a `+tag`). Nobody is attributed if the Stripe customer already had a succeeded charge before this Checkout. Ordinary sign-ups cost no extra reads: without an affiliate involved, attribution stops after one lookup.
+
+The ledger is written only from signed webhooks, always before the event receipt is committed so a failure is retried by Stripe:
+
+- `invoice.paid`: an attributed customer's paid invoice on a recognised Holo Folder price, in GBP, paid within 12 months of attribution, earns `floor(amount_paid × 30%)`.
+- `checkout.session.completed` (and `async_payment_succeeded`) for lifetime: after the existing lifetime verification, a positive amount earns 30%, recorded before the licence grant.
+- `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`: the charge and its disputes are read fresh from Stripe and `commission_adjust_v1` moves the earning to 30% of what is still paid (nothing while a dispute holds the money, the refunded remainder after a won one). It locks the earning row, so concurrent events can't both take money back, and the event id makes a replay a no-op. The target is absolute, so events in any order converge.
+
+Earnings are pending for 30 days after the payment, then payable, then paid when Cal marks them. Payable is derived from `hold_until`, so there is no cron. Adjustments share their earning's hold, so a refund inside the hold cancels out before anything is payable; a refund after payout is a negative entry deducted from the next payout. When an affiliate's payable total is zero or negative, nothing is paid and the balance carries forward.
+
+Settings → Plan shows an Earnings section above the invite link to enrolled affiliates only (`GET /app/api/referrals` returns `earnings` for them, null for everyone else): their code, how many customers they brought in, and pending, ready-to-pay and paid totals. It shows no customer names, emails or ids. Earnings are website-only like the rest of billing (see `docs/public-api/coverage.md`): they are account money, not collection data, so the developer API and MCP server do not expose them.
+
+Operator commands (service role in `.env.local`; dry run until `--apply`):
+
+```sh
+bun run commissions --enrol --owner=<uuid> --name="Ash" --payout-email=<email> --promo=<promo_id> --apply
+bun run commissions --pause --owner=<uuid> --apply
+bun run commissions --month=2026-12
+bun run commissions --mark-paid=<entry id>,<entry id> --apply
+```
+
+The report pages past the 1,000-row cap and lists, per affiliate, what is payable by the end of that month (including earlier unpaid balances) and still on hold, with the exact `--mark-paid` command. `--mark-paid` only changes entries that are pending and past their hold. Payout steps live in the private runbook `marketing/private/creator-codes.md`. The Stripe webhook endpoint must have the three charge events enabled (`scripts/setup-stripe-billing.ts` lists them for new endpoints).
+
+| Abuse case                                                                      | Handling                                                                                                                                                              |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Affiliate buys through their own code or link                                   | Same owner is rejected, and the CHECK on `affiliate_customers` forbids it.                                                                                            |
+| Second account with the affiliate's email, a `+tag` alias or their payout email | Emails are compared lower case without the tag, across account, payout and Checkout emails.                                                                           |
+| Second account paying with the affiliate's Stripe customer                      | Rejected when the Stripe customer matches. A brand-new email and card is not detectable; that is ordinary fraud, bounded by the 30-day hold and manual payout review. |
+| Partner of the affiliate                                                        | Partners (either direction) are never attributed.                                                                                                                     |
+| Two affiliates claim one customer                                               | One row per customer; the invite link (the earlier touch) wins, otherwise the code. Racing events hit the primary key.                                                |
+| Existing paying customer types a creator code later                             | No attribution if the Stripe customer had a succeeded charge before the Checkout. Codes only work on new monthly or lifetime Checkouts anyway.                        |
+| Pay, collect commission, refund or dispute                                      | The 30-day hold nets refunds out first; later refunds and disputes create negative entries deducted from the next payout.                                             |
+| Replayed or out-of-order webhooks                                               | Earnings are unique per invoice or session, adjustments per event, and adjustments target an absolute amount from fresh Stripe state.                                 |
+| Forged writes from the app                                                      | No client role can insert, update or call the functions; only verified webhooks and the operator script write.                                                        |
+| £0 orders (free audience month, creator lifetime code)                          | Earn nothing: commission is on the amount actually paid.                                                                                                              |
+| Leaking customers to the affiliate                                              | The affiliate sees only a count and totals; customer ids, Stripe ids and payout emails are not readable by client roles.                                              |
+
+Before 140 is applied every commission step is a no-op and webhooks behave as before; Settings shows no Earnings. Verify with `COMMISSIONS_TEST_DATABASE_URL=postgresql://... bun scripts/verify-commissions.ts --hosted-rollback`, which applies 140 twice inside a rolled-back transaction and checks first touch, the self CHECK, idempotent earnings, refund and dispute convergence, the shared hold, RLS and column privileges, deletion and an EXPLAIN ANALYZE of the Earnings read. Rollback: revert the app; the tables can stay, and nothing reads them without the app.
+
 ## Pricing cutover, 8 November 2026
 
 The live Stripe audit found no Holo Folder subscriptions or open Checkout sessions before preparing the increase. The existing account `acct_1AHHDjGnHtZtNtvx` and product `prod_VaRpQ69dXzmuF8` are reused. New immutable recurring GBP prices were created with distinct v2 lookup keys. Existing v1 prices, portal configuration `bpc_1UZGvdGnHtZtNtvxOpUSMTxK` and webhook `we_1UZGveGnHtZtNtvxZZuWLWk7` are retained. No charge, subscription migration or unrelated product change is part of the cutover.
@@ -99,7 +148,7 @@ bun run promo-code --list
 bun run promo-code --deactivate ASH --apply
 ```
 
-Per-creator commission tracking is in the private runbook `marketing/private/creator-codes.md`.
+Commission is tracked by the commission programme below; payout steps are in the private runbook `marketing/private/creator-codes.md`.
 
 Checkout runs in payment mode with `allow_promotion_codes`. Before creating or reusing a session the server retrieves the expanded price and product and checks the one-time GBP amount, per-unit pricing and the `app`/`plan` metadata on both against `BILLING_LIFETIME_PRICE`; a mismatch fails closed. Open sessions are reused or expired with the same rules as subscriptions. Stripe documents that a one-time Checkout brought to £0 by a 100% coupon or promotion code completes without collecting a payment method (`payment_method_collection` becomes `if_required`) and has no PaymentIntent, so fulfilment listens for `checkout.session.completed` (and `checkout.session.async_payment_succeeded` for delayed methods), not PaymentIntent events.
 

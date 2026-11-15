@@ -85,6 +85,11 @@ async function main() {
         'customer.subscription.updated',
         'customer.subscription.deleted',
         'checkout.session.completed',
+        'checkout.session.async_payment_succeeded',
+        // Commission programme: refunds and disputes take commission back.
+        'charge.refunded',
+        'charge.dispute.created',
+        'charge.dispute.closed',
       ],
     });
     webhook = created;
