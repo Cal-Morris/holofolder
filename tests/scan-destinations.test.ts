@@ -585,6 +585,41 @@ test('page fill starts at the tapped pocket, wraps round, skips pockets kept for
   );
 });
 
+test('page fill overflow: following pockets in binder order, then appended free pockets, or binder-full', () => {
+  const s = setup();
+  const [, , trainer] = s.cards;
+  const energy = s.cards.find((c) => c.id === 'synthetic-energy')!;
+  // The first page of a 1x4 grid: a, b (Snorlax), c, d (free). Then e (Snorlax), f (kept for the Trainer), g (free).
+  const view = { ...s.view, rows: 1, cols: 4, pageSlotIds: ['slot-a', 'slot-b', 'slot-c', 'slot-d'] };
+  const capture = captureScanDestination(s.snapshot, view);
+  const picks = [{ card: trainer }, { card: trainer }, { card: trainer }, { card: energy }];
+  assert.throws(() => planPageFill(s.snapshot, view, 'slot-c', picks), /page-full/);
+  const following = planPageFill(s.snapshot, view, 'slot-c', picks, 'following');
+  assert.deepEqual(
+    following.map((c) => [c.slotId, c.cellIndex]),
+    [
+      ['slot-c', 2],
+      ['slot-d', 3],
+      ['slot-f', undefined],
+      ['slot-g', undefined],
+    ],
+  );
+  const more = [...picks, { card: energy }];
+  assert.throws(() => planPageFill(s.snapshot, view, 'slot-c', more, 'following'), /binder-full/);
+  const appended = planPageFill(s.snapshot, view, 'slot-c', more, 'append');
+  assert.deepEqual(appended.at(-1), { slotId: null, append: 'free', card: energy, copy: 'raw' });
+  const draft = prepareScanDraft(s.snapshot, view, capture, appended, s.context, s.catalog);
+  // Exactly what the queue sends over the wire, read back the way the server reads it.
+  const body = JSON.stringify(draft.intent.request);
+  const sent = parseInventoryCommand(JSON.parse(body));
+  assert.deepEqual(
+    sent.commands.map((c) => c.kind),
+    ['assign', 'assign', 'assign', 'assign', 'insertAssign'],
+  );
+  assertEachEntityOnce(sent.commands);
+  assert.equal(draft.preview.binders[0].slots.length, 8);
+});
+
 test('page review of several new cards sends a request the server parser and storage function accept', () => {
   const s = setup();
   const [snorlaxA, snorlaxB, trainer] = s.cards;

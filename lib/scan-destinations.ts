@@ -34,7 +34,8 @@ export interface ScanCell {
   cardImageDataUrl?: string;
 }
 export interface ScanChoice {
-  cellIndex: number;
+  /** The photographed cell; absent for picker choices, which can land beyond the captured page. */
+  cellIndex?: number;
   slotId: string | null;
   /** Required with null slotId: explicitly append a free slot or this exact card target. */
   append?: 'free' | 'card';
@@ -165,11 +166,17 @@ export function prepareScanDraft(
     return card ? pickerCandidate(card) : catalog(id);
   };
   for (const choice of choices) {
-    if (!isSlotRevision(choice.cellIndex) || choice.cellIndex >= capture.rows * capture.cols)
+    if (
+      choice.cellIndex !== undefined &&
+      (!isSlotRevision(choice.cellIndex) || choice.cellIndex >= capture.rows * capture.cols)
+    )
       return fail('invalid-scan-cell');
-    if (cells.has(choice.cellIndex) || (choice.slotId !== null && slots.has(choice.slotId)))
+    if (
+      (choice.cellIndex !== undefined && cells.has(choice.cellIndex)) ||
+      (choice.slotId !== null && slots.has(choice.slotId))
+    )
       return fail('duplicate-scan-destination');
-    cells.add(choice.cellIndex);
+    if (choice.cellIndex !== undefined) cells.add(choice.cellIndex);
     if (choice.slotId !== null) slots.add(choice.slotId);
     if (choice.slotId === null && choice.append !== 'free' && choice.append !== 'card') return fail('scan-unconfirmed');
     const candidate = { ...pickerCandidate(choice.card), ...(choice.finish ? { finish: choice.finish } : {}) };
@@ -294,28 +301,38 @@ export function prepareScanDraft(
 }
 
 /**
- * Several cards picked at once for one page: each goes into the first empty pocket on the page that accepts it, starting
- * at the pocket that was tapped and wrapping round. Fails with `page-full` when a card has nowhere left to go.
+ * Several cards picked at once from one pocket: each goes into the first empty pocket that accepts it, starting at the
+ * tapped pocket and wrapping round its page. With `overflow`, cards that don't fit then go into later empty pockets in
+ * binder order (`following`), and after that into new free pockets added at the end of the binder (`append`). Fails
+ * with `page-full` (no overflow) or `binder-full` when a card has nowhere left to go.
  */
 export function planPageFill(
   snapshot: InventorySnapshot,
   view: ScanDestinationView,
   startSlotId: string,
   picks: readonly { card: SearchCardResult; finish?: CardFinish }[],
+  overflow: 'none' | 'following' | 'append' = 'none',
 ): ScanChoice[] {
   const start = Math.max(0, view.pageSlotIds.indexOf(startSlotId));
-  const order = [...view.pageSlotIds.slice(start), ...view.pageSlotIds.slice(0, start)];
+  const binderSlotIds =
+    snapshot.binders.find((b) => b.collectionId === view.collectionId)?.slots.map((s) => s.id) ?? [];
+  const pageEnd = binderSlotIds.indexOf(view.pageSlotIds.at(-1) ?? '') + 1;
+  const order = [
+    ...view.pageSlotIds.slice(start),
+    ...view.pageSlotIds.slice(0, start),
+    ...(overflow === 'none' || pageEnd === 0 ? [] : binderSlotIds.slice(pageEnd)),
+  ];
   const used = new Set<string>();
   return picks.map(({ card, finish }) => {
     const fits = new Set(scanDestinations(snapshot, view, card, finish).map((s) => s.id));
-    const slotId = order.find((id) => fits.has(id) && !used.has(id)) ?? fail('page-full');
-    used.add(slotId);
-    return {
-      cellIndex: view.pageSlotIds.indexOf(slotId),
-      slotId,
-      card,
-      ...(finish ? { finish } : {}),
-      copy: 'raw' as const,
-    };
+    const slotId = order.find((id) => fits.has(id) && !used.has(id));
+    const rest = { card, ...(finish ? { finish } : {}), copy: 'raw' as const };
+    if (slotId) {
+      used.add(slotId);
+      const cellIndex = view.pageSlotIds.indexOf(slotId);
+      return { ...(cellIndex >= 0 ? { cellIndex } : {}), slotId, ...rest };
+    }
+    if (overflow === 'append') return { slotId: null, append: 'free' as const, ...rest };
+    return fail(overflow === 'none' ? 'page-full' : 'binder-full');
   });
 }

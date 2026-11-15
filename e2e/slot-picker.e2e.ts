@@ -135,7 +135,7 @@ test.describe('explicit stable-slot picker', () => {
     }
     const energy = dialog.getByRole('button', { name: /^Pick card Energy from / });
     await expect(energy).toHaveAttribute('aria-pressed', 'true');
-    const add = dialog.getByRole('button', { name: 'Add 3 cards to this page', exact: true });
+    const add = dialog.getByRole('button', { name: 'Add 3 cards', exact: true });
     await harness.expectWithinSafeViewport(add);
     await harness.expectMinTapTarget(add, 36);
     await harness.expectNoHorizontalOverflow();
@@ -156,30 +156,32 @@ test.describe('explicit stable-slot picker', () => {
     await harness.expectScrollUnlocked();
   });
 
-  test('a full page says so: cards that no longer fit dim and a tap explains instead of doing nothing', async ({
+  test('picks beyond the page go onto new pockets at the end of a custom binder, in the same save', async ({
     harness,
   }) => {
     const { page } = harness;
     const dialog = await search(page, 'slot-g', 'synthetic');
     await dialog.getByRole('button', { name: 'Pick several', exact: true }).click();
-    await dialog.getByRole('button', { name: /^Pick card Energy from / }).click();
-    await variant(page)
-      .getByRole('button', { name: /^Add Normal/ })
-      .click();
-    // Energy takes the only free pocket (the tapped one); the other two are kept for Snorlax and the Trainer.
-    await expect(dialog).toContainText('Page full · 1 picked');
-    const item = dialog.getByRole('button', { name: /^Pick card Item from / });
-    await expect(item).toHaveAttribute('aria-disabled', 'true');
-    await expect(dialog.getByRole('button', { name: /^Pick card Trainer from / })).not.toHaveAttribute(
+    // Energy takes the only free pocket (the tapped one); Item fits nowhere on the page, so it goes on.
+    for (const name of ['Energy', 'Item']) {
+      await dialog.getByRole('button', { name: new RegExp(`^Pick card ${name} from `) }).click();
+      await variant(page)
+        .getByRole('button', { name: /^Add Normal/ })
+        .click();
+    }
+    await expect(dialog).toContainText('2 picked · 1 fit on this page, 1 goes onto the next pages');
+    await expect(dialog.getByRole('button', { name: /^Pick card Snorlax B from / })).not.toHaveAttribute(
       'aria-disabled',
       'true',
     );
-    // Still tappable, so a tap explains why (aria-disabled only dims it).
-    await item.click({ force: true });
-    await expect(page.getByRole('status').filter({ hasText: 'This page is full' })).toBeVisible();
-    await expect(variant(page)).toHaveCount(0);
-    await expect(item).toHaveAttribute('aria-pressed', 'false');
     await harness.expectNoHorizontalOverflow();
+    await dialog.getByRole('button', { name: 'Add 2 cards', exact: true }).click();
+    await expect(count(page)).toHaveText('1');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect((await draft(page)).intent.request.commands.map((c: { kind: string }) => c.kind)).toEqual([
+      'assign',
+      'insertAssign',
+    ]);
   });
 
   test('any-card search says it finds artists, the Artist filter narrows to one, and filters show before results', async ({
@@ -225,14 +227,13 @@ test.describe('explicit stable-slot picker', () => {
       .getByRole('button', { name: /^Add Normal/ })
       .click();
     await expect(dialog.getByRole('button', { name: 'Pick one', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    // Energy took the only free pocket; the Trainer still fits the pocket kept for it.
-    await expect(dialog).toContainText('Page full · 1 picked');
+    await expect(dialog).toContainText('1 of 3 empty pockets on this page');
     await dialog.getByRole('searchbox', { name: 'Search cards' }).fill('trainer');
     await dialog.getByRole('button', { name: /^Pick card Trainer from / }).click();
     await variant(page)
       .getByRole('button', { name: /^Add Normal/ })
       .click();
-    await expect(dialog.getByRole('button', { name: 'Add 2 cards to this page', exact: true })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Add 2 cards', exact: true })).toBeVisible();
     await harness.expectNoHorizontalOverflow();
   });
 
