@@ -72,10 +72,10 @@ export function buildTrialEndingEmail(input: { trialEndsAt: Date; appUrl: string
 Your free Premium trial on Holo Folder ends on ${when} (UK time). Nothing is deleted when it ends, and you don't need to do anything to stay on the free plan.
 
 What you keep for free
-Your binder, every card and wanted entry you've saved, the wanted list, a read-only share link, single-card scanning, offline use and one current price per card, including the basic Show mode price lookup.
+Your binder, every card and wanted entry you've saved, the wanted list, a read-only share link, card and page scanning, offline use and one current price per card, including the basic Show mode price lookup.
 
 What Premium adds, and what you'll lose when the trial ends
-Extra binders and custom page sizes, Partner mode, multi-source price comparison, price history and trend charts, Rising and Breakout highlights, the Analytics view, eBay listings and sold comps, bundle pricing, Show mode deal verdicts and purchase tally, whole-page binder scanning, and the developer API and MCP server.
+Extra binders and custom page sizes, Partner mode, multi-source price comparison, price history and trend charts, Rising and Breakout highlights, the Analytics view, eBay listings and sold comps, bundle pricing, Show mode deal verdicts and purchase tally, and the developer API and MCP server.
 
 Keeping Premium
 Premium is ${plans.slice(0, -1).join(', ')} or ${plans.at(-1)}. You can choose a plan in Settings, under Plan:

@@ -4,8 +4,6 @@ import { useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { ScanLine, ScanSearch } from 'lucide-react';
 import { closeAllOverlays } from '@/hooks/use-overlay';
-import { usePremium } from '@/components/premium-upsell';
-import { useBillingContext } from '@/hooks/use-billing';
 import type { NativePageScanAdmission } from '@/components/native-page-scanner';
 import type { StorageMenuAction } from '@/components/collection-navigation/storage-menu';
 
@@ -25,8 +23,6 @@ export default function NativeBinderScanner({
   menu: (actions: StorageMenuAction[]) => ReactNode;
 }) {
   const [opened, setOpened] = useState<'page' | 'card' | null>(null);
-  const billing = useBillingContext();
-  const premium = usePremium();
   const close = () => setOpened(null);
   const open = (kind: 'page' | 'card') => {
     closeAllOverlays();
@@ -36,13 +32,7 @@ export default function NativeBinderScanner({
     <>
       {/* Disabled until storage is current, sync is idle and the saved grid matches. */}
       {menu([
-        // Whole-page scanning is Premium; single-card scanning stays free.
-        {
-          label: 'Scan page',
-          icon: ScanLine,
-          disabled: !available,
-          onSelect: () => (premium ? open('page') : billing?.upgrade()),
-        },
+        { label: 'Scan page', icon: ScanLine, disabled: !available, onSelect: () => open('page') },
         { label: 'Scan card', icon: ScanSearch, disabled: !available, onSelect: () => open('card') },
       ])}
       {opened === 'page' && <NativePageScanner admission={admission} onClose={close} />}
