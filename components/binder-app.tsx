@@ -750,7 +750,6 @@ function BinderAppSurface(props: BinderAppProps) {
   const [slotButtons] = useState(() => new Map<number, HTMLButtonElement>());
   const shellNavRef = useRef<HTMLElement | null>(null);
   const motionSensorsEnabledRef = useRef(false);
-  const hasAutoRequestedMotionPermissionRef = useRef(false);
   const isRequestingMotionPermissionRef = useRef(false);
   const lastOfflineCacheWarmupSignatureRef = useRef<string | null>(null);
 
@@ -1153,7 +1152,6 @@ function BinderAppSurface(props: BinderAppProps) {
     }
 
     isRequestingMotionPermissionRef.current = true;
-    hasAutoRequestedMotionPermissionRef.current = true;
 
     try {
       const orientationApi = window.DeviceOrientationEvent as DeviceOrientationWithPermission | undefined;
@@ -1200,46 +1198,6 @@ function BinderAppSurface(props: BinderAppProps) {
       isRequestingMotionPermissionRef.current = false;
     }
   }, [motionGlintEffectsEnabled]);
-
-  const requestMotionFromGesture = useEffectEvent(() => {
-    if (hasAutoRequestedMotionPermissionRef.current) {
-      return;
-    }
-
-    hasAutoRequestedMotionPermissionRef.current = true;
-    void handleRequestMotionGlint();
-  });
-
-  useEffect(() => {
-    if (
-      typeof window === 'undefined' ||
-      !motionGlintEffectsEnabled ||
-      motionGlintStatus !== 'needs-permission' ||
-      hasAutoRequestedMotionPermissionRef.current
-    ) {
-      return;
-    }
-
-    const orientationApi = window.DeviceOrientationEvent as DeviceOrientationWithPermission | undefined;
-    const motionApi = window.DeviceMotionEvent as DeviceMotionWithPermission | undefined;
-    const canRequestPermission =
-      Boolean(orientationApi && typeof orientationApi.requestPermission === 'function') ||
-      Boolean(motionApi && typeof motionApi.requestPermission === 'function');
-
-    if (!canRequestPermission) {
-      return;
-    }
-
-    const requestFromGesture = () => requestMotionFromGesture();
-
-    window.addEventListener('click', requestFromGesture, { capture: true, once: true });
-    window.addEventListener('touchend', requestFromGesture, { capture: true, once: true, passive: true });
-
-    return () => {
-      window.removeEventListener('click', requestFromGesture, true);
-      window.removeEventListener('touchend', requestFromGesture, true);
-    };
-  }, [motionGlintStatus, motionGlintEffectsEnabled]);
 
   // oxlint-disable-next-line react-doctor/no-cascading-set-state -- syncs with the device motion sensors (an external system); this state says whether they are available, permitted and bound
   useEffect(() => {
