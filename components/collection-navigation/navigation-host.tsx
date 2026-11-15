@@ -26,6 +26,7 @@ import {
 } from '@/lib/collection-navigation';
 import type { InventoryOwnershipBinding } from '@/lib/inventory-actions';
 import { navigationParams, writeNavigationUrl } from '@/lib/binders/url';
+import { inBinderOrder } from '@/lib/binders/manage';
 import styles from './navigation.module.css';
 
 export interface NavigationSurface {
@@ -466,7 +467,7 @@ function ScopedNavigation({
         textClassName="text-sm font-semibold"
         value={collectionId ?? ''}
         valueLabel={index.collections.find((c) => c.id === collectionId)?.name ?? 'No binder yet'}
-        options={index.collections.map((c) => ({ value: c.id, label: c.name }))}
+        options={inBinderOrder(index.collections, binders).map((c) => ({ value: c.id, label: c.name }))}
         action={
           newCollection
             ? {

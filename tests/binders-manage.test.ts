@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Binder } from '../lib/binders/model';
-import { moveBinder, planBinderDelete, validateBinderOrder } from '../lib/binders/manage';
+import { inBinderOrder, moveBinder, planBinderDelete, validateBinderOrder } from '../lib/binders/manage';
 import { binderHref } from '../lib/binders/client';
 
 const binder = (id: string, sortOrder: number, isDefault = false): Binder => ({
@@ -56,6 +56,14 @@ test('binder links keep the current page and its other parameters', () => {
   assert.equal(binderHref('b1'), '/?binder=b1');
   assert.equal(binderHref('b2', 'https://holofolder.com/?binder=b1&x=1'), '/?binder=b2&x=1');
   assert.equal(binderHref('b2', 'http://localhost/e2e-harness?signedIn=1'), '/e2e-harness?signedIn=1&binder=b2');
+});
+
+test('collections follow the binder order; ones with no binder stay last in their own order', () => {
+  const collections = [{ id: 'z' }, { id: 'a' }, { id: 'y' }, { id: 'b' }];
+  assert.deepEqual(
+    inBinderOrder(collections, [{ id: 'b' }, { id: 'a' }]).map((item) => item.id),
+    ['b', 'a', 'z', 'y'],
+  );
 });
 
 test('binder links give Next router an unprefixed path', () => {
