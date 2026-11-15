@@ -8,6 +8,7 @@ import { prepareBinderCreation, type BinderCreationDraft } from '@/lib/binder-cr
 import type { NativeBinderCreationBinding } from '@/components/native-binder-creation';
 import { shouldOfferBinderOnboarding } from '@/lib/binder-creation-wizard';
 import { useBinderOnboarding } from '@/hooks/use-binder-onboarding';
+import { useFirstAccountTour } from '@/hooks/use-first-account-tour';
 
 import { recoveryUnresolved } from '@/lib/collection/recovery-rejection';
 
@@ -58,6 +59,7 @@ import type { InventoryCatalogEvidence } from '@/lib/domain/inventory-browse';
 const NativeCollectionDeletion = dynamic(() => import('@/components/native-collection-deletion'), { ssr: false });
 const NativeBackup = dynamic(() => import('@/components/native-backup'), { ssr: false });
 const NativeImport = dynamic(() => import('@/components/native-import'), { ssr: false });
+const FirstAccountTour = dynamic(() => import('@/components/first-account-tour'), { ssr: false });
 const NativeBinderCreation = dynamic(() => import('@/components/native-binder-creation'), { ssr: false });
 
 const ChangeConflictDialog = dynamic(() => import('./change-conflict-dialog'), { ssr: false });
@@ -244,6 +246,7 @@ function ScopedBrowserSession({
     open: NavigationSurface['openCreated'];
   } | null>(null);
   const onboarding = useBinderOnboarding(scope.actorUserId);
+  const tour = useFirstAccountTour(scope.actorUserId);
 
   const [notice, setNotice] = useState('');
   // The rejected change whose dialog was closed without deciding; a line in the header reopens it.
@@ -1515,6 +1518,8 @@ function ScopedBrowserSession({
                         <StartOnce
                           run={() => {
                             onboarding.finish();
+                            // A new account: the tour follows once the wizard closes.
+                            tour.afterWizard();
                             startCreation(surface.openCreated, layout, true);
                           }}
                         />
@@ -1612,6 +1617,8 @@ function ScopedBrowserSession({
             }}
           />
         )}
+      {/* After the first-binder wizard, never on top of it. */}
+      {tour.open && !creating && <FirstAccountTour onFinish={tour.finish} />}
     </>
   );
 }

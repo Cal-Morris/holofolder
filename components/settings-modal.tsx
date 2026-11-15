@@ -44,6 +44,7 @@ import {
   LogIn,
   Info,
   LifeBuoy,
+  Compass,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@ import type { BinderSettings } from '@/hooks/use-settings';
 import type { BinderColor } from '@/lib/binder-colors';
 import { BinderPageColors } from '@/components/binder-page-colors';
 import { buildBinderShareUrl } from '@/lib/binder-share';
+import { REPLAY_TOUR_EVENT } from '@/lib/first-account-tour';
 import { trackGoogleEvent } from '@/lib/google-analytics';
 import type { User } from '@supabase/supabase-js';
 import type { BinderOfflineSource } from '@/components/binder-offline-prep';
@@ -86,7 +88,8 @@ export type SettingsPageId =
   | 'credits';
 
 interface SettingsRow {
-  id: SettingsPageId | 'help';
+  /** A page, `help` (a link, see `href`) or `tour`: an action row that closes Settings and replays the tour. */
+  id: SettingsPageId | 'help' | 'tour';
   /** Opens this route instead of a settings page. */
   href?: string;
   title: string;
@@ -333,6 +336,7 @@ export default function SettingsModal({
       quiet: true,
       rows: [
         { id: 'help', title: 'Help', icon: LifeBuoy, href: '/help', visible: true },
+        { id: 'tour', title: 'Replay tour', icon: Compass, visible: signedInAccount },
         { id: 'credits', title: 'Credits & attributions', icon: Info, visible: true },
       ],
     },
@@ -897,7 +901,11 @@ export default function SettingsModal({
                       <button
                         key={row.id}
                         type="button"
-                        onClick={() => openPage(row.id as SettingsPageId)}
+                        onClick={() => {
+                          if (row.id !== 'tour') return openPage(row.id as SettingsPageId);
+                          onClose();
+                          window.dispatchEvent(new Event(REPLAY_TOUR_EVENT));
+                        }}
                         {...rowProps}
                       />
                     );
