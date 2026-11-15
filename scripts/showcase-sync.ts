@@ -28,12 +28,14 @@ type Pocket = { identity: Identity | null; target: Target };
 type Source = { binderId: string; username: string };
 // A page can come from another public binder (e.g. Meg's own showcase binder) instead of the themed pages.
 // Or be one card over and over (`repeat`), e.g. the Kabuto King meme binder.
-// Or list its cards directly (`cards`), e.g. the binder inspiration pages from marketing/social/.
+// Or list its cards directly (`cards`, null for an empty pocket), e.g. the binder inspiration pages from marketing/social/.
+// `pageArt` lays Michi method pictures behind pockets, each anchored at a 1-based pocket number.
 type PageConfig = (typeof config.pages)[number] & {
   view: { preset: Preset };
   source?: Source;
   repeat?: { identity: Identity; count: number };
-  cards?: Identity[];
+  cards?: (Identity | null)[];
+  pageArt?: { pocket: number; rows: number; cols: number; source: Record<string, unknown>; frame?: unknown }[];
 };
 type Slot = {
   id: string;
@@ -444,7 +446,36 @@ async function syncPage(read: Read, api: Api, ownerId: string, page: PageConfig,
         })),
       );
   }
-  // 4. Public slug and read-only share.
+  // 4. Page art, anchored to the pockets it starts on.
+  if (page.pageArt) {
+    if (!dryRun) current = await slots();
+    const pageArt = page.pageArt.map((art) => ({
+      id: `art-${art.pocket}`,
+      anchorSlotId: current[art.pocket - 1]?.id ?? `pocket-${art.pocket}`,
+      rows: art.rows,
+      cols: art.cols,
+      source: art.source,
+      ...(art.frame ? { frame: art.frame } : {}),
+    }));
+    const [stored] = await read<{ page_art: unknown }>('SELECT page_art FROM binders WHERE id = $1', [id]);
+    // jsonb reorders object keys, so compare with sorted keys.
+    const sorted = (value: unknown): unknown =>
+      Array.isArray(value)
+        ? value.map(sorted)
+        : value && typeof value === 'object'
+          ? Object.fromEntries(
+              Object.entries(value)
+                .toSorted(([x], [y]) => x.localeCompare(y))
+                .map(([k, v]) => [k, sorted(v)]),
+            )
+          : value;
+    const key = (value: unknown) => JSON.stringify(sorted(value ?? []));
+    if (key(stored?.page_art) !== key(pageArt)) {
+      say(`${page.slug}: set ${pageArt.length} page art pictures`);
+      if (!dryRun) await api('update_binder', { id, pageArt });
+    }
+  }
+  // 5. Public slug and read-only share.
   const [share] = await read<{ slug: string | null; enabled: boolean | null; prices: boolean | null }>(
     `SELECT p.slug, s.is_enabled AS enabled, s.show_prices AS prices FROM binders b
      LEFT JOIN binder_public_slugs p ON p.binder_id = b.id AND p.is_active
