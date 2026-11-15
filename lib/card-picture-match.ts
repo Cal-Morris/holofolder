@@ -30,8 +30,14 @@ export const PICTURE_CHOICES = 5;
  * right (92%), once nine pockets labelled "not in the gallery" were checked by eye (newer promos and Delta Reign cards
  * the index has since gained). The 3 wrong at either gate: two same-artwork reprints (a Base Set card matched to its
  * First Partner or Legendary Collection reprint) and one crop holding half a card. Missing cards (~0.70) stay below.
+ *
+ * Lowered to 0.76 (2026-11-15) after a larger check: 36 older and 17 recent real binder pages, about 400 pockets read
+ * with full-resolution crops, every pre-select whose label disagreed checked by eye. ≥ 0.78 pre-selected 89 with no
+ * wrong picture; ≥ 0.76 pre-selected 112 with one (a Japanese Charmander matched to a Pikachu promo at 0.765); the rest
+ * of the label mismatches were the right card the labels predated, the same card in another language or a same-art
+ * reprint. ≥ 0.74 added 24 more with no further wrong picture, but missing cards sit close to it.
  */
-export const PICTURE_SUGGEST_SIMILARITY = 0.78;
+export const PICTURE_SUGGEST_SIMILARITY = 0.76;
 export const PICTURE_SUGGEST_MARGIN = 0.03;
 
 /** One language's fingerprints as published: N × 384 int8 rows, row i is ids[i]. */
