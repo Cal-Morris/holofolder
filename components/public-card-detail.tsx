@@ -6,7 +6,7 @@ import CardImage from '@/components/card-image';
 import { Button } from '@/components/ui/button';
 import { OverlayCloseButton, OverlayDialog, OverlayGrabber } from '@/components/ui/overlay-dialog';
 import { SimilarCardsRow } from '@/components/similar-cards-row';
-import { catalogueCardFromSearch, type CatalogueCard } from '@/lib/catalogue-cards';
+import { catalogueCardFromSearch, publicCardPath, type CatalogueCard } from '@/lib/catalogue-cards';
 import { illustratorSlug } from '@/lib/illustrators';
 import { formatReleaseDate } from '@/lib/set-pages';
 
@@ -64,6 +64,11 @@ export default function PublicCardDetail({
           {card.pokemon && (
             <Fact label="Pokémon">
               <Link href={`/pokemon/${card.pokemon.slug}`}>Every {card.pokemon.name} card</Link>
+            </Fact>
+          )}
+          {publicCardPath(card) && (
+            <Fact label="Price and printings">
+              <Link href={publicCardPath(card)!}>Open the card page</Link>
             </Fact>
           )}
         </dl>

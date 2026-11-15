@@ -9,6 +9,7 @@ import {
   matchesWords,
   paddedCardNumbers,
   parseCardNumberQuery,
+  publicCardPath,
   type CatalogueCard,
 } from '@/lib/catalogue-cards';
 
@@ -120,5 +121,13 @@ describe('parseCardNumberQuery', () => {
   test('pads numbers the ways sets store them', () => {
     assert.deepEqual(paddedCardNumbers('6'), ['6', '06', '006']);
     assert.deepEqual(paddedCardNumbers('161'), ['161']);
+  });
+});
+
+describe('publicCardPath', () => {
+  test('links cards in a public set to their page, keeping ids with promo suffixes intact', () => {
+    assert.equal(publicCardPath({ id: 'sv10-1', setSlug: 'destined-rivals' }), '/cards/sv10-1');
+    assert.equal(publicCardPath({ id: 'svp-013~490730', setSlug: 'svp' }), '/cards/svp-013~490730');
+    assert.equal(publicCardPath({ id: 'ja-1', setSlug: '' }), undefined);
   });
 });

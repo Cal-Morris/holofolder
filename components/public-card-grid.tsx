@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select';
 import {
   facetOptions,
   filterCatalogueCards,
+  publicCardPath,
   type CatalogueCard,
   type CatalogueFacet,
   type CatalogueFilter,
@@ -181,7 +182,12 @@ export function PublicCardGrid({
       ) : (
         <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 md:grid-cols-5 lg:grid-cols-6">
           {visible.map((card) => (
-            <CardGridTile key={card.id} onOpen={() => setOpen(card)} openLabel={`Open ${cardLabel(card)}`}>
+            <CardGridTile
+              key={card.id}
+              onOpen={() => setOpen(card)}
+              href={publicCardPath(card)}
+              openLabel={`Open ${cardLabel(card)}`}
+            >
               <CardGridArt image={card.image} alt={cardLabel(card)} sizes={TILE_SIZES} />
               <CardGridBody>
                 <p className="truncate text-xs font-semibold" title={card.name}>

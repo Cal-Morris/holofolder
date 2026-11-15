@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { ComponentProps, ReactNode } from 'react';
 import CardImage from '@/components/card-image';
 import { cn } from '@/lib/utils';
@@ -6,31 +7,46 @@ import { cn } from '@/lib/utils';
  * One card in a card grid (a Pokémon's cards, an illustrator's cards, the public catalogue pages), built as
  * `<CardGridTile><CardGridArt>…badges</CardGridArt><CardGridBody>…lines</CardGridBody></CardGridTile>`. With `onOpen`,
  * one button covers the whole tile so the exact card tapped is the one that opens; buttons of the caller's own sit
- * above it with `relative z-[2]`. `className` adds to the tile (a border colour replaces the default).
+ * above it with `relative z-[2]`. With `href` it is a link to the card's own page instead, which `onOpen` (if also given)
+ * intercepts for a plain click so the page's sheet opens and crawlers still see the link. `className` adds to the tile
+ * (a border colour replaces the default).
  */
 export function CardGridTile({
   onOpen,
   openLabel,
+  href,
   className,
   children,
   ...props
-}: ComponentProps<'li'> & { onOpen?: () => void; openLabel?: string }) {
+}: ComponentProps<'li'> & { onOpen?: () => void; openLabel?: string; href?: string }) {
+  const cover =
+    'focus-visible:ring-primary/70 absolute inset-0 z-[1] rounded-2xl focus-visible:ring-2 focus-visible:outline-none';
   return (
     <li
       {...props}
       className={cn(
         'bg-background/60 border-border/50 relative flex min-w-0 flex-col overflow-hidden rounded-2xl border',
-        onOpen && 'focus-within:border-primary/60 hover:border-primary/45 transition-colors',
+        (onOpen || href) && 'focus-within:border-primary/60 hover:border-primary/45 transition-colors',
         className,
       )}
     >
-      {onOpen ? (
-        <button
-          type="button"
+      {href ? (
+        <Link
+          href={href}
+          prefetch={false}
           aria-label={openLabel}
-          onClick={onOpen}
-          className="focus-visible:ring-primary/70 absolute inset-0 z-[1] rounded-2xl focus-visible:ring-2 focus-visible:outline-none"
+          onClick={
+            onOpen &&
+            ((event) => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+              event.preventDefault();
+              onOpen();
+            })
+          }
+          className={cover}
         />
+      ) : onOpen ? (
+        <button type="button" aria-label={openLabel} onClick={onOpen} className={cover} />
       ) : null}
       {children}
     </li>

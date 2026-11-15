@@ -1,14 +1,16 @@
 import type { MetadataRoute } from 'next';
 import { docsSitemapEntries } from '@/lib/docs-source';
 import { pokemonByGeneration } from '@/lib/pokemon-pages';
+import { getPublicCardIds } from '@/lib/server/public-cards';
 import { getPublicIllustrators } from '@/lib/server/public-illustrators';
 import { getPublicSets } from '@/lib/server/public-sets';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [docs, sets, illustrators] = await Promise.all([
+  const [docs, sets, illustrators, cardIds] = await Promise.all([
     docsSitemapEntries(),
     getPublicSets(),
     getPublicIllustrators(),
+    getPublicCardIds(),
   ]);
   return [
     ...docs,
@@ -24,5 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...illustrators.flatMap((illustrator) =>
       illustrator.cardCount ? [{ url: `https://holofolder.com/app/illustrators/${illustrator.slug}` }] : [],
     ),
+    // About 22,000 cards: well inside one sitemap's 50,000 URL limit.
+    ...cardIds.map((id) => ({ url: `https://holofolder.com/app/cards/${encodeURIComponent(id)}` })),
   ];
 }
