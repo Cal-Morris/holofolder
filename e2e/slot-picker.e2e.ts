@@ -1011,7 +1011,7 @@ test.describe('explicit stable-slot picker', () => {
     await harness.expectMinTapTarget(toggle, 36);
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-    await expect(dialog.getByText('Suggested for this page')).toBeVisible();
+    await expect(dialog.getByText('Suggested cards')).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Add card Suggested Snorlax from Synthetic set' })).toBeVisible();
     // Best match keeps the suggestion order rather than re-sorting by set.
     await expect(dialog.getByRole('button', { name: /^Add card Suggested / })).toHaveText([
@@ -1022,20 +1022,20 @@ test.describe('explicit stable-slot picker', () => {
     await harness.expectNoHorizontalOverflow();
     // This page is the default; Whole binder suggests from every card in the binder (the same request when the
     // synthetic binder is one page).
-    const scope = dialog.getByRole('radiogroup', { name: 'Suggest from' });
-    await expect(scope.getByRole('radio', { name: 'This page' })).toHaveAttribute('aria-checked', 'true');
-    await harness.expectMinTapTarget(scope.getByRole('radio', { name: 'Whole binder' }), 36);
-    await scope.getByRole('radio', { name: 'Whole binder' }).click();
-    await expect(dialog.getByText('Suggested for this binder')).toBeVisible();
+    const scope = dialog.getByRole('group', { name: 'Suggest from' });
+    await expect(scope.getByRole('button', { name: 'This page' })).toHaveAttribute('aria-pressed', 'true');
+    await harness.expectMinTapTarget(scope.getByRole('button', { name: 'Whole binder' }), 36);
+    await scope.getByRole('button', { name: 'Whole binder' }).click();
+    await expect(scope.getByRole('button', { name: 'Whole binder' })).toHaveAttribute('aria-pressed', 'true');
     const binderLike = requests.at(-1)?.get('like')?.split(',') ?? [];
     for (const id of requests[0].get('like')?.split(',') ?? []) expect(binderLike).toContain(id);
-    await scope.getByRole('radio', { name: 'This page' }).click();
-    await expect(dialog.getByText('Suggested for this page')).toBeVisible();
+    await scope.getByRole('button', { name: 'This page' }).click();
+    await expect(scope.getByRole('button', { name: 'This page' })).toHaveAttribute('aria-pressed', 'true');
     // Typing searches as usual; clearing the search brings the suggestions back.
     await dialog.getByRole('searchbox', { name: 'Search cards' }).fill('snorlax');
-    await expect(dialog.getByText('Suggested for this page')).toHaveCount(0);
+    await expect(dialog.getByText('Suggested cards')).toHaveCount(0);
     await dialog.getByRole('searchbox', { name: 'Search cards' }).fill('');
-    await expect(dialog.getByText('Suggested for this page')).toBeVisible();
+    await expect(dialog.getByText('Suggested cards')).toBeVisible();
     await harness.closeControl(dialog).click();
     await pocket(page, 'slot-g').click();
     dialog = selector(page);
