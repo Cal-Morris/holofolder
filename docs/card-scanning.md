@@ -84,7 +84,7 @@ The card selector presents ranked candidates for the user to select. Confidence 
 [native-page-scanner](../components/native-page-scanner.tsx) takes one camera photo or an uploaded photo of the current page. [binder-page-scan](../lib/binder-page-scan.ts) processes it:
 
 1. Scale the source to a maximum dimension of 1,200 px for page and grid detection.
-2. For uploaded photos, try Scanic page rectification, a custom page/grid-based rectification and the original image. Guided captures use their guided grid path.
+2. For uploaded photos, try Scanic page rectification, a custom page/grid-based rectification and the original image, and keep whichever gives the most confident grid. Guided captures use their guided grid path.
 3. Locate the configured rows and columns, then refine pocket boundaries.
 4. Classify occupancy using luminance and chroma variation, saturation, edge density, spatial activity and highlight/glare checks.
 5. Cut each occupied pocket from the same page straightened out of the full-resolution photo (capped at 3,200 px, under iOS Safari's canvas limit), 240 to 800 px wide at card proportions, so the collector number stays readable.

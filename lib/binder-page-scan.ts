@@ -193,9 +193,11 @@ export async function scanBinderPageImage(
 
   let candidate: CanvasImage | undefined;
   let grid: BinderPageGridRegion | null = null;
-  for (candidate of candidates) {
-    grid = detectNormalizedGrid(candidate, rows, cols);
-    if (grid) break;
+  // Every straightening is tried and the most confident grid wins: scanic can lock onto the wrong outline (a sleeve,
+  // half the page) and still yield a passable grid, while the plain photo of a well-framed page scores higher.
+  for (const option of candidates) {
+    const found = detectNormalizedGrid(option, rows, cols);
+    if (found && (!grid || found.confidence > grid.confidence)) [candidate, grid] = [option, found];
   }
 
   if (candidate && grid) {
