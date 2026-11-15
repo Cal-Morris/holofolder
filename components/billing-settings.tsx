@@ -1,19 +1,13 @@
 'use client';
 import { useBillingContext } from '@/hooks/use-billing';
 import { Button } from '@/components/ui/button';
-import {
-  BILLING_PRICES,
-  BILLING_ANNUAL_SAVING,
-  BILLING_LIFETIME_PRICE,
-  LAUNCH_OFFER,
-  billingAmount,
-  launchOfferActive,
-  launchOfferCoupon,
-  launchOfferText,
-  type BillingPlan,
-} from '@/lib/billing';
+import { OptionRow } from '@/components/ui/option-row';
+import { LAUNCH_OFFER, launchOfferActive, launchOfferCoupon, planChoice, type BillingPlan } from '@/lib/billing';
 import { useEffect, useState } from 'react';
 import { useTrackCollectorEvent } from '@/components/collector-funnel';
+
+const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+
 export function BillingSettings({
   signedIn,
   onSignIn,
@@ -25,6 +19,7 @@ export function BillingSettings({
 }) {
   const billing = useBillingContext();
   const [withCode, setWithCode] = useState(false);
+  const [plan, setPlan] = useState<BillingPlan>('month');
   // Read once per mount; the server decides the real discount at checkout anyway.
   const [mountedAt] = useState(() => Date.now());
   const track = useTrackCollectorEvent();
@@ -38,41 +33,51 @@ export function BillingSettings({
   const { access, busy } = billing;
   const at = now ?? mountedAt;
   const offer = launchOfferActive(at);
-  // The offer's own wording, minus the "Launch offer:" prefix the notice above the buttons already carries.
-  const label = (plan: BillingPlan, normal: string) =>
-    launchOfferCoupon(plan, withCode, at) ? launchOfferText(plan).replace('Launch offer: ', '') : normal;
-  const offerButton = 'h-auto min-h-11 w-full py-2 whitespace-normal';
-  const lifetimeButton = billing.lifetimeAvailable ? (
-    <Button
-      className={offerButton}
-      variant="outline"
-      disabled={busy || billing.loading}
-      onClick={() => void billing.checkout('lifetime', withCode)}
-    >
-      {label('lifetime', `${billingAmount(BILLING_LIFETIME_PRICE)} once, lifetime access`)}
-    </Button>
-  ) : null;
-  const offerNotice = offer ? (
-    <div className="space-y-1">
-      <p className="text-sm font-semibold">Launch offer: 50% off, ends {LAUNCH_OFFER.endLabel}</p>
-      {withCode ? (
-        <p className="text-muted-foreground text-sm">
-          Enter your code at checkout. A code replaces the launch offer on monthly and lifetime; annual keeps the launch
-          offer.
+  const blocked = busy || billing.loading;
+  const choice = (option: BillingPlan) => planChoice(option, Boolean(launchOfferCoupon(option, withCode, at)));
+  const plans: BillingPlan[] =
+    access?.source === 'subscription'
+      ? ['lifetime']
+      : ['month', 'year', ...(billing.lifetimeAvailable ? (['lifetime'] as const) : [])];
+  const selected = plans.includes(plan) ? plan : plans[0];
+  const picker = (
+    <div className="space-y-2">
+      {offer ? (
+        <p className="text-sm font-semibold">
+          Launch offer: 50% off, ends {LAUNCH_OFFER.endLabel}
+          {withCode ? (
+            <span className="text-muted-foreground block text-xs font-normal">
+              Enter your code at checkout. A code replaces the launch offer on monthly and lifetime; annual keeps it.
+            </span>
+          ) : null}
         </p>
       ) : null}
+      {plans.map((option) => (
+        <OptionRow
+          key={option}
+          {...choice(option)}
+          selected={selected === option}
+          disabled={blocked}
+          onClick={() => setPlan(option)}
+        />
+      ))}
+      <Button className="min-h-11 w-full" disabled={blocked} onClick={() => void billing.checkout(selected, withCode)}>
+        {selected === 'lifetime' && access?.source === 'subscription' ? 'Buy lifetime' : 'Upgrade to Premium'}
+      </Button>
+      <div className="flex flex-wrap justify-center gap-x-1">
+        {offer ? (
+          <Button variant="ghost" className="min-h-9 text-xs" disabled={blocked} onClick={() => setWithCode(!withCode)}>
+            {withCode ? 'Use the launch offer instead' : 'Have a creator code?'}
+          </Button>
+        ) : null}
+        {access?.source !== 'subscription' ? (
+          <Button variant="ghost" className="min-h-9 text-xs" disabled={blocked} onClick={() => void billing.portal()}>
+            Manage existing billing
+          </Button>
+        ) : null}
+      </div>
     </div>
-  ) : null;
-  const codeToggle = offer ? (
-    <Button
-      className="min-h-9 w-full"
-      variant="ghost"
-      disabled={busy || billing.loading}
-      onClick={() => setWithCode(!withCode)}
-    >
-      {withCode ? 'Use the launch offer instead' : 'Have a creator code?'}
-    </Button>
-  ) : null;
+  );
   return (
     <section aria-label="Holo Folder plan" className="border-border bg-card space-y-3 rounded-2xl border p-4">
       <h3 className="font-bold">
@@ -98,31 +103,24 @@ export function BillingSettings({
       ) : (
         <>
           <p className="text-muted-foreground text-sm">
-            Unlimited cards, multiple binders, custom layouts, partner mode and sold price comparisons. Read-only
-            sharing is free.
-          </p>
-          <p className="text-muted-foreground text-sm">
-            One subscription for the collection owner, including their partner.
+            Unlimited cards, multiple binders, custom layouts, partner mode and sold price comparisons, for you and your
+            partner. Read-only sharing is free.
           </p>
           {access?.source === 'trial' ? (
             <p className="text-sm">
-              Trial ends {new Date(access.trialEndsAt!).toLocaleString('en-GB')}. No payment details needed, you
-              won&apos;t be charged automatically. After the trial, you return to free and keep your saved cards and
-              binders.
-              {access.grantedUntil
-                ? ` Your invite rewards then keep Premium until ${new Date(access.grantedUntil).toLocaleDateString('en-GB')}.`
-                : null}
+              Trial ends {day(access.trialEndsAt!)}
+              {access.grantedUntil ? `, then your invite rewards keep Premium until ${day(access.grantedUntil)}` : ''}.
+              No payment details needed, you won&apos;t be charged automatically. Afterwards you&apos;re back on free
+              and keep everything you saved.
             </p>
           ) : access?.source === 'grant' ? (
             <p className="text-sm">
-              Free Premium from invites until {new Date(access.grantedUntil!).toLocaleDateString('en-GB')}. No payment
-              details needed, you won&apos;t be charged. Afterwards you return to free and keep your saved cards and
-              binders.
+              Free Premium from invites until {day(access.grantedUntil!)}. No payment details needed, you won&apos;t be
+              charged. Afterwards you&apos;re back on free and keep everything you saved.
             </p>
           ) : access?.tier === 'paid' ? (
             <p className="text-sm">
-              Paid access until{' '}
-              {access.paidThrough ? new Date(access.paidThrough).toLocaleDateString('en-GB') : 'your next renewal'}.
+              Paid access until {access.paidThrough ? day(access.paidThrough) : 'your next renewal'}.
             </p>
           ) : access ? (
             <p className="text-sm">
@@ -146,47 +144,17 @@ export function BillingSettings({
               <Button className="min-h-11 w-full" disabled={busy} onClick={() => void billing.portal()}>
                 Manage billing
               </Button>
-              {lifetimeButton ? offerNotice : null}
-              {lifetimeButton}
-              {lifetimeButton ? codeToggle : null}
-              {lifetimeButton ? (
-                <p className="text-muted-foreground text-sm">
-                  Buying lifetime doesn&apos;t cancel your subscription. Cancel it in Manage billing afterwards.
-                </p>
+              {billing.lifetimeAvailable ? (
+                <>
+                  {picker}
+                  <p className="text-muted-foreground text-xs">
+                    Buying lifetime doesn&apos;t cancel your subscription. Cancel it in Manage billing afterwards.
+                  </p>
+                </>
               ) : null}
             </div>
           ) : (
-            <div className="space-y-2">
-              {offerNotice}
-              <Button
-                className={offerButton}
-                disabled={busy || billing.loading}
-                onClick={() => void billing.checkout('month', withCode)}
-              >
-                {label('month', `${billingAmount(BILLING_PRICES.month)} / month`)}
-              </Button>
-              <Button
-                className={offerButton}
-                variant="outline"
-                disabled={busy || billing.loading}
-                onClick={() => void billing.checkout('year', withCode)}
-              >
-                {label(
-                  'year',
-                  `${billingAmount(BILLING_PRICES.year)} / year, save ${billingAmount(BILLING_ANNUAL_SAVING)}`,
-                )}
-              </Button>
-              {lifetimeButton}
-              {codeToggle}
-              <Button
-                className="min-h-9 w-full"
-                variant="ghost"
-                disabled={busy || billing.loading}
-                onClick={() => void billing.portal()}
-              >
-                Manage existing billing
-              </Button>
-            </div>
+            picker
           )}
         </>
       )}

@@ -1015,7 +1015,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const requestUpgrade = useCallback(() => {
     closeAllOverlays();
     setSelectedPokemon(null);
-    setRequestedSettingsPage('notifications');
+    setRequestedSettingsPage('plan');
     runAfterOverlayHistory(() => setIsSettingsOpen(true));
   }, [setIsSettingsOpen, setRequestedSettingsPage, setSelectedPokemon]);
   const billing = useBilling(
@@ -4298,6 +4298,11 @@ function BinderAppSurface(props: BinderAppProps) {
   const renderAppHeader = () =>
     renderAppHeaderView({
       inventoryNavigation,
+      // Free and trial owners get a standing way to upgrade; partners can't buy for the owner.
+      onUpgrade:
+        user && billing.canManage && billing.access && (billing.access.source === 'trial' || !billing.premium)
+          ? requestUpgrade
+          : undefined,
       activeBinder: browserSurface ? null : activeBinder,
       nativeStorage: Boolean(browserSurface),
       onToggle3d: nativeBinderOpen

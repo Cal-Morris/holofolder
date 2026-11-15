@@ -1038,13 +1038,6 @@
       "failure": "Error: expect(locator).toHaveAttribute(expected) failed — getByRole('dialog', { name: /settings/i }).getByRole('link', { name: /customise binder/i })"
     },
     {
-      "file": "premium-trial.e2e.ts",
-      "title": ["signup trial shows its terms and expires offline without losing the collection"],
-      "cause": "stale-selector-or-flow",
-      "batch": 3,
-      "failure": "TimeoutError: locator.click: Timeout 5000ms exceeded. — getByRole('dialog', { name: /settings/i }).getByRole('button', { name: 'Account', exact: true })"
-    },
-    {
       "file": "price-loading.e2e.ts",
       "title": ["a failed stale batch keeps the successful missing-card batch"],
       "cause": "harness-or-fixture",

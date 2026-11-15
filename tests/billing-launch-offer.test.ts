@@ -6,7 +6,7 @@ import {
   LAUNCH_OFFER,
   launchOfferActive,
   launchOfferCoupon,
-  launchOfferText,
+  planChoice,
 } from '../lib/billing';
 
 const end = Date.parse('2026-12-31T23:59:59Z');
@@ -44,8 +44,14 @@ test('after the end date no plan gets a coupon', () => {
     assert.equal(launchOfferCoupon(plan, false, end + 1), null);
 });
 
-test('the offer wording names the offer price, the normal price and never a "was" price', () => {
-  assert.equal(launchOfferText('year'), 'Launch offer: £17.50 for your first year, then £34.99 a year');
-  assert.equal(launchOfferText('month'), 'Launch offer: £2.00 a month for 3 months, then £3.99 a month');
-  assert.equal(launchOfferText('lifetime'), 'Launch offer: £39.50 until 31 December, then £79');
+test('plan choices show the price paid now and what it renews at, never a "was" price', () => {
+  assert.deepEqual(planChoice('month', true), { title: '£2.00 / month', detail: 'For 3 months, then £3.99 a month' });
+  assert.deepEqual(planChoice('year', true), { title: '£17.50 first year', detail: 'Then £34.99 a year' });
+  assert.deepEqual(planChoice('lifetime', true), {
+    title: '£39.50 once',
+    detail: 'Lifetime access, until 31 December, then £79',
+  });
+  assert.deepEqual(planChoice('month', false), { title: '£3.99 / month', detail: 'Billed monthly' });
+  assert.deepEqual(planChoice('year', false), { title: '£34.99 / year', detail: 'Save £12.89 on monthly' });
+  assert.deepEqual(planChoice('lifetime', false), { title: '£79.00 once', detail: 'Lifetime access, no subscription' });
 });
