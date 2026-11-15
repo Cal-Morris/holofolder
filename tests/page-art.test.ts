@@ -8,6 +8,7 @@ import {
   parsePageArtInput,
   pageArtUploadIds,
   putPageArt,
+  publicPageArt,
   rectFromCorners,
 } from '@/lib/page-art';
 
@@ -150,5 +151,17 @@ describe('putPageArt', () => {
       ),
       null,
     );
+  });
+});
+
+describe('publicPageArt', () => {
+  test('points art at the share’s public pocket ids and never leaks slot ids', () => {
+    const arts = normalizePageArt([card('a', 'real-slot-2'), card('b', 'gone')]);
+    const shared = publicPageArt(arts, new Map([['real-slot-2', 'public-1']]));
+    assert.deepEqual(
+      shared.map((a) => [a.id, a.anchorSlotId]),
+      [['a', 'public-1']],
+    );
+    assert.equal(JSON.stringify(shared).includes('real-slot'), false);
   });
 });

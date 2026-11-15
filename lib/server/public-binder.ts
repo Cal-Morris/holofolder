@@ -14,7 +14,7 @@ import { buildTcgdexAssetImageUrl, pickImageLanguage } from '@/lib/tcgdex-shared
 import { pickCardAssetUrl, PUBLIC_CARD_IMAGE_BASE, toCardImageSrc } from '@/lib/card-image-url';
 import { isCardLanguage, type CardLanguage } from '@/lib/domain/cards';
 import { MISSING_PUBLIC_BINDER_TAG, publicBinderTag } from '@/lib/server/public-binder-cache';
-import { normalizePageArt, type PageArt } from '@/lib/page-art';
+import { normalizePageArt, publicPageArt, type PageArt } from '@/lib/page-art';
 
 const KNOWN_GRADERS = new Set(['psa', 'ace', 'cgc', 'beckett']);
 
@@ -309,7 +309,6 @@ async function readPublicBinder(
         pageColors,
         glare: appearanceRow.binder_slot_glare_enabled !== false,
       },
-      ...(pageArt.length ? { pageArt } : {}),
     };
     const grades = new Map<string, string>();
     const providers = new Map<string, string>();
@@ -650,7 +649,18 @@ async function readPublicBinder(
       revision().then((final) => same(rev, final)),
       permission().then((final) => same(share, final)),
     ]);
-    return { stamp, owner, binder: { ...base, prices: share.show_prices === true, slots } };
+    // Shares never expose slot ids, so page art points at the same public pocket ids as `slots`.
+    const publicArt = publicPageArt(pageArt, new Map(stored.map((row, index) => [String(row.id), `public-${index}`])));
+    return {
+      stamp,
+      owner,
+      binder: {
+        ...base,
+        prices: share.show_prices === true,
+        slots,
+        ...(publicArt.length ? { pageArt: publicArt } : {}),
+      },
+    };
   } catch (error) {
     if (error instanceof PublicBinderMissing) throw error;
     return fail();

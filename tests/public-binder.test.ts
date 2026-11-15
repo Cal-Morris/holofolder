@@ -402,3 +402,18 @@ test('public species ownership comes from copies and survives earlier wants', as
   assert.notEqual(index.species.bySpecies.get(1)?.status, 'collected', 'a mismatched target does not create ownership');
   assert.equal(index.species.rows.find((row) => row.status === 'collected')?.pokemon_id, 143);
 });
+
+test('page art points at public pocket ids, never the private slot ids', async () => {
+  const db = syntheticPublicDatabase();
+  // Synthetic page art over two pockets, anchored to the third private slot.
+  db.tables.binders[0].page_art = [
+    { id: 'art', anchorSlotId: 'PRIVATE-slot-2', rows: 1, cols: 2, source: { kind: 'pokemon', pokemonId: 25 } },
+  ];
+  const binder = await loadPublicBinder({ token: 'synthetic-token' }, db.client);
+  assert.deepEqual(
+    binder.pageArt?.map((art) => [art.id, art.anchorSlotId]),
+    [['art', 'public-2']],
+  );
+  assert.equal(binder.slots[2]?.id, 'public-2');
+  assert.ok(!JSON.stringify(binder).includes('PRIVATE-slot'));
+});
