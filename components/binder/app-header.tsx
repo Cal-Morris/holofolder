@@ -19,6 +19,7 @@ import {
   LogOut,
   Moon,
   Paintbrush,
+  Printer,
   Search as SearchIcon,
   Settings,
   SlidersHorizontal,
@@ -86,6 +87,8 @@ export interface AppHeaderContext {
   /** Signed-in owner/partner may manage the current collection's public link (independent of readOnlyMode). */
   canManageShare?: boolean;
   onNationalDex?: () => void;
+  /** Native binder: print its empty wanted pockets as card-sized placeholders. */
+  onPrintWanted?: () => void;
   /** Native binder: the header's 2D/3D toggle (guests keep it in the View sheet). */
   onToggle3d?: () => void;
   setIsAuthOpen: Dispatch<SetStateAction<boolean>>;
@@ -407,6 +410,9 @@ export function renderAppHeaderView(ctx: AppHeaderContext) {
                 : []),
               ...(ctx.onNationalDex
                 ? [{ id: 'national-dex', label: 'National Dex', icon: <ListChecks />, onSelect: ctx.onNationalDex }]
+                : []),
+              ...(ctx.onPrintWanted && !readOnlyMode
+                ? [{ id: 'print-wanted', label: 'Print wanted cards', icon: <Printer />, onSelect: ctx.onPrintWanted }]
                 : []),
               ...(!readOnlyMode
                 ? [

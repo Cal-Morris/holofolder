@@ -15,7 +15,7 @@ Native developer reads use the current authenticated key or OAuth boundary. Both
 
 Copies retain stable IDs, recorded card or Pokémon identity, public grading, acquisition time, item revision and current primary placement. Unassigned means no placement. Repeated cards are separate physical copies, including Trainers and Energy. Empty targets and wanted entries are goals, not ownership.
 
-Collection reads include private owner location, counts, grid and independent collection/layout revisions. Slot reads include ordered positions, exact targets, public wanted entries, and item/placement/collection/layout preconditions. Removing a slot retains its owned copy as Unassigned.
+Collection reads include private owner location, counts, grid and independent collection/layout revisions. Slot reads include ordered positions, exact targets, public wanted entries, and item/placement/collection/layout preconditions. A slot's index and its collection's rows and columns give the binder page and pocket (page = index ÷ pockets per page + 1), which is how the app's Print wanted cards places each placeholder; printing itself happens on the device and has no API. Removing a slot retains its owned copy as Unassigned.
 
 Certificates, private label assets, immutable source evidence and private planning/audit state are omitted. Strict output schemas reject accidental private additions. Use [private-preserving commands](/docs/native-storage) to edit a redacted projection without erasing hidden fields.
 

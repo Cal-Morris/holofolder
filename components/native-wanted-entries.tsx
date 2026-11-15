@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Share2 } from 'lucide-react';
+import { Printer, Share2 } from 'lucide-react';
 import { ListClearButton, ListControls, ListFiltersButton, ListSearch, ListSelect } from '@/components/list-controls';
 import type { CardPriceSnapshot } from '@/hooks/use-card-prices';
 import { useInventoryPriceState } from '@/hooks/use-inventory-prices';
@@ -29,6 +29,7 @@ import {
 import { getRisingMomentum } from '@/lib/price-momentum';
 
 const WantedFiltersSheet = dynamic(() => import('@/components/wanted-filters-sheet'), { ssr: false });
+const PrintWantedSheet = dynamic(() => import('@/components/print-wanted-sheet'), { ssr: false });
 const gbp = (amount: number | null | undefined) =>
   typeof amount === 'number' && Number.isFinite(amount) && amount > 0 ? `£${amount.toFixed(2)}` : null;
 import {
@@ -96,6 +97,7 @@ export default function NativeWantedEntries({
   );
   const [search, setSearch] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   useEffect(() => {
     if (!isWanted) return;
     try {
@@ -189,15 +191,28 @@ export default function NativeWantedEntries({
                 </p>
               )}
             </div>
-            {onShare && entries.length > 0 && (
-              <button
-                type="button"
-                onClick={() => onShare(shown)}
-                className="border-border/60 hover:bg-muted/60 flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium"
-              >
-                <Share2 className="h-4 w-4" aria-hidden />
-                Share
-              </button>
+            {entries.length > 0 && (
+              <div className="flex shrink-0 gap-1.5">
+                <button
+                  type="button"
+                  aria-haspopup="dialog"
+                  onClick={() => setPrintOpen(true)}
+                  className="border-border/60 hover:bg-muted/60 flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium"
+                >
+                  <Printer className="h-4 w-4" aria-hidden />
+                  Print
+                </button>
+                {onShare && (
+                  <button
+                    type="button"
+                    onClick={() => onShare(shown)}
+                    className="border-border/60 hover:bg-muted/60 flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium"
+                  >
+                    <Share2 className="h-4 w-4" aria-hidden />
+                    Share
+                  </button>
+                )}
+              </div>
             )}
           </div>
           {entries.length > 0 && priceCheck && (
@@ -238,6 +253,13 @@ export default function NativeWantedEntries({
                 <ListClearButton onClick={() => setView((v) => ({ ...v, filters: EMPTY_WANTED_FILTERS }))} />
               )}
             </ListControls>
+          )}
+          {printOpen && (
+            <PrintWantedSheet
+              binding={binding}
+              listKeys={ordered.map((entry) => entry.key)}
+              onClose={() => setPrintOpen(false)}
+            />
           )}
           {filtersOpen && (
             <WantedFiltersSheet
