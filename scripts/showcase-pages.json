@@ -846,14 +846,14 @@
         },
         null,
         null,
+        null,
+        null,
         {
           "kind": "card",
           "cardId": "sv03.5-168",
           "language": "en",
           "finish": "holo"
         },
-        null,
-        null,
         {
           "kind": "card",
           "cardId": "sv03.5-170",
@@ -869,29 +869,29 @@
           "rows": 1,
           "cols": 2,
           "source": {
-            "kind": "pokemon",
-            "pokemonId": 1
+            "kind": "upload",
+            "id": "upload:2669f477-fb7c-49b5-8eee-30708bc85fc8"
           },
           "frame": {
             "fit": "fill",
             "zoom": 1,
             "x": 0,
-            "y": -0.6
+            "y": 0
           }
         },
         {
-          "pocket": 5,
+          "pocket": 4,
           "rows": 1,
           "cols": 2,
           "source": {
-            "kind": "pokemon",
-            "pokemonId": 4
+            "kind": "upload",
+            "id": "upload:654aa716-1690-4101-aca5-46ea277d9061"
           },
           "frame": {
             "fit": "fill",
             "zoom": 1,
             "x": 0,
-            "y": -0.6
+            "y": 0
           }
         },
         {
@@ -899,14 +899,14 @@
           "rows": 1,
           "cols": 2,
           "source": {
-            "kind": "pokemon",
-            "pokemonId": 7
+            "kind": "upload",
+            "id": "upload:7ead7ae2-2511-4ae6-84f2-8516891b4aca"
           },
           "frame": {
             "fit": "fill",
             "zoom": 1,
             "x": 0,
-            "y": -0.6
+            "y": 0
           }
         }
       ],
