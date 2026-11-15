@@ -6,6 +6,14 @@ import { PUBLIC_JSON_CACHE_HEADERS } from '@/lib/http-cache';
 
 export const instant = false;
 
+// The directory's counts change with every catalog import, and revalidateTag doesn't purge the CDN, so keep its edge
+// copy to an hour instead of the catalog default of a day plus a week of stale.
+const ILLUSTRATOR_DIRECTORY_CACHE_HEADERS = {
+  'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600',
+  'CDN-Cache-Control': 'public, s-maxage=3600',
+  'Vercel-CDN-Cache-Control': 'public, s-maxage=3600',
+};
+
 /**
  * GET /app/api/tcg-illustrators → { illustrators: [{ name, cardCount }] } (the whole directory, for search)
  * GET /app/api/tcg-illustrators?name=Mitsuhiro%20Arita&language=en → { illustrator, cards }
@@ -27,7 +35,7 @@ export async function GET(request: NextRequest) {
     }
 
     const illustrators = await getIllustratorDirectory();
-    return NextResponse.json({ illustrators }, { headers: PUBLIC_JSON_CACHE_HEADERS });
+    return NextResponse.json({ illustrators }, { headers: ILLUSTRATOR_DIRECTORY_CACHE_HEADERS });
   } catch (error) {
     console.error('[holofolder] Illustrator lookup failed:', error);
     return NextResponse.json({ error: 'Illustrator data is unavailable right now.' }, { status: 500 });
