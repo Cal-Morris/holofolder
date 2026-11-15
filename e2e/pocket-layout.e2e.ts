@@ -405,6 +405,38 @@ test.describe('layout editing on the pockets', () => {
     await expect(ghost(page)).toHaveCount(0, { timeout: 2000 });
   });
 
+  test('a card carried a page on and back lands on the page it left, from page 1 and from page 2', async ({
+    harness,
+  }) => {
+    const { page } = harness;
+    // Two pockets a page: a-b, c-d, e-f, g.
+    for (const [start, from, ahead] of [
+      [1, 'slot-a', 'slot-c'],
+      [2, 'slot-c', 'slot-e'],
+    ] as const) {
+      await page.goto(`/app/e2e-harness?signedIn=1&slots=picker&rows=1&cols=2&page=${start}`);
+      await expect(pocket(page, from)).toBeVisible();
+      await edit(page);
+      const box = (await pocket(page, from).boundingBox())!;
+      const stage = (await page.locator('[data-page-turn-ms]').boundingBox())!;
+      const y = box.y + box.height / 2;
+      await page.mouse.move(box.x + box.width / 2, y);
+      await page.mouse.down();
+      await page.mouse.move(stage.x + stage.width - 4, y, { steps: 10 });
+      await expect(pocket(page, ahead)).toBeVisible();
+      await page.mouse.move(stage.x + stage.width / 2, y, { steps: 6 });
+      await page.mouse.move(stage.x + 4, y, { steps: 6 });
+      await expect(pocket(page, from)).toBeVisible();
+      // Off the edge before it repeats: the pickup page stays.
+      await page.mouse.move(stage.x + stage.width / 2, y, { steps: 2 });
+      await page.waitForTimeout(1200);
+      await expect(pocket(page, from)).toBeVisible();
+      await expect(pocket(page, ahead)).toHaveCount(0);
+      await page.keyboard.press('Escape');
+      await page.mouse.up();
+    }
+  });
+
   test('while the binder wiggles, a resting finger never opens the pocket menu', async ({ harness }) => {
     const { page } = harness;
     await edit(page);

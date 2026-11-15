@@ -2298,8 +2298,11 @@ function BinderAppSurface(props: BinderAppProps) {
     [getPageSlots, getSlotCardImage, orderedDisplayPages],
   );
   const requestedBinderPage = useRef(currentBinderPage);
+  // A held card's drag keeps the page callbacks from pickup, so they read the shown page here, not from their closure.
+  const shownBinderPage = useRef(currentBinderPage);
   useLayoutEffect(() => {
     requestedBinderPage.current = currentBinderPage;
+    shownBinderPage.current = currentBinderPage;
   }, [currentBinderPage]);
   useEffect(
     () => () => {
@@ -2405,10 +2408,10 @@ function BinderAppSurface(props: BinderAppProps) {
     return 'Binder Spread';
   }, [displayedSpreadPages]);
   const cancelPageNavigation = useCallback(() => {
-    requestedBinderPage.current = currentBinderPage;
+    requestedBinderPage.current = shownBinderPage.current;
     setPageNavigation(null);
-    setPageInputValue(String(currentBinderPage));
-  }, [currentBinderPage]);
+    setPageInputValue(String(shownBinderPage.current));
+  }, []);
 
   useEffect(() => {
     if (!pageNavigation) return;
@@ -2429,7 +2432,7 @@ function BinderAppSurface(props: BinderAppProps) {
   const navigateToPage = useCallback(
     (page: number, direction: 'left' | 'right') => {
       if (page < 1 || page > totalBinderPages || page === requestedBinderPage.current) return;
-      if (page === currentBinderPage) {
+      if (page === shownBinderPage.current) {
         cancelPageNavigation();
         return;
       }
@@ -2437,7 +2440,7 @@ function BinderAppSurface(props: BinderAppProps) {
       setPageInputValue(String(page));
       setPageNavigation({ page, direction });
     },
-    [cancelPageNavigation, currentBinderPage, totalBinderPages],
+    [cancelPageNavigation, totalBinderPages],
   );
 
   const goToNextPage = useCallback(() => {
