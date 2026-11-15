@@ -1258,6 +1258,51 @@ button[data-slot-id][data-shifting] {
 button[data-slot-id][data-push-out] {
   opacity: 0.3;
 }
+/* The layout tray (layout-editor.tsx) sits above the dock while editing; the binder keeps its last row clear of it. */
+html:has([data-layout-tray]) {
+  --layout-tray: 4rem;
+}
+/* Drop zones outside the pockets: the take-out zone only opens while a card (not a graded one) is held. */
+[data-pocket-zone] {
+  transition:
+    scale 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 200ms cubic-bezier(0.23, 1, 0.32, 1),
+    translate 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+[data-pocket-zone='take-out'] {
+  display: none;
+}
+html[data-pocket-dragging='card'] [data-pocket-zone='take-out'] {
+  display: flex;
+  @starting-style {
+    opacity: 0;
+    translate: 0 0.5rem;
+  }
+}
+[data-pocket-zone][data-drop-target] {
+  scale: 1.03;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  background: color-mix(in oklab, var(--primary) 14%, var(--card));
+}
+[data-tray-hint='drop'],
+:is(html[data-pocket-dragging='card'], html[data-pocket-dragging='graded'], html[data-pocket-dragging='empty'])
+  [data-tray-hint='idle'] {
+  display: none;
+}
+:is(html[data-pocket-dragging='card'], html[data-pocket-dragging='graded'], html[data-pocket-dragging='empty'])
+  [data-tray-hint='drop'] {
+  display: block;
+}
+/* The tray's stack while it is carried out: what's left behind fades like a picked-up pocket. */
+[data-tray-stack][data-drag-source] {
+  opacity: 0.3;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-pocket-zone] {
+    transition: none;
+  }
+}
 /* Resting at the binder's side: a bar fills up, and the page turns when it's full. */
 [data-pocket-edge] {
   position: fixed;

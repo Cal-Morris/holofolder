@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ButtonHTMLAttributes } from 'react';
+import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import {
   ArrowLeftRight,
   ArrowLeftToLine,
   ArrowRightToLine,
+  ArrowUpFromLine,
   MoreHorizontal,
   PencilRuler,
   Plus,
@@ -31,7 +33,20 @@ import { useNativeSlotAction } from '@/hooks/use-native-slot-pick';
 import { layoutFailureMessage } from '@/lib/slot-draft-failure';
 import type { CardNamer } from '@/lib/pocket-labels';
 import { cn } from '@/lib/utils';
-import { invertPocketMoves, planPocketDrop, type PocketDropMode, type PocketMove } from '@/lib/pocket-drop';
+import {
+  invertPocketMoves,
+  planParkedPlacement,
+  planPocketDrop,
+  type PocketDropMode,
+  type PocketMove,
+} from '@/lib/pocket-drop';
+import { describeIdentity } from '@/lib/pocket-labels';
+import { prepareSlotPickerIntent } from '@/lib/slot-picker';
+import { prepareInventoryAction } from '@/lib/inventory-actions';
+import { slotDraftFailureMessage } from '@/lib/slot-draft-failure';
+import { pickUp, type PocketDrag } from '@/components/binder/ordered-slot';
+import CardImage from '@/components/card-image';
+import { toast, TOAST_ANCHOR } from '@/components/ui/toast';
 
 const SlotRemovalReview = dynamic(() => import('@/components/binder/slot-removal-review'), { ssr: false });
 const BulkFillReview = dynamic(() => import('@/components/binder/bulk-fill-review'), { ssr: false });
@@ -56,6 +71,8 @@ export interface LayoutBoundary {
  * whether a change was sent.
  */
 export type LayoutTap = (slotId: string, dropOn?: string, mode?: PocketDropMode) => boolean;
+/** A pocket dragged onto a drop zone (`park` for the tray, `take-out`): whether something will happen. */
+export type LayoutZoneDrop = (slotId: string, zone: string) => boolean;
 export interface LayoutEditHost {
   rows: number;
   cols: number;
@@ -64,6 +81,8 @@ export interface LayoutEditHost {
   onPage?: (page: number) => void;
   /** Open page art for the page on screen, starting from the selected pockets. */
   onPageArt?: (selectedIds: readonly string[]) => void;
+  /** Turn the page (or spread) under a card carried out of the tray: 1 forward, -1 back. */
+  turn?: (direction: 1 | -1) => void;
 }
 export interface LayoutSessionStart {
   ids: readonly string[];
@@ -128,7 +147,7 @@ export function LayoutToolbar({
   host: LayoutEditHost;
   /** The bar hands the host its pocket-tap handler while it is mounted, and null when it leaves. */
   start?: LayoutSessionStart;
-  onTap: (tap: LayoutTap | null) => void;
+  onTap: (tap: LayoutTap | null, zone?: LayoutZoneDrop) => void;
   onSelection: (ids: readonly string[], moving: boolean) => void;
 }) {
   if (!editing)
@@ -161,6 +180,140 @@ export function LayoutToolbar({
 interface MoveStep {
   to: PocketMove[];
   back: PocketMove[];
+}
+
+const operation = () => ({
+  source: 'app' as const,
+  clientId: null,
+  operationId: crypto.randomUUID(),
+  batchId: null,
+  clientOccurredAt: new Date().toISOString(),
+});
+
+/** Hand a prepared change straight to the durable sink: it resolves once the change is saved on the device. */
+const send = (sink: SlotCommandSink, draft: StagedSlotCommandIntent) =>
+  Promise.resolve().then(async () => {
+    await sink(draft);
+  });
+
+const noSubscribe = () => () => {};
+
+/**
+ * The parking tray, fixed above the dock while the binder is edited. Parked cards are the layout selection: they stay
+ * in their pockets (and on the server) until they are placed, so turning pages never loses them. Drag a card onto
+ * the tray to park it; drag the stack out onto a pocket (or tap the tray, then a pocket) to place them all there.
+ * While a card is dragged, a take-out zone opens beside it.
+ */
+function LayoutTray({
+  parked,
+  thumbs,
+  drag,
+  onChoose,
+}: {
+  parked: readonly string[];
+  thumbs: readonly (string | null)[];
+  drag: PocketDrag;
+  onChoose: () => void;
+}) {
+  const stack = useRef<HTMLSpanElement>(null);
+  const press = useRef<{ x: number; y: number } | null>(null);
+  const dragged = useRef(false);
+  const client = useSyncExternalStore(
+    noSubscribe,
+    () => true,
+    () => false,
+  );
+  if (!client) return null;
+  const n = parked.length;
+  return createPortal(
+    <div
+      data-layout-tray
+      {...TOAST_ANCHOR}
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--dock-clearance)+0.5rem)] z-[44] pr-[var(--right-inset)] pl-[var(--left-inset)] md:bottom-4"
+    >
+      <div className="pointer-events-auto mx-auto flex max-w-md gap-2">
+        <button
+          type="button"
+          data-pocket-zone="park"
+          data-accepts="card graded empty"
+          aria-label={
+            n
+              ? `${n} parked. Drag onto a pocket to place ${n === 1 ? 'it' : 'them'}, or choose where`
+              : 'Parking tray. Drag cards here to keep them while you turn pages'
+          }
+          aria-disabled={!n}
+          draggable={false}
+          onDragStart={(event) => event.preventDefault()}
+          className="holo-panel border-border/70 bg-card text-foreground flex min-h-14 min-w-0 flex-1 touch-none items-center gap-3 rounded-2xl border px-3 text-left shadow-xl select-none"
+          onPointerDown={(event) => {
+            dragged.current = false;
+            press.current =
+              n && (event.pointerType !== 'mouse' || event.button === 0)
+                ? { x: event.clientX, y: event.clientY }
+                : null;
+          }}
+          onPointerMove={(event) => {
+            const from = press.current;
+            if (!from || !stack.current || Math.hypot(event.clientX - from.x, event.clientY - from.y) <= 8) return;
+            press.current = null;
+            dragged.current = true;
+            pickUp(stack.current, parked[0], event.pointerId, from, drag, n);
+          }}
+          onPointerUp={() => {
+            press.current = null;
+          }}
+          onPointerCancel={() => {
+            press.current = null;
+          }}
+          onClick={() => {
+            if (dragged.current) dragged.current = false;
+            else if (n) onChoose();
+          }}
+        >
+          <span ref={stack} data-tray-stack aria-hidden className="relative h-11 w-8 shrink-0">
+            {n === 0 ? (
+              <span className="border-muted-foreground/40 absolute inset-0 rounded-[3px] border border-dashed" />
+            ) : (
+              thumbs.map((image, i) => (
+                <span
+                  // oxlint-disable-next-line react-doctor/no-array-index-as-key -- a fixed-size stack of the first parked cards, redrawn whole
+                  key={i}
+                  className="border-border/70 bg-muted absolute inset-0 overflow-hidden rounded-[3px] border shadow-sm"
+                  style={{ rotate: `${(thumbs.length - 1 - i) * -6}deg`, zIndex: thumbs.length - i }}
+                >
+                  {image && (
+                    <CardImage src={image} alt="" fill sizes="32px" className="object-cover" draggable={false} />
+                  )}
+                </span>
+              ))
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold">{n ? `${n} parked` : 'Parking tray'}</span>
+            <span data-tray-hint="idle" className="text-muted-foreground block truncate text-xs">
+              {n ? 'Drag onto a pocket, or tap to choose' : 'Drag cards here to keep them'}
+            </span>
+            <span data-tray-hint="drop" className="text-primary block truncate text-xs font-medium">
+              Drop to park
+            </span>
+          </span>
+        </button>
+        <div
+          data-pocket-zone="take-out"
+          data-accepts="card"
+          aria-hidden
+          className="holo-panel border-primary/50 bg-card text-foreground min-h-14 w-[44%] shrink-0 items-center gap-2 rounded-2xl border border-dashed px-3 shadow-xl"
+        >
+          <ArrowUpFromLine className="text-primary h-4 w-4 shrink-0" aria-hidden />
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold">Take out</span>
+            <span className="text-muted-foreground block truncate text-xs">Stays in your collection</span>
+          </span>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 function safeCapture(boundary: LayoutBoundary, ids: readonly string[]) {
@@ -225,7 +378,7 @@ function LayoutBar({
   boundary: LayoutBoundary;
   host: LayoutEditHost;
   start?: LayoutSessionStart;
-  onTap: (tap: LayoutTap | null) => void;
+  onTap: (tap: LayoutTap | null, zone?: LayoutZoneDrop) => void;
   onSelection: (ids: readonly string[], moving: boolean) => void;
   onDone: () => void;
   // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent layout editor controls; one reducer would not read better
@@ -245,6 +398,14 @@ function LayoutBar({
   // and a change prepared now would be built on the collection as it was before that one.
   const preparedOn = useRef<InventorySnapshot | null>(null);
   const behind = useRef<InventorySnapshot | null>(null);
+  // A placement from the tray is being saved: once it is, the tray is empty.
+  const placing = useRef(false);
+  // The tray was tapped: the next tapped pocket is where the parked cards go.
+  const fromTray = useRef(false);
+  const latest = useRef(boundary);
+  useLayoutEffect(() => {
+    latest.current = boundary;
+  });
   const ids = selection.slots.map((s) => s.slot.id);
   let state: ReturnType<typeof bulkSelectionState> = 'selection-changed';
   try {
@@ -256,7 +417,8 @@ function LayoutBar({
     boundary.onCommandIntent,
     () => {
       const accepted = prepared.current;
-      if (accepted) setSelection(captureBulkSelection(accepted.preview, scope, ids));
+      if (accepted) setSelection(captureBulkSelection(accepted.preview, scope, placing.current ? [] : ids));
+      placing.current = false;
       behind.current = preparedOn.current;
       const done = stepping.current;
       stepping.current = null;
@@ -380,6 +542,87 @@ function LayoutBar({
     const step = steps.undone.at(-1);
     if (step) moveOne(step, 'redo');
   };
+  // Parked cards land together before `target`. As single-pocket moves, it is one step for Undo; past the request's
+  // command limit the group move places them instead, which (like any group move) clears the Undo history.
+  const placeParked = (target: string) => {
+    if (state !== 'current') {
+      setError('These pockets changed. Update the selection to carry on.');
+      return false;
+    }
+    const order = binder.slots.map((s) => s.id);
+    const moves = planParkedPlacement(order, ids, target);
+    if (!moves) return false;
+    placing.current = true;
+    const sent =
+      moves.length > SLOT_LIMITS.commands
+        ? emit({ kind: 'move', destination: { kind: 'before', slotId: target } })
+        : moveOne({ to: moves, back: invertPocketMoves(order, moves) }, 'do');
+    if (!sent) placing.current = false;
+    return sent;
+  };
+  const park = (slotId: string) => {
+    if (ids.includes(slotId)) return false;
+    select([...ids, slotId]);
+    return true;
+  };
+  // Take a dragged card out of its pocket: the existing slot `clear`, so it stays in the collection. Undo puts that
+  // copy back in the same pocket, if nothing has gone there since.
+  const takeOut = (slotId: string) => {
+    const itemId = binder.slots.find((s) => s.id === slotId)?.inventoryItemId;
+    const item = snapshot.items.find((i) => i.id === itemId);
+    if (!itemId || !item || item.grading) return false;
+    let draft: ReturnType<typeof prepareSlotPickerIntent>;
+    try {
+      draft = prepareSlotPickerIntent(snapshot, { ...scope, slotId }, { kind: 'clear' }, operation(), catalog);
+    } catch (cause) {
+      setError(slotDraftFailureMessage(cause));
+      return false;
+    }
+    const name = describeIdentity(item.identity, boundary.resolveCard).name;
+    const putBack = () => {
+      const now = latest.current;
+      const pocket = now.snapshot.binders
+        .find((b) => b.collectionId === now.scope.collectionId)
+        ?.slots.find((s) => s.id === slotId);
+      if (!pocket || pocket.inventoryItemId) {
+        toast('That pocket isn’t empty any more, so the card stayed out.', 'error');
+        return;
+      }
+      try {
+        const back = prepareInventoryAction(
+          now.snapshot,
+          { kind: 'place', itemId, collectionId: now.scope.collectionId, slotId },
+          operation(),
+          now.catalog,
+        );
+        send(now.onCommandIntent, { scope: { ...now.scope, slotId }, intent: back.intent }).then(
+          () => toast(`${name} is back in its pocket.`),
+          (cause: unknown) => toast(slotDraftFailureMessage(cause), 'error'),
+        );
+      } catch (cause) {
+        toast(slotDraftFailureMessage(cause), 'error');
+      }
+    };
+    send(boundary.onCommandIntent, { scope: draft.scope, intent: draft.intent }).then(
+      () => {
+        keepSelection(draft.preview);
+        toast(`Took out ${name}. It stays in your collection.`, { action: { label: 'Undo', onAction: putBack } });
+      },
+      (cause: unknown) => toast(slotDraftFailureMessage(cause), 'error'),
+    );
+    return true;
+  };
+  const trayDrag: PocketDrag = {
+    start: () => setMenu(null),
+    drop: (_, target) => placeParked(target),
+    turn: host.turn,
+  };
+  const zoneDrop = (slotId: string, zone: string) =>
+    zone === 'park' ? park(slotId) : zone === 'take-out' ? takeOut(slotId) : false;
+  const done = () => {
+    if (ids.length) toast(`Unparked ${ids.length}. Nothing moved.`);
+    onDone();
+  };
   const insert = (amount: number, destination: BulkLayoutAction['destination']) =>
     emit({ kind: 'insert', ids: Array.from({ length: amount }, () => crypto.randomUUID()), destination });
   const tap = (slotId: string, dropOn?: string, mode: PocketDropMode = 'place') => {
@@ -429,11 +672,15 @@ function LayoutBar({
       setError("Tap a pocket that isn't selected.");
       return false;
     }
+    if (fromTray.current) {
+      fromTray.current = false;
+      return placeParked(slotId);
+    }
     emit({ kind: 'move', destination: { kind: 'before', slotId } });
     return true;
   };
   useLayoutEffect(() => {
-    onTap(tap);
+    onTap(tap, zoneDrop);
     return () => onTap(null);
   });
   const shortcuts = useRef({ undo, redo });
@@ -508,6 +755,7 @@ function LayoutBar({
             </LayoutButton>
             <LayoutButton
               onClick={() => {
+                fromTray.current = false;
                 setMoving(false);
                 setError(null);
               }}
@@ -605,7 +853,7 @@ function LayoutBar({
             )}
             <LayoutButton
               aria-pressed
-              onClick={onDone}
+              onClick={done}
               className="bg-primary text-primary-foreground hover:bg-primary/90 ml-0.5 px-3"
             >
               Done
@@ -750,6 +998,7 @@ function LayoutBar({
                   disabled={busy}
                   onClick={() => {
                     discard();
+                    placing.current = false;
                     setError(null);
                   }}
                 >
@@ -797,6 +1046,20 @@ function LayoutBar({
           onSaved={keepSelection}
         />
       )}
+      <LayoutTray
+        parked={ordered.map((s) => s.id)}
+        thumbs={ordered.slice(0, 3).map((s) => {
+          const item = snapshot.items.find((i) => i.id === s.inventoryItemId);
+          return item ? (describeIdentity(item.identity, boundary.resolveCard).image ?? null) : null;
+        })}
+        drag={trayDrag}
+        onChoose={() => {
+          setMenu(null);
+          setError(null);
+          fromTray.current = true;
+          setMoving(true);
+        }}
+      />
     </section>
   );
 }

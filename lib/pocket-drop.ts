@@ -82,3 +82,16 @@ export function invertPocketMoves(order: readonly string[], moves: readonly Pock
   }
   return back;
 }
+
+/**
+ * Placing parked pockets (the layout tray, components/binder/layout-editor.tsx): each goes before `target`, in binder
+ * order, as single-pocket moves, so the drop is one undoable step like any other. Null when there is nothing to move
+ * or the target is itself parked.
+ */
+export function planParkedPlacement(order: readonly string[], parked: readonly string[], target: string) {
+  const keep = new Set(parked);
+  if (keep.has(target) || !order.includes(target)) return null;
+  const moves: PocketMove[] = [];
+  for (const id of order) if (keep.has(id)) moves.push({ id, before: target });
+  return moves.length ? moves : null;
+}

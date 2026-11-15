@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyPocketMoves, invertPocketMoves, planPocketDrop } from '../lib/pocket-drop';
+import { applyPocketMoves, invertPocketMoves, planParkedPlacement, planPocketDrop } from '../lib/pocket-drop';
 
 // Synthetic pockets: upper case holds a card, lower case is empty.
 const binder = (layout: string) => [...layout].map((id) => ({ id, filled: id === id.toUpperCase() }));
@@ -66,5 +66,26 @@ describe('invertPocketMoves', () => {
       assert.equal(applyPocketMoves(applyPocketMoves(order, moves), back).join(''), layout);
       assert.equal(new Set(back.map((m) => m.id)).size, back.length);
     }
+  });
+});
+
+describe('planParkedPlacement', () => {
+  const place = (layout: string, parked: string, target: string) => {
+    const order = [...layout];
+    const moves = planParkedPlacement(order, [...parked], target);
+    assert.ok(moves);
+    const after = applyPocketMoves(order, moves);
+    assert.equal(applyPocketMoves(after, invertPocketMoves(order, moves)).join(''), layout, 'undo puts them back');
+    return after.join('');
+  };
+  test('parked pockets from anywhere land together before the target, in binder order', () => {
+    assert.equal(place('ABCDEFGH', 'GB', 'E'), 'ACDBGEFH');
+    assert.equal(place('ABCDEFGH', 'AH', 'D'), 'BCAHDEFG');
+    assert.equal(place('ABCD', 'C', 'A'), 'CABD');
+  });
+  test('nothing to place when the target is parked, unknown or nothing is parked', () => {
+    assert.equal(planParkedPlacement([...'ABC'], ['A', 'B'], 'B'), null);
+    assert.equal(planParkedPlacement([...'ABC'], ['A'], 'Z'), null);
+    assert.equal(planParkedPlacement([...'ABC'], [], 'B'), null);
   });
 });
