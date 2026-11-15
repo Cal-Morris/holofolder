@@ -5,5 +5,7 @@ export function docsCanonicalUrl(path: string) {
 }
 
 export function docsHref(href: string, pathname: string) {
-  return /^\/app\/docs(?:\/|$)/.test(pathname) && /^\/docs(?:[/?#]|$)/.test(href) ? `/app${href}` : href;
+  return /^\/app\/(?:docs|help)(?:\/|$)/.test(pathname) && /^\/(?:docs|help)(?:[/?#]|$)/.test(href)
+    ? `/app${href}`
+    : href;
 }

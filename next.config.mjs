@@ -22,8 +22,9 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    // Binder addresses (lib/binders/url.ts) render the app at `/`. afterFiles: real routes always win.
-    const slug = ':binderSlug((?!api$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)';
+    // Binder addresses (lib/binders/url.ts) render the app at `/`. afterFiles: real routes win, except optional
+    // catch-all indexes (`/docs`, `/help`), which run after afterFiles and so are excluded by name.
+    const slug = ':binderSlug((?!(?:api|docs|help)$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)';
     const afterFiles = [`/${slug}`, `/${slug}/:view(binder|list|slabs)`, `/${slug}/binder/:page(\\d{1,4})`].map(
       (source) => ({ source, destination: '/?binderSlug=:binderSlug' }),
     );

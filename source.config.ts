@@ -19,4 +19,5 @@ export const docs = defineDocs({
     },
   },
 });
+export const help = defineDocs({ dir: 'content/help' });
 export default defineConfig();
