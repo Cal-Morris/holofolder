@@ -12,7 +12,7 @@ import { useBinderOnboarding } from '@/hooks/use-binder-onboarding';
 import { recoveryUnresolved } from '@/lib/collection/recovery-rejection';
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { DatabaseBackup, FileUp, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { DatabaseBackup, FileUp, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { StorageMenu, type StorageMenuAction } from './storage-menu';
 import dynamic from 'next/dynamic';
 import { toast } from '@/components/ui/toast';
@@ -24,6 +24,7 @@ import { useSlotOfflineQueue } from '@/hooks/use-slot-offline-queue';
 import { useCollectionChanged } from '@/hooks/use-collection-changed';
 import { pingCovered } from '@/lib/collection/collection-changed';
 import { rememberSavedBinders } from '@/lib/binders/offline';
+import type { Binder } from '@/lib/binders/model';
 import {
   CollectionNavigationReadError,
   readCurrentCollectionNavigation,
@@ -60,6 +61,7 @@ const NativeImport = dynamic(() => import('@/components/native-import'), { ssr: 
 const NativeBinderCreation = dynamic(() => import('@/components/native-binder-creation'), { ssr: false });
 
 const ChangeConflictDialog = dynamic(() => import('./change-conflict-dialog'), { ssr: false });
+const BinderSwitcherSheet = dynamic(() => import('@/components/binder-switcher-sheet'), { ssr: false });
 const GradingEditor = dynamic(() => import('@/components/grading/grading-editor'), { ssr: false });
 
 /** How long a parked edit waits before another round of tries when nothing else prompts one. */
@@ -123,7 +125,7 @@ export default function BrowserCollectionSession({
   onDisplay: (sessionId: string) => void;
   onStartupFailure: (error: string) => void;
   initialBinderId: string | null;
-  binders?: readonly { id: string; slug?: string | null }[];
+  binders?: readonly Binder[];
   localHarness?: boolean;
   renderFallback: () => ReactNode;
   scope: InventoryReadScope;
@@ -189,7 +191,7 @@ function ScopedBrowserSession({
   onDisplay: (sessionId: string) => void;
   onStartupFailure: (error: string) => void;
   initialBinderId: string | null;
-  binders?: readonly { id: string; slug?: string | null }[];
+  binders?: readonly Binder[];
   localHarness: boolean;
   scope: InventoryReadScope;
   currentScope: () => InventoryReadScope | null;
@@ -231,6 +233,10 @@ function ScopedBrowserSession({
   const [backupOpen, setBackupOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [editingBinders, setEditingBinders] = useState(false);
+  // Renames and reorders from Edit binders. The picker lists collections in this order.
+  const [editedBinders, setBinderList] = useState<readonly Binder[] | null>(null);
+  const binderList = editedBinders ?? binders;
   const [creating, setCreating] = useState<{ binding: NativeBinderCreationBinding } | null>(null);
   const creation = useRef<{
     intent: Extract<SlotOfflineIntent, { kind: 'creation' }>;
@@ -1224,7 +1230,7 @@ function ScopedBrowserSession({
         }}
         stagedSlabs
         scope={navigationScope}
-        binders={binders}
+        binders={binderList}
         fallbackCollectionId={read.defaultCollectionId ?? initialBinderId}
         read={visibleRead}
         readCurrent={async () => {
@@ -1272,6 +1278,22 @@ function ScopedBrowserSession({
                   collectionId={deleting}
                   binding={{ read, available: deletionAvailable, receive: receiveDeletion }}
                   onClose={() => setDeleting(null)}
+                />
+              )}
+              {editingBinders && (
+                <BinderSwitcherSheet
+                  editOnly
+                  canManage
+                  binders={binderList ?? []}
+                  activeBinderId={surface.state.collectionId}
+                  isOnline={online}
+                  onSwitch={() => setEditingBinders(false)}
+                  onBindersChange={setBinderList}
+                  onClose={() => {
+                    setEditingBinders(false);
+                    // The picker's names come from the collection read.
+                    void refresh().catch(() => {});
+                  }}
                 />
               )}
               {backupOpen && (
@@ -1322,6 +1344,12 @@ function ScopedBrowserSession({
                         icon: Plus,
                         disabled: !creationAvailable,
                         onSelect: () => startCreation(surface.openCreated, layout),
+                      },
+                      {
+                        label: 'Edit binders',
+                        icon: Pencil,
+                        disabled: !online,
+                        onSelect: () => setEditingBinders(true),
                       },
                       {
                         label: 'Refresh',

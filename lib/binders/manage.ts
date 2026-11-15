@@ -45,3 +45,12 @@ export function moveBinder(binders: readonly Binder[], binderId: string, directi
   [list[index], list[target]] = [list[target], list[index]];
   return list.map((binder, sortOrder) => ({ ...binder, sortOrder }));
 }
+
+/** Puts `items` in the binders' order (switcher order). Items with no binder keep their order, after the rest. */
+export function inBinderOrder<T extends { id: string }>(items: readonly T[], binders: readonly { id: string }[]): T[] {
+  const rank = new Map(binders.map((binder, index) => [binder.id, index]));
+  return items
+    .map((item, index) => ({ item, key: rank.get(item.id) ?? binders.length + index }))
+    .sort((a, b) => a.key - b.key)
+    .map(({ item }) => item);
+}

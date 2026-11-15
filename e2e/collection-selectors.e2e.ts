@@ -10,6 +10,8 @@ import {
   viewPicker,
   chooseCollection,
   chooseView,
+  storageAction,
+  closeStorage,
 } from './fixtures';
 import {
   inventoryBrowseFixture,
@@ -77,8 +79,11 @@ function snapshotFor(kind: 'plain' | 'long' | 'many') {
     }
   return { snapshot, layouts };
 }
-async function fulfill(route: Route, kind: 'plain' | 'long' | 'many') {
+async function fulfill(route: Route, kind: 'plain' | 'long' | 'many', names: Record<string, string> = {}) {
   const { snapshot, layouts } = snapshotFor(kind);
+  snapshot.collections.forEach((c) => {
+    c.name = names[c.id] ?? c.name;
+  });
   const url = new URL(route.request().url());
   await route.fulfill({
     headers: { 'Cache-Control': 'private, no-store' },
@@ -300,3 +305,70 @@ for (const kind of ['long', 'many'] as const)
       await page.keyboard.press('Escape');
     },
   );
+
+test('Edit binders renames and reorders from the Storage menu, and needs a connection', async ({
+  page,
+  context,
+  insets,
+}) => {
+  // Synthetic binders API: the server's list follows each rename and reorder.
+  const names: Record<string, string> = {};
+  let binders = [alpha, trades].map((id, sortOrder) => ({
+    id,
+    ownerUserId: E2E_USER.id,
+    name: sortOrder ? 'Trades' : 'Alpha',
+    color: null,
+    sortOrder,
+    isDefault: !sortOrder,
+    rows: null,
+    cols: null,
+    createdAt: null,
+    updatedAt: null,
+    slotCount: 9,
+  }));
+  const patches: unknown[] = [];
+  await page.route('**/app/api/binders', async (route) => {
+    if (route.request().method() === 'PATCH') {
+      const body = route.request().postDataJSON() as { id?: string; name?: string; order?: string[] };
+      patches.push(body);
+      if (body.order)
+        binders = body.order.map((id, sortOrder) => ({ ...binders.find((b) => b.id === id)!, sortOrder }));
+      if (body.id && body.name) {
+        names[body.id] = body.name;
+        binders = binders.map((b) => (b.id === body.id ? { ...b, name: body.name! } : b));
+      }
+    }
+    await route.fulfill({ json: { binders } });
+  });
+  await page.route('**/app/e2e-harness/storage/inventory?*', (route) => fulfill(route, 'plain', names));
+  await page.goto(entry());
+  await expect(page.getByRole('button', { name: 'Storage', exact: true })).toBeVisible({ timeout: 30000 });
+  const h = new Harness(page, insets, true);
+
+  await (await storageAction(page, 'Edit binders')).click();
+  const sheet = page.getByRole('dialog', { name: 'Binders', exact: true });
+  await expect(sheet).toBeVisible();
+  // Edit-only: no switching, creating or deleting here (the picker and the Storage menu do those).
+  await expect(sheet.getByRole('button', { name: 'Delete Alpha', exact: true })).toHaveCount(0);
+  await expect(sheet.getByRole('textbox', { name: 'New binder name', exact: true })).toHaveCount(0);
+  await h.expectMinTapTarget(sheet.getByRole('button', { name: 'Move Trades up', exact: true }), 36);
+  await sheet.getByRole('button', { name: 'Move Trades up', exact: true }).click();
+  await expect.poll(() => patches).toEqual([{ order: [trades, alpha] }]);
+  await sheet.getByRole('button', { name: 'Rename Alpha', exact: true }).click();
+  await sheet.getByRole('textbox', { name: 'New name for Alpha', exact: true }).fill('Synthetic renamed');
+  await sheet.getByRole('button', { name: 'Save name', exact: true }).click();
+  await expect(sheet.getByText('Synthetic renamed', { exact: true })).toBeVisible();
+  await h.expectNoHorizontalOverflow();
+  await sheet.getByRole('button', { name: 'Close binders', exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+
+  // The picker shows the new name and the new order.
+  await collectionPicker(page).click();
+  await expect(collectionMenu(page).getByRole('menuitemradio')).toHaveText(['Trades', 'Synthetic renamed']);
+  await page.keyboard.press('Escape');
+
+  await context.setOffline(true);
+  await expect(await storageAction(page, 'Edit binders')).toBeDisabled();
+  await closeStorage(page);
+  await context.setOffline(false);
+});

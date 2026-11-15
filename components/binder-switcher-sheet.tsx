@@ -31,6 +31,9 @@ interface BinderSwitcherSheetProps {
   onSwitch: (binderId: string) => void;
   onBindersChange: (binders: Binder[]) => void;
   onClose: () => void;
+  /** Opens on the rename, reorder and card language controls only. Switching, creating and deleting stay with
+   * the host's own Collection picker and Storage menu. */
+  editOnly?: boolean;
   /** Private draft adapter only; production callers deliberately omit it until #379. */
   stagedCreation?: { ownerUserId: string; onDraft: (draft: BinderCreationDraft) => void };
 }
@@ -53,6 +56,7 @@ export default function BinderSwitcherSheet({
   onSwitch,
   onBindersChange,
   onClose,
+  editOnly = false,
   stagedCreation,
   // oxlint-disable-next-line react-doctor/prefer-useReducer -- independent sheet controls; one reducer would not read better
 }: BinderSwitcherSheetProps) {
@@ -174,7 +178,9 @@ export default function BinderSwitcherSheet({
     });
   };
 
-  const managing = canManage && isManaging;
+  const managing = canManage && (editOnly || isManaging);
+  // Everything beyond editing: the host offers these itself when the sheet is edit-only.
+  const full = canManage && !editOnly;
   const freeBinders = billing?.access?.freeBinderLimit;
   const needsUpgrade = Boolean(billing?.access && !canCreateOwnerBinder(billing.access, rows.length));
 
@@ -211,13 +217,15 @@ export default function BinderSwitcherSheet({
             <div className="min-w-0">
               <p className="text-sm font-semibold">Binders</p>
               <p className="text-muted-foreground truncate text-xs">
-                {canManage
-                  ? 'Each has its own slots. A partner shares them all.'
-                  : 'Binders in this shared collection.'}
+                {editOnly
+                  ? 'Rename, reorder or choose card languages.'
+                  : canManage
+                    ? 'Each has its own slots. A partner shares them all.'
+                    : 'Binders in this shared collection.'}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              {canManage && (
+              {full && (
                 <button
                   type="button"
                   onClick={() => {
@@ -246,12 +254,12 @@ export default function BinderSwitcherSheet({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(var(--dock-clearance)+0.75rem)] sm:pb-4">
-          {canManage && (
+          {full && (
             <div className="mb-3">
               <ActivityButton onOpen={onClose} />
             </div>
           )}
-          {canManage && (
+          {full && (
             <OverlayLink
               href="/studio"
               onClose={onClose}
@@ -401,21 +409,23 @@ export default function BinderSwitcherSheet({
                           >
                             <Languages className="h-4 w-4" />
                           </button>
-                          <button
-                            type="button"
-                            aria-label={`Delete ${binder.name}`}
-                            disabled={rows.length <= 1 || busy !== null}
-                            title={rows.length <= 1 ? "You can't delete your only binder" : undefined}
-                            onClick={() => {
-                              setConfirmDeleteId(binder.id);
-                              setDeleteAcknowledged(false);
-                              setRenamingId(null);
-                              setLanguagesId(null);
-                            }}
-                            className="text-destructive hover:bg-destructive/10 flex h-9 w-9 items-center justify-center rounded-full disabled:opacity-30"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {full && (
+                            <button
+                              type="button"
+                              aria-label={`Delete ${binder.name}`}
+                              disabled={rows.length <= 1 || busy !== null}
+                              title={rows.length <= 1 ? "You can't delete your only binder" : undefined}
+                              onClick={() => {
+                                setConfirmDeleteId(binder.id);
+                                setDeleteAcknowledged(false);
+                                setRenamingId(null);
+                                setLanguagesId(null);
+                              }}
+                              className="text-destructive hover:bg-destructive/10 flex h-9 w-9 items-center justify-center rounded-full disabled:opacity-30"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -507,7 +517,7 @@ export default function BinderSwitcherSheet({
             </p>
           )}
 
-          {canManage && needsUpgrade && (
+          {full && needsUpgrade && (
             <div className="mt-3 space-y-2">
               <p className="text-muted-foreground text-sm">
                 Your free plan includes {freeBinders === 1 ? 'one binder' : `${freeBinders} binders`}. Your existing
@@ -522,14 +532,14 @@ export default function BinderSwitcherSheet({
               </button>
             </div>
           )}
-          {canManage && !needsUpgrade && stagedCreation && (
+          {full && !needsUpgrade && stagedCreation && (
             <BinderCreationPresets
               {...stagedCreation}
               isOnline={isOnline}
               disabled={busy !== null || billing?.loading}
             />
           )}
-          {canManage && !needsUpgrade && !stagedCreation && (
+          {full && !needsUpgrade && !stagedCreation && (
             <form onSubmit={handleCreate} className="mt-3 flex items-center gap-1.5">
               <input
                 value={newName}
