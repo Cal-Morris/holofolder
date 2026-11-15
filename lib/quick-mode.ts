@@ -12,6 +12,7 @@ export const QUICK_DESTINATION_IDS = [
   'settings',
   'scan',
   'show-mode',
+  'help',
 ] as const;
 export type QuickDestinationId = (typeof QUICK_DESTINATION_IDS)[number];
 
@@ -71,6 +72,12 @@ export const QUICK_DESTINATIONS: readonly QuickDestination[] = [
     label: 'Show mode',
     hint: 'At a card show: fast search, screen stays on',
     keywords: ['show mode', 'card show', 'show', 'event', 'convention', 'fair', 'market', 'stall', 'trade'],
+  },
+  {
+    id: 'help',
+    label: 'Help',
+    hint: 'How to use Holo Folder',
+    keywords: ['help', 'guide', 'how to', 'support', 'faq', 'tutorial'],
   },
 ];
 

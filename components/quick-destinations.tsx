@@ -1,6 +1,17 @@
 'use client';
 
-import { BarChart3, Camera, Grid3X3, Heart, Layers3, ListChecks, Settings, Sparkles, Ticket } from 'lucide-react';
+import {
+  BarChart3,
+  Camera,
+  Grid3X3,
+  Heart,
+  Layers3,
+  LifeBuoy,
+  ListChecks,
+  Settings,
+  Sparkles,
+  Ticket,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { QuickDestination, QuickDestinationId } from '@/lib/quick-mode';
 
@@ -14,6 +25,7 @@ const DESTINATION_ICONS: Record<QuickDestinationId, LucideIcon> = {
   settings: Settings,
   scan: Camera,
   'show-mode': Ticket,
+  help: LifeBuoy,
 };
 
 /** Quick mode's and Search's "Go to" section: a grid of app destinations, or matching rows while searching. */

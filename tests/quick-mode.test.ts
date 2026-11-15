@@ -20,6 +20,8 @@ describe('matchQuickDestinations', () => {
     assert.equal(matchQuickDestinations('wishlist')[0].id, 'wanted');
     assert.equal(matchQuickDestinations('sett')[0].id, 'settings');
     assert.equal(matchQuickDestinations('csv')[0].id, 'analytics');
+    assert.equal(matchQuickDestinations('help')[0].id, 'help');
+    assert.equal(matchQuickDestinations('faq')[0].id, 'help');
   });
   test('exact matches rank first and unrelated queries match nothing', () => {
     assert.equal(matchQuickDestinations('sets')[0].id, 'sets');

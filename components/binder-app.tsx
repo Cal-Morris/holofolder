@@ -3894,6 +3894,12 @@ function BinderAppSurface(props: BinderAppProps) {
       openExclusively(() => setIsSettingsOpen(true));
       return;
     }
+    if (destination === 'help') {
+      closeAllOverlays();
+      setIsQuickModeOpen(false);
+      runAfterOverlayHistory(() => router.push('/help'));
+      return;
+    }
     if (destination === 'scan') {
       closeAllOverlays();
       setIsQuickModeOpen(false);
