@@ -45,12 +45,6 @@ export function storageExecutionError(error: unknown): DeveloperAccessError {
   const code = error && typeof error === 'object' && 'code' in error ? error.code : null;
   if (code === 'P0001' && message === 'binder_limit_reached')
     return new DeveloperAccessError('binder_limit_reached', 'You have reached your current collection allowance.', 402);
-  if (code === 'P0001' && message === 'binder_safety_limit_reached')
-    return new DeveloperAccessError(
-      'binder_safety_limit_reached',
-      'You have reached the maximum number of collections.',
-      409,
-    );
   if (code === 'P0001' && message === 'upgrade_required')
     return new DeveloperAccessError('premium_required', 'This custom grid requires Premium access.', 402);
   if (code === 'P0001' && message === 'card_limit_reached')

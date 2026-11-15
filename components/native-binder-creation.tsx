@@ -16,7 +16,7 @@ import {
   speciesPreset,
   type BinderCreationDraft,
 } from '@/lib/binder-creation-draft';
-import { BINDER_NAME_MAX_LENGTH, MAX_BINDERS_PER_OWNER } from '@/lib/binders/model';
+import { BINDER_NAME_MAX_LENGTH } from '@/lib/binders/model';
 import { MAX_BINDER_GRID_SIZE } from '@/lib/binder-layout';
 import {
   BLANK_PAGES,
@@ -252,9 +252,7 @@ export default function NativeBinderCreation({
           ),
     [preset, setCards, pickedPrintings],
   );
-  const capped =
-    binding.count >= MAX_BINDERS_PER_OWNER ||
-    Boolean(billing.access && !canCreateOwnerBinder(billing.access, binding.count));
+  const capped = Boolean(billing.access && !canCreateOwnerBinder(billing.access, binding.count));
   const blocked = !binding.available || capped || billing.loading;
   const suggested = suggestedBinderName(preset, { region: gen.region, setName: setChecklist?.scope.setName });
   const shownName = name ?? suggested;

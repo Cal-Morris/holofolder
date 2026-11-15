@@ -129,7 +129,8 @@ export function BillingSettings({
               {access.cardLimit === null
                 ? 'Unlimited cards and wanted cards.'
                 : `${access.savedCardCount} of ${access.cardLimit} free entries saved across your binders, including wanted cards.`}{' '}
-              {access.freeBinderLimit} free {access.freeBinderLimit === 1 ? 'binder' : 'binders'}.
+              {Number.isFinite(access.freeBinderLimit) &&
+                `${access.freeBinderLimit} free ${access.freeBinderLimit === 1 ? 'binder' : 'binders'}.`}
             </p>
           ) : (
             <p className="text-sm">Sign in to check your free allowance.</p>

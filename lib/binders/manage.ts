@@ -1,4 +1,4 @@
-import { MAX_BINDERS_PER_OWNER, sortBinders, type Binder } from '@/lib/binders/model';
+import { sortBinders, type Binder } from '@/lib/binders/model';
 
 export type BinderDeletePlan =
   | { ok: true; promoteBinderId: string | null }
@@ -22,10 +22,6 @@ export function planBinderDelete(
     ? (sortBinders(binders.filter((binder) => binder.id !== binderId))[0]?.id ?? null)
     : null;
   return { ok: true, promoteBinderId: promote };
-}
-
-export function canCreateBinder(binders: readonly Binder[]) {
-  return binders.length < MAX_BINDERS_PER_OWNER;
 }
 
 /** A new order must name every binder exactly once; returns the ids in order, or null. */

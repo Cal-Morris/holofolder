@@ -8,7 +8,7 @@ import { ensureDefaultBinderId, listOwnerBinders } from '@/lib/server/binders';
 import { isBinderId, normalizeBinderName, type Binder } from '@/lib/binders/model';
 import { normalizeBinderCardLanguages } from '@/lib/card-languages';
 import { isMissingColumnError } from '@/lib/settings';
-import { canCreateBinder, validateBinderOrder } from '@/lib/binders/manage';
+import { validateBinderOrder } from '@/lib/binders/manage';
 import { BillingAccessError, canCreateOwnerBinder, isBillingError } from '@/lib/billing';
 import { billingErrorResponse, getBillingAccess } from '@/lib/server/billing';
 
@@ -73,14 +73,12 @@ export async function createBinder(request: NextRequest, actor: Pick<User, 'id'>
 
     const { admin, ownerUserId } = session;
     const headerKey = request.headers.get('idempotency-key');
-    // Idempotent creates (every developer call) leave both limits to SQL: developer_create_binder's safety limit and the enforce_binder_billing trigger.
+    // Idempotent creates (every developer call) leave the free-plan limit to SQL's enforce_binder_billing trigger.
     if (!headerKey) {
       const [binders, access] = await Promise.all([
         listOwnerBinders(admin, ownerUserId),
         getBillingAccess(ownerUserId),
       ]);
-      if (!canCreateBinder(binders))
-        return NextResponse.json({ error: 'You have the most binders allowed' }, { status: 409 });
       if (!canCreateOwnerBinder(access, binders.length)) throw new BillingAccessError('binder_limit_reached');
     }
     // One SQL path creates the binder and its native slots state together.
@@ -94,8 +92,6 @@ export async function createBinder(request: NextRequest, actor: Pick<User, 'id'>
     if (error?.message?.includes('idempotency_conflict'))
       return NextResponse.json({ error: 'This idempotency key was used with another request.' }, { status: 409 });
     if (isBillingError(error)) throw new BillingAccessError('binder_limit_reached');
-    if (error?.message?.includes('binder_safety_limit_reached'))
-      return NextResponse.json({ error: 'You have the most binders allowed' }, { status: 409 });
     if (error) throw error;
     return respond(await listWithCounts(admin, ownerUserId), { createdBinderId: data.id });
   } catch (error) {
