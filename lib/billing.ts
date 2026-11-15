@@ -138,7 +138,7 @@ export class BillingAccessError extends Error {
       code === 'card_limit_reached'
         ? 'You have reached your free entry allowance. Upgrade to save more. Your changes are kept on this device.'
         : code === 'binder_limit_reached'
-          ? 'Your free plan includes one binder. Upgrade to create more binders.'
+          ? "You've used all the binders on your free plan. Upgrade to create more binders."
           : 'Upgrade to Holo Folder for more binders, partner mode, price comparisons and trends, analytics and deal checks.',
     );
   }

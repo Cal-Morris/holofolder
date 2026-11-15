@@ -176,6 +176,7 @@ export default function BinderSwitcherSheet({
 
   const managing = canManage && isManaging;
   const atLimit = rows.length >= MAX_BINDERS_PER_OWNER;
+  const freeBinders = billing?.access?.freeBinderLimit;
   const needsUpgrade = Boolean(billing?.access && !canCreateOwnerBinder(billing.access, rows.length) && !atLimit);
 
   if (typeof document === 'undefined') return null;
@@ -510,7 +511,8 @@ export default function BinderSwitcherSheet({
           {canManage && needsUpgrade && (
             <div className="mt-3 space-y-2">
               <p className="text-muted-foreground text-sm">
-                Your free plan includes one binder. Your existing binders stay available.
+                Your free plan includes {freeBinders === 1 ? 'one binder' : `${freeBinders} binders`}. Your existing
+                binders stay available.
               </p>
               <button
                 type="button"

@@ -4,7 +4,7 @@ This folder holds the public, durable parts of Holo Folder's marketing: how we p
 
 ## Strategy in brief
 
-We aim to win the UK collector who keeps a physical binder: Holo Folder shows your actual binder pages, priced in pounds, with a mode built for the card show floor. The free plan has unlimited cards in one binder plus card and page scanning; Premium adds more binders, partner collections, price trends and signals, analytics, and Show mode deal checks.
+We aim to win the UK collector who keeps a physical binder: Holo Folder shows your actual binder pages, priced in pounds, with a mode built for the card show floor. The free plan has unlimited cards in up to four binders plus card and page scanning; Premium adds more binders, partner collections, price trends and signals, analytics, and Show mode deal checks.
 
 Search is the engine that compounds, through public set, Pokémon and card pages built from our card catalogue. Social posts (Instagram, TikTok and X), community participation and small creators bring the first users and the brand signals search needs. Sharing and invites turn every collector into a channel. Every link points at something a visitor can use without signing up first.
 
