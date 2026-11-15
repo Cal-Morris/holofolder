@@ -73,9 +73,10 @@ test.describe('search fields do not trigger iOS focus zoom', () => {
     const search = page.getByRole('dialog', { name: /search pokemon/i });
     await search.getByRole('textbox').fill('arita');
     await search
-      .getByRole('region', { name: /illustrator results/i })
+      .getByRole('group', { name: 'Narrow card results' })
       .getByRole('button', { name: /^illustrator mitsuhiro arita/i })
       .click();
+    await search.getByRole('button', { name: 'All cards by Mitsuhiro Arita', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: /cards illustrated by mitsuhiro arita/i });
     await expectNoFocusZoom(
       dialog.getByRole('searchbox', { name: 'Filter by card, set or number' }),
@@ -89,9 +90,10 @@ test.describe('search fields do not trigger iOS focus zoom', () => {
     const search = page.getByRole('dialog', { name: /search pokemon/i });
     await search.getByRole('textbox').fill('arita');
     await search
-      .getByRole('region', { name: /illustrator results/i })
+      .getByRole('group', { name: 'Narrow card results' })
       .getByRole('button', { name: /^illustrator mitsuhiro arita/i })
       .click();
+    await search.getByRole('button', { name: 'All cards by Mitsuhiro Arita', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: /cards illustrated by mitsuhiro arita/i });
     await expectNoFocusZoom(dialog.getByRole('combobox', { name: 'Sort cards' }), 'Illustrator sort');
   });

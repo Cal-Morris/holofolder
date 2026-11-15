@@ -5,11 +5,19 @@ import { getSetMonogram, publicSetArtworkUrl } from '@/lib/set-browse';
 import type { TCGSetSummary } from '@/lib/tcg-set-slots';
 
 /** A printed symbol for identifying a set, with a stable fallback offline or if artwork is unavailable. */
-export function SetSymbol({ set }: { set: TCGSetSummary }) {
+export function SetSymbol({
+  set,
+  compact = false,
+}: {
+  set: TCGSetSummary;
+  /** Inline, in a chip. */ compact?: boolean;
+}) {
   const src = publicSetArtworkUrl(set.symbol);
   const [failed, setFailed] = useState<string | null>(null);
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/90 p-1 text-[10px] font-bold text-slate-700">
+    <span
+      className={`flex shrink-0 items-center justify-center bg-white/90 font-bold text-slate-700 ${compact ? 'h-5 w-5 rounded-md p-0.5 text-[7px]' : 'h-9 w-9 rounded-lg p-1 text-[10px]'}`}
+    >
       {src && failed !== src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img

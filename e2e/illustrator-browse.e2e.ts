@@ -22,10 +22,16 @@ async function openSearch(harness: Harness) {
 async function openFromSearch(harness: Harness, query: string) {
   const search = await openSearch(harness);
   await search.getByRole('textbox').fill(query);
-  const result = search
-    .getByRole('region', { name: /illustrator results/i })
+  const chip = search
+    .getByRole('group', { name: 'Narrow card results' })
     .getByRole('button', { name: /^illustrator mitsuhiro arita, 3 cards$/i });
-  await expect(result).toBeVisible();
+  await expect(chip).toBeVisible();
+  await harness.expectMinTapTarget(chip, 36);
+  await chip.click();
+  // The chip keeps the artist's own cards; its link opens every card they drew.
+  await expect(search.getByRole('textbox')).toHaveValue('Mitsuhiro Arita');
+  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  const result = search.getByRole('button', { name: 'All cards by Mitsuhiro Arita', exact: true });
   await harness.expectMinTapTarget(result, 44);
   await result.click();
   await expect(search).toBeHidden();
@@ -60,7 +66,7 @@ test.describe('browse by illustrator', () => {
     const search = await openSearch(harness);
     await search.getByRole('textbox').fill('mitsuhro arita');
     await expect(
-      search.getByRole('region', { name: /illustrator results/i }).getByRole('button', { name: /mitsuhiro arita/i }),
+      search.getByRole('group', { name: 'Narrow card results' }).getByRole('button', { name: /mitsuhiro arita/i }),
     ).toBeVisible();
     await screenshot(harness, 'search');
     await harness.page.keyboard.press('Escape');
@@ -189,9 +195,10 @@ test.describe('browse by illustrator', () => {
     const search = await openSearch(harness);
     await search.getByRole('textbox').fill('saito');
     await search
-      .getByRole('region', { name: /illustrator results/i })
+      .getByRole('group', { name: 'Narrow card results' })
       .getByRole('button', { name: /kouki saitō/i })
       .click();
+    await search.getByRole('button', { name: /^All cards by Kouki Saitō$/i }).click();
     const unopened = harness.page.getByRole('dialog', { name: /cards illustrated by kouki saitō/i });
     await expect(unopened.getByText(/only illustrators you opened before are available/i)).toBeVisible();
     await setNetwork(harness.page, false);
