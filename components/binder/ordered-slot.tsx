@@ -885,7 +885,8 @@ export function OrderedSlot({
           {priceLabel}
         </span>
       )}
-      {glare && <BinderSlotGlare glareStyle={glareStyle} innerRadius={TRADING_CARD_CORNER_RADIUS} />}
+      {/* No sleeve sheen over page art: it would draw a pocket edge through the joined picture. */}
+      {glare && !showsArt && <BinderSlotGlare glareStyle={glareStyle} innerRadius={TRADING_CARD_CORNER_RADIUS} />}
     </button>
   );
 }
