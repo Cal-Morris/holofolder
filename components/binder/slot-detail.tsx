@@ -479,11 +479,6 @@ export default function SlotDetail({
             ))}
           </dl>
         )}
-        {!slot.item && !slot.wantedCards.length && (
-          <p className="text-muted-foreground text-xs">
-            {slot.target ? 'Nothing in this pocket yet.' : 'This pocket is empty.'}
-          </p>
-        )}
         {!slot.target && identity && host?.onOpenCard && isCardLanguage(identity.language) && (
           <SimilarCardsRow cardId={identity.cardId} language={identity.language} onOpenCard={host.onOpenCard} />
         )}
