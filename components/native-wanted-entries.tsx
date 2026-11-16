@@ -161,7 +161,7 @@ export default function NativeWantedEntries({
   return (
     <section
       aria-label={title}
-      className={isWanted ? 'mx-auto w-full max-w-6xl space-y-3 p-3 sm:p-4' : 'space-y-3 p-3'}
+      className={isWanted ? 'mx-auto w-full max-w-6xl space-y-3 p-3 sm:p-4' : card ? 'space-y-2' : 'space-y-3 p-3'}
     >
       {isWanted ? (
         <>
@@ -284,7 +284,7 @@ export default function NativeWantedEntries({
           )}
         </>
       ) : (
-        <h3 className="text-sm font-bold">
+        <h3 className={card ? 'text-muted-foreground text-xs font-semibold' : 'text-sm font-bold'}>
           {title} · {entries.length} {entries.length === 1 ? 'card' : 'cards'}
         </h3>
       )}
@@ -418,10 +418,14 @@ export default function NativeWantedEntries({
                     Check price
                   </button>
                 )}
+                {/* As on the Wanted tab: an occupied pocket with a want is an upgrade, a normal state, not an instruction. */}
                 {entry.occupied && !isWanted && (
-                  <p className="text-muted-foreground text-xs">
-                    This pocket is occupied. Choose another pocket in your collection.
-                  </p>
+                  <span
+                    title="This pocket already holds a copy"
+                    className="border-border/60 bg-muted/35 text-muted-foreground inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold"
+                  >
+                    Upgrade
+                  </span>
                 )}
                 {known && !entry.occupied && model?.kind === 'complete' && binding.editingAvailable && (
                   <>

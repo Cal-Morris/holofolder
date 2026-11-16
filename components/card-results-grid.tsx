@@ -122,14 +122,14 @@ export function CardStandingMark({
   /** Copies, when known. */ count?: number;
 }) {
   return standing === 'wanted' ? (
-    <div className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-full border border-amber-400/60 bg-black/70 px-2 py-1 text-[9px] font-bold tracking-[0.12em] text-amber-300 uppercase">
+    <div className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-full border border-amber-400/60 bg-black/70 px-1.5 py-0.5 text-[9px] font-bold tracking-[0.06em] text-amber-300 uppercase">
       <Heart className="h-2.5 w-2.5 fill-current" />
-      Wanted{count ? ` ×${count}` : ''}
+      Wanted{count && count > 1 ? ` ×${count}` : ''}
     </div>
   ) : (
-    <div className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-full border border-emerald-400/60 bg-black/70 px-2 py-1 text-[9px] font-bold tracking-[0.12em] text-emerald-300 uppercase">
+    <div className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-full border border-emerald-400/60 bg-black/70 px-1.5 py-0.5 text-[9px] font-bold tracking-[0.06em] text-emerald-300 uppercase">
       <Check className="h-2.5 w-2.5" />
-      Owned{count ? ` ×${count}` : ''}
+      Owned{count && count > 1 ? ` ×${count}` : ''}
     </div>
   );
 }
