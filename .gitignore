@@ -12,6 +12,7 @@ app/.well-known/
 !app/.well-known/
 app/.well-known/*
 !app/.well-known/oauth-protected-resource/
+!app/.well-known/apple-app-site-association/
 .cache/
 .swc/
 .pnp.*
