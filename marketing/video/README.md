@@ -43,7 +43,7 @@ Every video gets a slow, quiet lo-fi bed made by ffmpeg (`lofiExpr` in `record.t
 
 ## Posting
 
-Upload the MP4 to `assets.holofolder.com/marketing/videos/` (a public link Buffer can fetch), then create the posts in Buffer for TikTok and Instagram Reels with the copy from `<clip>.txt`, marked as AI-generated (the voice is synthetic). Only post what Cal has picked.
+Upload the MP4 to `assets.holofolder.com/marketing/videos/` (a public link Buffer can fetch), then create the posts in Buffer for TikTok and Instagram Reels with the copy from `<clip>.txt`. The copy never mentions the voice; switch on the platforms' AI-generated label instead (TikTok and Instagram require it for realistic synthetic audio). Only post what Cal has picked.
 
 ## Speed
 
@@ -60,7 +60,7 @@ Upload the MP4 to `assets.holofolder.com/marketing/videos/` (a public link Buffe
 
 - Footage only shows our own app and the @demo collection. No third-party footage, no footage of children, no single-person shots and no faces.
 - Every price and verdict on screen comes from the app or the API. The narration only describes what is happening, and must stay true when the data changes (avoid exact prices in the script).
-- Captions are plain British English without em-dashes. The end sting carries "Not affiliated with The Pokémon Company" and the card image credit; the post copy credits the voice and any music.
+- Captions are plain British English without em-dashes. The end sting carries "Not affiliated with The Pokémon Company" and the card image credit; the post copy credits any music. The voice's VCTK credit lives in `voices/README.md`, not the posts.
 
 ## How it works
 

@@ -1033,7 +1033,6 @@ async function writeCaptionFile(clip: Clip, file: string) {
       `Instagram link (bio): ${UTM('instagram')}`,
       '',
       'Card images © The Pokémon Company, Nintendo, Creatures and GAME FREAK. Holo Folder is not affiliated with The Pokémon Company.',
-      'Voice: synthesised locally, cloned from the VCTK corpus (CC BY 4.0, CSTR, University of Edinburgh).',
       musicCredit,
       '',
     ].join('\n'),
