@@ -47,6 +47,11 @@ const nextConfig = {
           { key: 'Cache-Control', value: 'no-cache' },
         ],
       },
+      {
+        // Crawlers read the spec's path keys (`/listings/{id}`) as links and report them as 404s.
+        source: '/openapi.json',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      },
     ];
   },
   allowedDevOrigins: ['localhost', '10.4.1.154'],
