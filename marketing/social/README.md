@@ -46,3 +46,14 @@ A weekly run:
 6. **Render**: add `{ slug, sub, standouts }` to `INSPO` in `render.mjs` (the sub line is the only free text on the images, so keep it to what the page shows), run `bun run social-images render <slug>`, check `out/contact-sheet.html`, then `upload`.
 7. **Collections page**: add a Collections CMS item in Framer like the existing ones (Name, Slug, Description, Preview from `out/<slug>/preview-1.jpg` on R2, Binder URL, Cards list, Story with The colours, Standout cards and Make your own linking Binder Studio, Embed URL), then publish once `api.publishing.status()` shows only your changes.
 8. **Buffer**: Instagram and TikTok use the carousel images and "link in bio", X uses `x-1.jpg` and the binder link with `?utm_source=x&utm_medium=social&utm_campaign=social`. Ask "Which pocket would you swap?". The free plan holds 10 scheduled posts, so anything past that goes in as a dated draft.
+
+## Set reveals
+
+Bold-type carousels for real sets that are out or on the way, posted to Instagram, TikTok and X. They are ordinary `POSTS` entries with a `label` that goes on the cover and every footer, saying where the facts come from:
+
+- **Confirmed · <source>** when the release date is on pokemon.com or another official Pokémon source. Check the official page on the day you render.
+- **Reported · <outlet, date>** when only fan or press sites have it. Say on a slide that it isn't confirmed yet, and relabel and re-render once it is.
+
+Card slides use only cards in our catalogue whose image loads from `assets.holofolder.com`, with the name, number, rarity and illustrator copied from our catalogue. A card count goes on a slide only when our data supports it. If a set has no cards in our catalogue yet, the post has no card art, says so, and points to `holofolder.com/app/sets`. Otherwise the closing slide points to the set's public page at `holofolder.com/app/sets/<slug>`. No fan-made or what-if sets, no mock products or packaging, and no logos or official trade dress.
+
+Instagram and TikTok get the whole carousel, X gets `x-1.jpg` with the set page link (`?utm_source=x&utm_medium=social&utm_campaign=social`).

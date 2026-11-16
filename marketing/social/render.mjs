@@ -39,6 +39,12 @@ const backdropFor = (slug) => ['jpg', 'png'].map((ext) => join(HERE, 'backdrops'
 const phone = (shot) => ({ phone: shot });
 const DR138 = `${CARD}/me6_en_138_std.webp`,
   DR141 = `${CARD}/me6_en_141_std.webp`;
+// A Delta Reign chase card for a reveal slide. Name, number, rarity and illustrator are copied from our catalogue (me06).
+const chase = (n, title, rarity, illustrator) => ({
+  title,
+  body: `Delta Reign ${n}/103 · ${rarity} · Illus. ${illustrator}`,
+  visual: { closeup: { image: `${CARD}/me6_en_${n}_std.webp` } },
+});
 const panel = (shot) => ({ panel: shot });
 
 const POSTS = [
@@ -264,6 +270,53 @@ const POSTS = [
       {
         title: 'Plan for a phone with no signal',
         body: 'Offline edits queue and sync later. Give both phones time to catch up before entering the same purchase again.',
+      },
+    ],
+  },
+  // Set reveals: real sets only. `label` says whether the date is Confirmed (official source) or Reported (who
+  // reported it) and goes on every slide. Cards only from our catalogue, counts only from our data.
+  {
+    slug: 'delta-reign-chase-cards',
+    eyebrow: 'Set reveal',
+    label: 'Confirmed · pokemon.com',
+    title: 'Delta Reign chase cards.',
+    sub: 'Out since 6 November 2026. 141 cards in our catalogue, 103 in the base numbering, led by Mega Rayquaza ex.',
+    visual: { cards: [DR138, DR141] },
+    cta: {
+      title: 'Every Delta Reign card in one place.',
+      sub: 'holofolder.com/app/sets/delta-reign',
+      note: 'Open the set checklist without an account. Link in bio.',
+    },
+    points: [
+      chase(141, 'Mega Rayquaza ex', 'Mega Hyper Rare', 'takuyoa'),
+      chase(138, 'Mega Rayquaza ex', 'Special Illustration Rare', 'Kazuki Minami'),
+      chase(136, 'Raikou ex', 'Special Illustration Rare', 'Oku'),
+      chase(140, 'Zinnia’s Trust', 'Special Illustration Rare', 'Teeziro'),
+    ],
+  },
+  {
+    slug: 'flowing-fists-reported',
+    eyebrow: 'Set reveal',
+    label: 'Reported · Wargamer, 21 Oct 2026',
+    title: 'Flowing Fists is on the way.',
+    sub: 'Reported for 5 February 2027 in English. Not yet confirmed on pokemon.com.',
+    cta: {
+      title: 'Browse every set we hold.',
+      sub: 'holofolder.com/app/sets',
+      note: 'Free set checklists, no account needed. Link in bio.',
+    },
+    points: [
+      {
+        title: 'Reported for 5 February 2027',
+        body: 'Wargamer reported the English date in October 2026. When we checked on 16 November, pokemon.com had not confirmed it, so treat it as reported.',
+      },
+      {
+        title: 'The English version of Aura Seeker',
+        body: 'Aura Seeker is reported for 27 November 2026 in Japan, with Mega Lucario Z ex as its headline card.',
+      },
+      {
+        title: 'No card list in our catalogue yet',
+        body: 'So this post shows no cards. Every set we do hold has a free checklist at holofolder.com/app/sets.',
       },
     ],
   },
@@ -543,15 +596,16 @@ function slideHtml(format, post, slide, index, total) {
   } else if (slide.kind === 'point') {
     body = `<div class="num">0${slide.n}</div><h2>${esc(slide.title)}</h2><p class="body">${esc(slide.body)}</p>`;
   } else {
-    body = `<div class="eyebrow">${esc(post.eyebrow)}</div><h1>${esc(post.cta.title)}</h1><p class="sub accent">${esc(post.cta.sub)}</p><p class="sub small">Browse a showcase binder without an account at holofolder.com/collections</p>`;
+    body = `<div class="eyebrow">${esc(post.eyebrow)}</div><h1>${esc(post.cta.title)}</h1><p class="sub accent">${esc(post.cta.sub)}</p><p class="sub small">${esc(post.cta.note ?? 'Browse a showcase binder without an account at holofolder.com/collections')}</p>`;
   }
+  if (post.label && slide.kind === 'cover') body = `<div class="label">${esc(post.label)}</div>${body}`;
   return `<!doctype html><html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=block" rel="stylesheet">
 <style>${CSS}</style></head>
 <body class="${format} ${slide.kind}${slide.visual ? ' has-visual' : ''}" style="width:${width}px;height:${height}px">
 <header><div class="brand"><img src="${MARK}">Holo Folder</div>${count}</header>
 <main><div class="text">${body}</div>${visualHtml(slide.visual)}</main>
-<footer><span>${post.inspo ? 'Open this binder on holofolder.com' : 'holofolder.com'}</span>${art ? '<span>Not affiliated with The Pokémon Company</span>' : ''}</footer>
+<footer><span>${post.inspo ? 'Open this binder on holofolder.com' : post.label ? `${esc(post.label)} · holofolder.com` : 'holofolder.com'}</span>${art ? '<span>Not affiliated with The Pokémon Company</span>' : ''}</footer>
 </body></html>`;
 }
 
@@ -631,6 +685,11 @@ body.point:not(.has-visual) .text { padding-bottom:var(--gap); }
 .tiktok.point:not(.has-visual) h2 { font-size:104px; }
 body.point:not(.has-visual) .body { font-size:calc(var(--sub) * 1.2); color:var(--fg); opacity:.78; }
 .ig.cta h1 { font-size:104px; }
+.label { display:inline-block; align-self:flex-start;font-family:'JetBrains Mono',monospace; font-size:calc(var(--eyebrow) * .9); color:var(--fg); border:2px solid var(--accent);
+  border-radius:999px; padding:.35em .9em; margin-bottom:1.1em; }
+body.cover:not(.has-visual) main { justify-content:center; }
+.ig.cover:not(.has-visual) h1, .tiktok.cover:not(.has-visual) h1 { font-size:136px; }
+body.point .visual .card.solo { max-height:calc(100% - var(--gap)); }
 
 .tiktok { --pt:150px; --pr:120px; --pl:72px; --pb:330px; --foot:76px; --gap:44px; --brand:30px; --eyebrow:26px; --h1:96px; --h2:76px; --sub:36px; --small:22px; --phone:560px; --card-h:760px; --prompt:880px; --pocket:172px; --pocket-gap:16px; }
 .tiktok.page h1 { font-size:84px; }
@@ -674,7 +733,7 @@ const altText = (post, slide) =>
         ? `${post.title} ${post.sub}`
         : slide.kind === 'point'
           ? `${slide.title}. ${slide.body}`
-          : `${post.cta.title}. ${post.cta.sub}`;
+          : `${post.cta.title.replace(/\.$/, '')}. ${post.cta.sub}`;
 
 async function render() {
   const only = process.argv[3]?.split(',');
