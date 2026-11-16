@@ -8,6 +8,8 @@ export type Step =
   | { tap: [number, number]; hold?: number; after?: number }
   | { tapText: string; offset?: [number, number]; after?: number } // found on screen by OCR, then nudged by offset
   | { again: true; after?: number } // the last tapText spot again, without another OCR pass
+  | { open: string; after?: number } // opens a URL on the phone, as tapping a shared link would
+  | { launch: true; after?: number } // back to the home screen and into the app (for setup after an `open`)
   | { swipe: [number, number, number, number]; dur: number; after?: number }
   | { type: string; after?: number }
   | { keys: number[]; after?: number } // HID keycodes, e.g. 42 = backspace
@@ -15,7 +17,9 @@ export type Step =
   | { caption: string }
   | { mark: string } // names a moment for the cold open
   // Terminal clips only: typed out, then run for real against the API as @demo; `expect` must be in its output.
-  | { cmd: string; expect?: string; after?: number };
+  | { cmd: string; expect?: string; after?: number }
+  // Terminal clips only: asks the real Claude Code CLI, connected to Holo Folder's MCP server as @demo (read-only).
+  | { agent: string; after?: number };
 
 export interface Clip {
   name: string;
@@ -327,6 +331,60 @@ export const CLIPS: Clip[] = [
     question: 'What card would you search first?',
     post: 'Search in Holo Folder finds any card, set or artist, and filters it down to what is missing, wanted or worth upgrading in your binder.',
     tags: '#pokemoncards #pokemontcg #charizard #pokemoncollection #pokemonbinder #tcguk',
+  },
+  {
+    name: 'share-binder',
+    hook: 'My mate can flip through my binder without the app.',
+    coldOpen: { mark: 'public', dur: 2.0 },
+    setup: [
+      // Load the shared page once off camera, so Safari has it cached when it opens on camera.
+      { open: 'https://holofolder.com/@demo/kanto', after: 10 },
+      { launch: true, after: 2 },
+    ],
+    steps: [
+      { caption: 'Watch. Tap the menu, then Copy share link.' },
+      { tap: [...HEADER.more], after: 1.0 },
+      { tapText: 'Copy share link', after: 1.2 },
+      { caption: 'Send it to anyone, and this is what they see.' },
+      { open: 'https://holofolder.com/@demo/kanto', after: 2.5 },
+      { mark: 'public' },
+      { caption: 'My whole binder, prices and all, right in their browser. No account needed.' },
+      { swipe: [380, 470, 60, 470], dur: 0.3, after: 1.0 },
+      { swipe: [380, 470, 60, 470], dur: 0.3, after: 1.0 },
+      { caption: 'Now they know exactly what to get me for my birthday.' },
+      { wait: 0.5 },
+      { caption: "Holo Folder. Link's in the bio." },
+      { wait: 0.5 },
+    ],
+    question: 'Who would you send your binder to?',
+    post: 'Every Holo Folder binder has a share link: anyone can flip through it in their browser, with prices, no account needed.',
+    tags: '#pokemonbinder #pokemoncards #pokemontcg #pokemoncollection #pokemon151 #binder',
+  },
+  {
+    name: 'mcp-claude',
+    hook: "I asked Claude what's missing from my binder.",
+    coldOpen: { mark: 'answer', dur: 2.0 },
+    terminal: true,
+    steps: [
+      { caption: 'Watch. Holo Folder has an MCP server, so Claude can read my collection. Let me ask it.' },
+      {
+        agent:
+          'What am I missing from my Kanto binder, and what should I buy first? Reply in four short lines, no table.',
+        after: 0.5,
+      },
+      { caption: 'It finds my binder, checks every single pocket...' },
+      { caption: 'and pulls the market price for every gap.' },
+      { wait: 2.5 },
+      { mark: 'answer' },
+      { caption: "Every missing card, cheapest first. That's my shopping list sorted." },
+      { wait: 0.8 },
+      { caption: 'It works with Codex and other MCP apps too.' },
+      { caption: "Holo Folder. Link's in the bio." },
+      { wait: 0.8 },
+    ],
+    question: 'What would you ask it?',
+    post: 'Holo Folder has an MCP server, so AI assistants like Claude and Codex can read your binders, want list and prices. Here Claude finds every gap in our Kanto binder and prices them, cheapest first, with read-only access.',
+    tags: '#pokemoncards #pokemontcg #claude #mcp #ai #pokemon151',
   },
   {
     name: 'api-deal-check',

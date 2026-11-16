@@ -10,7 +10,7 @@
 import { chromium } from '@playwright/test';
 import { createWorker } from 'tesseract.js';
 import { execFile, execFileSync, spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -349,6 +349,14 @@ async function perform(
       // AXe takes a second or so to start; it returns once the touch ends, so time the dot from there.
       tl.gestures.push({ kind: 'tap', t: now() - dur, dur, from: [x, y], to: [x, y] });
       await sleep(s.after ?? 1);
+    } else if ('launch' in s) {
+      await axe(udid, ['button', 'home']);
+      await sleep(1.5);
+      await launchApp(udid);
+      await sleep(s.after ?? 1);
+    } else if ('open' in s) {
+      await run(['xcrun', 'simctl', 'openurl', udid, s.open]);
+      await sleep(s.after ?? 1);
     } else if ('again' in s) {
       await tap(udid, ...lastText);
       tl.gestures.push({ kind: 'tap', t: now() - 0.12, dur: 0.12, from: lastText, to: lastText });
@@ -424,27 +432,214 @@ async function record(udid: string, clip: Clip, raw: string, voice: number[]): P
 const TERM_FPS = 30;
 const TYPE_CPS = 32; // characters typed a second
 
+// A read-only MCP token for @demo, through Holo Folder's real OAuth flow: register a public client once, open the
+// authorize URL in a headless browser, sign in as @demo, approve the default (read-only) access and swap the code.
+async function demoMcpToken(): Promise<string> {
+  const MCP = 'https://app.holofolder.com/app/mcp';
+  const meta = (await (
+    await fetch('https://app.holofolder.com/.well-known/oauth-protected-resource/app/mcp')
+  ).json()) as {
+    authorization_servers: string[];
+  };
+  const as = meta.authorization_servers[0];
+  const redirect = 'http://127.0.0.1:8976/callback';
+  const saved = join(OUT, '.mcp-client.json');
+  let client = (JSON.parse(await readFile(saved, 'utf8').catch(() => '{}')) as { client_id?: string }).client_id;
+  if (!client) {
+    const reg = (await (
+      await fetch(`${as}/oauth/clients/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_name: 'Holo Folder demo video',
+          redirect_uris: [redirect],
+          grant_types: ['authorization_code', 'refresh_token'],
+          response_types: ['code'],
+          token_endpoint_auth_method: 'none',
+        }),
+      })
+    ).json()) as { client_id: string };
+    client = reg.client_id;
+    await writeFile(saved, JSON.stringify({ client_id: client }));
+  }
+  const verifier = randomBytes(32).toString('base64url');
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  const authorize = `${as}/oauth/authorize?${new URLSearchParams({
+    client_id: client,
+    redirect_uri: redirect,
+    response_type: 'code',
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    scope: 'openid',
+    resource: MCP,
+    state: randomBytes(8).toString('hex'),
+  })}`;
+  const browser = await chromium.launch();
+  try {
+    const p = await browser.newPage({ viewport: { width: 430, height: 932 } });
+    let code = '';
+    p.on('request', (r) => {
+      if (r.url().startsWith(redirect)) code = new URL(r.url()).searchParams.get('code') ?? '';
+    });
+    await p.goto(authorize).catch(() => {});
+    await p.waitForURL(/oauth\/consent/, { timeout: 30000 });
+    const consent = p.url();
+    // Wait for each page to settle before clicking: a click before hydration does nothing.
+    await p.waitForLoadState('networkidle');
+    await p
+      .getByRole('button', { name: /sign in to holo folder/i })
+      .or(p.getByRole('link', { name: /sign in to holo folder/i }))
+      .first()
+      .click();
+    await p.waitForLoadState('networkidle');
+    await p
+      .getByText(/use a password instead/i)
+      .first()
+      .click();
+    await p.locator('input[type=password]').first().waitFor();
+    await p.getByRole('textbox', { name: /email/i }).first().fill('demo@holofolder.com');
+    await p
+      .locator('input[type=password]')
+      .first()
+      .fill(await demoPassword());
+    await p
+      .getByRole('button', { name: /^sign in$/i })
+      .first()
+      .click();
+    await p.waitForURL((u) => !u.pathname.includes('/auth/'), { timeout: 30000 });
+    await p.goto(consent).catch(() => {}); // sign-in lands on the app, not back on the consent page
+    // First time, approve the default (read-only) access; once approved, the page offers to open the callback here.
+    const approve = p.getByRole('button', { name: /approve access/i });
+    const openHere = p
+      .getByRole('button', { name: /open on this device/i })
+      .or(p.getByRole('link', { name: /open on this device/i }));
+    await approve.or(openHere).first().waitFor();
+    await ((await approve.isVisible()) ? approve : openHere.first()).click();
+    for (let i = 0; i < 40 && !code; i++) await sleep(0.25);
+    if (!code) throw new Error('OAuth approval did not return a code');
+    const token = (await (
+      await fetch(`${as}/oauth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: redirect,
+          client_id: client,
+          code_verifier: verifier,
+        }),
+      })
+    ).json()) as { access_token?: string };
+    if (!token.access_token) throw new Error('OAuth token exchange failed');
+    return token.access_token;
+  } catch (error) {
+    // Leave a screenshot of where the flow stopped, for the next person debugging it.
+    await browser
+      .contexts()[0]
+      ?.pages()[0]
+      ?.screenshot({ path: join(OUT, '.work', 'oauth-failed.png') })
+      .catch(() => {});
+    throw error;
+  } finally {
+    await browser.close();
+  }
+}
+
+type AgentLine = { kind: 'tool' | 'text'; text: string };
+// Runs the real Claude Code CLI on `prompt` with only Holo Folder's MCP server attached, and keeps what it did: each
+// tool call and what it said. Cached by prompt in out/.agent-cache/ so a clip's narration keeps matching its footage;
+// delete the cache file to ask again.
+async function agentRun(prompt: string): Promise<AgentLine[]> {
+  const cache = join(OUT, '.agent-cache', `${createHash('sha1').update(prompt).digest('hex')}.json`);
+  const hit = await readFile(cache, 'utf8').catch(() => null);
+  if (hit) return JSON.parse(hit) as AgentLine[];
+  const dir = join(tmpdir(), `holofolder-agent-${process.pid}`);
+  await mkdir(dir, { recursive: true });
+  const config = join(dir, 'mcp.json');
+  await writeFile(
+    config,
+    JSON.stringify({
+      mcpServers: {
+        holofolder: {
+          type: 'http',
+          url: 'https://app.holofolder.com/app/mcp',
+          headers: { Authorization: `Bearer ${await demoMcpToken()}` },
+        },
+      },
+    }),
+    { mode: 0o600 },
+  );
+  try {
+    const out = execFileSync(
+      'claude',
+      [
+        '-p',
+        prompt,
+        '--mcp-config',
+        config,
+        '--strict-mcp-config',
+        '--allowedTools',
+        'mcp__holofolder',
+        '--output-format',
+        'stream-json',
+        '--verbose',
+      ],
+      { cwd: dir, input: '', maxBuffer: 64 * 1024 * 1024, timeout: 300000 },
+    ).toString();
+    const lines: AgentLine[] = [];
+    for (const raw of out.split('\n')) {
+      const m = (() => {
+        try {
+          return JSON.parse(raw) as {
+            type?: string;
+            message?: { content?: { type: string; name?: string; text?: string }[] };
+          };
+        } catch {
+          return null;
+        }
+      })();
+      if (m?.type !== 'assistant') continue;
+      for (const c of m.message?.content ?? []) {
+        if (c.type === 'tool_use' && c.name?.startsWith('mcp__holofolder__'))
+          lines.push({ kind: 'tool', text: c.name.slice(17) });
+        if (c.type === 'text' && c.text) lines.push({ kind: 'text', text: c.text.replace(/\*\*/g, '').trim() });
+      }
+    }
+    await mkdir(join(OUT, '.agent-cache'), { recursive: true });
+    await writeFile(cache, JSON.stringify(lines, null, 2));
+    return lines;
+  } finally {
+    await rm(dir, { recursive: true, force: true }); // the token never outlives the run
+  }
+}
+
 async function recordTerminal(clip: Clip, raw: string, voice: number[]): Promise<Timeline> {
   const cmds = clip.steps.flatMap((s) => ('cmd' in s ? [s] : []));
-  const outputs = await withDemoKey(async (key) => {
-    const env = { ...process.env, HF: 'https://app.holofolder.com/app/api/v1', HF_KEY: key };
-    const results: string[] = [];
-    for (const c of cmds) {
-      // A brand-new key or a cold API can return nothing for a moment, so give each command a few tries.
-      let out = '';
-      for (let attempt = 0; attempt < 4; attempt++) {
-        out = execFileSync('zsh', ['-c', c.cmd], { env }).toString().trimEnd();
-        if (!c.expect || out.includes(c.expect)) break;
-        await sleep(4);
-      }
-      if (c.expect && !out.includes(c.expect)) throw new Error(`Expected "${c.expect}" from:\n${c.cmd}\ngot:\n${out}`);
-      results.push(out);
-    }
-    return results;
-  });
+  const agents: AgentLine[][] = [];
+  for (const s of clip.steps) if ('agent' in s) agents.push(await agentRun(s.agent));
+  const outputs = !cmds.length
+    ? []
+    : await withDemoKey(async (key) => {
+        const env = { ...process.env, HF: 'https://app.holofolder.com/app/api/v1', HF_KEY: key };
+        const results: string[] = [];
+        for (const c of cmds) {
+          // A brand-new key or a cold API can return nothing for a moment, so give each command a few tries.
+          let out = '';
+          for (let attempt = 0; attempt < 4; attempt++) {
+            out = execFileSync('zsh', ['-c', c.cmd], { env }).toString().trimEnd();
+            if (!c.expect || out.includes(c.expect)) break;
+            await sleep(4);
+          }
+          if (c.expect && !out.includes(c.expect))
+            throw new Error(`Expected "${c.expect}" from:\n${c.cmd}\ngot:\n${out}`);
+          results.push(out);
+        }
+        return results;
+      });
   // Lay the steps out on a clock: a line of voice holds the next line back, as in perform().
   const tl: Timeline = { marks: {}, captions: [], gestures: [], end: 0 };
-  const shown: { cmd: string; out: string; at: number; outAt: number }[] = [];
+  // Each command is typed out, then its output appears, line by line for an agent as it works.
+  const shown: { cmd: string; at: number; outAt: number; out: { html: string; at: number }[] }[] = [];
   let t = 0.5;
   let talkingUntil = 0;
   let line = 0;
@@ -457,7 +652,25 @@ async function recordTerminal(clip: Clip, raw: string, voice: number[]): Promise
     else if ('wait' in s) t += s.wait;
     else if ('cmd' in s) {
       const outAt = t + s.cmd.length / TYPE_CPS + 0.45;
-      shown.push({ cmd: s.cmd, out: outputs[shown.length], at: t, outAt });
+      const out = outputs[shown.filter((x) => !x.cmd.startsWith('claude')).length];
+      shown.push({ cmd: s.cmd, at: t, outAt, out: [{ html: `<div class="o">${escapeHtml(out)}</div>`, at: outAt }] });
+      t = outAt + (s.after ?? 1);
+    } else if ('agent' in s) {
+      const cmd = `claude "${s.agent}"`;
+      const outAt = t + cmd.length / TYPE_CPS + 0.6;
+      let at = outAt;
+      const out: { html: string; at: number }[] = [];
+      for (const l of agents[shown.filter((x) => x.cmd.startsWith('claude')).length]) {
+        if (l.kind === 'tool') {
+          out.push({ html: `<div class="tool">● holofolder · ${escapeHtml(l.text)}</div>`, at });
+          at += 0.9;
+        } else
+          for (const row of l.text.split('\n').filter((r) => !/^\|[-| ]+\|$/.test(r.trim()))) {
+            out.push({ html: `<div class="say">${escapeHtml(row) || '&nbsp;'}</div>`, at });
+            at += 0.14;
+          }
+      }
+      shown.push({ cmd, at: t, outAt, out });
       t = outAt + (s.after ?? 1);
     }
   }
@@ -474,6 +687,7 @@ async function recordTerminal(clip: Clip, raw: string, voice: number[]): Promise
     #bar{height:${60 * PT.scale}px}
     #t{position:absolute;left:48px;right:40px;bottom:${150 * PT.scale}px;white-space:pre-wrap;overflow-wrap:anywhere}
     .p{color:#9d8cff}.o{color:#8fe3b0;margin:12px 0 44px}.c{background:#e8e6f0;color:#101014}
+    .tool{color:#7fd4e0;margin:6px 0}.say{color:#f1effa;font-weight:500}
   </style></head><body><div id="bar"></div><div id="t"></div></body></html>`);
   const ffmpeg = spawn('ffmpeg', [
     '-y',
@@ -503,11 +717,14 @@ async function recordTerminal(clip: Clip, raw: string, voice: number[]): Promise
         if (c.at > now) return [];
         const typed = Math.min(c.cmd.length, Math.floor((now - c.at) * TYPE_CPS));
         const cursor = now < c.outAt && Math.floor(now * 2) % 2 === 0 ? '<span class="c"> </span>' : '';
-        const out = now >= c.outAt ? `<div class="o">${escapeHtml(c.out)}</div>` : '';
+        const out = c.out
+          .filter((o) => o.at <= now)
+          .map((o) => o.html)
+          .join('');
         return [`<div><span class="p">$ </span>${escapeHtml(c.cmd.slice(0, typed))}${cursor}</div>${out}`];
       })
       .join('');
-    const idle = shown.every((c) => now >= c.outAt)
+    const idle = shown.every((c) => now >= (c.out.at(-1)?.at ?? c.outAt))
       ? `<div><span class="p">$ </span>${Math.floor(now * 2) % 2 ? '' : '<span class="c"> </span>'}</div>`
       : '';
     await p.evaluate((h) => (document.getElementById('t')!.innerHTML = h), html + idle);
@@ -556,7 +773,32 @@ const touchHtml = () => {
     <div style="width:${d - 6}px;height:${d - 6}px;margin:3px;border-radius:50%;background:rgba(255,255,255,.38);box-shadow:0 0 0 3px rgba(255,255,255,.75),0 4px 18px rgba(0,0,0,.35)"></div></body></html>`;
 };
 
-const endCardHtml = (icon: string) =>
+// The marketing site's backdrop: deep navy with soft holographic streaks (teal, violet, amber, rose). Rendered
+// larger than the frame so the edit can drift it slowly behind the phone.
+const AURORA = { w: 1440, h: 2560 };
+const auroraHtml = () =>
+  `<!doctype html><html><body style="margin:0;width:${AURORA.w}px;height:${AURORA.h}px;background:#0b0b16;overflow:hidden">
+  <div style="position:absolute;inset:0;filter:blur(90px) saturate(1.15)">
+    ${[
+      ['8%', '6%', 900, 520, '#2f8f95', 0.55, -18],
+      ['46%', '18%', 1000, 420, '#6b4fd6', 0.55, 24],
+      ['-10%', '38%', 1100, 380, '#c8834a', 0.35, -30],
+      ['40%', '55%', 900, 460, '#3a6fb0', 0.5, 15],
+      ['5%', '72%', 1000, 420, '#8a4fc0', 0.45, -12],
+      ['55%', '82%', 800, 360, '#d06a8a', 0.3, 28],
+    ]
+      .map(
+        ([left, top, w, h, c, o, r]) =>
+          `<div style="position:absolute;left:${left};top:${top};width:${w}px;height:${h}px;border-radius:50%;background:${c};opacity:${o};transform:rotate(${r}deg)"></div>`,
+      )
+      .join('')}
+  </div>
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,transparent 30%,rgba(5,5,12,.55) 100%)"></div>
+</body></html>`;
+// The backdrop's slow drift, as an ffmpeg crop of the larger render.
+const AURORA_DRIFT = `crop=${W}:${H}:x='${(AURORA.w - W) / 2}+${(AURORA.w - W) / 2 - 10}*sin(t/7)':y='${(AURORA.h - H) / 2}+${(AURORA.h - H) / 2 - 10}*sin(t/9)'`;
+
+const endCardHtml = (icon: string, aurora: string) =>
   page(
     `<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;text-align:center">
     <img src="${icon}" style="width:230px;height:230px;border-radius:52px">
@@ -565,7 +807,7 @@ const endCardHtml = (icon: string) =>
   </div>
   <div style="position:absolute;left:80px;right:80px;bottom:110px;text-align:center;font-size:27px;line-height:1.4;color:rgba(255,255,255,.55)">
     Not affiliated with The Pokémon Company. Card images © The Pokémon Company, Nintendo, Creatures and GAME FREAK.</div>`,
-    '#0a0a0d',
+    `#0b0b16 url(${aurora}) center/cover`,
   );
 
 function escapeHtml(s: string) {
@@ -581,10 +823,15 @@ async function renderOverlays(dir: string) {
     await p.screenshot({ path: join(dir, file), omitBackground: true });
     if (size) await p.setViewportSize({ width: W, height: H });
   };
+  await p.setViewportSize({ width: AURORA.w, height: AURORA.h });
+  await p.setContent(auroraHtml());
+  await p.screenshot({ path: join(dir, 'aurora.png') });
+  await p.setViewportSize({ width: W, height: H });
   await shot(maskHtml(), 'mask.png');
   await shot(frameHtml(), 'frame.png');
   const icon = `data:image/png;base64,${(await readFile(join(ROOT, 'public/holofolder-icon-1024.png'))).toString('base64')}`;
-  await shot(endCardHtml(icon), 'end.png');
+  const aurora = `data:image/png;base64,${(await readFile(join(dir, 'aurora.png'))).toString('base64')}`;
+  await shot(endCardHtml(icon, aurora), 'end.png');
   const d = Math.round(44 * K);
   await shot(touchHtml(), 'touch.png', { width: d, height: d });
   await browser.close();
@@ -680,9 +927,11 @@ async function composite(
   const coStart = Math.min(tl.marks[co.mark] ?? 0, total - co.dur);
   const d = Math.round(44 * K);
   const inputs = ['-i', raw, '-loop', '1', '-i', join(dir, 'mask.png'), '-loop', '1', '-i', join(dir, 'frame.png')];
+  inputs.push('-loop', '1', '-framerate', '60', '-t', (total + co.dur).toFixed(3), '-i', join(dir, 'aurora.png'));
   const f: string[] = [];
   const cropPx = CROP_PT * PT.scale;
-  f.push(`color=c=0x0a0a0d:s=${W}x${H}:r=60:d=${total.toFixed(3)}[bg]`);
+  f.push(`[3:v]${AURORA_DRIFT},format=rgba,split[bgall][cbgall]`);
+  f.push(`[bgall]trim=start=${co.dur.toFixed(3)}:duration=${total.toFixed(3)},setpts=PTS-STARTPTS[bg]`);
   f.push(`[0:v]fps=60,crop=iw:${cropPx}:0:0,split[raw1][raw2]`);
   f.push(`[raw1]scale=${SCREEN_W}:${SCREEN_H}:flags=lanczos,pad=${W}:${H}:${SCREEN_X}:${TOP}:black,format=rgba[scr]`);
   f.push(`[1:v]format=gray,split[m][mc]`, `[2:v]split[fr][frc]`);
@@ -694,11 +943,11 @@ async function composite(
       `scale=w='trunc(${SCREEN_W}*${push}/2)*2':h='trunc(${SCREEN_H}*${push}/2)*2':eval=frame:flags=lanczos,` +
       `crop=${SCREEN_W}:${SCREEN_H}:x='(in_w-out_w)/2':y='(in_h-out_h)/2',pad=${W}:${H}:${SCREEN_X}:${TOP}:black,format=rgba[cos]`,
   );
-  f.push(`color=c=0x0a0a0d:s=${W}x${H}:r=60:d=${co.dur}[cbg]`, `[cos][mc]alphamerge[cosm]`);
+  f.push(`[cbgall]trim=duration=${co.dur},setpts=PTS-STARTPTS[cbg]`, `[cos][mc]alphamerge[cosm]`);
   f.push(`[cbg][cosm]overlay=0:0[co0]`, `[co0][frc]overlay=0:0[co1]`);
   f.push(`[co1]trim=duration=${co.dur},fps=60,settb=1/60,format=yuv420p,setsar=1[cold]`);
   let last = 'v1';
-  let n = 3;
+  let n = 4;
   tl.gestures.forEach((g, i) => {
     // AXe reports the touch slightly before the frame shows it; the dot leads by a hair, which reads naturally.
     const a = g.t;
@@ -975,10 +1224,38 @@ async function voicePreview(clip: Clip) {
   return out;
 }
 
-// The narration, mastered. No sound effects, and no music unless a track is given: by default the music is added in
-// TikTok or Instagram when posting (a trending sound or the platform's licensed library). To bake one in, put a
-// track you have the rights to at music/<clip>.mp3 or music/default.mp3; it sits under the voice and dips while the
-// narrator talks.
+const BEAT = 60 / 80; // 80 BPM
+
+// The default bed: slow, warm lo-fi made right here, so there is nothing to license. Four soft seventh chords that
+// swell in and drift a little in pitch (tape wow), a gentle kick on 1 and 3, a brushed snare on 2 and 4, quiet
+// swung hats and a little vinyl crackle. It is lowpassed afterwards so it stays in the background.
+function lofiExpr(): string {
+  const chords = [
+    [87.31, 174.61, 220.0, 261.63, 329.63], // Fmaj7
+    [82.41, 164.81, 196.0, 246.94, 293.66], // Em7
+    [73.42, 146.83, 174.61, 220.0, 261.63], // Dm7
+    [65.41, 130.81, 164.81, 196.0, 246.94], // Cmaj7
+  ];
+  const bar = BEAT * 4;
+  const wow = '(1+0.003*sin(2*PI*0.4*t))';
+  const swell = `min(1,mod(t,${bar})/0.6)*(0.55+0.45*exp(-mod(t,${bar})*0.5))`;
+  const pad = chords
+    .map((c, i) => {
+      const notes = c.map((hz, j) => `${j === 0 ? 0.45 : 0.18}*sin(2*PI*${hz}*${wow}*t)`).join('+');
+      return `between(mod(t,${bar * 4}),${bar * i},${bar * (i + 1)})*(${notes})`;
+    })
+    .join('+');
+  const two = BEAT * 2;
+  const kick = `sin(2*PI*(45+55*exp(-mod(t,${two})*30))*mod(t,${two}))*exp(-mod(t,${two})*8)`;
+  const snare = `(random(0)*2-1)*exp(-mod(t+${BEAT},${two})*22)`;
+  const hat = `(random(1)*2-1)*exp(-mod(t+${BEAT * 0.58},${BEAT})*90)`; // swung off-beat
+  const crackle = '(gt(random(2),0.9993))*(random(3)*2-1)';
+  return `0.32*(${pad})*${swell}+0.55*${kick}+0.07*${snare}+0.035*${hat}+0.25*${crackle}`;
+}
+
+// Narration over a music bed, with no sound effects. The bed is the lo-fi above unless a track you have the rights to
+// is at music/<clip>.mp3 or music/default.mp3 (its licence line in music/<clip>.txt goes into the post copy). The
+// music sits well under the voice and dips further while the narrator talks.
 async function buildAudio(clip: Clip, cues: Cue[], length: number, out: string) {
   const track = [join(HERE, 'music', `${clip.name}.mp3`), join(HERE, 'music', 'default.mp3')];
   const music = (await stat(track[0]).catch(() => null))
@@ -995,16 +1272,17 @@ async function buildAudio(clip: Clip, cues: Cue[], length: number, out: string) 
     return `[v${i}]`;
   });
   f.push(`[0:a]${voices.join('')}amix=inputs=${voices.length + 1}:normalize=0:duration=first[vo]`);
-  if (music) {
-    inputs.push('-stream_loop', '-1', '-i', music);
-    const n = cues.length + 1;
-    f.push(`[vo]asplit[vo1][key]`);
-    f.push(
-      `[${n}:a]aresample=48000,atrim=0:${length.toFixed(3)},volume=0.5,afade=t=out:st=${(length - 1.2).toFixed(2)}:d=1.2[bed]`,
-    );
-    f.push(`[bed][key]sidechaincompress=threshold=0.02:ratio=8:attack=15:release=400[ducked]`);
-    f.push(`[ducked][vo1]amix=inputs=2:normalize=0,loudnorm=I=-15:TP=-1.5:LRA=11[out]`);
-  } else f.push(`[vo]loudnorm=I=-15:TP=-1.5:LRA=11[out]`);
+  const n = cues.length + 1;
+  if (music) inputs.push('-stream_loop', '-1', '-i', music);
+  else inputs.push('-f', 'lavfi', '-i', `aevalsrc='${lofiExpr()}':s=48000:d=${length.toFixed(3)}`);
+  const colour = music ? '' : 'lowpass=f=2600,aecho=0.8:0.5:180:0.15,';
+  f.push(`[vo]asplit[vo1][key]`);
+  f.push(
+    `[${n}:a]aresample=48000,${colour}atrim=0:${length.toFixed(3)},volume=${music ? 0.3 : 0.45},` +
+      `afade=t=in:d=0.6,afade=t=out:st=${(length - 1.5).toFixed(2)}:d=1.5[bed]`,
+  );
+  f.push(`[bed][key]sidechaincompress=threshold=0.02:ratio=6:attack=20:release=500[ducked]`);
+  f.push(`[ducked][vo1]amix=inputs=2:normalize=0,loudnorm=I=-15:TP=-1.5:LRA=11[out]`);
   await run([
     'ffmpeg',
     '-y',

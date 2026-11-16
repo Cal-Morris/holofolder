@@ -2,7 +2,7 @@
 
 `record.ts` makes short vertical demo videos (1080x1920, 60 fps, 20 to 40 s) for TikTok and Instagram Reels. It films the real Holo Folder app, installed as a home-screen web app on an iOS Simulator and signed in as the **@demo** account, with real touch input, so scrolling and page flips are native iOS. Posting is a separate, deliberate step (see "Posting").
 
-Each video opens on its payoff under a spoken hook, then walks through how it got there: the narrator says what they are doing and the taps happen as they say it. Captions sit in a band above the phone, a few words at a time, so they never cover the app. There are no sound effects, and no music unless a track is supplied (see "Music"). A short brand sting loops back to the hook.
+Each video opens on its payoff under a spoken hook, then walks through how it got there: the narrator says what they are doing and the taps happen as they say it. Captions sit in a band above the phone, a few words at a time, so they never cover the app. Behind the phone is the marketing site's backdrop (deep navy with soft holographic streaks), drifting slowly. Every video has a quiet lo-fi bed under the voice and no sound effects. A short brand sting loops back to the hook.
 
 ```fish
 bun marketing/video/seed-demo.ts                    # create or refresh @demo (run before filming)
@@ -25,7 +25,7 @@ Every video is one entry in `clips.ts`, and that is the only file to touch for a
 - `coldOpen.mark`: the step marked with `{ mark }` that is shown first, under the hook.
 - `post`, `question`, `tags`: the post copy written to `<clip>.txt`.
 
-Steps: `tap` (points on the 440 x 956 pt screen), `tapText` (tap on-screen words found by OCR, optionally nudged by `offset`), `again` (the last `tapText` spot again, fast), `swipe`, `type`, `keys`, `wait`, `mark`. Prefer `tapText` for anything whose position moves (list rows, menus, the dock right after launch). `setup` steps run off camera before recording, for warming images. Terminal clips (`terminal: true`) use `cmd` steps instead: each command really runs against the API as @demo and its real output is typed out; `expect` must appear in it.
+Steps: `tap` (points on the 440 x 956 pt screen), `tapText` (tap on-screen words found by OCR, optionally nudged by `offset`), `again` (the last `tapText` spot again, fast), `swipe`, `type`, `keys`, `open` (a URL, as tapping a shared link would), `wait`, `mark`. Prefer `tapText` for anything whose position moves (list rows, menus, the dock right after launch). `setup` steps run off camera before recording, for warming images. Terminal clips (`terminal: true`) use `cmd` and `agent` steps instead. A `cmd` really runs against the API as @demo and its real output is typed out; `expect` must appear in it. An `agent` step asks the real Claude Code CLI (`claude -p`), with only Holo Folder's MCP server attached and signed in as @demo through the real OAuth flow with the default read-only access; its tool calls and answer are shown as they happened. The run is cached by prompt in `out/.agent-cache/` so the narration keeps matching; delete the file to ask again. Keep agent narration general ("cheapest first"), not the exact numbers it said.
 
 After changing a script, run `--probe` on that clip to check every step lands, then film it. Changing only the hook, captions' wording or music needs no refilm if the line count is unchanged: `--recomposite`.
 
@@ -39,7 +39,7 @@ The narrator is a York voice: Qwen3-TTS (Apache-2.0), run locally on the Mac thr
 
 ## Music
 
-By default there is none: add a trending sound or one from the platform's licensed library when posting. To bake a track in, put one you have the rights to at `music/<clip>.mp3` (or `music/default.mp3` for every clip) with its licence line in `music/<clip>.txt`; it sits under the voice, dips while the narrator talks, and the licence line goes into `<clip>.txt` for the post. `music/` is gitignored. Kevin MacLeod's tracks on incompetech.com are CC BY 4.0 and work well (credit required).
+Every video gets a slow, quiet lo-fi bed made by ffmpeg (`lofiExpr` in `record.ts`), so there is nothing to license: soft seventh chords, a gentle kick and snare, swung hats and a little vinyl crackle, lowpassed and sitting well under the voice, dipping further while the narrator talks. To use a real track instead, put one you have the rights to at `music/<clip>.mp3` (or `music/default.mp3`) with its licence line in `music/<clip>.txt`; the licence line goes into `<clip>.txt` for the post. `music/` is gitignored.
 
 ## Posting
 
