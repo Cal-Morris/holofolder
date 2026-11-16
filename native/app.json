@@ -9,7 +9,9 @@
     "platforms": ["ios"],
     "ios": {
       "bundleIdentifier": "com.holofolder.app",
+      "appleTeamId": "2CLM237SXL",
       "supportsTablet": true,
+      "associatedDomains": ["applinks:holofolder.com", "webcredentials:holofolder.com"],
       "infoPlist": {
         "WKAppBoundDomains": ["holofolder.com", "app.holofolder.com", "assets.holofolder.com"],
         "NSCameraUsageDescription": "Holo Folder uses the camera to scan your cards.",

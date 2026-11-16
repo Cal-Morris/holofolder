@@ -76,3 +76,8 @@ test('bearer APIs, MCP metadata and docs skip browser session refresh', () => {
   assert.equal(runsProxy('/api/developer/keys'), true);
   assert.equal(runsProxy('/oauth/consent'), true);
 });
+
+test('the Apple app site association file skips browser session refresh', () => {
+  assert.equal(runsProxy('/.well-known/apple-app-site-association'), false);
+  assert.equal(runsProxy('/auth/callback'), true);
+});
