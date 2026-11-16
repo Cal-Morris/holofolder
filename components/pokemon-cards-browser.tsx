@@ -629,9 +629,47 @@ export default function PokemonCardsBrowser({
                 </button>
               )}
             </div>
-            {!readOnly && nativeConsumer?.acquire && detailPocket && (
+            {/* Gated on the device queue, not live editing, so wanting works offline and queues like every binder edit. */}
+            {nativeConsumer?.acquire && (
               <div className="space-y-1">
-                {detailHeld && !detailHeldThis && !detailHeld.grading && (
+                <div className="flex gap-2">
+                  {!readOnly && detailPocket && (
+                    <Button
+                      disabled={Boolean(pendingCardId) || Boolean(detailHeldThis)}
+                      onClick={() =>
+                        void placeNative(
+                          detailCard,
+                          Boolean(detailHeld?.grading) || keepSwapped,
+                          detailPocket.id,
+                          detailFinish,
+                        )
+                      }
+                      className="min-h-10 flex-1 rounded-xl text-sm font-semibold"
+                    >
+                      {detailHeldThis
+                        ? 'In this pocket'
+                        : detailHeld
+                          ? pocketId
+                            ? 'Swap into this pocket'
+                            : 'Swap into its pocket'
+                          : pocketId
+                            ? 'Put in this pocket'
+                            : 'Add to binder'}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    disabled={Boolean(pendingCardId) || (!nativeWantEntry && !nativeCanWant)}
+                    aria-pressed={Boolean(nativeWantEntry)}
+                    aria-label={nativeWantEntry ? 'Remove from want list' : 'Add to want list'}
+                    onClick={() => void toggleNativeWant(detailCard, detailFinish, nativeWantEntry)}
+                    className={`aria-pressed:border-primary/35 aria-pressed:bg-primary/12 aria-pressed:text-primary min-h-10 gap-1.5 rounded-xl px-4 text-sm font-semibold ${!readOnly && detailPocket ? 'shrink-0' : 'flex-1'}`}
+                  >
+                    <Heart className={`size-4 ${nativeWantEntry ? 'fill-current' : ''}`} />
+                    {nativeWantEntry ? 'Wanted' : 'Want'}
+                  </Button>
+                </div>
+                {!readOnly && detailPocket && detailHeld && !detailHeldThis && !detailHeld.grading && (
                   <label className="flex min-h-9 items-center gap-2 text-xs font-medium">
                     <input
                       type="checkbox"
@@ -642,41 +680,6 @@ export default function PokemonCardsBrowser({
                     Keep old card in collection
                   </label>
                 )}
-                <Button
-                  disabled={Boolean(pendingCardId) || Boolean(detailHeldThis)}
-                  onClick={() =>
-                    void placeNative(
-                      detailCard,
-                      Boolean(detailHeld?.grading) || keepSwapped,
-                      detailPocket.id,
-                      detailFinish,
-                    )
-                  }
-                  className="min-h-11 w-full rounded-xl text-sm font-semibold"
-                >
-                  {detailHeldThis
-                    ? 'In this pocket'
-                    : detailHeld
-                      ? pocketId
-                        ? 'Swap into this pocket'
-                        : 'Swap into its pocket'
-                      : pocketId
-                        ? 'Put in this pocket'
-                        : 'Add to binder'}
-                </Button>
-              </div>
-            )}
-            {/* Gated on the device queue, not live editing, so wanting works offline and queues like every binder edit. */}
-            {nativeConsumer?.acquire && (
-              <div className="space-y-1">
-                <button
-                  type="button"
-                  disabled={Boolean(pendingCardId) || (!nativeWantEntry && !nativeCanWant)}
-                  onClick={() => void toggleNativeWant(detailCard, detailFinish, nativeWantEntry)}
-                  className={`min-h-11 w-full rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-50 ${nativeWantEntry ? 'border-destructive/30 text-destructive' : 'border-border/60'}`}
-                >
-                  {nativeWantEntry ? 'Remove from want list' : 'Add to want list'}
-                </button>
                 {!nativeWantEntry && !nativeCanWant && !detailPocket && (
                   <p className="text-muted-foreground text-xs">
                     This binder has no pocket for this card. Open a binder with one to want it.
@@ -1027,7 +1030,8 @@ function NativeTileActions({
           className={`${tileButton} aria-pressed:border-primary/35 aria-pressed:bg-primary/12 aria-pressed:text-primary ${pocket ? '' : 'col-span-2'}`}
         >
           <Heart className={`size-3.5 ${wanted ? 'fill-current' : ''}`} />
-          {wanted ? 'Wanted' : 'Want'}
+          {/* "Wanted" doesn't fit a narrow tile beside Swap; the filled heart, tint and corner mark carry the state. */}
+          Want
         </Button>
       ) : null}
       {pocket ? (
