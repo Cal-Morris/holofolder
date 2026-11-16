@@ -717,10 +717,7 @@ async function recordTerminal(clip: Clip, raw: string, voice: number[]): Promise
         if (c.at > now) return [];
         const typed = Math.min(c.cmd.length, Math.floor((now - c.at) * TYPE_CPS));
         const cursor = now < c.outAt && Math.floor(now * 2) % 2 === 0 ? '<span class="c"> </span>' : '';
-        const out = c.out
-          .filter((o) => o.at <= now)
-          .map((o) => o.html)
-          .join('');
+        const out = c.out.flatMap((o) => (o.at <= now ? [o.html] : [])).join('');
         return [`<div><span class="p">$ </span>${escapeHtml(c.cmd.slice(0, typed))}${cursor}</div>${out}`];
       })
       .join('');
