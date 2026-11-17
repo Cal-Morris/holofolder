@@ -24,7 +24,7 @@ There is no migration runner. The schema is the numbered files `scripts/NNN_*.sq
 7. **Document it** with a row in `scripts/MIGRATIONS.md`.
 8. **Verify.**
    - Run the SQL twice against a scratch database or Supabase branch if you have one.
-   - Run `bun run test`, `bun run typecheck` and `bun run build`.
+   - Run `bun run test`, `bun run lint` and `bun run build`.
 9. **In the PR description**, add a "Deploy note: run `scripts/NNN_….sql` against Supabase" and say whether the app works before it's applied.
 
 ## Performance conventions

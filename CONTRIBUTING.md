@@ -21,7 +21,6 @@ Run the checks relevant to your change. New business logic needs unit tests in `
 
 ```sh
 bun run test
-bun run typecheck
 bun run lint
 ```
 
