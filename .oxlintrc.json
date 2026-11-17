@@ -1,5 +1,9 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "options": {
+    "typeAware": true,
+    "typeCheck": true
+  },
   "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "nextjs", "jsx-a11y", "import"],
   "jsPlugins": ["oxlint-plugin-react-doctor", "eslint-plugin-better-tailwindcss", "./lint/holo-design-plugin.mjs"],
   "categories": {
@@ -290,7 +294,17 @@
     ],
     "holo-design/no-handrolled-overlay": "warn",
     "holo-design/no-role-dialog": "warn",
-    "holo-design/primary-button-uses-holo-action": "warn"
+    "holo-design/primary-button-uses-holo-action": "warn",
+    "typescript/await-thenable": "warn",
+    "typescript/no-base-to-string": "warn",
+    "typescript/no-duplicate-type-constituents": "warn",
+    "typescript/no-floating-promises": "warn",
+    "typescript/no-meaningless-void-operator": "warn",
+    "typescript/no-misused-spread": "warn",
+    "typescript/no-redundant-type-constituents": "warn",
+    "typescript/require-array-sort-compare": "warn",
+    "typescript/restrict-template-expressions": "warn",
+    "typescript/unbound-method": "warn"
   },
   "settings": {
     "react-doctor": {
@@ -329,6 +343,12 @@
       "rules": {
         "better-tailwindcss/no-unknown-classes": "off",
         "better-tailwindcss/no-duplicate-classes": "off"
+      }
+    },
+    {
+      "files": ["tests/**"],
+      "rules": {
+        "typescript/no-floating-promises": "off"
       }
     }
   ]

@@ -18,6 +18,8 @@
     "server-only",
     // Only a JSDoc type reference in postcss.config.mjs.
     "postcss-load-config",
+    // oxlint finds and runs it for options.typeAware and options.typeCheck in .oxlintrc.json, never imported.
+    "tsrs",
   ],
   // System tools: gitleaks for `scan:secrets`, psql for the opt-in local SQL tests.
   "ignoreBinaries": ["gitleaks", "psql"],

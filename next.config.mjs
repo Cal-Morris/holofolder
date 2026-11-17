@@ -63,7 +63,7 @@ const nextConfig = {
     durableUseCacheEntries: true,
   },
   typescript: {
-    // Typecheck CI checks the full repo with bun check before building; keep local builds checked too, except e2e
+    // Typecheck CI checks the full repo with oxlint (tsrs) before building; keep local builds checked too, except e2e
     // builds, which only need to run.
     ignoreBuildErrors: process.env.VERCEL === '1' || Boolean(process.env.CI) || process.env.HOLOFOLDER_E2E === '1',
   },
